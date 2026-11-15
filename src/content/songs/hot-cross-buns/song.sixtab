@@ -1,0 +1,24 @@
+# Hot Cross Buns: the whole tune on string 3 (repertoire plan: hot-cross-buns).
+# Hand in second position: finger 1 on fret 2 (A), finger 3 on fret 4 (B), so nothing stretches.
+# The teacher track strums G, with D under the A notes in bar 3.
+title: Hot Cross Buns
+id: hot-cross-buns
+composer: Traditional English
+source: Street-cry tune and rhyme in print by the late 18th century; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: melody, one string, lyrics, beginner
+tempo: 72
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[Tune]
+| "G" q 3:4{3} 3:2{1} h 3:0 | q 3:4{3} 3:2{1} h 3:0 | e 3:0 3:0 3:0 3:0 "D" 3:2{1} 3:2 3:2 3:2 | "G" q 3:4{3} 3:2{1} h 3:0 ||
+lyrics: Hot cross buns, hot cross buns, one a pen- ny, two a pen- ny, hot cross buns.
+
+track: Teacher
+role: rhythm
+| h / / | / / | q / / / / | h / / ||

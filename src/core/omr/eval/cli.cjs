@@ -6,6 +6,9 @@
  *   node src/core/omr/eval/cli.cjs --tier clean,scan      # some tiers
  *   node src/core/omr/eval/cli.cjs --subset tab --match ode
  *   node src/core/omr/eval/cli.cjs --sample               # the fast subsample the unit tests use
+ *   node src/core/omr/eval/cli.cjs --corpus unseen        # the independent corpus (fixtures-unseen/, scripts/omr-unseen.cjs)
+ *   node src/core/omr/eval/cli.cjs --corpus unseen --tier clean --mistakes [--dump-mistakes]
+ *                                                         # every symbol mistake per page; pictures in e2e/out/omr/mistakes/
  *   node src/core/omr/eval/cli.cjs --dump failures        # annotated PNGs under e2e/out/omr/ (or --dump all)
  *   node src/core/omr/eval/cli.cjs --pages                # one line per page
  *   node src/core/omr/eval/cli.cjs --no-strips            # skip the staff-strip geometry check (faster)
@@ -35,7 +38,8 @@ const flag = (name) => args.includes(name);
     const runner = await load('/src/core/omr/eval/runner.ts');
     const fixtures = await load('/src/core/omr/eval/fixtures.ts');
     const tiers = (opt('--tier') || 'clean,scan,photo-good,photo-bad').split(',');
-    let list = flag('--sample') ? fixtures.defaultSample() : fixtures.loadManifest();
+    const corpus = opt('--corpus') || 'base';
+    let list = flag('--sample') ? fixtures.defaultSample() : fixtures.loadManifest(corpus);
     if (opt('--subset')) list = list.filter((m) => m.subset === opt('--subset'));
     if (opt('--match')) list = list.filter((m) => m.id.includes(opt('--match')));
 
@@ -60,6 +64,26 @@ const flag = (name) => args.includes(name);
     if (!flag('--no-symbols')) {
       if (fs.existsSync(path.join(ROOT, 'src/core/omr/tab/index.ts'))) recognizers.tab = (await load('/src/core/omr/tab/index.ts')).recognizeTabStaff;
       if (fs.existsSync(path.join(ROOT, 'src/core/omr/notation/index.ts'))) recognizers.notation = (await load('/src/core/omr/notation/index.ts')).recognizeNotationStaff;
+    }
+    if (flag('--mistakes')) {
+      const mk = await load('/src/core/omr/eval/mistakes.ts');
+      const dir = path.join(ROOT, 'e2e', 'out', 'omr', 'mistakes');
+      fs.mkdirSync(dir, { recursive: true });
+      const totals = {};
+      for (const tier of tiers) {
+        for (const meta of list) {
+          const r = await runner.runFixture(meta, tier, { recognizers, seed: Number(opt('--seed') || 1) });
+          const ms = mk.listMistakes(r.page, r.truth);
+          for (const m of ms) totals[m.kind] = (totals[m.kind] || 0) + 1;
+          const by = {};
+          for (const m of ms) by[m.kind] = (by[m.kind] || 0) + 1;
+          console.log(`${tier.padEnd(10)} ${meta.id.padEnd(32)} ${ms.length ? Object.entries(by).map(([k, v]) => `${k} ${v}`).join(', ') : 'no mistakes'}`);
+          if (flag('--verbose')) for (const m of ms) console.log(`    ${m.kind.padEnd(12)} x ${m.x.toFixed(0).padStart(5)} y ${m.y.toFixed(0).padStart(5)} ${m.detail}${m.confidence !== undefined ? ` (conf ${m.confidence.toFixed(2)})` : ''}`);
+          if (flag('--dump-mistakes') && ms.length) mk.dumpMistakes(path.join(dir, `${meta.id}.${tier}.png`), r.gray, ms, r.truth.staffSpace);
+        }
+      }
+      console.log('\ntotals:', Object.entries(totals).map(([k, v]) => `${k} ${v}`).join(', '));
+      return;
     }
     const t0 = Date.now();
     const report = await runner.runEvaluation({

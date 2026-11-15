@@ -196,6 +196,8 @@
 
 /* Teaching card: head, title and text, the figure, the tip. Wide: the figure on the right. */
 .card {
+  /* Vertical scrolling stays with the page; a sideways swipe is the card's (to move on). */
+  touch-action: pan-y;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: 'head' 'main' 'figure' 'tip';
@@ -310,6 +312,12 @@
   .primary {
     flex: 1 1 auto;
     min-width: 0;
+  }
+  /* The summary's choices are phrases: one per line, the primary on top. */
+  .barButtonsDone {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--sp-2);
   }
   .barKeys {
     display: none;

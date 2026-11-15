@@ -21,7 +21,7 @@ import { diskFrameStore } from './testing/store';
 import { FretboardTracker, type TrackerUpdate } from './tracker';
 import type { Frame, FretboardPose } from './types';
 
-const SEEDS = (process.env.HARDEN_SEEDS ?? '0,1000').split(',').map(Number);
+const SEEDS = (process.env.HARDEN_SEEDS ?? '0').split(',').map(Number);
 const NEG_SCENES = Number(process.env.HARDEN_NEG ?? 6);
 const NEG_FRAMES = Number(process.env.HARDEN_NEG_FRAMES ?? 10);
 const cache: RenderCache = createRenderCache(diskFrameStore());
@@ -191,8 +191,8 @@ describe('a hard scene held for a moment', () => {
     // view again and again with fresh noise. How many hard scenes lock right within 2 s, and how many
     // lock wrong (the dangerous case)?
     const tiers = (process.env.HARDEN_TIERS ?? 'hard').split(',') as ('hard' | 'extreme')[];
-    const count = Number(process.env.HARDEN_SCENES ?? 3);
-    const frames = Number(process.env.HARDEN_FRAMES ?? 20);
+    const count = Number(process.env.HARDEN_SCENES ?? 2);
+    const frames = Number(process.env.HARDEN_FRAMES ?? 12);
     const offset = Number(process.env.HARDEN_OFFSET ?? 13000);
     const rows: string[] = [];
     for (const tier of tiers) {

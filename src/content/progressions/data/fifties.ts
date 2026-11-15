@@ -77,7 +77,7 @@ export const FIFTIES: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.ballad,
-      tip: 'Follow the moving voice: in C it is Bb (in C7) falling to A (in F), then A falling to Ab (in Fm) and Ab to G (in C).',
+      tip: 'Follow the moving voice: in C it is Bb (in C7) falling to A (in F), then A falling to Ab (in Fm) and Ab to G (in C). Over iv the scale\'s sixth (A in C) clashes with the chord, so play Ab there instead.',
     },
     related: ['borrowed-iv-minor', 'secondary-v-of-iv', 'line-major-down'],
     keys: ['C', 'G', 'D', 'A'],

@@ -52,7 +52,7 @@ export function SoundStatus({ problem }: { problem: SoundProblem }) {
           </Button>
         }
       >
-        The app’s volume is at zero, so the questions would be silent.
+        The app’s sound is turned off, so the questions would be silent.
       </Banner>
     );
   }

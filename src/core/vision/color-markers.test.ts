@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { poseFromTaps } from './calibration';
-import { createBlobScratch, expectMarkers, findColorBlobs, markerHypotheses, readMarkerNumbering, sampleMarkerColor } from './color-markers';
-import { applyHomography, markerHintPlanePoints, poseDistancePx, makePose } from './geometry';
-import type { Frame, FretboardPose, MarkerHint } from './types';
+import { MarkerAnchor, createBlobScratch, expectMarkers, findColorBlobs, markerHypotheses, readMarkerNumbering, sampleMarkerColor } from './color-markers';
+import { applyHomography, markerHintPlanePoints, poseDistancePx, makePose, renumberPose } from './geometry';
+import type { Frame, FretboardPose, MarkerColor, MarkerHint } from './types';
 
 const W = 320;
 const H = 180;
@@ -110,5 +110,44 @@ describe('marker anchors', () => {
     // A blob far from the bass edge (on the hand, the body) is not a marker.
     const stray = { x: exp[0].at.x, y: exp[0].at.y + 6 * exp[0].acrossPx, area: 9, score: 1 };
     expect(readMarkerNumbering(truth.H, truth.model, hint, [stray, null])).toBeNull();
+  });
+});
+
+describe('MarkerAnchor.check', () => {
+  const truth = poseFromTaps({ nut: [{ x: 300, y: 70 }, { x: 301, y: 92 }], fret: [{ x: 110, y: 74 }, { x: 112, y: 103 }] }, W, H) as FretboardPose;
+  const hint: MarkerHint = { frets: [5, 12] };
+  /** A frame with pink tape where the true board has its markers (on `shown` of the two). */
+  const frameFor = (shown: [boolean, boolean]): Frame => {
+    const pts = markerHintPlanePoints(truth.model, hint).map((p) => applyHomography(truth.H, p.x, p.y));
+    return frameWith(pts.filter((_, k) => shown[k]).map((p) => ({ x: p.x, y: p.y, size: 4, rgb: PINK })));
+  };
+  const both = frameFor([true, true]);
+  const pink = sampleMarkerColor(both, markerHintPlanePoints(truth.model, hint).map((p) => applyHomography(truth.H, p.x, p.y))[0]) as MarkerColor;
+  const colored: MarkerHint = { ...hint, colors: [pink] };
+
+  it('confirms right numbers and fixes a guess at once when both markers agree', () => {
+    const a = new MarkerAnchor();
+    const ok = a.check(both, { ...truth, numbering: 'nut', numberingConfidence: 0.7 }, colored);
+    expect(ok.numbering).toBe('markers');
+    expect(ok.numberingConfidence).toBeGreaterThanOrEqual(0.97);
+    const guess = renumberPose({ ...truth, numbering: 'assumed', numberingConfidence: 0.2 }, 2);
+    const fixed = a.check(both, guess, colored);
+    expect(fixed.numbering).toBe('markers');
+    expect(poseDistancePx(fixed, truth)).toBeLessThan(0.1);
+  });
+
+  it('needs two frames to overrule numbers read off the nut, and one marker never decides a guess', () => {
+    const a = new MarkerAnchor();
+    const firm = renumberPose({ ...truth, numbering: 'nut', numberingConfidence: 0.8 }, 1);
+    expect(a.check(both, firm, colored)).toBe(firm);
+    expect(poseDistancePx(a.check(both, firm, colored), truth)).toBeLessThan(0.1);
+    const one = frameFor([true, false]);
+    const b = new MarkerAnchor();
+    const guess = { ...truth, numbering: 'assumed' as const, numberingConfidence: 0.2 };
+    for (let i = 0; i < 5; i++) expect(b.check(one, guess, colored)).toBe(guess);
+    const shifted = renumberPose(guess, 1);
+    for (let i = 0; i < 5; i++) expect(b.check(one, shifted, colored)).toBe(shifted);
+    // ... but it backs up numbers that rest on something.
+    expect(b.check(one, { ...truth, numbering: 'nut', numberingConfidence: 0.7 }, colored).numbering).toBe('markers');
   });
 });

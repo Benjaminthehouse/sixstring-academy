@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Icon, cx } from '@/ui';
 import type { OptionInfo } from '../core/types';
+import { padLayout } from './padLayout';
 import styles from './Ear.module.css';
 
 /** The keys that pick answers 1 to 12. */
@@ -19,24 +20,13 @@ export interface AnswerPadProps {
   disabled?: boolean;
 }
 
-/** Columns for a number of answers: big buttons when there are few, a tidy grid when there are many. */
-function layout(n: number, longest: number): { cols: number; height: string; size: string } {
-  if (longest > 11) return { cols: n > 4 ? 2 : Math.min(2, n), height: n > 4 ? '3.5rem' : '4.5rem', size: 'var(--text-lg)' };
-  if (n <= 2) return { cols: 2, height: '6.5rem', size: 'var(--text-2xl)' };
-  if (n === 3) return { cols: 3, height: '5.5rem', size: 'var(--text-xl)' };
-  if (n === 4) return { cols: 2, height: '4.75rem', size: 'var(--text-xl)' };
-  if (n <= 6) return { cols: 3, height: '4.25rem', size: 'var(--text-xl)' };
-  if (n <= 9) return { cols: 3, height: '3.75rem', size: 'var(--text-lg)' };
-  return { cols: 3, height: '3.5rem', size: 'var(--text-lg)' };
-}
-
 /** The answer buttons: thumb-sized, numbered for the keyboard, marked right and wrong after an answer. */
 export function AnswerPad({ options, onAnswer, result, aids, playing, disabled }: AnswerPadProps) {
-  const longest = Math.max(...options.map((o) => o.label.length));
-  const { cols, height, size } = layout(options.length, longest);
-  const style = { '--cols': cols, '--answer-h': height, '--answer-size': size } as CSSProperties;
+  const { cols, colsWide, minCol, height, size } = padLayout(options);
+  // Geometry only: the columns wanted and the narrowest column, below which the CSS uses fewer.
+  const style = { '--cols': cols, '--cols-wide': colsWide, '--min-col': `${minCol}rem`, '--answer-h': `${height}rem` } as CSSProperties;
   return (
-    <div className={styles.pad} style={style} role="group" aria-label="Answers" data-ear-pad data-cols={cols}>
+    <div className={styles.pad} style={style} role="group" aria-label="Answers" data-ear-pad data-cols={cols} data-size={size}>
       {options.map((o, i) => {
         const right = result && o.id === result.answer;
         const wrong = result && o.id === result.chosen && result.chosen !== result.answer;

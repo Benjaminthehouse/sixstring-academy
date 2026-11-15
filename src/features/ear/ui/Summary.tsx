@@ -115,13 +115,16 @@ export function Summary({ drill, round, outcome, next, onAgain }: SummaryProps) 
                 </li>
               ))}
             </ul>
+          ) : misses.length ? (
+            <Text tone="muted">Nothing you mix up again and again yet. The next rounds bring back what you missed, so you hear it once more.</Text>
           ) : (
             <Text tone="muted">No confusions in this round. The next rounds will keep mixing in what you find hardest.</Text>
           )}
         </section>
       </div>
 
-      <ActionBar start={<LinkButton to="ear" params={[drill.id]} variant="ghost" iconLeft="ChevronLeft">{drill.title}</LinkButton>}>
+      {/* The way back to the drill is the page's own back link: on a phone this bar keeps to one row. */}
+      <ActionBar>
         {passed && next && nextLabel ? (
           <>
             <Button iconLeft="RotateCcw" onClick={onAgain}>

@@ -1,0 +1,21 @@
+# Fingerstyle: p i m a m i in 3/4 (repertoire plan: st-pimami-3-4). An original study in the
+# manner of the 19th-century guitar methods. Thumb (p) on the bass: string 5 for Am, 4 for Dm,
+# 6 for E; i, m and a on strings 3, 2 and 1. Bars 9-16: the thumb and a pluck together on
+# beat 1 (a pinch), and the a note is the tune: E F G# E, then G F E.
+title: Fingerstyle: p i m a m i in 3/4
+id: st-pimami-3-4
+composer: Sixstring Academy
+source: Original study for the right hand, in the classical style
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: classical, fingerstyle, arpeggios, waltz time
+tempo: 66
+time: 3/4
+key: A minor
+
+[Arpeggios]
+| "Am" e 5:0{P} 3:2{I} 2:1{M} 1:0{A} 2:1{M} 3:2{I} | "Dm" 4:0{P} 3:2{I} 2:3{M} 1:1{A} 2:3{M} 3:2{I} | "E" 6:0 3:1 2:0 1:0 2:0 3:1 | "Am" 5:0 3:2 2:1 1:0 2:1 3:2 |
+| "Am" 5:0 3:2 2:1 1:0 2:1 3:2 | "Dm" 4:0 3:2 2:3 1:1 2:3 3:2 | "E" 6:0 3:1 2:0 1:0 2:0 3:1 | "Am" 5:0 3:2 2:1 1:0 2:1 3:2 |
+[Melody on top]
+| "Am" (5:0{P} 1:0{A}) 3:2{I} 2:1{M} 1:0{A} 2:1{M} 3:2{I} | "Dm" (4:0 1:1) 3:2 2:3 1:1 2:3 3:2 | "E" (6:0 1:4) 3:1 2:0 1:4 2:0 3:1 | "Am" (5:0 1:0) 3:2 2:1 1:0 2:1 3:2 |
+| "Am7" (5:0 1:3) 3:2 2:1 1:3 2:1 3:2 | "Dm" (4:0 1:1) 3:2 2:3 1:1 2:3 3:2 | "E" (6:0 1:0) 3:1 2:0 1:0 2:0 3:1 | "Am" h. (5:0 4:2 3:2 2:1 1:0) ||

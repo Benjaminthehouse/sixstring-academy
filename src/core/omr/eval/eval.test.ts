@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resizeGray } from '../image/gray';
-import { analyzePage, assemblePage, extractStaff, recognizePage } from '../page';
+import { analyzePage, assemblePage, extractStaff } from '../page';
+import { recognizePage } from '../pipeline';
 import type { OmrNotationEvent, OmrPage, OmrTabEvent, StaffReading } from '../types';
 import { isNotationEvent, isTabEvent, midiAtFret, pitchAtStaffPosition } from '../types';
 import { TIERS, degrade, hashString } from './degrade';

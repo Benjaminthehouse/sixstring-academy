@@ -665,7 +665,7 @@
                   "Beats are evenly spaced in time, like the tick of a clock.",
                   "A metronome is a device or app that clicks a steady beat."
                 ],
-                "onTheGuitar": "Lay your fretting hand flat across all six strings around fret 5, without pressing, so they are muted, and strum once on every click at 60 BPM. Figure: rhythm line of four evenly spaced beats; audio click.",
+                "onTheGuitar": "Lay your fretting hand flat across all six strings around frets 1 to 3, without pressing, so they are muted (a light touch right over fret 5, 7 or 12 would ring a harmonic instead), and strum once on every click at 60 BPM. Figure: rhythm line of four evenly spaced beats; audio click.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -697,7 +697,7 @@
                   "Tempo is measured in beats per minute (BPM): at 60 BPM there is one beat every second.",
                   "At 120 BPM the beats come twice as fast as at 60 BPM."
                 ],
-                "onTheGuitar": "Strum the six muted strings (fretting hand resting flat around fret 5) on every click at 60, then 90, then 120 BPM; then pick open string 6 on every click. Figure: metronome with its BPM dial; audio at each tempo.",
+                "onTheGuitar": "Strum the six muted strings (fretting hand resting flat around frets 1 to 3) on every click at 60, then 90, then 120 BPM; then pick open string 6 on every click. Figure: metronome with its BPM dial; audio at each tempo.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -1634,7 +1634,7 @@
                   },
                   {
                     "type": "chord-build",
-                    "idea": "Place open C (x32010) and name the note under each finger (C, E, C)."
+                    "idea": "C major is shown with its root C and fifth G: pick the missing chord tone (E, the third)."
                   }
                 ],
                 "generators": [
@@ -1975,7 +1975,7 @@
                   "Sixteenth notes have two flags, or two beams when grouped.",
                   "In sixteenth-note strumming the hand goes down on the numbers and \"&\"s and up on the \"e\"s and \"a\"s."
                 ],
-                "onTheGuitar": "Strum the muted strings (fretting hand resting flat across them around fret 5) on every sixteenth note at 60 BPM, down on 1 and &, up on e and a; then the same on Em (022000). Figure: rhythm line of one beat of sixteenths with counts and arrows; audio.",
+                "onTheGuitar": "Strum the muted strings (fretting hand resting flat across them around frets 1 to 3) on every sixteenth note at 60 BPM, down on 1 and &, up on e and a; then the same on Em (022000). Figure: rhythm line of one beat of sixteenths with counts and arrows; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -2008,7 +2008,7 @@
                   "The last upstroke before a change may hit the open strings, which buys your fretting hand time to move.",
                   "In a slash chart each beat gets a mark: the chord symbol on the beat where the chord starts and a slash (/) on each beat after it, as in \"| Em / / / |\"."
                 ],
-                "onTheGuitar": "Play Em (022000) for one bar and Am (x02210) for one bar with the pattern down, down-up, up, down-up, changing on beat 1: the second finger moves from string 5 to string 4 and the first finger joins on string 2 fret 1. Figure: chord chart \"| Em / / / | Am / / / |\" with chord boxes; audio at 70 BPM.",
+                "onTheGuitar": "Play Em (022000) for one bar and Am (x02210) for one bar with the pattern down, down-up, up, down-up, changing on beat 1: fingers 2 and 3 move over one string (from strings 5 and 4 to strings 4 and 3) and finger 1 joins on string 2 fret 1. Figure: chord chart \"| Em / / / | Am / / / |\" with chord boxes; audio at 70 BPM.",
                 "exercises": [
                   {
                     "type": "play-chord",
@@ -2040,7 +2040,7 @@
                   "A muted strum, written as an x note head, is a percussive \"chick\" made by strumming while the fretting hand rests lightly on the strings.",
                   "Stressing beats 2 and 4 is called the backbeat, the feel behind much pop and rock."
                 ],
-                "onTheGuitar": "Strum E (022100): down on 1, a muted strum on 2 (relax the fretting hand so the strings stop sounding), down-up on 3, a muted strum on 4. Figure: rhythm line with x note heads on beats 2 and 4 and accent marks; audio.",
+                "onTheGuitar": "Strum E (022100): down on 1, a muted strum on 2 (lay the fretting fingers flat across all six strings, so the open strings are silenced too), down-up on 3, a muted strum on 4; start at 60 BPM, because the hand leaves and re-forms the chord each time. Figure: rhythm line with x note heads on beats 2 and 4 and accent marks; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -3348,7 +3348,7 @@
                   "Flats are written in the order B E A D G C F, the order of sharps reversed.",
                   "F major has 1 flat, Bb 2, Eb 3, Ab 4, Db 5, Gb 6 and Cb 7."
                 ],
-                "onTheGuitar": "Figure: staff with the signatures of F, Bb, Eb and Ab major; on the neck, their tonics at fret 1 of strings 6, 5, 4 and 3 (F, Bb, Eb, Ab), each a fourth above the last, which is a fifth below in the other direction.",
+                "onTheGuitar": "Figure: staff with the signatures of F, Bb, Eb and Ab major; on the neck, their tonics at fret 1 of strings 6, 5, 4 and 3 (F, Bb, Eb, Ab), each a fourth higher than the last, which gives the same note name as a fifth lower.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -3692,7 +3692,7 @@
                   "Around box 1 at fret 5, the added B notes are at string 6 fret 7, string 3 fret 4 and string 1 fret 7.",
                   "The added F notes are at string 5 fret 8 and string 2 fret 6."
                 ],
-                "onTheGuitar": "Fifth position means the first finger at fret 5, one finger per fret. Figure: box 1 of A minor pentatonic in plain dots with the added B and F notes in a second colour, frets 4 to 8; tab ascending; audio.",
+                "onTheGuitar": "Fifth position means the first finger at fret 5, one finger per fret, with a stretch back to fret 4 for the B on string 3. Figure: box 1 of A minor pentatonic in plain dots with the added B and F notes in a second colour, frets 4 to 8; tab ascending; audio.",
                 "exercises": [
                   {
                     "type": "fretboard-find",
@@ -5307,7 +5307,7 @@
                   "A crescendo (cresc. or an opening wedge) means gradually louder; a diminuendo (dim. or a closing wedge) means gradually softer.",
                   "A dot above or below a note (staccato) means short and detached; a short line (tenuto) means hold it its full length."
                 ],
-                "onTheGuitar": "Figure: an original four-bar phrase on strings 1 and 2 (frets 0 to 3) on the staff, marked p, crescendo, f, with staccato notes (stop the string with the fretting finger) and tenuto notes; audio played as marked.",
+                "onTheGuitar": "Figure: an original four-bar phrase on strings 1 and 2 (frets 0 to 3) on the staff, marked p, crescendo, f, with staccato notes (cut each one short by easing the fretting finger off, or by touching an open string) and tenuto notes; audio played as marked.",
                 "exercises": [
                   {
                     "type": "order",
@@ -9394,7 +9394,7 @@
                   "intervals-2/compound-intervals"
                 ],
                 "facts": [
-                  "A vibrating string sounds its fundamental plus overtones at 2, 3, 4, 5 and more times its frequency: the harmonic series.",
+                  "A vibrating string sounds its fundamental (the main pitch you hear) plus overtones at 2, 3, 4, 5 and more times its frequency: the harmonic series.",
                   "Above the fundamental come the octave (2), the octave and a fifth (3), two octaves (4) and two octaves and a major third (5).",
                   "The balance of these harmonics is a large part of an instrument's timbre."
                 ],
@@ -9488,7 +9488,7 @@
                   "Equal temperament divides the octave into twelve equal half steps of 100 cents each.",
                   "A pure (just) fifth, ratio 3:2, is about 2 cents wider than the equal-tempered fifth; a pure major third, ratio 5:4, is about 14 cents narrower.",
                   "Fretted instruments use equal temperament because the frets fix the same half steps in every key.",
-                  "That is why tuning by matching the harmonics at frets 5 and 7 leaves each string about 2 cents flat or sharp: the fret-7 harmonic gives a pure fifth, not a tempered one."
+                  "That is why tuning by matching the harmonics at frets 5 and 7 leaves each string about 2 cents off: it tunes neighbouring strings a pure fourth apart (ratio 4:3), not a tempered one."
                 ],
                 "onTheGuitar": "Figure: a cents ruler for one octave with the equal-tempered and pure fifth and major third marked; on the neck, the fifth A2-E3 (open string 5 with string 4 fret 2) and the major third E3-G#3 (string 4 fret 2 with string 3 fret 1); audio comparing a pure and a tempered major third.",
                 "exercises": [

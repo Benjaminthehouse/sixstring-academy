@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultGrouping, resolveMeter, type TransportClock } from '@/core/audio';
 import { COMMON_METERS, METER_CHOICES, beatNoteWords, groupingWords, meterChoice, meterKey, meterLabel, meterOf, normalizeMeterKey, parseMeterKey, tempoBeatNote, tempoForRegrouping } from './meters';
-import { MetronomeSession, practiceSeconds, timerRemaining, type SessionClick } from './session';
+import { MetronomeSession, practiceSeconds, practiceToCredit, timerRemaining, type SessionClick } from './session';
 import {
   BUILT_IN_PRESETS,
   DEFAULT_SETTINGS,
@@ -300,6 +300,25 @@ describe('practice helpers', () => {
     expect(timerRemaining(0, 100)).toBeNull();
     expect(timerRemaining(5, 100)).toBe(200);
     expect(timerRemaining(1, 100)).toBe(0);
+  });
+
+  it('credits a visit in parts (timer done, page hidden, leaving) without counting a second twice', () => {
+    // Review fix: practice used to be reported only on leaving, so a finished session timer showed
+    // no progress and a phone that never came back from the background lost the whole visit.
+    let credited = 0;
+    const report = (visitSec: number) => {
+      const sec = practiceToCredit(visitSec, credited);
+      if (sec !== null) credited = visitSec;
+      return sec;
+    };
+    expect(report(45)).toBeNull(); // hidden after 45 s: too short, nothing yet
+    expect(report(130)).toBe(130); // a 2-minute timer finishes
+    expect(report(150)).toBeNull(); // hidden 20 s later: only 20 s are new
+    expect(report(215)).toBe(85); // leaving: the 85 s since the last report
+    expect(report(215)).toBeNull(); // pagehide right after: nothing left
+    expect(credited).toBe(215);
+    expect(practiceToCredit(100, -5)).toBe(100);
+    expect(practiceToCredit(Number.NaN, 0)).toBeNull();
   });
 });
 

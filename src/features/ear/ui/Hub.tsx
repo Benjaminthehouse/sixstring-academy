@@ -19,9 +19,10 @@ export function Hub() {
     const statuses = levelStatuses(d, skills);
     const current = currentLevel(d, skills);
     const passed = statuses.filter((s) => s.passed).length;
-    const played = statuses.filter((s) => s.attempts > 0);
-    const best = played.length ? played[played.length - 1] : null;
-    return { drill: d, current, passed, best, done: passed === d.levels.length, started: played.length > 0 };
+    // The best shown is that of the highest level with a finished round (a left round has no score).
+    const finished = statuses.filter((s) => s.completions > 0);
+    const best = finished.length ? finished[finished.length - 1] : null;
+    return { drill: d, current, passed, best, done: passed === d.levels.length, started: statuses.some((s) => s.attempts > 0) };
   });
   const passedTotal = rungs.reduce((n, r) => n + r.passed, 0);
   const fresh = passedTotal === 0 && !rungs.some((r) => r.started);
@@ -126,7 +127,7 @@ export function Hub() {
                             <span>Best {Math.round(r.best.best * 100)}%</span>
                           </>
                         ) : (
-                          <span>Not tried</span>
+                          <span>{r.started ? 'Started' : 'Not tried'}</span>
                         )}
                       </span>
                     </a>

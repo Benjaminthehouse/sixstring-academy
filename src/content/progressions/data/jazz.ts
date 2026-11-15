@@ -38,11 +38,11 @@ export const JAZZ: readonly ProgressionSpec[] = [
     level: 6,
     feel: feel('jazz-swing', 100, 200),
     altFeels: [feel('bossa', 110, 140)],
-    why: 'The same cadence twice as fast: ii7 and V7 share one bar, so the dominant arrives on beat 3 and resolves on the next downbeat. Most standards use this two-bar shape, and hearing it quickly is what keeps you from getting lost in a tune.',
+    why: 'The same cadence twice as fast: ii7 and V7 share one bar, so the dominant arrives on beat 3 and resolves on the next downbeat. Countless standards use this two-bar shape, and hearing it quickly is what keeps you from getting lost in a tune.',
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'Play only two notes per chord at first, the third and the seventh: they move by step through the whole cadence.',
+      tip: 'Play only two notes per chord at first, the third and the seventh: at each change one of them falls a half step and the other stays put.',
     },
     related: ['jazz-ii-v-i', 'jazz-i-vi-ii-v'],
     keys: MAJOR_KEYS,
@@ -93,7 +93,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'Over VI7 play its third (C# in C) and resolve it up to the root of ii7.',
+      tip: 'Over VI7 play its third (C# in C, where the key\'s scale has C) and resolve it up to the root of ii7.',
     },
     related: ['jazz-i-vi-ii-v', 'jazz-tritone-turnaround', 'secondary-ragtime'],
     keys: MAJOR_KEYS,
@@ -127,7 +127,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.swing,
-      tip: 'Find the guide tones: the seventh of each dominant falls a half step to the third of the next. One line of half steps runs through the whole chain.',
+      tip: 'Find the guide tones: the seventh of each dominant falls a half step to the third of the next. One line of half steps runs through the whole chain. The key\'s scales miss the raised thirds of VI7 and II7 (C# and F# in C), so play those notes there.',
     },
     related: ['secondary-ragtime', 'jazz-rhythm-bridge', 'jazz-iii-vi-ii-v'],
     keys: MAJOR_KEYS,
@@ -145,7 +145,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.swing,
-      tip: 'Start with the major pentatonic of the key alone: it fits most of the A section, and the few places it rubs show you where the chord tones matter.',
+      tip: 'Start with the major pentatonic of the key alone: it fits most of the A section, and the places it rubs (VI7, IV7 and #iv°7) show you where the chord tones matter.',
     },
     related: ['jazz-rhythm-changes', 'jazz-rhythm-bridge', 'jazz-i-vi7-ii-v'],
     keys: ['Bb', 'F', 'C', 'G'],
@@ -180,7 +180,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.swing,
-      tip: 'Learn the A section and the bridge as separate loops first, then string them together; keep count of which A you are in.',
+      tip: 'Learn the A section and the bridge as separate loops first, then string them together; keep count of which A you are in. The pentatonic covers most of the A sections (not VI7, IV7 or #iv°7); on the bridge play Mixolydian from each dominant\'s root.',
     },
     related: ['jazz-rhythm-a', 'jazz-rhythm-bridge'],
     keys: ['Bb', 'F', 'C', 'G'],
@@ -191,7 +191,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
       { label: 'A', bars: 8 },
     ],
     heardIn: [
-      { title: 'I Got Rhythm', by: 'George Gershwin' },
+      { title: 'I Got Rhythm', by: 'George Gershwin', note: 'Gershwin\'s last A adds a two-bar tag that jazz players usually drop' },
       { title: 'Oleo', by: 'Sonny Rollins' },
       { title: 'Anthropology', by: 'Charlie Parker and Dizzy Gillespie' },
     ],
@@ -246,7 +246,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'Hear it against the plain turnaround: play I–VI7–ii–V7 four times, then this version, and listen to the bass.',
+      tip: 'Hear it against the plain turnaround: play I–VI7–ii–V7 four times, then this version, and listen to the bass. The key\'s scales clash with bIII7 and bII7: over each, play Lydian dominant on its own root or just its chord tones.',
     },
     related: ['jazz-i-vi7-ii-v', 'jazz-tritone-sub', 'jazz-dameron'],
     keys: MAJOR_KEYS,
@@ -269,7 +269,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     },
     related: ['jazz-tritone-turnaround', 'jazz-i-vi7-ii-v'],
     keys: MAJOR_KEYS,
-    heardIn: [{ title: 'Lady Bird', by: 'Tadd Dameron', note: 'its last two bars' }],
+    heardIn: [{ title: 'Lady Bird', by: 'Tadd Dameron', note: 'its last two bars, often played with dominant sevenths on bIII and bII' }],
   },
   {
     id: 'jazz-chromatic-ii-v',
@@ -283,7 +283,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'Play one short phrase over the first pair and repeat it a half step lower over each of the next pairs.',
+      tip: 'Play one short phrase over the first pair and repeat it a half step lower over each of the next pairs. The key\'s scales fit only iii7 and the final ii–V–I, so let the moving phrase, not the scale, carry you through VI7 and the ii–V of bII.',
     },
     related: ['blues-bird', 'jazz-iii-vi-ii-v', 'blues-stormy'],
     keys: MAJOR_KEYS,
@@ -301,7 +301,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'A diminished seventh shape repeats every three frets: move it to wherever the next chord\'s root is a half step above one of its notes.',
+      tip: 'A diminished seventh shape repeats every three frets: move it to wherever the next chord\'s root is a half step above one of its notes. The key\'s scale clashes with #i°7 (C# and Bb in C), so play its chord tones there.',
     },
     related: ['jazz-i-vi-ii-v', 'gospel-251-passing', 'secondary-leading-tone'],
     keys: MAJOR_KEYS,
@@ -337,7 +337,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('b6', 'major-pentatonic')],
       strum: STRUM.swing,
-      tip: 'Learn it against the plain version: four bars of ii7–V7–Imaj7, then this, so you hear where the detour leaves and rejoins.',
+      tip: 'Learn it against the plain version: four bars of ii7–V7–Imaj7, then this, so you hear where the detour leaves and rejoins. For soloing, play the major pentatonic of each key centre (bVI, then III, then I) over its major seventh chord and rest on the dominants.',
     },
     related: ['jazz-coltrane-cycle', 'jazz-ii-v-i', 'jazz-tune-up'],
     keys: ['D', 'C', 'F', 'G'],
@@ -370,11 +370,11 @@ export const JAZZ: readonly ProgressionSpec[] = [
     level: 6,
     feel: feel('jazz-swing', 100, 180),
     altFeels: [feel('bossa', 110, 140), feel('ballad', 56, 80)],
-    why: 'Every root falls a fifth (from bVI to ii by a diminished fifth, which keeps the cycle inside the key): the first four chords are a ii–V–I into the relative major, the last four a ii–V–i into the minor home. Swinging between two keys that share one key signature is the essence of many minor standards.',
+    why: 'Every root falls a fifth (from bVI to ii by a diminished fifth, which keeps the cycle inside the key): iv7–bVII7–bIIImaj7 is a ii–V–I in the relative major, and iiø7–V7b9–i6 a ii–V–i in the minor home. Swinging between two keys that share one key signature is the essence of many minor standards.',
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.swing,
-      tip: 'Natural minor fits the first five chords; switch to harmonic minor for V7b9 and resolve its raised seventh up to the home note.',
+      tip: 'Natural minor fits the first five chords; switch to harmonic minor for V7b9 and resolve its raised seventh up to the home note. Over i6 raise the sixth too (melodic minor), because the chord contains it.',
     },
     related: ['jazz-circle-minor', 'classical-circle-minor', 'jazz-minor-ii-v-i'],
     keys: ['G', 'E', 'A', 'D'],
@@ -393,7 +393,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.swing,
-      tip: 'Play the guide tones: the seventh of each chord falls a step to the third of the next, all the way round.',
+      tip: 'Play the guide tones: the seventh of each chord falls a step to the third of the next, all the way round. Natural minor fits every chord but V7; switch to harmonic minor there.',
     },
     related: ['jazz-autumn', 'classical-circle-minor', 'classical-circle-sevenths'],
     keys: ['A', 'E', 'D', 'G'],
@@ -429,7 +429,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('3', 'harmonic-minor')],
       strum: STRUM.swing,
-      tip: 'Hear the first pair as a minor ii–V into iii: harmonic minor on the third degree fits #ivø7 and VII7.',
+      tip: 'Hear the first pair as a minor ii–V into iii: harmonic minor on the third degree fits #ivø7 and VII7. Over VI7 play its third (C# in C, where the key\'s scale has C).',
     },
     related: ['jazz-iii-vi-ii-v', 'jazz-dominant-chain', 'classical-circle-sevenths'],
     keys: MAJOR_KEYS,
@@ -483,7 +483,7 @@ export const JAZZ: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'dorian'), sc('1', 'minor-pentatonic')],
       strum: STRUM.vamp,
-      tip: 'Build ideas from Dorian\'s natural sixth (B in D Dorian): it is the note that makes the mode sound like itself. On the bridge move every idea up one fret.',
+      tip: 'Build ideas from Dorian\'s natural sixth (B in D Dorian): it is the note that makes the mode sound like itself. Over bii7 on the bridge the whole mode moves up a half step (Eb Dorian in D), so move every idea up one fret.',
     },
     related: ['dorian-i-iv', 'funk-one-chord-minor', 'jazz-sus-vamp'],
     keys: ['D', 'E', 'A', 'G'],

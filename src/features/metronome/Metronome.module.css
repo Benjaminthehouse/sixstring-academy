@@ -81,6 +81,9 @@
 }
 
 /* ---- settings tiles (phones) ---- */
+.tilesBox {
+  container-type: inline-size;
+}
 .tiles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -148,6 +151,26 @@
   font-size: var(--text-xs);
   line-height: 1.25;
 }
+/* A 360 px phone: a little less padding and type, so "Subdivision" fits its tile. */
+@container (max-width: 21rem) {
+  .tile {
+    padding-inline: 2px;
+  }
+  .tileLabel,
+  .tileValue {
+    font-size: 0.6875rem;
+  }
+}
+/* Large text (or a very narrow window): two by two, so the labels can be read. */
+@container (max-width: 18rem) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tileLabel,
+  .tileValue {
+    font-size: var(--text-xs);
+  }
+}
 
 /* ---- the dial ---- */
 .dialArea {
@@ -161,7 +184,24 @@
   width: min(100cqw, 100cqh, 28rem);
 }
 
-/* ---- slower, tap, faster ---- */
+/* ---- the thumb zone: slower, tap, faster and Start ---- */
+.controls {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+/* Measures the shell's tab bar (--sticky-bottom), so toasts can be kept above these controls. */
+.navProbe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: var(--sticky-bottom, 0px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .tempoRow {
   display: grid;
   grid-template-columns: 1fr 1.3fr 1fr;
@@ -283,17 +323,18 @@
 .sideways .stage {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  grid-template-rows: auto auto auto auto 1fr auto auto;
+  grid-template-rows: auto auto auto auto 1fr auto;
   grid-template-areas:
     'dial meter'
     'dial flags'
     'dial beats'
     'dial tiles'
     'dial .'
-    'dial tempo'
-    'dial start';
+    'dial controls';
   column-gap: var(--sp-5);
   row-gap: var(--sp-2);
+  /* Shorter beat pads: a phone on its side has about 360 px of height for all of this. */
+  --beat-pad-h: 3rem;
 }
 .sideways .meterRow {
   grid-area: meter;
@@ -304,18 +345,15 @@
 .sideways .beats {
   grid-area: beats;
 }
-.sideways .tiles {
+.sideways .tilesBox {
   grid-area: tiles;
 }
 .sideways .dialArea {
   grid-area: dial;
   min-height: 0;
 }
-.sideways .tempoRow {
-  grid-area: tempo;
-}
-.sideways .startRow {
-  grid-area: start;
+.sideways .controls {
+  grid-area: controls;
 }
 .sideways .tile {
   flex-direction: row;
@@ -335,7 +373,25 @@
   min-height: var(--tap);
 }
 .sideways .start {
-  min-height: 3rem;
+  min-height: var(--tap);
+}
+
+/* ============ one column on a short screen (a phone with the browser's bars showing) ============ */
+@media (max-height: 740px) {
+  .layout:not(.twoPane):not(.sideways) .stage {
+    gap: var(--sp-2);
+    --beat-pad-h: 3.5rem;
+  }
+  .layout:not(.twoPane):not(.sideways) .tile {
+    min-height: var(--tap);
+    justify-content: center;
+  }
+  .layout:not(.twoPane):not(.sideways) .tileIcon {
+    display: none;
+  }
+  .layout:not(.twoPane):not(.sideways) .dialArea {
+    min-height: 8rem;
+  }
 }
 
 /* ================= two panes ================= */

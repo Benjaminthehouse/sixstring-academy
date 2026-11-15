@@ -165,6 +165,14 @@ describe('progress', () => {
     expect(currentLevel(drill, jumped)).toBe(6);
   });
 
+  it('a round left early is an attempt but no record: no "best 0 %" before a round is finished (found in review)', () => {
+    const left: SkillMap = { [levelSkillId('intervals-up', 1)]: { attempts: 1, completions: 0, bestAccuracy: 0, stars: 0 } };
+    const [first] = levelStatuses(drill, left);
+    expect(first).toMatchObject({ attempts: 1, completions: 0, passed: false, unlocked: true });
+    const finished: SkillMap = { [levelSkillId('intervals-up', 1)]: { attempts: 2, completions: 1, bestAccuracy: 0.7, stars: 1 } };
+    expect(levelStatuses(drill, finished)[0]).toMatchObject({ completions: 1, best: 0.7 });
+  });
+
   it('continue follows the course and skips what is passed', () => {
     expect(continueStep({})).toMatchObject({ drill: 'pitch', level: 1, done: false });
     const skills: Record<string, { bestAccuracy: number }> = { [levelSkillId('pitch', 1)]: { bestAccuracy: 1 } };

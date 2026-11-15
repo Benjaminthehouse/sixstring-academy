@@ -258,7 +258,8 @@ describe('theory path: claims agree with the engines', () => {
     // Tuning string 5 by harmonics: string 6 at fret 5 (4 x E2) against string 5 at fret 7 (3 x A2).
     const e2 = tuningFrequencies('standard')[0];
     expect(Math.round(1200 * Math.log2(110 / ((4 * e2) / 3)))).toBe(2);
-    says('tuning-and-physics/equal-temperament', 'about 2 cents flat or sharp');
+    says('tuning-and-physics/equal-temperament', 'about 2 cents off: it tunes neighbouring strings a pure fourth apart (ratio 4:3)');
+    expect(1200 * Math.log2(4 / 3)).toBeCloseTo(498.04, 2);
   });
 
   it('places notes on the neck as stated', () => {

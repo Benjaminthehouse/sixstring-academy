@@ -87,6 +87,9 @@ export interface PipelineStats {
   detectMs: number;
   /** Median of frame timestamp -> answer on the main thread, ms. */
   latencyMs: number;
+  /** Median and maximum main-thread time the pipeline itself takes per video frame (grab and send; not your `onRender`), ms. */
+  mainThreadMs: number;
+  mainThreadMaxMs: number;
   /** Working frame size and the adaptive settings in force. */
   workingWidth: number;
   workingHeight: number;
@@ -229,6 +232,7 @@ export class VisionPipeline {
   private readonly processedTimes = new Ring(256);
   private readonly workerTimes = new Ring(128);
   private readonly latencies = new Ring(128);
+  private readonly mainTimes = new Ring(128);
 
   /** Create a pipeline (nothing starts until `start`). */
   constructor(options: PipelineOptions = {}) {
@@ -354,6 +358,7 @@ export class VisionPipeline {
     this.processedTimes.clear();
     this.workerTimes.clear();
     this.latencies.clear();
+    this.mainTimes.clear();
     this.setMode('idle');
   }
 
@@ -379,9 +384,10 @@ export class VisionPipeline {
     return this.command({ type: 'shift-numbering', delta });
   }
 
-  /** Change tracker options (orientation or guitar changes restart the search). */
+  /** Change tracker options (orientation or guitar changes restart the search). Before `start` they are kept for it. */
   setOptions(changes: Partial<VisionOptions>): Promise<boolean> {
     this.trackerOptions = { ...this.trackerOptions, ...changes };
+    if (!this.ready) return Promise.resolve(true);
     return this.command({ type: 'options', options: changes });
   }
 
@@ -432,6 +438,8 @@ export class VisionPipeline {
       trackMs: medians.track,
       detectMs: medians.detect,
       latencyMs: quantile(this.latencies.recent(), 0.5),
+      mainThreadMs: quantile(this.mainTimes.recent(), 0.5),
+      mainThreadMaxMs: Math.max(0, ...this.mainTimes.recent()),
       workingWidth: this.lastSize.width,
       workingHeight: this.lastSize.height,
       quality: this.quality.settings,
@@ -693,10 +701,12 @@ export class VisionPipeline {
   private offeredAt = -Infinity;
 
   private onFrame(frameTime: number): void {
+    const t0 = now();
     this.offeredAt = frameTime;
     this.counters.offered++;
-    this.offeredTimes.push(1, now());
+    this.offeredTimes.push(1, t0);
     this.maybeSend(frameTime);
+    this.mainTimes.push(now() - t0, t0);
     const render = this.options.onRender;
     if (render) render({ timeMs: frameTime, pose: this.poseAt(frameTime), latest: this.latestUpdate });
   }

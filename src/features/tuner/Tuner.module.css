@@ -223,6 +223,14 @@
   justify-content: space-between;
   gap: var(--sp-3);
 }
+/* A long name of the learner's own wraps; the Change button keeps its word. */
+.tuningCardHead > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tuningCardHead > :last-child {
+  flex-shrink: 0;
+}
 .kicker {
   margin: 0;
   font-size: var(--text-xs);

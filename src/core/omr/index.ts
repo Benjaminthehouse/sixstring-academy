@@ -28,4 +28,5 @@ export { type SystemGroup, contentBox, groupSystems, staffConnection } from './s
 export { type RemovalOptions, type RemovalResult, removeStaffLines } from './staff/removal';
 export { type LayoutOptions, type LayoutResult, detectLayout } from './staff/layout';
 
-export { type AnalyzeOptions, type ExtractOptions, type PageAnalysis, type RecognizePageOptions, DEFAULT_STRIP_SPACE, analyzePage, assemblePage, extractStaff, recognizePage, staffId } from './page';
+export { type AnalyzeOptions, type ExtractOptions, type PageAnalysis, DEFAULT_STRIP_SPACE, analyzePage, assemblePage, extractStaff, staffId } from './page';
+export { type OmrContext, type OmrDocument, type OmrImageInput, type OmrMeasureRef, type OmrProgress, type RecognizePageOptions, OmrCancelledError, isCancelled, joinPages, measuresAt, readAnalyzedPage, recognizeDocument, recognizePage, toGray } from './pipeline';

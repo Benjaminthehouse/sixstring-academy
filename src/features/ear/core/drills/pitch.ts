@@ -78,7 +78,8 @@ export const pitchDrill: DrillDef = {
   prompt: 'Is the second note higher or lower?',
   path: { start: 0, pace: 3 },
   levels: [
-    twoNotes(1, 'Same or different', 'Two notes, or one note twice', ['same', 'different'], 5, 12, 'Did you hear the same note twice, or two different notes?'),
+    // Never an octave here: C and the C above it share a name and blend, so a beginner fairly hears "the same".
+    twoNotes(1, 'Same or different', 'Two notes, or one note twice', ['same', 'different'], 5, 11, 'Did you hear the same note twice, or two different notes?'),
     twoNotes(2, 'Big jumps', 'Higher or lower, far apart', ['higher', 'lower'], 7, 12, 'Is the second note higher or lower?'),
     twoNotes(3, 'Smaller steps', 'Higher or lower, a few frets apart', ['higher', 'lower'], 3, 6, 'Is the second note higher or lower?'),
     twoNotes(4, 'Next-door notes', 'Higher or lower, one or two frets apart', ['higher', 'lower'], 1, 2, 'Is the second note higher or lower?'),

@@ -599,7 +599,7 @@ async function runOnce(fixture, g, runNo) {
       memory: { pageUsedMB: growth('page', 'usedSize'), workerUsedMB: growth('worker', 'usedSize'), workerBackingMB: growth('worker', 'backingStorageSize'), base: mem0, end: mem1, trail: trail.map((t) => ({ page: t.page?.usedSize, worker: t.worker?.usedSize, backing: t.worker?.backingStorageSize })) },
     };
     console.log(`  A: locked after ${f1(sA.firstLockMs)} ms; ${sA.correct}/${sA.locked} locked frames correct (mean cell accuracy ${(sA.meanCells * 100).toFixed(1)}%), states ${JSON.stringify(sA.states)}`);
-    console.log(`     ${f1(fpsA)} frames/s processed (video ${f1(statsA.offeredFps)} fps; dropped ${statsA.framesDropped}, skipped ${statsA.framesSkipped}); worker per frame: track median ${f1(sA.timing.trackMedian)} ms (p95 ${f1(sA.timing.trackP95)}), detect median ${f1(sA.timing.detectMedian)} ms (p95 ${f1(sA.timing.detectP95)}), bitmap read-back ${f1(sA.timing.readMedian)} ms; latency ${f1(sA.timing.latencyMedian)} ms; working widths ${sA.timing.widths.join(', ')}`);
+    console.log(`     ${f1(fpsA)} frames/s processed (video ${f1(statsA.offeredFps)} fps; dropped ${statsA.framesDropped}, skipped ${statsA.framesSkipped}); worker per frame: track median ${f1(sA.timing.trackMedian)} ms (p95 ${f1(sA.timing.trackP95)}), detect median ${f1(sA.timing.detectMedian)} ms (p95 ${f1(sA.timing.detectP95)}), bitmap read-back ${f1(sA.timing.readMedian)} ms; latency ${f1(sA.timing.latencyMedian)} ms; working widths ${sA.timing.widths.join(', ')}; main thread per video frame ${statsA.mainThreadMs.toFixed(2)} ms median (max ${f1(statsA.mainThreadMaxMs)})`);
     console.log(`     drawn pose vs the frame on screen (${sA.extrapolation.frames} moving frames, 1280x720 px): ${f1(sA.extrapolation.predictedPx)} px (p90 ${f1(sA.extrapolation.predictedP90)}) extrapolated, ${f1(sA.extrapolation.rawPx)} px (p90 ${f1(sA.extrapolation.rawP90)}) as answered; each answer on its own frame ${f1(sA.extrapolation.ownFramePx)} px (p90 ${f1(sA.extrapolation.ownFrameP90)})`);
     console.log(`     memory after GC, ${((A_MS - Math.min(4000, A_MS / 3)) / 1000).toFixed(0)} s apart: page heap ${growth('page', 'usedSize').toFixed(2)} MB, worker heap ${growth('worker', 'usedSize').toFixed(2)} MB, worker array buffers ${growth('worker', 'backingStorageSize').toFixed(2)} MB`);
     if (sA.wrongFrames.length) console.log(`     wrong frames: ${JSON.stringify(sA.wrongFrames.slice(0, 8))}`);
@@ -634,7 +634,7 @@ async function runOnce(fixture, g, runNo) {
     const sD = score(g, truth, logD);
     const fpsD = logD.stats.processedFps;
     report.D = { mode: d.mode, locked: sD.locked, correct: sD.correct, fps: fpsD, lockMs: sD.firstLockMs, trackMedian: sD.timing.trackMedian };
-    console.log(`  D: mode ${d.mode}, locked after ${f1(sD.firstLockMs)} ms, ${sD.correct}/${sD.locked} correct, ${f1(fpsD)} frames/s, track median ${f1(sD.timing.trackMedian)} ms`);
+    console.log(`  D: mode ${d.mode}, locked after ${f1(sD.firstLockMs)} ms, ${sD.correct}/${sD.locked} correct, ${f1(fpsD)} frames/s, track median ${f1(sD.timing.trackMedian)} ms, frame grab on the main thread ${logD.stats.mainThreadMs.toFixed(2)} ms median`);
     check(d.mode === 'main' && sD.locked > 10 && sD.correct >= 0.95 * sD.locked, 'D: the main-thread fallback runs, locks and tracks right');
 
     report.E = { churn, workersAfterChurn };

@@ -6,8 +6,10 @@ import { EMPTY_KEYPAD, inputKind, keypadBackspace, keypadKey, keypadValue, noteA
 import { cardLayout, digitFor, exerciseLayout, positionOfKey } from './layout';
 import { moveFocus, nextPhase, pathLayout, swing } from './path';
 import { canPlaySlow, stretchPlan, SLOW_FACTOR } from './sound';
-import { formatDuration, formatPercent, nextLabel, summaryHeadline, summaryStats } from './summary';
+import { formatDuration, formatPercent, nextLabel, summaryHeadline, summaryStats, teacherLine } from './summary';
 import { countAt, tapPlan, tapsFromBeatOne } from './tap';
+import { heardNothing } from './play';
+import { GLYPH_WIDTH, glyphPath, ledgerLines, positionAtY, staffPositionName } from './staff';
 import type { SessionReport } from '../../effects';
 
 const fb = (exercise: Exercise, answer = wrongAnswers(exercise)[0] ?? solve(exercise), extra: Partial<SessionFeedback> = {}): SessionFeedback => ({
@@ -255,5 +257,61 @@ describe('summary', () => {
 
   it('knows the demo course', () => {
     expect(DEMO_COURSE.units.length).toBe(2);
+  });
+});
+
+describe('teacher lines', () => {
+  it('speak in the teacher\'s voice and stay quiet for the Theory Path', () => {
+    expect(teacherLine('mia', 'completed', false)).toMatch(/hands and ears/);
+    expect(teacherLine('elena', 'completed', true)).toMatch(/Flawless/);
+    expect(teacherLine('dev', 'out-of-hearts', false)).toBeTruthy();
+    expect(teacherLine('none', 'completed', false)).toBeNull();
+  });
+});
+
+describe('play', () => {
+  it('treats silence as "nothing heard", never as a wrong answer', () => {
+    expect(heardNothing({ type: 'play-note', midi: null })).toBe(true);
+    expect(heardNothing({ type: 'play-note', midi: 40 })).toBe(false);
+    expect(heardNothing({ type: 'play-phrase', played: [] })).toBe(true);
+    expect(heardNothing({ type: 'play-chord', matched: false, score: 0, missing: [], extra: [] })).toBe(true);
+    expect(heardNothing({ type: 'play-chord', matched: false, score: 0.3, missing: [4], extra: [] })).toBe(false);
+  });
+});
+
+describe('staff', () => {
+  it('names positions in plain words', () => {
+    expect(staffPositionName(0)).toBe('bottom line');
+    expect(staffPositionName(1)).toBe('1st space');
+    expect(staffPositionName(4)).toBe('3rd line');
+    expect(staffPositionName(8)).toBe('top line');
+    expect(staffPositionName(9)).toBe('space above the staff');
+    expect(staffPositionName(10)).toBe('1st ledger line above');
+    expect(staffPositionName(-2)).toBe('1st ledger line below');
+    expect(staffPositionName(-3)).toBe('below ledger line 1');
+  });
+
+  it('draws ledger lines only outside the staff', () => {
+    expect(ledgerLines(4)).toEqual([]);
+    expect(ledgerLines(-1)).toEqual([]);
+    expect(ledgerLines(-4)).toEqual([-2, -4]);
+    expect(ledgerLines(11)).toEqual([10]);
+  });
+
+  it('turns a tap into the nearest position, within the range', () => {
+    // top = 14, max position 17, a step of 7 units: position 4 sits at 14 + 13 * 7 = 105.
+    expect(positionAtY(105, 14, 17, 7, [-9, 17])).toBe(4);
+    expect(positionAtY(108, 14, 17, 7, [-9, 17])).toBe(4);
+    expect(positionAtY(-50, 14, 17, 7, [-9, 17])).toBe(17);
+  });
+
+  it('turns glyph outlines into SVG paths at the right size', () => {
+    const d = glyphPath('wholeNote', 100, 50, 14);
+    expect(d.startsWith('M')).toBe(true);
+    expect(d).toContain('C');
+    expect(d.trim().endsWith('Z')).toBe(true);
+    // The whole note is about 1.7 staff spaces wide.
+    const xs = [...d.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(GLYPH_WIDTH.wholeNote * 14, 0);
   });
 });

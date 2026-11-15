@@ -1,0 +1,45 @@
+# Frere Jacques, strum along (repertoire plan: frere-jacques).
+# Your part: a one-finger G (finger 3 on string 1, fret 3; strum strings 4 to 1), four even
+# downstrums in every bar. The teacher sings or plays the tune; the second time it is a round and
+# a second voice comes in two bars later. One chord fits the whole round.
+title: Frère Jacques (strum along)
+id: frere-jacques
+composer: Traditional French
+source: French round of the 18th century; French words; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: strumming, first chord, round, lyrics, beginner
+tempo: 88
+time: 4/4
+key: G
+
+track: Your strum
+role: rhythm
+[Tune]
+strum: DDDD
+| "G=xx0003" q D D D D | D D D D | D D D D | D D D D |
+| D D D D | D D D D | D D D D | D D D D ||
+[Round]
+| D D D D | D D D D | D D D D | D D D D | D D D D |
+| D D D D | D D D D | D D D D | D D D D | w D ||
+
+track: Teacher
+role: lead
+| q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 | 2:0 2:1 h 2:3 | q 2:0 2:1 h 2:3 |
+lyrics: Frè- re Jac- ques, frè- re Jac- ques, dor- mez- vous? Dor- mez- vous?
+| e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 ||
+lyrics: Son- nez les ma- ti- nes, son- nez les ma- ti- nes, ding, dang, dong, ding, dang, dong.
+| q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 | 2:0 2:1 h 2:3 | q 2:0 2:1 h 2:3 |
+lyrics: Frè- re Jac- ques, frè- re Jac- ques, dor- mez- vous? Dor- mez- vous?
+| e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 |
+lyrics: Son- nez les ma- ti- nes, son- nez les ma- ti- nes, ding, dang, dong, ding, dang, dong.
+| w r | w r ||
+
+track: Second voice
+role: lead
+| w r | w r | w r | w r | w r | w r | w r | w r ||
+| w r | w r | q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 | 2:0 2:1 h 2:3 |
+lyrics: Frè- re Jac- ques, frè- re Jac- ques, dor- mez- vous?
+| q 2:0 2:1 h 2:3 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 ||
+lyrics: Dor- mez- vous? Son- nez les ma- ti- nes, son- nez les ma- ti- nes, ding, dang, dong, ding, dang, dong.

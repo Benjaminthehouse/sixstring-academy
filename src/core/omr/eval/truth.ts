@@ -211,6 +211,8 @@ export interface FixtureMeta {
   measures: number;
   tags: string[];
   bytes: number;
+  /** Corpus directory the entry belongs to (absent = the original corpus in fixtures/). */
+  corpus?: string;
 }
 
 /** Number of points each staff-line polyline is sampled at when a fixture is loaded. */

@@ -51,7 +51,7 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor-pentatonic'), sc('1', 'mixolydian')],
       strum: STRUM.funk,
-      tip: 'Guide tones: in E, E7\'s third and seventh (G# and D) each move a half step to A7\'s seventh and third (G and C#). Play just those two notes through the whole groove.',
+      tip: 'Guide tones: in E, E7\'s third and seventh (G# and D) each move a half step to A7\'s seventh and third (G and C#). Play just those two notes through the whole groove. The key\'s Mixolydian fits I7 only; over IV7 stay with the minor pentatonic.',
     },
     related: ['funk-one-chord-dominant', 'blues-12-bar'],
     keys: ['E', 'A', 'D', 'G'],
@@ -84,7 +84,7 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'mixolydian'), sc('1', 'minor-pentatonic')],
       strum: STRUM.funk,
-      tip: 'Play the ninth-chord shape on the fifth string one fret low for the second half of bar 4, then slide it up into bar 1.',
+      tip: 'Play the ninth-chord shape on the fifth string one fret low for the second half of bar 4, then slide it up into bar 1. Neither scale fits VII9 itself: rest or play rhythm through the slide.',
     },
     related: ['funk-one-chord-dominant', 'funk-i7-iv7'],
     keys: ['E', 'A', 'D', 'G'],
@@ -132,11 +132,11 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     level: 5,
     feel: feel('ballad', 62, 88),
     altFeels: [feel('funk', 80, 100)],
-    why: 'Diatonic seventh chords step down from IV to I in parallel, every voice moving by a step, so one hand shape simply slides down the scale. The music reaches home through ii7 without any V, a soft landing typical of R&B and soul ballads.',
+    why: 'Diatonic seventh chords step down from IV to I in parallel, every voice moving by a step, so the whole chord glides down the scale. The music reaches home through ii7 without any V, a soft landing typical of R&B and soul ballads.',
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.ballad,
-      tip: 'Use one seventh-chord shape on the fifth string and slide it down the neck, following the key\'s notes.',
+      tip: 'Root every chord on the fifth string (F, E, D, C in C) and move down the neck a step at a time: the major-seventh shape for IV and I, the minor-seventh shape for iii and ii.',
     },
     related: ['soul-imaj7-ivmaj7', 'gospel-iv-over-v', 'pop-royal-road'],
     keys: ['C', 'G', 'D', 'F'],
@@ -174,7 +174,7 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major-blues')],
       strum: STRUM.gospel,
-      tip: 'In C the bass is C, E, F, F#, G, A, D, G: play it alone on the low strings until you can sing it.',
+      tip: 'In C the bass is C, E, F, F#, G, A, D, G: play it alone on the low strings until you can sing it. Over #iv°7 and VI7 the scales give way to the chords: play their own notes (F# and C# in C).',
     },
     related: ['country-walk-up', 'secondary-leading-tone', 'gospel-251-passing'],
     keys: ['C', 'G', 'F', 'D'],
@@ -206,7 +206,7 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     level: 6,
     feel: feel('ballad-68', 50, 72),
     altFeels: [feel('ballad', 58, 84)],
-    why: 'Starting on the half-diminished vii, the roots fall by fifths through every step of the key back to I (7, 3, 6, 2, 5, 1), with III7, the dominant of vi, adding a leading tone into vi7. Gospel and soul musicians name it by those bass numbers, the 7-3-6, and use it to steer a song home.',
+    why: 'Starting on the half-diminished vii, the roots fall by fifths through six of the key\'s seven degrees back to I (7, 3, 6, 2, 5, 1), with III7, the dominant of vi, adding a leading tone into vi7. Gospel and soul musicians name it by those bass numbers, the 7-3-6, and use it to steer a song home.',
     tryThis: {
       scales: [sc('1', 'major'), sc('6', 'harmonic-minor')],
       strum: STRUM.gospel,
@@ -246,7 +246,7 @@ export const FUNK_SOUL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.gospel,
-      tip: 'In C the bass is D, D#, E, A, D, G, C: a half step up, a half step up, then falling fifths.',
+      tip: 'In C the bass is D, D#, E, A, D, G, C: a half step up, a half step up, then falling fifths. The key\'s scale clashes with #ii°7 and VI7, so play their chord tones as you pass through.',
     },
     related: ['jazz-dim-passing', 'gospel-walk-up', 'gospel-736'],
     keys: ['C', 'G', 'F', 'D'],

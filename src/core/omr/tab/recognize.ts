@@ -18,7 +18,7 @@ import {
 import { type Box, type GlyphPatch, type LineProfile, classifyPatch, extractPatch, lineInBox, refineBox } from './glyph';
 import { type TabMark, applyMarks, findArcs, findBends, findSlides } from './marks';
 import { type Glyph, type ReaderContext, type TabNumber, assembleLine, facePenalties, isDigitLabel, lineThroughEvidence, profileFor, readCluster, struckKey, struckReference } from './numbers';
-import { type LineBlob, type StripGeometry, barlineSolidity, columnProfile, digitMetrics, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, nearBarline, profileValleys, tightBox } from './segment';
+import { type LineBlob, type StackCut, type StripGeometry, applyStackCuts, barlineSolidity, columnProfile, digitMetrics, findLineBlobs, findStackCuts, findWeldedBlobs, groupAdjacent, groupColumns, nearBarline, profileValleys, tightBox } from './segment';
 import { type RestReading, findRests, readTimeSignature } from './header';
 import { type MeasureEvent, type ReadDuration, type Stem, assignDurations, findStems } from './rhythm';
 import { BLUR_LEVELS, TEMPLATE_FACE_LIST, struckTemplates, templatesAtBlur } from './templates';
@@ -59,6 +59,9 @@ export interface TabDebug {
   measureTicks: number | null;
   /** Tuning the notes' pitches were worked out with (low to high). */
   tuning: readonly number[];
+  /** Cuts made between stacked numbers that touched (see `findStackCuts`), and the rests found. */
+  stackCuts: StackCut[];
+  rests: { box: Box; confidence: number }[];
   /** Time spent, ms: total and per stage. */
   ms: number;
   timings: Record<string, number>;
@@ -97,7 +100,9 @@ function findClef(cc: Components, dy: number, input: StaffInput): Box | null {
     const cx = (cc.x0[c] + cc.x1[c] + 1) / 2;
     const cy = (cc.y0[c] + cc.y1[c] + 1) / 2 + dy;
     if (cx - input.x0 > 4.2 * sp || cx < input.x0) continue;
-    if (h < 1.05 * sp || h > 2.6 * sp || w < 0.5 * sp || w > 2.6 * sp) continue;
+    // Letters smaller than a space are accepted only at the very start of the staff, where a
+    // chord of numbers never stands.
+    if (h < (cx - input.x0 <= 2.6 * sp ? 0.8 : 1.05) * sp || h > 2.6 * sp || w < 0.5 * sp || w > 2.6 * sp) continue;
     if (cy < top - 0.3 * sp || cy > bottom + 0.3 * sp) continue;
     if (nearBarline(input, cc.x0[c], cc.x1[c] + 1, 0) && w < 0.6 * sp) continue;
     letters.push({ x0: cc.x0[c], y0: cc.y0[c] + dy, x1: cc.x1[c] + 1, y1: cc.y1[c] + 1 + dy });
@@ -338,8 +343,8 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   // Components of the staff band, with and without the lines.
   const bandY = Math.max(0, Math.floor(input.lineYs[0] - 1.7 * sp));
   const bandH = Math.min(input.gray.height, Math.ceil(input.lineYs[n - 1] + 1.1 * sp)) - bandY;
-  const ccFree = labelComponents(cropBinary(input.noLines, 0, bandY, input.noLines.width, bandH));
-  const ccFull = labelComponents(cropBinary(input.binary, 0, bandY, input.binary.width, bandH));
+  let ccFree = labelComponents(cropBinary(input.noLines, 0, bandY, input.noLines.width, bandH));
+  let ccFull = labelComponents(cropBinary(input.binary, 0, bandY, input.binary.width, bandH));
   timings.components = now() - t0;
   const clefBox = findClef(ccFree, bandY, input);
   const clefEnd = clefBox ? clefBox.x1 : 0;
@@ -355,6 +360,19 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   const timeSig = readTimeSignature(input.noLines, ccFree, bandY, barred, clefEnd, templatesAtBlur(1));
   const headerEnd = Math.max(clefEnd, timeSig ? timeSig.box.x1 : 0);
 
+  // Numbers of a chord that touch one another (large digits, knock-outs that meet) are cut apart
+  // first; a confident rest is left whole.
+  const rests0 = findRests(input.noLines, ccFree, bandY, barred, headerEnd + 0.2 * sp, templatesAtBlur(1));
+  const blobs0 = findLineBlobs(ccFree, input, ccFull, bandY).filter((b) => b.box.x0 >= headerEnd + 0.15 * sp);
+  const freeDigits = blobs0.filter((b) => Math.abs(b.offset) <= 0.2 && b.box.y1 - b.box.y0 >= 0.5 * sp && b.box.y1 - b.box.y0 <= 1.25 * sp);
+  // (The first space of a staff holds its clef, found or not: the letters of a TAB clef that blur
+  // joined are never a chord.)
+  const cuts = findStackCuts(ccFree, bandY, barred, input.gray, (xa, xb) => xa < headerEnd + 0.15 * sp || xa < input.x0 + 1.2 * sp || xb > input.x1 - 0.4 * sp || nearBarline(barred, xa, xb, 0) || rests0.some((r) => r.confidence >= 0.6 && xb > r.box.x0 && xa < r.box.x1), freeDigits.length >= 3 ? digitMetrics(blobs0, barred).height : undefined);
+  const src = cuts.length ? { ...input, noLines: applyStackCuts(input.noLines, cuts), binary: applyStackCuts(input.binary, cuts) } : input;
+  if (cuts.length) {
+    ccFree = labelComponents(cropBinary(src.noLines, 0, bandY, src.noLines.width, bandH));
+    ccFull = labelComponents(cropBinary(src.binary, 0, bandY, src.binary.width, bandH));
+  }
   let blobs = findLineBlobs(ccFree, input, ccFull, bandY);
   blobs = blobs.filter((b) => {
     if (b.box.x0 < headerEnd + 0.15 * sp) return false;
@@ -371,15 +389,44 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   });
   const metrics = digitMetrics(blobs, barred);
   const digitHeight = metrics.height;
+  // A piece on the top or bottom line that reaches out of the staff further than a number centred
+  // on that line could, hardly reaches into it, and is only a thin stroke where it meets the line
+  // is a stem (with its flag) hanging from the line (some engravers attach the rhythm stems to the
+  // outer line), not a 1. A number with its own stem below it is wide at the line.
+  const thinAtLine = (b: LineBlob, ly: number): boolean => {
+    const band = Math.max(1, input.lineThickness);
+    let widest = 0;
+    for (let y = Math.max(b.box.y0, Math.round(ly - 0.45 * digitHeight)); y < Math.min(b.box.y1, Math.round(ly + 0.3 * digitHeight)); y++) {
+      if (Math.abs(y + 0.5 - ly) <= band) continue;
+      let a = -1;
+      let z = -1;
+      for (let x = b.box.x0; x < b.box.x1; x++) {
+        if (!src.noLines.data[y * src.noLines.width + x]) continue;
+        if (a < 0) a = x;
+        z = x;
+      }
+      if (a >= 0) widest = Math.max(widest, z - a + 1);
+    }
+    return widest <= 0.3 * digitHeight;
+  };
+  // (The 1 of a "10" with its stem attached has the 0 right beside it.)
+  const besideDigit = (b: LineBlob): boolean => blobs.some((o) => o !== b && o.line === b.line && o.box.x0 < b.box.x1 + 0.36 * digitHeight && o.box.x1 > b.box.x0 - 0.36 * digitHeight);
+  blobs = blobs.filter((b) => {
+    if (b.line !== 0 && b.line !== n - 1) return true;
+    const ly = input.lineYs[b.line];
+    const out = b.line === 0 ? ly - b.box.y0 : b.box.y1 - ly;
+    const inward = b.line === 0 ? b.box.y1 - ly : ly - b.box.y0;
+    return !(out > 0.8 * digitHeight && inward < 0.4 * digitHeight && thinAtLine(b, ly) && !besideDigit(b));
+  });
   // Numbers welded to their neighbours in a chord, or to an arc or stem, come as one oversized component: cut them out again.
-  let rests = findRests(input.noLines, ccFree, bandY, barred, headerEnd + 0.2 * sp, templatesAtBlur(1));
+  let rests = cuts.length ? findRests(src.noLines, ccFree, bandY, barred, headerEnd + 0.2 * sp, templatesAtBlur(1)) : rests0;
   // A shape that is clearly a rest is not searched for numbers; a doubtful one is, and loses if numbers are found in it.
   const inRest = (xa: number, xb: number): boolean => rests.some((r) => r.confidence >= 0.6 && xb > r.box.x0 && xa < r.box.x1);
   const welded = findWeldedBlobs(ccFree, bandY, input, input.gray, digitHeight, metrics.centreOffset, (xa, xb) => xa < headerEnd + 0.15 * sp || xa < input.x0 + 0.4 * sp || xb > input.x1 - 0.4 * sp || nearBarline(barred, xa, xb, 0) || inRest(xa, xb));
   if (welded.length) blobs = blobs.concat(welded);
   const base: Omit<ReaderContext, 'templates' | 'blurLevel'> = {
     gray: input.gray,
-    noLines: input.noLines,
+    noLines: src.noLines,
     lineYs: input.lineYs,
     space: sp,
     lineThickness: input.lineThickness,
@@ -562,6 +609,6 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   const confidence = events.length ? events.reduce((a, e) => a + e.confidence, 0) / events.length : 0.5;
   return {
     reading: { events, clef, timeSignature, texts, confidence, warnings },
-    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, strike: strike.median, tuning, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, ms: now() - t0, timings },
+    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, strike: strike.median, tuning, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, stackCuts: cuts, rests: rests.map((r) => ({ box: r.box, confidence: r.confidence })), ms: now() - t0, timings },
   };
 }

@@ -9,7 +9,6 @@ import {
   ChordDiagram, CircleOfFifths, Fretboard, NotationView, PianoKeys, RhythmView, StrumPattern, degreeText, noteText, useMusicSettings,
   type FretMarker, type NotationNote, type PianoHighlight,
 } from '@/ui/music';
-import { parseNote } from '@/core/theory';
 import { describeSound } from '../../sound';
 import { resolveFigure } from '../../figures';
 import type {
@@ -18,7 +17,6 @@ import type {
 import { RichText, usePlainText } from '../RichText';
 import { canPlaySlow } from '../logic/sound';
 import { useSoundPlayer } from '../useSound';
-import { soundPlan } from '../../sound';
 import { dotColor } from './colors';
 import styles from './Figures.module.css';
 
@@ -302,11 +300,3 @@ export function FigureView({ figure, size, className }: FigureProps & { classNam
     </div>
   );
 }
-
-/** The pitch of a note name for the figure helpers ('E2' -> 40), or null. */
-export function midiOf(note: string): number | null {
-  return parseNote(note)?.midi ?? null;
-}
-
-/** The plan of a sound, for players outside the figures. */
-export { soundPlan };

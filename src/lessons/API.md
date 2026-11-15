@@ -10,6 +10,8 @@ store directly (effects are handed to `applyEffects`). Import from the barrel on
 - **Part A** is for screen builders: sessions, effects, the course map, what to render and what to send back.
 - **Part B** is the **authoring guide** for content writers: the exact format, every exercise type,
   every generator, figures, text markup, the limits, and how to write a good lesson.
+- **Part C** is the **UI** (`@/lessons/ui`): the lesson player, the course map, the review card and
+  their parts, ready for the Theory Path and teacher screens. Gallery: `#kit-lessons`.
 
 Conventions are the app's: notes are ASCII (`F#`, `Bb3`) and always **sounding** pitch; string 1 is
 the thinnest; fret 0 is the open string; shapes run low string to high (`'x32010'`). Tests:
@@ -1531,3 +1533,103 @@ time per exercise type (`estimateStepSeconds(step)`).
 - **Pick the facts.** Two to four `facts` per lesson: the things a guitarist must know cold in a year.
 - **Run the validator** until it returns nothing, then read the lesson aloud once: `speakable(text)` is what a
   learner with the voice on will hear.
+
+---
+
+# Part C — the lesson screens (`@/lessons/ui`)
+
+React components on top of Part A, in their own barrel so the engine stays UI-free:
+`import { LessonPlayer, CourseMap, ReviewEntry } from '@/lessons/ui'`. Gallery of every part and
+state: `#kit-lessons` (`#kit-lessons--<section>`: `exercises cards figures feedback map lessons`;
+`#kit-lessons--type--<type>` one type in its three states; `#kit-lessons--try--<type>` one exercise
+in the real player, recording nothing; `#kit-lessons--play--<lesson>` a demo lesson for real).
+Browser check: `node e2e/lessons.cjs`; screenshots: `node e2e/lessons-shots.cjs --all-types [--mobile] [--light]`.
+
+## C1. A whole screen in a few lines
+
+```tsx
+import { navigate } from '@/app/router';
+import { CourseMap, LessonPlayer, ReviewEntry } from '@/lessons/ui';
+import { reviewSource } from '@/lessons';
+
+// #learn--<unit>--<lesson>: the player is the whole screen (it renders its own <Page> and
+// calls useImmersive(true, 'focus')).
+<LessonPlayer key={lessonId} source={{ mode: 'lesson', course, lessonId }} route="learn" params={[unitId, lessonId]}
+  onExit={() => navigate('learn')}
+  onNext={(next) => next.kind === 'lesson' ? navigate('learn', next.unitId, next.lessonId)
+                  : next.kind === 'practice' ? navigate('learn', next.unitId, 'practice') : navigate('learn')} />
+
+// #learn: the map (two panes on wide screens, a bottom sheet on phones) and the review card.
+<ReviewEntry courses={[course]} onStart={() => navigate('learn', 'review')} />
+<CourseMap course={course} onStartLesson={(u, l) => navigate('learn', u, l)}
+  onStartCheckpoint={(u) => navigate('learn', u, 'checkpoint')} onPractice={(u) => navigate('learn', u, 'practice')} />
+```
+
+Key the player by what it runs (`key={lessonId}`) so a new lesson starts a new player.
+
+## C2. `LessonPlayer`
+
+| prop | |
+|---|---|
+| `source` | any `SessionSource` (A2): `lesson`, `checkpoint`, `practice`, `review` (build it with `reviewSource` / `practiceSource`) |
+| `onExit()` | the close button after "Save and leave", and "Back to the path" |
+| `onNext?(step)` | the summary's primary button. `step` (`NextStep`): `{ kind: 'lesson', unitId, lessonId, title }` (the course map's next lesson), `{ kind: 'practice', unitId }` (out of hearts), `{ kind: 'path' }`. Without it the player runs the next lesson or the practice drill itself, in place |
+| `exitLabel?` | words of the way back (default "Back to the path") |
+| `route?`, `params?` | stored with the activity, so Today's "Continue" reopens the session |
+| `port?` | where effects go (default the app's progress store); `memoryPort()` records nothing (galleries, try-outs) |
+| `persist?` | save the unfinished session after every step and pick it up again (default true) |
+
+What it does for you: starts the session from the learner's progress (`startSession`), or picks up the
+unfinished one of the same lesson (`loadSession`, with a "Picked up where you left off" toast and Start over);
+dispatches every action through `reduceSession` and `applyEffects`; saves after every step; pauses the clock
+while the page is hidden and re-syncs hearts on return (`pause` / `resume`); plays `playUi` correct / wrong /
+combo / lessonComplete; keeps the screen awake; asks before leaving (Save and leave · Keep going · End now,
+which records what was done); shows the summary (`sessionReport`: accuracy, time, XP, streak, crowns, cards
+added, best run, "worth another look") with confetti when earned. Out of hearts ends kindly with "Practise to
+refill hearts"; a failed checkpoint offers "Try again". The microphone is off from the start in the Claude
+artifact host (`isArtifact()`), so play steps are their tapping alternatives there.
+
+Keyboard (shown on desktop only): number keys pick options, tiles, bank words and buttons (match pairs: the
+left column 1…n, the right n+1…); letters type notes on the keypad (`#` sharp, `-` flat); Enter checks and
+continues; Space replays the sound, turns a flashcard, taps a rhythm or marks a fret; Backspace takes the last
+pick back; arrows nudge a note on the staff and walk the fretboard; Escape asks to leave.
+
+Lower level, for screens that frame the step themselves: `useLessonSession({ source, port?, persist?, resume?,
+mic?, route?, params? })` → `{ state, results, dispatch(action without at), restart(source?), resumed, source,
+port }`; `TeachingCard`, `ExerciseFrame`, `FeedbackPanel`, `SummaryView`, `LeaveDialog`, `TeacherBadge`.
+
+## C3. `CourseMap` and `ReviewEntry`
+
+`<CourseMap course onStartLesson(unitId, lessonId) onStartCheckpoint?(unitId) onPractice?(unitId) progress?
+autoScroll? />`: the winding path of `courseMap()` (A10) grouped by unit. Nodes show `locked` (a lock),
+`available`, `current` (amber, a "Start" bubble, scrolled into view on opening), `done` (a tick, crowns, a
+blue dot when due for review). Each unit header has its progress, crowns, "Test out" (or "Jump here" when
+`ahead`) and "Practise". Tapping a node shows its card (title, what it teaches, minutes, crowns, Start): a
+bottom sheet on phones, a sticky side pane at 900 px and up. Arrow keys / Home / End walk the nodes; Enter
+starts the chosen one. Progress is the learner's, live, unless `progress` is given.
+
+`<ReviewEntry courses onStart hideWhenEmpty? />`: "12 cards due · About 3 minutes · Review now" from
+`dueFactCards`; "All caught up" (or nothing, with `hideWhenEmpty`) when none is due; nothing at all before
+the learner has any card.
+
+## C4. Parts
+
+| export | |
+|---|---|
+| `EXERCISE_RENDERERS`, `ExerciseBody`, `exerciseKindLabel`, `selfSubmitting` | one renderer per exercise type (`ExerciseViewProps`: `exercise presentation review onDraft onSubmit setPrimary hints level naming uid onCantPlay? onMicUnavailable?`). A type without a renderer is a type error |
+| `FIGURE_RENDERERS`, `FigureView` | one renderer per figure kind, on the music kit (`Fretboard`, `ChordDiagram`, `NotationView`, `PianoKeys`, `CircleOfFifths`, `RhythmView`, `StrumPattern`); tab is a small SVG of its own |
+| `RichText`, `usePlainText` | the markup of B3 as React: notes in the learner's naming, glossary terms tappable |
+| `LessonProvider`, `useLessonContext` | the course for glossary, teacher and level (the player and map provide it) |
+| `useSoundPlayer`, `schedulePlan` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click |
+| `useStepKeys`, `StepKeysProvider`, `useKeysRegistry` | the step's keys inside the player's single keyboard listener |
+| `feedbackCopy`, `wrongLine` | the feedback panel's words: "Not quite. E is the third of C." + the answer + why |
+| `summaryHeadline`, `summaryStats`, `teacherLine`, `nextLabel`, `formatDuration` | the summary's words and numbers |
+| `memoryPort()` | a `ProgressPort` onto a throwaway store |
+
+Every answer control is a real button of at least 44 px; dragging is never needed (match: tap one item then
+its partner; order and fill: tap tiles, tap again to take back; staff: tap a line or space, drag, or step the
+note up and down). Exercise controls carry `data-*` attributes with authored indexes (`data-option`,
+`data-left`, `data-right`, `data-tile`, `data-bank` + `data-word`, `data-value`, `data-key`, `data-accidental`,
+`data-rating`) and the stage carries `data-step-id`, which is how `e2e/lessons.cjs` answers by the engine's
+own `solve()`.
+

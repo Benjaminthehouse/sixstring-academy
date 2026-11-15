@@ -16,27 +16,36 @@ export interface Fixture {
   truth: GroundTruth;
 }
 
-/** Absolute path of the fixtures directory. */
-export function fixturesDir(): string {
-  return fileURLToPath(new URL('../fixtures/', import.meta.url));
+/**
+ * The corpora: `base` is the original VexFlow corpus (fixtures/, scripts/omr-fixtures.cjs);
+ * `unseen` is the independent adversarial corpus (fixtures-unseen/, scripts/omr-unseen.cjs) with
+ * its own engraver, proportions, digit faces and alphaTab pages, never used to tune anything.
+ */
+export type CorpusName = 'base' | 'unseen';
+
+/** Absolute path of a corpus directory (default: the original fixtures). */
+export function fixturesDir(corpus: string = 'base'): string {
+  return fileURLToPath(new URL(corpus === 'base' ? '../fixtures/' : `../fixtures-${corpus}/`, import.meta.url));
 }
 
-let manifestCache: FixtureMeta[] | null = null;
+const manifestCache = new Map<string, FixtureMeta[]>();
 
-/** Every fixture listed in the manifest. */
-export function loadManifest(): FixtureMeta[] {
-  if (!manifestCache) {
-    const doc = JSON.parse(readFileSync(join(fixturesDir(), 'manifest.json'), 'utf8')) as { fixtures: FixtureMeta[] };
-    manifestCache = doc.fixtures;
+/** Every fixture listed in a corpus manifest (default: the original corpus). */
+export function loadManifest(corpus: string = 'base'): FixtureMeta[] {
+  let list = manifestCache.get(corpus);
+  if (!list) {
+    const doc = JSON.parse(readFileSync(join(fixturesDir(corpus), 'manifest.json'), 'utf8')) as { fixtures: FixtureMeta[] };
+    list = doc.fixtures.map((m) => (corpus === 'base' ? m : { ...m, corpus }));
+    manifestCache.set(corpus, list);
   }
-  return manifestCache;
+  return list;
 }
 
-/** Load one fixture by id (or by manifest entry). */
-export function loadFixture(idOrMeta: string | FixtureMeta): Fixture {
-  const meta = typeof idOrMeta === 'string' ? loadManifest().find((m) => m.id === idOrMeta) : idOrMeta;
+/** Load one fixture by id (or by manifest entry); ids of other corpora are looked up there too. */
+export function loadFixture(idOrMeta: string | FixtureMeta, corpus?: string): Fixture {
+  const meta = typeof idOrMeta === 'string' ? loadManifest(corpus ?? 'base').find((m) => m.id === idOrMeta) : idOrMeta;
   if (!meta) throw new Error(`unknown OMR fixture "${String(idOrMeta)}"`);
-  const dir = fixturesDir();
+  const dir = fixturesDir(meta.corpus ?? 'base');
   const truth = hydrateTruth(JSON.parse(readFileSync(join(dir, meta.truth), 'utf8')));
   return { meta, gray: readPngGray(join(dir, meta.image)), truth };
 }

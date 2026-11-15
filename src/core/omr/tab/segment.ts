@@ -351,6 +351,114 @@ export function barlineSolidity(bin: BinaryImage, g: Pick<StripGeometry, 'lineYs
   return rows ? inked / rows : 0;
 }
 
+/** A horizontal cut through one component: clear row `y` (strip px) between x0 and x1 (exclusive). */
+export interface StackCut {
+  y: number;
+  x0: number;
+  x1: number;
+}
+
+/**
+ * Fret numbers stacked in a chord touch each other when the digits are about as tall as the line
+ * spacing (large type, tight staves, knock-out boxes that meet): the column is then one component
+ * too tall to be a number. Such a column is cut where it is narrowest near the middle between two
+ * string lines (where one digit ends and the next begins), so each number comes out on its own.
+ *
+ * A cut is made only where both parts are number-sized (at least about half a space tall and a fifth
+ * of a space wide: a stem hanging from a number, a bar line or a slur never qualifies), within an
+ * eighth of a space of the midpoint, on the lightest row there (grey ink, so a gap that
+ * binarisation bridged is found), not through solid ink, each part centred on its own line and,
+ * when the staff has free-standing numbers to compare with (`digitHeight`), no taller than they
+ * are. Straight-sided columns (bar lines) are left whole. `cc` are the components of the line-free band
+ * (row 0 = strip row `dy`); `skip` rules out stretches (header, bar lines, rests).
+ */
+export function findStackCuts(cc: Components, dy: number, g: StripGeometry, gray: GrayImage, skip: (x0: number, x1: number) => boolean, digitHeight?: number): StackCut[] {
+  const sp = g.space;
+  const n = g.lineYs.length;
+  const cuts: StackCut[] = [];
+  for (let c = 1; c <= cc.count; c++) {
+    const h = cc.y1[c] - cc.y0[c] + 1;
+    const w = cc.x1[c] - cc.x0[c] + 1;
+    if (h < 1.5 * sp || w < 0.35 * sp || w > 2.6 * sp || cc.area[c] < 0.3 * sp * sp) continue;
+    if (skip(cc.x0[c], cc.x1[c] + 1)) continue;
+    const top = cc.y0[c];
+    // Per row of the component: its pixel count and extent (binary), and the grey ink across its
+    // columns (a gap that binarisation bridged is still lighter in the grey picture).
+    const count = new Int32Array(h);
+    const left = new Int32Array(h).fill(1 << 30);
+    const right = new Int32Array(h).fill(-1);
+    const ink = new Float64Array(h);
+    for (let y = 0; y < h; y++) {
+      const o = (top + y) * cc.width;
+      const go = (top + y + dy) * gray.width;
+      for (let x = cc.x0[c]; x <= cc.x1[c]; x++) {
+        ink[y] += 255 - gray.data[go + x];
+        if (cc.labels[o + x] !== c) continue;
+        count[y]++;
+        if (x < left[y]) left[y] = x;
+        if (x > right[y]) right[y] = x;
+      }
+    }
+    // A bar line (or the thick stroke of a repeat sign) has straight sides: never cut it.
+    let straight = 0;
+    let rowsWithInk = 0;
+    for (let y = 0; y < h; y++) {
+      if (!count[y]) continue;
+      rowsWithInk++;
+      if (Math.abs(left[y] - cc.x0[c]) <= 1 && Math.abs(right[y] - cc.x1[c]) <= 1 && count[y] >= right[y] - left[y]) straight++;
+    }
+    if (straight >= 0.8 * rowsWithInk) continue;
+    const span = (y0: number, y1: number): { h: number; w: number; peak: number; mid: number } => {
+      let a = Infinity, b = -1, rows = 0, peak = 0, first = -1, last = -1;
+      for (let y = Math.max(0, y0); y < Math.min(h, y1); y++) {
+        if (!count[y]) continue;
+        rows++;
+        if (first < 0) first = y;
+        last = y;
+        peak = Math.max(peak, ink[y]);
+        if (left[y] < a) a = left[y];
+        if (right[y] > b) b = right[y];
+      }
+      return { h: rows, w: b >= a ? b - a + 1 : 0, peak, mid: first < 0 ? -1 : top + dy + (first + last + 1) / 2 };
+    };
+    let prev = 0;
+    for (let l = 0; l + 1 < n; l++) {
+      const ym = (g.lineYs[l] + g.lineYs[l + 1]) / 2 - dy - top;
+      if (ym < 0.45 * sp || ym > h - 0.45 * sp) continue;
+      let best = -1;
+      // Numbers are centred on their lines, so two stacked numbers meet near the midpoint.
+      for (let y = Math.max(1, Math.floor(ym - 0.12 * sp)); y <= Math.min(h - 2, Math.ceil(ym + 0.12 * sp)); y++) {
+        if (best < 0 || ink[y] < ink[best] - 1e-6 || (Math.abs(ink[y] - ink[best]) <= 1e-6 && Math.abs(y - ym) < Math.abs(best - ym))) best = y;
+      }
+      if (best < 0 || !count[best]) continue;
+      const above = span(prev, best);
+      const below = span(best + 1, Math.min(h, Math.round(ym + 1.0 * sp)));
+      // Both parts number-sized (a "1" is narrow, a stem or bar line narrower still) and each
+      // centred on its own string line (the letters T, A, B of a tab clef are not), and the cut
+      // not through solid ink.
+      if (above.h < 0.45 * sp || below.h < 0.45 * sp || above.w < 0.2 * sp || below.w < 0.2 * sp) continue;
+      if (Math.abs(above.mid - g.lineYs[l]) > 0.25 * sp || Math.abs(below.mid - g.lineYs[l + 1]) > 0.25 * sp) continue;
+      // ... and no taller than the free-standing numbers of the staff, when there are some to compare
+      // (a part may be shorter: half a digit whose middle stroke went with the staff line).
+      if (digitHeight && (above.h > 1.3 * digitHeight || below.h > 1.3 * digitHeight)) continue;
+      if (ink[best] > 0.85 * Math.min(above.peak, below.peak)) continue;
+      cuts.push({ y: top + best + dy, x0: cc.x0[c], x1: cc.x1[c] + 1 });
+      prev = best + 1;
+    }
+  }
+  return cuts;
+}
+
+/** A copy of a binary image with the cut rows cleared. */
+export function applyStackCuts(bin: BinaryImage, cuts: StackCut[]): BinaryImage {
+  const out = { width: bin.width, height: bin.height, data: bin.data.slice() };
+  for (const c of cuts) {
+    if (c.y < 0 || c.y >= bin.height) continue;
+    out.data.fill(0, c.y * bin.width + Math.max(0, c.x0), c.y * bin.width + Math.min(bin.width, c.x1));
+  }
+  return out;
+}
+
 /**
  * Numbers welded to something else: to the numbers above and below them in a chord (blur closes
  * the gap between two bold digits), to a tie or slur arc that ends on them, to a stem that hangs

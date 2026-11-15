@@ -47,7 +47,7 @@ export function DrillScreen({ drill }: { drill: DrillDef }) {
                   <a
                     className={cx(styles.level, !s.unlocked && styles.levelLocked, isCurrent && styles.levelCurrent)}
                     href={href('ear', drill.id, String(l.n))}
-                    aria-label={`Level ${l.n}: ${l.title}. ${l.blurb}. ${s.passed ? `Passed, best ${Math.round(s.best * 100)}%` : s.unlocked ? (s.attempts ? `Best ${Math.round(s.best * 100)}%` : 'Open') : 'Locked'}`}
+                    aria-label={`Level ${l.n}: ${l.title}. ${l.blurb}. ${s.passed ? `Passed, best ${Math.round(s.best * 100)}%` : s.unlocked ? (s.completions ? `Best ${Math.round(s.best * 100)}%` : 'Open') : 'Locked'}`}
                     data-ear-level={l.n}
                     data-locked={!s.unlocked || undefined}
                   >
@@ -64,7 +64,8 @@ export function DrillScreen({ drill }: { drill: DrillDef }) {
                       </span>
                     </span>
                     <span className={styles.rungMeta}>
-                      {s.attempts > 0 ? (
+                      {/* A round left early has no score: the record starts with the first finished round. */}
+                      {s.completions > 0 ? (
                         <>
                           <StarRating value={s.stars} size={12} label={`${s.stars} of 3 stars`} />
                           <span>Best {Math.round(s.best * 100)}%</span>

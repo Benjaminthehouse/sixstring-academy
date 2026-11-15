@@ -1,0 +1,155 @@
+/* Sparks, rings and floating scores drawn over a game board. Pointer events pass straight through. */
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 3;
+}
+
+.ring,
+.spark,
+.pop {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ring {
+  width: 3rem;
+  height: 3rem;
+  margin: -1.5rem 0 0 -1.5rem;
+  border-radius: 50%;
+  border: 3px solid currentColor;
+  opacity: 0;
+  animation: ring 520ms var(--ease) forwards;
+}
+
+.spark {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: spark 620ms cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+}
+.alt {
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 1px;
+}
+
+.ok {
+  color: var(--ok);
+}
+.accent {
+  color: var(--accent);
+}
+.bad {
+  color: var(--bad);
+}
+.streak {
+  color: var(--streak);
+}
+.okText {
+  color: var(--ok-text);
+}
+.accentText {
+  color: var(--accent-text);
+}
+.badText {
+  color: var(--bad-text);
+}
+.streakText {
+  color: var(--streak-text);
+}
+
+.pop {
+  transform: translate(-50%, -100%);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: var(--text-md);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 var(--surface), 0 0 6px var(--surface);
+  animation: pop 860ms var(--ease) forwards;
+}
+.pop.still {
+  animation: popStill 860ms linear forwards;
+}
+
+.shake {
+  animation: shake 360ms var(--ease);
+}
+
+@keyframes ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes spark {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: translate(-50%, -60%) scale(0.7);
+    opacity: 0;
+  }
+  18% {
+    transform: translate(-50%, -110%) scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -230%) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes popStill {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: popStill 520ms linear forwards;
+    transform: none;
+  }
+  .shake {
+    animation: none;
+  }
+}

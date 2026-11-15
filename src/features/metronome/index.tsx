@@ -50,8 +50,9 @@ import { BeatStrip } from './components/BeatStrip';
 import { SubdivisionPicture } from './components/NoteGlyphs';
 import { MeterPanel, PracticePanel, PresetsPanel, RhythmPanel, SoundPanel, soundLabel } from './components/Panels';
 import { TempoDial } from './components/TempoDial';
+import { useToastClearance } from './components/useToastClearance';
 import { COMMON_METERS, meterChoice, meterLabel, meterOf, normalizeMeterKey, tempoBeatNote, tempoForRegrouping } from './model/meters';
-import { MetronomeSession, practiceSeconds, timerRemaining } from './model/session';
+import { MetronomeSession, practiceToCredit, timerRemaining } from './model/session';
 import {
   DEFAULT_SETTINGS,
   MAX_PRESETS,
@@ -246,6 +247,21 @@ export default function MetronomeScreen(_props: RouteProps) {
 
   useEffect(() => (running ? keepAwake() : undefined), [running]);
 
+  // Practice is reported when a session timer finishes, when the page goes to the background (a
+  // phone may never come back to say goodbye) and when the learner leaves; each report covers the
+  // running time not reported yet, once there is a minute of it.
+  const credited = useRef(0);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const recordPractice = useCallback(() => {
+    const visitSec = session.time().visitSec;
+    const sec = practiceToCredit(visitSec, credited.current);
+    if (sec === null) return;
+    credited.current = visitSec;
+    const s = settingsRef.current;
+    recordActivity({ kind: 'metronome', durationSec: sec, route: 'metronome', title: `Metronome: ${describeSetup(setupOf(s))}`, meta: { tempo: s.tempo } });
+  }, [session]);
+
   const [clock, setClock] = useState({ visitSec: 0, timerSec: 0 });
   useInterval(
     () => {
@@ -258,6 +274,7 @@ export default function MetronomeScreen(_props: RouteProps) {
         session.stop();
         setTimerDone(settings.timerMinutes);
         playUi('lessonComplete');
+        recordPractice();
       }
     },
     running ? 250 : null,
@@ -268,29 +285,20 @@ export default function MetronomeScreen(_props: RouteProps) {
     setClock({ visitSec: Math.floor(t.visitSec), timerSec: Math.floor(t.timerSec) });
   }, [running, session]);
 
-  const recorded = useRef(false);
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-  const recordVisit = useCallback(() => {
-    if (recorded.current) return;
-    const sec = practiceSeconds(session.time().visitSec);
-    if (sec === null) return;
-    recorded.current = true;
-    const s = settingsRef.current;
-    recordActivity({ kind: 'metronome', durationSec: sec, route: 'metronome', title: `Metronome: ${describeSetup(setupOf(s))}`, meta: { tempo: s.tempo } });
-  }, [session]);
-
   useEffect(() => {
     session.attach();
     return () => {
       // Leaving the screen: the click stops at once, and the visit counts if it was long enough.
       session.detach();
-      recordVisit();
+      recordPractice();
     };
-  }, [session, recordVisit]);
+  }, [session, recordPractice]);
   useEventListener(typeof window !== 'undefined' ? window : null, 'pagehide', () => {
     session.stop();
-    recordVisit();
+    recordPractice();
+  });
+  useEventListener(typeof document !== 'undefined' ? document : null, 'visibilitychange', () => {
+    if (document.visibilityState === 'hidden') recordPractice();
   });
 
   // --- presets -------------------------------------------------------------------------------------
@@ -449,6 +457,11 @@ export default function MetronomeScreen(_props: RouteProps) {
   const tapLabel = tapInfo === null ? 'Tap' : tapInfo.bpm === null ? 'Again' : String(tapInfo.bpm);
   const layout = twoPane ? 'two-pane' : sideways ? 'sideways' : 'column';
 
+  // Below the two-pane width the tempo buttons and Start sit where toasts appear: keep toasts above them.
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const navProbeRef = useRef<HTMLSpanElement | null>(null);
+  useToastClearance(controlsRef, navProbeRef, !twoPane);
+
   const stage = (
     <section className={styles.stage} aria-label="Metronome">
       <div className={styles.meterRow} role="group" aria-label="Time signature">
@@ -488,16 +501,18 @@ export default function MetronomeScreen(_props: RouteProps) {
       />
 
       {!twoPane && (
-        <div className={styles.tiles}>
-          {tiles.map((t) => (
-            <button key={t.id} type="button" className={styles.tile} onClick={() => setSheet(t.id)} aria-haspopup="dialog" data-sheet={t.id}>
-              <span className={styles.tileIcon}>{t.icon}</span>
-              <span className={styles.tileText}>
-                <span className={styles.tileLabel}>{t.label}</span>
-                <span className={styles.tileValue}>{t.value}</span>
-              </span>
-            </button>
-          ))}
+        <div className={styles.tilesBox}>
+          <div className={styles.tiles}>
+            {tiles.map((t) => (
+              <button key={t.id} type="button" className={styles.tile} onClick={() => setSheet(t.id)} aria-haspopup="dialog" data-sheet={t.id}>
+                <span className={styles.tileIcon}>{t.icon}</span>
+                <span className={styles.tileText}>
+                  <span className={styles.tileLabel}>{t.label}</span>
+                  <span className={styles.tileValue}>{t.value}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -507,73 +522,76 @@ export default function MetronomeScreen(_props: RouteProps) {
         </div>
       </div>
 
-      <div className={styles.tempoRow}>
-        <Tooltip content={<>Slower <Kbd>↓</Kbd> · 5 slower <Kbd>Shift</Kbd>+<Kbd>↓</Kbd></>}>
-          <button type="button" className={styles.step} aria-label="Slower by 1 BPM (hold to keep going)" {...minus} disabled={shownTempo <= 20} data-tempo-step="-1">
-            <Icon name="Minus" size={24} />
-          </button>
-        </Tooltip>
-        <Tooltip content={<>Tap the beat to set the tempo <Kbd>T</Kbd></>}>
-          <button
-            type="button"
-            className={cx(styles.tap, tapInfo !== null && styles.tapping)}
-            onPointerDown={(e) => {
-              if (e.pointerType === 'mouse' && e.button !== 0) return;
-              tap(e.timeStamp);
-            }}
-            onClick={(e) => {
-              // Keyboard activation (Enter / Space on a focused button) comes without a pointer.
-              if (e.detail === 0) tap();
-            }}
-            aria-label={tapInfo === null ? 'Tap tempo: tap along with the beat' : tapInfo.bpm === null ? 'Tap tempo: tap again' : `Tap tempo: ${tapInfo.bpm} BPM`}
-            data-tap
-          >
-            <Icon name="Hand" size={20} />
-            <span className={styles.tapLabel}>{tapLabel}</span>
-          </button>
-        </Tooltip>
-        <Tooltip content={<>Faster <Kbd>↑</Kbd> · 5 faster <Kbd>Shift</Kbd>+<Kbd>↑</Kbd></>}>
-          <button type="button" className={styles.step} aria-label="Faster by 1 BPM (hold to keep going)" {...plus} disabled={shownTempo >= 400} data-tempo-step="1">
-            <Icon name="Plus" size={24} />
-          </button>
-        </Tooltip>
-      </div>
-      <p className={styles.live} aria-live="polite">
-        {tapInfo !== null && (tapInfo.bpm === null ? 'Keep tapping with the beat.' : `Tapped tempo ${tapInfo.bpm} BPM.`)}
-      </p>
-
-      {timerDone !== null && (
-        <Banner tone="ok" live title={`${timerDone} ${timerDone === 1 ? 'minute' : 'minutes'} done`} onDismiss={() => setTimerDone(null)}>
-          Steady work. Press Start for another round.
-        </Banner>
-      )}
-
-      <div className={styles.startRow} data-on={running ? 'stop' : 'start'}>
-        <Tooltip content={<>Start or stop <Kbd>Space</Kbd></>}>
-          <Button variant={running ? 'secondary' : 'primary'} size="lg" fullWidth iconLeft={running ? 'Square' : 'Play'} onClick={toggle} className={styles.start} data-start>
-            {running ? 'Stop' : 'Start'}
-          </Button>
-        </Tooltip>
-        <span className={styles.time} aria-label={timeText ? `Practice time ${timeText}` : undefined}>
-          {timeText}
-        </span>
-      </div>
-      {twoPane && !touch && (
-        <p className={styles.keys}>
-          <span>
-            <Kbd>Space</Kbd> start, stop
-          </span>
-          <span>
-            <Kbd>↑</Kbd> <Kbd>↓</Kbd> tempo
-          </span>
-          <span>
-            <Kbd>T</Kbd> tap
-          </span>
-          <span>
-            <Kbd>1</Kbd>–<Kbd>{Math.min(9, meter.beats.length)}</Kbd> accents
-          </span>
+      <div ref={controlsRef} className={styles.controls}>
+        <span ref={navProbeRef} className={styles.navProbe} aria-hidden="true" />
+        <div className={styles.tempoRow}>
+          <Tooltip content={<>Slower <Kbd>↓</Kbd> · 5 slower <Kbd>Shift</Kbd>+<Kbd>↓</Kbd></>}>
+            <button type="button" className={styles.step} aria-label="Slower by 1 BPM (hold to keep going)" {...minus} disabled={shownTempo <= 20} data-tempo-step="-1">
+              <Icon name="Minus" size={24} />
+            </button>
+          </Tooltip>
+          <Tooltip content={<>Tap the beat to set the tempo <Kbd>T</Kbd></>}>
+            <button
+              type="button"
+              className={cx(styles.tap, tapInfo !== null && styles.tapping)}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                tap(e.timeStamp);
+              }}
+              onClick={(e) => {
+                // Keyboard activation (Enter / Space on a focused button) comes without a pointer.
+                if (e.detail === 0) tap();
+              }}
+              aria-label={tapInfo === null ? 'Tap tempo: tap along with the beat' : tapInfo.bpm === null ? 'Tap tempo: tap again' : `Tap tempo: ${tapInfo.bpm} BPM`}
+              data-tap
+            >
+              <Icon name="Hand" size={20} />
+              <span className={styles.tapLabel}>{tapLabel}</span>
+            </button>
+          </Tooltip>
+          <Tooltip content={<>Faster <Kbd>↑</Kbd> · 5 faster <Kbd>Shift</Kbd>+<Kbd>↑</Kbd></>}>
+            <button type="button" className={styles.step} aria-label="Faster by 1 BPM (hold to keep going)" {...plus} disabled={shownTempo >= 400} data-tempo-step="1">
+              <Icon name="Plus" size={24} />
+            </button>
+          </Tooltip>
+        </div>
+        <p className={styles.live} aria-live="polite">
+          {tapInfo !== null && (tapInfo.bpm === null ? 'Keep tapping with the beat.' : `Tapped tempo ${tapInfo.bpm} BPM.`)}
         </p>
-      )}
+
+        {timerDone !== null && (
+          <Banner tone="ok" live title={`${timerDone} ${timerDone === 1 ? 'minute' : 'minutes'} done`} onDismiss={() => setTimerDone(null)}>
+            Steady work. Press Start for another round.
+          </Banner>
+        )}
+
+        <div className={styles.startRow} data-on={running ? 'stop' : 'start'}>
+          <Tooltip content={<>Start or stop <Kbd>Space</Kbd></>}>
+            <Button variant={running ? 'secondary' : 'primary'} size="lg" fullWidth iconLeft={running ? 'Square' : 'Play'} onClick={toggle} className={styles.start} data-start>
+              {running ? 'Stop' : 'Start'}
+            </Button>
+          </Tooltip>
+          <span className={styles.time} aria-label={timeText ? `Practice time ${timeText}` : undefined}>
+            {timeText}
+          </span>
+        </div>
+        {twoPane && !touch && (
+          <p className={styles.keys}>
+            <span>
+              <Kbd>Space</Kbd> start, stop
+            </span>
+            <span>
+              <Kbd>↑</Kbd> <Kbd>↓</Kbd> tempo
+            </span>
+            <span>
+              <Kbd>T</Kbd> tap
+            </span>
+            <span>
+              <Kbd>1</Kbd>–<Kbd>{Math.min(9, meter.beats.length)}</Kbd> accents
+            </span>
+          </p>
+        )}
+      </div>
     </section>
   );
 
@@ -593,12 +611,8 @@ export default function MetronomeScreen(_props: RouteProps) {
         {stage}
         {twoPane && (
           <div className={styles.side}>
-            <div ref={sideMeterRef} className={styles.sideBlock}>
-              <Section title="More time signatures" description={choice && !common ? undefined : 'Odd meters and their groupings. The four everyday ones sit beside the beats.'} level={2}>
-                {panels.meter}
-              </Section>
-            </div>
-            <Section title="Subdivision" description="Extra, softer clicks between the beats." level={2} divided>
+            {/* Everyday settings first; odd meters (advanced) come last, one click away through "More". */}
+            <Section title="Subdivision" description="Extra, softer clicks between the beats." level={2}>
               {panels.rhythm}
             </Section>
             <Section title="Sound" level={2} divided>
@@ -612,6 +626,11 @@ export default function MetronomeScreen(_props: RouteProps) {
             <Section title="Presets" description="Save the setup you use, recall it in one tap." level={2} divided>
               {panels.presets}
             </Section>
+            <div ref={sideMeterRef} className={styles.sideBlock}>
+              <Section title="More time signatures" description={choice && !common ? undefined : 'Odd meters and their groupings. The four everyday ones sit beside the beats.'} level={2} divided>
+                {panels.meter}
+              </Section>
+            </div>
           </div>
         )}
       </div>

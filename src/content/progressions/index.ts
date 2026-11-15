@@ -69,7 +69,7 @@ export interface FamilyInfo {
 }
 
 const FAMILY_DATA: ReadonlyArray<[FamilyInfo, readonly ProgressionSpec[]]> = [
-  [{ id: 'pop-rock', name: 'Pop and rock staples', description: 'The axis loop and its rotations, three-chord rock, Mixolydian rock.' }, POP_ROCK],
+  [{ id: 'pop-rock', name: 'Pop and rock staples', description: 'The axis loop and its rotations, three-chord rock, Mixolydian rock, rising fifths.' }, POP_ROCK],
   [{ id: 'fifties', name: 'Fifties and doo-wop', description: 'I–vi–IV–V and its relatives.' }, FIFTIES],
   [{ id: 'blues', name: 'Blues forms', description: '12-bar, quick change, turnarounds, minor, 8- and 16-bar, jazz and Bird blues.' }, BLUES],
   [{ id: 'folk-country', name: 'Folk and country', description: 'Two- and three-chord songs, hymns, walking basses, modal folk.' }, FOLK_COUNTRY],

@@ -1,0 +1,27 @@
+# Greensleeves, fingerstyle solo (repertoire plan: greensleeves-fingerstyle). A new arrangement
+# of the anonymous Elizabethan tune: bass on each dotted-quarter beat (A for Am, G for G, E for E,
+# C for C), the tune on top, chord notes filling in under long tune notes. The sixth note of the
+# scale is F# throughout (the plan allows F or F#; it is kept the same everywhere).
+title: Greensleeves (fingerstyle)
+id: greensleeves-fingerstyle
+composer: Traditional English
+source: Anonymous tune registered in 1580; new solo arrangement for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 5
+tags: fingerstyle, solo, 6/8, minor key
+tempo: 81
+time: 6/8
+key: A minor
+pickup: e
+
+[A]
+| e 3:2 | "Am" e (5:0 2:1) 3:2 2:3 e. (5:0 1:0) s 1:2 e 1:0 | "G" e (6:3 2:3) 4:0 2:0 e. (6:3 3:0) s 3:2 e 2:0 |
+| "Am" e (5:0 2:1) 4:2 3:2 e. (5:0 3:2) s 3:1p e 3:2h | "E" e (6:0 2:0) 4:2 3:1 (6:0 4:2) 5:2 3:2 |
+| "Am" e (5:0 2:1) 3:2 2:3 e. (5:0 1:0) s 1:2 e 1:0 | "G" e (6:3 2:3) 4:0 2:0 e. (6:3 3:0) s 3:2 e 2:0 |
+| "Am" e. (5:0 2:1) s 2:0 e 3:2 "E" e. (6:0 3:1) s 4:4 e 3:1 | "Am" q. (5:0 3:2) e 5:0 4:2 5:2 ||
+[B]
+| "C" e (5:3 1:3) 3:0 2:1 e. (5:3 1:3) s 1:2 e 1:0 | "G" e (6:3 2:3) 4:0 2:0 e. (6:3 3:0) s 3:2 e 2:0 |
+| "Am" e (5:0 2:1) 4:2 3:2 e. (5:0 3:2) s 3:1p e 3:2h | "E" e (6:0 2:0) 4:2 3:1 q (6:0 4:2) e 5:2 |
+| "C" e (5:3 1:3) 3:0 2:1 e. (5:3 1:3) s 1:2 e 1:0 | "G" e (6:3 2:3) 4:0 2:0 e. (6:3 3:0) s 3:2 e 2:0 |
+| "Am" e. (5:0 2:1) s 2:0 e 3:2 "E" e. (6:0 3:1) s 4:4 e 3:1 | "Am" h. (5:0 4:2 3:2) ||

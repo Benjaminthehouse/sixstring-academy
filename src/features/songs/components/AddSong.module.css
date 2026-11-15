@@ -1,0 +1,83 @@
+.options {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.option:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.optionIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+.optionTitle {
+  font-weight: 650;
+}
+.optionHint {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.paste textarea {
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.detect {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: calc(-1 * var(--sp-2)) 0 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.detectOk {
+  color: var(--ok-text);
+}

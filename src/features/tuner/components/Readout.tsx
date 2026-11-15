@@ -253,7 +253,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
         {headerStart}
         <span className={cx(styles.status, listening && !view.paused && styles.statusOn)}>
           {view.source === 'starting' ? <Spinner size={14} /> : <Icon name={ear ? 'Volume2' : listening ? (view.paused ? 'Pause' : 'Mic') : 'MicOff'} size="xs" />}
-          <span className={styles.statusText}>{statusText}</span>
+          <span className={styles.statusText} data-tuner-status="">{statusText}</span>
           {listening && <LevelBar session={session} hot={view.advice === 'too-loud'} />}
         </span>
         {headerEnd}
@@ -291,7 +291,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
         )}
         <p className={styles.caption}>
           {parts && <VisuallyHidden>{parts.text}. </VisuallyHidden>}
-          <span>{caption}</span>
+          <span className={styles.captionText}>{caption}</span>
           {view.harmonic && <span className={styles.badge}>12th-fret harmonic</span>}
           {showHz && listening && (
             <span className={styles.hz}>

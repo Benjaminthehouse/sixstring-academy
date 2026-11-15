@@ -5,11 +5,10 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Text } from '@/ui';
-import { ChordDiagram, Fretboard, NoteBadge, degreeText, type FretCell, type FretMarker } from '@/ui/music';
+import { ChordDiagram, Fretboard, NoteBadge, type FretCell, type FretMarker } from '@/ui/music';
 import { resolveFigure } from '../../figures';
 import { fretboardNameSpec, missingChordNote, referenceFrets } from '../../grade';
 import type { ChordBuildExercise, FretboardFindExercise, FretboardNameExercise, NeckPosition } from '../../types';
-import { RichText } from '../RichText';
 import { chordTap, findTap } from '../logic/drafts';
 import { dotColor } from '../figures/colors';
 import { AnswerButtons, expectedValue } from './TypeViews';
@@ -216,14 +215,4 @@ function Fingers({ exercise, review, onDraft, hints }: ExerciseViewProps<ChordBu
       <KeyHints show={hints && !review}>Tab into the grid, arrows move, Space places a finger, Enter checks.</KeyHints>
     </div>
   );
-}
-
-/** A degree as shown on a button. */
-export function degreeLabel(d: string): string {
-  return degreeText(d);
-}
-
-/** The rich text of a chord name for headings. */
-export function ChordName({ chord }: { chord: string }) {
-  return <RichText text={`{c:${chord}}`} />;
 }

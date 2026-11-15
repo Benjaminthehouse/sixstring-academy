@@ -1,0 +1,186 @@
+/** Healthy playing: posture, playing without pain, the warm-up and the cool-down. */
+import { alternate, chromaticUpDown, line, music, times, type TabNote } from '../generate';
+import type { TechniqueExercise } from '../types';
+
+const openStrings: TabNote[] = alternate([6, 5, 4, 3, 2, 1].flatMap((s) => Array.from({ length: 8 }, () => ({ s, f: 0 }))));
+
+export const HEALTH: TechniqueExercise[] = [
+  {
+    id: 'tech-posture',
+    title: 'Posture: Sitting and Standing',
+    hand: 'both',
+    level: 1,
+    skill: 'health',
+    mode: 'guide',
+    tempo: { start: 60, step: 0, goal: 60 },
+    teaches: ['posture', 'relaxed hands', 'injury prevention'],
+    summary: 'How to sit, stand and hold the guitar so both hands stay loose and nothing aches later.',
+    steps: [
+      'Sitting, casual: rest the guitar’s waist on your right thigh (left thigh if you play left-handed). Let the neck point slightly up, sit upright and let your shoulders drop.',
+      'Sitting, classical: put your left foot on a footstool or a support under the guitar, rest the guitar on your left thigh and bring the headstock up to about eye level.',
+      'Standing: set the strap so the guitar sits where it did when you were seated, not lower.',
+      'Fretting hand: thumb behind the neck, roughly opposite your second finger. Neither wrist should bend sharply.',
+      'Check it: strum an open E minor once per beat for one minute, slowly, and notice where you feel effort.',
+    ],
+    feel: 'You could hold this for twenty minutes without noticing your body. Your shoulders are low, your breathing is easy, and you look at the neck with your eyes rather than by bending over it.',
+    mistakes: [
+      { watch: 'hunching over to look at the fretboard', fix: 'Tilt the guitar’s top back a little toward you instead of leaning forward; glance with your eyes, keep your back tall.' },
+      { watch: 'a sharply bent fretting wrist', fix: 'Bring the neck higher (or the strap shorter) and your elbow a little in toward your body until the wrist is nearly straight.' },
+      { watch: 'the thumb squeezing hard from behind the neck', fix: 'Let the weight of your arm pull the fingers into the strings. The thumb only steadies; you should be able to wiggle it while you play.' },
+      { watch: 'raised shoulders', fix: 'Breathe out and let both shoulders fall. Check them again at the start of every exercise.' },
+    ],
+    checklist: [
+      'Back upright, shoulders low and loose',
+      'Neck pointing slightly up, guitar close to your body',
+      'Fretting thumb behind the neck, opposite finger 2',
+      'Both wrists nearly straight',
+      'Standing: the guitar at the same height as when seated',
+    ],
+    parts: [
+      {
+        id: 'minute-strum',
+        name: 'One-minute strum',
+        note: 'One slow strum per beat on E minor, for a minute. Notice where you feel effort.',
+        tab: music(['"Em=022000" q D D D D', ...times('%', 14)]),
+        check: { kind: 'none', why: 'This one is about how you sit and hold the guitar. Use the checklist while you strum.' },
+      },
+    ],
+  },
+  {
+    id: 'tech-play-without-pain',
+    title: 'Play Without Pain',
+    hand: 'both',
+    level: 1,
+    skill: 'health',
+    mode: 'guide',
+    tempo: { start: 60, step: 0, goal: 60 },
+    teaches: ['injury prevention', 'healthy practice habits', 'tension awareness'],
+    summary: 'The habits that let you practise for years: short blocks, light pressure and knowing which pain means stop.',
+    steps: [
+      'Practise in blocks of 20 to 30 minutes with a short break between them, and build your total time up gradually.',
+      'Sore fingertips in the first weeks are normal. Aching joints, numbness, tingling or sharp pain are not: stop, rest, and see a doctor or physiotherapist if it lasts.',
+      'Use the lightest pressure that gives a clean note. Find it with the exercise below.',
+      'Keep the nails of your fretting hand short, so you press with the fingertip.',
+      'Every few minutes, freeze and check your jaw, shoulders, fretting thumb and picking wrist for tension.',
+    ],
+    feel: 'Notes ring cleanly while your fingertips press only a little. If you ease off slightly, the note starts to buzz: that edge is the right pressure, just above it.',
+    mistakes: [
+      { watch: 'playing through pain', fix: 'Pain is a stop sign, not a challenge. Stop for the day; come back to something easier tomorrow.' },
+      { watch: 'long sessions with no breaks', fix: 'Set a 25-minute block. This screen also reminds you when you have played for a long time.' },
+      { watch: 'jumping straight to big stretches or long barre work', fix: 'Warm up first, and keep stretches and barre chords to a few minutes at a time.' },
+      { watch: 'pressing harder than needed (use just enough pressure to stop the buzz)', fix: 'Press until the note is clean, then ease off until it just starts to buzz, then add back only a little.' },
+    ],
+    checklist: [
+      'Practise in blocks of 20 to 30 minutes, then rest',
+      'Sore fingertips are normal; aching joints, numbness or tingling mean stop',
+      'Lightest pressure that gives a clean note',
+      'Short fretting-hand nails',
+      'Every few minutes: jaw, shoulders, thumb, picking wrist',
+    ],
+    parts: [
+      {
+        id: 'just-enough',
+        name: 'Just enough pressure',
+        note: 'Four slow notes on each fret. On each one, ease off until it buzzes, then press just enough to make it clean.',
+        tab: music([`q ${times('3:5', 4).join(' ')}`, `q ${times('2:5', 4).join(' ')}`, `q ${times('1:5', 4).join(' ')}`, `q ${times('2:5', 4).join(' ')}`]),
+        check: { kind: 'notes', intonation: true },
+      },
+    ],
+  },
+  {
+    id: 'tech-warm-up',
+    title: 'Five-Minute Warm-Up',
+    hand: 'both',
+    level: 1,
+    skill: 'health',
+    mode: 'routine',
+    tempo: { start: 60, step: 4, goal: 80 },
+    teaches: ['warm-up routine', 'gradual start', 'injury prevention'],
+    summary: 'Five gentle minutes that wake up both hands before anything fast or hard.',
+    steps: [
+      'Minute 1: gentle down-up picking on the open strings, in eighth notes.',
+      'Minute 2: the chromatic spider, slowly.',
+      'Minute 3: slow changes between two easy chords.',
+      'Minute 4: gentle hammer-ons and pull-offs.',
+      'Minute 5: a slow scale.',
+      'Never stretch to discomfort. If your hands are cold, warm them under warm water or in your pockets first.',
+    ],
+    feel: 'Easy. By the end your fingers feel warm and loose, and nothing has been fast or effortful.',
+    mistakes: [
+      { watch: 'starting with your hardest piece or fastest tempo', fix: 'Keep the first five minutes deliberately easy; the hard work goes better after it.' },
+      { watch: 'stretching to the point of discomfort', fix: 'Stay inside four frets during the warm-up; stretches come later, if at all.' },
+      { watch: 'pressing harder than needed (use just enough pressure to stop the buzz)', fix: 'Use the warm-up to find the lightest pressure that rings, and keep it for the rest of the session.' },
+    ],
+    parts: [
+      { id: 'open-strings', name: 'Open strings', tab: line(openStrings, 8, 'e'), check: { kind: 'notes' } },
+      { id: 'spider', name: 'Spider', tab: line(chromaticUpDown(5), 8, 'e'), check: { kind: 'notes' } },
+      {
+        id: 'changes',
+        name: 'Two easy chords',
+        tab: music(['"A=x02220" h D D', '"E7=020100" h D D', '"A=x02220" h D D', '"E7=020100" h D D']),
+        check: { kind: 'onsets' },
+      },
+      {
+        id: 'legato',
+        name: 'Hammers and pulls',
+        tab: music(['e 3:5 3:7h 3:7 3:5p 3:5 3:7h 3:7 3:5p', 'e 2:5 2:7h 2:7 2:5p 2:5 2:7h 2:7 2:5p']),
+        check: { kind: 'notes' },
+      },
+      {
+        id: 'scale',
+        name: 'Slow scale',
+        note: 'G major, one octave up and down.',
+        tab: music(['q 6:3 5:0 5:2 5:3', 'q 4:0 4:2 4:4 3:0', 'q 4:4 4:2 4:0 5:3', 'q 5:2 5:0 h 6:3']),
+        check: { kind: 'notes' },
+      },
+    ],
+    routine: [
+      { id: 'open-strings', title: 'Open strings, down and up', seconds: 60, part: 0, text: 'Small down-up strokes on each open string, from the thickest to the thinnest. Let the wrist do the work.', link: 'tech-alternate-open' },
+      { id: 'spider', title: 'The spider, slowly', seconds: 60, part: 1, text: 'One finger per fret, frets 5 to 8, up and back. Keep the fingers close to the strings.', link: 'tech-spider' },
+      { id: 'changes', title: 'Two easy chords', seconds: 60, part: 2, text: 'A and E7, two strums each. Move all the fingers together, slowly.', link: 'tech-changes-pairs-1' },
+      { id: 'legato', title: 'Hammers and pulls', seconds: 60, part: 3, text: 'Pick fret 5, hammer fret 7. Pick fret 7, pull off to fret 5. Gently: no force needed.', link: 'tech-legato-chains' },
+      { id: 'scale', title: 'A slow scale', seconds: 60, part: 4, text: 'G major in first position, one note per beat. Listen to every note ring.', link: 'tech-alternate-scale-g' },
+    ],
+  },
+  {
+    id: 'tech-cool-down',
+    title: 'Cool-Down',
+    hand: 'both',
+    level: 1,
+    skill: 'health',
+    mode: 'routine',
+    tempo: { start: 50, step: 5, goal: 60 },
+    teaches: ['cool-down', 'reflection', 'injury prevention'],
+    summary: 'Two easy minutes to end a session, a shake-out, and one note to yourself.',
+    steps: [
+      'Play two minutes of slow, easy music: these open-chord arpeggios or a slow melody you know.',
+      'Let your hands hang loose by your sides and shake them out gently.',
+      'Note one thing that felt tense today, so you can watch for it next time.',
+    ],
+    feel: 'Slow and pleasant, like walking after a run. Your hands end the session relaxed, not buzzing.',
+    mistakes: [
+      { watch: 'stopping abruptly after fast playing', fix: 'Always finish with a couple of slow minutes, even after a short session.' },
+      { watch: 'ending on the hardest exercise', fix: 'Put the hard work in the middle of the session; the end belongs to easy music.' },
+    ],
+    parts: [
+      {
+        id: 'arpeggios',
+        name: 'Open-chord arpeggios',
+        note: 'Am, C, G and Em, one note at a time. Let every note ring.',
+        tab: music([
+          '"Am=x02210" e 5:0 4:2 3:2 2:1 1:0 2:1 3:2 4:2',
+          '"C=x32010" e 5:3 4:2 3:0 2:1 1:0 2:1 3:0 4:2',
+          '"G=320003" e 6:3 5:2 4:0 3:0 2:0 3:0 4:0 5:2',
+          '"Em=022000" e 6:0 5:2 4:2 3:0 2:0 3:0 4:2 5:2',
+        ]),
+        check: { kind: 'none', why: 'The cool-down is for relaxing, not for scoring.' },
+      },
+    ],
+    routine: [
+      { id: 'arpeggios', title: 'Slow arpeggios', seconds: 120, part: 0, text: 'Am, C, G and Em, one note at a time, slowly. Let every note ring into the next.' },
+      { id: 'shake-out', title: 'Shake out', seconds: 30, text: 'Put the guitar down. Let your hands hang loose by your sides and shake them out gently. Roll your shoulders.' },
+      { id: 'reflect', title: 'One thing that felt tense', seconds: 30, reflect: true, text: 'Think of one thing that felt tense today: your jaw, shoulders, thumb, wrist or something else. Write it down so you can watch for it next time.' },
+    ],
+  },
+];
+

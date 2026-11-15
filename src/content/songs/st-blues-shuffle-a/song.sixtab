@@ -1,0 +1,25 @@
+# 12-Bar Blues Shuffle in A (repertoire plan: st-blues-shuffle-a). An original study on the
+# traditional 12-bar form: A A A A | D D A A | E D A E, played twice, then the last A.
+# Swung eighths are written as triplets: a long note (q3, two thirds of the beat) and a short one
+# (e3, the last third). The shuffle figure is a root with its fifth, then with its sixth.
+title: 12-Bar Blues Shuffle in A
+id: st-blues-shuffle-a
+composer: Sixstring Academy
+source: Original study on the traditional 12-bar blues form
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: blues, shuffle, 12-bar, swing
+tempo: 84
+time: 4/4
+key: A
+
+[12-bar blues]
+|: "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % | % | % |
+| "D" q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) | % |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) |
+| "D" q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) :|
+[Ending]
+| "A" w (5:0 4:2 3:2) ||

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DegradeTier } from '../eval/degrade';
 import { type PageScore, addScore, emptyScore, f1, precision, rate, recall, scorePage } from '../eval/metrics';
-import { assemblePage, recognizePage } from '../page';
+import { assemblePage } from '../page';
+import { recognizePage } from '../pipeline';
 import type { OmrNotationEvent, OmrVisionModel, StaffReading } from '../types';
 import { analyzeNotationStaff, createNotationRecognizer, recognizeNotationStaff, refineWithModel, toReading } from './index';
 import { SynthStrip } from './tools/synth';

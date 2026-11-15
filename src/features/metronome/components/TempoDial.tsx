@@ -161,6 +161,19 @@ export function TempoDial({ value, onChange, beatNote, onBeat, strongPulse = fal
     setEditing(false);
     if (n !== null) onChange(clampTempo(n));
   };
+  // Enter or Esc in the field hands focus to the dial, so a keyboard learner keeps their place:
+  // arrows go on adjusting the tempo, and Space still starts (on the number it would reopen the field).
+  const refocus = useRef(false);
+  const finishWithKeys = (apply: boolean) => {
+    refocus.current = true;
+    if (apply) commit();
+    else setEditing(false);
+  };
+  useEffect(() => {
+    if (editing || !refocus.current) return;
+    refocus.current = false;
+    sliderRef.current?.focus();
+  }, [editing]);
 
   const valueText = `${value} beats per minute, ${name.name}`;
 
@@ -214,11 +227,11 @@ export function TempoDial({ value, onChange, beatNote, onBeat, strongPulse = fal
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                commit();
+                finishWithKeys(true);
               } else if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
-                setEditing(false);
+                finishWithKeys(false);
               }
             }}
           />

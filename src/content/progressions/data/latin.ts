@@ -67,7 +67,7 @@ export const LATIN: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'harmonic-minor'), sc('1', 'minor-pentatonic')],
       strum: STRUM.latin,
-      tip: 'In A minor the chords are Am and E7. The Am shape is the E shape moved over by one string, so the change is quick to learn.',
+      tip: 'In A minor the chords are Am and E7. The Am shape is the E shape moved over by one string, so the change is quick to learn. The minor pentatonic works over Am only; over E7 use harmonic minor, whose G# is the chord\'s third.',
     },
     related: ['classical-minor-cadence', 'latin-minor-montuno', 'folk-i-v7'],
     keys: ['A', 'E', 'D'],
@@ -102,7 +102,7 @@ export const LATIN: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.bossa,
-      tip: 'Keep the top note of your voicings as still as possible while the lower notes move: that is how bossa guitarists make the chords glide.',
+      tip: 'Keep the top note of your voicings as still as possible while the lower notes move: that is how bossa guitarists make the chords glide. Over VI7 (A7b9 in C) the key\'s scale clashes with the chord\'s C# and Bb: play those notes there.',
     },
     related: ['jazz-i-vi7-ii-v', 'latin-ipanema'],
     keys: ['C', 'F', 'G', 'D'],
@@ -119,7 +119,7 @@ export const LATIN: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('b2', 'major')],
       strum: STRUM.bossa,
-      tip: 'Play the key\'s natural minor for bars 1 to 8 and the major scale of bII for bars 9 to 12; the change of key is one fret.',
+      tip: 'Natural minor fits bars 1 to 8 and 13 to 16 except each V7b9 (bars 6, 14 and 16), where harmonic minor supplies the raised seventh. Bars 9 to 12 take the major scale of bII, whose key note is one fret above home.',
     },
     related: ['latin-bossa-minor-loop', 'jazz-minor-ii-v-i', 'jazz-chromatic-ii-v'],
     keys: ['C', 'A', 'D', 'G'],
@@ -137,6 +137,7 @@ export const LATIN: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.bossa,
+      tip: 'Natural minor over i7, iv7 and iiø7; over V7b9 switch to harmonic minor so your line contains the chord\'s third, the leading tone.',
     },
     related: ['latin-blue-bossa', 'jazz-minor-ii-v-i', 'latin-minor-vamp'],
     keys: ['A', 'D', 'E', 'G'],

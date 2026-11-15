@@ -46,8 +46,10 @@ pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worke
 - Commands (all `Promise<boolean>`): `calibrate(pose)`, `confirmFret(point, fret)`,
   `confirmNumbering()`, `shiftNumbering(delta)`, `setOptions(changes)`, `reset()`;
   `sampleMarkerColor(point): Promise<MarkerColor | null>`. `poseAt(timeMs?)`, `latest`, `stats`
-  (`processedFps`, `offeredFps`, `workerMs`, `trackMs`, `detectMs`, `latencyMs`, working size,
-  dropped/skipped frames, `quality`), `mode`, `video`, `videoSize`, `isRunning`, `isPaused`.
+  (`processedFps`, `offeredFps`, `workerMs`, `trackMs`, `detectMs`, `latencyMs`, `mainThreadMs`,
+  working size, dropped/skipped frames, `quality`), `mode`, `video`, `videoSize`, `isRunning`,
+  `isPaused`. `pause()` stops the frame loop (an answer still in flight is dropped); options set
+  before `start` are kept for it.
 - Options: `worker: 'off'` (main thread), `quality: QualityOptions`, `predictor: PredictorOptions | false`,
   `stopTracksOnStop` (default false: the screen owns the stream), `createWorker`, `workerTimeoutMs`.
 
@@ -184,17 +186,19 @@ Worker protocol (`protocol.ts`): `createVisionHost(options, env)` answers `Visio
 `VisionResponse`s (frame / bitmap / commands with `id`, `sample-color`, `probe`); the pipeline speaks it for you.
 
 ## Measured
-**Live, in Chromium** (`node e2e/vision-live.cjs --repeat 3`, all three runs passed; fake camera
-1280x720 at 30 fps, 11 s of a classical guitar swaying with the hand sliding, frames scored against
-ground truth; shared 4-core sandbox under load): locked 0.42-0.83 s after frames started; on
-locked frames 100% of the checked markers in the right cell (244-336 frames per run, numbering
-included); 19-24 frames processed per second (camera 21-30 fps shown), worker time per tracked
-frame 24-31 ms median (p95 53-90), bitmap read-back about 1 ms, first detection 190-380 ms (JIT
-warm-up); the drawn pose against the frame actually on screen 1.5-2.0 px median (1280 px wide)
-with extrapolation against 2.9-3.6 px without (each answer on its own frame: 1.2 px); worker and
-page heaps flat over 8 s after GC (< 0.3 MB); the main-thread fallback locks and tracks right at
-9-21 frames/s; a forced quality drop (640 → 544 → 480) keeps tracking right; stop() leaves no
-worker, no callbacks; 6 rapid start/stop cycles leave nothing running.
+**Live, in Chromium** (`node e2e/vision-live.cjs --repeat 3`, final code, all three runs passed;
+fake camera 1280x720 at 30 fps, 11 s of a classical guitar swaying with the hand sliding, every
+answer scored against the ground truth of its frame; shared 4-core sandbox): locked 0.37-0.66 s
+after frames started; 285-338 locked frames per run, 100% of the checked markers in the right cell
+(numbering included); 20-26 frames processed per second (camera 27-30 fps), worker time per
+tracked frame 25-28 ms median (p95 49-76), bitmap read-back about 1 ms, first detection 160-320 ms
+(JIT warm-up), latency frame -> answer 27-52 ms; the pipeline's own main-thread time per video
+frame < 0.1 ms median (max 11-14 ms); the drawn pose against the frame actually on screen 1.6 px
+median (1280 px wide) with extrapolation, 3.0-3.3 px without (each answer on its own frame:
+1.2 px); worker and page heaps flat over 8 s after GC (<= 0.22 MB); the main-thread fallback
+locks and tracks right at 22-28 frames/s with a 6.7-8 ms frame grab on the main thread; a forced
+quality drop (640 -> 544 -> 480) keeps every locked frame right; stop() leaves no worker and no
+callbacks, the page's video and track untouched; 6 rapid start/stop cycles leave nothing running.
 
 **Bench (`hardening.test.ts`, `marker-mode.test.ts`; synthetic, 640x360):** still guitar under
 heavy webcam noise (read 0.025, shot 0.04, JPEG 55; seven seed sets): drawn markers move 0.002-0.005 px
@@ -209,14 +213,17 @@ markers 4/12 and 12/16. The markers alone (detector blind) find a board rarely: 
 
 Detector, single frames (README.md has the full tables): easy 100%, medium 94%, hard 80%, extreme
 58% over 8 seed sets; never measured before this pass, sets 13000 / 14000: hard 75% / 75%,
-extreme 54% / 38%, most misses honest ("weak evidence": nothing drawn, calibration offered).
+extreme 54% / 38%, most misses honest ("weak evidence": nothing drawn, calibration offered). A hard
+view held 1.5 s (fresh set 15000, 24 scenes): 14 lock right (at frame 2, median), 5 keep asking,
+3 find nothing, 2 lock wrong at some point; extreme 10 / 6 / 6 / 2.
 
 ## Limits
 - Measured on synthetic scenes and a synthetic video only; no real webcam footage was available.
 - Classical guitars: the slotted headstock's rollers can continue the fret comb, so the "nut" may be
   found 2-3 frets too far: confident-but-wrong numbering on 4 of 35 confidently numbered classical
   frames in the stored benchmark runs (some scenes counted in several runs; steel 2/370, electric
-  2/299). A tap (`confirmFret`) or marker mode fixes it.
+  2/299). This pass fixed the case where a bone nut follows the rollers; a black nut on a dark
+  board stays ambiguous. A tap (`confirmFret`) or marker mode fixes it.
 - A maple board with faint strings on a light background can be placed half a string off across
   the neck (seen on 4 of 96 fresh hard/extreme frames); frets stay right.
 - Detection takes about 100 ms (p95 ~170-250 on the loaded sandbox) on extreme frames and frames

@@ -100,7 +100,7 @@ export const MINOR_POP: readonly ProgressionSpec[] = [
     styles: ['pop', 'rock'],
     level: 3,
     feel: feel('pop-rock', 84, 130),
-    why: 'From home the loop lifts to the relative major (bIII) and its neighbour bVII, then darkens to iv, whose flattened sixth falls back to the fifth of i. Two bright chords between two dark ones make the colour swing every bar.',
+    why: 'From home the loop lifts to the relative major (bIII) and on to bVII, the V chord of that major key, then darkens to iv, whose flattened sixth falls back to the fifth of i. Two bright chords between two dark ones make the colour swing every bar.',
     tryThis: {
       scales: [sc('1', 'minor-pentatonic'), sc('1', 'minor')],
       strum: STRUM.campfire,

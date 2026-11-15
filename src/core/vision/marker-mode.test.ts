@@ -16,7 +16,7 @@ import { sampleScene } from './testing/scene';
 import { FretboardTracker, type FretboardTrackerOptions } from './tracker';
 import type { DetectOptions, Detector, FretboardPose, MarkerColor, MarkerHint } from './types';
 
-const SCENES = Number(process.env.MARKER_SCENES ?? 6);
+const SCENES = Number(process.env.MARKER_SCENES ?? 4);
 const OFFSET = Number(process.env.MARKER_OFFSET ?? 0);
 const FRAMES = 6;
 

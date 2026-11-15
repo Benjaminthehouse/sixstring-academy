@@ -4,7 +4,7 @@
  * the fretboard-name, staff-read and missing-note exercises.
  */
 import { useId, useState } from 'react';
-import { Icon, Kbd, Text, TextField, cx } from '@/ui';
+import { Icon, Kbd, TextField, cx } from '@/ui';
 import { formatNote, type NoteNaming } from '@/core/theory';
 import { degreeText, intervalText, noteText } from '@/ui/music';
 import { specValue } from '../../answers';
@@ -245,13 +245,4 @@ export function AnswerButtons({ buttons, kind, type, review, onDraft, hints, nam
 /** The canonical expected value of a spec, for marking the right button. */
 export function expectedValue(spec: AnswerSpec | null): string | null {
   return spec ? specValue(spec) : null;
-}
-
-/** Placeholder note for screens with nothing typed yet. */
-export function EmptyAnswer() {
-  return (
-    <Text tone="muted" variant="caption">
-      Nothing entered yet.
-    </Text>
-  );
 }

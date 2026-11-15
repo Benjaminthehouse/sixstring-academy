@@ -158,11 +158,11 @@ export const FOLK_COUNTRY: readonly ProgressionSpec[] = [
     styles: ['folk', 'rock'],
     level: 4,
     feel: feel('ballad-68', 56, 80),
-    why: 'The bass climbs from i through bIII to a major IV, a chord with the raised sixth of Dorian or melodic minor, before falling to bVI: the major IV and the major V (from harmonic minor) bring light and pull into the minor key. Every phrase ends on V, so the song never stops: the dominant hands each verse to the next.',
+    why: 'The bass climbs from i through bIII to a major IV, a chord with the raised sixth of Dorian or melodic minor, before falling to bVI: the major IV and the major V (from harmonic minor) bring light and pull into the minor key. Both eight-bar halves end on V, so the song never stops: the dominant hands each verse to the next.',
     tryThis: {
       scales: [sc('1', 'minor-pentatonic'), sc('1', 'dorian')],
       strum: STRUM.ballad68,
-      tip: 'Arpeggiate each chord in six even notes per bar, bass note first. In A minor the shapes are Am, C, D, F (the small F is fine), E.',
+      tip: 'Arpeggiate each chord in six even notes per bar, bass note first. In A minor the shapes are Am, C, D, F (the small F is fine), E. The minor pentatonic fits every chord except E, where its G clashes with the chord\'s G#; Dorian also clashes with F, so keep it for Am, C and D.',
     },
     related: ['dorian-i-biii-iv', 'minor-i-biii-bvii-iv', 'flamenco-andalusian'],
     keys: ['A', 'E', 'D'],

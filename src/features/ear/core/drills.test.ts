@@ -305,6 +305,39 @@ describe('the course', () => {
   });
 });
 
+describe('difficulty by level (found in review)', () => {
+  it('"same or different" never offers an octave as "different": C and the C above blend, a beginner fairly hears one note', () => {
+    const level = DRILLS.pitch.levels[0];
+    for (let s = 0; s < 400; s++) {
+      for (const difficulty of [0, 0.5, 1]) {
+        const q = make(level, 'different', s + 1, DEFAULT_SETTINGS, difficulty);
+        const [a, b] = q.subject;
+        expect(Math.abs(b - a) % 12, `seed ${s}, difficulty ${difficulty}`).not.toBe(0);
+      }
+    }
+  });
+
+  it('scale degrees end with all twelve: short runs of seven come before naming any of twelve', () => {
+    const sizes = DRILLS.degrees.levels.map((l) => l.pool.length);
+    expect(sizes.at(-1)).toBe(12);
+    expect(Math.max(...sizes.slice(0, -1))).toBeLessThan(12);
+  });
+
+  it('each tuning level is closer than the one before, and each pitch level up to the three-way one is closer', () => {
+    const cents = DRILLS.tuning.levels.map((l) => {
+      const sizes = Array.from({ length: 60 }, (_, s) => Math.abs(Number((make(l, l.pool.includes('flat') ? 'flat' : 'out', s + 1, DEFAULT_SETTINGS, 0.5) as ChoiceQuestion).truth.cents)));
+      return sizes.reduce((x, y) => x + y) / sizes.length;
+    });
+    for (let i = 1; i < cents.length; i++) expect(cents[i], `tuning level ${i + 1}`).toBeLessThanOrEqual(cents[i - 1]);
+    const gaps = DRILLS.pitch.levels.slice(1, 4).map((l) => {
+      const g = Array.from({ length: 60 }, (_, s) => Number((make(l, 'higher', s + 1, DEFAULT_SETTINGS, 0.5) as ChoiceQuestion).truth.gap));
+      return g.reduce((x, y) => x + y) / g.length;
+    });
+    expect(gaps[1]).toBeLessThan(gaps[0]);
+    expect(gaps[2]).toBeLessThan(gaps[1]);
+  });
+});
+
 describe('sound choices', () => {
   it('a fixed root keeps the first note on that pitch class', () => {
     const settings = { ...DEFAULT_SETTINGS, root: 'fixed' as const, fixedRoot: 7 };

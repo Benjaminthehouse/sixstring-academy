@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import plan from './repertoire.json';
-import { chroma, getScale, isNote, noteToMidi, parseTimeSignature } from '@/core/theory';
+import { chordFitsScale, chordTones, chroma, getScale, isNote, noteToMidi, parseTimeSignature, scaleNotes } from '@/core/theory';
 import { voicingProblem } from '@/core/guitar';
 
 /** A public-domain or traditional piece the app will teach with. */
@@ -154,6 +154,9 @@ describe('repertoire plan: pieces', () => {
       'kumbaya', 'cielito lindo', 'guantanamera', 'we wish you a merry christmas', 'happy birthday', 'wild mountain thyme',
       'wellerman', 'tom dooley', 'malaguena', 'romance', 'st. louis blues', 'circle be unbroken', "i'll fly away", 'la bamba',
       'el condor pasa', 'careless love', 'birmingham jail', 'leaving of liverpool', 'black is the colour', 'black is the color',
+      // added by the rights review
+      'red river valley', 'angeline', 'this little light', 'whole world in his hands', 'kookaburra', 'love me tender',
+      'wheels on the bus', 'lavender blue', 'katyusha', 'hava nagila', 'john henry blues',
     ];
     for (const p of pieces) {
       const title = p.title.toLowerCase();
@@ -240,5 +243,89 @@ describe('repertoire plan: musical claims match the engines', () => {
       }
     }
     expect(checked).toBeGreaterThan(150);
+  });
+});
+
+/** Every "Chord (shape)" an entry names, as [symbol, shape, index in the text]. */
+function namedShapes(text: string): [string, string, number][] {
+  const re = new RegExp(String.raw`(?<![\w#])([A-G](?:#|b)?[a-z0-9#]*) \((${SHAPE})\)`, 'g');
+  return [...text.matchAll(re)].map((m) => [m[1], m[2], m.index ?? 0]);
+}
+
+describe('repertoire plan: teaching order and safety', () => {
+  it('keeps the first-weeks melodies (levels 1 and 2) inside their key', () => {
+    let checked = 0;
+    for (const p of pieces.filter((x) => x.level <= 2)) {
+      const [tonic, scale] = p.key.split(' ');
+      const inKey = new Set(scaleNotes(tonic, scale).map((n) => chroma(n)));
+      for (const m of p.notes.matchAll(/string ([1-6]) fret (\d{1,2}) \(([A-G](?:#|b)?)\)/g)) {
+        expect(inKey.has((OPEN[Number(m[1])] + Number(m[2])) % 12), `${p.id}: ${m[0]} is outside ${p.key}`).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(30);
+  });
+
+  it('asks a piece at levels 2 to 4 only for chord shapes already practised, or offers an easier one', () => {
+    const taughtAt = new Map<string, number>();
+    for (const e of [...studies, ...technique]) {
+      for (const text of texts(e)) {
+        for (const [sym, shape] of namedShapes(text)) {
+          const k = `${sym} (${shape})`;
+          taughtAt.set(k, Math.min(taughtAt.get(k) ?? 99, e.level));
+        }
+      }
+    }
+    const ready = (k: string, level: number) => (taughtAt.get(k) ?? 99) <= level;
+    for (const p of pieces.filter((x) => x.level >= 2 && x.level <= 4)) {
+      for (const [sym, shape, at] of namedShapes(p.notes)) {
+        const k = `${sym} (${shape})`;
+        if (ready(k, p.level)) continue;
+        // "Bm (x24432), or the open Bm7 (x20202)": the easier alternative must follow at once and be practised.
+        const after = p.notes.slice(at + k.length, at + k.length + 60);
+        const alt = /^,? or\b[a-z ,]*?([A-G](?:#|b)?[a-z0-9#]*) \(([x0-9-]+)\)/.exec(after);
+        expect(alt && ready(`${alt[1]} (${alt[2]})`, p.level), `${p.id} (level ${p.level}) asks for ${k}, first practised at level ${taughtAt.get(k) ?? 'never'}`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps every mode-study vamp inside its mode and makes it sound the colour note', () => {
+    const modes: Record<string, string> = {
+      ionian: 'major', dorian: 'dorian', phrygian: 'phrygian', lydian: 'lydian', mixolydian: 'mixolydian', aeolian: 'minor', locrian: 'locrian',
+    };
+    for (const [name, scale] of Object.entries(modes)) {
+      const s = studies.find((x) => x.id === `st-mode-${name}`);
+      expect(s, name).toBeDefined();
+      const notes = scaleNotes('A', scale);
+      const vamp = /Vamp ([^.;:]*)/.exec(s!.spec)![1];
+      const chords = namedShapes(vamp).map(([sym]) => sym);
+      expect(chords.length, s!.id).toBeGreaterThanOrEqual(2);
+      for (const c of chords) expect(chordFitsScale(c, notes), `${s!.id}: ${c} in A ${scale}`).toBe(true);
+      const colours = /Colour notes?: ([A-G](?:#|b)?)(?: and ([A-G](?:#|b)?))?/.exec(s!.spec)!;
+      const sounding = new Set(chords.flatMap((c) => chordTones(c).map((t) => chroma(t.note))));
+      for (const colour of [colours[1], colours[2]].filter(Boolean)) {
+        expect(notes.map((n) => chroma(n)), `${s!.id}: colour ${colour}`).toContain(chroma(colour));
+        expect(sounding.has(chroma(colour)), `${s!.id}: the vamp never sounds ${colour}`).toBe(true);
+      }
+    }
+  });
+
+  it('warns about strain wherever an exercise can hurt', () => {
+    const risky = [
+      'tech-spider', 'tech-stretch', 'tech-anchored-fingers', 'tech-trills', 'tech-barre-strength', 'tech-palm-mute',
+      'tech-tremolo-picking', 'tech-rasgueado', 'tech-bend-whole-step', 'tech-bend-minor-third',
+    ];
+    for (const id of risky) {
+      const t = technique.find((x) => x.id === id);
+      expect(t, id).toBeDefined();
+      const text = [t!.pattern, ...t!.watchFor].join(' ').toLowerCase();
+      expect(/stop|strain|ache|aching|pain|burn|cramp|sore|forc/.test(text), `${id} has no strain warning`).toBe(true);
+    }
+  });
+
+  it('keeps chord-change ladders reachable for the level they sit at', () => {
+    for (const t of technique.filter((x) => x.id.startsWith('tech-changes'))) {
+      expect(t.tempo.goal, `${t.id}: changes per minute`).toBeLessThanOrEqual(t.level <= 4 ? 72 : 96);
+    }
   });
 });

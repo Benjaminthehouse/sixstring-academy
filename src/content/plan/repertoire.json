@@ -65,6 +65,27 @@
       "notes": "Notes: the open string 3 (G), string 3 fret 2 (A) with finger 2, the open string 2 (B), string 2 fret 3 (D) with finger 3. 8 bars: B A G A | B B B (half) | A A A (half) | B D D (half) | B A G A | B B B B | A A B A | G (whole). Teacher part: G throughout, D7 under bars 3 and 7. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
+      "id": "lightly-row",
+      "title": "Lightly Row",
+      "origin": "Traditional German (Haenschen klein); German words: Franz Wiedemann (1821-1882)",
+      "year": "19th century",
+      "publicDomain": {
+        "music": "Traditional German folk melody of the 19th century with no known composer.",
+        "lyrics": "Instrumental. The English words are anonymous and differ from book to book; Wiedemann's 19th-century German words (he died in 1882) may be sung instead."
+      },
+      "level": 1,
+      "arrangement": "single-line melody",
+      "key": "G major",
+      "meter": "4/4",
+      "tempo": 88,
+      "teaches": [
+        "five notes on strings 3 and 2",
+        "quarter, half and whole notes",
+        "phrases that repeat"
+      ],
+      "notes": "Only strings 3 and 2 in first position: the open string 3 (G), string 3 fret 2 (A) with finger 2, the open string 2 (B), string 2 fret 1 (C) with finger 1, string 2 fret 3 (D) with finger 3. 16 bars: D B B (half) | C A A (half) | G A B C | D D D (half) | D B B (half) | C A A (half) | G B D D | G (whole) | A A A A | A B C (half) | B B B B | B C D (half) | D B B (half) | C A A (half) | G B D D | G (whole). Teacher part: G, with D7 under the bars that sit on A and C (bars 2, 6, 9, 10 and 14). Write a new arrangement; never copy a modern edition, tab, chart or recording."
+    },
+    {
       "id": "frere-jacques",
       "title": "Frere Jacques (strum along)",
       "origin": "Traditional French",
@@ -170,6 +191,27 @@
       "notes": "Two voices; the teacher (or the app) enters 2 bars after the student. Each voice: G A B G | G A B G | B C D (half) | B C D (half) | D E D C B G (the first four as eighths) | the same | G D G (half) | the same. Notes: G is the open string 3 (G), A string 3 fret 2 (A), B the open string 2 (B), C string 2 fret 1 (C), D string 2 fret 3 (D), E the open string 1 (E); the low D of the last phrase is the open string 4 (D). The first voice plays the tune twice and holds a final G while the second voice finishes. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
+      "id": "row-row-row-your-boat",
+      "title": "Row, Row, Row Your Boat",
+      "origin": "Music: Eliphalet Oram Lyte (1842-1913); words: anonymous American",
+      "year": "words printed 1852; tune 1881",
+      "publicDomain": {
+        "music": "Lyte published this tune in 1881 (The Franklin Square Song Collection) and died in 1913.",
+        "lyrics": "The single anonymous verse, printed in 1852."
+      },
+      "level": 2,
+      "arrangement": "single-line melody",
+      "key": "G major",
+      "meter": "6/8",
+      "tempo": 56,
+      "teaches": [
+        "6/8 time: two beats, each split in three",
+        "a round",
+        "reaching up to string 1 fret 3"
+      ],
+      "notes": "First position: the open string 3 (G), string 3 fret 2 (A), the open string 2 (B), string 2 fret 1 (C), string 2 fret 3 (D), string 1 fret 3 (G). 8 bars of 6/8: G (dotted quarter) G (dotted quarter) | G (quarter) A (eighth) B (dotted quarter) | B (quarter) A (eighth) B (quarter) C (eighth) | D (dotted half) | high G G G, D D D (eighths) | B B B, G G G (eighths) | D (quarter) C (eighth) B (quarter) A (eighth) | G (dotted half). The \"merrily\" bars step down through the notes of the G chord, three eighths on each. The whole tune sits over one G chord, so it works as a round: the second voice enters after 2 bars. Teacher part: G throughout. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+    },
+    {
       "id": "jingle-bells",
       "title": "Jingle Bells (chorus)",
       "origin": "James Lord Pierpont (1822-1893)",
@@ -182,13 +224,34 @@
       "arrangement": "melody with chords",
       "key": "G major",
       "meter": "4/4",
-      "tempo": 112,
+      "tempo": 100,
       "teaches": [
         "repeated notes",
         "dotted quarter and eighth",
         "a seasonal song"
       ],
       "notes": "Chorus only, 16 bars: B B B (half) | B B B (half) | B D G. A (eighth) | B (whole) | C C C. C (eighth) | C B B B-B (eighths) | B A A B | A (half) D (half) | B B B (half) | B B B (half) | B D G. A | B (whole) | C C C C | C B B B-B | D D C A | G (whole). All on strings 3 and 2: the open string 3 (G), string 3 fret 2 (A), the open string 2 (B), string 2 fret 1 (C), string 2 fret 3 (D). Teacher chords: G for bars 1-4, C, G, A7, D7, then G for bars 9-12, C, G, D7, G. The verse (Dashing through the snow) can follow at level 3. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+    },
+    {
+      "id": "london-bridge",
+      "title": "London Bridge",
+      "origin": "Traditional English nursery song",
+      "year": "words in print in the 18th century; tune traditional",
+      "publicDomain": {
+        "music": "Traditional English tune with no known composer, sung and printed in the 19th century.",
+        "lyrics": "Traditional rhyme, in print since the 18th century: use the first verse (London Bridge is falling down, my fair lady)."
+      },
+      "level": 2,
+      "arrangement": "melody with chords",
+      "key": "G major",
+      "meter": "2/4",
+      "tempo": 92,
+      "teaches": [
+        "a melody on strings 3 to 1",
+        "a dotted rhythm",
+        "hearing I and V7 under a tune"
+      ],
+      "notes": "First position: the open string 3 (G), string 3 fret 2 (A), the open string 2 (B), string 2 fret 1 (C), string 2 fret 3 (D), the open string 1 (E). 8 bars: D E D C | B C D | A B C | B C D | D E D C | B C D | A D | B G, with a dotted eighth and a sixteenth on \"London\". The student plays the tune; the teacher plays one chord per bar: G G | D7 G | G G | D7 G. From level 3, once D7 is learned, swap parts. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "down-in-the-valley",
@@ -217,7 +280,7 @@
       "origin": "American song credited to Percy Montrose",
       "year": "1884",
       "publicDomain": {
-        "music": "Published in 1884, so public domain in the US by date. The credited writer is obscure: to keep any term alive elsewhere he would have had to live past 1954, seventy years after publishing it, and the song has circulated as traditional ever since.",
+        "music": "Published in 1884, so public domain in the US by date. Nothing is known of the credited writer beyond this one song, so in life-plus-70 countries it counts as a work of unknown authorship, protected for 70 years from publication (to 1954); even under life-plus-70 he would have had to live 71 years after publishing it. The song has circulated as traditional ever since. Use the 1884 tune, not the different 1863 melody of Down by the River Liv'd a Maiden.",
         "lyrics": "The 1884 words: the chorus and the first two verses (In a cavern, in a canyon; Light she was and like a fairy)."
       },
       "level": 2,
@@ -273,7 +336,7 @@
         "D, G and A",
         "call and response"
       ],
-      "notes": "Chords D (xx0232), G (320003), A (x02220). Call and response: one voice sings the line, everyone answers \"Hallelujah\". Four downstrums per bar first, then down-up eighths. Say in one plain sentence where it comes from: it was sung by enslaved people on the Sea Islands and printed in 1867. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "Chords D (xx0232), G (320003), A (x02220). Call and response: one voice sings the line, everyone answers \"Hallelujah\". Four downstrums per bar first, then down-up eighths. Take the melody from the 1867 printing; the folk-revival arrangements of the 1950s and the 1960 hit recording are later works, so copy nothing from them. Say in one plain sentence where it comes from: it was sung by enslaved people on the Sea Islands and printed in 1867. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "deck-the-halls",
@@ -359,27 +422,6 @@
         "songs that add a verse each time"
       ],
       "notes": "Chords G (320003), C (x32010), D7 (xx0212). Line 1 on G, line 2 on D7, line 3 on G moving to C, line 4 G, D7, G. Down-up eighths with an accent on beats 2 and 4. Write a new arrangement; never copy a modern edition, tab, chart or recording."
-    },
-    {
-      "id": "red-river-valley",
-      "title": "Red River Valley",
-      "origin": "Traditional (North American)",
-      "year": "known before 1896; printed 1896 as In the Bright Mohawk Valley (credited to James J. Kerrigan)",
-      "publicDomain": {
-        "music": "Folk-song researchers trace both tune and words to Canada before the 1896 printing, so the song is treated as traditional; the 1896 print is public domain in the US by date.",
-        "lyrics": "Traditional verses ('From this valley they say you are going'; 'Come and sit by my side if you love me')."
-      },
-      "level": 3,
-      "arrangement": "strum and sing",
-      "key": "G major",
-      "meter": "4/4",
-      "tempo": 96,
-      "teaches": [
-        "G, C and D7",
-        "boom-chick accompaniment",
-        "pickup notes"
-      ],
-      "notes": "Chords G (320003), C (x32010), D7 (xx0212), with G7 (320001) before C. The song starts with a two-note pickup. Boom-chick accompaniment: bass on beats 1 and 3, strum on 2 and 4. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "go-tell-it-on-the-mountain",
@@ -497,15 +539,15 @@
       },
       "level": 3,
       "arrangement": "strum and sing",
-      "key": "C major",
+      "key": "G major",
       "meter": "6/8",
       "tempo": 50,
       "teaches": [
         "6/8 time",
-        "C, G7 and F",
-        "a fingerpicked arpeggio"
+        "G, D7 and C",
+        "a first fingerpicked accompaniment"
       ],
-      "notes": "Chords C (x32010), G7 (320001), F (xx3211). 6/8 has two beats per bar, each split in three. Accompaniment: thumb on the bass on counts 1 and 4, fingers on strings 3, 2 and 1 in between. Gentle and slow. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "In G, so every chord is one a level-3 learner knows: G (320003), D7 (xx0212), C (x32010). 6/8 has two beats per bar, each split in three. First pass: one downstrum on counts 1 and 4. Second pass: thumb on the bass on counts 1 and 4, fingers on strings 3, 2 and 1 in between. Gentle and slow. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "joy-to-the-world",
@@ -535,7 +577,7 @@
       "year": "printed 1888 (Tokyo Academy of Music, koto collection)",
       "publicDomain": {
         "music": "Traditional Edo-period melody with no known composer, printed in 1888.",
-        "lyrics": "Traditional Japanese words: sing them in Japanese or play it instrumental. Write any English summary yourself."
+        "lyrics": "Traditional Japanese words: use the traditional verse that begins \"Sakura, sakura, yayoi no sora wa\", sung in Japanese, or play it instrumental. Write any English summary yourself."
       },
       "level": 3,
       "arrangement": "single-line melody",
@@ -589,7 +631,7 @@
         "rests",
         "short, crisp notes"
       ],
-      "notes": "The opening theme of the first movement only (about the first 8 bars). It begins with the G major arpeggio rocket G D G D G B D: the open string 3 (G), the open string 4 (D), then up to the open string 2 (B) and string 2 fret 3 (D). The answer C A C A C A F# A D uses string 2 fret 1 (C), string 3 fret 2 (A), string 4 fret 4 (F#) and the open string 4 (D). Crisp and short; observe every rest. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+      "notes": "The opening theme of the first movement only (about the first 8 bars). It begins G, D, G, D (the first bar, with rests), then the rising G major arpeggio G D G B D: the open string 3 (G), the open string 4 (D), then up to the open string 2 (B) and string 2 fret 3 (D). The answer has the same shape, C A C A, then C A F# A D, and uses string 2 fret 1 (C), string 3 fret 2 (A), string 4 fret 4 (F#) and the open string 4 (D). Crisp and short; observe every rest. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "morning-mood",
@@ -644,15 +686,16 @@
       },
       "level": 3,
       "arrangement": "melody with chords",
-      "key": "C major",
+      "key": "G major",
       "meter": "3/4",
       "tempo": 72,
       "teaches": [
         "a rocking 3/4 accompaniment",
-        "C, G7 and F",
-        "a smooth melody"
+        "G, D7 and C",
+        "a smooth melody",
+        "the octave leap"
       ],
-      "notes": "Melody with a rocking accompaniment: bass on beat 1, chord on beats 2 and 3. Chords C (x32010), G7 (320001), F (xx3211). The tune starts with a pickup. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+      "notes": "Moved from the original E-flat major to G major: the melody then runs exactly from the open string 3 (G) up to string 1 fret 3 (G), all in first position, including the octave leap in the second half. The student plays the melody while the teacher or the app plays the rocking accompaniment (bass on beat 1, chord on beats 2 and 3), then they swap parts. Chords G (320003), D7 (xx0212), C (x32010). The tune starts with a pickup. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "carulli-andantino-op241-no5",
@@ -757,28 +800,29 @@
         "a pentatonic melody",
         "the pickup into each line"
       ],
-      "notes": "Chords D (xx0232), A (x02220), G (320003), Bm (x24432) or a simplified Bm on strings 1-4. Each line starts with a pickup; the melody uses the D major pentatonic notes. A New Year song: offer it in late December. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "Chords D (xx0232), A (x02220), G (320003), Bm (x24432), or the open Bm7 (x20202) until barre chords arrive at level 5. Each line starts with a pickup; the melody uses the D major pentatonic notes. A New Year song: offer it in late December. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
-      "id": "angeline-the-baker",
-      "title": "Angeline the Baker",
-      "origin": "Fiddle tune derived from Angelina Baker by Stephen Foster (1826-1864)",
-      "year": "1850",
+      "id": "rakes-of-mallow",
+      "title": "The Rakes of Mallow",
+      "origin": "Traditional Irish",
+      "year": "18th century",
       "publicDomain": {
-        "music": "Foster's song was published in 1850; the fiddle tune grew from it in oral tradition.",
-        "lyrics": "Instrumental (Foster's minstrel-show words are not used)."
+        "music": "Traditional Irish tune from the 18th century with no known composer.",
+        "lyrics": "instrumental"
       },
       "level": 3,
       "arrangement": "flatpicking",
-      "key": "D major",
+      "key": "G major",
       "meter": "2/4",
       "tempo": 80,
       "teaches": [
         "a first fiddle tune",
-        "AABB form",
+        "a polka",
+        "repeated notes",
         "downstrokes on the beat"
       ],
-      "notes": "AABB form, 8 bars per part, mostly first position on strings 4 to 1. Downstrokes on the beat, upstrokes on the off-beats. Add a backup chord part (D, G, A) for a second player. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "AABB polka, 8 bars per part, in first position: the first fiddle tune, because it moves mostly by step and repeats its notes. Downstrokes on the beat, upstrokes on the off-beats. Backup chords G (320003), D (xx0232), C (x32010). Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "greensleeves-melody",
@@ -862,7 +906,7 @@
         "dotted rhythms",
         "a pickup into each line"
       ],
-      "notes": "Chords D (xx0232), G (320003), A (x02220), Bm (x24432) or a simplified Bm, Em (022000). Keep the dotted rhythms of the tune. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "Chords D (xx0232), G (320003), A (x02220), Bm (x24432) or, before barre chords, the open Bm7 (x20202), Em (022000). Keep the dotted rhythms of the tune. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "shenandoah",
@@ -988,7 +1032,7 @@
         "a story song",
         "a secondary dominant (E7)"
       ],
-      "notes": "Chords D (xx0232), A (x02220), G (320003), Bm (x24432) or a simplified Bm, Em (022000), E7 (020100). Explain the Australian words (swagman, billabong, jumbuck) in one line each. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "Chords D (xx0232), A (x02220), G (320003), Bm (x24432) or, before barre chords, the open Bm7 (x20202), Em (022000), E7 (020100). Explain the Australian words (swagman, billabong, jumbuck) in one line each. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "korobeiniki",
@@ -1054,27 +1098,6 @@
       "notes": "AABB, 8 bars per part. Backup chords D (xx0232), A (x02220), G (320003). Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
-      "id": "rakes-of-mallow",
-      "title": "The Rakes of Mallow",
-      "origin": "Traditional Irish",
-      "year": "18th century",
-      "publicDomain": {
-        "music": "Traditional Irish tune from the 18th century with no known composer.",
-        "lyrics": "instrumental"
-      },
-      "level": 4,
-      "arrangement": "flatpicking",
-      "key": "G major",
-      "meter": "2/4",
-      "tempo": 92,
-      "teaches": [
-        "a polka",
-        "repeated notes",
-        "G, D and C"
-      ],
-      "notes": "AABB polka. Backup chords G (320003), D (xx0232), C (x32010). Write a new arrangement; never copy a modern edition, tab, chart or recording."
-    },
-    {
       "id": "canon-in-d",
       "title": "Canon in D (duet)",
       "origin": "Johann Pachelbel (1653-1706)",
@@ -1093,7 +1116,7 @@
         "chord progression D A Bm F#m G D G A",
         "playing your part against a canon"
       ],
-      "notes": "The student plays the two-bar ground bass, one note per beat: the open string 4 (D), the open string 5 (A), string 5 fret 2 (B), string 6 fret 2 (F#), string 6 fret 3 (G), the open string 4 (D), string 6 fret 3 (G), the open string 5 (A), later as chords D A Bm F#m G D G A. The teacher (or the app) plays the canon lines above. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+      "notes": "The student plays the two-bar ground bass, one note per beat: the open string 4 (D), the open string 5 (A), string 5 fret 2 (B), string 6 fret 2 (F#), string 6 fret 3 (G), the open string 4 (D), string 6 fret 3 (G), the open string 5 (A), later as chords D (xx0232), A (x02220), Bm (x24432) or the open Bm7 (x20202), the small F#m (xx4222) with a finger-1 barre on strings 3 to 1, G (320003), D, G, A. The teacher (or the app) plays the canon lines above. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "de-visee-sarabande",
@@ -1353,7 +1376,7 @@
       "origin": "Traditional African American ballad",
       "year": "words in print by 1909; tunes printed in collections in the 1920s",
       "publicDomain": {
-        "music": "Traditional ballad with no author, documented by 1909, with tunes printed before 1930.",
+        "music": "Traditional ballad with no author, documented by 1909, with tunes printed before 1930. W. C. Handy's John Henry Blues (1922) is his own work and is not public domain where life-plus-70 applies (Handy died in 1958): never use it.",
         "lyrics": "Traditional verses about the steel-driving contest, from versions printed before 1930."
       },
       "level": 4,
@@ -1366,7 +1389,7 @@
         "E7, A7 and B7",
         "a driving strum"
       ],
-      "notes": "An early blues ballad: harmonize the tune with E7 (020100), A7 (x02020) and B7 (x21202), using dominant-seventh chords for the blues colour. Driving strum with accents on 2 and 4. Write a new arrangement; never copy a modern edition, tab, chart or recording."
+      "notes": "An early blues ballad. Take the tune from a traditional version printed before 1930, not from W. C. Handy's 1922 John Henry Blues or any later recording. Harmonize the tune with E7 (020100), A7 (x02020) and B7 (x21202), using dominant-seventh chords for the blues colour. Driving strum with accents on 2 and 4. Write a new arrangement; never copy a modern edition, tab, chart or recording."
     },
     {
       "id": "old-joe-clark",
@@ -1535,27 +1558,6 @@
         "first and second position"
       ],
       "notes": "Both voices of the keyboard original on one guitar: the bass line with the thumb, the melody with i and m. Move bass notes by an octave only where the guitar cannot reach them, and note every change. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
-    },
-    {
-      "id": "sanz-canarios",
-      "title": "Canarios",
-      "origin": "Gaspar Sanz (1640-1710)",
-      "year": "1674 (Instruccion de musica sobre la guitarra espanola, Zaragoza)",
-      "publicDomain": {
-        "music": "Sanz died in 1710.",
-        "lyrics": "instrumental"
-      },
-      "level": 5,
-      "arrangement": "classical solo",
-      "key": "D major",
-      "meter": "6/8",
-      "tempo": 66,
-      "teaches": [
-        "hemiola: 6/8 and 3/4 groupings",
-        "a Baroque dance",
-        "D major on the open strings"
-      ],
-      "notes": "The music alternates 6/8 and 3/4 groupings (hemiola): keep that alternation audible. Transcribe from the 1674 tablature (five-course Baroque guitar, re-entrant tuning), not from a modern edition. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "handel-sarabande",
@@ -1831,6 +1833,27 @@
       "notes": "Marked Allegro. Repeated treble notes inside the arpeggios: most guitarists use i-m-a for them (it is not a tremolo study). Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
+      "id": "sanz-canarios",
+      "title": "Canarios",
+      "origin": "Gaspar Sanz (1640-1710)",
+      "year": "1674 (Instruccion de musica sobre la guitarra espanola, Zaragoza)",
+      "publicDomain": {
+        "music": "Sanz died in 1710.",
+        "lyrics": "instrumental"
+      },
+      "level": 6,
+      "arrangement": "classical solo",
+      "key": "D major",
+      "meter": "6/8",
+      "tempo": 66,
+      "teaches": [
+        "hemiola: 6/8 and 3/4 groupings",
+        "a Baroque dance",
+        "D major on the open strings"
+      ],
+      "notes": "The music alternates 6/8 and 3/4 groupings (hemiola): keep that alternation audible. Transcribe from the 1674 tablature (five-course Baroque guitar, re-entrant tuning), not from a modern edition. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+    },
+    {
       "id": "hungarian-dance-5",
       "title": "Hungarian Dance No. 5 (theme)",
       "origin": "Johannes Brahms (1833-1897), on a csardas by Bela Keler (1820-1882)",
@@ -1955,6 +1978,27 @@
         "expressive timing"
       ],
       "notes": "Op. 13 contains several Romanzes: this is the one in E minor marked Adagio (about 47 bars). Identify it in the source by key and tempo. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+    },
+    {
+      "id": "sor-folies-op15a",
+      "title": "Variations on Les Folies d'Espagne, Op. 15a",
+      "origin": "Fernando Sor (1778-1839)",
+      "year": "published in Paris c. 1822-1825",
+      "publicDomain": {
+        "music": "Sor died in 1839; the set was printed in Paris in the 1820s.",
+        "lyrics": "instrumental"
+      },
+      "level": 7,
+      "arrangement": "classical solo",
+      "key": "E minor",
+      "meter": "3/4",
+      "tempo": 66,
+      "teaches": [
+        "variation form",
+        "the Folia, a famous repeating harmony",
+        "a different technique in each variation"
+      ],
+      "notes": "The theme and four variations (the closing minuet is optional; some editions leave it out). The Folia theme is a 16-bar repeating harmony in triple time with the sarabande lean on beat 2. Sor wrote his set in E minor, not the D minor of most other Folias: check the key against the edition. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "jesu-joy",
@@ -2125,6 +2169,27 @@
       "notes": "Moved from the cello's G major to D major, a usual guitar key. Choose the octave so every note fits the guitar (drop D tuning allowed); add bass notes sparingly. Make the transcription from the cello part, not from a guitar edition. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
+      "id": "bach-prelude-bwv1006a",
+      "title": "Prelude from Partita No. 3, BWV 1006a",
+      "origin": "Johann Sebastian Bach (1685-1750)",
+      "year": "1720 (violin, BWV 1006); lute version BWV 1006a from the 1730s",
+      "publicDomain": {
+        "music": "Bach died in 1750.",
+        "lyrics": "instrumental"
+      },
+      "level": 9,
+      "arrangement": "classical solo",
+      "key": "E major",
+      "meter": "3/4",
+      "tempo": 96,
+      "teaches": [
+        "perpetual sixteenth notes",
+        "bariolage (a melody alternating with an open string)",
+        "stamina and right-hand planning"
+      ],
+      "notes": "In the original E major. A new transcription from Bach's violin part (BWV 1006) or his own keyboard or lute version (BWV 1006a), adding bass notes only where the harmony needs them. In the long bariolage passages a moving line alternates with a repeated open string (on the violin, the open E): use the open string 1 (E) where the line allows, and plan the right-hand fingering for these passages first. Do not copy any published guitar transcription. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+    },
+    {
       "id": "asturias",
       "title": "Asturias (Leyenda)",
       "origin": "Isaac Albeniz (1860-1909)",
@@ -2164,7 +2229,7 @@
         "minor and major halves",
         "a sustained melody at speed"
       ],
-      "notes": "The tremolo masterpiece: the first half in A minor, the second in A major. Every melody note is played four times (p a m i): the repeated notes must sound like one long note. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
+      "notes": "The tremolo masterpiece: the first half in A minor, the second in A major. Each beat is one tremolo group, p a m i: the thumb plays a bass or inner note, then a, m and i repeat the melody note three times. The repeated notes must sound like one long, unbroken melody. Source: transcribe from the first or an early edition (a public-domain scan). If you cannot consult it, do not reconstruct from memory: report it. Where this note and the edition disagree, the edition wins."
     },
     {
       "id": "bach-chaconne",
@@ -2229,8 +2294,8 @@
       "id": "st-first-notes-string-3",
       "title": "First Notes on String 3",
       "level": 1,
-      "goal": "G and A on string 3, then a three-string tune",
-      "spec": "G major, 8 bars, 4/4. Notes: the open string 3 (G) and string 3 fret 2 (A) with finger 2; bars 5-8 join strings 2 and 3 (G A B C D). Teacher part: G and D7 (A sits in D7). End on G. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "goal": "G and A on string 3, then a tune across strings 3, 2 and 1",
+      "spec": "G major, 8 bars, 4/4. Notes: the open string 3 (G) and string 3 fret 2 (A) with finger 2; bars 5-8 use strings 3, 2 and 1 together (G A B C D, and the open string 1 (E)). Teacher part: G and D7 (A sits in D7). End on G. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "reading notes on one string",
         "fingers 1 to 3 in first position",
@@ -2326,7 +2391,7 @@
       "title": "Change: G-C and C-G7",
       "level": 3,
       "goal": "Clean changes: G (320003) with C (x32010), then C with G7 (320001)",
-      "spec": "16 bars, 4/4, strummed. For each pair: 2 bars changing every 2 bars (one strum per bar), 2 bars changing every bar (two strums per bar), 2 bars changing every bar (four strums per bar), 2 bars changing every 2 beats. Metronome on; the change must land on the beat even if the last strum before it is played on open strings. Finger G with fingers 3, 2 and 4 (3 on string 6 fret 3 (G), 2 on string 5 fret 2 (B), 4 on string 1 fret 3 (G)): moving to C, fingers 3 and 2 keep their shape and move one string toward string 1 (string 5 fret 3 (C), string 4 fret 2 (E)), and finger 1 lands on string 2 fret 1 (C). C to G7: the same 3-2 shape moves back one string toward string 6, and finger 1 moves from string 2 fret 1 (C) to string 1 fret 1 (F).",
+      "spec": "16 bars, 4/4, strummed. For each pair: 2 bars changing every 2 bars (one strum per bar), 2 bars changing every bar (two strums per bar), 2 bars changing every bar (four strums per bar), 2 bars changing every 2 beats. Metronome on; the change must land on the beat even if the last strum before it is played on open strings. Finger G with fingers 3, 2 and 4 (3 on string 6 fret 3 (G), 2 on string 5 fret 2 (B), 4 on string 1 fret 3 (G)), a second way to finger G, chosen because it makes this change easy: moving to C, fingers 3 and 2 keep their shape and move one string toward string 1 (string 5 fret 3 (C), string 4 fret 2 (E)), and finger 1 lands on string 2 fret 1 (C). C to G7: the same 3-2 shape moves back one string toward string 6, and finger 1 moves from string 2 fret 1 (C) to string 1 fret 1 (F).",
       "teaches": [
         "chord changes",
         "shared notes and anchor fingers",
@@ -2446,11 +2511,24 @@
       "title": "Strumming: Boom-Chick",
       "level": 3,
       "goal": "Alternate a bass note and a strum, country style",
-      "spec": "16 bars, 4/4, G, C, D7, G (4 bars each). Bass note on beats 1 and 3, strum strings 4-1 on 2 and 4. Bass notes: G alternates string 6 fret 3 (G) and the open string 4 (D); C alternates string 5 fret 3 (C) and string 6 fret 3 (G) (finger 3 moves); D7 alternates the open string 4 (D) and the open string 5 (A). Shapes G (320003), C (x32010), D7 (xx0212).",
+      "spec": "16 bars, 4/4, G, C, D7, G (4 bars each). Bass note on beats 1 and 3, strum strings 4-1 on 2 and 4. Bass notes: G alternates string 6 fret 3 (G) and the open string 4 (D); C alternates string 5 fret 3 (C) and string 6 fret 3 (G) (finger 3 moves); D7 alternates the open string 4 (D) and the open string 5 (A). Shapes G (320003), C (x32010), D7 (xx0212). In bar 4, walk up into C: bass notes on every beat, string 6 fret 3 (G), the open string 5 (A), string 5 fret 2 (B), then C arrives on string 5 fret 3 (C) on beat 1 of bar 5.",
       "teaches": [
         "alternating bass",
         "boom-chick",
-        "country rhythm"
+        "country rhythm",
+        "a bass walk-up between chords"
+      ]
+    },
+    {
+      "id": "st-sus-embellish",
+      "title": "Sus Chords and Chord Embellishments",
+      "level": 4,
+      "goal": "Decorate open chords with sus2, sus4 and add9 notes to keep a strum moving",
+      "spec": "16 bars, 4/4, the folk pattern from st-strum-folk. D (xx0232) with Dsus4 (xx0233) and Dsus2 (xx0230); A (x02220) with Asus4 (x02230) and Asus2 (x02200); C (x32010) with Cadd9 (x32030). In each bar: the plain chord on beats 1 and 2, the decorated chord on beat 3 (add or lift one finger, nothing else moves), back to the plain chord on beat 4. Explain the names in plain words: sus4 replaces the third with the fourth, sus2 replaces it with the second, add9 keeps the third and adds the ninth. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "teaches": [
+        "sus2 and sus4 chords",
+        "add9",
+        "embellishing a strum by moving one finger"
       ]
     },
     {
@@ -2734,7 +2812,7 @@
       "title": "Fingerstyle: p i m a",
       "level": 3,
       "goal": "Assign the thumb to the bass and i, m, a to strings 3, 2 and 1",
-      "spec": "16 bars, 4/4, eighth notes. C (x32010), Am (x02210), Dm (xx0231), G7 (320001), 4 bars each. The thumb plays the root (string 5 for C and Am, string 4 for Dm, string 6 for G7), i string 3, m string 2, a string 1. Patterns: p-i-m-a (bars 1-8), p-a-m-i (bars 9-12), p-i-m-a-m-i plus a pinch of p and a on beat 1 (bars 13-16). Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, eighth notes. C (x32010), Am (x02210), Dm (xx0231), G7 (320001), 4 bars each. The thumb plays the root (string 5 for C and Am, string 4 for Dm, string 6 for G7), i string 3, m string 2, a string 1. Patterns (eight eighths per bar): p-i-m-a twice (bars 1-8), p-a-m-i twice (bars 9-12), p-i-m-a-m-i-m-i (bars 13-16), and in bars 15-16 a pinch of p and a together on beat 1 in place of the first p. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "p i m a",
         "free stroke",
@@ -2746,7 +2824,7 @@
       "title": "Fingerstyle: p i m a m i in 3/4",
       "level": 4,
       "goal": "A flowing six-note arpeggio that fills a 3/4 bar",
-      "spec": "16 bars, 3/4, eighths: p-i-m-a-m-i each bar. Am (x02210), Dm (xx0231), E (022100), Am, with the thumb on string 5, 4, 6 and 5. Bars 9-16: a melody note on string 1 on beat 1 of each bar, played by a with the thumb. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 3/4, eighths: p-i-m-a-m-i each bar. Am (x02210), Dm (xx0231), E (022100), Am, with the thumb on string 5, 4, 6 and 5. Bars 9-16: a melody note on string 1 on beat 1 of each bar, played by a together with the thumb (a pinch). Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "3/4 arpeggios",
         "melody on top",
@@ -2758,7 +2836,7 @@
       "title": "Travis Picking",
       "level": 4,
       "goal": "An alternating-bass thumb that never stops, with fingers picking between",
-      "spec": "16 bars, 4/4. Thumb on every beat, alternating: C (x32010) on string 5 fret 3 (C), string 4, string 6 fret 3 (G), string 4 (finger 3 moves between strings 5 and 6); G7 (320001) on string 6 fret 3 (G) and string 4; Am (x02210) on the open string 5 (A) and string 4 fret 2 (E). Fingers: i on string 2 and m on string 1 on the and of 1 and 3, then a pinch on beat 1. Light palm mute on the bass. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4. Thumb on every beat, alternating: C (x32010) on string 5 fret 3 (C), string 4, string 6 fret 3 (G), string 4 (finger 3 moves between strings 5 and 6); G7 (320001) on string 6 fret 3 (G) and string 4; Am (x02210) on the open string 5 (A) and string 4 fret 2 (E). Fingers in eighths between the thumb notes: i on string 2 on the and of 1 and the and of 3, m on string 1 on the and of 2 and the and of 4. Bars 9-16: the same with a pinch (thumb and m together) on beat 1. Light palm mute on the bass. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "Travis picking",
         "alternating bass",
@@ -2793,8 +2871,8 @@
       "id": "st-arpeggio-triads",
       "title": "Triad Arpeggios in First Position",
       "level": 5,
-      "goal": "Play each chord of C major as an arpeggio, one octave from its root",
-      "spec": "16 bars, 4/4, eighth notes, alternate picking: C (C E G), Dm (D F A), Em (E G B), F (F A C), G (G B D), Am (A C E), each up and down from its root in first position, then a 4-bar melody built from them. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "goal": "Play the six major and minor chords of C major as arpeggios, one octave from each root",
+      "spec": "16 bars, 4/4, eighth notes, alternate picking: C (C E G), Dm (D F A), Em (E G B), F (F A C), G (G B D), Am (A C E), each up and down from its root in first position (B diminished waits for st-arpeggio-sevenths), then a 4-bar melody built from them. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "arpeggios",
         "chord tones",
@@ -2902,7 +2980,7 @@
       "title": "Mode Study: A Ionian (major)",
       "level": 6,
       "goal": "Hear the major scale as a mode: its colour is the major seventh, G#",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Ionian: A B C# D E F# G#. Vamp A (x02220) to D (xx0232). Colour note: G#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Ionian: A B C# D E F# G#. Vamp Amaj7 (x02120) to D (xx0232): the Amaj7 carries the G#, and the D (not D#) rules out Lydian. Colour note: G#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3376,7 +3454,7 @@
       "title": "Alternate Picking on Open Strings",
       "hand": "picking",
       "level": 1,
-      "pattern": "Down-up eighth notes on the open string 1 for 2 bars, then strings 2 to 6, then back. Then triplets (down-up-down, up-down-up), then sixteenths. Strictly alternate: down on the beat.",
+      "pattern": "Down-up eighth notes on the open string 1 for 2 bars, then strings 2 to 6, then back. Then triplets (down-up-down, up-down-up), then sixteenths. Strictly alternate: down on the beat. The ladder is for eighth notes; when you move on to triplets and then sixteenths, start again at 60.",
       "tempo": {
         "start": 60,
         "goal": 120,
@@ -3437,6 +3515,29 @@
       ]
     },
     {
+      "id": "tech-tune-by-ear",
+      "title": "Tuning by Ear (Fifth-Fret Method)",
+      "hand": "both",
+      "level": 2,
+      "pattern": "Tune string 6 to the app's tuner or a reference tone. Then each string from the one below it: string 6 fret 5 (A) gives the pitch for the open string 5 (A); string 5 fret 5 (D) for the open string 4 (D); string 4 fret 5 (G) for the open string 3 (G); string 3 fret 4 (B), not fret 5, for the open string 2 (B); string 2 fret 5 (E) for the open string 1 (E). Play the fretted note, then the open string, and listen for the wobble (beats): it slows down as the pitches get closer and stops when they match. Always tune up to the note: if a string is sharp, loosen it below the note and come back up. Check with a G (320003) chord and with the tuner.",
+      "tempo": {
+        "start": 60,
+        "goal": 60,
+        "step": 0
+      },
+      "watchFor": [
+        "using fret 5 on string 3 (string 3 to string 2 needs fret 4)",
+        "tuning down to the note instead of up to it",
+        "turning the wrong peg: pluck while you turn and follow the pitch",
+        "winding a string far above its note, which can break it: turn slowly"
+      ],
+      "teaches": [
+        "tuning by ear",
+        "hearing beats",
+        "unisons"
+      ]
+    },
+    {
       "id": "tech-subdivisions",
       "title": "Subdivision Switch",
       "hand": "picking",
@@ -3458,6 +3559,29 @@
       ]
     },
     {
+      "id": "tech-capo",
+      "title": "Using a Capo",
+      "hand": "both",
+      "level": 3,
+      "pattern": "Clip the capo straight across, just behind a fret wire (on the headstock side, as close to the wire as it sits), with just enough pressure to stop buzzing. A capo can pull strings sharp, so check every string with the tuner after clipping it on. Play G (320003), C (x32010) and D (xx0232) with the capo at fret 2: the shapes keep their names, but they sound a whole step higher, as A, D and E. With the capo at fret 5 the same shapes sound as C, F and G. Each fret of capo raises everything one half step. Play one song's chords at three capo positions and choose the one that suits your voice.",
+      "tempo": {
+        "start": 60,
+        "goal": 60,
+        "step": 0
+      },
+      "watchFor": [
+        "the capo in the middle of the fret space or on top of the fret wire (buzzing or sharp notes)",
+        "a capo clamped so hard that it bends the strings sharp",
+        "forgetting to retune after clipping it on",
+        "telling other players the shape name instead of the chord that actually sounds"
+      ],
+      "teaches": [
+        "using a capo",
+        "transposing with the same shapes",
+        "choosing a singing key"
+      ]
+    },
+    {
       "id": "tech-palm-mute",
       "title": "Palm Muting",
       "hand": "picking",
@@ -3465,12 +3589,13 @@
       "pattern": "Rest the edge of the picking hand on the strings right where they leave the bridge saddle. Downstroke eighths on E5 (022xxx): 2 bars muted, 2 bars open. Move the hand 1 cm toward the neck for a heavier mute, then back.",
       "tempo": {
         "start": 80,
-        "goal": 160,
+        "goal": 128,
         "step": 8
       },
       "watchFor": [
         "muting so far toward the neck that the pitch disappears",
-        "lifting the hand on accents"
+        "lifting the hand on accents",
+        "a burning forearm: all-downstroke speed comes from a loose wrist, not more force; stop and shake the arm out"
       ],
       "teaches": [
         "palm muting",
@@ -3483,7 +3608,7 @@
       "title": "Alternate Picking: Chromatic",
       "hand": "picking",
       "level": 2,
-      "pattern": "Frets 5-6-7-8 with fingers 1-2-3-4 on each string from 6 to 1 and back, one note per pick stroke, strictly down-up starting with a down. Eighths, then sixteenths.",
+      "pattern": "Frets 5-6-7-8 with fingers 1-2-3-4 on each string from 6 to 1 and back, one note per pick stroke, strictly down-up starting with a down. Eighths up the ladder; start again at 60 when you switch to sixteenths.",
       "tempo": {
         "start": 60,
         "goal": 120,
@@ -3629,11 +3754,33 @@
       ]
     },
     {
+      "id": "tech-octaves",
+      "title": "Octave Shapes with Muting",
+      "hand": "both",
+      "level": 6,
+      "pattern": "Root on string 6 with finger 1, the octave two frets higher on string 4 with finger 3 or 4: string 6 fret 3 (G) with string 4 fret 5 (G). Root on string 5, octave on string 3: string 5 fret 3 (C) with string 3 fret 5 (C). From string 4 to string 2, and string 3 to string 1, the octave is three frets higher because of the B string: string 4 fret 5 (G) with string 2 fret 8 (G), string 3 fret 5 (C) with string 1 fret 8 (C). Finger 1 lies lightly against the string in between to mute it, so you can strum all three strings or pick both notes together. Play the G major scale in octaves on strings 6 and 4, then a short melody of your own.",
+      "tempo": {
+        "start": 60,
+        "goal": 112,
+        "step": 4
+      },
+      "watchFor": [
+        "the muted middle string sounding",
+        "open strings ringing under the octave",
+        "finger 1 pressing the middle string down instead of touching it"
+      ],
+      "teaches": [
+        "octaves",
+        "muting",
+        "jazz and rock melody"
+      ]
+    },
+    {
       "id": "tech-tremolo-picking",
       "title": "Tremolo Picking",
       "hand": "picking",
       "level": 6,
-      "pattern": "Constant fast alternate picking on one note (the open string 1, then string 2 fret 5 (E)), sixteenths then thirty-seconds, changing notes on the beat without breaking the motion.",
+      "pattern": "Constant fast alternate picking on one note (the open string 1, then string 2 fret 5 (E)), sixteenths up the ladder (thirty-seconds only at half the ladder tempo or less), changing notes on the beat without breaking the motion.",
       "tempo": {
         "start": 60,
         "goal": 144,
@@ -3642,7 +3789,8 @@
       "watchFor": [
         "tension in the forearm",
         "the motion stopping at note changes",
-        "uneven volume"
+        "uneven volume",
+        "a burning or cramping forearm: stop at once; work in 30-second bursts with rests between"
       ],
       "teaches": [
         "tremolo picking",
@@ -3718,7 +3866,7 @@
       "title": "Rasgueado Basics",
       "hand": "picking",
       "level": 6,
-      "pattern": "Four-stroke fan: with a loosely closed hand, flick out the little finger (written c or e), then a, m and i downward across the strings one after another, then an upstroke with i. Count them as sixteenths. On E (022100), then Am (x02210).",
+      "pattern": "Four-stroke fan: with a loosely closed hand, flick out the little finger (written c or e), then a, m and i downward across the strings one after another, then an upstroke with i. Count c, a, m and i as four sixteenths (one beat) and put the upstroke on the next beat. On E (022100), then Am (x02210).",
       "tempo": {
         "start": 52,
         "goal": 112,
@@ -3727,7 +3875,8 @@
       "watchFor": [
         "all fingers flicking at once (one stroke instead of four)",
         "the wrist moving instead of the fingers",
-        "scraping strokes"
+        "scraping strokes",
+        "an aching wrist or back of the hand: flick from the finger joints with the wrist loose, and keep the first sessions short"
       ],
       "teaches": [
         "rasgueado",
@@ -3740,7 +3889,7 @@
       "title": "Free-Stroke Arpeggios (p i m a)",
       "hand": "picking",
       "level": 3,
-      "pattern": "Over C (x32010): p on string 5, i on string 3, m on string 2, a on string 1. Patterns, one bar each: p-i-m-a, p-a-m-i, p-i-m-a-m-i, then p with i-m-a plucked together. Eighths.",
+      "pattern": "Over C (x32010): p on string 5, i on string 3, m on string 2, a on string 1. Patterns in eighths: p-i-m-a twice in a bar of 4/4, p-a-m-i twice in a bar of 4/4, p-i-m-a-m-i as a bar of 3/4, then p with i-m-a plucked together on every beat.",
       "tempo": {
         "start": 60,
         "goal": 120,
@@ -3870,7 +4019,7 @@
       "title": "Chromatic Spider (1-2-3-4)",
       "hand": "fretting",
       "level": 1,
-      "pattern": "One finger per fret in fifth position: on string 6, frets 5-6-7-8 with fingers 1-2-3-4; the same on strings 5 to 1; then 8-7-6-5 (fingers 4-3-2-1) on each string from 1 back to 6. Then move the whole pattern down one fret at a time to first position. Eighth notes.",
+      "pattern": "One finger per fret in fifth position: on string 6, frets 5-6-7-8 with fingers 1-2-3-4; the same on strings 5 to 1; then 8-7-6-5 (fingers 4-3-2-1) on each string from 1 back to 6. Then move the whole pattern down one fret at a time toward first position, only as far as it stays comfortable: the frets get wider near the nut. Eighth notes.",
       "tempo": {
         "start": 50,
         "goal": 120,
@@ -3880,7 +4029,8 @@
         "fingers flying far from the strings when lifted",
         "pressing harder than needed (use just enough pressure to stop the buzz)",
         "the thumb squeezing the neck",
-        "fingertips collapsing at the first joint"
+        "fingertips collapsing at the first joint",
+        "stretching for frets 1-4 before the hand is ready (stay higher up the neck for now)"
       ],
       "teaches": [
         "one finger per fret",
@@ -3964,7 +4114,8 @@
       },
       "watchFor": [
         "the anchored fingers lifting",
-        "squeezing with the thumb to compensate"
+        "squeezing with the thumb to compensate",
+        "an ache at the base of fingers 3 and 4: work for 30 seconds at a time and stop at any ache, since this exercise strains hands that push it"
       ],
       "teaches": [
         "finger independence",
@@ -3994,11 +4145,33 @@
       ]
     },
     {
+      "id": "tech-double-stops",
+      "title": "Double Stops: Thirds and Sixths",
+      "hand": "both",
+      "level": 5,
+      "pattern": "Thirds in G major on strings 3 and 2, both strings together, moving up the neck: the open strings 3 and 2 (G and B), then string 3 fret 2 (A) with string 2 fret 1 (C), string 3 fret 4 (B) with string 2 fret 3 (D), string 3 fret 5 (C) with string 2 fret 5 (E), string 3 fret 7 (D) with string 2 fret 7 (F#), string 3 fret 9 (E) with string 2 fret 8 (G), string 3 fret 11 (F#) with string 2 fret 10 (A), string 3 fret 12 (G) with string 2 fret 12 (B). Then sixths on strings 3 and 1 with string 2 muted by the underside of the finger on string 3: string 3 fret 4 (B) with string 1 fret 3 (G), string 3 fret 5 (C) with string 1 fret 5 (A), string 3 fret 7 (D) with string 1 fret 7 (B), string 3 fret 9 (E) with string 1 fret 8 (C), string 3 fret 11 (F#) with string 1 fret 10 (D), string 3 fret 12 (G) with string 1 fret 12 (E). Pick both strings at once (or pluck with thumb and finger), quarter notes, then eighths, then slide between neighbouring pairs.",
+      "tempo": {
+        "start": 60,
+        "goal": 100,
+        "step": 4
+      },
+      "watchFor": [
+        "string 2 ringing during the sixths",
+        "one note of the pair louder than the other",
+        "pressing hard while sliding between pairs"
+      ],
+      "teaches": [
+        "double stops",
+        "thirds and sixths",
+        "harmonising a melody"
+      ]
+    },
+    {
       "id": "tech-trills",
       "title": "Trills",
       "hand": "fretting",
       "level": 4,
-      "pattern": "On string 3 in fifth position, trill (rapid hammer-on and pull-off) each finger pair for 10 seconds: 1-2, 1-3, 1-4, 2-3, 2-4, 3-4. Count four notes per beat.",
+      "pattern": "On string 3 in fifth position, trill (rapid hammer-on and pull-off) each finger pair for 10 seconds: 1-2, 1-3, 1-4, 2-3, 2-4, 3-4. Count four notes per beat. Rest 20 seconds between pairs.",
       "tempo": {
         "start": 60,
         "goal": 120,
@@ -4006,7 +4179,8 @@
       },
       "watchFor": [
         "the lower finger lifting",
-        "notes dying away after a few repetitions"
+        "notes dying away after a few repetitions",
+        "a tired or aching hand: stop, because trills tire the small hand muscles quickly"
       ],
       "teaches": [
         "trills",
@@ -4061,7 +4235,7 @@
       "title": "Gentle Stretch, Walking Down",
       "hand": "fretting",
       "level": 5,
-      "pattern": "One finger per fret, 1-2-3-4, starting at frets 9-12 on string 3 and moving down one fret per repetition to frets 1-4. The gaps get wider toward the nut: never force; stop at the first fret that hurts and try again another day.",
+      "pattern": "One finger per fret, 1-2-3-4, starting at frets 9-12 on string 3 and moving down one fret per repetition to frets 1-4. The gaps get wider toward the nut: never force; stop as soon as it feels like strain rather than effort, and try again another day.",
       "tempo": {
         "start": 50,
         "goal": 90,
@@ -4157,7 +4331,8 @@
       "watchFor": [
         "bending flat (short of the target)",
         "other strings ringing under the bend",
-        "pulling the string off the fretboard"
+        "pulling the string off the fretboard",
+        "forcing whole-step bends on an acoustic guitar with a wound string 3: bend half steps there, or practise on lighter strings"
       ],
       "teaches": [
         "bending",
@@ -4178,7 +4353,8 @@
       },
       "watchFor": [
         "stopping short of the target",
-        "a wavering held pitch"
+        "a wavering held pitch",
+        "sore fingertips or wrist: wide bends need light strings (an electric guitar), and a few minutes at a time"
       ],
       "teaches": [
         "wide bends",
@@ -4285,7 +4461,8 @@
       "watchFor": [
         "squeezing with the thumb instead of using arm weight",
         "the barre finger flat on its soft pad",
-        "holding the barre for minutes"
+        "holding the barre for minutes",
+        "a sore thumb, hand or forearm: stop and rest, because a clean barre comes from placement and arm weight, not from squeezing harder"
       ],
       "teaches": [
         "barre chords",
@@ -4344,7 +4521,7 @@
       "pattern": "For each pair, Em-G, A-D, D-A7, A-E7, Em-D: strum once per beat and change chord on every beat for 60 seconds; count the clean changes. The app keeps your best count per pair.",
       "tempo": {
         "start": 40,
-        "goal": 100,
+        "goal": 60,
         "step": 4
       },
       "watchFor": [
@@ -4363,10 +4540,10 @@
       "title": "One-Minute Changes: Three-Chord Keys",
       "hand": "fretting",
       "level": 3,
-      "pattern": "Pairs G-C, C-G7, G-D7, D-G, C-Am, Am-E, Am-Dm, E-B7: change on every beat for 60 seconds per pair, counting clean changes.",
+      "pattern": "Pairs G-C, C-G7, G-D7, D-G, C-Am, Am-E, Am-Dm, E-B7, and D with the open Bm7 (x20202), which stands in for Bm until barre chords: change on every beat for 60 seconds per pair, counting clean changes.",
       "tempo": {
         "start": 40,
-        "goal": 100,
+        "goal": 72,
         "step": 4
       },
       "watchFor": [
@@ -4384,10 +4561,10 @@
       "title": "One-Minute Changes: F and Friends",
       "hand": "fretting",
       "level": 4,
-      "pattern": "Pairs Am-Fmaj7, C-F (small F, xx3211), Em-Am, Em-B7, then C-F with the full barre F (133211): change on every beat for 60 seconds per pair.",
+      "pattern": "Pairs Am-Fmaj7, C-F (small F, xx3211), Em-Am, Em-B7, D with the small F#m (xx4222) (finger 3 on string 4, a finger-1 barre on strings 3 to 1), then C-F with the full barre F (133211): change on every beat for 60 seconds per pair.",
       "tempo": {
         "start": 40,
-        "goal": 96,
+        "goal": 64,
         "step": 4
       },
       "watchFor": [
@@ -4408,7 +4585,7 @@
       "pattern": "F (133211) to Bb (x13331) to C (x35553) to Dm (x-5-7-7-6-5), changing every 2 beats, then every beat. Keep finger 1 lightly in contact as it slides between frets.",
       "tempo": {
         "start": 50,
-        "goal": 100,
+        "goal": 90,
         "step": 5
       },
       "watchFor": [
@@ -4419,6 +4596,28 @@
         "barre chords",
         "shifting shapes",
         "chord-change speed"
+      ]
+    },
+    {
+      "id": "tech-triad-inversions",
+      "title": "Triad Inversions on the Top Strings",
+      "hand": "fretting",
+      "level": 6,
+      "pattern": "Major triads on strings 3, 2 and 1, three shapes for each chord up the neck. C: C (xxx553) root position, C (xxx988) first inversion (E at the bottom), C (x-x-x-12-13-12) second inversion (G at the bottom). F: F (xxx211), F (xxx565), F (x-x-x-10-10-8). G: G (xxx433), G (xxx787), G (x-x-x-12-12-10). Strum strings 3 to 1 only, one chord per beat, naming the top note. Then join C, F, G and C by the nearest shapes, C (xxx553), F (xxx565), G (xxx787), C (xxx988), so the top note climbs G, A, B, C while the hand barely moves.",
+      "tempo": {
+        "start": 60,
+        "goal": 96,
+        "step": 4
+      },
+      "watchFor": [
+        "strumming strings 4 to 6 as well",
+        "one string of the triad dead under a finger",
+        "hunting for each shape instead of hearing the top note move"
+      ],
+      "teaches": [
+        "triads",
+        "inversions",
+        "voice leading on the top strings"
       ]
     },
     {
@@ -4461,6 +4660,28 @@
         "time feel",
         "swing and groove",
         "internal pulse"
+      ]
+    },
+    {
+      "id": "tech-odd-meters",
+      "title": "Odd Meters: 5/4 and 7/8",
+      "hand": "both",
+      "level": 7,
+      "pattern": "5/4 counted 1 2 3 4 5 and grouped 3+2: accents on beats 1 and 4, strumming Em (022000) on every beat for 8 bars; then grouped 2+3 (accents on 1 and 3). 7/8 counted in eighths and grouped 2+2+3 (accents on 1, 3 and 5) on Am (x02210); then 3+2+2. Count aloud. The click sounds every quarter note in 5/4 and every eighth note in 7/8, so the ladder is that pulse.",
+      "tempo": {
+        "start": 60,
+        "goal": 120,
+        "step": 6
+      },
+      "watchFor": [
+        "adding or dropping a beat at the bar line",
+        "letting 5/4 turn into a bar of 4/4 and a pause",
+        "accents drifting away from the start of each group"
+      ],
+      "teaches": [
+        "odd meters",
+        "beat grouping",
+        "counting"
       ]
     },
     {

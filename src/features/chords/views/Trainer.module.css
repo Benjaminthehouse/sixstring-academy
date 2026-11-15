@@ -1,0 +1,430 @@
+/* The chord-change trainer: setup, the running round, results; also the mic-check sheet and the trend chart. */
+
+.setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--sp-8);
+  align-items: start;
+}
+@media (max-width: 1099.98px) {
+  .setup {
+    grid-template-columns: 1fr;
+  }
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------- chosen chords */
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 719.98px) {
+  .slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 11rem;
+  padding: var(--sp-3) var(--sp-2) var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.slotPick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--r-md);
+}
+.slotPick:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.slotHint {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.slotRemove {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+}
+.addSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 11rem;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 719.98px) {
+  .addSlot {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-4);
+  }
+}
+.addSlot:hover {
+  color: var(--fg);
+  border-color: var(--fg-muted);
+}
+.addSlot:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+}
+
+/* ------------------------------------------------------------- running */
+
+.run {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-8));
+}
+.runBar {
+  width: 100%;
+  margin-top: auto;
+}
+.runTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  width: 100%;
+}
+.count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.countNumber {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.bump {
+  animation: bump var(--dur-2) var(--ease);
+}
+@keyframes bump {
+  40% {
+    transform: scale(1.18);
+  }
+}
+.countLabel {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--sp-3);
+  width: 100%;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 2px solid transparent;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  transition:
+    border-color var(--dur-2) var(--ease),
+    opacity var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+.card[data-role='now'] {
+  border-color: var(--line-strong);
+  opacity: 0.72;
+}
+.card[data-role='next'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.card[data-role='other'] {
+  opacity: 0.5;
+}
+.cardTag {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.card[data-role='next'] .cardTag {
+  color: var(--accent-text);
+}
+.bigCard {
+  width: 100%;
+  max-width: 22rem;
+}
+.bigCard svg {
+  width: min(13rem, 60vw);
+}
+.countIn {
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.status {
+  width: 100%;
+  max-width: 36rem;
+  min-height: 4.5rem;
+}
+.beats {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+.beat {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  transition: background var(--dur-1) var(--ease);
+}
+.beat[data-on='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.beat[data-change='true'] {
+  border-radius: 3px;
+}
+.tapZone {
+  width: 100%;
+  max-width: 28rem;
+}
+.tapButton {
+  width: 100%;
+  min-height: 5rem;
+  font-size: var(--text-xl);
+}
+.micDot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.micDot::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  transition: transform 90ms ease-out;
+  transform: scale(var(--level, 1));
+}
+.progressLine {
+  width: 100%;
+  max-width: 28rem;
+}
+
+/* ------------------------------------------------------------- results */
+
+.results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-8);
+  align-items: start;
+}
+@media (max-width: 899.98px) {
+  .results {
+    grid-template-columns: 1fr;
+  }
+}
+.score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.scoreNumber {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.scoreUnit {
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ------------------------------------------------------------- trend chart */
+
+.chart {
+  margin: 0;
+}
+.chartSvg {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  height: auto;
+  overflow: visible;
+}
+.grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.goal {
+  stroke: var(--fg-faint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.goalText,
+.axis {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.bar {
+  fill: var(--fg-faint);
+}
+.barToday {
+  fill: var(--accent);
+}
+.hit {
+  fill: transparent;
+}
+.value,
+.valueShown {
+  fill: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.value {
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.col {
+  outline: none;
+  cursor: default;
+}
+.col:hover .value,
+.col:focus-visible .value {
+  opacity: 1;
+}
+.col:hover .bar,
+.col:focus-visible .bar {
+  fill: var(--fg-muted);
+}
+.col:focus-visible .hit {
+  stroke: var(--focus-ring);
+  stroke-width: 1.5;
+}
+
+/* ------------------------------------------------------------- mic check sheet */
+
+.micCheck {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  text-align: left;
+}
+.micStatus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bump {
+    animation: none;
+  }
+  .card,
+  .beat {
+    transition: none;
+  }
+}
+
+/* A phone held sideways: chords on the left, the clock and count on the right, the tap bar below. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .run {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    gap: var(--sp-2) var(--sp-4);
+    min-height: 0;
+  }
+  .run > * {
+    grid-column: 2;
+  }
+  .run > .cards {
+    grid-column: 1;
+    grid-row: 1 / span 4;
+  }
+  .run > .runBar {
+    grid-column: 1 / -1;
+  }
+  .runTop {
+    justify-content: center;
+  }
+  .status {
+    min-height: 0;
+  }
+  .countIn {
+    font-size: var(--text-4xl);
+  }
+  .tapButton {
+    min-height: 3.25rem;
+  }
+  .bigCard svg {
+    width: min(9rem, 30vw);
+  }
+}

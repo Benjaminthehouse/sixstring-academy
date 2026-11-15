@@ -204,25 +204,30 @@ measured in `e2e/vision-live.cjs` (fake camera, 1280x720 MJPEG with a per-frame 
 against ground truth; numbers in `API.md`):
 
 - **Downscale on the GPU, read back in the worker.** `createImageBitmap(video, { resizeWidth,
-  resizeHeight, resizeQuality: 'medium' })` costs the main thread nothing measurable; the worker
+  resizeHeight, resizeQuality: 'medium' })` costs the main thread under 0.1 ms per video frame
+  (median; occasional spikes to 11-14 ms); the worker
   draws the bitmap on an `OffscreenCanvas` and reads it back (about 1 ms at 640x360). Without
   bitmap support it falls back to a canvas read-back on the main thread and transfers the buffer.
 - **One frame in flight, the newest one next.** Frames arriving while the worker is busy are
   dropped; when the answer comes back, the newest dropped frame (the one on screen) is sent at once
   instead of waiting for the next video frame. With 45 ms per frame and a 30 fps camera that is 45
   of 60 frames processed instead of 30 (`pipeline.test.ts`). In the browser runs before
-  and after the change: 11-12 and 19-24 frames per second, but under different machine load, so
+  and after the change: 11-12 and 20-26 frames per second, but under different machine load, so
   that gain is not isolated.
 - **Extrapolation to the displayed frame.** The answer is for a frame 1-2 frames old. Carrying the
   four board corners forward at their filtered velocity (dead band below 0.4 string spacings per
   second, jumps restart it, lead capped at 100 ms) halves the drawn error on a moving guitar
-  (1.5-2.0 px against 2.9-3.6 px at 1280 px; the tracker's own error is 1.2 px). A first version
+  (1.6 px against 3.0-3.3 px at 1280 px in the final runs; the tracker's own error is 1.2 px). A first version
   compared neck models by identity and never extrapolated: poses that cross a worker boundary are
   copies (fixed, with a test).
 - **Adaptive quality.** Tracked frames over 45 ms (median of 12, after a 2 s warm-up that ignores
   JIT compilation) step the working width down 640 -> 544 -> 480; 3 s of headroom steps it up.
   `FretboardTracker` rescales its poses when the frame size changes. Detections over 80 ms are
   spaced to 75% duty.
+- **Bundling.** A production build of `pipeline.ts` with the app's Vite config emits the worker as
+  its own chunk (164 kB, 61 kB gzipped) referenced by `new URL(..., import.meta.url)`; the
+  main-thread side is 19 kB plus geometry, and the tracker for the main-thread fallback is a
+  separate lazily imported chunk.
 - **Graceful failure.** `TrackerUpdate.hint` and `suggestCalibration` (6 s without a board, 3 losses
   in 20 s, or 6 s without a lock) tell the screen when to offer assisted calibration.
 - **Marker mode** (`color-markers.ts`): colours sampled by one tap each; blobs gated by colour,
@@ -231,6 +236,35 @@ against ground truth; numbers in `API.md`):
   marker never turns a guess into a certainty (an orange book behind the neck did exactly that in
   an early version). Board hypotheses from blob pairs (similarity plus two along-neck perspectives)
   go through `FretboardDetector.fit` (line refinement + the common evidence) and need log-odds >= 1.
+
+## Hardening pass (runtime agent)
+
+Measured with `hardening.test.ts` (FretboardTracker as the app runs it) and `compare.test.ts`:
+
+- **Fresh sets** never looked at before (13000, 14000), single frames, `session`: hard 75% / 75%,
+  extreme 54% / 38% correct; most misses are honest ("weak evidence": nothing drawn).
+- **Held scenes** (a hard or extreme view held 1.5 s with fresh noise every frame; locked right /
+  locked wrong at some point / still asking / nothing): 13000 hard 15/4/4/1 before the change
+  below and 16/3/4/1 after, extreme 11/2/5/6; fresh 15000 (after): hard 14/2/5/3, extreme 10/2/6/6.
+  Locks come at frame 2 (median). The remaining wrong locks: a board placed half a string off
+  across the neck (maple boards with faint strings; frets right, 70-89% of the cells right), and a
+  classical neck with a black nut read 2 frets into the slotted headstock.
+- **Numbering change** (`lines/numbering.ts`): a slotted headstock's rollers read as a weak wire or
+  two beyond a gap, the board seemed to start there, and a classical neck was numbered 2-3 frets
+  off with full confidence (hard#13010 in the held run). A strong bar right after a gap of two
+  missing wires is now a nut candidate too (fret wires have no bar; wires hidden by a hand leave a
+  gap but no bar after it). Single frames, 12 seed sets x 4 tiers (1152 scenes) before/after: one
+  scene goes from wrong to right (hard#3016), three more are numbered confidently and rightly, no
+  scene changes for the worse, confidently-wrong counts unchanged. Unit tests for both sides.
+- **Jitter**: a still guitar under heavy webcam noise (read 0.025, shot 0.04, JPEG 55), seven seed
+  sets: the drawn markers move 0.002-0.005 px per frame, the detector's raw pose 0.016-0.034 px.
+  The synthetic noise is white; a real sensor's (auto exposure, compression) may need a lower
+  `smoothing.minCutoff`. Nothing to tune on this bench.
+- **No guitar**: 600 frames (20 s) of 40 scenes without a guitar, panned and re-noised, one
+  continuous stream: 0 candidate, 0 locked frames, calibration offered after 6 s.
+- **Occlusion**: right again 0-5 frames after a full occlusion clears (seven sets), numbers kept,
+  never confident while hidden.
+- **Graceful failure**: `TrackerUpdate.hint` / `suggestCalibration` / `searchingMs` (see API.md).
 
 ## Reproduce
 
@@ -243,4 +277,10 @@ CMP_TIERS=markers CMP_SEQ=0 CMP_NEG=0 ...           # sticker mode
 CMP_OFFSETS=9000 CMP_TIERS=0 CMP_SEQ=0 CMP_NEG=200  # 200 fresh negatives
 CMP_LOCKS=10 CMP_NEG=200 CMP_OFFSETS=9000           # FretboardTracker false locks (10 frames per scene)
 CMP_TIMING=5 CMP_DETECTORS=lines,align,fretboard    # best of 5 per frame
+HARDEN_SEEDS=0,1000,2000,3000,6000,7000,13000 HARDEN_NEG=40 HARDEN_NEG_FRAMES=15 \
+  npx vitest run src/core/vision/hardening.test.ts --silent=false        # jitter, negatives, occlusion
+HARDEN_TIERS=hard,extreme HARDEN_SCENES=24 HARDEN_FRAMES=45 HARDEN_OFFSET=15000 \
+  npx vitest run src/core/vision/hardening.test.ts -t "held for a moment" --silent=false
+MARKER_SCENES=16 MARKER_OFFSET=1000 npx vitest run src/core/vision/marker-mode.test.ts --silent=false
+node e2e/vision-live.cjs --repeat 3                                         # live, in Chromium
 ```

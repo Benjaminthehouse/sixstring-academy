@@ -68,7 +68,7 @@ export {
   type OverlayResult,
 } from './draw';
 export { MIN_MARKER_CHROMA, MIN_MARKER_SATURATION, findColorBlobs, readMarkerNumbering, sampleMarkerColor, type ColorBlob, type MarkerReading } from './color-markers';
-export { createDetector, createFretboardDetector, type FretboardDetector, type FretboardDetectorOptions } from './detector';
+export { createDetector, createFretboardDetector, type FittedBoard, type FretboardDetector, type FretboardDetectorOptions } from './detector';
 export {
   defaultCalibrationQuad,
   nudgePose,

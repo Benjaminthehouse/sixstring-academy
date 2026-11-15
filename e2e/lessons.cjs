@@ -136,6 +136,11 @@ async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload
       const ok = await lib.giveAnswer(page, L, step, answer, how);
       if (!ok) throw new Error(`Could not give a ${ex.type} answer by ${how}`);
       if (ex.type !== 'flashcard') {
+        if (await page.locator('[data-player-bar] [data-action="check"]').isDisabled()) {
+          const states = await page.evaluate(() => [...document.querySelectorAll('[data-answer] [data-state]')].map((e) => `${[...e.attributes].filter((a) => a.name.startsWith('data-') && a.name !== 'data-state').map((a) => `${a.name}=${a.value}`).join(',')}:${e.getAttribute('data-state')}`));
+          await page.screenshot({ path: path.join(OUT, `lessons-stuck-${how}.png`) });
+          throw new Error(`Check stayed disabled after a ${ex.type} answer: ${states.join(' ')}`);
+        }
         if (how === 'touch') await lib.tap(page, '[data-player-bar] [data-action="check"]');
         else await lib.press(page, 'Enter');
       }
@@ -193,6 +198,25 @@ async function runLesson(L, how, wav) {
       await lib.press(page, 'Escape');
       await page.waitForTimeout(400);
       check(group, 'Escape again closes it and the lesson goes on', (await page.locator('[role="dialog"]').count()) === 0);
+    }
+
+    if (how === 'touch') {
+      // A sideways swipe on a teaching card moves on, like the Continue button.
+      const before = await lib.stepId(page);
+      const cdp = await page.context().newCDPSession(page);
+      const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: 215 }] });
+      await touch('touchStart', 320);
+      for (const x of [280, 220, 160, 110]) {
+        await touch('touchMove', x);
+        await page.waitForTimeout(16);
+      }
+      await touch('touchEnd', 110);
+      const after = await lib.waitForNewStep(page, before, 5000).catch(() => null);
+      check(group, 'a sideways swipe on a teaching card moves on', after && after !== before, `${before} -> ${after}`);
+      // Let the browser's fling from the swipe end: a tap that stops a fling is (rightly) not a tap.
+      await page.waitForTimeout(1500);
+      const stray = await page.locator('[data-answer] [data-state="picked"], [data-answer] [data-state="selected"]').count();
+      check(group, 'and the swipe picks nothing on the next step', stray === 0, stray);
     }
 
     let reloadedAt = null;
@@ -277,9 +301,14 @@ async function runLesson(L, how, wav) {
     const hash = await page.evaluate(() => location.hash);
     check(group, '"Next lesson" opens the next lesson', expectedNext && hash === `#kit-lessons--play--${expectedNext.lessonId}`, `${hash} vs ${expectedNext && expectedNext.lessonId}`);
 
+    if (how === 'keys') {
+      await open(page, url, 'kit-lessons--map');
+      await page.screenshot({ path: path.join(OUT, 'lessons-map-progress-desktop.png') });
+    }
     if (how === 'touch') {
       // The lesson's facts are due for review: the review card leads into a review session.
       await open(page, url, 'kit-lessons--map');
+      await page.screenshot({ path: path.join(OUT, 'lessons-map-progress-mobile.png'), fullPage: true });
       const entry = await page.getAttribute('[data-review-entry]', 'data-review-entry').catch(() => null);
       check(group, 'the review card counts the new cards', entry === '2', entry);
       await page.locator('[data-review-start]').tap();
@@ -413,7 +442,7 @@ async function runRhythm(L) {
   });
 }
 
-async function runMap() {
+async function runMap(L) {
   const group = 'map';
   await withApp({ mobile: true }, async ({ page, url, errors }) => {
     await seed(page);
@@ -445,6 +474,14 @@ async function runMap() {
     check(group, 'desktop: an arrow key moves to the next node', focused === 'open-strings', focused);
     check(group, 'desktop: the details follow the focus', (await page.locator('aside [data-details="open-strings"]').count()) === 1);
     await page.screenshot({ path: path.join(OUT, 'lessons-map-desktop.png') });
+    // "Test out" runs the unit's checkpoint: a test with a mistake allowance instead of hearts.
+    await page.locator('[data-checkpoint="first-notes"]').click();
+    await page.waitForSelector('[data-lesson-player][data-mode="checkpoint"]', { timeout: 30000 });
+    const left = await page.getAttribute('[data-mistakes-left]', 'data-mistakes-left').catch(() => null);
+    const allowed = String(L.DEMO_COURSE.units[0].checkpoint.maxMistakes ?? 3);
+    check(group, 'desktop: "Test out" opens the checkpoint, with the mistakes it allows', left === allowed, `${left} vs ${allowed}`);
+    check(group, 'desktop: a checkpoint uses no hearts', (await page.locator('[data-hearts]').count()) === 0);
+    await page.screenshot({ path: path.join(OUT, 'lessons-checkpoint-desktop.png') });
     check(group, 'no console errors', errors.length === 0, errors.join(' | '));
   });
 }
@@ -508,6 +545,14 @@ async function runLayout() {
         if (c.mobile && small.length) bad.push(`${type}: targets under 44px: ${small.join(', ')}`);
       }
       check(group, `${c.name}: every exercise type fits, nothing under the bar, targets of 44 px`, bad.length === 0, bad.join(' | '));
+      if (c.name === '360') {
+        // Reduced motion: the step's entrance and the feedback's slide are switched off.
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await open(page, url, 'kit-lessons--try--choice');
+        const duration = await page.evaluate(() => getComputedStyle(document.querySelector('[data-step-id]')).animationDuration);
+        check(group, 'reduced motion switches the step animation off', parseFloat(duration) < 0.01, duration);
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+      }
       check(group, `${c.name}: no console errors`, errors.length === 0, errors.join(' | '));
     });
   }
@@ -523,7 +568,7 @@ async function runLayout() {
     ['hearts', () => runHearts(L)],
     ['refused', () => runRefused(L)],
     ['rhythm', () => runRhythm(L)],
-    ['map', () => runMap()],
+    ['map', () => runMap(L)],
     ['layout', () => runLayout()],
   ];
   for (const [name, run] of runs) {

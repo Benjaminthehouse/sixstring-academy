@@ -187,7 +187,23 @@ export function resolveNumbering(frets: readonly FretEvidence[], cells: readonly
     let bestScore = -Infinity;
     let bestAt = lo;
     let bestBar = 0;
-    for (const j of [lo, lo - 1]) {
+    // A slotted headstock's rollers (or a tuner) can read as a weak wire or two beyond the real nut;
+    // the board then seems to start there. A strong bar right after a gap of two or more missing
+    // wires is a nut candidate too: fret wires have no bar, and a bone nut has a strong one (wires
+    // hidden by a hand leave a gap, but the wire after them has no bar).
+    const candidates = [lo, lo - 1];
+    const missing = (f: FretEvidence | undefined): boolean => f !== undefined && f.inFrame && f.bands <= 1 && f.strength < 0.35;
+    for (let m = lo + 2; m <= lo + 6; m++) {
+      const at = byFret.get(m);
+      if (!at || !Number.isFinite(at.bar) || Math.abs(at.bar) < typicalBar + 0.5) continue;
+      // The nut reads as a wire itself, or (a wide bone nut) is the bar right before the first wire.
+      const starts = at.bands >= 3 || (byFret.get(m + 1)?.bands ?? 0) >= 3;
+      if (starts && missing(byFret.get(m - 1)) && missing(byFret.get(m - 2))) {
+        candidates.push(m);
+        break;
+      }
+    }
+    for (const j of candidates) {
       const at = byFret.get(j);
       if (!at || (!at.inFrame && !Number.isFinite(at.bar))) continue;
       let clear = 0;

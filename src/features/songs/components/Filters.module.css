@@ -1,0 +1,21 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.trigger {
+  font-weight: 600;
+}
+
+.pop {
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: var(--sp-1);
+}
+
+.active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}

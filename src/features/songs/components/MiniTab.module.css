@@ -1,0 +1,81 @@
+/*
+ * The song thumbnail: six hairlines, fret numbers in the tab font sitting on them (each number
+ * cuts its line, as on printed tab), strum slashes, and chord names above. Sizes are in rem so it
+ * grows with the learner's text size; positions along the bar are percentages.
+ */
+.mini {
+  --mini-gap: 0.5rem;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.75rem 0.4rem 0.25rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.chords {
+  position: relative;
+  height: 0.95rem;
+  margin-bottom: 0.15rem;
+}
+
+.chord {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  line-height: 1;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.staff {
+  position: relative;
+  height: calc(var(--mini-gap) * (var(--strings) - 1));
+  margin-right: 0.5rem;
+}
+
+.line {
+  position: absolute;
+  left: 0;
+  right: -0.5rem;
+  height: 1px;
+  margin-top: -0.5px;
+  background: var(--line-strong);
+  opacity: 0.7;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.note {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0 1px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--fg);
+  background: var(--mini-bg, var(--surface));
+  border-radius: 2px;
+}
+
+/* A strum: a short slanted stroke across the middle strings. */
+.slash {
+  position: absolute;
+  top: 18%;
+  height: 64%;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--fg-muted);
+  transform: skewX(-24deg);
+}

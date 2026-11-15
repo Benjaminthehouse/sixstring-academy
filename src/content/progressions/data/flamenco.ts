@@ -72,7 +72,7 @@ export const FLAMENCO: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'phrygian-dominant'), sc('1', 'phrygian')],
       strum: STRUM.rasgueado,
-      tip: 'In E it is E and F. Flamenco guitarists often play the F by moving the E shape\'s three fretted notes up one fret and leaving the open B and E strings ringing: the rub is part of the colour.',
+      tip: 'In E it is E and F. Flamenco guitarists often play the F by moving the E shape\'s three fretted notes up one fret, adding F on the sixth string at fret 1 and leaving the open B and E strings ringing (133200): the rub is part of the colour.',
     },
     related: ['flamenco-cadence-phrygian', 'phrygian-i-bii', 'metal-phrygian'],
     keys: ['E', 'A', 'B'],

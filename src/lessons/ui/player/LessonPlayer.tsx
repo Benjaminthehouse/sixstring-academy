@@ -287,7 +287,6 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
   const exercise = step?.kind === 'exercise' ? step.exercise : null;
   const review = feedback && exercise ? { result: feedback.result, answer: feedback.answer } : null;
   const canCheck = isCheckable(draft);
-  const playStep = !!exercise && (exercise.type === 'play-note' || exercise.type === 'play-chord' || exercise.type === 'play-phrase');
   const altReason = step?.kind === 'exercise' && step.alternative ? (isArtifact() ? 'The microphone is not available in this viewer, so this one is answered by tapping.' : 'This is the version you answer by tapping.') : null;
 
   return (
@@ -350,25 +349,25 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
             <ActionBar className={cx(styles.bar, feedback && styles[`bar-${feedback.result.correct ? 'ok' : feedback.skipped ? 'info' : 'bad'}`])} stretchOnMobile={false} data-player-bar="">
               <div className={styles.barInner}>
                 {feedback && exercise && <FeedbackPanel exercise={exercise} feedback={feedback} seed={state.stats.answers} combo={state.stats.combo} />}
-                <div className={styles.barButtons}>
+                <div className={cx(styles.barButtons, done && styles.barButtonsDone)}>
                   {hints && !done && (
                     <span className={styles.barKeys} aria-hidden="true">
-                      <Kbd>Enter</Kbd> {feedback || step?.kind === 'card' ? 'continue' : 'check'} · <Kbd>Esc</Kbd> leave
+                      <Kbd>Enter</Kbd> {feedback || step?.kind === 'card' ? 'continue' : primary ? primary.label.toLowerCase() : 'check'} · <Kbd>Esc</Kbd> leave
                     </span>
                   )}
                   {done ? (
                     <>
                       {next.kind !== 'path' && (
-                        <Button onClick={onExit} data-action="exit">
+                        <Button onClick={onExit} data-action="exit" wrap>
                           {exitLabel}
                         </Button>
                       )}
                       {state.summary?.outcome === 'failed' && (
-                        <Button onClick={() => restart()} data-action="retry">
+                        <Button onClick={() => restart()} data-action="retry" wrap>
                           Try again
                         </Button>
                       )}
-                      <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.primary} onClick={goNext} data-action="next" ref={continueRef}>
+                      <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.primary} onClick={goNext} data-action="next" ref={continueRef} wrap>
                         {next.kind === 'path' ? (source.mode === 'review' ? 'Back to learning' : exitLabel) : nextLabel(next, state.mode)}
                       </Button>
                     </>
@@ -378,13 +377,20 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
                     </Button>
                   ) : exercise ? (
                     <>
-                      {exercise.type !== 'flashcard' && (
-                        <Button variant="ghost" onClick={skip} data-action="skip" className={styles.skip}>
-                          {playStep ? 'Skip' : "I don't know"}
+                      {step?.kind === 'exercise' && step.usesMic ? (
+                        // A play step's way out is always in reach: the tapping version of the same question.
+                        <Button variant="ghost" iconLeft={isMobile ? undefined : 'MicOff'} onClick={cantPlay} data-cant-play="" className={styles.skip}>
+                          {isMobile ? "Can't play now" : "I can't play right now"}
                         </Button>
+                      ) : (
+                        exercise.type !== 'flashcard' && (
+                          <Button variant="ghost" onClick={skip} data-action="skip" className={styles.skip}>
+                            I don't know
+                          </Button>
+                        )
                       )}
                       {primary ? (
-                        <Button variant="primary" size="lg" className={styles.primary} iconLeft={primary.icon} onClick={primary.onClick} disabled={primary.disabled} loading={primary.busy} data-action="primary">
+                        <Button variant="primary" size="lg" className={styles.primary} iconLeft={primary.icon} onClick={primary.onClick} disabled={primary.disabled} loading={primary.busy} data-action="primary" wrap>
                           {primary.label}
                         </Button>
                       ) : selfSubmitting(exercise) ? null : (

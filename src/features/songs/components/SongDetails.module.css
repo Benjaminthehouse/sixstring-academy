@@ -1,0 +1,176 @@
+/* Song details: a calm column of facts with Play at the top, used in the pane and in a sheet. */
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+.sheet .title {
+  font-size: var(--text-xl);
+}
+
+.by {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.tuning {
+  font-size: var(--text-sm);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.play {
+  flex: 1 1 auto;
+}
+.favOn {
+  color: var(--heart);
+}
+
+.progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.blockTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--fg);
+}
+
+.tab {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.teaches {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.teaches li {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+.tick {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--ok);
+}
+
+.notes {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+}
+.notesSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.notesSummary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.noteList {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+  padding: 0 0 0 var(--sp-5);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.unsure {
+  color: var(--fg);
+}
+.unsureTag {
+  display: inline-block;
+  margin-right: var(--sp-2);
+  padding: 0 0.4rem;
+  border-radius: var(--r-pill);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+.count {
+  color: var(--fg-muted);
+}
+
+.rights {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.rights svg {
+  flex: none;
+  margin-top: 0.15rem;
+}

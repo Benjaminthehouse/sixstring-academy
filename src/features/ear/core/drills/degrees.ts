@@ -114,8 +114,9 @@ export const degreesDrill: DrillDef = {
     level(3, 'The first five', ['1', '2', '3', '4', '5'], 'major', false),
     level(4, 'The whole major scale', MAJOR, 'major', false, 'All seven degrees'),
     level(5, 'A minor key', ['1', '2', 'b3', '4', '5', 'b6', 'b7'], 'minor', false, 'Seven degrees in a minor key'),
-    level(6, 'Every note', ['1', 'b2', '2', 'b3', '3', '4', '#4', '5', 'b6', '6', 'b7', '7'], 'major', false, 'All twelve, in and out of the key'),
-    level(7, 'Short runs', MAJOR, 'major', true, 'Three notes: name the last one'),
+    // Runs come before the twelve: stepping toward a note of the key is easier than naming any of twelve.
+    level(6, 'Short runs', MAJOR, 'major', true, 'Three notes: name the last one'),
+    level(7, 'Every note', ['1', 'b2', '2', 'b3', '3', '4', '#4', '5', 'b6', '6', 'b7', '7'], 'major', false, 'All twelve, in and out of the key'),
   ],
   info: degreeInfo,
   mixSentence: (answer, chosen) => `In a key, you often hear degree ${answer.label} (${answer.detail}) as ${chosen.label} (${chosen.detail}).`,

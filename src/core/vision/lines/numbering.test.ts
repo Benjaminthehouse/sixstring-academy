@@ -159,6 +159,27 @@ describe('resolveNumbering', () => {
     expect(r.source).toBe('inlays');
   });
 
+  it('does not take a slotted headstock roller beyond a gap for the board, when a bone nut follows', () => {
+    // A classical neck: the nut (bone, true fret 0) and true frets 1..12 in view; three positions
+    // beyond the nut a roller pair reads as a weak wire, with nothing in between.
+    const { frets, cells } = evidence({ base: 0, from: -3, to: 12, inlays: 'none', nut: 'bone' });
+    const roller = frets.find((f) => f.fret === -3) as FretEvidence;
+    Object.assign(roller, { bands: 2, strength: 0.4, bar: 0.8 });
+    const r = resolveNumbering(frets, cells, OPTIONS);
+    expect(r.delta).toBe(0);
+    expect(r.source).toBe('nut');
+    expect(r.confidence).toBeGreaterThan(0.85);
+  });
+
+  it('still does not take the wire after a hand for a nut (no bar there)', () => {
+    // A weak stray response, two wires hidden by the hand, then plain wires: no strong bar, no new nut.
+    const { frets, cells } = evidence({ base: 5, from: 2, to: 14, inlays: 'none', hidden: [3, 4] });
+    const stray = frets.find((f) => f.fret === -3) as FretEvidence;
+    Object.assign(stray, { bands: 2, strength: 0.4, bar: 0.1 });
+    const r = resolveNumbering(frets, cells, OPTIONS);
+    expect(r.confidence).toBeLessThan(0.5);
+  });
+
   it('returns zero confidence without any wire', () => {
     const r = resolveNumbering([], [], OPTIONS);
     expect(r.source).toBe('assumed');

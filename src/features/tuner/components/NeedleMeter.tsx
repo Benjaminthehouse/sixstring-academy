@@ -96,7 +96,7 @@ export function NeedleMeter({ session, tolerance, parked, reducedMotion, childre
         {ticks
           .filter((t) => t.label)
           .map((t) => (
-            <span key={t.cents} className={cx(styles.tickLabel, t.cents !== 0 && Math.abs(t.cents) !== METER_RANGE && styles.tickLabelInner)} style={{ left: `${50 + t.position * 50}%` }}>
+            <span key={t.cents} className={cx(styles.tickLabel, t.cents !== 0 && Math.abs(t.cents) !== METER_RANGE && styles.tickLabelInner)} style={{ left: `${50 + t.position * 50}%` }} data-tick-label="">
               {t.label}
             </span>
           ))}

@@ -1,0 +1,280 @@
+/* The library: tiles, the tabbed browser, the "next on your path" card. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
+  gap: var(--sp-2);
+}
+.compact .grid {
+  grid-template-columns: repeat(auto-fill, minmax(5.25rem, 1fr));
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+@media (hover: hover) {
+  .tile:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-1px);
+  }
+}
+.tile:active {
+  transform: scale(0.98);
+}
+.tile:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.tile[aria-current='page'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tileDiagram {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 6.4rem;
+}
+.compact .tileDiagram {
+  min-height: 4.6rem;
+}
+.tileName {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.tileSub {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  text-align: center;
+}
+.known {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  color: var(--ok-fg);
+}
+.placeholder {
+  width: 4.2rem;
+  height: 5.6rem;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.compact .placeholder {
+  width: 3.2rem;
+  height: 4.2rem;
+}
+
+/* ------------------------------------------------------------- the panel */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.stageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.stageTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+.compact .stageTitle {
+  font-size: var(--text-md);
+}
+.stageCount {
+  flex: none;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.stageBlurb {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  max-width: 60ch;
+}
+.familyBlurb {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.typeHits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ------------------------------------------------------------- next on your path */
+
+.next {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.nextBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.nextName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+/* ------------------------------------------------------------- tools row */
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 719.98px) {
+  .tools {
+    gap: var(--sp-2);
+  }
+  .tool {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+  }
+  .toolSub,
+  .toolChevron {
+    display: none;
+  }
+  .toolTitle {
+    font-size: var(--text-sm);
+  }
+}
+.tool {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 3.5rem;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+@media (hover: hover) {
+  .tool:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-1px);
+  }
+}
+.tool:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.toolIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.toolText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.toolTitle {
+  font-weight: 650;
+  line-height: var(--leading-tight);
+}
+.toolSub {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+.toolChevron {
+  margin-left: auto;
+  color: var(--fg-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .tool {
+    transition: none;
+  }
+  .tile:hover,
+  .tool:hover,
+  .tile:active {
+    transform: none;
+  }
+}
+
+button.tile {
+  font: inherit;
+}
+.tile[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}

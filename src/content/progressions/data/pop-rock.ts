@@ -13,7 +13,7 @@ export const POP_ROCK: readonly ProgressionSpec[] = [
     level: 2,
     feel: feel('pop-rock', 84, 132),
     altFeels: [feel('ballad', 60, 84), feel('reggae', 66, 80)],
-    why: 'The loop visits every harmonic function: home (I), the tension of the dominant (V), the relative minor (vi), which shares two of home\'s three notes but darkens them, and the subdominant (IV), which leads back. Because IV falls straight back to I instead of going through V, the loop never quite closes, which is why it can repeat for a whole song.',
+    why: 'The loop visits all three harmonic functions: home (I), the tension of the dominant (V), the relative minor (vi), a darker stand-in for home that shares two of its three notes, and the subdominant (IV), which leads back. Because IV falls straight back to I instead of going through V, the loop never quite closes, which is why it can repeat for a whole song.',
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.campfire,
@@ -172,9 +172,9 @@ export const POP_ROCK: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'mixolydian'), sc('1', 'major-pentatonic')],
       strum: STRUM.rock,
-      tip: 'In E this is E, D, A: three open chords. Let the open strings ring and accent the change to bVII.',
+      tip: 'In E this is E, D, A: three open chords. Let the open strings ring and accent the change to bVII. Start and end on E: if the loop seems to rest on A instead, the same chords read V–IV–I in A, the classic way to misread it.',
     },
-    related: ['mixolydian-i-bvii', 'borrowed-mario', 'rock-i-iv-v-minor'],
+    related: ['mixolydian-i-bvii', 'borrowed-mario', 'rock-i-iv-v-minor', 'rock-rising-fifths'],
     keys: ['E', 'A', 'D', 'G'],
     heardIn: [
       { title: 'Gloria', by: 'Them' },
@@ -251,6 +251,26 @@ export const POP_ROCK: readonly ProgressionSpec[] = [
     },
     related: ['borrowed-i-biii-iv', 'metal-aeolian', 'blues-12-bar'],
     keys: ['E', 'A', 'D', 'G'],
+  },
+  {
+    id: 'rock-rising-fifths',
+    name: 'bVI–bIII–bVII–IV–I (rising fifths)',
+    aka: ['Hey Joe progression', 'circle of fifths backwards'],
+    chart: 'bVI bIII | bVII IV | I | I',
+    tonality: 'major',
+    styles: ['rock', 'blues'],
+    level: 4,
+    feel: feel('pop-rock', 70, 110),
+    altFeels: [feel('ballad', 60, 84)],
+    why: 'Each root rises a fifth to the next (bVI, bIII, bVII, IV, I), the circle of fifths run backwards, so every chord is the IV of the one after it and the chain lands home with a final plagal step. The first three chords are borrowed from the parallel minor, which makes the major I at the end sound like daylight.',
+    tryThis: {
+      scales: [sc('1', 'minor-pentatonic'), sc('1', 'minor-blues')],
+      strum: STRUM.rock,
+      tip: 'In E the chords are C, G, D, A and E, all open shapes: two beats each for the first four, then let E ring for two whole bars. The minor pentatonic fits the first four; over E its G rubs against the chord\'s G#, so bend it up toward G# for the bluesy major third.',
+    },
+    related: ['rock-i-bvii-iv', 'borrowed-mario', 'classical-circle-major'],
+    keys: ['E', 'A', 'D', 'G'],
+    heardIn: [{ title: 'Hey Joe', by: 'Billy Roberts; The Jimi Hendrix Experience' }],
   },
   {
     id: 'pop-royal-road',

@@ -1,6 +1,6 @@
 # `@/content/progressions` — the chord-progression catalog
 
-168 progressions in 15 families (pop and rock, fifties, blues, folk and country, minor-key pop,
+170 progressions in 15 families (pop and rock, fifties, blues, folk and country, minor-key pop,
 borrowed chords, secondary dominants and line clichés, modal, funk/soul/R&B/gospel, reggae and
 ska, Latin and bossa, flamenco, metal, jazz, classical). Each one is written once as roman
 numerals and made concrete in any key by the theory engine, so a chart is never typed per key.
@@ -97,8 +97,8 @@ Reference a progression by its **id** (`'blues-quick-change'`, `'jazz-backdoor'`
 Let the reader's key choice flow through `progressionInKey(id, tonic)` instead of writing chord
 names into lesson text. Good entry points by level: 1–2 `pop-i-iv`, `folk-i-v7`, `pop-axis`,
 `rock-i-iv-v`, `blues-12-bar-triads`; 3–4 `blues-quick-change`, `flamenco-andalusian`,
-`rock-i-bvii-iv`, `dorian-i-iv`; 5–6 `jazz-ii-v-i`, `borrowed-iv-minor`, `secondary-v-of-v`,
-`classical-canon-bass`, `blues-jazz`; 7–10 `jazz-rhythm-changes`, `jazz-backdoor`, `classical-folia`,
+`rock-i-bvii-iv`, `rock-rising-fifths`, `dorian-i-iv`; 5–6 `jazz-ii-v-i`, `borrowed-iv-minor`,
+`secondary-v-of-v`, `classical-canon-bass`, `blues-jazz`, `blues-16-bar-stop-time`; 7–10 `jazz-rhythm-changes`, `jazz-backdoor`, `classical-folia`,
 `blues-bird`, `jazz-coltrane-cycle`.
 
 ## Gotchas
@@ -106,5 +106,12 @@ names into lesson text. Good entry points by level: 1–2 `pop-i-iv`, `folk-i-v7
 - A chord held over several bars is repeated in the chart (`'I | I | IV'`); the band treats each bar
   as a fresh arrival.
 - Two chords in a 3/4 bar split 2 + 1 beats; 6/8 and 12/8 bars count their felt beats (2 and 4).
-- `heardIn` names famous recordings only; never transcribe them. Modern songs stay names.
+- `heardIn` names famous recordings only; never transcribe them. Modern songs stay names. A key in
+  its `note` ("in A minor") always agrees with the entry's tonality.
+- `tryThis.scales` are checked chord by chord: each chord is covered by a listed scale (a pentatonic
+  gap is fine; the minor pentatonic's blue-note rub over I, IV and V of a major-key blues is
+  allowed), or the tip names that chord, its bar, or says to follow each chord's own root
+  (`review.test.ts`). Keep that true when you edit a chart or a tip.
+- A two-chord vamp can often be heard in another key (`dorian-i-iv` in A is also ii7–V7 of G
+  major). Those entries say so in their tip; lessons should establish the home chord first.
 - Power chords are upper case (`I5`, `bVI5`) in every tonality: the engine writes no third for them.

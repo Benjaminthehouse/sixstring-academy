@@ -116,7 +116,7 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.fingerstyle,
-      tip: 'Make the bass line sing: thumb on the bass note, then two or three soft notes of the chord above it.',
+      tip: 'Make the bass line sing: thumb on the bass note, then two or three soft notes of the chord above it. Natural minor fits until V, where harmonic minor gives you its leading tone.',
     },
     related: ['classical-lament-chromatic', 'flamenco-andalusian', 'classical-phrygian-half'],
     keys: MINOR_KEYS,
@@ -134,7 +134,7 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.fingerstyle,
-      tip: 'In A minor the bass is A, G#, G, F#, F, E. The open high E string belongs to the first three chords, so let it ring above the falling bass.',
+      tip: 'In A minor the bass is A, G#, G, F#, F, E. The open high E string belongs to the first three chords, so let it ring above the falling bass. Neither scale has the F# of IV/6: over that chord, play its own notes.',
     },
     related: ['classical-lament-diatonic', 'line-minor-bass', 'line-minor-down'],
     keys: MINOR_KEYS,
@@ -257,7 +257,7 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'harmonic-minor'), sc('1', 'phrygian')],
       strum: STRUM.fingerstyle,
-      tip: 'Over bII play the flattened second of the key and drop it to the leading tone as V7 arrives (Bb to G# in A minor).',
+      tip: 'Over bII play the flattened second of the key and drop it to the leading tone as V7 arrives (Bb to G# in A minor). Harmonic minor fits i and V7, Phrygian fits i and bII: switch at each chord.',
     },
     related: ['classical-minor-cadence', 'classical-phrygian-half', 'phrygian-i-bii'],
     keys: MINOR_KEYS,
@@ -292,7 +292,7 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'harmonic-minor'), sc('1', 'minor')],
       strum: STRUM.fingerstyle,
-      tip: 'In A minor the chord is F, A, C, D#: put F in the bass and D# on top, and move them apart by half steps to E and E.',
+      tip: 'In A minor the chord is F, A, C, D#: put F in the bass and D# on top, and move them apart by half steps to E and E. Neither scale has the D# of bVI7, the chord\'s own note: play it as written.',
     },
     related: ['classical-cadential-64', 'classical-neapolitan', 'blues-minor-bvi'],
     keys: MINOR_KEYS,
@@ -329,9 +329,11 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.fingerstyle,
+      tip: 'Natural minor everywhere except over V, where the raised seventh (harmonic minor) is the note that leads home.',
     },
     related: ['classical-passamezzo-moderno', 'classical-romanesca', 'classical-folia'],
     keys: MINOR_KEYS,
+    heardIn: [{ title: 'Greensleeves', by: 'traditional', note: 'its verse follows this pattern, its refrain the Romanesca' }],
   },
   {
     id: 'classical-passamezzo-moderno',
@@ -363,7 +365,7 @@ export const CLASSICAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'harmonic-minor')],
       strum: STRUM.waltz,
-      tip: 'The folia leans on beat 2 of each bar (a sarabande feel): try strumming on 1 and holding through 2.',
+      tip: 'The folia leans on beat 2 of each bar (a sarabande feel): try strumming on 1 and holding through 2. Play natural minor, raising the seventh over every V.',
     },
     related: ['classical-passamezzo-antico', 'classical-romanesca'],
     keys: ['D', 'A', 'E'],

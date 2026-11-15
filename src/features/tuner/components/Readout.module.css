@@ -126,12 +126,21 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 0 var(--sp-2);
+  max-width: 100%;
   margin: 0;
   min-height: 1.5rem;
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--fg-muted);
   text-align: center;
+}
+/* One line, so a long tuning name of the learner's own cannot push the strings down the screen. */
+.captionText {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .badge {
   padding: 0.0625rem var(--sp-2);

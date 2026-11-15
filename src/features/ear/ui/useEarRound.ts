@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playUi } from '@/core/audio';
-import { getProgress, recordActivity, setSkillData, type ActivityResult, type JsonValue } from '@/core/progress';
+import { getProgress, getProgressStore, recordActivity, setSkillData, type ActivityResult, type JsonValue } from '@/core/progress';
 import { readRecord, weakSpots, type WeakSpot } from '../core/adapt';
 import { drillSkillId, levelSkillId, levelStatuses } from '../core/progress';
 import { mixSeed } from '../core/rng';
@@ -173,7 +173,8 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       // Name the level right after this one when it opened; a pass that skipped ahead opens several.
       const opened = after.filter((s, i) => s.unlocked && !before[i].unlocked && s.n !== level.n).map((s) => s.n);
       const unlocked = opened.includes(level.n + 1) ? level.n + 1 : opened.length ? Math.max(...opened) : null;
-      return { score, activity, unlocked, weak: weakSpots(drill, r.record, { pool: level.pool, min: 1, limit: 3 }), durationSec, bestStreak };
+      // Only a confusion heard more than once is a weak spot ("you often hear…"); single misses are listed as answers.
+      return { score, activity, unlocked, weak: weakSpots(drill, r.record, { pool: level.pool, limit: 3 }), durationSec, bestStreak };
     },
     [drill, level],
   );
@@ -305,6 +306,18 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
     },
     [clearTimers],
   );
+
+  // A reload or a closed tab ends the round as leaving does: what was answered still counts. The
+  // store saves on hide before this runs, so save again. A page kept for "back" may still go on.
+  useEffect(() => {
+    const onHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return;
+      abandonRef.current();
+      getProgressStore().flush();
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, []);
 
   const marks = useMemo(() => (question?.kind === 'sequence' && feedback ? sequenceMarks(question, feedback.chosen as string[]) : null), [question, feedback]);
 

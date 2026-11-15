@@ -1,0 +1,679 @@
+/*
+ * Technique. One idea runs through every screen: the music on the left (tab, fretboard, how to
+ * play it), the ladder on the right (tempo, start, clean or not yet). On a phone the music comes
+ * first and the ladder's controls sit in the bottom bar, under the thumb.
+ */
+
+/* ---------- Verdict tones: always beside a word or an icon ---------- */
+.toneClean {
+  color: var(--ok-text);
+}
+.toneClose {
+  color: var(--info-text);
+}
+.toneNot {
+  color: var(--warn-text);
+}
+
+/* ---------- Hub ---------- */
+.hub {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-8);
+}
+.hubMain,
+.hubSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .hub {
+    grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 1fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+  .hubSide {
+    position: sticky;
+    top: calc(var(--sticky-top, 0px) + var(--sp-6));
+  }
+}
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.todayTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.todayIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.todayText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.todayLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+}
+.level {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.level[data-band='2'] {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.level[data-band='3'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.rowEnd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+}
+.strainMark {
+  color: var(--warn-text);
+  display: inline-flex;
+}
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.groupIcon {
+  color: var(--fg-faint);
+  display: inline-flex;
+}
+.tipList {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* ---------- Exercise: two panes on wide screens ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+}
+.main,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.7fr) minmax(20rem, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+  }
+  .side {
+    position: sticky;
+    top: calc(var(--sticky-top, 0px) + var(--sp-4));
+  }
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.strainLine {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  max-width: 68ch;
+  color: var(--warn-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.strainLine > :first-child {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- Demonstration ---------- */
+.demoCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.demoHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.tabBox {
+  min-width: 0;
+}
+.boardBox {
+  min-width: 0;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+}
+.partNote {
+  max-width: 62ch;
+}
+
+/* ---------- The ladder ---------- */
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.tempoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.tempoValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.tempoNumber {
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  color: var(--fg);
+}
+.tempoUnit {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  font-family: var(--font-body);
+}
+.rungs {
+  display: flex;
+  gap: 3px;
+  align-items: stretch;
+  height: 0.85rem;
+}
+.rung {
+  flex: 1 1 0;
+  min-width: 3px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  transition: background-color var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+.rung[data-done='true'] {
+  background: var(--ok);
+}
+.rung[data-now='true'] {
+  background: var(--accent);
+  transform: scaleY(1.45);
+}
+.rungLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ladderButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+.passNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.passNote[data-verdict='clean'] {
+  background: var(--ok-soft);
+}
+.passNote[data-verdict='not-yet'] {
+  background: var(--warn-soft);
+}
+.passNoteIcon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 1px;
+}
+.countIn {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+  padding: var(--sp-2) 0;
+}
+.countDot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.countDot[data-on='true'] {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+.switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.micRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* ---------- Phone: the bottom bar ---------- */
+.barTempo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.barTempoValue {
+  min-width: 3.4rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--text-lg);
+  line-height: 1.1;
+}
+.barTempoValue small {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.barActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* ---------- A take's result ---------- */
+.take {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.takeHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.takeVerdict {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 700;
+}
+.takeDetails {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.levelBars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  height: 5rem;
+  padding-top: var(--sp-2);
+}
+.levelBar {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+  height: 100%;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.levelFill {
+  width: 100%;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: var(--info);
+  min-height: 3px;
+}
+.meterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* ---------- How to play ---------- */
+.steps {
+  margin: 0;
+  padding-left: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 68ch;
+  line-height: var(--leading-normal);
+}
+.mistakes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 68ch;
+}
+.mistake {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line);
+}
+.mistake:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.mistakeWatch {
+  font-weight: 600;
+}
+.mistakeWatch::first-letter {
+  text-transform: uppercase;
+}
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ---------- History ---------- */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 6.5rem;
+  padding: var(--sp-2) 0 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+.chartBar {
+  flex: 1 1 0;
+  max-width: 2.25rem;
+  min-width: 4px;
+  border-radius: 3px 3px 0 0;
+  background: var(--ok);
+  position: relative;
+}
+.chartBar[data-empty='true'] {
+  background: var(--surface-3);
+}
+.chartGoal {
+  position: relative;
+}
+.chartLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--fg-faint);
+  pointer-events: none;
+}
+.chartLegend {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+/* ---------- Health notices: above the bottom bar, out of the music's way ---------- */
+.noticeLayer {
+  position: fixed;
+  z-index: 25;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: calc(var(--sticky-bottom, 0px) + var(--action-bar-h, 0px) + var(--sp-3));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+@media (min-width: 900px) {
+  .noticeLayer {
+    left: auto;
+    right: var(--sp-6);
+    justify-content: flex-end;
+  }
+}
+.notice {
+  pointer-events: auto;
+  width: min(30rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-3);
+  animation: rise var(--dur-3) var(--ease);
+}
+.noticeHead {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+.noticeIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--r-md);
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.notice[data-kind='break'] .noticeIcon,
+.notice[data-kind='strain'] .noticeIcon {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+  .rung,
+  .countDot {
+    transition: none;
+  }
+}
+
+/* ---------- Routine ---------- */
+.routine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.routineNow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.routineSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.routineStep {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--line);
+  color: var(--fg-muted);
+}
+.routineStep:first-child {
+  border-top: 0;
+}
+.routineStep[data-state='now'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+.routineStep[data-state='done'] {
+  color: var(--fg-muted);
+}
+.stepMark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.routineStep[data-state='now'] .stepMark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.routineStep[data-state='done'] .stepMark {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--ok-fg);
+}
+.stepTime {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- One-minute changes ---------- */
+.pairBoxes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.pairBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-lg);
+  border: 2px solid transparent;
+  transition: border-color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+.pairBox[data-now='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pairArrow {
+  color: var(--fg-faint);
+  display: inline-flex;
+}
+.minute {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+}
+.bigCount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-3xl);
+  font-weight: 700;
+}
+
+/* ---------- Summary ---------- */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.summaryStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--sp-4);
+}

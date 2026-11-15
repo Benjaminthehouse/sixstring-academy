@@ -710,6 +710,15 @@ async function picker() {
     await page.keyboard.press('Escape');
     await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 5000 });
     check('removing it goes back to standard', (await pegs()) === 'E2 A2 D3 G3 B3 E4', await pegs());
+    // A slip of the finger costs nothing: the toast's Undo brings the tuning back, in use again.
+    await page.getByRole('button', { name: 'Undo' }).click({ timeout: 5000 });
+    await sleep(300);
+    check('removing offers Undo, which brings the tuning back', (await pegs()) === 'D2 G2 D3 G3 A3 D4' && /Low and slow/.test(await page.locator('[data-tuner-tuning]').innerText()), await pegs());
+    await page.click('[data-tuner-tuning]');
+    await page.getByRole('button', { name: 'Remove from your tunings' }).click();
+    await sleep(300);
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 5000 });
 
     // An editor result that is a catalog tuning is recognised rather than duplicated.
     await page.click('[data-tuner-tuning]');
@@ -879,6 +888,58 @@ async function review() {
   } finally {
     await browser.close();
     await server.close();
+  }
+
+  // Text at 200 % on a phone: the meter's numbers and the status word used to run into each other.
+  await withApp({ mobile: true }, async ({ page, context, goto, errors }) => {
+    await lib.seed(context, lib.seedStorage());
+    await goto('tuner');
+    await lib.waitForTuner(page);
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    await sleep(500);
+    const m = await page.evaluate((sel) => {
+      const root = document.querySelector(sel);
+      const rect = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width }; };
+      const labels = [...root.querySelectorAll('[data-tick-label]')].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0).map(rect).sort((a, b) => a.l - b.l);
+      const clash = labels.some((a, i) => i > 0 && a.l < labels[i - 1].r - 0.5);
+      const status = root.querySelector('[data-tuner-status]');
+      const settings = root.querySelector('button[aria-label="Tuner settings"]');
+      const s = status ? rect(status) : null;
+      const g = settings ? rect(settings) : null;
+      return { labels: labels.length, clash, statusOverSettings: !!s && !!g && s.r > g.l + 0.5, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    }, lib.READOUT);
+    check('200 % text: the meter numbers do not overlap', m.labels >= 3 && !m.clash, JSON.stringify(m));
+    check('200 % text: the status word stays clear of the settings button', !m.statusOverSettings, JSON.stringify(m));
+    check('200 % text: no sideways scroll', m.overflow <= 1, `${m.overflow}px`);
+    noErrors(errors, '200 % text: no console errors');
+  });
+
+  // A tuning of the learner's own with a 40-character name: it used to run out of the readout on a
+  // phone and squeeze the Change button to "C" on a desktop.
+  const long = { id: 'custom-review-long', name: 'My extremely long open tuning name here!', midi: [36, 43, 48, 55, 60, 64], instrument: 'guitar' };
+  for (const mobile of [true, false]) {
+    await withApp({ mobile }, async ({ page, context, goto, errors }) => {
+      await lib.seed(context, { ...lib.seedStorage(), 'ssa:tuner.tunings': JSON.stringify([long]) });
+      await goto('tuner');
+      await lib.waitForTuner(page);
+      await chooseTuning(page, 'My extremely');
+      await sleep(400);
+      const m = await page.evaluate((sel) => {
+        const card = document.querySelector(sel).getBoundingClientRect();
+        const caption = [...document.querySelectorAll(`${sel} p span`)].find((e) => /extremely long/.test(e.textContent));
+        const change = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Change');
+        return {
+          captionInside: caption ? caption.getBoundingClientRect().right <= card.right + 0.5 && caption.getBoundingClientRect().left >= card.left - 0.5 : null,
+          changeClipped: change ? change.scrollWidth > change.clientWidth + 1 || change.getBoundingClientRect().width < 60 : null,
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      }, lib.READOUT);
+      const where = mobile ? 'phone' : 'desktop';
+      check(`long tuning name, ${where}: the caption stays inside the readout`, m.captionInside === true, JSON.stringify(m));
+      if (!mobile) check('long tuning name, desktop: the Change button keeps its word', m.changeClipped === false, JSON.stringify(m));
+      check(`long tuning name, ${where}: no sideways scroll`, m.overflow <= 1, `${m.overflow}px`);
+      noErrors(errors, `long tuning name, ${where}: no console errors`);
+    });
   }
 }
 

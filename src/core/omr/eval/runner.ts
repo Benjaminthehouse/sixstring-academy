@@ -6,8 +6,9 @@
  */
 import { join } from 'node:path';
 import type { GrayImage } from '../image/gray';
-import { type AnalyzeOptions, analyzePage, assemblePage, extractStaff } from '../page';
-import type { OmrPage, StaffReading, StaffRecognizers } from '../types';
+import { type AnalyzeOptions, analyzePage } from '../page';
+import { readAnalyzedPage } from '../pipeline';
+import type { OmrPage, StaffRecognizers } from '../types';
 import { dumpDir, dumpPage } from './debug';
 import { type DegradeTier, TIERS, degrade, hashString } from './degrade';
 import { loadFixture, loadManifest } from './fixtures';
@@ -41,6 +42,8 @@ export interface PageResult {
   score: PageScore;
   /** Preprocessing + layout time, ms. */
   ms: number;
+  /** Staff recognizers + assembly time, ms (0 without recognizers). */
+  symbolMs: number;
   timings: Record<string, number>;
   correction: string;
   /** True when every staff, kind, system and bar line of the page is right. */
@@ -56,6 +59,7 @@ export interface EvalRow {
   tier: DegradeTier;
   score: PageScore;
   ms: number[];
+  symbolMs: number[];
   layoutOk: number;
   /** Summed strip checks. */
   heads: number;
@@ -78,24 +82,24 @@ export function tierSeed(id: string, tier: DegradeTier, seed = 1): number {
 }
 
 /** Run the pipeline on one degraded fixture and return the recognised page plus what is needed to score it. */
-export async function runFixture(meta: FixtureMeta | string, tier: DegradeTier, opts: Pick<EvalOptions, 'recognizers' | 'seed' | 'analyze' | 'strips'> = {}): Promise<{ page: OmrPage; truth: GroundTruth; gray: GrayImage; ms: number; timings: Record<string, number>; correction: string; strips?: StripAccuracy }> {
+export async function runFixture(meta: FixtureMeta | string, tier: DegradeTier, opts: Pick<EvalOptions, 'recognizers' | 'seed' | 'analyze' | 'strips'> = {}): Promise<{ page: OmrPage; truth: GroundTruth; gray: GrayImage; ms: number; symbolMs: number; timings: Record<string, number>; correction: string; strips?: StripAccuracy }> {
   const fx = loadFixture(meta);
   const d = degrade(fx.gray, fx.truth, tier, tierSeed(fx.meta.id, tier, opts.seed ?? 1));
   const t0 = performance.now();
   const analysis = analyzePage(d.gray, opts.analyze);
   const ms = performance.now() - t0;
   let page = analysis.page;
+  let symbolMs = 0;
   const rec = opts.recognizers;
   if (rec && (rec.tab || rec.notation)) {
-    const readings: (StaffReading | null)[] = [];
-    for (const st of analysis.layout.staves) {
-      const fn = st.kind === 'tab' ? rec.tab : rec.notation;
-      readings.push(fn ? await fn(extractStaff(analysis, st.index)) : null);
-    }
-    page = assemblePage(analysis, readings);
+    // The real page pipeline: context carried between staves, notation and tab linked and
+    // reconciled, measures checked.
+    const t1 = performance.now();
+    page = await readAnalyzedPage(analysis, { tab: rec.tab ?? null, notation: rec.notation ?? null, yieldBetweenStaves: false });
+    symbolMs = performance.now() - t1;
   }
   const strips = opts.strips ? stripAccuracy(analysis, d.truth as GroundTruth) : undefined;
-  return { page, truth: d.truth as GroundTruth, gray: d.gray, ms, timings: analysis.pre.timings, correction: analysis.pre.correction, strips };
+  return { page, truth: d.truth as GroundTruth, gray: d.gray, ms, symbolMs, timings: analysis.pre.timings, correction: analysis.pre.correction, strips };
 }
 
 /** Evaluate the pipeline over fixtures and tiers. */
@@ -112,7 +116,7 @@ export async function runEvaluation(opts: EvalOptions = {}): Promise<EvalReport>
       const score = scorePage(r.page, r.truth);
       const layoutOk = score.stavesMatched === score.stavesTruth && score.stavesDetected === score.stavesTruth && rate(score.kind) === 1 &&
         rate(score.systems) === 1 && score.barlines.fp === 0 && score.barlines.fn === 0;
-      const result: PageResult = { id: meta.id, subset: meta.subset, tier, score, ms: r.ms, timings: r.timings, correction: r.correction, layoutOk, strips: r.strips };
+      const result: PageResult = { id: meta.id, subset: meta.subset, tier, score, ms: r.ms, symbolMs: r.symbolMs, timings: r.timings, correction: r.correction, layoutOk, strips: r.strips };
       if (dump === 'all' || (dump === 'failures' && !layoutOk)) {
         result.dumpPath = join(dir, `${meta.id}.${tier}.page.png`);
         dumpPage(result.dumpPath, r.gray, r.page, r.truth);
@@ -122,11 +126,12 @@ export async function runEvaluation(opts: EvalOptions = {}): Promise<EvalReport>
       for (const key of [`${meta.subset}|${tier}`, `all|${tier}`]) {
         let row = rows.get(key);
         if (!row) {
-          row = { subset: key.split('|')[0], tier, score: emptyScore(), ms: [], layoutOk: 0, heads: 0, headsOnPosition: 0, headErrorSum: 0, digits: 0, digitsOnLine: 0 };
+          row = { subset: key.split('|')[0], tier, score: emptyScore(), ms: [], symbolMs: [], layoutOk: 0, heads: 0, headsOnPosition: 0, headErrorSum: 0, digits: 0, digitsOnLine: 0 };
           rows.set(key, row);
         }
         addScore(row.score, score);
         row.ms.push(r.ms);
+        row.symbolMs.push(r.symbolMs);
         if (layoutOk) row.layoutOk++;
         if (r.strips) {
           row.heads += r.strips.heads;
@@ -188,16 +193,18 @@ export function formatReport(report: EvalReport): string {
     out.push('');
     out.push('SYMBOLS (staff recognizers)');
     out.push(table(
-      ['tier', 'subset', 'noteP%', 'noteR%', 'pitch%', 'dur%', 'restF1', 'acc%', 'tie%', 'measEx%', 'key%', 'time%', 'tabP%', 'tabR%', 'fret%', 'str%', 'tabDur%', 'tabMeasEx%'],
+      ['tier', 'subset', 'noteP%', 'noteR%', 'pitch%', 'dur%', 'restF1', 'acc%', 'tie%', 'measEx%', 'key%', 'time%', 'tabP%', 'tabR%', 'fret%', 'str%', 'tabDur%', 'tabMeasEx%', 'pageS', 'pageSmax'],
       report.rows.map((r) => {
         const s = r.score;
         return [
           r.tier, r.subset, pct(precision(s.notes)), pct(recall(s.notes)), pct(rate(s.pitch)), pct(rate(s.duration)), f1(s.rests).toFixed(3), pct(rate(s.accidentals)), pct(rate(s.ties)),
           pct(rate(s.measureExact)), pct(rate(s.key)), pct(rate(s.time)), pct(precision(s.tabNotes)), pct(recall(s.tabNotes)), pct(rate(s.fret)), pct(rate(s.string)), pct(rate(s.tabDuration)), pct(rate(s.tabMeasureExact)),
+          (r.ms.reduce((a, b, i) => a + b + r.symbolMs[i], 0) / r.ms.length / 1000).toFixed(2), (Math.max(...r.ms.map((v, i) => v + r.symbolMs[i])) / 1000).toFixed(2),
         ];
       }),
     ));
     out.push('  pitch / dur / fret / str: accuracy on matched elements; measEx: measures where every event is right');
+    out.push('  pageS / pageSmax: whole pipeline per page (preprocess, layout, every staff, assembly), mean and max seconds');
   }
   return out.join('\n');
 }

@@ -31,6 +31,8 @@ export interface LevelStatus {
   best: number;
   stars: number;
   attempts: number;
+  /** Rounds played to the end. Until there is one, `best` and `stars` say nothing (a left round has no score). */
+  completions: number;
   /** Passed directly, or implied by passing a later level. */
   passed: boolean;
   unlocked: boolean;
@@ -41,10 +43,10 @@ export function levelStatuses(drill: DrillDef, skills: SkillMap): LevelStatus[] 
   const raw = drill.levels.map((l) => {
     const s = skills[levelSkillId(drill.id, l.n)];
     const best = s?.bestAccuracy ?? 0;
-    return { n: l.n, best, stars: s?.stars ?? 0, attempts: s?.attempts ?? 0, direct: best >= PASS_ACCURACY - 1e-9 };
+    return { n: l.n, best, stars: s?.stars ?? 0, attempts: s?.attempts ?? 0, completions: s?.completions ?? 0, direct: best >= PASS_ACCURACY - 1e-9 };
   });
   const passed = raw.map((_, i) => raw.slice(i).some((r) => r.direct));
-  return raw.map((r, i) => ({ n: r.n, best: r.best, stars: r.stars, attempts: r.attempts, passed: passed[i], unlocked: i === 0 || passed[i - 1] || passed[i] }));
+  return raw.map((r, i) => ({ n: r.n, best: r.best, stars: r.stars, attempts: r.attempts, completions: r.completions, passed: passed[i], unlocked: i === 0 || passed[i - 1] || passed[i] }));
 }
 
 /** The level to play next in a drill: the first open one not yet passed, else the top level. */

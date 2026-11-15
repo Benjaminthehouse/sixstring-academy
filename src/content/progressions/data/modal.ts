@@ -17,7 +17,7 @@ export const MODAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'dorian'), sc('1', 'minor-pentatonic')],
       strum: STRUM.latin,
-      tip: 'Target the natural sixth (F# in A Dorian) over IV7, where it is the chord\'s third: that one note says "Dorian".',
+      tip: 'Target the natural sixth (F# in A Dorian) over IV7, where it is the chord\'s third: that one note says "Dorian". Start and end your lines on A: these two chords are also ii7–V7 of G major, and the ear will drift there if G gets the last word.',
     },
     related: ['dorian-i-ii', 'dorian-i-biii-iv', 'funk-one-chord-minor', 'folk-rising-sun'],
     keys: ['A', 'E', 'D', 'G'],
@@ -110,7 +110,7 @@ export const MODAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'lydian'), sc('1', 'major-pentatonic')],
       strum: STRUM.ballad,
-      tip: 'Lean on the raised fourth over II, where it is the chord\'s third: in C that is F#.',
+      tip: 'Lean on the raised fourth over II, where it is the chord\'s third: in C that is F#. Keep C as home by starting and ending on it: C to D on their own can also sound like IV–V in G.',
     },
     related: ['lydian-pedal', 'secondary-v-of-v', 'soul-imaj7-ivmaj7'],
     keys: ['C', 'G', 'D', 'A', 'E'],
@@ -146,7 +146,7 @@ export const MODAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'mixolydian'), sc('1', 'major-pentatonic')],
       strum: STRUM.rock,
-      tip: 'In D it is D and C, in A it is A and G: both pairs are open chords.',
+      tip: 'In D it is D and C, in A it is A and G: both pairs are open chords. Rest your phrases on D: D and C can also be heard as V and IV of G, and the melody decides which.',
     },
     related: ['rock-i-bvii-iv', 'mixolydian-i-v-iv', 'folk-double-tonic'],
     keys: ['D', 'A', 'E', 'G'],
@@ -181,7 +181,7 @@ export const MODAL: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'locrian'), sc('1', 'locrian-natural-2')],
       strum: STRUM.ballad,
-      tip: 'Over iø7 try Locrian with a natural second (the sixth mode of melodic minor), the jazz player\'s favourite colour for half-diminished chords.',
+      tip: 'Over iø7 try Locrian with a natural second (the sixth mode of melodic minor), the jazz player\'s favourite colour for half-diminished chords; over bIImaj7 go back to plain Locrian, since the natural second clashes with its root.',
     },
     related: ['metal-locrian', 'phrygian-i-bii'],
     keys: ['B', 'E', 'A'],

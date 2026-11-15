@@ -18,7 +18,7 @@ export const BORROWED: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.ballad,
-      tip: 'Over iv, play its minor third (the key\'s flattened sixth) and let it fall to the fifth of I.',
+      tip: 'Over iv, leave out the scale\'s sixth (A in C), which clashes with the chord, and play the chord\'s minor third instead, the key\'s flattened sixth (Ab), letting it fall to the fifth of I.',
     },
     related: ['fifties-i-i7-iv-iv', 'borrowed-creep', 'jazz-backdoor', 'classical-plagal'],
     keys: KEYS,
@@ -54,7 +54,7 @@ export const BORROWED: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.ballad68,
-      tip: 'Over III, play its third (the raised fifth of the key, D# in G) and move it up to the third of IV.',
+      tip: 'The key\'s scales fit I and IV only. Over III, play its third (the raised fifth of the key, D# in G) and move it up to the third of IV; over iv, play its minor third (Eb in G) and let it fall to the fifth of I.',
     },
     related: ['borrowed-iv-minor', 'secondary-v-of-vi'],
     keys: ['G', 'C', 'D', 'A'],
@@ -87,11 +87,11 @@ export const BORROWED: readonly ProgressionSpec[] = [
     level: 6,
     feel: feel('ballad', 56, 80),
     altFeels: [feel('pop-rock', 80, 120)],
-    why: 'bVI\'s root lies a major third below home, and the two chords share only the home note, while the third of I falls a half step and its fifth rises a half step. That shift, borrowed from the parallel minor, is the shimmering, cinematic sound of film scores.',
+    why: 'bVI is a chromatic mediant: its root lies a major third below home and it brings two notes from outside the key, so the chords share only the home note while the third of I falls a half step and its fifth rises a half step. That shift, borrowed from the parallel minor, is the shimmering, cinematic sound of film scores.',
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'minor')],
       strum: STRUM.ballad,
-      tip: 'Hold the home note on top through both chords: it is the one note they share.',
+      tip: 'Hold the home note on top through both chords: it is the one note they share. Use the major scale over I and the parallel minor over bVI; each clashes with the other chord.',
     },
     related: ['borrowed-mario', 'borrowed-creep'],
     keys: KEYS,
@@ -109,7 +109,7 @@ export const BORROWED: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'harmonic-major')],
       strum: STRUM.swing,
-      tip: 'Harmonic major (the major scale with a flattened sixth) contains all three chords: one scale for the whole cadence.',
+      tip: 'The plain major scale clashes with iiø7, whose fifth is the key\'s flattened sixth. Harmonic major (the major scale with a flattened sixth) contains all three chords: one scale for the whole cadence.',
     },
     related: ['jazz-ii-v-i', 'jazz-minor-ii-v-i'],
     keys: ['C', 'F', 'G', 'D'],

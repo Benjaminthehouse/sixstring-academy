@@ -1,0 +1,169 @@
+/*
+ * Songs screen layout.
+ *   phones      one column: search + Filters button, scope chips, suggestion cards (swipe), the list
+ *   720 px +    filters as popovers next to the scope chips; list rows put the thumbnail on the left
+ *   1080 px +   two panes: the list on the left, the details of the song under the pointer on the
+ *               right (sticky, scrolls on its own)
+ */
+.page {
+  min-width: 0;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+.headActions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.searchRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 34rem;
+}
+.filtersButton {
+  flex: none;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  min-width: 0;
+}
+.filterRow > :first-child {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+.count {
+  margin-left: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-muted);
+  vertical-align: middle;
+}
+
+.sort {
+  min-width: 11rem;
+}
+
+.list {
+  container: songlist / inline-size;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.twoPane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(21rem, 26rem);
+  gap: var(--sp-8);
+  align-items: start;
+}
+
+.pane {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--sp-4));
+  max-height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  --mini-bg: var(--surface);
+}
+
+/* Files dragged over the screen. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  pointer-events: none;
+  animation: fadeIn var(--dur-2) var(--ease);
+}
+.dropCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 28rem;
+  padding: var(--sp-10) var(--sp-12);
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  color: var(--accent-text);
+  text-align: center;
+}
+.dropTitle {
+  margin: var(--sp-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--fg);
+}
+.dropHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropOverlay {
+    animation: none;
+  }
+}
+
+/* "Reading riff.gp…" while an import runs outside the Add sheet (a drop or a paste). */
+.busy {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sticky-bottom, 0px) + var(--action-bar-h, 0px) + var(--sp-4));
+  z-index: 40;
+  transform: translateX(-50%);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}

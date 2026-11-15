@@ -5,7 +5,7 @@
  * attributes and a short animation), so nothing re-renders on the beat. The screen's root gets
  * `data-beat` (the index of the lit beat, -1 when stopped) for tests.
  */
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { AccentLevel, Meter, MetronomeBeat, SilentBarsConfig, Subdivision } from '@/core/audio';
 import { Icon, cx, usePrefersReducedMotion } from '@/ui';
 import { ACCENT_WORDS } from '../model/settings';
@@ -86,7 +86,7 @@ export function BeatStrip({ meter, accents, subdivision, swing, gap, running, on
         <span ref={phaseRef} className={styles.phase} />
         <span className={styles.hint}>{keys ? 'Tap a beat (or its number key) to change its accent' : 'Tap a beat to change its accent'}</span>
       </div>
-      <div className={styles.pads} role="group" aria-label="Beats of the bar">
+      <div className={styles.pads} role="group" aria-label="Beats of the bar" style={{ '--beats': meter.beats.length } as CSSProperties}>
         {meter.beats.map((beat, i) => {
           const level = accents[i] ?? beat.accent;
           const subs = counts[i] ?? 1;

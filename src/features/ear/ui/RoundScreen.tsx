@@ -57,9 +57,20 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
   const status = levelStatuses(drill, skills)[level.n - 1];
   const next = useMemo(() => (api.phase === 'summary' ? stepAfter(drill.id, level.n, skills) : null), [api.phase, drill.id, level.n, skills]);
 
+  const endRound = () => {
+    api.end();
+    navigate('ear', drill.id);
+  };
+
   useEventListener(typeof window === 'undefined' ? null : window, 'keydown', (e: KeyboardEvent) => {
-    if (sheet || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+    if (sheet || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
     const q = api.question;
+    // Escape leaves a round, as the X does (and as every other game round in the app).
+    if (e.key === 'Escape' && inRound) {
+      e.preventDefault();
+      endRound();
+      return;
+    }
     if (api.phase === 'summary') {
       // Enter takes the summary's main step, unless a control has focus (it handles Enter itself).
       const onControl = !!(e.target as HTMLElement | null)?.closest?.('a, button');
@@ -107,11 +118,6 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
     }
   });
 
-  const endRound = () => {
-    api.end();
-    navigate('ear', drill.id);
-  };
-
   const sheetEl = <SoundSheet open={sheet} onClose={() => setSheet(false)} settings={settings} onChange={setSettings} drill={drill.id} />;
 
   if (api.phase === 'summary' && api.outcome && api.round) {
@@ -140,7 +146,7 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
 }
 
 /** The level's intro: what you will hear (tap to hear each), your record, and Start. */
-function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; attempts: number; unlocked: boolean }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
+function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; completions: number; unlocked: boolean }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
   const [settings] = useEarSettings();
   const record = useProgress((s) => s.skills[drillSkillId(drill.id)]?.data);
   const weak = useMemo(() => weakSpots(drill, readRecord(record), { pool: level.pool, limit: 2 }), [drill, record, level.pool]);
@@ -155,7 +161,7 @@ function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: 
     <Page
       title={level.title}
       eyebrow={`${drill.title} · Level ${level.n} of ${drill.levels.length}`}
-      subtitle={drill.prompt}
+      subtitle={example.prompt}
       back={{ to: 'ear', params: [drill.id], label: drill.title }}
     >
       <div className={styles.intro} data-ear-intro>
@@ -194,11 +200,11 @@ function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: 
         </div>
         <div className={styles.hubSide}>
           <Section title="Your record" level={2}>
-            {best.attempts > 0 ? (
+            {best.completions > 0 ? (
               <div className={styles.recordLine}>
                 <StarRating value={best.stars} size={22} label={`${best.stars} of 3 stars`} />
                 <Text tone="muted" tabular>
-                  Best {Math.round(best.best * 100)}% · {best.attempts} {best.attempts === 1 ? 'round' : 'rounds'}
+                  Best {Math.round(best.best * 100)}% · {best.completions} {best.completions === 1 ? 'round' : 'rounds'}
                 </Text>
               </div>
             ) : (

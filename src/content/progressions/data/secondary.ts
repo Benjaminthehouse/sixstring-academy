@@ -19,7 +19,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.campfire,
-      tip: 'Over II7, play its third (F# in C) and resolve it up a half step to G when V7 arrives.',
+      tip: 'Over II7, play its third (F# in C, where the key\'s scale has F) and resolve it up a half step to G when V7 arrives.',
     },
     related: ['country-ii7', 'jazz-take-a-train', 'secondary-ragtime', 'lydian-i-ii'],
     keys: KEYS,
@@ -74,7 +74,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.country,
-      tip: 'In C the chords are C, A7, D7 and G7, all open shapes; alternate the bass on each.',
+      tip: 'In C the chords are C, A7, D7 and G7, all open shapes; alternate the bass on each. The key\'s scales miss the raised thirds of VI7 and II7 (C# and F# in C): play those notes as each chord arrives.',
     },
     related: ['jazz-dominant-chain', 'blues-8-bar-ragtime', 'secondary-v-of-v'],
     keys: KEYS,
@@ -92,7 +92,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major'), sc('1', 'major-pentatonic')],
       strum: STRUM.gospel,
-      tip: 'In C the bass is C, F, F#, G, G, C: play the F# on the sixth string at fret 2, then step up to fret 3 for the G under C/G and G7.',
+      tip: 'In C the bass is C, F, F#, G, G, C: play the F# on the sixth string at fret 2, then step up to fret 3 for the G under C/G and G7. The key\'s scale clashes with vii°7/V (F# and Eb in C), so play only its chord tones there.',
     },
     related: ['classical-cadential-64', 'gospel-walk-up', 'jazz-dim-passing'],
     keys: KEYS,
@@ -111,7 +111,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'melodic-minor'), sc('1', 'dorian')],
       strum: STRUM.ballad,
-      tip: 'Find the root on a string where you can move it, walk that one note down a fret at a time and leave the rest of the chord where it is.',
+      tip: 'Find the root on a string where you can move it, walk that one note down a fret at a time and leave the rest of the chord where it is. Melodic minor fits every chord but i7, Dorian every chord but imaj7: follow the moving note.',
     },
     related: ['line-minor-bass', 'line-minor-up', 'classical-lament-chromatic'],
     keys: MINOR_KEYS,
@@ -130,7 +130,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'dorian'), sc('1', 'minor-pentatonic')],
       strum: STRUM.ballad,
-      tip: 'In A minor the bass is A, G#, G, F#: hold the Am shape for three bars and move only the bass note on the sixth string, then play D with F# in the bass.',
+      tip: 'In A minor the bass is A, G#, G, F#: keep the Am shape and add the bass notes on the sixth string at frets 4 and 3 (A itself is the open fifth string), then play D with F# (sixth string, fret 2) in the bass. Both scales clash with the G# bass in bar 2, so let that bar pass on chord tones.',
     },
     related: ['line-minor-down', 'classical-lament-chromatic', 'dorian-i-iv'],
     keys: MINOR_KEYS,
@@ -148,7 +148,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.ballad,
-      tip: 'Make the moving note the top of every strum so the climb is clearly heard.',
+      tip: 'Make the moving note the top of every strum so the climb is clearly heard. The key\'s scales fit I and I6, but not I+ (raised fifth) or, for the major scale, I7: play the moving note itself over those.',
     },
     related: ['line-major-down', 'line-minor-up', 'secondary-v-of-iv'],
     keys: KEYS,
@@ -166,7 +166,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'major-pentatonic'), sc('1', 'major')],
       strum: STRUM.ballad,
-      tip: 'In C: C (x32010), Cmaj7 (x32000), C7 (x32310), F. The falling note goes from the second string at fret 1, to the open second string, to the third string at fret 3.',
+      tip: 'In C: C (x32010), Cmaj7 (x32000), C7 (x32310), F. The falling note goes from the second string at fret 1, to the open second string, to the third string at fret 3. Over I7 the major scale\'s B clashes with the chord\'s Bb: use the pentatonic there.',
     },
     related: ['line-major-up', 'secondary-v-of-iv', 'fifties-i-i7-iv-iv'],
     keys: KEYS,
@@ -185,7 +185,7 @@ export const SECONDARY: readonly ProgressionSpec[] = [
     tryThis: {
       scales: [sc('1', 'dorian'), sc('1', 'minor-pentatonic')],
       strum: STRUM.ballad,
-      tip: 'In E minor the moving note can sit on the second string: B, C, C#, D (frets 0, 1, 2, 3) over the open low E.',
+      tip: 'In E minor the moving note can sit on the second string: B, C, C#, D (frets 0, 1, 2, 3) over the open low E. Dorian fits every chord but bVI/1, whose C it contradicts; the minor pentatonic is safe throughout.',
     },
     related: ['line-major-up', 'line-minor-down'],
     keys: ['E', 'A', 'D'],

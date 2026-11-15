@@ -3,9 +3,10 @@
  * subdivisions, speed trainer and silent bars), configured from the learner's settings, plus what
  * the screen adds around it: visual-only mode, vibration, practice time and the session timer.
  *
- * Framework-free so it can be driven without React. The screen creates one per visit and disposes
- * it on leaving. `currentSession()` hands it to the browser check (`e2e/metronome.cjs`), which
- * imports this module and listens to the clicks it sends to the speakers.
+ * Framework-free so it can be driven without React. The screen creates one per visit and detaches
+ * it on leaving (stopped, it holds no timer or listener outside itself, so nothing is left behind).
+ * `currentSession()` hands it to the browser check (`e2e/metronome.cjs`), which imports this module
+ * and listens to the clicks it sends to the speakers.
  */
 import { Metronome, playClick, unlockAudio, type ClickLevel, type ClickSet, type MetronomeBeat, type TransportClock } from '@/core/audio';
 import { meterOf, parseMeterKey, meterKey } from './meters';
@@ -268,6 +269,15 @@ export const MAX_PRACTICE_SEC = 3 * 60 * 60;
 export function practiceSeconds(visitSec: number): number | null {
   if (!(visitSec >= MIN_PRACTICE_SEC)) return null;
   return Math.min(MAX_PRACTICE_SEC, Math.round(visitSec));
+}
+
+/**
+ * Practice to report now, for a visit that may report more than once (a finished session timer,
+ * the page going to the background, leaving the screen): the running time not reported yet, or
+ * null when that is still too short to count. `creditedSec` is the visit time already reported.
+ */
+export function practiceToCredit(visitSec: number, creditedSec: number): number | null {
+  return practiceSeconds(visitSec - Math.max(0, creditedSec));
 }
 
 /** Seconds left on a session timer of `minutes` after `elapsedSec`; null when there is no timer. */

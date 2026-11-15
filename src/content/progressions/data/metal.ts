@@ -82,7 +82,7 @@ export const METAL: readonly ProgressionSpec[] = [
     level: 3,
     feel: feel('metal', 110, 170),
     altFeels: [feel('pop-rock', 90, 140)],
-    why: 'The minor pop loop played as power chords: every chord except home is a major chord of the natural minor scale, so the riff swings between dark and bright without a leading tone. Ending on bVII, a whole step below home, gives it an open, marching return.',
+    why: 'The minor pop loop played as power chords: every root except home carries a major chord in the natural minor scale, so the riff swings between dark and bright without a leading tone. Ending on bVII, a whole step below home, gives it an open, marching return.',
     tryThis: {
       scales: [sc('1', 'minor'), sc('1', 'minor-pentatonic')],
       strum: STRUM.power,
