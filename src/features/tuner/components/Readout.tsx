@@ -203,11 +203,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
   // comes first, then a problem with the input level, then a hint, then the plain explanation.
   let detailKind: 'plain' | 'warn' | 'tip' = tone === 'warn' ? 'warn' : 'plain';
   if (listening && !view.paused && tone !== 'warn') {
-    if (view.unsure && parts) {
-      // The automatic guess is shaky this far out: a badly slack string sounds nearer to its neighbour.
-      detail = `A long way from ${parts.short}. Tuning a different string? Tap it below.`;
-      detailKind = 'warn';
-    } else if (view.advice !== 'ok') {
+    if (view.advice !== 'ok') {
       detail = `${LEVEL_MESSAGES[view.advice]}.`;
       detailKind = view.advice === 'hum' ? 'tip' : 'warn';
     } else if (view.tip) {
@@ -258,7 +254,6 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
       data-ear-note={earTarget ? earTarget.note : ''}
       data-tone={toneMidi === null ? '' : String(toneMidi)}
       data-advice={listening ? view.advice : ''}
-      data-unsure={view.unsure ? 'true' : 'false'}
     >
       <div className={styles.header}>
         {headerStart}

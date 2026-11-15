@@ -16,7 +16,9 @@ export type InstructionCode =
   | 'in-tune'
   | 'far-below'
   | 'far-above'
-  | 'other-string';
+  | 'other-string'
+  /** Automatic mode cannot tell which of two strings a note belongs to (decided by the session, which knows the strings). */
+  | 'which-string';
 
 /** Within this many cents the wording turns to "a little". */
 const NEAR_CENTS = 10;
@@ -114,6 +116,13 @@ export function instructionText(code: InstructionCode, ctx: InstructionContext):
         tone: 'warn',
         icon: 'warning',
       };
+    case 'which-string':
+      return {
+        title: 'Which string is this?',
+        detail: `It sounds between ${ctx.note || 'two strings'} and ${ctx.otherNote || 'the next string'}. Tap the string you are tuning, below.`,
+        tone: 'warn',
+        icon: 'warning',
+      };
     case 'other-string':
       return {
         title: 'Is that the right string?',
@@ -130,7 +139,7 @@ export function spokenReading(code: InstructionCode, text: InstructionText, cent
   if (code === 'in-tune') return `${note} is in tune.`;
   if (code === 'hold') return `${note}: hold it there.`;
   const amount = Math.round(Math.abs(cents));
-  if (code === 'far-below' || code === 'far-above' || code === 'other-string') return `${text.title}. ${text.detail}`;
+  if (code === 'far-below' || code === 'far-above' || code === 'other-string' || code === 'which-string') return `${text.title} ${text.detail}`;
   return `${note}: ${amount} cents ${cents < 0 ? 'low' : 'high'}. ${text.title}.`;
 }
 

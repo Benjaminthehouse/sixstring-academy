@@ -93,14 +93,11 @@ export interface SessionView {
   /** The 12th-fret harmonic of the string is being read rather than the open string. */
   harmonic: boolean;
   instruction: InstructionCode;
-  /** For the `other-string` instruction: the string that seems to have been plucked. */
-  otherIndex: number;
   /**
-   * Automatic mode only: the note is more than a fret away from the nearest string, so it may
-   * well belong to a different string that is badly out of tune. The screen then suggests
-   * choosing the string by hand instead of trusting the guess.
+   * For `other-string`: the string that seems to have been plucked. For `which-string`: the other
+   * string the note could belong to (the readout shows the nearer one).
    */
-  unsure: boolean;
+  otherIndex: number;
   /** Per target: confirmed in tune in this visit and not heard out of tune since. */
   confirmed: readonly boolean[];
   allConfirmed: boolean;
@@ -192,8 +189,12 @@ const CELEBRATE_S = 1.1;
 const LINGER_S = 2.5;
 /** A ticked string is only un-ticked by a clear, settled reading of that same string. */
 const UNTICK_AGE_S = 0.45;
-/** In automatic mode, a note further than this from the nearest string may belong to another one. */
+/**
+ * In automatic mode, a note further than this from the nearest string, with another string on its
+ * far side, may just as well be that other string badly out of tune (a slack A reads as a sharp E).
+ */
 const UNSURE_CENTS = 100;
+const UNSURE_SLACK = 15;
 const UNTICK_CLARITY = 0.7;
 const SAME_STRING_CENTS = 150;
 
@@ -259,7 +260,8 @@ export class TunerSession {
   private guide: { index: number; skipped: boolean[]; finished: boolean; startedAt: number; finishedAt: number } | null = null;
   private state: TunerState;
   private instruction: InstructionCode = 'pluck';
-  private unsure = false;
+  /** While the instruction is `which-string`: the other candidate string. */
+  private rival = -1;
   private confirmed: boolean[];
   private confirmations = 0;
   private lastConfirmed = -1;
@@ -656,9 +658,10 @@ export class TunerSession {
     if (this.source !== 'mic' || this.muted() || this.awaitFresh) return;
     const s = this.tuner.update(r);
     this.state = s;
-    this.instruction = nextInstruction(s, this.instruction);
-    // More than a fret from the nearest string: with hysteresis, so the advice does not blink.
-    this.unsure = s.mode === 'auto' && s.harmonic === 1 && Math.abs(s.cents) > (this.unsure ? UNSURE_CENTS - 15 : UNSURE_CENTS);
+    this.instruction = nextInstruction(s, this.instruction === 'which-string' ? 'pluck' : this.instruction);
+    this.rival = this.rivalString(s);
+    // Halfway between two strings, automatic mode would only be guessing: ask instead of instructing.
+    if (this.rival >= 0) this.instruction = 'which-string';
     this.linger = null;
     // A reading during the little pause after a guided string means the learner has moved on already.
     if (this.celebrate && s.active) this.celebrate = null;
@@ -668,7 +671,7 @@ export class TunerSession {
     // Heard clearly out of tune, on this very string, for long enough: the tick no longer stands.
     const i = s.string;
     if (
-      i >= 0 && this.confirmed[i] && !s.withinTolerance && this.instruction !== 'other-string' &&
+      i >= 0 && this.confirmed[i] && !s.withinTolerance && this.instruction !== 'other-string' && this.instruction !== 'which-string' &&
       r.noteAge >= UNTICK_AGE_S && r.clarity >= UNTICK_CLARITY &&
       Math.abs(s.cents) > this.tolerance * 2 + 2 && Math.abs(s.cents) < SAME_STRING_CENTS
     ) {
@@ -696,7 +699,7 @@ export class TunerSession {
     }
     this.state = this.tuner.release();
     this.instruction = 'pluck';
-    this.unsure = false;
+    this.rival = -1;
   }
 
   private handleConfirmed(s: TunerState, time: number): void {
@@ -754,6 +757,29 @@ export class TunerSession {
     g.index = next;
     this.locked = next;
     this.state = this.tuner.lock(next);
+  }
+
+  /**
+   * Automatic mode: the string on the far side of a note that is a long way from the nearest one,
+   * or -1 when the guess can be trusted (close enough, a harmonic, or nothing on that side: a note
+   * below the lowest string can only be the lowest string).
+   */
+  private rivalString(s: TunerState): number {
+    if (s.mode !== 'auto' || s.harmonic !== 1 || s.string < 0 || s.withinTolerance) return -1;
+    const limit = this.rival >= 0 ? UNSURE_CENTS - UNSURE_SLACK : UNSURE_CENTS;
+    if (Math.abs(s.cents) <= limit) return -1;
+    let rival = -1;
+    let nearest = Infinity;
+    this.targets.forEach((t, i) => {
+      if (i === s.string) return;
+      const beyond = s.cents > 0 ? t.freq > s.freq : t.freq < s.freq;
+      const distance = Math.abs(1200 * Math.log2(t.freq / s.freq));
+      if (beyond && distance < nearest) {
+        nearest = distance;
+        rival = i;
+      }
+    });
+    return rival;
   }
 
   // --- derived state ---------------------------------------------------------------------------
@@ -862,7 +888,7 @@ export class TunerSession {
     } else if (this.linger) shown = this.linger;
     else if (target >= 0 && target < this.targets.length) shown = { index: target, midi: this.targets[target].midi, note: this.targets[target].note };
 
-    let otherIndex = -1;
+    let otherIndex = live && this.instruction === 'which-string' ? this.rival : -1;
     if (live && this.instruction === 'other-string') {
       // The tuner names the other string in its hint; find it again by pitch.
       let best = Infinity;
@@ -891,7 +917,6 @@ export class TunerSession {
       harmonic: live && s.harmonic === 2,
       instruction: this.celebrate ? 'in-tune' : live ? this.instruction : 'pluck',
       otherIndex,
-      unsure: live && this.unsure,
       confirmed: [...this.confirmed],
       allConfirmed: this.confirmed.length > 0 && this.confirmed.every(Boolean),
       advice: this.source === 'mic' ? this.advice : 'ok',

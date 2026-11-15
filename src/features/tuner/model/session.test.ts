@@ -191,29 +191,38 @@ describe('TunerSession: automatic mode on real analysed audio', () => {
     expect(r.confirmations).toHaveLength(0);
   });
 
-  it('admits when its guess of the string is shaky', async () => {
+  it('asks which string it is when a note falls between two strings', async () => {
     const r = rig();
     await r.session.start();
-    const unsure = new Set<boolean>();
+    const seen = new Set<string>();
     const watch = () => {
-      if (r.session.frame.live) unsure.add(r.session.getView().unsure);
+      if (r.session.frame.live) seen.add(`${r.session.getView().instruction}:${r.session.getView().otherIndex}`);
     };
-    // The A string a minor third flat sounds nearer to the low E: automatic mode cannot know.
-    r.tracker.play(join(pluck(42, 0), rest(0.4)), watch);
-    expect(unsure.has(true)).toBe(true);
-    unsure.clear();
+    // The A string a minor third flat sounds nearer to the low E: automatic mode cannot know which it is.
+    r.tracker.play(join(pluck(42, 0, { duration: 2 }), rest(0.4)), watch);
+    expect(seen.has('which-string:1')).toBe(true);
+    expect([...seen].some((x) => x.startsWith('far-above') || x.startsWith('loosen'))).toBe(false);
+    expect(r.session.frame.note).toBe('');
+    // A small offset is never in doubt.
+    seen.clear();
     r.tracker.play(join(pluck(45, -30), rest(0.4)), watch);
-    expect([...unsure]).toEqual([false]);
+    expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
+    // Nor is a string that is simply a half step flat.
+    seen.clear();
+    r.tracker.play(join(pluck(44, 0), rest(0.4)), watch);
+    expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
+    expect(seen.has('tighten:-1')).toBe(true);
     // The octave harmonic at the 12th fret is that string, not a doubt.
-    unsure.clear();
+    seen.clear();
     r.tracker.play(join(pluck(62, 2), rest(0.4)), watch);
-    expect([...unsure]).toEqual([false]);
+    expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
     expect(r.session.getView().confirmed[2]).toBe(true);
-    // A locked string has no guess to doubt.
+    // Once the learner taps the string, the doubt is gone: the far-below warning takes over.
     r.session.lock(1);
-    unsure.clear();
-    r.tracker.play(join(pluck(42, 0), rest(0.4)), watch);
-    expect([...unsure]).toEqual([false]);
+    seen.clear();
+    r.tracker.play(join(pluck(42, 0, { duration: 2 }), rest(0.4)), watch);
+    expect(seen.has('far-below:-1')).toBe(true);
+    expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
   });
 
   it('gives the instruction in words for each side', async () => {

@@ -74,10 +74,13 @@ describe('instructionText', () => {
     expect(below.detail).toMatch(/peg/);
     const other = instructionText('other-string', { ...ctx, mode: 'guide', note: 'A', stringName: '5th string', otherNote: 'D', otherStringName: '4th string' });
     expect(other.detail).toBe('That sounds like the 4th string (D). For A, pluck the 5th string.');
+    const which = instructionText('which-string', { ...ctx, otherNote: 'A' });
+    expect(which).toMatchObject({ title: 'Which string is this?', tone: 'warn' });
+    expect(which.detail).toBe('It sounds between E and A. Tap the string you are tuning, below.');
   });
 
   it('keeps every detail short enough for two lines on a phone', () => {
-    const codes: InstructionCode[] = ['pluck', 'tighten', 'tighten-little', 'loosen', 'loosen-little', 'hold', 'in-tune', 'far-below', 'far-above', 'other-string'];
+    const codes: InstructionCode[] = ['pluck', 'tighten', 'tighten-little', 'loosen', 'loosen-little', 'hold', 'in-tune', 'far-below', 'far-above', 'other-string', 'which-string'];
     for (const code of codes) {
       for (const mode of ['guide', 'auto', 'locked', 'chromatic'] as const) {
         const text = instructionText(code, { mode, note: 'G♯', stringName: 'thinnest string', where: 'string 1, the one nearest the floor', otherNote: 'B', otherStringName: 'thickest string' });
