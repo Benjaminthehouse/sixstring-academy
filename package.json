@@ -1,0 +1,53 @@
+{
+  "name": "sixstring-academy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Sixstring Academy — a complete, offline-first guitar school in the browser (tuner, live fretboard camera, sheet scanner, theory course, teachers, scales, chords, progressions).",
+  "scripts": {
+    "dev": "vite",
+    "dev:phone": "vite --mode phone --host",
+    "build": "tsc --noEmit && vite build",
+    "build:artifact": "vite build --mode artifact && node scripts/make-artifact.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node e2e/run-all.cjs",
+    "vendor": "node scripts/vendor-assets.mjs",
+    "predev": "node scripts/vendor-assets.mjs",
+    "predev:phone": "node scripts/vendor-assets.mjs",
+    "prebuild": "node scripts/vendor-assets.mjs",
+    "prebuild:artifact": "node scripts/vendor-assets.mjs"
+  },
+  "dependencies": {
+    "@coderline/alphatab": "^1.9.0",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@mediapipe/tasks-vision": "^1.2.3",
+    "@tonejs/midi": "^2.0.28",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.73.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0",
+    "vexflow": "^4.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pngjs": "^6.0.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "jpeg-js": "^0.4.4",
+    "jsdom": "^31.0.1",
+    "pngjs": "^7.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.1.0"
+  }
+}

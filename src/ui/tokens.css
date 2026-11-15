@@ -1,0 +1,220 @@
+/*
+ * Sixstring Academy design tokens.
+ * Layout concept: a calm practice desk. Pearl-and-ink neutrals with a slight blue-green bias, one
+ * warm "sunburst amber" accent, and the fretboard drawn in real instrument materials (rosewood,
+ * nickel, bone, pearl) so the neck is always the most vivid thing on screen.
+ *
+ * Rules: every colour used anywhere in the app is one of these tokens. Light values live on bare
+ * :root; the two dark blocks only redefine tokens. Never put a literal colour in a component.
+ */
+:root {
+  color-scheme: light;
+
+  /* Neutrals */
+  --bg: #f1f4f3;
+  --surface: #ffffff;
+  --surface-2: #e8edeb;
+  --surface-3: #dbe2df;
+  --line: #cdd5d1;
+  --line-strong: #9eaaa5;
+  --fg: #13201d;
+  --fg-muted: #4d5d58;
+  --fg-faint: #76857f;
+  --overlay: rgba(12, 20, 18, 0.55);
+
+  /* Accent: sunburst amber. --accent is a FILL (pair with --accent-fg); --accent-text is for text/links on neutrals. */
+  --accent: #f2a20c;
+  --accent-strong: #d98200;
+  --accent-fg: #201400;
+  --accent-text: #965000;
+  --accent-soft: #fdeed0;
+
+  /* Semantic (separate from the accent) */
+  --ok: #107a57;
+  --ok-fg: #ffffff;
+  --ok-soft: #d6f0e5;
+  --bad: #c32d48;
+  --bad-fg: #ffffff;
+  --bad-soft: #fbe0e5;
+  --warn: #a86200;
+  --warn-fg: #ffffff;
+  --warn-soft: #fcebcd;
+  --info: #2466b3;
+  --info-fg: #ffffff;
+  --info-soft: #dceafa;
+
+  /* Game currency */
+  --xp: #6f47cf;
+  --xp-soft: #e9e1fb;
+  --streak: #e2581c;
+  --streak-soft: #fde3d6;
+  --heart: #dc2f55;
+  --gem: #1487b3;
+
+  /* Fretboard materials. Identical in both themes: wood is wood. */
+  --fb-wood: #3a2920;
+  --fb-wood-2: #2c1f18;
+  --fb-wood-light: #c9a36b; /* maple board option */
+  --fb-fret: #c8cdd2;
+  --fb-fret-shade: #7d858c;
+  --fb-nut: #efe8d6;
+  --fb-inlay: #e6ecee;
+  --fb-string: #d9cba3;
+  --fb-string-wound: #b89b5e;
+  --fb-label: #f4f1ea; /* text drawn on the wood */
+  --fb-muted: rgba(244, 241, 234, 0.45);
+
+  /*
+   * Scale-degree colours, used EVERYWHERE a note's role is shown (fretboard dots, staff, games).
+   * Always paired with a text label (R, b3, 5 ...), never colour alone. *-fg is the label colour on the dot.
+   */
+  --deg-1: #dc2f55; --deg-1-fg: #ffffff; /* root */
+  --deg-2: #e9772a; --deg-2-fg: #1b0d00;
+  --deg-3: #e3b10b; --deg-3-fg: #1f1700;
+  --deg-4: #3f9e52; --deg-4-fg: #ffffff;
+  --deg-5: #2586cf; --deg-5-fg: #ffffff;
+  --deg-6: #6a5fd6; --deg-6-fg: #ffffff;
+  --deg-7: #ad4ec2; --deg-7-fg: #ffffff;
+  --deg-x: #6c7a76; --deg-x-fg: #ffffff; /* outside the current scale / neutral note */
+
+  /* Fingers (chord diagrams, fingering hints): 1 index .. 4 pinky, T thumb */
+  --finger-1: #2586cf;
+  --finger-2: #3f9e52;
+  --finger-3: #e9772a;
+  --finger-4: #ad4ec2;
+  --finger-t: #6c7a76;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque Variable', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+
+  /* Space (4px grid) */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+
+  /* Shape */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(19, 32, 29, 0.08), 0 1px 1px rgba(19, 32, 29, 0.04);
+  --shadow-2: 0 6px 18px rgba(19, 32, 29, 0.12), 0 2px 4px rgba(19, 32, 29, 0.06);
+  --shadow-3: 0 18px 44px rgba(19, 32, 29, 0.2);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--info) 55%, transparent);
+
+  /* Layout */
+  --content-max: 72rem;
+  --prose-max: 40rem;
+  --tap: 44px; /* minimum touch target */
+  --nav-h: 60px; /* mobile bottom bar */
+  --side-w: 15rem; /* desktop sidebar */
+  --gutter: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 420ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0d1214;
+    --surface: #151c1f;
+    --surface-2: #1d262a;
+    --surface-3: #273237;
+    --line: #2e3a3f;
+    --line-strong: #4b5b61;
+    --fg: #e8eeed;
+    --fg-muted: #a2b0ae;
+    --fg-faint: #73827e;
+    --overlay: rgba(0, 0, 0, 0.66);
+    --accent: #f5ae2e;
+    --accent-strong: #ffc65c;
+    --accent-fg: #1b1200;
+    --accent-text: #f7bb55;
+    --accent-soft: #38290b;
+    --ok: #3bc995;
+    --ok-fg: #04231a;
+    --ok-soft: #0f3229;
+    --bad: #f0647e;
+    --bad-fg: #2b060e;
+    --bad-soft: #3a171f;
+    --warn: #f0a83a;
+    --warn-fg: #2a1900;
+    --warn-soft: #39290f;
+    --info: #6aaef2;
+    --info-fg: #04192e;
+    --info-soft: #12273d;
+    --xp: #a98bf0;
+    --xp-soft: #251b45;
+    --streak: #ff8a4c;
+    --streak-soft: #3d1f10;
+    --heart: #f25f7f;
+    --gem: #4fc3ea;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+    --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.6);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d1214;
+  --surface: #151c1f;
+  --surface-2: #1d262a;
+  --surface-3: #273237;
+  --line: #2e3a3f;
+  --line-strong: #4b5b61;
+  --fg: #e8eeed;
+  --fg-muted: #a2b0ae;
+  --fg-faint: #73827e;
+  --overlay: rgba(0, 0, 0, 0.66);
+  --accent: #f5ae2e;
+  --accent-strong: #ffc65c;
+  --accent-fg: #1b1200;
+  --accent-text: #f7bb55;
+  --accent-soft: #38290b;
+  --ok: #3bc995;
+  --ok-fg: #04231a;
+  --ok-soft: #0f3229;
+  --bad: #f0647e;
+  --bad-fg: #2b060e;
+  --bad-soft: #3a171f;
+  --warn: #f0a83a;
+  --warn-fg: #2a1900;
+  --warn-soft: #39290f;
+  --info: #6aaef2;
+  --info-fg: #04192e;
+  --info-soft: #12273d;
+  --xp: #a98bf0;
+  --xp-soft: #251b45;
+  --streak: #ff8a4c;
+  --streak-soft: #3d1f10;
+  --heart: #f25f7f;
+  --gem: #4fc3ea;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.6);
+}

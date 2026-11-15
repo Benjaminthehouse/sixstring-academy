@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-artifact
+.vite
+e2e/out
+*.log
+
+# Runtime assets copied/downloaded by scripts/vendor-assets.mjs
+public/vendor
