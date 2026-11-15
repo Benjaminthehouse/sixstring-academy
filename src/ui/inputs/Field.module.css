@@ -1,0 +1,228 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
+.optional {
+  margin-left: var(--sp-1);
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+.aside {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.hint {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--bad);
+}
+.error svg {
+  margin-top: 2px;
+}
+
+/* The box around a text-like control. */
+.control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.control:hover {
+  border-color: var(--fg-faint);
+}
+.control:focus-within {
+  border-color: var(--info);
+  box-shadow: var(--focus-ring);
+}
+.invalid,
+.invalid:hover {
+  border-color: var(--bad);
+}
+.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--surface-2);
+}
+.disabled:hover {
+  border-color: var(--line-strong);
+}
+.sm {
+  min-height: 36px;
+  padding: 0 var(--sp-2);
+}
+.lg {
+  min-height: 52px;
+  padding: 0 var(--sp-4);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  /* 16 px keeps iOS from zooming the page when the field takes focus. */
+  font-size: var(--text-md);
+  line-height: 1.4;
+  outline: none;
+  appearance: none;
+}
+.input:focus-visible {
+  box-shadow: none;
+  border-radius: 0;
+}
+.input::placeholder {
+  color: var(--fg-faint);
+  opacity: 1;
+}
+.input:disabled {
+  cursor: not-allowed;
+}
+.input[type='search']::-webkit-search-cancel-button,
+.input[type='search']::-webkit-search-decoration {
+  appearance: none;
+  display: none;
+}
+.mono {
+  font-family: var(--font-mono);
+}
+.adorn {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.textareaControl {
+  align-items: stretch;
+  padding: 0;
+}
+.textarea {
+  min-height: 5.5rem;
+  padding: 10px var(--sp-3);
+  resize: vertical;
+  line-height: var(--leading-normal);
+  border-radius: var(--r-md);
+}
+.textarea:focus-visible {
+  border-radius: var(--r-md);
+}
+.autoGrow {
+  resize: none;
+  overflow: hidden;
+}
+.counter {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.counterOver {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* Select */
+.selectControl {
+  padding: 0;
+}
+.select {
+  padding: 0 calc(var(--sp-3) + 24px) 0 var(--sp-3);
+  cursor: pointer;
+  border-radius: var(--r-md);
+  text-overflow: ellipsis;
+}
+.select:focus-visible {
+  border-radius: var(--r-md);
+}
+.sm .select {
+  font-size: var(--text-sm);
+  padding-left: var(--sp-2);
+}
+.chevron {
+  position: absolute;
+  right: var(--sp-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+.withPrefix .select {
+  padding-left: calc(var(--sp-3) + 26px);
+}
+.selectPrefix {
+  position: absolute;
+  left: var(--sp-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+/* Search clear button sits inside the control. */
+.clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-right: calc(var(--sp-2) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--fg-muted);
+  position: relative;
+}
+.clear::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+.clear:hover {
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  color: var(--fg);
+}
+.clear:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}

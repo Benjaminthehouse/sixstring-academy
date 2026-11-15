@@ -1,0 +1,121 @@
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+/* 36 px tall visually, 44 px to the finger. */
+.chip::before {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+.chip:hover:not(:disabled):not(.selected) {
+  border-color: var(--fg-faint);
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.selected {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.static {
+  cursor: default;
+}
+.count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.selected .count {
+  color: inherit;
+}
+.check {
+  display: inline-flex;
+  margin-left: -2px;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-padding-inline: var(--sp-4);
+  /* Room for the 44 px hit areas and focus rings, which the scroll container would otherwise clip. */
+  padding: 4px 3px;
+  margin: -4px -3px;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 719.98px) {
+  .scrollAuto {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    scroll-padding-inline: var(--sp-4);
+    padding: 4px 3px;
+    margin: -4px -3px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scrollAuto::-webkit-scrollbar {
+    display: none;
+  }
+  /* Run to the screen edges so chips slide under the gutter instead of stopping short of it. */
+  .bleed {
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    scroll-padding-inline: var(--gutter);
+  }
+}
+/* Fade the edge that has more chips beyond it. (A mask only uses alpha, so any opaque token works as the solid stop.) */
+.fadeStart {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 28px);
+}
+.fadeEnd {
+  mask-image: linear-gradient(to left, transparent 0, var(--fg) 28px);
+}
+.fadeStart.fadeEnd {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 28px, var(--fg) calc(100% - 28px), transparent 100%);
+}

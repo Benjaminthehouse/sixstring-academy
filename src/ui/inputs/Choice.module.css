@@ -1,0 +1,474 @@
+/* ---------- SegmentedControl ---------- */
+.segmented {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  /* A shallow well: --bg is darker than --surface in both themes, so the selected pill reads as raised. */
+  background: var(--bg);
+  vertical-align: middle;
+}
+.segmentedFull {
+  display: flex;
+  width: 100%;
+}
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+/* The strip is 44 px tall; extend each segment's hit area to that height. */
+.segment::before {
+  content: '';
+  position: absolute;
+  inset: -4px -1px;
+}
+.segmentedFull .segment {
+  flex: 1 1 0;
+}
+.segmentLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.segment:hover:not(:disabled):not(.segmentSelected) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.segment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+  z-index: 1;
+}
+.segmentSelected {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--fg);
+  box-shadow: var(--shadow-1);
+}
+.segmentSelected:focus-visible {
+  box-shadow: var(--shadow-1), var(--focus-ring);
+}
+.segment:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.segmentedSm .segment {
+  min-height: 28px;
+  padding: 0 var(--sp-2);
+  font-size: var(--text-xs);
+}
+.segmentedSm .segment::before {
+  inset: -8px -1px;
+}
+.segmentedLg .segment {
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  font-size: var(--text-md);
+}
+
+/* ---------- Tabs ---------- */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tablist {
+  display: flex;
+  gap: var(--sp-1);
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+}
+.tablist::-webkit-scrollbar {
+  display: none;
+}
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex: none;
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-1) var(--ease);
+}
+.tab:first-child {
+  padding-left: var(--sp-1);
+}
+.tab:hover:not(:disabled) {
+  color: var(--fg);
+}
+.tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* The list scrolls, which would clip an outer ring, so tabs ring on the inside. */
+.tab:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.tabSelected {
+  color: var(--fg);
+}
+.tabSelected::after {
+  content: '';
+  position: absolute;
+  left: var(--sp-3);
+  right: var(--sp-3);
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+.tab:first-child.tabSelected::after {
+  left: var(--sp-1);
+}
+.fitted .tab {
+  flex: 1 1 0;
+  min-width: max-content;
+}
+.fitted .tab:first-child {
+  padding-left: var(--sp-3);
+}
+.fitted .tab:first-child.tabSelected::after {
+  left: var(--sp-3);
+}
+.tabBadge {
+  display: inline-flex;
+}
+
+/* pills variant: a segmented look for in-card view switches */
+.pills .tablist {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+}
+.pills.fitted .tablist {
+  align-self: stretch;
+}
+.pills .tab {
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+}
+.pills .tab::before {
+  content: '';
+  position: absolute;
+  inset: -4px -1px;
+}
+.pills .tabSelected {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
+}
+.pills .tabSelected::after {
+  display: none;
+}
+.pills .tab:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.panel {
+  padding-top: var(--sp-5);
+  min-width: 0;
+}
+.panel:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+/* ---------- Switch / Checkbox / Radio rows ---------- */
+.choiceRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.choiceRowTop {
+  align-items: flex-start;
+}
+.choiceDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.choiceLabel {
+  font-weight: 500;
+  color: var(--fg);
+}
+.choiceDescription {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.choiceEnd {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 28px;
+}
+.switchInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  cursor: inherit;
+  transition:
+    background var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.switchInput::before {
+  content: '';
+  position: absolute;
+  inset: -9px -4px;
+}
+.switchInput:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.switchInput:checked {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+}
+.thumb {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  pointer-events: none;
+  transition:
+    transform var(--dur-2) var(--ease),
+    background var(--dur-2) var(--ease);
+}
+.switchInput:checked + .thumb {
+  transform: translateX(18px);
+  background: var(--accent-fg);
+}
+
+.box {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.choiceRowTop .box,
+.choiceRowTop .switch {
+  margin-top: 1px;
+}
+.boxInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: inherit;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.boxInput::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+.boxInput:hover:not(:disabled) {
+  border-color: var(--fg-faint);
+}
+.boxInput:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.boxInput:checked,
+.boxInput:indeterminate {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+}
+.boxMark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-fg);
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.boxInput:checked + .boxMark,
+.boxInput:indeterminate + .boxMark {
+  opacity: 1;
+  transform: none;
+}
+.radioInput {
+  border-radius: 50%;
+}
+.radioInput:focus-visible {
+  border-radius: 50%;
+}
+.radioInput:checked {
+  background: var(--surface);
+  border-color: var(--accent-strong);
+  border-width: 2px;
+}
+.radioDot {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.radioInput:checked + .radioDot {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- RadioGroup ---------- */
+.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
+.groupHint {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.options {
+  display: flex;
+  flex-direction: column;
+}
+.optionsRow {
+  flex-direction: row;
+  flex-wrap: wrap;
+  column-gap: var(--sp-6);
+}
+.optionsCards {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--radio-min, 13rem)), 1fr));
+  margin-top: 2px;
+}
+.radioCard {
+  align-items: flex-start;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
+}
+.radioCard:hover:not(.choiceDisabled) {
+  border-color: var(--fg-faint);
+}
+.radioCard:has(:checked) {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+.radioCard:has(:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+.radioCard:has(:checked):has(:focus-visible) {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-strong),
+    var(--focus-ring);
+}
+.radioCard .boxInput:focus-visible {
+  box-shadow: none;
+}
+.groupError {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--bad);
+}

@@ -1,0 +1,95 @@
+.viewport {
+  position: fixed;
+  z-index: 300;
+  left: 0;
+  right: 0;
+  /* Clear of the phone tab bar and the home indicator. */
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-3));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0 var(--gutter-r) 0 var(--gutter);
+  list-style: none;
+  pointer-events: none;
+}
+@media (min-width: 720px) {
+  .viewport {
+    left: auto;
+    right: var(--sp-6);
+    bottom: var(--sp-6);
+    align-items: flex-end;
+    padding: 0;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: min(100%, 26rem);
+  padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-3);
+  pointer-events: auto;
+  animation: enter var(--dur-2) var(--ease);
+}
+.leaving {
+  opacity: 0;
+  transform: translateY(6px) scale(0.98);
+  transition:
+    opacity 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 2px;
+  color: var(--fg-muted);
+}
+.tone-ok .icon {
+  color: var(--ok);
+}
+.tone-info .icon {
+  color: var(--info);
+}
+.tone-warn .icon {
+  color: var(--warn);
+}
+.tone-bad .icon {
+  color: var(--bad);
+}
+.body {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 0;
+}
+.title {
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.description {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  margin: -6px 0;
+  align-self: center;
+}

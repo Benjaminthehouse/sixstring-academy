@@ -1,0 +1,28 @@
+/*
+ * The focus-ring convention.
+ * global.css already rings every :focus-visible element; these classes are for custom interactive
+ * elements that set their own shadow or radius, so the ring keeps the element's shape:
+ *
+ *   import { focusRing } from '@/ui';
+ *   <div role="button" tabIndex={0} className={cx(styles.pad, focusRing)} />
+ *
+ * Never write `outline: none` without one of these (or an equivalent :focus-visible rule).
+ */
+.ring:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--focus-radius, var(--r-md));
+}
+
+/* For elements clipped by an overflow container: the ring is drawn inside the box. */
+.ringInset:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--focus-radius, var(--r-md));
+}
+
+/* Ring the container when a native control inside it has keyboard focus (custom checkboxes, sliders). */
+.ringWithin:has(:focus-visible) {
+  box-shadow: var(--focus-ring);
+  border-radius: var(--focus-radius, var(--r-md));
+}

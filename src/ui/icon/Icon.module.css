@@ -1,0 +1,12 @@
+.icon {
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Reserve the box while a non-bundled icon loads, so nothing shifts when it arrives. */
+.placeholder {
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+}

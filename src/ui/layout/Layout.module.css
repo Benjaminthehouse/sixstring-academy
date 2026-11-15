@@ -1,0 +1,87 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.rowWrap {
+  flex-wrap: wrap;
+}
+/* Side by side on wide screens, stacked on phones. */
+@media (max-width: 719.98px) {
+  .rowStackMobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  gap: var(--sp-4);
+  /* min() keeps a single column from overflowing a phone narrower than the minimum track. */
+  grid-template-columns: repeat(var(--grid-mode, auto-fit), minmax(min(100%, var(--grid-min, 16rem)), 1fr));
+  min-width: 0;
+}
+.gridFixed {
+  grid-template-columns: repeat(var(--grid-cols, 2), minmax(0, 1fr));
+}
+@media (max-width: 719.98px) {
+  .gridCollapse {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+  width: 100%;
+  flex: none;
+}
+.dividerVertical {
+  width: 1px;
+  align-self: stretch;
+  min-height: var(--sp-5);
+  background: var(--line);
+  flex: none;
+}
+.dividerLabeled {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dividerLabeled::before,
+.dividerLabeled::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+.spacer {
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+.spacerFixed {
+  flex: none;
+}
