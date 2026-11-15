@@ -1,5 +1,6 @@
 /**
- * Music theory engine: notes, intervals, scales, chords, keys, harmony, rhythm and staff helpers.
+ * Music theory engine: notes, intervals, scales, chords, keys, harmony, rhythm and staff helpers,
+ * plus fast per-pitch lookups for drawing, display formatting, and exercise building blocks.
  * Pure functions, no side effects, usable in the browser and in Node. Import everything from here
  * (`@/core/theory`), never from the inner files. `API.md` beside this file is the digest.
  *

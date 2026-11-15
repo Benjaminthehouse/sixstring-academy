@@ -549,6 +549,66 @@ describe('two devices', () => {
     expect(phone.status().state).toBe('synced');
   });
 
+  it('a backup restored with "replace" wins everywhere too', async () => {
+    const db = new FakeDb();
+    const laptop = device(db, 'laptop');
+    practise(laptop, 2);
+    const backup = JSON.parse(JSON.stringify(laptop.store.exportData())) as unknown;
+    const backupXp = laptop.state().xp.total;
+    practise(laptop, 6);
+    await laptop.sync.start();
+    await pass(200);
+    const phone = device(db, 'phone');
+    await phone.sync.start();
+    await pass(200);
+    expect(phone.state().xp.total).toBeGreaterThan(backupXp);
+
+    await pass(60_000);
+    expect(laptop.store.importData(backup, 'replace').ok).toBe(true); // the learner restores the older backup
+    await pass(60_000);
+    expect(laptop.state().xp.total).toBe(backupXp);
+    expect(phone.state().xp.total).toBe(backupXp); // not merged back up to the newer total
+    expect(remoteExport(db).state.xp.total).toBe(backupXp);
+  });
+
+  it('two tabs of one browser do not echo each other', async () => {
+    const db = new FakeDb();
+    // One browser profile: both tabs share the stored progress and the stored sync memory.
+    const storage = memoryStorage();
+    const memory = { meta: null as unknown };
+    const clock = { now: () => Date.now(), timeZone: 'UTC' };
+    const storeA = createProgressStore({ clock, storage, deviceId: 'browser' });
+    const storeB = createProgressStore({ clock, storage, deviceId: 'browser' });
+    // What the browser's `storage` event does in the real app.
+    storeA.subscribe(() => {
+      storeA.flush();
+      storeB.syncFromStorage();
+    });
+    storeB.subscribe(() => {
+      storeB.flush();
+      storeA.syncFromStorage();
+    });
+    const tabA = device(db, 'browser', { store: storeA, memory });
+    const tabB = device(db, 'browser', { store: storeB, memory });
+    await tabA.sync.start();
+    await tabB.sync.start();
+    await pass(60_000);
+    const start = db.writes().length;
+
+    practise(tabA, 2);
+    expect(tabB.state().xp.total).toBe(tabA.state().xp.total);
+    await pass(60_000);
+    const after = db.writes().length;
+    expect(after - start).toBeGreaterThanOrEqual(1);
+    expect(after - start).toBeLessThanOrEqual(2); // at worst each tab saved the change once
+    expect(remoteExport(db).state.xp.total).toBe(tabA.state().xp.total);
+
+    await pass(60 * 60_000); // and then silence
+    expect(db.writes()).toHaveLength(after);
+    expect(tabA.status().state).toBe('synced');
+    expect(tabB.status().state).toBe('synced');
+  });
+
   it('after a reset, a copy from before it that shows up in the cloud is replaced, not merged back in', async () => {
     const db = new FakeDb();
     const laptop = device(db, 'laptop');

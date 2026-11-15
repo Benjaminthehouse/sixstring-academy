@@ -15,7 +15,8 @@
  *     which merges per item rather than per file: the newer side's profile, preferences, hearts
  *     and quests; per day the higher XP and time; per skill the later record with the best
  *     scores and crowns of both; achievements, cosmetics, favourites and the log as a union;
- *     total XP and gems as the larger of both. (`core/progress/merge.ts` has the full table.)
+ *     total XP as the largest of both totals and of the merged days added up; gems earned and
+ *     spent as the larger of each. (`core/progress/merge.ts` has the full table.)
  *  3. Two guards run on the result, because losing either would hurt most:
  *       - total XP is never below the higher of the two sides;
  *       - the streak is never shorter than the merged day history proves. Two devices that each

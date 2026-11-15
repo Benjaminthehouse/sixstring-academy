@@ -5,7 +5,7 @@
  * Numerals follow the convention of `roman.ts`: accidentals against the major scale in every key.
  */
 import {
-  buildChord, chord, getChordType, isNoChord, NO_CHORD, parseChord, transposeChord, tritoneSubstitute,
+  buildChord, chord, getChordType, isNoChord, NO_CHORD, parseChord, tritoneSubstitute,
   type Chord, type ChordType,
 } from './chord';
 import { CHROMATIC_DEGREES, intervalBetween, intervalToDegree, transpose } from './interval';
