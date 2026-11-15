@@ -274,7 +274,10 @@ and use what is there instead of building a private copy.
 | `src/core/theory/API.md` | Notes, intervals, scales, chords, keys, harmony, progressions analysis. |
 | `src/core/audio/API.md` | Audio engine: guitar voice, metronome, transport, backing band, UI sounds. |
 | `src/core/pitch/API.md` | Microphone pitch detection, tuner logic, note/chord listening. |
-| `src/core/guitar/API.md`, `src/ui/music/API.md`, `src/core/song/API.md`, `src/core/vision/API.md`, `src/core/omr/API.md` | Present once those modules land. If a digest is missing, the module is not ready: do not depend on it. |
+| `src/core/settings/index.ts` | The learner's Settings as engine options (`micOptions`, `learnerTuning`, `aiAllowed`, ...): see "Honour Settings" below. |
+| `src/core/guitar/API.md`, `src/ui/music/API.md` | Tunings, fretboard, scale shapes, voicings; the drawn Fretboard, ChordDiagram, TabView, notation, circle of fifths, piano. |
+| `src/core/song/API.md`, `src/content/progressions/API.md`, `src/lessons/API.md` | Songs (SixTab, importers, timeline, player); the progression catalog; the lesson engine and player. |
+| `src/core/vision/API.md`, `src/core/omr/API.md` | Camera fretboard tracking; reading printed tab and notation. Present once those modules land. If a digest is missing, the module is not ready: do not depend on it. |
 
 ### Rules every screen follows
 
@@ -298,6 +301,15 @@ and use what is there instead of building a private copy.
 - `e2e/shot.cjs` is your eyes: look at your screen on phone and desktop, light and dark, before you
   call it done. Put lasting browser checks in `e2e/<your-feature>.cjs` (use `e2e/lib/harness.cjs`),
   not in a scratch directory.
+- **Honour Settings.** `@/ui/music` components follow note naming, handedness, wood, inlays and
+  labels by themselves. For everything else use `@/core/settings`: `new PitchTracker({
+  ...micOptions(), ... })` (A4, input device, sensitivity), `learnerTuning()`, `learnerA4()`,
+  `soundPrefs()` (guitar tone and click names for the audio engine), `showNotation()`,
+  `fretCount()`, `cameraMirrored()` / `cameraDeviceId()`, `speechWanted()` before any automatic
+  speech, and `aiAllowed()` before **every** `ai.ask` / `ai.askJson` (when it is false nothing may
+  be sent: offer a link to `#profile--settings--ai` saying what turning it on would do).
+- A bottom bar of actions is the kit's `<ActionBar>`: toasts already sit above it (it publishes
+  `--action-bar-h`). A screen-made fixed bottom layer must add `var(--action-bar-h, 0px)` too.
 
 ### The build machine is shared
 
