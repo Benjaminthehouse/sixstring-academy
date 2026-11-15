@@ -2,8 +2,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex: none;
+  min-width: var(--tap);
   min-height: 36px;
   margin: 0;
   padding: 0 var(--sp-3);
@@ -32,9 +34,14 @@
   position: absolute;
   inset: -4px 0;
 }
-.chip:hover:not(:disabled):not(.selected) {
-  border-color: var(--fg-faint);
-  background: var(--surface-2);
+@media (hover: hover) {
+  .chip:hover:not(:disabled):not(.selected) {
+    border-color: var(--fg-faint);
+    background: var(--surface-2);
+  }
+}
+.chip:active:not(:disabled):not(.selected) {
+  background: var(--surface-3);
 }
 .chip:focus-visible {
   outline: none;

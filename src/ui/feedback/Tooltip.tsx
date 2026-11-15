@@ -64,29 +64,34 @@ export function Tooltip({ content, placement = 'top', delay = 350, disabled, chi
   );
   useEffect(() => clear, [clear]);
 
-  useLayoutEffect(() => {
-    if (!open) return;
+  const place = useCallback(() => {
     const anchor = anchorRef.current;
     const tip = tipRef.current;
     if (!anchor || !tip) return;
     const a = anchor.getBoundingClientRect();
     const next = placeFloating({ left: a.left, top: a.top, width: a.width, height: a.height }, { width: tip.offsetWidth, height: tip.offsetHeight }, { width: window.innerWidth, height: window.innerHeight }, { placement, offset: 6 });
-    setPos({ left: next.left, top: next.top });
-  }, [open, placement, content]);
+    setPos((prev) => (prev && prev.left === next.left && prev.top === next.top ? prev : { left: next.left, top: next.top }));
+  }, [placement]);
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open, place, content]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') hide();
     };
-    const onScroll = () => hide();
+    // Follow the anchor while the page scrolls (keyboard focus often scrolls it into view first).
     document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
     return () => {
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
     };
-  }, [open, hide]);
+  }, [open, hide, place]);
 
   const active = !disabled && content != null && content !== '' && content !== false;
   const child = children as ReactElement<AnchorProps> & { ref?: Ref<HTMLElement> };

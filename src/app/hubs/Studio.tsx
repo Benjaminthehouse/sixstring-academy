@@ -1,6 +1,8 @@
-import type { RouteProps } from '@/app/routes';
+import type { RouteProps } from '../routes';
+import { STUDIO_GROUPS } from './groups';
+import { Hub } from './Hub';
 
-/** Placeholder hub; the shell replaces this file. */
+/** The Play tab (`#studio`): songs, scales, chords, games and drills. */
 export default function StudioHub(_props: RouteProps) {
-  return <h1>Studio</h1>;
+  return <Hub section="play" title="Play" subtitle="Guitar in hand. Pick a song, a scale or a drill and make some noise." groups={STUDIO_GROUPS} allTitle="Everything in Play" />;
 }

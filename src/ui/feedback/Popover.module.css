@@ -54,15 +54,25 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.item:hover:not([aria-disabled='true']),
 .item:focus-visible {
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   outline: none;
   box-shadow: none;
   border-radius: var(--r-sm);
 }
+@media (hover: hover) {
+  .item:hover:not([aria-disabled='true']) {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    outline: none;
+    box-shadow: none;
+    border-radius: var(--r-sm);
+  }
+}
 .item:focus-visible {
   box-shadow: inset var(--focus-ring);
+}
+.item:active:not([aria-disabled='true']) {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
 }
 .item[aria-disabled='true'] {
   opacity: 0.45;

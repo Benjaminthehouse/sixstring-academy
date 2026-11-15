@@ -69,7 +69,7 @@ export function createInitialState(env: InitialStateEnv): ProgressState {
     prefs: defaultPrefs(),
     xp: { total: 0, byTag: {}, boost: null, capped: {} },
     days: {},
-    streak: { current: 0, longest: 0, lastGoalDay: null, coveredThrough: null, startedOn: null, freezes: 0, milestones: [] },
+    streak: { current: 0, longest: 0, lastGoalDay: null, lastGoalAt: null, coveredThrough: null, startedOn: null, freezes: 0, milestones: [] },
     hearts: { count: MAX_HEARTS, regenFrom: null },
     gems: { balance: 0, earned: 0, spent: 0 },
     cosmetics: [...FREE_COSMETICS],

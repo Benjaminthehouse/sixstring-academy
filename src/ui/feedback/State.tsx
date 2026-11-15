@@ -16,7 +16,14 @@ interface StateBaseProps {
   align?: 'start' | 'center';
   /** Draw a dashed frame around it (an empty slot inside a list or grid). */
   framed?: boolean;
+  /** Heading level of the title, to fit the page outline. Default 3. */
+  level?: 2 | 3 | 4;
   className?: string;
+}
+
+function StateTitle({ level = 3, children }: { level?: 2 | 3 | 4; children: ReactNode }) {
+  const Tag = `h${level}` as 'h2' | 'h3' | 'h4';
+  return <Tag className={styles.title}>{children}</Tag>;
 }
 
 /** Props for `<EmptyState>`. */
@@ -29,14 +36,14 @@ export interface EmptyStateProps extends StateBaseProps {
  *   <EmptyState icon="Music" title="No songs yet" actions={<LinkButton to="scan" variant="primary">Scan a sheet</LinkButton>}>
  *     Songs you scan or import show up here.</EmptyState>
  */
-export function EmptyState({ icon = 'Inbox', title, children, actions, align = 'start', framed, className }: EmptyStateProps) {
+export function EmptyState({ icon = 'Inbox', title, children, actions, align = 'start', framed, level, className }: EmptyStateProps) {
   return (
     <div className={cx(styles.state, align === 'center' && styles.center, framed && styles.framed, className)}>
       <span className={styles.tile} aria-hidden="true">
         {renderIcon(icon, { size: 24 })}
       </span>
       <div className={styles.text}>
-        <h3 className={styles.title}>{title}</h3>
+        <StateTitle level={level}>{title}</StateTitle>
         {children != null && <div className={styles.body}>{children}</div>}
         {actions != null && <div className={styles.actions}>{actions}</div>}
       </div>
@@ -59,7 +66,7 @@ export interface ErrorStateProps extends Partial<StateBaseProps> {
  * offer a retry; the raw error stays tucked away.
  *   <ErrorState title="This file could not be read" error={err} onRetry={load}>It may be damaged, or not a tab file.</ErrorState>
  */
-export function ErrorState({ title = 'Something went wrong', children, actions, error, onRetry, retryLabel = 'Try again', icon = 'TriangleAlert', align = 'start', framed, className }: ErrorStateProps) {
+export function ErrorState({ title = 'Something went wrong', children, actions, error, onRetry, retryLabel = 'Try again', icon = 'TriangleAlert', align = 'start', framed, level, className }: ErrorStateProps) {
   const detail = error == null ? null : error instanceof Error ? error.message : String(error);
   return (
     <div className={cx(styles.state, align === 'center' && styles.center, framed && styles.framed, className)} role="alert">
@@ -67,7 +74,7 @@ export function ErrorState({ title = 'Something went wrong', children, actions, 
         {renderIcon(icon, { size: 24 })}
       </span>
       <div className={styles.text}>
-        <h3 className={styles.title}>{title}</h3>
+        <StateTitle level={level}>{title}</StateTitle>
         {children != null && <div className={styles.body}>{children}</div>}
         {(onRetry || actions != null) && (
           <div className={styles.actions}>
@@ -106,6 +113,8 @@ export interface MediaBlockedProps {
   continueLabel?: string;
   align?: 'start' | 'center';
   framed?: boolean;
+  /** Heading level of the title. Default 3. */
+  level?: 2 | 3 | 4;
   className?: string;
   /** Extra line under the explanation: what still works here without the device. */
   children?: ReactNode;
@@ -117,7 +126,7 @@ export interface MediaBlockedProps {
  *   const res = await requestMic();
  *   if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetry={start} onContinueWithout={useTapMode} />;
  */
-export function MediaBlocked({ reason, device, onRetry, onContinueWithout, continueLabel, align = 'start', framed, className, children }: MediaBlockedProps) {
+export function MediaBlocked({ reason, device, onRetry, onContinueWithout, continueLabel, align = 'start', framed, level, className, children }: MediaBlockedProps) {
   const { title, fix } = explainMediaFailure(reason, device);
   const canRetry = !!onRetry && RETRYABLE.has(reason);
   return (
@@ -126,7 +135,7 @@ export function MediaBlocked({ reason, device, onRetry, onContinueWithout, conti
         {renderIcon(device === 'camera' ? 'CameraOff' : 'MicOff', { size: 24 })}
       </span>
       <div className={styles.text}>
-        <h3 className={styles.title}>{title}</h3>
+        <StateTitle level={level}>{title}</StateTitle>
         <div className={styles.body}>
           <p>{fix}</p>
           {children}

@@ -56,28 +56,42 @@
     border-color var(--dur-1) var(--ease),
     box-shadow var(--dur-1) var(--ease);
 }
-.control:hover {
-  border-color: var(--fg-faint);
+@media (hover: hover) {
+  .control:hover {
+    border-color: var(--fg-faint);
+  }
 }
 .control:focus-within {
   border-color: var(--info);
   box-shadow: var(--focus-ring);
 }
-.invalid,
-.invalid:hover {
+.invalid {
   border-color: var(--bad);
+}
+@media (hover: hover) {
+  .invalid:hover {
+    border-color: var(--bad);
+  }
 }
 .disabled {
   opacity: 0.55;
   cursor: not-allowed;
   background: var(--surface-2);
 }
-.disabled:hover {
-  border-color: var(--line-strong);
+@media (hover: hover) {
+  .disabled:hover {
+    border-color: var(--line-strong);
+  }
 }
 .sm {
   min-height: 36px;
   padding: 0 var(--sp-2);
+}
+/* Compact fields are for pointer-driven layouts; a finger still gets the full 44 px. */
+@media (pointer: coarse) {
+  .sm {
+    min-height: var(--tap);
+  }
 }
 .lg {
   min-height: 52px;
@@ -217,9 +231,11 @@
   position: absolute;
   inset: -6px;
 }
-.clear:hover {
-  background: color-mix(in srgb, var(--fg) 9%, transparent);
-  color: var(--fg);
+@media (hover: hover) {
+  .clear:hover {
+    background: color-mix(in srgb, var(--fg) 9%, transparent);
+    color: var(--fg);
+  }
 }
 .clear:focus-visible {
   outline: none;

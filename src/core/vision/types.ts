@@ -149,9 +149,9 @@ export interface FretHint {
 
 /** Marker mode: bright stickers / tape at known frets, used as a robust anchor. */
 export interface MarkerHint {
-  /** Fret wires the stickers are centred on, ascending (for example [3, 12]). */
+  /** Frets the stickers mark, ascending (for example [3, 12]). Each sits mid-way between wire n-1 and wire n, like an inlay dot. */
   frets: number[];
-  /** Where they are stuck: on the neck side below the bass edge, the treble edge, or on the board. */
+  /** Where they are stuck: straddling the bass-side (default) or treble-side edge of the board, or on the board's centre line. */
   placement?: 'bass-edge' | 'treble-edge' | 'board';
   /** Approximate sticker hue in degrees (0 red, 120 green, 300 magenta), if known. */
   hue?: number;

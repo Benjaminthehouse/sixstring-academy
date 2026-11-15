@@ -32,7 +32,10 @@
   align-items: flex-start;
   gap: var(--sp-4);
   min-width: 0;
-  flex: 1 1 14rem;
+}
+.compact .intro {
+  flex: 1 1 12rem;
+  align-items: center;
 }
 .tile {
   display: flex;

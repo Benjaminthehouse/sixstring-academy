@@ -50,20 +50,6 @@ export function highpass(fc: number, sampleRate: number, q: number = Math.SQRT1_
 /** The two Q values that make two cascaded biquads a 4th-order Butterworth filter. */
 export const BUTTERWORTH4_Q: readonly [number, number] = [0.5411961, 1.3065630];
 
-/** Magnitude response of a biquad at frequency f. */
-export function biquadGain(c: Biquad, f: number, sampleRate: number): number {
-  const w = (2 * Math.PI * f) / sampleRate;
-  const c1 = Math.cos(w);
-  const s1 = Math.sin(w);
-  const c2 = Math.cos(2 * w);
-  const s2 = Math.sin(2 * w);
-  const nr = c.b0 + c.b1 * c1 + c.b2 * c2;
-  const ni = -(c.b1 * s1 + c.b2 * s2);
-  const dr = 1 + c.a1 * c1 + c.a2 * c2;
-  const di = -(c.a1 * s1 + c.a2 * s2);
-  return Math.hypot(nr, ni) / Math.hypot(dr, di);
-}
-
 /**
  * Run a cascade of biquads over `input[start .. start+n)` and write the last `keep` outputs to
  * `out[0 .. keep)`. The first `n - keep` samples only warm the filters up.

@@ -196,6 +196,8 @@ export interface PlayButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   size?: 'md' | 'lg' | 'xl';
   /** Replace the glyph (for "Listen": "Mic", for "Stop": "Square"). */
   icon?: IconSource;
+  /** Draw the glyph solid. Default: solid for the built-in play/pause, outlined for a custom `icon`. */
+  filled?: boolean;
   /** accent (default), neutral ink, or danger for recording. */
   tone?: 'accent' | 'neutral' | 'danger';
   loading?: boolean;
@@ -206,7 +208,7 @@ export interface PlayButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
  *   <PlayButton playing={playing} onClick={toggle} />
  */
 export const PlayButton = forwardRef<HTMLButtonElement, PlayButtonProps>(function PlayButton(
-  { playing = false, label, size = 'lg', icon, tone = 'accent', loading, disabled, className, onClick, type = 'button', ...rest },
+  { playing = false, label, size = 'lg', icon, filled, tone = 'accent', loading, disabled, className, onClick, type = 'button', ...rest },
   ref,
 ) {
   const px = size === 'md' ? 24 : size === 'xl' ? 40 : 30;
@@ -222,7 +224,7 @@ export const PlayButton = forwardRef<HTMLButtonElement, PlayButtonProps>(functio
       onClick={loading ? (e) => e.preventDefault() : onClick}
       {...rest}
     >
-      {loading ? <Spinner size={px} /> : <span className={cx(styles.playGlyph, glyph === 'Play' && styles.playNudge)}>{renderIcon(glyph, { size: px, strokeWidth: 2 })}</span>}
+      {loading ? <Spinner size={px} /> : <span className={cx(styles.playGlyph, (filled ?? icon == null) && styles.playFilled, glyph === 'Play' && styles.playNudge)}>{renderIcon(glyph, { size: px, strokeWidth: 2 })}</span>}
     </button>
   );
 });

@@ -107,7 +107,8 @@ export function Stepper({ label, hideLabel, value, onChange, min = 0, max = 100,
         <button type="button" className={styles.stepBtn} tabIndex={-1} aria-label={`Decrease ${labelText}`} disabled={disabled || value <= min} {...dec}>
           <Icon name="Minus" size={size === 'lg' ? 22 : 18} strokeWidth={2.25} />
         </button>
-        <div className={styles.stepBody}>
+        {/* A label, so a tap anywhere in the middle cell lands in the number field. Its name still comes from aria-labelledby. */}
+        <label className={styles.stepBody}>
           <input
             type="text"
             inputMode={places > 0 ? 'decimal' : 'numeric'}
@@ -129,8 +130,12 @@ export function Stepper({ label, hideLabel, value, onChange, min = 0, max = 100,
             onBlur={commitDraft}
             onKeyDown={onKeyDown}
           />
-          {unit != null && <span className={styles.stepUnit}>{unit}</span>}
-        </div>
+          {unit != null && (
+            <span className={styles.stepUnit} aria-hidden="true">
+              {unit}
+            </span>
+          )}
+        </label>
         <button type="button" className={styles.stepBtn} tabIndex={-1} aria-label={`Increase ${labelText}`} disabled={disabled || value >= max} {...inc}>
           <Icon name="Plus" size={size === 'lg' ? 22 : 18} strokeWidth={2.25} />
         </button>

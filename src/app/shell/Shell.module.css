@@ -1,0 +1,504 @@
+/*
+ * The frame around every screen.
+ * Phones (< 900 px): a sticky top bar and a fixed bottom tab bar; the document itself scrolls.
+ * Wide screens: a fixed sidebar on the left and the content beside it.
+ * `Page` owns the horizontal gutters and the content width, so <main> adds no side padding.
+ */
+.shell {
+  --topbar-h: 52px;
+  --rail-w: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.skip {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-2));
+  left: var(--sp-2);
+  z-index: 600;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-2);
+  transform: translateY(-300%);
+}
+.skip:focus-visible {
+  transform: none;
+  box-shadow:
+    var(--shadow-2),
+    var(--focus-ring);
+  border-radius: var(--r-md);
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* <main> only takes focus from the skip link; a ring around the whole screen would be noise. */
+.main:focus,
+.main:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ---------- Phone: top bar ---------- */
+.phone .main {
+  /* The bars are fixed or sticky, so sticky parts inside a screen keep clear of them with these. */
+  --sticky-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  --sticky-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--nav-h);
+}
+.phone:not([data-immersive='none']) .main {
+  --sticky-bottom: 0px;
+  padding-bottom: 0;
+}
+.phone[data-immersive='bare'] .main {
+  --sticky-top: env(safe-area-inset-top, 0px);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  box-sizing: border-box;
+  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  /* The page already keeps clear of the status bar; the bar reaches up under it instead. */
+  margin-top: calc(env(safe-area-inset-top, 0px) * -1);
+  padding: env(safe-area-inset-top, 0px) max(var(--sp-2), env(safe-area-inset-right, 0px)) 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  backdrop-filter: saturate(1.5) blur(14px);
+  -webkit-backdrop-filter: saturate(1.5) blur(14px);
+}
+.topbarFocus {
+  padding-left: max(var(--sp-1), env(safe-area-inset-left, 0px));
+  gap: var(--sp-1);
+}
+.topbarBrand {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.topbarBrand:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.topbarBack {
+  flex: none;
+}
+.topbarSpacer {
+  flex: 1 1 auto;
+}
+.topbarTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.topbarTitleShown {
+  opacity: 1;
+  transform: none;
+  /* Appear a beat late, so the title does not flash while a screen is still loading in. */
+  transition-delay: 90ms;
+  transition-duration: var(--dur-2);
+}
+
+/* ---------- Phone: bottom tab bar ---------- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  box-sizing: border-box;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  padding: 0 max(var(--sp-1), env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(var(--sp-1), env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: saturate(1.5) blur(16px);
+  -webkit-backdrop-filter: saturate(1.5) blur(16px);
+}
+.tabbarEntering {
+  animation: tabbarIn var(--dur-2) var(--ease);
+}
+@keyframes tabbarIn {
+  from {
+    transform: translateY(100%);
+  }
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.tabIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  transition:
+    background var(--dur-2) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.tabLabel {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tab[aria-current] {
+  color: var(--fg);
+  font-weight: 700;
+}
+.tab[aria-current] .tabIcon {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.tab:active .tabIcon {
+  transform: scale(0.9);
+}
+@media (hover: hover) {
+  .tab:hover:not([aria-current]) .tabIcon {
+    background: var(--surface-2);
+  }
+}
+.tab:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.tab:focus-visible .tabIcon {
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------- Wide: sidebar ---------- */
+.wide .main {
+  --sticky-top: 0px;
+  --sticky-bottom: 0px;
+  margin-left: calc(var(--side-w) + env(safe-area-inset-left, 0px));
+}
+.wide:not([data-immersive='none']) .main {
+  margin-left: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+}
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: calc(var(--side-w) + env(safe-area-inset-left, 0px));
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+.sideBrand {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin: var(--sp-3) var(--sp-3) var(--sp-1);
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+}
+.sideBrand:focus-visible,
+.railBrand:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.sideNav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-3);
+  scrollbar-width: thin;
+}
+.sideList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.destRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.dest {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--fg-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.destLabel,
+.subLabel {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dest[aria-current='true'] {
+  color: var(--fg);
+}
+.dest[aria-current='page'],
+.subLink[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.dest[aria-current='page'] {
+  font-weight: 700;
+}
+.destToggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--fg-faint);
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.chevron {
+  transform: rotate(-90deg);
+  transition: transform var(--dur-2) var(--ease);
+}
+.chevronOpen {
+  transform: none;
+}
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 var(--sp-2) 21px;
+  padding: 0 0 0 var(--sp-2);
+  border-left: 1px solid var(--line);
+  list-style: none;
+}
+.subLink {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 30px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.subLink[aria-current='page'] {
+  font-weight: 650;
+}
+@media (hover: hover) {
+  .dest:hover:not([aria-current='page']),
+  .subLink:hover:not([aria-current='page']),
+  .destToggle:hover,
+  .railLink:hover:not([aria-current]),
+  .levelLink:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}
+.dest:focus-visible,
+.subLink:focus-visible,
+.destToggle:focus-visible,
+.railLink:focus-visible,
+.levelLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (pointer: coarse) {
+  .dest,
+  .destToggle {
+    min-height: 44px;
+    height: auto;
+  }
+  .destToggle {
+    width: 44px;
+    height: 44px;
+  }
+  .subLink {
+    min-height: 40px;
+  }
+}
+
+.sideFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: none;
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.levelLink {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+  transition: background var(--dur-1) var(--ease);
+}
+.levelText {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.levelTitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  line-height: 1.2;
+}
+.levelNote {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+  line-height: 1;
+}
+
+/* Icon rail (immersive screens on wide layouts). */
+.rail {
+  align-items: center;
+  width: calc(var(--rail-w) + env(safe-area-inset-left, 0px));
+}
+.railBrand {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  margin: var(--sp-3) 0 var(--sp-2);
+  border-radius: var(--r-md);
+}
+.railNav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+}
+.railLink {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 44px;
+  border-radius: var(--r-md);
+  color: var(--fg-muted);
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.railLink[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* ---------- Loading skeleton ---------- */
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  /* Most screens arrive within a frame or two: only show the skeleton when the wait is real. */
+  animation: fallbackIn var(--dur-2) var(--ease) 160ms both;
+}
+@keyframes fallbackIn {
+  from {
+    opacity: 0;
+  }
+}
+.fallbackGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+}
+
+/* ---------- A phone held sideways: slimmer bars, icons only ---------- */
+@media (orientation: landscape) and (max-height: 480px) {
+  .shell {
+    --topbar-h: 44px;
+  }
+  .tab {
+    flex-direction: row;
+  }
+  .tabIcon {
+    width: 64px;
+    height: 32px;
+  }
+  /* Still read by screen readers; the icon and the highlight carry it visually. */
+  .tabLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}

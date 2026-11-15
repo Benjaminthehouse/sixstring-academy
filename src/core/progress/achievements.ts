@@ -206,8 +206,8 @@ const DEFS: Def[] = [
   // Games: stars and combos.
   { id: 'three-stars', name: 'Flawless Round', description: 'Earn three stars on a game level.', icon: 'Sparkles', tier: 'bronze', group: 'games', target: 1, value: (c) => c.skills.threeStarSkills },
   { id: 'stars-10', name: 'Star Catcher', description: 'Collect 10 stars.', icon: 'Star', tier: 'bronze', group: 'games', target: 10, value: (c) => c.skills.stars },
-  { id: 'stars-50', name: 'Constellation', description: 'Collect 50 stars.', icon: 'Star', tier: 'silver', group: 'games', target: 50, value: (c) => c.skills.stars },
-  { id: 'stars-150', name: 'Galaxy', description: 'Collect 150 stars.', icon: 'Star', tier: 'gold', group: 'games', target: 150, value: (c) => c.skills.stars },
+  { id: 'stars-40', name: 'Constellation', description: 'Collect 40 stars.', icon: 'Star', tier: 'silver', group: 'games', target: 40, value: (c) => c.skills.stars },
+  { id: 'stars-100', name: 'Galaxy', description: 'Collect 100 stars.', icon: 'Star', tier: 'gold', group: 'games', target: 100, value: (c) => c.skills.stars },
   { id: 'combo-10', name: 'On a Roll', description: 'Keep a combo of 10.', icon: 'Flame', tier: 'bronze', group: 'games', target: 10, value: (c) => c.stat('max.combo') },
   { id: 'combo-25', name: 'Unbroken', description: 'Keep a combo of 25.', icon: 'Flame', tier: 'silver', group: 'games', target: 25, value: (c) => c.stat('max.combo') },
   { id: 'combo-50', name: 'Unstoppable', description: 'Keep a combo of 50.', icon: 'Flame', tier: 'gold', group: 'games', target: 50, value: (c) => c.stat('max.combo') },

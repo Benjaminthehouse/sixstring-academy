@@ -1,0 +1,309 @@
+/*
+ * Today. One column on phones, in the order a session runs: goal, plan, continue, quests, tools.
+ * From 1200 px the quests, reviews, tools and tip move into a second column beside the plan.
+ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-8);
+}
+.primary,
+.secondary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+@media (min-width: 1200px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+}
+
+/* ---------- Goal, streak and the one thing to do next ---------- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.heroTop {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.ringButton {
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  transition: transform var(--dur-2) var(--ease);
+}
+@media (hover: hover) {
+  .ringButton:hover {
+    transform: scale(1.03);
+  }
+}
+.ringButton:active {
+  transform: scale(0.97);
+}
+.ringButton:focus-visible {
+  outline: none;
+  border-radius: 50%;
+  box-shadow: var(--focus-ring);
+}
+.ringNumber {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.ringUnit {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.heroText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.heroKicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.heroTitle {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+}
+.streakButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  margin: 0 0 calc(var(--sp-2) * -1) calc(var(--sp-2) * -1);
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--fg);
+  font-weight: 600;
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .streakButton:hover {
+    background: var(--surface-2);
+  }
+}
+.streakButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.streakNote {
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.flame {
+  display: inline-flex;
+  color: var(--streak);
+}
+.flame svg {
+  fill: currentColor;
+}
+.flameIdle {
+  color: var(--fg-faint);
+}
+.flameIdle svg {
+  fill: none;
+}
+
+/* ---------- Plan ---------- */
+.stepMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.stepNext {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.stepDone {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--ok-fg);
+}
+.stepTitle {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+}
+.stepMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.stepXp {
+  color: var(--xp);
+  font-weight: 700;
+}
+
+/* ---------- Continue, reviews ---------- */
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+@media (min-width: 720px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* An odd one out takes the full row instead of leaving a hole. */
+  .cards > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+.recent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.recentIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.dueIcon {
+  background: var(--xp-soft);
+  color: var(--xp);
+}
+.recentText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.recentTitle {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.recentMeta {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.recentBar {
+  margin-top: var(--sp-2);
+}
+
+/* ---------- Quests ---------- */
+.questProgress {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: 6px;
+}
+.questProgress > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.questCount {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.weekly {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.weeklyLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+/* ---------- Quick tools ---------- */
+.tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 88px;
+  padding: var(--sp-3) var(--sp-1);
+  text-align: center;
+}
+.toolLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* ---------- Tip ---------- */
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.tipLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.tipText {
+  max-width: var(--prose-max);
+}
+.tipActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}

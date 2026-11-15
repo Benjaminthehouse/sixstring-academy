@@ -1,0 +1,43 @@
+.mark {
+  flex: none;
+  display: block;
+}
+.tile {
+  fill: var(--accent);
+}
+.string {
+  fill: var(--accent-fg);
+}
+.fret {
+  fill: var(--accent-fg);
+  opacity: 0.38;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  color: var(--fg);
+}
+.name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.05;
+}
+.word {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.sub {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}

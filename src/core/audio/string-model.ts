@@ -59,7 +59,8 @@ export interface LoopTargets {
 }
 
 const LN_1000 = Math.log(1000);
-const MAX_FIR_SECTIONS = 2;
+/** Upper bound on loss-FIR sections; only very heavy damping (palm mutes on low strings) gets near it. */
+const MAX_FIR_SECTIONS = 40;
 
 function onePoleGain(p: number, w: number): number {
   return (1 - p) / Math.sqrt(1 - 2 * p * Math.cos(w) + p * p);
@@ -91,17 +92,20 @@ export function designLoop(t: LoopTargets): LoopDesign {
   const sh = Math.sin(wh / 2) ** 2;
   const q = lh - l0; // extra attenuation wanted at the high reference (<= 0)
 
+  // The FIR's delay must leave room for the delay line itself on short periods.
+  const maxSections = Math.max(1, Math.min(MAX_FIR_SECTIONS, Math.floor(period / 4)));
   let sections = 1;
   let smoothing = 0;
   let onePole = 0;
-  for (sections = 1; sections <= MAX_FIR_SECTIONS; sections++) {
+  for (sections = 1; sections <= maxSections; sections++) {
     const e = Math.exp(q / sections);
     smoothing = (1 - e) / (4 * (sh - e * s0));
     if (smoothing <= 0.25) break;
   }
-  if (sections > MAX_FIR_SECTIONS) {
+  if (sections > maxSections) {
     // The FIR alone cannot damp this much: max it out and let a one-pole low-pass do the rest.
-    sections = MAX_FIR_SECTIONS;
+    // (Its phase is not linear, so upper partials go slightly sharp; only extreme mutes get here.)
+    sections = maxSections;
     smoothing = 0.25;
     const firQ = sections * Math.log((1 - 4 * smoothing * sh) / (1 - 4 * smoothing * s0));
     const rest = q - firQ;
@@ -184,23 +188,23 @@ export function harmonicExcitation(period: number, amps: ArrayLike<number>, phas
  */
 export function runString(excitation: ArrayLike<number>, d: LoopDesign, length: number): Float32Array {
   const out = new Float32Array(length);
+  const M = d.sections;
   const taps = d.taps;
-  const T = taps.length;
-  let size = 1;
-  while (size < d.delay + T + 2) size <<= 1;
-  const mask = size - 1;
-  const line = new Float64Array(size);
+  const centreTap = taps[M];
+  const N = d.delay;
+  // The whole history is kept in one flat array (zero-padded at the front), so the hot loop has no
+  // wrap-around: `hist[pad + n]` is the loop signal at sample n.
+  const pad = N + 2 * M + 1;
+  const hist = new Float64Array(pad + length);
   const C = d.allpass;
   const p = d.onePole;
-  const N = d.delay;
   const excLen = Math.min(excitation.length, length);
   let apX = 0, apY = 0, lp = 0;
-  let w = 0;
   for (let n = 0; n < length; n++) {
-    // Loss FIR read straight off the delay line: centred on n - N - sections.
-    let acc = 0;
-    const base = w - N + size;
-    for (let t = 0; t < T; t++) acc += taps[t] * line[(base - t) & mask];
+    // Symmetric loss FIR centred on sample n - N - M.
+    const c = pad + n - N - M;
+    let acc = centreTap * hist[c];
+    for (let i = 1; i <= M; i++) acc += taps[M - i] * (hist[c - i] + hist[c + i]);
     if (p > 0) {
       lp = (1 - p) * acc + p * lp;
       acc = lp;
@@ -211,8 +215,7 @@ export function runString(excitation: ArrayLike<number>, d: LoopDesign, length: 
     let v = n < excLen ? excitation[n] + y : y;
     // Flush the far tail so the loop never idles on denormals.
     if (v < 1e-25 && v > -1e-25) v = 0;
-    line[w] = v;
-    w = (w + 1) & mask;
+    hist[pad + n] = v;
     out[n] = v;
   }
   return out;

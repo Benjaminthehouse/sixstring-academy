@@ -1,63 +1,42 @@
 /**
- * App shell (minimal bootstrap version; the shell agent replaces this with the real navigation).
- * Contract that must survive: render the feature for the current route via the registry, inside
- * Suspense and an error boundary, passing `params`.
+ * The app: one shell around every screen, plus the things that live above all screens (the stats
+ * sheet, feedback for progress events, the first-run flow).
+ *
+ * Contract other code relies on (the e2e harness included): the screen for the current route is
+ * rendered inside `<main id="main" data-route={routeName}>`, lazily through the route registry,
+ * inside Suspense and an error boundary that resets on navigation, and receives `params`.
+ * See `API.md` in this folder for what the shell offers to screens.
  */
-import { Component, Suspense, lazy, useMemo, type ReactNode } from 'react';
-import { ROUTES, routeDef } from './routes';
-import { href, useRoute } from './router';
+import { getProgressStore } from '@/core/progress';
+import { UIProvider } from '@/ui';
+import './document.css';
+import { GlobalFeedback } from './feedback/GlobalFeedback';
+import { OnboardingHost } from './onboarding/OnboardingHost';
+import { closeOnboarding } from './onboarding/store';
+import { useDocumentAppearance } from './shell/appearance';
+import { QuietBoundary } from './shell/QuietBoundary';
+import { Shell } from './shell/Shell';
+import { StatsSheet } from './shell/StatsSheet';
 
-class Boundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null }> {
-  state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-  componentDidUpdate(prev: { resetKey: string }) {
-    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div role="alert" style={{ padding: 'var(--sp-6) 0' }}>
-          <h2>This screen hit a problem</h2>
-          <p style={{ color: 'var(--fg-muted)' }}>{this.state.error.message}</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+// Created before the first render: loading the store applies the learner's theme, motion and
+// accent settings to <html>, so the first paint is already in the right theme.
+getProgressStore();
 
-const lazyCache = new Map<string, ReturnType<typeof lazy>>();
-function featureFor(name: string) {
-  let c = lazyCache.get(name);
-  if (!c) {
-    c = lazy(routeDef(name).load);
-    lazyCache.set(name, c);
-  }
-  return c;
-}
-
+/** The root component mounted by `main.tsx`. */
 export default function App() {
-  const route = useRoute();
-  const def = routeDef(route.name);
-  const Feature = useMemo(() => featureFor(def.name), [def.name]);
+  useDocumentAppearance();
   return (
-    <div style={{ paddingLeft: 'var(--gutter)', paddingRight: 'var(--gutter-r)', maxWidth: 'var(--content-max)', margin: '0 auto' }}>
-      <nav aria-label="All screens" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)', paddingBlock: 'var(--sp-3)' }}>
-        {ROUTES.map((r) => (
-          <a key={r.name} href={href(r.name)} aria-current={r.name === def.name ? 'page' : undefined}>
-            {r.title}
-          </a>
-        ))}
-      </nav>
-      <main id="main" data-route={def.name}>
-        <Boundary resetKey={route.name + route.params.join('/')}>
-          <Suspense fallback={<p style={{ color: 'var(--fg-muted)' }}>Loading…</p>}>
-            <Feature params={route.params} />
-          </Suspense>
-        </Boundary>
-      </main>
-    </div>
+    <UIProvider>
+      <Shell />
+      <QuietBoundary name="The stats sheet">
+        <StatsSheet />
+      </QuietBoundary>
+      <QuietBoundary name="Progress feedback">
+        <GlobalFeedback />
+      </QuietBoundary>
+      <QuietBoundary name="The first-run flow" onError={closeOnboarding}>
+        <OnboardingHost />
+      </QuietBoundary>
+    </UIProvider>
   );
 }

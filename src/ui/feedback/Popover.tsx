@@ -138,7 +138,7 @@ export function Popover({ trigger, placement = 'bottom', align = 'start', open: 
       {anchor}
       {open && (
         <Portal>
-          <div ref={panelRef} id={id} role="dialog" aria-label={rest['aria-label']} tabIndex={-1} className={cx(styles.panel, !flush && styles.padded, !pos && styles.measuring, className)} style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0 }} onKeyDown={onPanelKeyDown}>
+          <div ref={panelRef} id={id} role="dialog" aria-label={rest['aria-label']} tabIndex={-1} data-ui-layer="popover" className={cx(styles.panel, !flush && styles.padded, !pos && styles.measuring, className)} style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0 }} onKeyDown={onPanelKeyDown}>
             {typeof children === 'function' ? children({ close }) : children}
           </div>
         </Portal>
@@ -279,7 +279,7 @@ export function Menu({ trigger, items, placement = 'bottom', align = 'end', open
       {anchor}
       {open && (
         <Portal>
-          <div ref={panelRef} id={id} role="menu" aria-label={rest['aria-label']} tabIndex={-1} className={cx(styles.panel, styles.menu, !pos && styles.measuring, className)} style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0 }} onKeyDown={onMenuKeyDown}>
+          <div ref={panelRef} id={id} role="menu" aria-label={rest['aria-label']} tabIndex={-1} data-ui-layer="menu" className={cx(styles.panel, styles.menu, !pos && styles.measuring, className)} style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0 }} onKeyDown={onMenuKeyDown}>
             {items.map((entry, i) => {
               if (entry === 'separator') return <div key={`sep-${i}`} role="separator" className={styles.separator} />;
               if (!isItem(entry)) {

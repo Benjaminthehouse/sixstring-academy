@@ -1,0 +1,165 @@
+/* XP purple for the icon of the XP toast (toast icons are otherwise tone-coloured). */
+.xpIcon {
+  display: inline-flex;
+  color: var(--xp);
+}
+.xpIcon svg {
+  fill: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+/* ---------- The big moments (level, streak milestone, rare achievement) ---------- */
+.moment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 var(--sp-1);
+  text-align: center;
+}
+.badgePop,
+.tile {
+  margin-bottom: var(--sp-3);
+  animation: pop 520ms var(--ease) both;
+}
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(2deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+.tile {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}
+.tile svg {
+  fill: color-mix(in srgb, currentColor 20%, transparent);
+}
+.tile[data-kind='streak'] {
+  background: var(--streak-soft);
+  color: var(--streak);
+}
+.tile[data-kind='gold'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.tile[data-kind='platinum'] {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.headline {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+.detail {
+  max-width: 22rem;
+  color: var(--fg-muted);
+}
+.reward {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--gem) 14%, transparent);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.reward svg {
+  color: var(--gem);
+  fill: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+/* ---------- A heart was lost: a short flash under the top edge ---------- */
+.heartFlash {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  left: 50%;
+  z-index: 300;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: heartFlash 1900ms var(--ease) both;
+}
+.heartFlash svg {
+  color: var(--heart);
+}
+@keyframes heartFlash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -8px) scale(0.92);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.04);
+  }
+  16% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* global.css shortens every animation, which would end this one before it can be read. */
+  .heartFlash {
+    animation: heartFlashStill 1900ms linear both !important;
+    animation-duration: 1900ms !important;
+  }
+}
+@keyframes heartFlashStill {
+  0%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* The learner's own reduce-motion setting (document.css shortens animations for it too). */
+:global(:root[data-motion='reduce']) .heartFlash {
+  animation: heartFlashStill 1900ms linear both !important;
+  animation-duration: 1900ms !important;
+}

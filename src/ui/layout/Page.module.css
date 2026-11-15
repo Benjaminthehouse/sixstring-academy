@@ -5,19 +5,20 @@
 .page {
   --_gl: var(--page-gutter, var(--gutter));
   --_gr: var(--page-gutter, var(--gutter-r));
+  --_pb: var(--sp-12);
   box-sizing: border-box;
   width: 100%;
   max-width: calc(var(--page-max, var(--content-max)) + var(--_gl) + var(--_gr));
   margin-inline: auto;
-  padding: var(--sp-5) var(--_gr) var(--sp-12) var(--_gl);
+  padding: var(--sp-5) var(--_gr) var(--_pb) var(--_gl);
   min-width: 0;
 }
 @media (min-width: 720px) {
   .page {
     --_gl: var(--page-gutter, max(var(--sp-8), env(safe-area-inset-left, 0px)));
     --_gr: var(--page-gutter, max(var(--sp-8), env(safe-area-inset-right, 0px)));
+    --_pb: var(--sp-16);
     padding-top: var(--sp-8);
-    padding-bottom: var(--sp-16);
   }
 }
 .prose {
@@ -57,9 +58,11 @@
   text-decoration: none;
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
-.back:hover {
-  background: var(--surface-2);
-  color: var(--fg);
+@media (hover: hover) {
+  .back:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
 }
 .back:focus-visible {
   outline: none;
@@ -171,4 +174,44 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--sp-2);
+}
+
+/*
+ * ActionBar: the row of actions that stays in reach at the bottom of a long screen (lesson
+ * "Check" / "Continue", a form's Save). It sticks to the bottom of the scroll area and bleeds to
+ * the Page's edges. A shell whose bottom navigation is `position: fixed` sets `--sticky-bottom`
+ * on <main> to the height of that bar.
+ */
+.actionBar {
+  position: sticky;
+  bottom: var(--sticky-bottom, 0px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  /* Bleed to the Page's side edges and swallow its bottom padding, so the bar ends flush with the screen. */
+  margin: 0 calc(var(--_gr, 0px) * -1) calc(var(--_pb, 0px) * -1) calc(var(--_gl, 0px) * -1);
+  padding: var(--sp-3) var(--_gr, 0px) max(var(--sp-3), env(safe-area-inset-bottom, 0px)) var(--_gl, 0px);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.actionBarStart {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+@media (max-width: 719.98px) {
+  /* On phones the note takes its own line and the buttons share the row below it. */
+  .actionBarStretch > .actionBarStart {
+    flex-basis: 100%;
+  }
+  .actionBarStretch > :not(.actionBarStart) {
+    flex: 1 1 0;
+  }
 }

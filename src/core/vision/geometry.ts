@@ -13,6 +13,7 @@ import type {
   FretboardPose,
   GrayFrame,
   Line,
+  MarkerHint,
   Mat3,
   NeckModel,
   NeckPresetId,
@@ -189,6 +190,18 @@ export function inlayPositions(model: NeckModel): { fret: number; x: number; y: 
     }
   }
   return out;
+}
+
+/**
+ * Neck-plane centres of the stickers described by a marker-mode hint: mid-way between wire n-1 and
+ * wire n (like an inlay), on the bass edge (the default), the treble edge, or the board centre line.
+ */
+export function markerHintPlanePoints(model: NeckModel, hint: MarkerHint): Point[] {
+  return hint.frets.map((fret) => {
+    const x = (fretX(model, fret - 1) + fretX(model, fret)) / 2;
+    const y = hint.placement === 'board' ? model.nutWidth / 2 : boardEdgeY(model, x, hint.placement === 'treble-edge' ? 'treble' : 'bass');
+    return { x, y };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -686,6 +699,31 @@ export function homographyFromPointsOnLines(observations: readonly PointOnLine[]
   return finishHomography(H, npl.cx, npl.cy);
 }
 
+/** An image line segment known to lie along a neck-plane line, for `homographyFromLineSegments`. */
+export interface SegmentOnLine {
+  /** Neck-plane line (a fret wire, a board edge, a string), unit normal. */
+  line: Line;
+  /** End points of the observed segment in image pixels; where along the plane line they fall is unknown. */
+  a: Point;
+  b: Point;
+  /** Relative weight, default 1. */
+  weight?: number;
+}
+
+/**
+ * Least-squares homography (neck plane -> image) from line correspondences: image segments (for
+ * example from a line detector), each assigned to a neck-plane line. Fret wires alone say nothing
+ * about the position across the neck: besides at least two wires, give two lines that run along it
+ * (both board edges, or two strings). Returns null when the lines do not determine a pose.
+ */
+export function homographyFromLineSegments(segments: readonly SegmentOnLine[], pairs: readonly PointPair[] = []): Mat3 | null {
+  const observations: PointOnLine[] = [];
+  for (const s of segments) {
+    observations.push({ point: s.a, line: s.line, weight: s.weight }, { point: s.b, line: s.line, weight: s.weight });
+  }
+  return homographyFromPointsOnLines(observations, pairs);
+}
+
 /** Pixel distance between `H(src[i])` and `dst[i]` for every pair (Infinity where H sends a point to infinity). */
 export function reprojectionErrors(H: Mat3, src: readonly Point[], dst: readonly Point[]): number[] {
   const n = Math.min(src.length, dst.length);
@@ -853,7 +891,7 @@ export interface ViewDecomposition {
   tiltDeg: number;
   /** Direction of the neck in the image: angle of nut -> bridge at the nut, degrees, atan2(dy, dx), y down. */
   rollDeg: number;
-  /** Distance from the camera to the nut along the optical axis, in the model's millimetres. */
+  /** Distance from the camera to the nut (the neck-plane origin), in the model's millimetres. */
   distanceMm: number;
   /** |r1| / |r2|: 1 for an exact pinhole view of a correctly dimensioned model. */
   aspect: number;
@@ -935,9 +973,7 @@ export function decomposeHomography(H: Mat3, frameWidth: number, frameHeight: nu
   const n2 = Math.hypot(r2x, r2y, r2z);
   if (!(n1 > 0) || !(n2 > 0)) return null;
   const skew = (r1x * r2x + r1y * r2y + r1z * r2z) / (n1 * n2);
-  let lambda = 2 / (n1 + n2);
-  if (h3z * lambda < 0) lambda = -lambda;
-  const tz = h3z * lambda;
+  const lambda = 2 / (n1 + n2);
   r1x /= n1; r1y /= n1; r1z /= n1;
   r2x /= n2; r2y /= n2; r2z /= n2;
   // Board normal (sign irrelevant for the tilt).
@@ -954,7 +990,7 @@ export function decomposeHomography(H: Mat3, frameWidth: number, frameHeight: nu
     fovDeg: (2 * Math.atan(frameWidth / (2 * f)) * 180) / Math.PI,
     tiltDeg,
     rollDeg: (Math.atan2(j[2], j[0]) * 180) / Math.PI,
-    distanceMm: Math.abs(tz),
+    distanceMm: Math.abs(lambda) * Math.sqrt((h3x / f) * (h3x / f) + (h3y / f) * (h3y / f) + h3z * h3z),
     aspect: n1 / n2,
     skew,
   };
@@ -1522,12 +1558,20 @@ export interface PoseError {
   bassSideCorrect: boolean;
 }
 
+/** Raw error samples of one comparison, appended to by `comparePoses` so a benchmark can pool percentiles across frames. */
+export interface PoseErrorSamples {
+  fret: number[];
+  fretAligned: number[];
+  string: number[];
+}
+
 /**
  * Compare an estimated pose with the ground truth over the frets the truth says are in the frame.
  * Errors are measured in the true neck plane (estimate -> image -> true plane), so they do not
- * depend on perspective or on which neck model the estimate assumed.
+ * depend on perspective or on which neck model the estimate assumed. Pass `collect` to also get
+ * the raw samples appended to your own arrays.
  */
-export function comparePoses(estimate: PoseLike, truth: FretboardPose): PoseError {
+export function comparePoses(estimate: PoseLike, truth: FretboardPose, collect?: PoseErrorSamples): PoseError {
   const tm = truth.model;
   const em = estimate.model;
   const inv = invertHomography(truth.H);
@@ -1607,6 +1651,7 @@ export function comparePoses(estimate: PoseLike, truth: FretboardPose): PoseErro
 
   // Pass 3: would the markers land in the right cells?
   let cells = 0;
+  let cellsAligned = 0;
   let right = 0;
   let rightAligned = 0;
   const markerErr: number[] = [];
@@ -1621,7 +1666,9 @@ export function comparePoses(estimate: PoseLike, truth: FretboardPose): PoseErro
       markerErr.push(Number.isFinite(d) ? d : Infinity);
       const loc = Number.isFinite(e.x + e.y) ? locatePixel(truth, e, inv) : null;
       if (loc && loc.fret === f && loc.string === s && Math.abs(loc.stringOffset) < 0.5) right++;
+      // Cells the estimate has no number for (it would have to be a negative fret) cannot be aligned.
       if (f - k >= 0) {
+        cellsAligned++;
         const ea = projectMarker(estimate, s, f - k);
         const la = Number.isFinite(ea.x + ea.y) ? locatePixel(truth, ea, inv) : null;
         if (la && la.fret === f && la.string === s && Math.abs(la.stringOffset) < 0.5) rightAligned++;
@@ -1638,6 +1685,11 @@ export function comparePoses(estimate: PoseLike, truth: FretboardPose): PoseErro
     const b = along ? applyHomography(pose.H, fretX(m, mid + 0.5), m.nutWidth / 2) : applyHomography(pose.H, x, boardEdgeY(m, x, 'treble'));
     return { x: b.x - a.x, y: b.y - a.y };
   };
+  if (collect) {
+    for (const v of fretErr) collect.fret.push(v);
+    for (const v of fretErrAligned) collect.fretAligned.push(v);
+    for (const v of stringErr) collect.string.push(v);
+  }
   const ea = dir(estimate, true);
   const ta = dir(truth, true);
   const ec = dir(estimate, false);
@@ -1649,7 +1701,7 @@ export function comparePoses(estimate: PoseLike, truth: FretboardPose): PoseErro
     stringError: summarise(stringErr),
     markerErrorPx: summarise(markerErr),
     cellAccuracy: cells > 0 ? right / cells : 0,
-    cellAccuracyAligned: cells > 0 ? rightAligned / cells : 0,
+    cellAccuracyAligned: cellsAligned > 0 ? rightAligned / cellsAligned : 0,
     cellCount: cells,
     numberingOffset: k === 0 ? 0 : -k,
     nutDirectionCorrect: ea.x * ta.x + ea.y * ta.y > 0,

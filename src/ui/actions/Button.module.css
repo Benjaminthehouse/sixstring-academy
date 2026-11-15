@@ -50,6 +50,7 @@
 /* Sizes. Small buttons keep a 44 px touch target through the ::before hit area. */
 .sm {
   --btn-h: 36px;
+  min-width: var(--tap);
   padding: 0 var(--sp-3);
   font-size: var(--text-sm);
   gap: 6px;
@@ -81,8 +82,10 @@
   /* A thin dark lip under the amber, like the edge of a pick. */
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent-fg) 22%, transparent);
 }
-.primary:hover:not(.disabled) {
-  background: var(--accent-strong);
+@media (hover: hover) {
+  .primary:hover:not(.disabled) {
+    background: var(--accent-strong);
+  }
 }
 .primary:focus-visible {
   box-shadow:
@@ -95,33 +98,45 @@
   color: var(--fg);
   border-color: var(--line-strong);
 }
-.secondary:hover:not(.disabled) {
-  background: var(--surface-2);
-  border-color: var(--fg-faint);
+@media (hover: hover) {
+  .secondary:hover:not(.disabled) {
+    background: var(--surface-2);
+    border-color: var(--fg-faint);
+  }
 }
 
 .ghost {
   background: transparent;
   color: var(--fg);
 }
-.ghost:hover:not(.disabled) {
-  background: color-mix(in srgb, var(--fg) 9%, transparent);
+@media (hover: hover) {
+  .ghost:hover:not(.disabled) {
+    background: color-mix(in srgb, var(--fg) 9%, transparent);
+  }
 }
 
 .danger {
   background: var(--bad);
   color: var(--bad-fg);
 }
-.danger:hover:not(.disabled) {
-  background: color-mix(in srgb, var(--bad) 86%, var(--fg));
+@media (hover: hover) {
+  .danger:hover:not(.disabled) {
+    background: color-mix(in srgb, var(--bad) 86%, var(--fg));
+  }
 }
 
 /* Toggle state for icon buttons and toolbar buttons (aria-pressed). */
-.pressed,
-.pressed:hover:not(.disabled) {
+.pressed {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent-text);
+}
+@media (hover: hover) {
+  .pressed:hover:not(.disabled) {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    color: var(--accent-text);
+  }
 }
 
 .label {
@@ -142,6 +157,12 @@
   padding: 0;
   width: var(--btn-h);
   flex: none;
+}
+.sm.iconOnly {
+  min-width: var(--btn-h);
+}
+.sm.iconOnly::before {
+  inset: -4px;
 }
 .round {
   border-radius: var(--r-pill);
@@ -226,8 +247,10 @@
     transform var(--dur-1) var(--ease),
     box-shadow var(--dur-1) var(--ease);
 }
-.play:hover:not(.disabled) {
-  background: var(--accent-strong);
+@media (hover: hover) {
+  .play:hover:not(.disabled) {
+    background: var(--accent-strong);
+  }
 }
 .play:active:not(.disabled) {
   transform: translateY(2px) scale(0.98);
@@ -256,15 +279,19 @@
   background: var(--fg);
   color: var(--bg);
 }
-.playNeutral:hover:not(.disabled) {
-  background: color-mix(in srgb, var(--fg) 86%, var(--bg));
+@media (hover: hover) {
+  .playNeutral:hover:not(.disabled) {
+    background: color-mix(in srgb, var(--fg) 86%, var(--bg));
+  }
 }
 .playDanger {
   background: var(--bad);
   color: var(--bad-fg);
 }
-.playDanger:hover:not(.disabled) {
-  background: color-mix(in srgb, var(--bad) 86%, var(--fg));
+@media (hover: hover) {
+  .playDanger:hover:not(.disabled) {
+    background: color-mix(in srgb, var(--bad) 86%, var(--fg));
+  }
 }
 /* The play triangle looks off-centre when it is geometrically centred; nudge it. */
 .playNudge {
@@ -273,6 +300,6 @@
 .playGlyph {
   display: inline-flex;
 }
-.playGlyph svg {
+.playFilled svg {
   fill: currentColor;
 }

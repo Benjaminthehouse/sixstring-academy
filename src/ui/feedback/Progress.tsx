@@ -103,7 +103,7 @@ export function ProgressRing({ value, max = 100, size = 64, thickness, tone = 'a
       {children !== null && (
         <div className={styles.ringCenter}>
           {children ?? (
-            <span className={styles.ringValue} style={{ fontSize: Math.max(12, size * 0.26) }}>
+            <span className={styles.ringValue} style={{ fontSize: Math.max(11, size * 0.23) }}>
               {Math.round(frac * 100)}%
             </span>
           )}
@@ -151,7 +151,7 @@ export function Meter({ value, min = 0, max = 1, low, high, label, showLabel, va
     <div className={cx(styles.meter, styles[`tone-${fill}`], orientation === 'vertical' && styles.meterVertical, className)}>
       <span className={cx(styles.barLabel, !showLabel && 'sr-only')}>{label}</span>
       <div className={cx(styles.meterTrack, segments <= 0 && styles.meterSmooth)} role="meter" aria-label={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={Math.min(max, Math.max(min, value))} aria-valuetext={valueText}>
-        {segments > 0 ? Array.from({ length: segments }, (_, i) => <span key={i} className={cx(styles.meterCell, i < on && styles.meterCellOn)} />) : <span className={styles.meterFill} style={{ width: `${frac * 100}%` }} />}
+        {segments > 0 ? Array.from({ length: segments }, (_, i) => <span key={i} className={cx(styles.meterCell, i < on && styles.meterCellOn)} />) : <span className={styles.meterFill} style={orientation === 'vertical' ? { height: `${frac * 100}%` } : { width: `${frac * 100}%` }} />}
       </div>
     </div>
   );

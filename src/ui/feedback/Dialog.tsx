@@ -151,7 +151,7 @@ function Dialog({ open, onClose, title, hideTitle, description, footer, size = '
             </div>
             {dismissable && <IconButton icon="X" label="Close" noTooltip className={styles.close} onClick={onClose} />}
           </div>
-          <div className={cx(styles.body, flush && styles.bodyFlush)}>{children}</div>
+          {children != null && children !== false ? <div className={cx(styles.body, flush && styles.bodyFlush)}>{children}</div> : <div className={styles.noBody} />}
           {footer != null && <div className={styles.footer}>{footer}</div>}
         </div>
       </div>

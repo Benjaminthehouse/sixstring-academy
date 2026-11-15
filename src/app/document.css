@@ -1,0 +1,37 @@
+/*
+ * Document-level rules the shell owns. Plain CSS on purpose: these select on <html> attributes and
+ * on elements the UI kit portals to <body>, which a CSS module cannot reach.
+ */
+
+/*
+ * The learner's own "reduce motion" setting. The progress store puts data-motion="reduce" on
+ * <html>; this gives it the same effect as the device setting (global.css handles that one).
+ */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/*
+ * The kit lifts toasts above the tab bar below 720 px, but the shell keeps the tab bar up to
+ * 900 px. In between, keep the toast stack clear of it.
+ */
+@media (min-width: 720px) and (max-width: 899.98px) {
+  ol[aria-label='Notifications'][aria-live] {
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-3));
+  }
+}
+
+/*
+ * A phone held sideways has very little height. The tab bar drops its labels there (see
+ * Shell.module.css), and everything that measures itself against --nav-h follows.
+ */
+@media (orientation: landscape) and (max-height: 480px) and (max-width: 899.98px) {
+  :root {
+    --nav-h: 44px;
+  }
+}

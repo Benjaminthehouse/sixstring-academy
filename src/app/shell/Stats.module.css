@@ -1,0 +1,270 @@
+/* ---------- The four chips (top bar and sidebar foot) ---------- */
+.chips {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: var(--tap);
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .chip:hover {
+    background: var(--surface-2);
+  }
+}
+.chip:active {
+  transform: scale(0.94);
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: none;
+  border-radius: var(--r-md);
+  box-shadow: var(--focus-ring);
+}
+.chipsSide {
+  justify-content: space-between;
+  width: 100%;
+}
+.chipsSide .chip {
+  min-height: 40px;
+  padding: 0 var(--sp-2);
+}
+.goalChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok);
+}
+.goalZap {
+  color: var(--fg-faint);
+}
+.goalText {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--fg);
+}
+.goalOf {
+  color: var(--fg-faint);
+  font-weight: 600;
+}
+.unlimited {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--heart);
+}
+
+/* ---------- Week strip ---------- */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dayMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  color: var(--fg-faint);
+}
+.weekSm .dayMark {
+  width: 26px;
+  height: 26px;
+}
+.dayLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+.dayToday .dayLabel {
+  color: var(--fg);
+}
+.day-met .dayMark {
+  border-color: var(--streak);
+  background: var(--streak);
+  color: var(--bg);
+}
+.day-frozen .dayMark {
+  border-color: var(--info);
+  background: var(--info-soft);
+  color: var(--info);
+}
+.day-partial .dayMark {
+  border-color: var(--xp);
+  background: var(--xp-soft);
+}
+.dayDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--xp);
+}
+.day-today .dayMark {
+  border-color: var(--line-strong);
+  border-style: dashed;
+}
+.day-future .dayMark {
+  border-color: var(--line);
+  opacity: 0.6;
+}
+
+/* ---------- The detail sheet ---------- */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  outline: none;
+}
+.sheet:focus-visible {
+  box-shadow: none;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  animation: panelIn var(--dur-2) var(--ease);
+}
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 104px;
+}
+.heroText {
+  min-width: 0;
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
+}
+.heroNote {
+  margin-top: var(--sp-1);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.ringNumber {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.ringUnit {
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.bigIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+  color: var(--fg-faint);
+}
+.bigIcon[data-kind='streak']:not([data-idle]) {
+  background: var(--streak-soft);
+  color: var(--streak);
+}
+.bigIcon[data-kind='heart']:not([data-idle]) {
+  background: color-mix(in srgb, var(--heart) 14%, transparent);
+  color: var(--heart);
+}
+.bigIcon[data-kind='gem'] {
+  background: color-mix(in srgb, var(--gem) 14%, transparent);
+  color: var(--gem);
+}
+.bigIcon:not([data-idle]) svg {
+  fill: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.levelText {
+  flex: 1;
+  min-width: 0;
+}
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.settingLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.settingNote,
+.note {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+}
+.facts[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.fact {
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.factLabel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.factValue {
+  margin: 2px 0 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}

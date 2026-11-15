@@ -3,8 +3,9 @@
  * loading, and the export / import file format.
  *
  * Saved under the storage key `progress` as `{ app, v, savedAt, state }`. Two helper keys sit
- * beside it: `progress.bak` (the last good save from a previous day, used when the main save is
- * unreadable) and `progress.corrupt` (a copy of unreadable data, so nothing is destroyed silently).
+ * beside it: `progress.bak` (the last good save from before the current day or session, used
+ * when the main save is unreadable) and `progress.corrupt` (a copy of unreadable data, so nothing
+ * is destroyed silently).
  */
 import type { InitialStateEnv } from './defaults';
 import { createInitialState } from './defaults';

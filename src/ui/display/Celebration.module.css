@@ -1,0 +1,13 @@
+.canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+.contained {
+  position: absolute;
+  z-index: 1;
+}

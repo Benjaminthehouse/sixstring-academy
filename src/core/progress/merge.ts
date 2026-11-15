@@ -6,9 +6,11 @@
  *
  *   profile, preferences       the side whose preferences changed last
  *   days                       per day: the higher XP, time and counts; met / frozen if either says so
- *   XP total, per-tag XP       the larger value (XP is never taken away by a merge)
+ *   XP total                   the largest of both totals and the merged days added up
+ *   per-tag XP                 the larger value per tag
  *   streak                     the side with the later goal day (ties: the longer streak); longest = max
- *   hearts, gems, quests, boost  the side that was updated last (spending cannot be merged)
+ *   gems                       earned = max, spent = max, balance = earned - spent
+ *   hearts, freezes, quests, boost  the side that was updated last
  *   cosmetics, achievements    union (achievements keep the earlier unlock time)
  *   skills, review cards       per id: the record practised last; bests, crowns and stars = max
  *   log, recents, favourites   union by id, newest first, cut to the usual bounds
@@ -139,7 +141,18 @@ export function mergeStates(local: ProgressState, incoming: ProgressState, now: 
   const stats: ProgressState['stats'] = { ...local.stats };
   for (const key of Object.keys(incoming.stats)) stats[key] = Math.max(stats[key] ?? 0, incoming.stats[key]);
 
-  const total = Math.max(local.xp.total, incoming.xp.total);
+  // Two forks that practised on different days each miss the other's XP; the merged days hold both.
+  let dayXp = 0;
+  for (const key in days) dayXp += days[key].xp;
+  const total = Math.max(local.xp.total, incoming.xp.total, dayXp);
+
+  // Earned and spent only ever grow, so for two forks of one history the larger of each is the
+  // best estimate, and the balance follows from them. If either side's books do not add up
+  // (hand-edited data), fall back to the balance of the side that changed last.
+  const earned = Math.max(local.gems.earned, incoming.gems.earned);
+  const spent = Math.max(local.gems.spent, incoming.gems.spent);
+  const balanced = (g: ProgressState['gems']): boolean => g.balance === g.earned - g.spent;
+  const balance = balanced(local.gems) && balanced(incoming.gems) ? Math.max(0, earned - spent) : recent.gems.balance;
   const lastActive = [local.meta.lastActiveDay, incoming.meta.lastActiveDay].filter((d): d is string => !!d).sort();
 
   return {
@@ -154,11 +167,7 @@ export function mergeStates(local: ProgressState, incoming: ProgressState, now: 
     days,
     streak,
     hearts: recent.hearts,
-    gems: {
-      balance: recent.gems.balance,
-      earned: Math.max(local.gems.earned, incoming.gems.earned),
-      spent: Math.max(local.gems.spent, incoming.gems.spent),
-    },
+    gems: { balance, earned, spent },
     cosmetics,
     skills,
     srs: { items, day: recent.srs.day, newToday: recent.srs.newToday, reviewsToday: recent.srs.reviewsToday },

@@ -95,6 +95,22 @@ export function ChipGroup<T extends string = string>(props: ChipGroupProps<T>) {
     return () => ro.disconnect();
   }, [measure, items.length]);
 
+  // Single choice: keep the chosen chip in view when the row scrolls (moves the row only, never the page).
+  const singleValue = props.multiple ? null : props.value;
+  useEffect(() => {
+    const el = groupRef.current;
+    if (!el || singleValue == null || el.scrollWidth - el.clientWidth <= 2) return;
+    const chip = refs.current[items.findIndex((o) => o.value === singleValue)];
+    if (!chip) return;
+    const pad = 28;
+    const left = chip.offsetLeft - el.offsetLeft - pad;
+    const right = chip.offsetLeft - el.offsetLeft + chip.offsetWidth + pad;
+    if (left < el.scrollLeft) el.scrollLeft = Math.max(0, left);
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+    // Runs when the selection changes; `items` is rebuilt every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [singleValue]);
+
   const isSelected = (v: T) => (props.multiple ? props.value.includes(v) : props.value === v);
   const toggle = (v: T) => {
     if (props.multiple) props.onChange(props.value.includes(v) ? props.value.filter((x) => x !== v) : [...props.value, v]);

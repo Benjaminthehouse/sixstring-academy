@@ -39,6 +39,7 @@
   font-size: var(--text-sm);
 }
 .barLabel {
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 .barValue {
@@ -205,6 +206,10 @@
   width: 12px;
   height: auto;
   min-height: 6rem;
+}
+.meterVertical .meterFill {
+  inset: auto 0 0 0;
+  transition: height var(--dur-1) linear;
 }
 
 /* ---------- Skeleton ---------- */

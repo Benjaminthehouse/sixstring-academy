@@ -20,19 +20,29 @@ export type NoteNaming = 'letters' | 'solfege' | 'german';
 /** Which accidental to use when a pitch has no spelling context. */
 export type AccidentalPreference = 'sharps' | 'flats' | 'auto';
 
-const LETTER_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
-/** Line-of-fifths position of each natural letter (C D E F G A B). */
-const LETTER_FIFTHS = [0, 2, 4, -1, 1, 3, 5];
+/** Semitones above C of the seven natural notes C D E F G A B (also the major scale). */
+export const NATURAL_SEMITONES: readonly number[] = [0, 2, 4, 5, 7, 9, 11];
+const LETTER_SEMITONES = NATURAL_SEMITONES;
+/** Line-of-fifths position of each natural letter (C D E F G A B): F is -1, C 0, G 1 … B 5. */
+const LETTER_FIFTHS = LETTER_SEMITONES.map((semis) => {
+  const position = (semis * 7) % 12;
+  return position > 5 ? position - 12 : position;
+});
 /** Letter step for each of the seven naturals in fifths order F C G D A E B. */
-const FIFTHS_ORDER_STEPS = [3, 0, 4, 1, 5, 2, 6];
+const FIFTHS_ORDER_STEPS = Array.from({ length: 7 }, (_unused, i) => LETTER_FIFTHS.indexOf(i - 1));
 const SOLFEGE = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
 // Four covers every note a doubly diminished or augmented interval can reach from a single accidental.
 const MAX_ALTERATION = 4;
 
+/** The sharp sign, U+266F. */
 export const SHARP = '♯';
+/** The flat sign, U+266D. */
 export const FLAT = '♭';
+/** The natural sign, U+266E. */
 export const NATURAL = '♮';
+/** The double-sharp sign, U+1D12A. */
 export const DOUBLE_SHARP = '𝄪';
+/** The double-flat sign, U+1D12B. */
 export const DOUBLE_FLAT = '𝄫';
 
 /** A parsed, spelled note. */
@@ -80,12 +90,16 @@ export function parseNote(input: string): Note | null {
   if (!m) return null;
   const step = LETTERS.indexOf(m[1].toUpperCase() as Letter);
   let alt = 0;
+  let kinds = 0;
   for (const ch of m[2]) {
     if (ch === '#' || ch === SHARP) alt += 1;
     else if (ch === 'b' || ch === FLAT) alt -= 1;
     else if (ch === 'x' || ch === DOUBLE_SHARP) alt += 2;
     else if (ch === DOUBLE_FLAT) alt -= 2;
+    kinds |= ch === NATURAL ? 4 : ch === 'b' || ch === FLAT || ch === DOUBLE_FLAT ? 2 : 1;
   }
+  // "C#b" and "C♮#" are typing accidents, not notes: sharps, flats and naturals never mix.
+  if (kinds !== 0 && kinds !== 1 && kinds !== 2 && kinds !== 4) return null;
   if (Math.abs(alt) > MAX_ALTERATION) return null;
   const octave = m[3] === undefined ? null : parseInt(m[3], 10);
   const pcName = noteName(step, alt);
@@ -278,6 +292,28 @@ export function formatNote(input: string, opts: FormatNoteOptions = {}): string 
   return `${base}${accidental}${octave}`;
 }
 
+/** Display names for a list of notes (a scale, a chord, a tuning) in the chosen naming system. */
+export function formatNotes(names: readonly string[], opts: FormatNoteOptions = {}): string[] {
+  return names.map((name) => formatNote(name, opts));
+}
+
+/**
+ * Twelve-bit pitch-class mask of notes given as names or MIDI numbers: bit 0 = C … bit 11 = B.
+ * Membership is then one AND: `mask & (1 << (midi % 12))`. Unreadable names are skipped.
+ */
+export function pitchClassMask(items: ReadonlyArray<string | number>): number {
+  let mask = 0;
+  for (const item of items) {
+    if (typeof item === 'number') {
+      if (Number.isFinite(item)) mask |= 1 << pitchClass(item);
+    } else {
+      const parsed = parseNote(item);
+      if (parsed) mask |= 1 << parsed.chroma;
+    }
+  }
+  return mask;
+}
+
 /**
  * Traditional German note name with suffixes instead of symbols: `F#` -> `Fis`, `Eb` -> `Es`,
  * `Bb` -> `B`, `B` -> `H`, `Bbb` -> `Heses`, `Ab` -> `As`.
@@ -308,6 +344,11 @@ export function prettyAccidentals(text: string, opts: Pick<FormatNoteOptions, 'd
     const alt = acc[0] === '#' ? acc.length : -acc.length;
     return `${lead}${formatAccidental(alt, opts)}`;
   });
+}
+
+/** Display text for a degree label or a row of them: `b3` -> `♭3`, `1 b3 5 bb7` -> `1 ♭3 5 𝄫7`. */
+export function formatDegree(label: string, opts: Pick<FormatNoteOptions, 'ascii' | 'doubles'> = {}): string {
+  return opts.ascii ? label : prettyAccidentals(label, opts);
 }
 
 /** Route-safe id for a note, matching the router's `slug()`: `F#` -> `f-sharp`, `Bb` -> `bb`. */

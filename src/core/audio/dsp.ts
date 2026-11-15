@@ -261,10 +261,13 @@ export function sanitize(x: Float32Array): number {
   let bad = 0;
   for (let i = 0; i < x.length; i++) {
     const v = x[i];
-    if (v !== v || v === Infinity || v === -Infinity) {
-      x[i] = 0;
-      bad++;
-    } else if (v < 1e-30 && v > -1e-30) {
+    if (v > 1e-30 || v < -1e-30) {
+      if (v > 3e38 || v < -3e38) {
+        x[i] = 0;
+        bad++;
+      }
+    } else if (v !== 0) {
+      if (v !== v) bad++;
       x[i] = 0;
     }
   }

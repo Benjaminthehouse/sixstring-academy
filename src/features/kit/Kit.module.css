@@ -1,0 +1,265 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  scroll-margin-top: var(--sp-6);
+}
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+}
+.groupIndex {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-text);
+}
+.groupTitle {
+  font-size: var(--text-2xl);
+  letter-spacing: -0.02em;
+}
+.groupBlurb {
+  margin-top: var(--sp-1);
+  color: var(--fg-muted);
+  max-width: var(--prose-max);
+}
+
+.specimen {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--sp-4) var(--sp-8);
+  padding: var(--sp-6) 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+@media (max-width: 899.98px) {
+  .specimen {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4);
+    padding: var(--sp-5) 0;
+  }
+}
+.specName {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.specNote {
+  margin-top: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.specBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.demoLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.narrow {
+  max-width: 26rem;
+}
+.medium {
+  max-width: 36rem;
+}
+
+/* Foundations */
+.typeRow {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+.typeRow + .typeRow {
+  border-top: 1px dashed var(--line);
+}
+.typeMeta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: var(--sp-3);
+}
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.swatchChip {
+  display: flex;
+  align-items: flex-end;
+  height: 52px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sw);
+  color: var(--sw-fg, var(--fg));
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.swatchName {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--sp-2);
+}
+.iconCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-3) var(--sp-1);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--fg-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.spaceRow {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.spaceCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.spaceBar {
+  width: var(--size);
+  height: var(--size);
+  background: var(--accent);
+  border-radius: 2px;
+}
+.radiusBox {
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.shadowBox {
+  width: 88px;
+  height: 56px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* Layout demos */
+.box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.boxTall {
+  min-height: 72px;
+}
+.frame {
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+.relative {
+  position: relative;
+  overflow: hidden;
+  min-height: 11rem;
+}
+.focusDemo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  --focus-radius: var(--r-pill);
+  cursor: pointer;
+  font-weight: 600;
+}
+.readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--sp-5);
+}
+.measured {
+  resize: horizontal;
+  overflow: auto;
+  min-width: 8rem;
+  max-width: 100%;
+  width: 60%;
+}
+.rafDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  will-change: transform;
+}
+.rafTrack {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+/* A short scroll area that stands in for a page, so the sticky ActionBar can be seen sticking. */
+.scrollFrame {
+  --_gl: var(--sp-4);
+  --_gr: var(--sp-4);
+  --_pb: 0px;
+  max-width: 28rem;
+  height: 17rem;
+  overflow-y: auto;
+  padding: var(--sp-4) var(--sp-4) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+}

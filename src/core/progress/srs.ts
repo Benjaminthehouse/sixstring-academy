@@ -12,9 +12,10 @@
  *   easy   review: interval x ease x 1.3, ease +0.15 (learning: graduate at once at 4 days)
  *
  * Ease stays within 1.3 to 3.0 and intervals within 1 to 365 days. Reviews are due per local
- * calendar day, so a card due "today" is due from the first minute of the day.
+ * calendar day, so a card due "today" is due from the first minute of the day. A review card
+ * answered before its due day keeps its interval (it only grows by the days that really passed).
  */
-import { addDays, dayKey } from './time';
+import { addDays, dayKey, diffDays } from './time';
 import type { DayKey, ReviewGrade, ReviewItem, ReviewItemInput, SrsState } from './types';
 
 /** Delays of the learning steps, in minutes. */
@@ -79,7 +80,12 @@ export function gradeItem(item: ReviewItem, grade: ReviewGrade, now: number, tod
       const lapsed: ReviewItem = { ...item, ease: clampEase(item.ease - 0.2), lapses: item.lapses + 1, reps: 0, interval: clampInterval(item.interval * 0.25) };
       return toLearning(lapsed, LEARNING_STEPS_MIN.length - 1, now, timeZone);
     }
-    const grown = (factor: number): number => Math.max(item.interval + 1, item.interval * factor);
+    // A card answered before it is due (extra practice) has not proven the whole interval, so it
+    // only grows by the days that actually passed and never shrinks. Cramming a card ten times
+    // in one sitting therefore leaves its schedule alone instead of pushing it out for a year.
+    const early = today < item.dueDay;
+    const elapsed = early ? Math.max(0, diffDays(dayKey(item.lastAt, timeZone), today)) : 0;
+    const grown = (factor: number): number => (early ? Math.max(item.interval, elapsed * factor) : Math.max(item.interval + 1, item.interval * factor));
     if (grade === 'hard') return toReview({ ...item, ease: clampEase(item.ease - 0.15), reps: item.reps + 1 }, grown(1.2), today, now);
     if (grade === 'good') return toReview({ ...item, reps: item.reps + 1 }, grown(item.ease), today, now);
     const ease = clampEase(item.ease + 0.15);

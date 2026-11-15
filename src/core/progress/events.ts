@@ -38,10 +38,24 @@ export type ProgressEventInput = ProgressEvent extends infer E ? (E extends Prog
 type Handler<T extends ProgressEventType> = (event: ProgressEventOf<T>) => void;
 type AnyHandler = (event: ProgressEvent) => void;
 
-/** A small typed event emitter. A throwing handler never stops the others. */
+/** How long an event nobody was listening for is kept for a late listener. */
+export const EVENT_HOLD_MS = 60_000;
+const HOLD_LIMIT = 100;
+
+/**
+ * A small typed event emitter. A throwing handler never stops the others.
+ *
+ * Events that nobody is listening for are held briefly and handed to the first listener that
+ * subscribes for them. That is what lets the shell hear about things that happen while the app is
+ * still starting (the streak check on opening the app runs before any component has mounted).
+ */
 export class ProgressEmitter {
   private readonly byType = new Map<ProgressEventType, Set<AnyHandler>>();
   private readonly any = new Set<AnyHandler>();
+  private held: ProgressEvent[] = [];
+
+  /** `now` dates held events; it defaults to the real clock. */
+  constructor(private readonly now: () => number = () => Date.now()) {}
 
   /** Listen for one event type. Returns the function that stops listening. */
   on<T extends ProgressEventType>(type: T, handler: Handler<T>): () => void {
@@ -49,6 +63,7 @@ export class ProgressEmitter {
     if (!set) this.byType.set(type, (set = new Set()));
     const wrapped = handler as unknown as AnyHandler;
     set.add(wrapped);
+    this.replay(wrapped, type);
     return () => {
       set.delete(wrapped);
     };
@@ -57,6 +72,7 @@ export class ProgressEmitter {
   /** Listen for every event. Returns the function that stops listening. */
   onAny(handler: AnyHandler): () => void {
     this.any.add(handler);
+    this.replay(handler, null);
     return () => {
       this.any.delete(handler);
     };
@@ -66,19 +82,43 @@ export class ProgressEmitter {
   emit(events: readonly ProgressEvent[]): void {
     for (const event of events) {
       const typed = this.byType.get(event.type);
-      for (const handler of [...(typed ?? []), ...this.any]) {
-        try {
-          handler(event);
-        } catch {
-          // A broken listener (a toast that fails to render) must not break progress tracking.
-        }
+      const handlers = [...(typed ?? []), ...this.any];
+      if (handlers.length === 0) {
+        this.held.push(event);
+        if (this.held.length > HOLD_LIMIT) this.held.shift();
+        continue;
       }
+      for (const handler of handlers) call(handler, event);
     }
   }
 
-  /** Drop every listener. */
+  /** Drop every listener and every held event. */
   clear(): void {
     this.byType.clear();
     this.any.clear();
+    this.held = [];
+  }
+
+  /** Hand recent unheard events (of one type, or all) to a new listener. */
+  private replay(handler: AnyHandler, type: ProgressEventType | null): void {
+    if (this.held.length === 0) return;
+    const oldest = this.now() - EVENT_HOLD_MS;
+    const mine: ProgressEvent[] = [];
+    const rest: ProgressEvent[] = [];
+    for (const event of this.held) {
+      if (event.at < oldest) continue;
+      if (type === null || event.type === type) mine.push(event);
+      else rest.push(event);
+    }
+    this.held = rest;
+    for (const event of mine) call(handler, event);
+  }
+}
+
+function call(handler: AnyHandler, event: ProgressEvent): void {
+  try {
+    handler(event);
+  } catch {
+    // A broken listener (a toast that fails to render) must not break progress tracking.
   }
 }

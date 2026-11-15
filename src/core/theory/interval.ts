@@ -9,7 +9,7 @@
  * Degree labels are the same thing written against the major scale: `b3` = `m3`, `#4` = `A4`,
  * `bb7` = `d7`, `b9` = `m9`.
  */
-import { note, noteName, pcToNote, withOctaveFor, type AccidentalPreference } from './note';
+import { NATURAL_SEMITONES, note, noteName, pcToNote, withOctaveFor, type AccidentalPreference } from './note';
 
 /** Interval quality letters, from triply diminished to triply augmented. */
 export type IntervalQuality = 'ddd' | 'dd' | 'd' | 'm' | 'P' | 'M' | 'A' | 'AA' | 'AAA';
@@ -34,7 +34,8 @@ export interface Interval {
   compound: boolean;
 }
 
-const MAJOR_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+/** The major scale in semitones: the yardstick every interval quality is measured against. */
+const MAJOR_SEMITONES = NATURAL_SEMITONES;
 const PERFECT_STEPS = [0, 3, 4];
 const PERFECT_QUALITIES: IntervalQuality[] = ['ddd', 'dd', 'd', 'P', 'A', 'AA', 'AAA'];
 const MAJOR_QUALITIES: IntervalQuality[] = ['ddd', 'dd', 'd', 'm', 'M', 'A', 'AA', 'AAA'];
@@ -165,7 +166,12 @@ export function subtractIntervals(a: string, b: string): string {
 /** Inversion within the octave (`M3` -> `m6`, `A4` -> `d5`, `P1` <-> `P8`). Compound intervals invert as their simple form. */
 export function invertInterval(input: string): string {
   const simple = interval(interval(input).simple);
-  if (simple.steps === 7) return intervalFromSteps(0, 12 - simple.semitones);
+  if (simple.steps === 7) {
+    // An octave inverts to a unison. An augmented octave has no unison to turn into (there is
+    // no "diminished unison"), so it inverts as its simple form, the augmented unison: d8.
+    if (simple.semitones > 12) return intervalFromSteps(7, 24 - simple.semitones);
+    return intervalFromSteps(0, 12 - simple.semitones);
+  }
   return intervalFromSteps(7 - simple.steps, 12 - simple.semitones);
 }
 

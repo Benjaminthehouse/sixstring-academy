@@ -85,6 +85,11 @@
 .bodyFlush {
   padding: 0;
 }
+/* A dialog with only a title and description (confirmations) still needs air above the footer. */
+.noBody {
+  flex: none;
+  height: var(--sp-4);
+}
 .footer {
   display: flex;
   justify-content: flex-end;

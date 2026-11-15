@@ -62,6 +62,13 @@ export interface InstrumentDef {
   sustainHalving: number;
   /** T60 at 4 kHz for wound and for plain strings, in seconds. */
   highSustain: [number, number];
+  /**
+   * Two-stage decay: [level, ratio]. A real string vibrates in two planes; the one that drives
+   * the soundboard hardest is loudest and dies first, which gives a pluck its percussive front.
+   * `level` is the strength of that fast part relative to the slow one, `ratio` its decay time as
+   * a fraction of `sustain`. A solid-body electric has little of it.
+   */
+  twoStage: [number, number];
   /** Longest buffer worth rendering, in seconds. */
   maxSeconds: number;
   /** Seconds of release when a note is stopped (finger lifts / hand damps). */
@@ -79,26 +86,30 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     firstPlain: 4,
     pickPosition: 0.17,
     slope: 1,
-    brightness: [1500, 6500],
+    brightness: [1700, 8000],
     brightnessOrder: 1.2,
     pickNoise: 0.2,
     pickNoiseHz: 3200,
     sustain: 8.5,
     sustainHalving: 20,
     highSustain: [0.5, 0.85],
-    maxSeconds: 5.5,
+    twoStage: [1.25, 0.2],
+    maxSeconds: 4.6,
     release: 0.045,
     fx: {
       pre: [
-        { type: 'highpass', freq: 72, q: 0.75 },
-        { type: 'peaking', freq: 102, q: 4.5, gain: 5.5 }, // air (Helmholtz) resonance
-        { type: 'peaking', freq: 196, q: 5, gain: 5 }, // main top-plate resonance
-        { type: 'peaking', freq: 290, q: 4, gain: 2 },
-        { type: 'peaking', freq: 410, q: 4, gain: 3 },
-        { type: 'peaking', freq: 580, q: 3, gain: 1.5 },
-        { type: 'peaking', freq: 1150, q: 0.9, gain: -2.5 },
-        { type: 'peaking', freq: 3100, q: 0.9, gain: 3 },
-        { type: 'lowpass', freq: 8000, q: 0.7 },
+        { type: 'highpass', freq: 80, q: 0.8 },
+        // A guitar top radiates bass poorly: below ~300 Hz the response falls away, except at the
+        // two big body resonances, which is why low notes are heard mostly through their overtones.
+        { type: 'lowshelf', freq: 320, gain: -8 },
+        { type: 'peaking', freq: 102, q: 3.5, gain: 9 }, // air (Helmholtz) resonance
+        { type: 'peaking', freq: 196, q: 5, gain: 8 }, // main top-plate resonance
+        { type: 'peaking', freq: 285, q: 5, gain: 3 },
+        { type: 'peaking', freq: 400, q: 5, gain: 4 },
+        { type: 'peaking', freq: 560, q: 4, gain: 2.5 },
+        { type: 'peaking', freq: 1100, q: 1, gain: -1.5 },
+        { type: 'peaking', freq: 3000, q: 0.9, gain: 3 },
+        { type: 'lowpass', freq: 9000, q: 0.7 },
       ],
       post: [],
       level: 1,
@@ -110,25 +121,27 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     firstPlain: 3,
     pickPosition: 0.22,
     slope: 1.1,
-    brightness: [900, 3200],
+    brightness: [1100, 3800],
     brightnessOrder: 1.5,
     pickNoise: 0.09,
     pickNoiseHz: 1500,
     sustain: 6,
     sustainHalving: 18,
     highSustain: [0.32, 0.2],
-    maxSeconds: 4.5,
+    twoStage: [1.4, 0.2],
+    maxSeconds: 3.8,
     release: 0.05,
     fx: {
       pre: [
-        { type: 'highpass', freq: 68, q: 0.75 },
-        { type: 'peaking', freq: 96, q: 4.5, gain: 5 },
-        { type: 'peaking', freq: 208, q: 5, gain: 5.5 },
-        { type: 'peaking', freq: 300, q: 4, gain: 2 },
-        { type: 'peaking', freq: 430, q: 3.5, gain: 3 },
-        { type: 'peaking', freq: 640, q: 3, gain: 1.5 },
-        { type: 'peaking', freq: 1500, q: 0.8, gain: -2 },
-        { type: 'lowpass', freq: 5200, q: 0.7 },
+        { type: 'highpass', freq: 76, q: 0.8 },
+        { type: 'lowshelf', freq: 300, gain: -7 },
+        { type: 'peaking', freq: 98, q: 3.5, gain: 9 },
+        { type: 'peaking', freq: 206, q: 5, gain: 8 },
+        { type: 'peaking', freq: 300, q: 5, gain: 3 },
+        { type: 'peaking', freq: 430, q: 4, gain: 4 },
+        { type: 'peaking', freq: 640, q: 3.5, gain: 2 },
+        { type: 'peaking', freq: 1500, q: 0.8, gain: -1.5 },
+        { type: 'lowpass', freq: 5600, q: 0.7 },
       ],
       post: [],
       level: 1.05,
@@ -148,15 +161,16 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     sustain: 12,
     sustainHalving: 24,
     highSustain: [0.8, 1.1],
-    maxSeconds: 6,
+    twoStage: [0.45, 0.25],
+    maxSeconds: 5,
     release: 0.035,
     fx: {
       pre: [
-        { type: 'highpass', freq: 60, q: 0.7 },
+        { type: 'highpass', freq: 75, q: 0.7 },
         { type: 'lowpass', freq: 4300, q: 1.7 }, // pickup + cable resonance
-        { type: 'peaking', freq: 190, q: 0.8, gain: 1.5 },
-        { type: 'peaking', freq: 2600, q: 1.2, gain: 2 },
-        { type: 'lowpass', freq: 7000, q: 0.7 }, // speaker
+        { type: 'peaking', freq: 520, q: 0.7, gain: -5 }, // the mid scoop of a clean amp's tone stack
+        { type: 'highshelf', freq: 2200, gain: 3 },
+        { type: 'lowpass', freq: 5800, q: 0.8 }, // speaker
       ],
       post: [],
       level: 0.9,
@@ -176,7 +190,8 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     sustain: 12,
     sustainHalving: 24,
     highSustain: [0.8, 1.1],
-    maxSeconds: 6,
+    twoStage: [0.3, 0.25],
+    maxSeconds: 5,
     release: 0.03,
     fx: {
       pre: [
@@ -210,6 +225,7 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     sustain: 5,
     sustainHalving: 24,
     highSustain: [0.3, 0.3],
+    twoStage: [0.6, 0.25],
     maxSeconds: 3.5,
     release: 0.05,
     fx: {
@@ -237,6 +253,7 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     sustain: 5,
     sustainHalving: 24,
     highSustain: [0.45, 0.45],
+    twoStage: [0.6, 0.25],
     maxSeconds: 3.5,
     release: 0.04,
     fx: {
@@ -263,6 +280,7 @@ export const INSTRUMENTS: Record<StringInstrument, InstrumentDef> = {
     sustain: 1.9,
     sustainHalving: 30,
     highSustain: [0.14, 0.14],
+    twoStage: [0.8, 0.3],
     maxSeconds: 2.2,
     release: 0.06,
     fx: {

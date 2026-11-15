@@ -77,11 +77,16 @@
   color: var(--fg-muted);
 }
 .details summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
+  width: fit-content;
+  margin-left: calc(var(--sp-2) * -1);
+  padding: 12px var(--sp-2);
   cursor: pointer;
   border-radius: var(--r-sm);
+}
+@media (hover: hover) {
+  .details summary:hover {
+    color: var(--fg);
+  }
 }
 .details pre {
   margin: var(--sp-2) 0 0;

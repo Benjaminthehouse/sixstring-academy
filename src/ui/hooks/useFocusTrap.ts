@@ -27,6 +27,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       if (event.key !== 'Tab') return;
       // Only the top-most trap handles the key (nested dialogs each register one).
       if (!isTopTrap(root)) return;
+      // A popover or menu opened from inside the dialog is portalled outside it and manages Tab itself.
+      const focused = document.activeElement;
+      if (focused instanceof Element && !root.contains(focused) && focused.closest('[data-ui-layer]')) return;
       const target = trapTabTarget(root, document.activeElement, event.shiftKey);
       if (target) {
         event.preventDefault();

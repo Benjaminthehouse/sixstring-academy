@@ -21,7 +21,7 @@
   justify-content: center;
   gap: 6px;
   flex: 0 1 auto;
-  min-width: 0;
+  min-width: var(--tap);
   min-height: 36px;
   padding: 0 var(--sp-3);
   border: 1px solid transparent;
@@ -52,9 +52,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.segment:hover:not(:disabled):not(.segmentSelected) {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
+@media (hover: hover) {
+  .segment:hover:not(:disabled):not(.segmentSelected) {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
 }
 .segment:focus-visible {
   outline: none;
@@ -76,12 +78,13 @@
   cursor: not-allowed;
 }
 .segmentedSm .segment {
+  min-width: 40px;
   min-height: 28px;
   padding: 0 var(--sp-2);
   font-size: var(--text-xs);
 }
 .segmentedSm .segment::before {
-  inset: -8px -1px;
+  inset: -8px -2px;
 }
 .segmentedLg .segment {
   min-height: 44px;
@@ -130,8 +133,10 @@
 .tab:first-child {
   padding-left: var(--sp-1);
 }
-.tab:hover:not(:disabled) {
-  color: var(--fg);
+@media (hover: hover) {
+  .tab:hover:not(:disabled) {
+    color: var(--fg);
+  }
 }
 .tab:disabled {
   opacity: 0.45;
@@ -259,6 +264,8 @@
 
 .switch {
   position: relative;
+  display: inline-block;
+  vertical-align: middle;
   flex: none;
   width: 46px;
   height: 28px;
@@ -312,6 +319,8 @@
 
 .box {
   position: relative;
+  display: inline-block;
+  vertical-align: middle;
   flex: none;
   width: 22px;
   height: 22px;
@@ -340,8 +349,10 @@
   position: absolute;
   inset: -11px;
 }
-.boxInput:hover:not(:disabled) {
-  border-color: var(--fg-faint);
+@media (hover: hover) {
+  .boxInput:hover:not(:disabled) {
+    border-color: var(--fg-faint);
+  }
 }
 .boxInput:focus-visible {
   outline: none;
@@ -445,8 +456,10 @@
     border-color var(--dur-1) var(--ease),
     background var(--dur-1) var(--ease);
 }
-.radioCard:hover:not(.choiceDisabled) {
-  border-color: var(--fg-faint);
+@media (hover: hover) {
+  .radioCard:hover:not(.choiceDisabled) {
+    border-color: var(--fg-faint);
+  }
 }
 .radioCard:has(:checked) {
   border-color: var(--accent-strong);

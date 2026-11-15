@@ -420,6 +420,7 @@ export function sanitizeState(raw: unknown, env: InitialStateEnv, report?: Sanit
     updatedAt: num(m.updatedAt, now, 0),
     createdAt: num(m.createdAt, now, 0),
     deviceId: cleanText(m.deviceId, fresh.meta.deviceId, 40) || fresh.meta.deviceId,
+    // Settled below, once the history is known.
     today: day(m.today) ?? today,
     lastActiveDay: day(m.lastActiveDay),
     prefsAt: num(m.prefsAt, 0, 0),
@@ -454,7 +455,7 @@ export function sanitizeState(raw: unknown, env: InitialStateEnv, report?: Sanit
     if (typeof v === 'number' && Number.isFinite(v) && v > 0) capped[k] = Math.round(v);
   }
   const b = x.boost;
-  const boost = isObj(b) && typeof b.until === 'number' && Number.isFinite(b.until) ? { multiplier: num(b.multiplier, 2, 1, 5), until: b.until, source: cleanText(b.source, 'boost', 40) } : null;
+  const boost = isObj(b) && typeof b.until === 'number' && Number.isFinite(b.until) ? { multiplier: num(b.multiplier, 2, 1, 3), until: b.until, source: cleanText(b.source, 'boost', 40) || 'boost' } : null;
   const xp: ProgressState['xp'] = { total: int(x.total, 0, 0, 1e9), byTag, boost, capped };
 
   const days: ProgressState['days'] = {};
@@ -462,6 +463,13 @@ export function sanitizeState(raw: unknown, env: InitialStateEnv, report?: Sanit
   for (const key of dayKeys.slice(-MAX_DAYS)) {
     const record = sanitizeDay(obj(raw.days)[key], prefs.dailyGoalXp);
     if (record) days[key] = record;
+  }
+
+  if (!day(m.today)) {
+    // No rollover day on record (an old or damaged save): assume the state was last touched on
+    // its latest day of history, so the next action still runs the streak check for the gap.
+    const latest = dayKeys.length > 0 ? dayKeys[dayKeys.length - 1] : null;
+    if (latest && latest < today) meta.today = latest;
   }
 
   const s = obj(raw.streak);
@@ -472,6 +480,7 @@ export function sanitizeState(raw: unknown, env: InitialStateEnv, report?: Sanit
     current,
     longest: Math.max(current, int(s.longest, 0, 0, 100_000)),
     lastGoalDay,
+    lastGoalAt: lastGoalDay && typeof s.lastGoalAt === 'number' && Number.isFinite(s.lastGoalAt) ? s.lastGoalAt : null,
     coveredThrough: lastGoalDay ? (covered && covered > lastGoalDay ? covered : lastGoalDay) : null,
     startedOn: current > 0 ? day(s.startedOn) : null,
     freezes: int(s.freezes, 0, 0, MAX_STREAK_FREEZES),

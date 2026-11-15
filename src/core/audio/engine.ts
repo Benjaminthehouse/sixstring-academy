@@ -1,0 +1,745 @@
+/**
+ * The audio engine: one lazily created AudioContext, the mixer buses, the master chain, the buffer
+ * cache, and the housekeeping around them (unlocking on a user gesture, suspending when idle).
+ *
+ * Signal flow
+ *
+ *   voices ─► bus (guitar | bass | drums | keys | click | tone | drone | ui) ─┬─► master gain ─►
+ *                                              └─ send ─► room reverb ─────────┘
+ *   ─► compressor (gentle glue) ─► soft clipper (never exceeds full scale) ─► analyser tap ─► out
+ *
+ * Importing this module never touches Web Audio: the context is created on first use, and that
+ * first use should be `unlockAudio()` inside a click/tap handler.
+ *
+ * An `AudioEngine` can also be built on an OfflineAudioContext (see `offline.ts`); every voice in
+ * this folder takes the engine to play into, so tests can render the real graph.
+ */
+import { Rng, biquadCoeffs, limiterCurve, type BiquadSpec } from './dsp';
+import type { TransportClock } from './transport';
+import { VisualQueue } from './visual-sync';
+
+/** Mixer buses. Each has its own volume and mute. */
+export type BusName = 'guitar' | 'bass' | 'drums' | 'keys' | 'click' | 'tone' | 'drone' | 'ui';
+
+/** All bus names. */
+export const BUS_NAMES: readonly BusName[] = ['guitar', 'bass', 'drums', 'keys', 'click', 'tone', 'drone', 'ui'];
+
+/** Base gain of each bus (the "mix"); user volumes multiply these. */
+const BUS_GAIN: Record<BusName, number> = { guitar: 0.95, bass: 0.88, drums: 0.5, keys: 0.5, click: 0.7, tone: 0.6, drone: 0.4, ui: 0.7 };
+/** How much of each bus feeds the room reverb. */
+const BUS_SEND: Record<BusName, number> = { guitar: 0.2, bass: 0, drums: 0.07, keys: 0.14, click: 0, tone: 0.1, drone: 0.16, ui: 0.08 };
+
+/** Where a bus sits in the stereo picture (-1 left .. +1 right); everything else is centred. */
+const BUS_PAN: Partial<Record<BusName, number>> = { keys: -0.22 };
+
+/** A stereo panner feeding `dest`, or `dest` itself when panning is unavailable or not wanted. */
+export function pannedInput(ctx: BaseAudioContext, dest: AudioNode, pan: number): AudioNode {
+  if (!pan || typeof ctx.createStereoPanner !== 'function') return dest;
+  const amount = Math.max(-1, Math.min(1, pan));
+  const p = ctx.createStereoPanner();
+  p.pan.value = amount;
+  p.connect(dest);
+  // The panner is equal-power (-3 dB in the middle). Make up for it so that a panned sound is as
+  // loud as a centred one when the two channels are summed: the mix must not change with placement.
+  const theta = ((amount + 1) * Math.PI) / 4;
+  const trim = ctx.createGain();
+  trim.gain.value = 2 / (Math.cos(theta) + Math.sin(theta));
+  trim.connect(p);
+  return trim;
+}
+
+/** The DynamicsCompressorNode looks ahead by this long in every browser engine. */
+const COMPRESSOR_LOOKAHEAD = 0.006;
+/** Seconds of silence (with nothing holding the context) before it is suspended to save battery. */
+const IDLE_SECONDS = 6;
+/** A sound requested this long before the context finally starts is dropped instead of played late. */
+const STALE_REQUEST_MS = 400;
+
+/** Construction options for {@link AudioEngine}. */
+export interface EngineOptions {
+  /** Room reverb on the instrument buses (default true). */
+  reverb?: boolean;
+  /** Bytes of rendered audio kept in the buffer cache (default 56 MB; 28 MB on low-memory devices). */
+  cacheBytes?: number;
+}
+
+/** Stereo impulse response of a small, warm room, synthesised from decaying noise. */
+export function makeRoomImpulse(sampleRate: number, seconds = 1.25, seed = 20240): [Float32Array, Float32Array] {
+  const len = Math.round(seconds * sampleRate);
+  const out: [Float32Array, Float32Array] = [new Float32Array(len), new Float32Array(len)];
+  const pre = Math.round(0.012 * sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const rng = new Rng(seed + ch * 7919);
+    const x = out[ch];
+    // Highs die faster than lows, as in a furnished room: a bright layer with a short decay plus a
+    // low-passed layer with the full decay.
+    let lp = 0;
+    const k = Math.exp((-2 * Math.PI * 2200) / sampleRate);
+    let energy = 0;
+    for (let i = pre; i < len; i++) {
+      const t = (i - pre) / sampleRate;
+      const n = rng.bipolar();
+      lp = (1 - k) * n + k * lp;
+      const rise = Math.min(1, t / 0.004);
+      const v = rise * (0.5 * n * Math.exp(-t / (seconds / 14)) + 1.6 * lp * Math.exp(-t / (seconds / 6.9)));
+      x[i] = v;
+      energy += v * v;
+    }
+    const g = 1 / Math.sqrt(energy || 1);
+    for (let i = 0; i < len; i++) x[i] *= g;
+  }
+  return out;
+}
+
+/** Curve for the master soft clipper (WaveShaper input range -2..+2). */
+export const CLIPPER_RANGE = 2;
+
+function clipperCurve(points = 2049): Float32Array {
+  const c = new Float32Array(points);
+  for (let i = 0; i < points; i++) c[i] = limiterCurve(((i / (points - 1)) * 2 - 1) * CLIPPER_RANGE);
+  return c;
+}
+
+interface CacheEntry {
+  buffer: AudioBuffer;
+  bytes: number;
+}
+
+/** Rendered buffers by key, least recently used evicted first. */
+export class BufferCache {
+  private readonly map = new Map<string, CacheEntry>();
+  private bytes = 0;
+  constructor(private readonly ctx: BaseAudioContext, private limit: number) {}
+
+  /** The cached buffer for `key`, rendering it with `render` on a miss. */
+  get(key: string, render: () => Float32Array): AudioBuffer {
+    const hit = this.map.get(key);
+    if (hit) {
+      // Re-insert to mark as most recently used.
+      this.map.delete(key);
+      this.map.set(key, hit);
+      return hit.buffer;
+    }
+    const samples = render();
+    const buffer = this.ctx.createBuffer(1, Math.max(1, samples.length), this.ctx.sampleRate);
+    buffer.getChannelData(0).set(samples);
+    const entry = { buffer, bytes: samples.length * 4 };
+    this.map.set(key, entry);
+    this.bytes += entry.bytes;
+    for (const [k, e] of this.map) {
+      if (this.bytes <= this.limit || k === key) break;
+      this.map.delete(k);
+      this.bytes -= e.bytes;
+    }
+    return buffer;
+  }
+
+  /** True when `key` is already rendered. */
+  has(key: string): boolean {
+    return this.map.has(key);
+  }
+
+  /** Bytes currently held and number of buffers. */
+  get stats(): { bytes: number; count: number; limit: number } {
+    return { bytes: this.bytes, count: this.map.size, limit: this.limit };
+  }
+
+  /** Drop everything. */
+  clear(): void {
+    this.map.clear();
+    this.bytes = 0;
+  }
+}
+
+/** Create a filter node with exactly the coefficients the offline renderer uses. */
+export function createFilterNode(ctx: BaseAudioContext, spec: BiquadSpec): AudioNode {
+  if (typeof ctx.createIIRFilter === 'function') {
+    const c = biquadCoeffs(spec, ctx.sampleRate);
+    return ctx.createIIRFilter([c.b0, c.b1, c.b2], [1, c.a1, c.a2]);
+  }
+  // Very old browsers: the built-in biquad is the same cookbook filter with Q in dB for LP/HP.
+  const f = ctx.createBiquadFilter();
+  f.type = spec.type;
+  f.frequency.value = spec.freq;
+  const q = spec.q ?? Math.SQRT1_2;
+  f.Q.value = spec.type === 'lowpass' || spec.type === 'highpass' ? 20 * Math.log10(q) : q;
+  f.gain.value = spec.gain ?? 0;
+  return f;
+}
+
+/** Connect a list of filters in series after `input`; returns the last node. */
+export function chainFilters(ctx: BaseAudioContext, input: AudioNode, specs: readonly BiquadSpec[]): AudioNode {
+  let node = input;
+  for (const s of specs) {
+    const f = createFilterNode(ctx, s);
+    node.connect(f);
+    node = f;
+  }
+  return node;
+}
+
+/** Level of the master output, read from the analyser tap. */
+export interface OutputLevel {
+  /** RMS of the last analysis frame, 0..1. */
+  rms: number;
+  /** Largest absolute sample of the last analysis frame. */
+  peak: number;
+}
+
+/** The mixer and master chain on one audio context (live or offline). */
+export class AudioEngine {
+  readonly ctx: BaseAudioContext;
+  /** True for an OfflineAudioContext. */
+  readonly offline: boolean;
+  readonly sampleRate: number;
+  readonly buffers: BufferCache;
+  /** Queue for callbacks that must run when a scheduled sound is actually heard. */
+  readonly visual: VisualQueue;
+  /** Delay of the master chain in seconds; `nodeTime` compensates for it. */
+  readonly chainLatency = COMPRESSOR_LOOKAHEAD;
+
+  private readonly buses = new Map<BusName, GainNode>();
+  private readonly busVolume = new Map<BusName, number>();
+  private readonly busMuted = new Map<BusName, boolean>();
+  private readonly masterGain: GainNode;
+  private readonly tap: AudioNode;
+  private analyser: AnalyserNode | null = null;
+  private analyserData: Float32Array<ArrayBuffer> | null = null;
+  private volume = 0.85;
+  private mutedFlag = false;
+  private busyUntil = 0;
+  private holds = 0;
+  private idleTimer: ReturnType<typeof setInterval> | null = null;
+  private unlocked = false;
+  private disposed = false;
+  private readonly pending: Array<{ at: number; cancel: () => void }> = [];
+  private watching = false;
+
+  constructor(ctx: BaseAudioContext, opts: EngineOptions = {}) {
+    this.ctx = ctx;
+    this.offline = typeof (ctx as OfflineAudioContext).startRendering === 'function';
+    this.sampleRate = ctx.sampleRate;
+    const lowMemory = typeof navigator !== 'undefined' && ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+    this.buffers = new BufferCache(ctx, opts.cacheBytes ?? (lowMemory ? 28e6 : 56e6));
+    this.visual = new VisualQueue(() => this.soundingNow());
+
+    // Master chain.
+    this.masterGain = ctx.createGain();
+    this.masterGain.gain.value = this.volume * this.volume;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14;
+    comp.knee.value = 12;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.18;
+    const pre = ctx.createGain();
+    pre.gain.value = 1 / CLIPPER_RANGE;
+    const clip = ctx.createWaveShaper();
+    clip.curve = clipperCurve() as Float32Array<ArrayBuffer>;
+    this.masterGain.connect(comp);
+    comp.connect(pre);
+    pre.connect(clip);
+    clip.connect(ctx.destination);
+    this.tap = clip;
+
+    // Buses and reverb.
+    let reverbIn: GainNode | null = null;
+    if (opts.reverb !== false) {
+      reverbIn = ctx.createGain();
+      const conv = ctx.createConvolver();
+      const [l, r] = makeRoomImpulse(ctx.sampleRate);
+      const ir = ctx.createBuffer(2, l.length, ctx.sampleRate);
+      ir.getChannelData(0).set(l);
+      ir.getChannelData(1).set(r);
+      conv.normalize = false;
+      conv.buffer = ir;
+      const wet = ctx.createGain();
+      wet.gain.value = 0.9;
+      reverbIn.connect(conv);
+      conv.connect(wet);
+      wet.connect(this.masterGain);
+    }
+    for (const name of BUS_NAMES) {
+      const g = ctx.createGain();
+      g.gain.value = BUS_GAIN[name];
+      g.connect(pannedInput(ctx, this.masterGain, BUS_PAN[name] ?? 0));
+      if (reverbIn && BUS_SEND[name] > 0) {
+        const send = ctx.createGain();
+        send.gain.value = BUS_SEND[name];
+        g.connect(send);
+        send.connect(reverbIn);
+      }
+      this.buses.set(name, g);
+      this.busVolume.set(name, 1);
+      this.busMuted.set(name, false);
+    }
+  }
+
+  // --- time ------------------------------------------------------------------------------------
+
+  /** The audio clock (AudioContext.currentTime). Schedule against this. */
+  now(): number {
+    return this.ctx.currentTime;
+  }
+
+  /** Seconds between the context producing a sample and it leaving the speakers, where reported. */
+  get outputLatency(): number {
+    const c = this.ctx as AudioContext;
+    return (typeof c.outputLatency === 'number' && c.outputLatency > 0 ? c.outputLatency : c.baseLatency) || 0;
+  }
+
+  /**
+   * Audio-clock time of the sound leaving the speakers right now. Uses the browser's output
+   * timestamp where available (smooth between audio callbacks), else currentTime - outputLatency.
+   */
+  soundingNow(): number {
+    const c = this.ctx as AudioContext;
+    const current = c.currentTime;
+    if (this.offline) return current;
+    if (c.state === 'running' && typeof c.getOutputTimestamp === 'function' && typeof performance !== 'undefined') {
+      const ts = c.getOutputTimestamp();
+      if (ts && ts.contextTime && ts.performanceTime) {
+        const t = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+        if (t <= current + 0.02 && t > current - 1) return t;
+      }
+    }
+    return current - this.outputLatency;
+  }
+
+  /**
+   * Convert "I want to hear it at `time`" into the time to start a source node, compensating the
+   * master chain's delay. With no time: as soon as possible.
+   */
+  nodeTime(time?: number): number {
+    const now = this.ctx.currentTime;
+    if (time === undefined) return now;
+    const t = time - this.chainLatency;
+    return t > now ? t : now;
+  }
+
+  /** A clock for a Transport running on this engine. */
+  get clock(): TransportClock {
+    return { now: () => this.now(), soundingNow: () => this.soundingNow(), hold: () => this.hold() };
+  }
+
+  // --- mixer -----------------------------------------------------------------------------------
+
+  /** The input node of a bus. */
+  bus(name: BusName): GainNode {
+    return this.buses.get(name)!;
+  }
+
+  private applyBus(name: BusName): void {
+    const g = this.buses.get(name)!;
+    const v = this.busMuted.get(name) ? 0 : BUS_GAIN[name] * (this.busVolume.get(name) ?? 1);
+    g.gain.setTargetAtTime(v, this.ctx.currentTime, 0.015);
+  }
+
+  /** Volume of one bus, 0..1.5 (1 = the default mix). */
+  setBusVolume(name: BusName, volume: number): void {
+    this.busVolume.set(name, Math.max(0, Math.min(1.5, volume)));
+    this.applyBus(name);
+  }
+
+  getBusVolume(name: BusName): number {
+    return this.busVolume.get(name) ?? 1;
+  }
+
+  /** Mute or unmute one bus. */
+  setBusMuted(name: BusName, muted: boolean): void {
+    this.busMuted.set(name, muted);
+    this.applyBus(name);
+  }
+
+  isBusMuted(name: BusName): boolean {
+    return this.busMuted.get(name) ?? false;
+  }
+
+  private applyMaster(): void {
+    const v = this.mutedFlag ? 0 : this.volume * this.volume;
+    this.masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.015);
+  }
+
+  /** Master volume 0..1 (perceptual: the gain is its square). */
+  get masterVolume(): number {
+    return this.volume;
+  }
+
+  set masterVolume(v: number) {
+    this.volume = Math.max(0, Math.min(1, v));
+    this.applyMaster();
+  }
+
+  get muted(): boolean {
+    return this.mutedFlag;
+  }
+
+  set muted(m: boolean) {
+    this.mutedFlag = m;
+    this.applyMaster();
+  }
+
+  // --- analysis tap ----------------------------------------------------------------------------
+
+  /** An AnalyserNode on the master output (after the limiter). Created on first use. */
+  getAnalyser(fftSize = 2048): AnalyserNode {
+    if (!this.analyser) {
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.smoothingTimeConstant = 0.6;
+      this.tap.connect(this.analyser);
+    }
+    if (this.analyser.fftSize !== fftSize) this.analyser.fftSize = fftSize;
+    return this.analyser;
+  }
+
+  /** RMS and peak of the most recent output frame. */
+  level(): OutputLevel {
+    const a = this.getAnalyser();
+    if (!this.analyserData || this.analyserData.length !== a.fftSize) this.analyserData = new Float32Array(a.fftSize);
+    a.getFloatTimeDomainData(this.analyserData);
+    let sum = 0, peak = 0;
+    for (let i = 0; i < this.analyserData.length; i++) {
+      const v = this.analyserData[i];
+      sum += v * v;
+      if (v > peak) peak = v; else if (-v > peak) peak = -v;
+    }
+    return { rms: Math.sqrt(sum / this.analyserData.length), peak };
+  }
+
+  /** The last node before the destination, for custom taps (recorders, extra analysers). */
+  get output(): AudioNode {
+    return this.tap;
+  }
+
+  // --- power -----------------------------------------------------------------------------------
+
+  /** Called by `unlockAudio` once the context has been resumed inside a user gesture. */
+  markUnlocked(): void {
+    this.unlocked = true;
+    this.wake();
+  }
+
+  /** True once the context has been unlocked by a user gesture. */
+  get isUnlocked(): boolean {
+    return this.unlocked || this.offline;
+  }
+
+  /** Note that sound is scheduled until `until` (audio time), so the context must stay awake. */
+  touch(until: number): void {
+    if (until > this.busyUntil) this.busyUntil = until;
+    this.wake();
+  }
+
+  /**
+   * Keep the context awake until the returned function is called (a running transport, a drone,
+   * a microphone analyser sharing this context).
+   */
+  hold(): () => void {
+    this.holds++;
+    this.wake();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.holds = Math.max(0, this.holds - 1);
+      this.touch(this.ctx.currentTime + 0.5);
+    };
+  }
+
+  private wake(): void {
+    if (this.offline || this.disposed) return;
+    const c = this.ctx as AudioContext;
+    if (c.state === 'closed') return;
+    if (c.state === 'running') this.unlocked = true; // autoplay was allowed, or someone else resumed it
+    if (c.state !== 'running') {
+      // Asking to resume is harmless outside a user gesture and is all it takes inside one, so a
+      // Play button that calls pluck() directly works even if nobody called unlockAudio() first.
+      void c.resume().then(() => {
+        if (c.state === 'running' && !this.unlocked) this.markUnlocked();
+      }).catch(() => undefined);
+    }
+    if (this.idleTimer === null && this.unlocked) {
+      this.idleTimer = setInterval(() => this.checkIdle(), 2000);
+    }
+  }
+
+  /**
+   * Register a sound that was requested while the context is not running. If the context does not
+   * start within a moment (nobody has clicked yet), `cancel` is called so that old sounds do not
+   * all burst out when audio is finally unlocked.
+   */
+  guard(cancel: () => void): void {
+    if (this.offline) return;
+    const c = this.ctx as AudioContext;
+    if (c.state === 'running') return;
+    this.pending.push({ at: typeof performance !== 'undefined' ? performance.now() : 0, cancel });
+    if (this.pending.length > 256) this.pending.shift()?.cancel();
+    if (!this.watching) {
+      this.watching = true;
+      c.addEventListener('statechange', () => {
+        if (c.state !== 'running') return;
+        const now = typeof performance !== 'undefined' ? performance.now() : 0;
+        for (const p of this.pending.splice(0)) {
+          if (now - p.at > STALE_REQUEST_MS) {
+            try {
+              p.cancel();
+            } catch {
+              // already gone
+            }
+          }
+        }
+      });
+    }
+  }
+
+  private checkIdle(): void {
+    const c = this.ctx as AudioContext;
+    if (c.state !== 'running') return;
+    if (this.holds > 0 || c.currentTime < this.busyUntil + IDLE_SECONDS) return;
+    void c.suspend().catch(() => undefined);
+    if (this.idleTimer !== null) clearInterval(this.idleTimer);
+    this.idleTimer = null;
+  }
+
+  /** Release timers. The caller closes the context. */
+  dispose(): void {
+    this.disposed = true;
+    if (this.idleTimer !== null) clearInterval(this.idleTimer);
+    this.idleTimer = null;
+    this.visual.clear();
+    this.buffers.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The shared live engine
+// ---------------------------------------------------------------------------------------------
+
+let shared: AudioEngine | null = null;
+let silentAudio: HTMLAudioElement | null = null;
+let autoUnlockInstalled = false;
+
+type AudioContextCtor = typeof AudioContext;
+
+function contextCtor(): AudioContextCtor | null {
+  const g = globalThis as typeof globalThis & { AudioContext?: AudioContextCtor; webkitAudioContext?: AudioContextCtor };
+  return g.AudioContext ?? g.webkitAudioContext ?? null;
+}
+
+/** True when this environment has Web Audio at all. */
+export function audioSupported(): boolean {
+  return contextCtor() !== null;
+}
+
+/** True once the shared engine exists (something has already asked for sound). */
+export function hasEngine(): boolean {
+  return shared !== null;
+}
+
+/**
+ * The shared engine, created on first call. Creating it does not start audio: browsers keep the
+ * context suspended until `unlockAudio()` runs inside a user gesture.
+ */
+export function getEngine(): AudioEngine {
+  if (shared) return shared;
+  const Ctor = contextCtor();
+  if (!Ctor) throw new Error('Web Audio is not available in this environment');
+  const ctx = new Ctor({ latencyHint: 'interactive' });
+  shared = new AudioEngine(ctx);
+  const onState = () => {
+    // iOS interrupts the context for calls and when the page is backgrounded; pick it up again.
+    if (shared && shared.isUnlocked && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => undefined);
+  };
+  ctx.addEventListener?.('statechange', onState);
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && shared && shared.isUnlocked && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => undefined);
+    });
+  }
+  return shared;
+}
+
+/** The shared AudioContext (creates the engine if needed). Other modules may analyse through it. */
+export function getAudioContext(): AudioContext {
+  return getEngine().ctx as AudioContext;
+}
+
+/** A tiny silent WAV as a data URI, for the iOS mute-switch workaround. */
+function silentWavUri(): string {
+  const bytes = new Uint8Array(44 + 800);
+  const v = new DataView(bytes.buffer);
+  const put = (o: number, s: string) => { for (let i = 0; i < s.length; i++) bytes[o + i] = s.charCodeAt(i); };
+  put(0, 'RIFF'); v.setUint32(4, 36 + 800, true); put(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+  v.setUint16(32, 1, true); v.setUint16(34, 8, true); put(36, 'data'); v.setUint32(40, 800, true);
+  bytes.fill(128, 44);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return `data:audio/wav;base64,${btoa(bin)}`;
+}
+
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
+}
+
+/**
+ * Start (or restart) audio. Call it synchronously from a click / tap / key handler before the first
+ * sound. Safe to call on every gesture. Resolves true when the context is running.
+ *
+ * Handles the iOS quirks: the context must be resumed inside the gesture, a buffer has to be played
+ * in that same gesture on older versions, and with the ring/silent switch on "silent" Web Audio is
+ * muted unless the page's audio session is "playback" (set directly where supported, otherwise
+ * coaxed by a silent looping <audio> element).
+ */
+export async function unlockAudio(): Promise<boolean> {
+  if (!audioSupported()) return false;
+  const engine = getEngine();
+  const ctx = engine.ctx as AudioContext;
+  try {
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'playback';
+    else if (isIOS() && typeof Audio !== 'undefined') {
+      if (!silentAudio) {
+        silentAudio = new Audio(silentWavUri());
+        silentAudio.loop = true;
+        silentAudio.setAttribute('playsinline', '');
+      }
+      void silentAudio.play().catch(() => undefined);
+    }
+  } catch {
+    // Best effort only.
+  }
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // Not fatal: resume() below is what matters on current browsers.
+  }
+  let resumed: Promise<void> | undefined;
+  try {
+    if (ctx.state !== 'running') resumed = ctx.resume();
+  } catch {
+    resumed = undefined;
+  }
+  if (resumed) {
+    // Outside a gesture resume() can stay pending for ever; do not hang the caller.
+    await Promise.race([resumed.catch(() => undefined), new Promise<void>((r) => setTimeout(r, 1200))]);
+  }
+  const running = ctx.state === 'running';
+  if (running) engine.markUnlocked();
+  return running;
+}
+
+/**
+ * Unlock audio on the first pointer or key press anywhere on the page, and again after the browser
+ * interrupts it. Returns a function that removes the listeners.
+ */
+export function installAudioUnlock(target: EventTarget | undefined = typeof window !== 'undefined' ? window : undefined): () => void {
+  if (!target || autoUnlockInstalled) return () => undefined;
+  autoUnlockInstalled = true;
+  const handler = () => {
+    if (!shared || (shared.ctx as AudioContext).state !== 'running' || !shared.isUnlocked) void unlockAudio();
+  };
+  const events = ['pointerdown', 'touchend', 'keydown'];
+  for (const e of events) target.addEventListener(e, handler, { passive: true, capture: true });
+  return () => {
+    for (const e of events) target.removeEventListener(e, handler, { capture: true });
+    autoUnlockInstalled = false;
+  };
+}
+
+/** True when the shared context exists and is running. */
+export function audioRunning(): boolean {
+  return shared !== null && (shared.ctx as AudioContext).state === 'running';
+}
+
+/** Current time of the shared audio clock (0 before any sound has been requested). */
+export function audioNow(): number {
+  return shared ? shared.now() : 0;
+}
+
+/** Audio-clock time of what is being heard right now (latency compensated). */
+export function audioSoundingNow(): number {
+  return shared ? shared.soundingNow() : 0;
+}
+
+/** Master volume 0..1 of the shared engine. */
+export function setMasterVolume(volume: number): void {
+  getEngine().masterVolume = volume;
+}
+
+export function getMasterVolume(): number {
+  return shared ? shared.masterVolume : 0.85;
+}
+
+/** Mute or unmute everything. */
+export function setMuted(muted: boolean): void {
+  getEngine().muted = muted;
+}
+
+export function isMuted(): boolean {
+  return shared ? shared.muted : false;
+}
+
+/** Volume of one bus of the shared engine (1 = default mix). */
+export function setBusVolume(bus: BusName, volume: number): void {
+  getEngine().setBusVolume(bus, volume);
+}
+
+/** Mute one bus of the shared engine. */
+export function setBusMuted(bus: BusName, muted: boolean): void {
+  getEngine().setBusMuted(bus, muted);
+}
+
+/** AnalyserNode on the shared master output, for visualisers. */
+export function getAnalyser(fftSize?: number): AnalyserNode {
+  return getEngine().getAnalyser(fftSize);
+}
+
+/** RMS and peak of the shared output right now (zeros before audio has started). */
+export function getOutputLevel(): OutputLevel {
+  return shared ? shared.level() : { rms: 0, peak: 0 };
+}
+
+/**
+ * Run `fn` when the sound scheduled at audio time `time` is actually heard: the way to keep
+ * visuals in step with scheduled notes.
+ */
+export function scheduleVisual(time: number, fn: () => void): void {
+  getEngine().visual.add(time, fn);
+}
+
+/** A transport clock on the shared engine that does not create the context until it is read. */
+export const engineClock: TransportClock = {
+  now: () => getEngine().now(),
+  soundingNow: () => getEngine().soundingNow(),
+  hold: () => getEngine().hold(),
+};
+
+const closeHooks: Array<() => void> = [];
+
+/** Run `fn` whenever the shared engine is closed, so holders of its nodes can let go of them. */
+export function onAudioClosed(fn: () => void): void {
+  closeHooks.push(fn);
+}
+
+/** Close the shared context and forget it (tests, hot reload). */
+export async function closeAudio(): Promise<void> {
+  const e = shared;
+  shared = null;
+  for (const fn of closeHooks) fn();
+  if (!e) return;
+  e.dispose();
+  try {
+    await (e.ctx as AudioContext).close();
+  } catch {
+    // Already closed.
+  }
+}
+
+// A hot update of this module would otherwise leave the old context running beside the new one.
+if (import.meta.hot) import.meta.hot.dispose(() => void closeAudio());

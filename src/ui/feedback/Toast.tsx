@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, IconButton } from '../actions/Button';
 import { renderIcon, type IconSource } from '../icon/Icon';
@@ -104,9 +104,26 @@ function ToastCard({ item }: { item: ToastItem }) {
 /** The on-screen stack. Mounted by `<ToastProvider>`; you rarely need it directly. */
 export function ToastViewport() {
   const items = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const listRef = useRef<HTMLOListElement | null>(null);
+
+  // A toast removed from under the pointer (or while its button has focus) fires no pointerleave or
+  // blur, which would leave the countdowns paused for good. Re-check whenever the stack changes.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    let hovered = false;
+    try {
+      hovered = el.matches(':hover');
+    } catch {
+      /* no :hover support in this environment */
+    }
+    if (!hovered && !el.contains(document.activeElement)) store.resume();
+  }, [items]);
+
   return (
     <Portal>
       <ol
+        ref={listRef}
         className={styles.viewport}
         aria-label="Notifications"
         aria-live="polite"

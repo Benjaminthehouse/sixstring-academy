@@ -131,3 +131,27 @@ export function Section({ title, description, eyebrow, actions, level = 2, divid
     </section>
   );
 }
+
+/** Props for `<ActionBar>`. */
+export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
+  /** Content at the start of the bar: feedback text, a progress note, a secondary link. */
+  start?: ReactNode;
+  /** On phones, let the buttons share the full width. Default true. */
+  stretchOnMobile?: boolean;
+  /** The actions, primary last. */
+  children?: ReactNode;
+}
+
+/**
+ * A bar of actions that stays at the bottom of the screen while the content scrolls: the lesson
+ * runner's "Check" / "Continue", a form's "Save". Put it last inside a `<Page>`.
+ *   <ActionBar start={<Text tone="ok">Correct</Text>}><Button variant="primary">Continue</Button></ActionBar>
+ */
+export function ActionBar({ start, stretchOnMobile = true, className, children, ...rest }: ActionBarProps) {
+  return (
+    <div className={cx(styles.actionBar, stretchOnMobile && styles.actionBarStretch, className)} {...rest}>
+      {start != null && <div className={styles.actionBarStart}>{start}</div>}
+      {children}
+    </div>
+  );
+}

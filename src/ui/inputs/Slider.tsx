@@ -3,6 +3,8 @@ import { cx } from '../util/cx';
 import { fraction } from '../util/math';
 import styles from './Range.module.css';
 
+const VALUE_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
+
 /** A labelled tick under a `<Slider>`. */
 export interface SliderMark {
   value: number;
@@ -73,7 +75,7 @@ export function Slider({ label, hideLabel, value, onChange, onCommit, min = 0, m
           aria-describedby={hint != null ? `${inputId}-hint` : undefined}
           onChange={(e) => onChange(Number(e.target.value))}
           onPointerUp={commit}
-          onKeyUp={commit}
+          onKeyUp={commit ? (e) => VALUE_KEYS.has(e.key) && commit(e) : undefined}
         />
         {bubble !== 'never' && (
           <span className={cx(styles.bubble, bubble === 'always' && styles.bubbleAlways)} aria-hidden="true">

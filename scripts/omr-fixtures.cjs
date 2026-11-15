@@ -643,6 +643,16 @@ function renderInPage(spec) {
     for (const child of node.children) box = union(box, inkOf(child));
     return box;
   }
+  /**
+   * Ink box of a note head alone. VexFlow draws the modifiers of a head (accidental, dots) inside
+   * the head's own group; they were given groups of their own above, so skip nested groups.
+   */
+  function headInk(node) {
+    if (!node) return null;
+    let box = null;
+    for (const child of node.children) if (child.tagName !== 'g') box = union(box, leafInk(child));
+    return box;
+  }
   const domOf = (el) => document.getElementById(`vf-${el.getAttribute('id')}`);
   const r2 = (v) => Math.round(v * S * 100) / 100;
   const px = (b) => (b ? [r2(b.x), r2(b.y), r2(b.w), r2(b.h)] : null);
@@ -995,7 +1005,7 @@ function renderInPage(spec) {
           if (ev.tuplet) e.duration.tuplet = { actual: ev.tuplet.num, normal: ev.tuplet.occ };
           if (ev.chord) e.chord = ev.chord;
           if (ev.rest) {
-            const hb = inkOf(domOf(sn.noteHeads[0])) || inkOf(dom);
+            const hb = headInk(domOf(sn.noteHeads[0])) || inkOf(dom);
             e.head = px(hb);
             e.x = r2(hb.x + hb.w / 2);
           } else {
@@ -1012,7 +1022,7 @@ function renderInPage(spec) {
             const props = sn.getKeyProps();
             let cx = 0;
             ev.notes.forEach((n, j) => {
-              const hb = inkOf(domOf(sn.noteHeads[j]));
+              const hb = headInk(domOf(sn.noteHeads[j]));
               cx += hb.x + hb.w / 2;
               const acc = accs.find((a) => a.getIndex() === j);
               const line = props[j].line;
@@ -1172,10 +1182,17 @@ function verify(truth, grey, width, height) {
   for (const sys of truth.systems) {
     for (const st of sys.staves) {
       for (const ly of st.lines) {
-        const y = Math.round(ly), x = Math.round((st.x0 + st.x1) / 2);
-        let min = 255;
-        for (let d = -1; d <= 1; d++) min = Math.min(min, grey[(y + d) * width + x]);
-        if (min > 200) problems.push(`staff line at y=${ly} not found`);
+        // Sample the line at many columns: tab digits blank short stretches of it.
+        const y = Math.round(ly);
+        let hit = 0;
+        const N = 40;
+        for (let k = 0; k < N; k++) {
+          const x = Math.round(st.x0 + ((st.x1 - st.x0) * (k + 0.5)) / N);
+          let min = 255;
+          for (let d = -1; d <= 1; d++) min = Math.min(min, grey[(y + d) * width + x]);
+          if (min < 200) hit++;
+        }
+        if (hit < N * 0.6) problems.push(`staff line at y=${ly} not found`);
       }
       for (const bl of st.barlines) if (dark(bl.bbox) > 128) problems.push(`bar line at x=${bl.x} has no ink`);
       for (const m of st.measures) {

@@ -188,6 +188,8 @@ export interface StreakState {
   longest: number;
   /** Last day the goal was met. */
   lastGoalDay: DayKey | null;
+  /** The instant the goal was last met (lets a traveller's streak be judged in the zone they are in now). */
+  lastGoalAt: number | null;
   /** Last day that is safe: met or frozen. A gap after this day threatens the streak. */
   coveredThrough: DayKey | null;
   /** Day the current streak started. */
