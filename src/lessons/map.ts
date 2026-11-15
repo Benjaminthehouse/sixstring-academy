@@ -42,10 +42,15 @@ export interface LessonNode {
   missing: string[];
 }
 
-/** The checkpoint of a unit. */
+/**
+ * The checkpoint of a unit. Testing out is the point of a checkpoint, so it is open even on a
+ * unit the learner has not reached yet (a learner who already knows the basics jumps ahead).
+ */
 export interface CheckpointNode {
-  /** `available` once the unit is reachable; `passed` when every lesson of the unit is done. */
-  state: 'locked' | 'available' | 'passed';
+  /** `passed` when every lesson of the unit is done; `available` otherwise. */
+  state: 'available' | 'passed';
+  /** True when the unit is not reached yet: passing would jump ahead ("Jump here" rather than "Test out"). */
+  ahead: boolean;
   /** Lesson ids passing it would mark as done. */
   completes: string[];
 }
@@ -157,7 +162,7 @@ function build(course: Course, progress: ProgressState, now: number, alsoDone: R
     const reachable = lessons.some((l) => l.state !== 'locked');
     const state: NodeState = allDone ? 'done' : lessons.some((l) => l.state === 'current') ? 'current' : reachable ? 'available' : 'locked';
     const checkpoint: CheckpointNode | null = unit.checkpoint
-      ? { state: allDone ? 'passed' : reachable ? 'available' : 'locked', completes: lessons.filter((l) => l.state !== 'done').map((l) => l.id) }
+      ? { state: allDone ? 'passed' : 'available', ahead: !reachable, completes: lessons.filter((l) => l.state !== 'done').map((l) => l.id) }
       : null;
     return {
       id: unit.id,

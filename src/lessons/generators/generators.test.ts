@@ -360,3 +360,89 @@ describe('generated facts come from the theory engine', () => {
     expect(hard.size).toBe(12);
   });
 });
+
+describe('explanations say exactly what the exercise shows', () => {
+  const text = (e: Exercise): string => plainText(('prompt' in e && e.prompt ? e.prompt : '') as string) + ' || ' + plainText(('explain' in e ? e.explain : '') as string);
+
+  it('interval-on-neck (name): every option is a simple interval of a different size, never P1 or a compound', () => {
+    each('interval-on-neck', (exercise, _s, label) => {
+      if (exercise.type !== 'fretboard-name' || exercise.ask !== 'interval') return;
+      const sizes = (exercise.options ?? []).map((o) => interval(o).semitones);
+      expect(sizes.every((s) => s >= 1 && s <= 12), `${label} ${exercise.options}`).toBe(true);
+      expect(new Set(sizes).size, label).toBe(sizes.length);
+    });
+  });
+
+  it('neck-tones: the prompt says whether it is a chord or a scale', () => {
+    each('neck-tones', (exercise, _s, label) => {
+      expect(text(exercise), label).toMatch(/every note of the .+ (chord|scale) on strings/);
+    });
+  });
+
+  it('staff-note (place): the explanation names every place on the staff the grader accepts', () => {
+    each('staff-note', (exercise, _s, label) => {
+      if (exercise.type !== 'staff-place') return;
+      const target = parseNote(exercise.note)!;
+      const accidental = target.alt > 0 ? 'sharp' : target.alt < 0 ? 'flat' : null;
+      const accepted = Array.from({ length: 9 }, (_u, p) => p).filter((p) => grade(exercise, { type: 'staff-place', position: p, accidental }).correct);
+      expect(accepted.length, label).toBeGreaterThan(0);
+      const named = (plainText(exercise.explain).match(/(line|space)/g) ?? []).length;
+      expect(named, `${label}: ${plainText(exercise.explain)}`).toBe(accepted.length);
+      if (accidental) expect(plainText(exercise.explain), label).toContain(`${accidental} sign`);
+    });
+  });
+
+  it('scale names keep their capitals mid-sentence (Dorian), common words do not (natural minor)', () => {
+    for (const kind of ['scale-formula', 'scale-notes', 'scale-ear', 'neck-tones'] as const) {
+      each(kind, (exercise, _s, label) => {
+        const t = text(exercise);
+        expect(t, label).not.toMatch(/\b(dorian|mixolydian|lydian|phrygian|locrian)\b/);
+        expect(t, label).not.toMatch(/the [A-G][♯♭]? Natural minor|the Natural minor|the Major scale/);
+      });
+    }
+  });
+
+  it('relative-key: the explanation teaches the rule for the direction asked', () => {
+    each('relative-key', (exercise, _s, label) => {
+      const t = text(exercise);
+      if (/relative major of/.test(t)) expect(t, label).toContain('3rd note of the minor scale');
+      else expect(t, label).toContain('6th note of the major scale');
+    });
+  });
+
+  it('interval-name: the explanation spells both notes and counts their letters', () => {
+    each('interval-name', (exercise, _s, label) => {
+      const t = text(exercise);
+      const [from, to] = [...t.matchAll(/from (\S+) up to (\S+)\?/g)][0].slice(1);
+      expect(t, label).toContain(`${from} to ${to} spans`);
+    });
+  });
+
+  it('interval-ear: the explanation follows the direction the notes are played in', () => {
+    const down = generateStrict({ generate: 'interval-ear', params: { play: 'down' } }, { seed: 4 });
+    const together = generateStrict({ generate: 'interval-ear', params: { play: 'together' } }, { seed: 4 });
+    const up = generateStrict({ generate: 'interval-ear' }, { seed: 4 });
+    expect(text(down)).toMatch(/down to/);
+    expect(text(together)).toMatch(/together/);
+    expect(text(up)).toMatch(/up to/);
+  });
+
+  it('chord-shape: a barre chord is explained as a barre', () => {
+    const f = generateStrict({ generate: 'chord-shape', params: { chords: ['F'] } }, { seed: 1 });
+    expect(text(f)).toMatch(/index finger across fret 1 from string 6 to string 1 \(a barre\), then press/);
+    const c = generateStrict({ generate: 'chord-shape', params: { chords: ['C'] } }, { seed: 1 });
+    expect(text(c)).not.toMatch(/barre/);
+  });
+
+  it('roman-chord in a minor key explains the flat of a numeral like bIII', () => {
+    let seen = 0;
+    each('roman-chord', (exercise, _s, label) => {
+      const t = text(exercise);
+      if (/minor/.test(t) && /♭(III|VI|VII)/.test(t)) {
+        seen++;
+        expect(t, label).toContain('sits lower than in the major scale');
+      }
+    });
+    expect(seen).toBeGreaterThan(0);
+  });
+});

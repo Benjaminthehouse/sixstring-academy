@@ -218,7 +218,7 @@ export const READ_LEVELS: readonly ReadLevel[] = [
     id: 14,
     title: 'Six-eight time',
     blurb: 'Two big beats, each split in three.',
-    teach: 'Six eighths in two groups of three: "1 2 3 4 5 6" with the weight on 1 and 4. The click plays the two big beats.',
+    teach: 'Six eighths in two groups of three: "1 2 3 4 5 6" with the weight on 1 and 4. The click ticks every eighth and is loudest on the two big beats.',
     meter: '6/8',
     bpm: 54,
     allowed: { notes: ['h', 'q', 'e'], rests: [], dotted: ['q', 'h'], ties: false, triplets: false },

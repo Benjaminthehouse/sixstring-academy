@@ -14,7 +14,6 @@ import {
   composeHomographies,
   computeVisibleFrets,
   confirmFretAt,
-  createPoseSmoother,
   createRng,
   decomposeHomography,
   determinant,
@@ -776,45 +775,6 @@ describe('pose transforms', () => {
     // Constant velocity: stepping from `pose` to `half` again lands on `other`.
     expect(poseDistancePx(extrapolatePose(pose, half), other)).toBeLessThan(1e-6);
     expect(poseDistancePx(pose, pose)).toBe(0);
-  });
-
-  it('smooths jitter at rest without lagging far behind motion', () => {
-    const rng = createRng(31);
-    const jitter = (p: FretboardPose, sigma: number): FretboardPose => {
-      const pts = poseControlPoints(p).map((c) => ({ x: c.x + sigma * gauss(rng), y: c.y + sigma * gauss(rng) }));
-      return { ...p, H: homographyFromPoints([{ x: 0, y: 0 }, { x: 0, y: model.nutWidth }, { x: model.scaleLength / 2, y: boardEdgeY(model, model.scaleLength / 2, 'treble') }, { x: model.scaleLength / 2, y: boardEdgeY(model, model.scaleLength / 2, 'bass') }], pts) as Mat3 };
-    };
-    const smoother = createPoseSmoother();
-    let rawWobble = 0;
-    let smoothWobble = 0;
-    let prevRaw: FretboardPose | null = null;
-    let prevSmooth: FretboardPose | null = null;
-    for (let i = 0; i < 90; i++) {
-      const raw = jitter(pose, 0.6);
-      const out = smoother.update(raw, i * 33.3);
-      if (prevRaw && prevSmooth && i > 20) {
-        rawWobble += poseDistancePx(raw, prevRaw);
-        smoothWobble += poseDistancePx(out, prevSmooth);
-      }
-      prevRaw = raw;
-      prevSmooth = out;
-    }
-    expect(smoothWobble).toBeLessThan(0.45 * rawWobble);
-    expect(poseDistancePx(prevSmooth as FretboardPose, pose)).toBeLessThan(1.2);
-    // Now the guitar moves 150 px per second: the output must stay close to the input.
-    const moving = createPoseSmoother();
-    let lag = 0;
-    for (let i = 0; i < 60; i++) {
-      const shifted = { ...pose, H: multiply([1, 0, i * 5, 0, 1, 0, 0, 0, 1], pose.H) };
-      const out = moving.update(shifted, i * 33.3);
-      if (i > 30) lag = Math.max(lag, poseDistancePx(out, shifted));
-    }
-    expect(lag).toBeLessThan(6);
-    // A teleport resets instead of smearing.
-    const jumped = { ...pose, H: multiply([1, 0, 400, 0, 1, 100, 0, 0, 1], pose.H) };
-    expect(poseDistancePx(moving.update(jumped, 61 * 33.3), jumped)).toBeLessThan(1e-9);
-    moving.reset();
-    expect(moving.update(pose, 0)).toBe(pose);
   });
 });
 

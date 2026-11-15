@@ -5,14 +5,14 @@
  */
 import { chordVoicings, midiAt, positionsForMidi, positionsForPitchClass, spellMidi, tuning as resolveTuning } from '@/core/guitar';
 import {
-  chordNotes, chordPcs, distractorIntervals, distractorNotes, getScale, interval, intervalName, parseChord, parseNote, scaleNotes,
+  chordNotes, chordPcs, distractorIntervals, distractorNotes, getScale, interval, intervalName, parseChord, parseInterval, parseNote, scaleNotes,
   scalePcs, semitonesToDegree, semitonesToInterval,
 } from '@/core/theory';
 import { spellInterval } from '../grade';
 import type {
   ChordBuildExercise, Exercise, FretboardFindExercise, FretboardNameExercise, NeckPosition, OrderExercise, PlayNoteExercise, TypeAnswerExercise,
 } from '../types';
-import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, noteList, ordinal, pool, retry } from './core';
+import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, noteList, ordinal, pool, retry, scaleTitle } from './core';
 
 const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'P8', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
@@ -80,10 +80,22 @@ export const intervalOnNeck = defineGenerator({
         return out;
       }
       const value = semitonesToInterval(ivl.semitones);
+      // Distractors stay within the simple intervals of the pool (no P1 or m9 next to an octave),
+      // the engine's usual confusions first, one name per size.
+      const simple = (i: string): boolean => {
+        const s = parseInterval(i)?.semitones ?? 0;
+        return s >= 1 && s <= 12;
+      };
+      const wrong = distinct(
+        [...distractorIntervals(value, { count: 6 }).filter(simple), ...rng.shuffle(p.intervals ?? INTERVALS_EASY_FIRST)],
+        (i) => interval(i).semitones,
+        3,
+        [ivl.semitones],
+      );
       const out: FretboardNameExercise = {
         ...base,
         ask: 'interval',
-        options: rng.shuffle([value, ...distractorIntervals(value, { count: 3 })]),
+        options: rng.shuffle([value, ...wrong]),
         prompt: `The root (R) is {n:${rootNote}}. What interval is the other note above it?`,
         explain: fact,
       };
@@ -235,7 +247,14 @@ export const chordShape = defineGenerator({
   make(p, { rng, difficulty }) {
     const symbol = rng.pick(pool(p.chords ?? ['Em', 'Am', 'E', 'A', 'D', 'G', 'C', 'Dm'], difficulty));
     const voicing = chordVoicings(symbol)[0];
-    const fretted = voicing.notes.filter((n) => n.fret > 0).map((n) => `string ${n.string} fret ${n.fret} ({n:${n.note}})`);
+    // A barre is one finger across several strings: say so instead of listing every string under it.
+    const barre = voicing.barres[0];
+    const under = (n: { string: number; fret: number }): boolean =>
+      !!barre && n.fret === barre.fret && n.string >= Math.min(barre.fromString, barre.toString) && n.string <= Math.max(barre.fromString, barre.toString);
+    const fretted = voicing.notes.filter((n) => n.fret > 0 && !under(n)).map((n) => `string ${n.string} fret ${n.fret} ({n:${n.note}})`);
+    const press = barre
+      ? `Lay your index finger across fret ${barre.fret} from string ${Math.max(barre.fromString, barre.toString)} to string ${Math.min(barre.fromString, barre.toString)} (a {t:barre})${fretted.length ? `, then press ${fretted.join(', ')}` : ''}`
+      : `Press ${fretted.join(', ')}`;
     const open = voicing.notes.filter((n) => n.fret === 0).length;
     const out: ChordBuildExercise = {
       type: 'chord-build',
@@ -244,7 +263,7 @@ export const chordShape = defineGenerator({
       frets: [...voicing.frets],
       accept: p.accept ?? 'any-voicing',
       prompt: `Build {c:${symbol}}: put your fingers on the fretboard.`,
-      explain: `{c:${symbol}} is ${noteList(chordNotes(symbol), ', ')}. Press ${fretted.join(', ')}${open ? `; the ${open === 1 ? 'open string adds' : 'open strings add'} the rest` : ''}.`,
+      explain: `{c:${symbol}} is ${noteList(chordNotes(symbol), ', ')}. ${press}${open ? `; the ${open === 1 ? 'open string adds' : 'open strings add'} the rest` : ''}.`,
     };
     return out;
   },
@@ -283,7 +302,8 @@ export const neckTones = defineGenerator({
     const frets: [number, number] = [lo, lo + span - 1];
     const box = `strings ${strings.join(', ')}, frets ${frets[0]} to ${frets[1]}`;
     const notes = scale ? scaleNotes(tonic, scale) : chordNotes(chord);
-    const label = scale ? `{n:${tonic}} ${scale.name.toLowerCase()}` : `{c:${chord}}`;
+    // "Every note of D" could mean every D; say "the D chord" / "the D minor pentatonic scale".
+    const label = scale ? `the {n:${tonic}} ${scaleTitle(scale.name)} scale` : `the {c:${chord}} chord`;
     const out: FretboardFindExercise = {
       type: 'fretboard-find',
       find: scale ? { scale: scale.id, tonic } : { chord },
@@ -292,7 +312,7 @@ export const neckTones = defineGenerator({
       frets,
       strings,
       prompt: `Tap every note of ${label} on ${box}.`,
-      explain: `${label} is ${noteList(notes, ', ')}. Every one of those notes inside the box counts, in any octave.`,
+      explain: `${cap(label)} is ${noteList(notes, ', ')}. Every one of those notes inside the box counts, in any octave.`,
     };
     return out;
   },

@@ -61,6 +61,15 @@ in 30-50 s; a warm run loads them in about 1 s plus your detector. Runtimes depe
 prints `calibration` (a 3x3 Sobel on 640x360, about 3 ms on the sandbox) for comparison. Budget on a
 mid-range laptop: detect <= 80 ms, track <= 50 ms per 640x360 frame.
 
+Side by side, over several seed sets (the production detector is `fretboard`, the app's full
+pipeline with `FretboardTracker` is `session`; also false-lock counting and best-of-N timing):
+
+```bash
+CMP_DETECTORS=lines,align,fretboard,session CMP_OFFSETS=0,6000 npx vitest run src/core/vision/testing/compare.test.ts
+```
+
+See the header of `compare.test.ts` for its switches and `../README.md` for the latest numbers.
+
 ## Tiers (24 fixed scenes each, seeds 0..23), negatives (24), sequences (7)
 
 | Tier | What it is |

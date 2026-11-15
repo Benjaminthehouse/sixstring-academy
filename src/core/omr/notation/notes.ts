@@ -102,6 +102,14 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
       const side = dir === 'up' ? 1 : -1;
       let normal = list.filter((a) => a.side === side).map((a) => a.head);
       if (!normal.length) continue;
+      // The outlines of a column of stacked open heads (with the ledger lines between them) line
+      // up into a stroke too, but it ends where the heads end: a stem runs on beyond them.
+      const rings = normal.filter((hi) => heads[hi].kind !== 'filled' && heads[hi].score >= 0.6);
+      if (rings.length >= 2) {
+        const hy0 = Math.min(...rings.map((hi) => heads[hi].y - heads[hi].h / 2));
+        const hy1 = Math.max(...rings.map((hi) => heads[hi].y + heads[hi].h / 2));
+        if (st.top >= hy0 - 0.8 * s && st.bottom <= hy1 + 0.8 * s) continue;
+      }
       // The outermost head closes the stem; beyond the innermost head the stem runs on for two
       // spaces or more. Head-like shapes near the free end (inside a flag) are not on this stem.
       const near = (hi: number): number => (dir === 'up' ? st.bottom - heads[hi].y : heads[hi].y - st.top);
@@ -190,7 +198,23 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
     const g = groups.find((gr) => Math.abs(gr[0].x - hd.x) < 0.9 * s && gr.every((o) => Math.abs(o.pos - hd.pos) >= 1));
     if (g) g.push(hd); else groups.push([hd]);
   }
+  // The other note of a second in a whole-note chord is printed a head's width aside.
+  for (let i = 0; i < groups.length; i++) {
+    for (let j = i + 1; j < groups.length; j++) {
+      const a = groups[i];
+      const b = groups[j];
+      if (!a.length || !b.length) continue;
+      const dx = Math.abs(b[0].x - a[0].x);
+      const wid = Math.max(...a.map((hd) => hd.w), ...b.map((hd) => hd.w));
+      if (dx > 1.2 * wid || dx < 0.6 * wid) continue;
+      if (!b.some((hb) => a.some((ha) => Math.abs(ha.pos - hb.pos) === 1))) continue;
+      if (b.some((hb) => a.some((ha) => ha.pos === hb.pos))) continue;
+      a.push(...b);
+      b.length = 0;
+    }
+  }
   for (const g of groups) {
+    if (!g.length) continue;
     g.sort((a, b) => a.pos - b.pos);
     chords.push(makeChord(strip, g, null, null));
   }
@@ -448,6 +472,81 @@ export function dotsAt(strip: Strip, fromX: number, y: number, reach: number): S
 }
 
 /**
+ * An augmentation dot printed ON a staff (or ledger) line at height `y`, right of `fromX`: in the
+ * binary WITH the lines, a short stretch of columns where the line is several times thicker,
+ * centred on the line, with the line plain on both sides and nothing else above or below it.
+ */
+export function dotOnLine(strip: Strip, fromX: number, y: number, reach: number): SBox | null {
+  const { w, h, s, bin, thick } = strip;
+  const yc = Math.round(y);
+  const lim = Math.round(0.75 * s);
+  // Vertical run of ink through the line in column x: [top, bottom], or null when the line is broken there.
+  const runAt = (x: number): { a: number; b: number; other: boolean } | null => {
+    let hit = -1;
+    for (let d = 0; d <= Math.ceil(thick / 2) + 1 && hit < 0; d++) {
+      if (yc + d < h && bin[(yc + d) * w + x]) hit = yc + d;
+      else if (yc - d >= 0 && bin[(yc - d) * w + x]) hit = yc - d;
+    }
+    if (hit < 0) return null;
+    let a = hit;
+    while (a > 0 && yc - a < lim && bin[(a - 1) * w + x]) a--;
+    let b = hit;
+    while (b < h - 1 && b - yc < lim && bin[(b + 1) * w + x]) b++;
+    // Ink elsewhere in the column near the line (a stem, a head, an arc) spoils it.
+    let other = false;
+    for (let yy = Math.max(0, yc - lim); yy <= Math.min(h - 1, yc + lim) && !other; yy++) if ((yy < a - 1 || yy > b + 1) && bin[yy * w + x]) other = true;
+    return { a, b, other };
+  };
+  // (Start a little early: a blurred dot can reach back to where the search begins.)
+  const x0 = Math.max(1, Math.round(fromX - 0.2 * s));
+  const x1 = Math.min(w - 2, Math.round(fromX + reach + 0.5 * s));
+  const runs: ({ a: number; b: number; other: boolean } | null)[] = [];
+  for (let x = x0; x <= x1; x++) runs.push(runAt(x));
+  const len = (r: { a: number; b: number } | null): number => (r ? r.b - r.a + 1 : 0);
+  // The plain line's run (blur makes it thicker than `thick`): a low quantile of the columns.
+  const sorted = runs.filter((r) => r).map(len).sort((p, q) => p - q);
+  // (A ledger line ends soon after the head: then the nominal thickness has to do.)
+  const base = sorted.length >= 4 ? Math.max(sorted[Math.floor(0.25 * (sorted.length - 1))], Math.round(thick)) : Math.round(thick) + 1;
+  const swollen = (r: { a: number; b: number } | null): boolean => len(r) >= base + 2 && len(r) <= 0.7 * s;
+  const gap = Math.max(1, Math.round(0.08 * s));
+  // Swellings within reach, nearest first (a stem beside the head is too tall to be one; the
+  // next symbol, e.g. an accidental, comes later).
+  for (let i = Math.max(0, Math.round(fromX) - x0); i < runs.length && x0 + i <= fromX + reach; i++) {
+    const r = runs[i];
+    if (!r || r.other || len(r) > 0.7 * s || len(r) < base + Math.max(3, 0.2 * s)) continue;
+    let i0 = i;
+    let i1 = i;
+    while (i0 > 0 && swollen(runs[i0 - 1])) i0--;
+    while (i1 < runs.length - 1 && swollen(runs[i1 + 1])) i1++;
+    const next = i1;
+    const box = ((): SBox | null => {
+      if (i0 === 0 || i1 === runs.length - 1) return null;
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (let k = i0; k <= i1; k++) {
+        const q = runs[k] as { a: number; b: number; other: boolean };
+        if (q.other) return null;
+        top = Math.min(top, q.a);
+        bottom = Math.max(bottom, q.b);
+      }
+      const width = i1 - i0 + 1;
+      const height = bottom - top + 1;
+      const centre = (top + bottom + 1) / 2;
+      if (width < 0.2 * s || width > 0.65 * s || height < 0.25 * s || height > 0.7 * s || Math.abs(centre - y) > 0.15 * s || Math.abs(width - height) > 0.35 * s) return null;
+      // Plain line (or paper) just before and after it, with nothing else nearby.
+      for (const k of [i0 - gap, i1 + gap]) {
+        const q = runs[Math.max(0, Math.min(runs.length - 1, k))];
+        if (q && (len(q) > base + 1 || q.other)) return null;
+      }
+      return { x0: x0 + i0, y0: top, x1: x0 + i1 + 1, y1: bottom + 1 };
+    })();
+    if (box) return box;
+    i = next;
+  }
+  return null;
+}
+
+/**
  * Grey-level evidence for a dot right of `fromX` at height `y`: the best contrast between a small
  * disc and the paper around it (0 = nothing, about 0.9 = a crisp dot). Works where a dot is too
  * faint or too blurred to survive as a component of its own.
@@ -510,6 +609,19 @@ export function readDots(strip: Strip, chords: Chord[]): void {
       if (g.contrast > contrast) {
         contrast = g.contrast;
         at = g;
+      }
+    }
+    // Some engravers leave the dot of a note on a line ON the line instead of moving it into the
+    // space above: it is then a round swelling of the line, which line removal has cut apart.
+    if (!best.length) {
+      for (const hd of c.heads) {
+        if (hd.pos % 2 !== 0) continue;
+        const d = dotOnLine(strip, right + 0.08 * s, posY(strip, hd.pos), reach);
+        if (d) {
+          best = [d];
+          contrast = Math.max(contrast, 0.5);
+          break;
+        }
       }
     }
     if (!best.length && contrast >= 0.55) {

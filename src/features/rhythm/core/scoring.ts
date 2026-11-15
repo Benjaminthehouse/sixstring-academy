@@ -32,6 +32,18 @@ export const VERDICT_SCORE: Record<Verdict, number> = { perfect: 1, good: 0.75, 
 /** What an extra tap costs, in notes. */
 export const EXTRA_PENALTY = 0.25;
 
+/**
+ * Share of its points a stroke keeps when it is played on time but the wrong way (a downstroke where
+ * an upstroke is written). The pendulum is half of what a strumming round teaches, so a round of
+ * well-timed strokes that all go the wrong way cannot earn a star.
+ */
+export const WRONG_WAY_SHARE = 0.5;
+
+/** True when a hit carries a stroke direction and it is not the one written. */
+export function wrongWay(expected: 'D' | 'U' | undefined, played: 'D' | 'U' | undefined): boolean {
+  return !!expected && !!played && expected !== played;
+}
+
 /** An expected note: an id and the moment it should sound. */
 export interface JudgeTarget {
   id: number;
@@ -173,6 +185,8 @@ export interface TargetMeta {
   dir?: 'D' | 'U';
   /** The click was silent here (inner clock). */
   silent?: boolean;
+  /** A note the input may not be able to hear (a quick upstroke through the microphone). */
+  soft?: boolean;
 }
 
 /** Timing of a group of notes. */
@@ -213,8 +227,10 @@ export interface RoundStats {
   bestRun: number;
   /** Mean error of the last third minus the first third: negative = speeding up. */
   driftMs: number;
-  /** Hits made with the wrong stroke direction. */
+  /** Hits made with the wrong stroke direction; each keeps only `WRONG_WAY_SHARE` of its points. */
   wrongDirection: number;
+  /** Soft notes that went unheard and were left out (only with `forgiveSoft`); not part of `total`. */
+  forgiven: number;
 }
 
 function mean(xs: readonly number[]): number {
@@ -247,8 +263,10 @@ export function starsFor(accuracy: number): 0 | 1 | 2 | 3 {
 /**
  * Add a round up. `metas` lists the expected notes in written order; `judgements` is what the judge
  * produced. Notes without a judgement count as misses, so a round that was cut short is still scored.
+ * With `forgiveSoft`, a soft note that was not hit is left out altogether instead of counting as a
+ * miss: the input could not have heard it, so it says nothing about the learner.
  */
-export function summarise(metas: readonly TargetMeta[], judgements: readonly Judgement[], opts: { extraPenalty?: number } = {}): RoundStats {
+export function summarise(metas: readonly TargetMeta[], judgements: readonly Judgement[], opts: { extraPenalty?: number; forgiveSoft?: boolean } = {}): RoundStats {
   const byTarget = new Map<number, Judgement>();
   let extra = 0;
   for (const j of judgements) {
@@ -265,12 +283,20 @@ export function summarise(metas: readonly TargetMeta[], judgements: readonly Jud
   let run = 0;
   let bestRun = 0;
   let wrongDirection = 0;
+  let forgiven = 0;
+  let total = 0;
   for (const meta of metas) {
     const j = byTarget.get(meta.id);
     const verdict = j && j.verdict !== 'extra' ? j.verdict : 'miss';
     const hit = verdict !== 'miss';
+    if (!hit && meta.soft && opts.forgiveSoft) {
+      forgiven++;
+      continue;
+    }
+    total++;
     counts[verdict as keyof typeof counts]++;
-    points += VERDICT_SCORE[verdict];
+    const reversed = hit && wrongWay(meta.dir, j!.dir);
+    points += VERDICT_SCORE[verdict] * (reversed ? WRONG_WAY_SHARE : 1);
     let p = parts.get(meta.part);
     if (!p) parts.set(meta.part, (p = { e: [], n: 0, miss: 0 }));
     const side = meta.part === 'beat' ? on : off;
@@ -283,12 +309,11 @@ export function summarise(metas: readonly TargetMeta[], judgements: readonly Jud
       errors.push(j!.errorMs);
       run++;
       if (run > bestRun) bestRun = run;
-      if (meta.dir && j!.dir && meta.dir !== j!.dir) wrongDirection++;
+      if (reversed) wrongDirection++;
     } else {
       run = 0;
     }
   }
-  const total = metas.length;
   const penalty = (opts.extraPenalty ?? EXTRA_PENALTY) * extra;
   const accuracy = total ? Math.min(1, Math.max(0, (points - penalty) / total)) : 0;
   const third = Math.floor(errors.length / 3);
@@ -313,28 +338,32 @@ export function summarise(metas: readonly TargetMeta[], judgements: readonly Jud
     bestRun,
     driftMs,
     wrongDirection,
+    forgiven,
   };
 }
 
 /**
  * Score a whole list of taps against a list of expected times in one go (tests, the browser check).
- * `offsetMs` is the latency to take off every tap first, exactly as a live round does.
+ * `offsetMs` is the latency to take off every tap first, exactly as a live round does. `dirs` gives
+ * the written stroke direction of each target and `tapDirs` the direction of each tap (F / J), in the
+ * order of their lists.
  */
 export function scoreTaps(
   targetTimes: readonly number[],
   tapTimes: readonly number[],
-  opts: { offsetMs?: number; windows?: JudgeWindows; parts?: readonly CountPart[]; extraPenalty?: number } = {},
+  opts: { offsetMs?: number; windows?: JudgeWindows; parts?: readonly CountPart[]; extraPenalty?: number; dirs?: ReadonlyArray<'D' | 'U' | undefined>; tapDirs?: ReadonlyArray<'D' | 'U' | undefined> } = {},
 ): { judgements: Judgement[]; stats: RoundStats } {
   const judge = new LiveJudge(targetTimes.map((time, id) => ({ id, time })), opts.windows ?? TAP_WINDOWS);
   const offset = (opts.offsetMs ?? 0) / 1000;
-  for (const tap of [...tapTimes].sort((a, b) => a - b)) {
-    const t = tap - offset;
+  const taps = tapTimes.map((time, i) => ({ time, dir: opts.tapDirs?.[i] })).sort((a, b) => a.time - b.time);
+  for (const tap of taps) {
+    const t = tap.time - offset;
     // Close what is safely behind this tap first, as the live round does while the clock runs.
     judge.advance(t - (judge.windows.okMs / 1000) * 2);
-    judge.tap(t);
+    judge.tap(t, tap.dir);
   }
   judge.finish();
-  const metas: TargetMeta[] = targetTimes.map((_, id) => ({ id, part: opts.parts?.[id] ?? 'beat' }));
+  const metas: TargetMeta[] = targetTimes.map((_, id) => ({ id, part: opts.parts?.[id] ?? 'beat', dir: opts.dirs?.[id] }));
   return { judgements: judge.judgements, stats: summarise(metas, judge.judgements, { extraPenalty: opts.extraPenalty }) };
 }
 

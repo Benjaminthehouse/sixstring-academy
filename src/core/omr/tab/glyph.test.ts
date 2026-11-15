@@ -9,7 +9,7 @@ import {
 } from './glyph';
 import {
   BLUR_LEVELS, GLYPH_H, GLYPH_LABELS, TEMPLATE_FACE_LIST, TEMPLATE_FAMILY_NAMES, type GlyphTemplate, blurTemplate, glyphClass, halfMaxBox, loadTemplates, resampleBox,
-  struckTemplates, templatesAtBlur,
+  struckTemplateDirect, struckTemplates, templatesAtBlur,
 } from './templates';
 
 const digits = (t: GlyphTemplate): boolean => t.cls < 10 && !t.music;
@@ -173,6 +173,20 @@ describe('patches from the strip', () => {
     // Without a line there is nothing to measure.
     const plain = paint(loadTemplates()[0], 21);
     expect(lineInBox(lineProfileAt(plain.gray, 10, 0, 160, 4), plain.box).thickness).toBe(0);
+  });
+
+  it('build struck templates fast, exactly as erasing the line and blurring the whole glyph would', () => {
+    const base = loadTemplates();
+    for (const [level, centre, thickness] of [[0, 8, 2], [2, 7.5, 3], [4, 8.5, 3.5]] as const) {
+      const set = struckTemplates(level, centre, thickness);
+      for (let i = 0; i < base.length; i += 5) {
+        if (base[i].music) continue;
+        const ref = struckTemplateDirect(level, i, centre, thickness);
+        let err = 0;
+        for (let j = 0; j < ref.length; j++) err = Math.max(err, Math.abs(ref[j] - set[i].px[j]));
+        expect(err, `${base[i].label} at level ${level}`).toBeLessThan(1e-4);
+      }
+    }
   });
 
   it('build patches from binary images for the big glyphs', () => {

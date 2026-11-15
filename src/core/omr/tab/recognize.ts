@@ -15,13 +15,13 @@ import {
   type Alternative, type DurationValue, type OmrClef, type OmrTabEvent, type OmrTabNote, type OmrText, type OmrTimeSignature, type OmrWarning,
   type RecognizeOptions, type StaffInput, type StaffReading, STANDARD_TUNING, durationTicks, midiAtFret,
 } from '../types';
-import { type Box, type GlyphPatch, classifyPatch, extractPatch, refineBox } from './glyph';
+import { type Box, type GlyphPatch, type LineProfile, classifyPatch, extractPatch, lineInBox, refineBox } from './glyph';
 import { type TabMark, applyMarks, findArcs, findBends, findSlides } from './marks';
-import { type Glyph, type ReaderContext, type TabNumber, assembleLine, detectLineThrough, facePenalties, isDigitLabel, readCluster } from './numbers';
-import { type LineBlob, type StripGeometry, barlineSolidity, digitMetrics, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, nearBarline } from './segment';
+import { type Glyph, type ReaderContext, type TabNumber, assembleLine, facePenalties, isDigitLabel, lineThroughEvidence, profileFor, readCluster, struckKey, struckReference } from './numbers';
+import { type LineBlob, type StripGeometry, barlineSolidity, columnProfile, digitMetrics, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, nearBarline, profileValleys, tightBox } from './segment';
 import { type RestReading, findRests, readTimeSignature } from './header';
 import { type MeasureEvent, type ReadDuration, type Stem, assignDurations, findStems } from './rhythm';
-import { BLUR_LEVELS, TEMPLATE_FACE_LIST, templatesAtBlur } from './templates';
+import { BLUR_LEVELS, TEMPLATE_FACE_LIST, struckTemplates, templatesAtBlur } from './templates';
 
 /** One column of numbers before it becomes an event. */
 export interface TabColumn {
@@ -37,8 +37,9 @@ export interface TabDebug {
   digitHeight: number;
   /** Index into BLUR_LEVELS of the template set used. */
   blurLevel: number;
-  /** The staff lines strike through the numbers. */
+  /** The staff lines strike through the numbers, and the evidence (see `lineThroughEvidence`). */
   lineThrough: boolean;
+  strike: number;
   /** How well each face explains the clearly read digits (mean correlation; empty when too few). */
   faceRatings: number[];
   /** Mean correlation of the digits read, and the 0..1 reliability derived from it. */
@@ -56,6 +57,8 @@ export interface TabDebug {
   /** Stems found, and the measure length (ticks) the rhythm was fitted to (null = none). */
   stems: Stem[];
   measureTicks: number | null;
+  /** Tuning the notes' pitches were worked out with (low to high). */
+  tuning: readonly number[];
   /** Time spent, ms: total and per stage. */
   ms: number;
   timings: Record<string, number>;
@@ -132,30 +135,62 @@ function inkHeightOf(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs:
   return hs[hs.length >> 1];
 }
 
-/** Pick the template blur that suits this strip: the level at which sample digits correlate best. */
-function chooseBlur(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs: LineBlob[]): number {
+/**
+ * Pick the template blur that suits this strip: the level at which sample digits correlate best.
+ * On a staff whose lines strike through the numbers the samples are compared the way they will be
+ * read (line subtracted, against struck templates): left in, the line looks like extra blur and
+ * pushes the choice one or two levels too soft, which costs the 0 / 6 / 8 / 9 distinctions.
+ */
+function chooseBlur(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs: LineBlob[], strike: number): number {
   const hd = ctx.digitHeight;
-  const sample = blobs.filter((b) => {
-    const h = b.box.y1 - b.box.y0;
-    const w = b.box.x1 - b.box.x0;
-    return Math.abs(b.offset) < 0.2 && h > 0.8 * hd && h < 1.2 * hd && w < 0.85 * hd && w > 0.2 * hd;
-  });
+  const digitHigh = (b: LineBlob): boolean => Math.abs(b.offset) < 0.2 && b.box.y1 - b.box.y0 > 0.8 * hd && b.box.y1 - b.box.y0 < 1.2 * hd;
+  const sample = blobs.filter((b) => digitHigh(b) && b.box.x1 - b.box.x0 < 0.85 * hd && b.box.x1 - b.box.x0 > 0.2 * hd);
+  if (sample.length < 6) {
+    // A staff of two-digit frets (a riff at the 12th fret) has few lone digits: cut its numbers
+    // at the lightest column near the middle and sample the halves as well.
+    for (const b of blobs) {
+      const w = b.box.x1 - b.box.x0;
+      if (!digitHigh(b) || w < 0.85 * hd || w > 2.1 * hd) continue;
+      const fusedLine = ctx.lineThrough && b.fused ? { lineY: ctx.lineYs[b.line], band: ctx.lineThickness / 2 + 2 } : null;
+      const cut = profileValleys(columnProfile(ctx.gray, b.box, fusedLine), 0.3 * w, 1)[0];
+      if (cut === undefined) continue;
+      const x = Math.floor(b.box.x0) + cut;
+      for (const half of [tightBox(ctx.noLines, { ...b.box, x1: x }), tightBox(ctx.noLines, { ...b.box, x0: x })]) {
+        if (half && half.x1 - half.x0 > 0.2 * hd && half.y1 - half.y0 > 0.8 * hd) sample.push({ ...b, box: half });
+      }
+      if (sample.length >= 24) break;
+    }
+  }
   if (sample.length < 2) return 1;
   // A dozen digits spread over the staff are enough; each is cut and resampled once.
   const step = Math.max(1, Math.floor(sample.length / 12));
-  const patches: { patch: GlyphPatch; relH: number }[] = [];
+  const patches: { patch: GlyphPatch; relH: number; struck: { centre: number; thickness: number } | null }[] = [];
   for (let i = 0; i < sample.length; i += step) {
     const b = sample[i];
-    const box = refineBox(ctx.gray, b.box, null);
-    patches.push({ patch: extractPatch(ctx.gray, box, null), relH: (box.y1 - box.y0) / ctx.inkHeight });
+    let profile: LineProfile | null = null;
+    if (ctx.lineThrough && b.fused) {
+      profile = profileFor(ctx, b.line, (b.box.x0 + b.box.x1) / 2);
+      if (lineInBox(profile, b.box).thickness <= 0) profile = null;
+    }
+    const box = refineBox(ctx.gray, b.box, profile);
+    const at = profile ? lineInBox(profile, box) : null;
+    const struck = at && at.thickness > 0 ? struckKey(ctx, at, true) : null;
+    // Samples the line crosses at an odd place would each need their own template sets at every
+    // level tried; the typical ones are enough to judge the blur.
+    if (struck && ctx.struckRef && struck !== ctx.struckRef) continue;
+    patches.push({ patch: extractPatch(ctx.gray, box, profile), relH: (box.y1 - box.y0) / ctx.inkHeight, struck });
   }
+  if (!patches.length) return 1;
   const cache = new Map<number, number>();
   const rate = (level: number): number => {
     let v = cache.get(level);
     if (v === undefined) {
-      const templates = templatesAtBlur(level);
+      const plain = templatesAtBlur(level);
       let sum = 0;
-      for (const q of patches) sum += classifyPatch(q.patch, templates, { allow: (t) => !t.music && t.cls < 10, relH: q.relH, relHTolerance: 0.3, coarse: true })[0]?.score ?? 0;
+      for (const q of patches) {
+        const templates = q.struck ? struckTemplates(level, q.struck.centre, q.struck.thickness) : plain;
+        sum += classifyPatch(q.patch, templates, { allow: (t) => !t.music && t.cls < 10, relH: q.relH, relHTolerance: 0.3, coarse: true })[0]?.score ?? 0;
+      }
       v = sum / patches.length;
       cache.set(level, v);
     }
@@ -171,8 +206,22 @@ function chooseBlur(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs: 
     else if (up > here + 0.003) best++;
     else break;
   }
+  // With the line taken out, the mean score keeps rising a little with template blur on a soft
+  // picture while the digits' distinctions (all in the rows off the line) wash out: a staff that
+  // is really struck through then reads better at level 2 than at the level the score prefers
+  // (held-out faces at photo quality: 70-78 % right at the preferred level, 82-96 % at level 2).
+  // Only where level 2 explains the digits nearly as well, though: a picture that is truly much
+  // softer (score gap 0.09 and more on the corpus' worst photos) needs the softer templates. Nor
+  // where the "strike" is only blur closing the gap blanked around the numbers (the line no
+  // darker inside the glyph than outside it).
+  if (best > STRUCK_MAX_BLUR && strike >= STRUCK_RATIO && patches.some((q) => q.struck) && rate(STRUCK_MAX_BLUR) >= 0.74 && rate(best) - rate(STRUCK_MAX_BLUR) <= 0.08) best = STRUCK_MAX_BLUR;
   return best;
 }
+
+/** Softest template level used on a staff whose lines strike through the numbers. */
+const STRUCK_MAX_BLUR = 2;
+/** Line darkness inside the numbers, relative to the bare line, from which a staff counts as really struck through. */
+const STRUCK_RATIO = 1.05;
 
 /**
  * A chord whose fretted notes lie more than five frets apart cannot be fingered. If one note has
@@ -253,14 +302,38 @@ function readRhythm(input: StaffInput, columns: TabColumn[], rests: RestReading[
   return { durations, restDurations, stems: chosen.stems, measureTicks: res.measureTicks, assumed: res.assumed, support: res.support };
 }
 
+/** Default tunings by number of tab lines, sounding MIDI low to high. */
+const DEFAULT_TUNINGS: Record<number, { tuning: readonly number[]; name: string }> = {
+  4: { tuning: [28, 33, 38, 43], name: 'bass tab in standard tuning (E A D G)' },
+  5: { tuning: [23, 28, 33, 38, 43], name: 'five-string bass tab (B E A D G)' },
+  6: { tuning: STANDARD_TUNING, name: 'guitar tab in standard tuning' },
+  7: { tuning: [35, 40, 45, 50, 55, 59, 64], name: 'seven-string guitar tab (B E A D G B E)' },
+};
+
+/**
+ * The tuning a staff is read with: the one given when it has a string per line, else the usual
+ * one for that many lines (said in a warning unless it is a six-line guitar staff), so that a
+ * four-line bass staff does not get guitar pitches.
+ */
+export function tuningFor(lines: number, given: readonly number[] | undefined, warnings: OmrWarning[]): readonly number[] {
+  if (given && given.length === lines) return given;
+  const fallback = DEFAULT_TUNINGS[lines];
+  if (given) {
+    warnings.push({ code: 'other', message: `The tuning given has ${given.length} strings but this staff has ${lines} lines; ${fallback ? `it was read as ${fallback.name}` : 'the top strings of the given tuning were used'}.` });
+    return fallback ? fallback.tuning : given;
+  }
+  if (fallback && lines !== 6) warnings.push({ code: 'other', message: `This staff has ${lines} lines and was read as ${fallback.name}; set the tuning if it is for another instrument.` });
+  return fallback ? fallback.tuning : STANDARD_TUNING;
+}
+
 /** Read one tab staff and return the reading with its internals. */
 export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, force: { blurLevel?: number } = {}): TabReadingDetail {
   const t0 = now();
   const timings: Record<string, number> = {};
   const sp = input.space;
   const n = input.lineCount;
-  const tuning = options.tuning ?? STANDARD_TUNING;
   const warnings: OmrWarning[] = [];
+  const tuning = tuningFor(n, options.tuning, warnings);
 
   // Components of the staff band, with and without the lines.
   const bandY = Math.max(0, Math.floor(input.lineYs[0] - 1.7 * sp));
@@ -314,11 +387,15 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
     inkHeight: digitHeight,
     centreOffset: metrics.centreOffset,
     profiles: new Map(),
-    lineThrough: detectLineThrough(input.gray, blobs, input.lineYs, digitHeight),
+    lineThrough: false,
   };
+  const strike = lineThroughEvidence(input.gray, blobs, input.lineYs, digitHeight);
+  base.lineThrough = strike.through;
+  base.struckRef = strike.through ? struckReference(base, blobs) : null;
+  base.struckKeys = [];
   base.inkHeight = inkHeightOf(base, blobs);
   let t1 = now();
-  const blurLevel = force.blurLevel ?? chooseBlur(base, blobs);
+  const blurLevel = force.blurLevel ?? chooseBlur(base, blobs, strike.median);
   timings.blur = now() - t1;
   t1 = now();
   const ctx: ReaderContext = { ...base, templates: templatesAtBlur(blurLevel), blurLevel };
@@ -373,6 +450,17 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
     // - a staff line runs through it on a soft picture: the middle of the digit, which is what
     //   tells 0, 6, 8 and 9 apart, cannot be seen.
     if (base.lineThrough && blurLevel >= 2 && q.digits.some((g) => g.fused)) q.confidence *= 0.8;
+  }
+  // A staff on which nearly everything reads as a lone 1 is more likely a row of strokes (the
+  // stems of a notation staff taken for tab, pieces of bar lines) than a tune played on fret 1.
+  const lone1 = numbers.filter((q) => !q.dead && q.digits.length === 1 && q.fret === 1).length;
+  if (numbers.length >= 5 && lone1 >= 0.8 * numbers.length) {
+    for (const q of numbers) {
+      if (q.dead || q.digits.length !== 1 || q.fret !== 1) continue;
+      q.confidence = Math.min(q.confidence, 0.45);
+      q.flags.push('mostly-ones');
+    }
+    warnings.push({ code: 'other', message: 'Nearly every mark on this staff reads as a 1: they may be stems or strokes rather than fret numbers.' });
   }
   if (reliability < 0.5 && numbers.length) warnings.push({ code: 'low-quality', message: 'The numbers on this staff are hard to make out in this picture; treat them as guesses.' });
   timings.glyphs = now() - t1;
@@ -474,6 +562,6 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   const confidence = events.length ? events.reduce((a, e) => a + e.confidence, 0) / events.length : 0.5;
   return {
     reading: { events, clef, timeSignature, texts, confidence, warnings },
-    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, ms: now() - t0, timings },
+    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, strike: strike.median, tuning, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, ms: now() - t0, timings },
   };
 }

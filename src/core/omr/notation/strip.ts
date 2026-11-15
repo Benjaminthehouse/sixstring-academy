@@ -26,6 +26,9 @@ export interface Strip {
   ink: Uint8Array;
   /** Weight of each row in template matching: rows inside a staff-line band count less. */
   rowWeight: Float32Array;
+  /** Prefix sums of `ink` and of its square along each row, (w + 1) per row (for template matching). */
+  inkRowSum: Int32Array;
+  inkRowSumSq: Int32Array;
   /** Distance of every ink pixel of `nl` to the nearest paper pixel (px); 0 on paper. */
   dt: Float32Array;
   /** Integral image of `nl`, (w + 1) x (h + 1). */
@@ -222,8 +225,22 @@ export function buildStrip(input: StaffInput): Strip {
     for (let y = Math.max(0, Math.floor(ly - band)); y <= Math.min(h - 1, Math.ceil(ly + band - 1)); y++) rowWeight[y] = 0.3;
   }
   const cc = labelComponents({ width: w, height: h, data: nl });
+  const W1 = w + 1;
+  const inkRowSum = new Int32Array(W1 * h);
+  const inkRowSumSq = new Int32Array(W1 * h);
+  for (let y = 0; y < h; y++) {
+    let a = 0;
+    let b = 0;
+    for (let x = 0; x < w; x++) {
+      const v = ink[y * w + x];
+      a += v;
+      b += v * v;
+      inkRowSum[y * W1 + x + 1] = a;
+      inkRowSumSq[y * W1 + x + 1] = b;
+    }
+  }
   return {
-    input, w, h, s, thick, bin, nl, ink, rowWeight,
+    input, w, h, s, thick, bin, nl, ink, rowWeight, inkRowSum, inkRowSumSq,
     dt: distanceTransform(nl, w, h),
     integral: integralOf(nl, w, h),
     lineYs: input.lineYs,
@@ -265,4 +282,64 @@ export function freeInk(strip: Strip, x0: number, y0: number, x1: number, y1: nu
     }
   }
   return n;
+}
+
+/** How clean the picture of a staff is (computed from the strip itself, without the page). */
+export interface StripQuality {
+  /** Standard deviation of the paper between the staff lines, grey levels. */
+  noise: number;
+  /** Width of a staff line's profile at half its darkness, in staff spaces (blur). */
+  lineWidth: number;
+  /** 0..1: 1 = a clean render or scan; below 0.5 = blurred and noisy (proofread everything). */
+  score: number;
+}
+
+/**
+ * Picture quality of a strip: the paper noise between the lines and the blur of the lines
+ * themselves, measured in empty stretches of the staff. On the degraded corpus, scans and good
+ * photos stay below noise 9 and line width 0.3 space; poor photos lie above both, and that is
+ * where reading errors concentrate.
+ */
+export function stripQuality(strip: Strip): StripQuality {
+  const { w, s, nl, lineYs } = strip;
+  const g = strip.input.gray.data;
+  const half = Math.round(0.5 * s);
+  const prof = new Float64Array(2 * half + 1);
+  let n = 0;
+  let sum = 0;
+  let sq = 0;
+  let cols = 0;
+  for (let x = Math.round(strip.x0 + 2 * s); x < strip.x1 - s; x += 3) {
+    for (let k = 0; k + 1 < lineYs.length; k++) {
+      const ya = Math.round(lineYs[k]);
+      const yb = Math.round(lineYs[k + 1]);
+      let clear = true;
+      for (let y = ya - half; y <= yb && clear; y++) if (y >= 0 && nl[y * w + x]) clear = false;
+      if (!clear || ya - half < 0) continue;
+      const ym = Math.round((ya + yb) / 2);
+      for (let dy = -2; dy <= 2; dy++) {
+        const v = g[(ym + dy) * w + x];
+        sum += v;
+        sq += v * v;
+        n++;
+      }
+      for (let d = 0; d < prof.length; d++) prof[d] += 255 - g[(ya - half + d) * w + x];
+      cols++;
+    }
+  }
+  if (cols < 10) return { noise: 0, lineWidth: 0, score: 1 };
+  const mean = sum / n;
+  const noise = Math.sqrt(Math.max(0, sq / n - mean * mean));
+  let pk = -Infinity;
+  let base = Infinity;
+  for (const v of prof) {
+    pk = Math.max(pk, v / cols);
+    base = Math.min(base, v / cols);
+  }
+  let wide = 0;
+  for (const v of prof) if (v / cols - base >= 0.5 * (pk - base)) wide++;
+  const lineWidth = wide / s;
+  const clamp = (v: number): number => Math.max(0, Math.min(1, v));
+  const score = Math.min(clamp((12.5 - noise) / 4), clamp((0.425 - lineWidth) / 0.125));
+  return { noise, lineWidth, score };
 }

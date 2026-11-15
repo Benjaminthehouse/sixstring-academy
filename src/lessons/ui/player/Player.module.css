@@ -1,0 +1,550 @@
+/*
+ * The lesson player. One column on phones with the primary button in the thumb zone; on wide
+ * screens a step with a picture puts it beside the answer. The top row and the bottom bar stick;
+ * the step scrolls between them and is never hidden under the bar (the bar is in the flow).
+ */
+
+.page {
+  --player-max: 58rem;
+}
+
+.player {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-5));
+}
+@media (min-width: 720px) {
+  .player {
+    min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-8));
+  }
+}
+
+/* ── Top row ─────────────────────────────────────────────────────────────────────────────────── */
+
+.top {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: calc(var(--sp-3) * -1) auto 0;
+  padding: var(--sp-2) 0;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 1.75rem;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--streak-soft);
+  color: var(--streak-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  animation: pop var(--dur-2) var(--ease);
+}
+.combo svg {
+  color: var(--streak);
+}
+.hearts {
+  display: inline-flex;
+}
+.heartsLost {
+  animation: shake 420ms var(--ease);
+}
+.allowance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.paused {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+}
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* ── Stage ───────────────────────────────────────────────────────────────────────────────────── */
+
+.stage {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  padding: var(--sp-5) 0 var(--sp-8);
+  animation: enter var(--dur-2) var(--ease);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.exercise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+.layout-narrow {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+.layout-wide {
+  max-width: var(--player-max);
+}
+.layout-split {
+  max-width: var(--player-max);
+}
+@media (min-width: 900px) {
+  .exercise.layout-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+}
+
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.answer {
+  min-width: 0;
+}
+.eyebrowRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.again {
+  font-size: var(--text-xs);
+}
+.prompt {
+  max-width: 34ch;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.layout-wide .prompt {
+  max-width: 48ch;
+}
+.hint {
+  display: flex;
+}
+.promptFigure {
+  --figure-bg: var(--surface);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* Teaching card: head, title and text, the figure, the tip. Wide: the figure on the right. */
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'main' 'figure' 'tip';
+  gap: var(--sp-4);
+  align-items: start;
+}
+.cardHead {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+}
+.cardMain {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.cardTitle {
+  text-wrap: balance;
+}
+.cardBody {
+  max-width: 62ch;
+  color: var(--fg);
+  font-size: var(--text-lg);
+  line-height: 1.6;
+}
+.cardBody p {
+  margin: 0;
+}
+.tip {
+  grid-area: tip;
+  max-width: 62ch;
+}
+@media (min-width: 900px) {
+  .card.layout-split {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-areas: 'head figure' 'main figure' 'tip figure';
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--sp-10);
+  }
+}
+.cardFigure {
+  grid-area: figure;
+  --figure-bg: var(--surface);
+  min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.teacher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.teacherName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+/* ── Bottom bar ──────────────────────────────────────────────────────────────────────────────── */
+
+.bar {
+  transition: background var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+}
+.bar.bar-ok {
+  background: var(--ok-soft);
+  border-top: 2px solid var(--ok);
+}
+.bar.bar-bad {
+  background: var(--bad-soft);
+  border-top: 2px solid var(--bad);
+}
+.bar.bar-info {
+  background: var(--info-soft);
+  border-top: 2px solid var(--info);
+}
+.barInner {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  min-width: 0;
+}
+.barButtons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+}
+.barKeys {
+  margin-right: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.primary {
+  min-width: 11rem;
+}
+.skip {
+  flex: none;
+}
+@media (max-width: 719.98px) {
+  .primary {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .barKeys {
+    display: none;
+  }
+}
+
+/* Feedback panel: slides up inside the bar. */
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: min(44vh, 22rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: slideUp var(--dur-2) var(--ease);
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+.feedbackHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.feedbackIcon {
+  flex: none;
+  margin-top: 1px;
+}
+.feedbackTitle {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.35;
+}
+.feedbackTitle strong {
+  font-family: var(--font-display);
+}
+.feedback-ok .feedbackIcon,
+.feedback-ok .feedbackTitle strong {
+  color: var(--ok-text);
+}
+.feedback-bad .feedbackIcon,
+.feedback-bad .feedbackTitle strong {
+  color: var(--bad-text);
+}
+.feedback-info .feedbackIcon,
+.feedback-info .feedbackTitle strong {
+  color: var(--info-text);
+}
+.comboBadge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--streak-text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  animation: pop var(--dur-2) var(--ease);
+}
+.feedbackAnswer {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.feedbackLabel {
+  margin-right: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.feedbackExplain {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+@media (min-width: 720px) {
+  .feedbackExplain {
+    font-size: var(--text-md);
+  }
+}
+.feedbackNotes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.feedbackNotes span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Summary ─────────────────────────────────────────────────────────────────────────────────── */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding-top: var(--sp-8);
+  text-align: center;
+}
+.summaryBadge {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+}
+.summary-ok {
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.summary-warn {
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+.summary-info {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.pop {
+  animation: pop var(--dur-3) var(--ease);
+}
+.summaryTitle {
+  text-wrap: balance;
+}
+.summarySub {
+  max-width: 34rem;
+}
+.teacherSays {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: 34rem;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: start;
+}
+.teacherSays .teacherName {
+  display: none;
+}
+.teacherQuote {
+  margin: 0;
+  font-style: italic;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  width: 100%;
+  margin: var(--sp-2) 0 0;
+  text-align: start;
+}
+@media (min-width: 720px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.stat {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.stat-xp {
+  background: var(--xp-soft);
+  border-color: transparent;
+}
+.stat-streak {
+  background: var(--streak-soft);
+  border-color: transparent;
+}
+.goalMet {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--ok-text);
+  font-weight: 600;
+}
+.missed {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  text-align: start;
+}
+.missed ul {
+  margin: 0;
+  padding-left: var(--sp-5);
+  color: var(--fg-muted);
+}
+
+/* Leave dialog */
+.leaveActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  width: 100%;
+}
+@media (max-width: 719.98px) {
+  .leaveActions {
+    flex-direction: column-reverse;
+  }
+  .leaveActions > * {
+    width: 100%;
+  }
+}
+
+/* The learner's own "reduce motion" setting in the app (the device setting is handled globally). */
+:global(html[data-motion='reduce']) .stage,
+:global(html[data-motion='reduce']) .feedback,
+:global(html[data-motion='reduce']) .combo,
+:global(html[data-motion='reduce']) .comboBadge,
+:global(html[data-motion='reduce']) .heartsLost,
+:global(html[data-motion='reduce']) .pop {
+  animation: none;
+}

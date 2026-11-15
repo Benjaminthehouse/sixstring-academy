@@ -1,0 +1,29 @@
+/*
+ * Colour names to tokens. An element with class `tone` and `data-c="deg-3"` gets
+ *   --c     the fill (the dot, the key, the wedge)
+ *   --c-fg  the label drawn on that fill (4.5:1 or better, from the token pairs)
+ * Components only ever say a colour's name; the theme decides what it looks like.
+ */
+.tone {
+  --c: var(--deg-x);
+  --c-fg: var(--deg-x-fg);
+}
+.tone[data-c='deg-1'] { --c: var(--deg-1); --c-fg: var(--deg-1-fg); }
+.tone[data-c='deg-2'] { --c: var(--deg-2); --c-fg: var(--deg-2-fg); }
+.tone[data-c='deg-3'] { --c: var(--deg-3); --c-fg: var(--deg-3-fg); }
+.tone[data-c='deg-4'] { --c: var(--deg-4); --c-fg: var(--deg-4-fg); }
+.tone[data-c='deg-5'] { --c: var(--deg-5); --c-fg: var(--deg-5-fg); }
+.tone[data-c='deg-6'] { --c: var(--deg-6); --c-fg: var(--deg-6-fg); }
+.tone[data-c='deg-7'] { --c: var(--deg-7); --c-fg: var(--deg-7-fg); }
+.tone[data-c='deg-x'] { --c: var(--deg-x); --c-fg: var(--deg-x-fg); }
+.tone[data-c='finger-1'] { --c: var(--finger-1); --c-fg: var(--finger-1-fg); }
+.tone[data-c='finger-2'] { --c: var(--finger-2); --c-fg: var(--finger-2-fg); }
+.tone[data-c='finger-3'] { --c: var(--finger-3); --c-fg: var(--finger-3-fg); }
+.tone[data-c='finger-4'] { --c: var(--finger-4); --c-fg: var(--finger-4-fg); }
+.tone[data-c='finger-t'] { --c: var(--finger-t); --c-fg: var(--finger-t-fg); }
+/* A pearl dot with ink on it: the "just a note" marker. */
+.tone[data-c='neutral'] { --c: var(--fb-inlay); --c-fg: var(--fb-dot-edge); }
+.tone[data-c='accent'] { --c: var(--accent); --c-fg: var(--accent-fg); }
+.tone[data-c='ok'] { --c: var(--ok); --c-fg: var(--ok-fg); }
+.tone[data-c='bad'] { --c: var(--bad); --c-fg: var(--bad-fg); }
+.tone[data-c='info'] { --c: var(--info); --c-fg: var(--info-fg); }

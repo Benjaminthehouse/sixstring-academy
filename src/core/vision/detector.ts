@@ -9,14 +9,21 @@
  * Every candidate, whoever proposed it, is polished by the line refinement and scored by the
  * alignment score, so candidates are compared on the same evidence (`boardEvidence`). A board is
  * reported when both searches agree, or when one candidate's evidence is strong on its own; the
- * two numbering readers vote on the fret numbers. Tracking follows the previous pose with both
- * trackers and keeps the one the evidence backs. README.md has the measurements behind each rule.
+ * two numbering readers vote on the fret numbers.
+ *
+ * Tracking runs both trackers from the previous pose. The line tracker's pose is kept unless the
+ * other is clearly better backed, or the board's own coarse motion (`flow.ts`, independent of both)
+ * shows that the line tracker slipped: by whole frets (motion blur; a slip stays on wires, so the
+ * evidence cannot see it) or otherwise (perspective bent under a hand). When neither holds the
+ * board, the flow carries the pose through motion blur for a while ("coasting"). Fret numbers that
+ * are not certain are re-read off the image and voted on while tracking. README.md has the
+ * measurements behind each rule.
  */
 import { createAlignDetector, type AlignDetector, type AlignView } from './align/detector';
 import type { NumberingDecision } from './align/numbering';
 import type { PoseScore } from './align/score';
 import { boardProfiles, boardShift, type BoardProfiles } from './flow';
-import { boardOutline, comparePoses, computeVisibleFrets, confirmFretAt, makePose, multiply, neckModel, renumberPose } from './geometry';
+import { applyHomography, boardOutline, comparePoses, computeVisibleFrets, confirmFretAt, fretAtX, fretX, invertHomography, makePose, multiply, neckModel, poseDistancePx, renumberPose } from './geometry';
 import { carryNumbering, createLineDetector, lineConfidence, type LineDetector, type LineLimits, type LineView } from './lines/detector';
 import { resolveMarkers } from './lines/markers';
 import { resolveNumbering as resolveLineNumbering, type NumberingResult } from './lines/numbering';
@@ -63,6 +70,8 @@ export interface Inspection {
 export interface FretboardDetectorOptions {
   /** Log-odds a candidate needs when the other search found nothing or something else (default 1). */
   minEvidence?: number;
+  /** ... when only the top-down search found anything at all (default 1.5: its false positives on striped clutter score up to about 1). */
+  minAlignOnlyEvidence?: number;
   /** ... and its lead over the other candidate when the two disagree (default 1). */
   minMargin?: number;
   /** Log-odds the better of two agreeing candidates needs (default -1: agreement is evidence in itself). */
@@ -75,14 +84,33 @@ export interface FretboardDetectorOptions {
   maxCoastFrames?: number;
   /** Tracking: read the fret numbers off the image every this many frames (default 5; always while they are a guess). */
   readNumberingEvery?: number;
+  /** How many board bands the line search examines (default 6) and how many hypotheses the alignment search measures (default 6): fewer is faster on frames without a guitar. */
+  lineBands?: number;
+  alignCandidates?: number;
   /** Fill `diagnostics.features` (default false). */
   debug?: boolean;
+}
+
+/** A board hypothesis from outside (marker mode) after fitting it to the image. */
+export interface FittedBoard {
+  /** The fitted pose (numbering as the hypothesis had it: 'assumed'). */
+  pose: FretboardPose;
+  /** Log-odds that this is the board (`boardEvidence`). */
+  evidence: number;
+  /** Which of the hypotheses it came from. */
+  index: number;
 }
 
 /** The production detector plus a look at its candidates (for diagnostics and tuning). */
 export interface FretboardDetector extends Detector {
   /** Both searches, every candidate polished and scored, and the decision, without building a pose. */
   inspect(frame: Frame, options?: DetectOptions): Inspection;
+  /**
+   * Fit outside board hypotheses (homographies neck mm -> frame pixels, e.g. from two colour
+   * markers) to the wires and strings in the frame, and score them like any candidate. The best fit,
+   * or null when none of them finds a board. Fret numbers stay those of the hypothesis.
+   */
+  fit(frame: Frame, hypotheses: readonly Mat3[], options?: DetectOptions): FittedBoard | null;
 }
 
 /** Limits under which the line search proposes: looser than its stand-alone thresholds, because a second opinion follows. */
@@ -169,6 +197,18 @@ const PROBATION_FRAMES = 8;
 const SETTLED_EVIDENCE = 2.5;
 /** Lowest correlation of the board's brightness profiles between two frames at which its motion is believed (an occluder sweeping past scores far lower). */
 const COAST_MIN_PEAK = 0.8;
+/** After this long without a pose, a numbering carried over by nearness alone is only a guess (ms). */
+const NEAR_CARRY_MS = 150;
+/** Tracking: the two trackers agree when this share of markers fall in the same cells (and no whole-fret shift). */
+const TRACK_AGREEMENT = 0.95;
+/** A tracker is overruled by the flow when its markers are this many times (plus this many pixels) farther from the flow's pose than the other's. */
+const REFEREE_RATIO = 2;
+const REFEREE_PX = 1.5;
+/** Flow good enough to referee a whole-fret slip: correlation peak, and its lead over the best peak elsewhere. */
+const SLIP_MIN_PEAK = 0.85;
+const SLIP_MIN_MARGIN = 0.1;
+/** A difference between two poses counts as a clean whole-fret slip when the wires coincide within this fraction of a fret. */
+const SLIP_MAX_RESIDUAL = 0.3;
 /** Confidence reported for a pose that is only being carried along (the overlay may want to fade). */
 const COAST_CONFIDENCE = 0.3;
 /** How long a trusted pose keeps lending its fret numbers after the board was lost, in milliseconds. */
@@ -180,6 +220,11 @@ function scaleH(H: Mat3, sx: number, sy: number): Mat3 {
 
 function logistic(x: number): number {
   return 1 / (1 + Math.exp(-x));
+}
+
+/** The fret numbers of a pose are a guess. */
+function guessingNow(pose: FretboardPose): boolean {
+  return pose.numberingConfidence < 0.5;
 }
 
 /** The fret numbers of a pose rest on something (the nut, inlays, stickers, the user), not on a guess. */
@@ -211,15 +256,41 @@ function trackingRegion(pose: FretboardPose, frame: Frame): Rect | undefined {
 }
 
 /** The two poses would draw their markers in the same cells, whatever each calls the frets. */
-function sameCells(a: Mat3, b: Mat3, model: NeckModel, width: number, height: number): boolean {
+function sameCells(a: Mat3, b: Mat3, model: NeckModel, width: number, height: number, min = 0.8): boolean {
   const pa = makePose(a, model, width, height);
   const pb = makePose(b, model, width, height);
-  return Math.min(comparePoses(pa, pb).cellAccuracyAligned, comparePoses(pb, pa).cellAccuracyAligned) >= 0.8;
+  return Math.min(comparePoses(pa, pb).cellAccuracyAligned, comparePoses(pb, pa).cellAccuracyAligned) >= min;
+}
+
+/**
+ * Whole-fret renumbering that makes pose `a` call the wires what pose `b` calls them (`renumberPose(a, delta)`),
+ * and how far the wires of the two miss each other once it is applied (fraction of a fret; 0 = exactly
+ * on whole frets). Measured on the centre line over the frets `b` shows. Null when they cannot be compared.
+ */
+export function wholeFretShift(a: Mat3, b: Mat3, model: NeckModel, width: number, height: number): { delta: number; residual: number } | null {
+  const inv = invertHomography(b);
+  if (!inv) return null;
+  const vis = computeVisibleFrets(b, model, width, height);
+  if (vis.max - vis.min < 2) return null;
+  const yc = model.nutWidth / 2;
+  const d: number[] = [];
+  for (let n = Math.max(1, vis.min); n <= vis.max; n++) {
+    const p = applyHomography(a, fretX(model, n), yc);
+    const q = applyHomography(inv, p.x, p.y);
+    const m = fretAtX(model, q.x);
+    if (Number.isFinite(m)) d.push(m - n);
+  }
+  if (d.length < 2) return null;
+  d.sort((x, y) => x - y);
+  const median = d[d.length >> 1];
+  const delta = Math.round(median);
+  return { delta, residual: Math.abs(median - delta) };
 }
 
 /** Create the production fretboard detector. One instance per camera stream. */
 export function createFretboardDetector(options: FretboardDetectorOptions = {}): FretboardDetector {
   const minEvidence = options.minEvidence ?? 1;
+  const minAlignOnly = options.minAlignOnlyEvidence ?? 1.5;
   const minMargin = options.minMargin ?? 1;
   const minAgreedEvidence = options.minAgreedEvidence ?? -1;
   const fastEvidence = options.fastEvidence ?? 3;
@@ -227,10 +298,10 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   const debug = options.debug ?? false;
   const readEvery = Math.max(1, options.readNumberingEvery ?? 5);
   const maxCoastFrames = options.maxCoastFrames ?? 20;
-  const lines: LineDetector = createLineDetector({ debug });
+  const lines: LineDetector = createLineDetector({ debug, maxBands: options.lineBands ?? 6 });
   // The alignment tracker's own periodic re-detection and still-frame blending are switched off:
   // cross-checking happens here and smoothing in `FretboardTracker`.
-  const align: AlignDetector = createAlignDetector({ debugFeatures: false, verifyInterval: 0, stillSmoothing: 0 });
+  const align: AlignDetector = createAlignDetector({ debugFeatures: false, verifyInterval: 0, stillSmoothing: 0, maxCandidates: options.alignCandidates ?? 6 });
   /** The most recent pose whose fret numbers could be trusted, for carrying them across a loss. */
   let anchor: { pose: FretboardPose; time: number } | null = null;
   let clock = 0;
@@ -273,8 +344,10 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     align: align.numbering(av, scaleH(c.H, av.scaleX, av.scaleY), model, c.polarity, c.score),
   });
 
-  interface Search extends Inspection {
+  /** What a search found; the numbering is read afterwards, only for the candidates that need it. */
+  interface Search extends Omit<Inspection, 'numbering'> {
     lv: LineView;
+    av: AlignView;
     features?: DiagnosticFeature[];
   }
 
@@ -326,15 +399,14 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
         } else if (candidates[better].evidence >= minEvidence && lead >= minMargin) chosen = better;
         else reason = candidates[better].evidence >= minEvidence ? 'two-boards' : 'weak-evidence';
       } else if (candidates.length === 1) {
-        if (candidates[0].evidence >= minEvidence) chosen = 0;
+        if (candidates[0].evidence >= (candidates[0].source === 'align' ? minAlignOnly : minEvidence)) chosen = 0;
         else reason = 'weak-evidence';
       } else {
         reason = a.reason === 'no-lines' ? 'no-lines' : 'no-candidate';
       }
     }
-    const numbering = candidates.map((c) => numberingOf(c, av, model));
     timings.total = performance.now() - t0;
-    return { model, candidates, numbering, agree, chosen, reason, timings, stats, lv, features };
+    return { model, candidates, agree, chosen, reason, timings, stats, lv, av, features };
   };
 
   const resolveOptions = (input: DetectOptions): { opts: DetectOptions; model: NeckModel } => {
@@ -396,7 +468,8 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     stats.source = best.source === 'lines' ? 0 : 1;
 
     // Fret numbers: the two readers vote.
-    const reading = fuseNumbering(found.numbering[found.chosen].lines, found.numbering[found.chosen].align);
+    const read = numberingOf(best, found.av, model);
+    const reading = fuseNumbering(read.lines, read.align);
     stats.numberingDelta = reading.delta;
     const base = makePose(best.H, model, frame.width, frame.height, {
       confidence: logistic(best.evidence + (found.agree ? 2 : 0)),
@@ -432,6 +505,9 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     const earlier = !given ? null : numbered(given) ? given : (recent ?? given);
     if (earlier && !marked) {
       const carried = carryNumbering(pose, earlier, stringsLocked(refined));
+      // "Nearest whole fret" is only right while the neck moved less than half a fret since the
+      // earlier pose: after a gap (an occlusion) it is a guess, to be confirmed while tracking.
+      if (carried && carried.how === 'near' && now - clock > NEAR_CARRY_MS) carried.confidence = Math.min(carried.confidence, 0.45);
       if (carried) {
         stats.carriedDelta = carried.delta;
         const firm = numbered(earlier);
@@ -471,13 +547,32 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     const av = align.prepare(frame, trackingRegion(previousPose, frame));
     let t1 = performance.now();
     timings.prepare = t1 - t0;
+    const continues = lastOut !== null && sameH(lastOut, previousPose.H);
+
+    // How the picture of the board moved since the last frame, wires or no wires (see flow.ts). It is
+    // measured independently of both trackers, which makes it the referee when they slip a fret.
+    let carried: Mat3 | null = null;
+    let flowPose: FretboardPose | null = null;
+    if (continues && flowFrom && flowFrom.width === lv.img.width && maxCoastFrames > 0) {
+      const profiles = boardProfiles(lv.img, flowFrom.H, model, computeVisibleFrets(flowFrom.H, model, lv.img.width, lv.img.height));
+      const shift = profiles ? boardShift(flowFrom.profiles, profiles) : null;
+      if (shift) {
+        stats.flowPeak = shift.peak;
+        stats.flowPx = Math.hypot(shift.dx, shift.dy);
+        if (shift.peak >= COAST_MIN_PEAK) carried = multiply(shift.map, flowFrom.H);
+        if (carried && shift.peak >= SLIP_MIN_PEAK && shift.peak - shift.second >= SLIP_MIN_MARGIN) flowPose = makePose(scaleH(carried, lv.factor, lv.factor), model, frame.width, frame.height);
+      }
+    }
+    let t2 = performance.now();
+    timings.flow = t2 - t1;
+    t1 = t2;
 
     // Both trackers follow the previous pose; each result becomes a candidate with the common evidence.
     const candidates: BoardCandidate[] = [];
     const byLines = lines.track(frame, previousPose, input, lv);
     const lineEvidence = lines.lastTrackEvidence();
     if (byLines.pose && lineEvidence) candidates.push(describe('lines', scaleH(byLines.pose.H, 1 / lv.factor, 1 / lv.factor), lineEvidence, lv, av, model, lineEvidence.polarity));
-    let t2 = performance.now();
+    t2 = performance.now();
     timings.lines = t2 - t1;
     t1 = t2;
     const byAlign = align.track(frame, previousPose, input, av);
@@ -486,40 +581,61 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     t1 = t2;
     let agree = false;
     if (byAlign.pose) {
-      // The usual case: both trackers arrive at the same well-backed pose, and the line tracker's (the
-      // more precise across the neck) is kept as it is. A dissenting pose, or a weakly backed
-      // consensus (both can slip half a string together), is polished afresh and weighed.
-      agree = candidates.length === 1 && candidates[0].evidence >= SETTLED_EVIDENCE && sameCells(candidates[0].H, scaleH(byAlign.pose.H, frame.width / byAlign.pose.frameWidth, frame.height / byAlign.pose.frameHeight), model, frame.width, frame.height);
+      // The usual case: both trackers arrive at the same well-backed pose, fret numbers included, and
+      // the line tracker's (the more precise across the neck) is kept as it is. A dissenting pose, or
+      // a weakly backed consensus (both can slip half a string together), is polished and weighed.
+      const alignH = scaleH(byAlign.pose.H, frame.width / byAlign.pose.frameWidth, frame.height / byAlign.pose.frameHeight);
+      agree = candidates.length === 1 && candidates[0].evidence >= SETTLED_EVIDENCE && sameCells(candidates[0].H, alignH, model, frame.width, frame.height, TRACK_AGREEMENT) && wholeFretShift(alignH, candidates[0].H, model, frame.width, frame.height)?.delta === 0;
       if (!agree) {
         const polished = polish(scaleH(byAlign.pose.H, av.scaleX, av.scaleY), (byAlign.diagnostics.stats?.polarity ?? 1) > 0 ? 1 : -1, lv, av, model, true);
         if (polished) candidates.push(polished);
       }
     }
     timings.polish = performance.now() - t1;
-    const continues = lastOut !== null && sameH(lastOut, previousPose.H);
-    // How the picture of the board moved since the last frame, wires or no wires (see flow.ts).
-    let carried: Mat3 | null = null;
-    if (continues && flowFrom && flowFrom.width === lv.img.width && maxCoastFrames > 0) {
-      const profiles = boardProfiles(lv.img, flowFrom.H, model, computeVisibleFrets(flowFrom.H, model, lv.img.width, lv.img.height));
-      const shift = profiles ? boardShift(flowFrom.profiles, profiles) : null;
-      if (shift) {
-        stats.flowPeak = shift.peak;
-        stats.flowPx = Math.hypot(shift.dx, shift.dy);
-        if (shift.peak >= COAST_MIN_PEAK) carried = multiply(shift.map, flowFrom.H);
-      }
-    }
+    // How many whole frets each candidate is off the board's measured motion (0 = no slip).
+    const slips = candidates.map((c) => (flowPose ? wholeFretShift(c.H, flowPose.H, model, frame.width, frame.height) : null));
     let best: BoardCandidate | null = candidates[0] ?? null;
+    let bestSlip = slips[0] ?? null;
     if (candidates.length === 2) {
       // After the polish the two may agree after all (the line refinement pulled the other onto the same strings).
-      agree = sameCells(candidates[0].H, candidates[1].H, model, frame.width, frame.height);
-      // The line tracker keeps the pose unless the other is clearly better backed.
-      if (candidates[1].evidence > candidates[0].evidence + (agree ? 1.5 : 0.75)) best = candidates[1];
+      const apart = wholeFretShift(candidates[1].H, candidates[0].H, model, frame.width, frame.height);
+      agree = sameCells(candidates[0].H, candidates[1].H, model, frame.width, frame.height, TRACK_AGREEMENT) && apart?.delta === 0;
+      const fretApart = apart !== null && apart.delta !== 0 && apart.residual < SLIP_MAX_RESIDUAL;
+      const clean = (k: number): boolean => slips[k]?.delta === 0 && (slips[k]?.residual ?? 1) < SLIP_MAX_RESIDUAL;
+      if (fretApart && clean(1) && !clean(0)) {
+        // The trackers are whole frets apart and the board's own motion sides with the second.
+        best = candidates[1];
+        stats.refereed = 1;
+      } else if (candidates[1].evidence > candidates[0].evidence + (agree ? 1.5 : 0.75) && !(fretApart && clean(0))) {
+        // The line tracker keeps the pose unless the other is clearly better backed (and did not slip).
+        best = candidates[1];
+      }
+      if (!agree && flowPose && stats.refereed === undefined) {
+        // The two disagree in some other way (one bent the perspective under a hand, one slid half a
+        // string): the board's measured motion continues the last pose, so it sides with the tracker
+        // that did the same.
+        const d0 = poseDistancePx({ H: candidates[0].H, model }, flowPose);
+        const d1 = poseDistancePx({ H: candidates[1].H, model }, flowPose);
+        stats.flowDistLines = d0;
+        stats.flowDistAlign = d1;
+        if (best === candidates[0] && d0 > REFEREE_RATIO * d1 + REFEREE_PX && candidates[1].evidence >= minTrackEvidence) {
+          best = candidates[1];
+          stats.refereed = 2;
+        } else if (best === candidates[1] && d1 > REFEREE_RATIO * d0 + REFEREE_PX && candidates[0].evidence >= minTrackEvidence) {
+          best = candidates[0];
+          stats.refereed = 3;
+        }
+      }
+      bestSlip = best === candidates[1] ? slips[1] : slips[0];
     }
     stats.agree = agree ? 1 : 0;
     for (const c of candidates) stats[c.source === 'lines' ? 'lineEvidence' : 'alignEvidence'] = c.evidence;
     // Two trackers arriving at the same pose is evidence in itself; a pose only one of them backs
     // has to stand on its own, like a detection (a slip across the strings looks just like this).
-    if (best && best.evidence < (agree ? minTrackEvidence : minEvidence)) best = null;
+    if (best && best.evidence < (agree ? minTrackEvidence : minEvidence)) {
+      best = null;
+      bestSlip = null;
+    }
     let coasted = false;
     if (!best && carried && coasting < maxCoastFrames) {
       // Neither tracker holds the board, but its picture was followed here. Perhaps it only moved too
@@ -558,6 +674,13 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
       // A pose carried by the flow may have drifted along the neck: its numbers are no longer beyond doubt.
       numberingConfidence: coasted ? Math.min(previousPose.numberingConfidence, 0.97) : previousPose.numberingConfidence,
     });
+    // A tracker that slid the whole comb by a fret (motion blur, a fast move) still sits on wires, so
+    // its evidence does not drop; but the board's own motion says where each wire went. Put the
+    // numbers back where the flow says they are.
+    if (!coasted && bestSlip && bestSlip.delta !== 0 && bestSlip.residual < SLIP_MAX_RESIDUAL) {
+      pose = renumberPose(pose, bestSlip.delta);
+      stats.slip = bestSlip.delta;
+    }
     // Numbers that are not beyond doubt stay under review: every look at the nut and the inlays, and
     // every comparison with the last trusted pose, is a vote for a whole-fret shift (or for none).
     tracked++;
@@ -595,7 +718,12 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
         const carried = carryNumbering(pose, anchor.pose, stringsLocked(best.refine));
         if (carried) {
           stats.carryDelta = carried.delta;
-          votes.set(carried.delta, (votes.get(carried.delta) ?? 0) + (numbered(anchor.pose) ? 0.6 * carried.confidence : 0.3));
+          if (guessingNow(pose) && carried.how === 'aspect' && numbered(anchor.pose) && carried.confidence >= 0.85) {
+            // The board's shape against the trusted pose from before the loss: as good as a reading.
+            pose = renumberPose(pose, carried.delta, 'tracked', carried.confidence);
+            stats.renumbered = carried.delta;
+            shiftVotes(carried.delta, 1);
+          } else votes.set(carried.delta, (votes.get(carried.delta) ?? 0) + (numbered(anchor.pose) ? 0.6 * carried.confidence : 0.3));
         }
       }
       if (stats.renumbered === undefined) {
@@ -632,10 +760,32 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     return finish(out, coasted ? 'coasting' : undefined);
   };
 
+  const fit = (frame: Frame, hypotheses: readonly Mat3[], input: DetectOptions = {}): FittedBoard | null => {
+    if (badFrame(frame) || hypotheses.length === 0) return null;
+    const { opts, model } = resolveOptions(input);
+    const lv = lines.prepare(frame);
+    const av = align.prepare(frame);
+    let best: { c: BoardCandidate; index: number } | null = null;
+    hypotheses.forEach((H, index) => {
+      const Hline = scaleH(H, 1 / lv.factor, 1 / lv.factor);
+      // The hypothesis is right along the neck near the markers but knows nothing of perspective:
+      // wide windows first, a light pull toward it.
+      const refined = refinePose(lv.img, Hline, model, { windows: [0.3, 0.2, 0.14], priorWeight: 0.3, evidence: true });
+      if (!refined || refined.fretsFound < 4) return;
+      const c = describe('lines', refined.H, refined, lv, av, model, refined.polarity);
+      if (!best || c.evidence > best.c.evidence) best = { c, index };
+    });
+    const found = best as { c: BoardCandidate; index: number } | null;
+    if (!found) return null;
+    const pose = makePose(found.c.H, model, frame.width, frame.height, { confidence: logistic(found.c.evidence), mirrored: opts.mirrored ?? false, leftHanded: opts.leftHanded ?? false });
+    return { pose, evidence: found.c.evidence, index: found.index };
+  };
+
   const inspect = (frame: Frame, input: DetectOptions = {}): Inspection => {
     const { opts, model } = resolveOptions(input);
     const found = search(frame, opts, model, true);
-    return { model: found.model, candidates: found.candidates, numbering: found.numbering, agree: found.agree, chosen: found.chosen, reason: found.reason, timings: found.timings, stats: found.stats };
+    const numbering = found.candidates.map((c) => numberingOf(c, found.av, found.model));
+    return { model: found.model, candidates: found.candidates, numbering, agree: found.agree, chosen: found.chosen, reason: found.reason, timings: found.timings, stats: found.stats };
   };
 
   return {
@@ -643,6 +793,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     detect,
     track,
     inspect,
+    fit,
     reset: () => {
       lines.reset?.();
       align.reset?.();

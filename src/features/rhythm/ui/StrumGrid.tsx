@@ -9,6 +9,8 @@ import styles from './Rhythm.module.css';
 export interface SlotMark {
   verdict: Verdict;
   errorMs: number;
+  /** Hit, but with the other stroke direction: marked with the arrow it should have been. */
+  wrongWay?: boolean;
 }
 
 /** Props of {@link StrumGrid}. */
@@ -94,8 +96,8 @@ export const StrumGrid = forwardRef<StrumGridHandle, StrumGridProps>(function St
         <Arrow stroke={s} />
         {counts && <span className={cx(styles.slotCount, s.count.strong && styles.slotCountStrong)}>{s.count.text || '·'}</span>}
         {marks && (
-          <span className={cx(styles.slotMark, mark && MARK_TONE[mark.verdict])} aria-hidden="true">
-            {mark && <Icon name={mark.verdict === 'good' || mark.verdict === 'ok' ? (mark.errorMs < 0 ? 'ChevronLeft' : 'ChevronRight') : MARK_ICON[mark.verdict]} size={13} strokeWidth={3} />}
+          <span className={cx(styles.slotMark, mark && (mark.wrongWay ? styles.toneOff : MARK_TONE[mark.verdict]))} aria-hidden="true" data-mark={mark ? (mark.wrongWay ? 'wrong-way' : mark.verdict) : undefined}>
+            {mark && <Icon name={mark.wrongWay ? (s.dir === 'D' ? 'ArrowDown' : 'ArrowUp') : mark.verdict === 'good' || mark.verdict === 'ok' ? (mark.errorMs < 0 ? 'ChevronLeft' : 'ChevronRight') : MARK_ICON[mark.verdict]} size={13} strokeWidth={3} />}
           </span>
         )}
       </>

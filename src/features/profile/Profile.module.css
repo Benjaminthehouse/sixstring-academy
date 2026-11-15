@@ -38,6 +38,16 @@
 .navList::-webkit-scrollbar {
   display: none;
 }
+/* Fade the edge that has more links beyond it, as the kit's chip rows do, so the strip reads as scrollable. */
+.fadeStart {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 2rem);
+}
+.fadeEnd {
+  mask-image: linear-gradient(to left, transparent 0, var(--fg) 2rem);
+}
+.fadeStart.fadeEnd {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 2rem, var(--fg) calc(100% - 2rem), transparent 100%);
+}
 .navList > li {
   flex: none;
 }

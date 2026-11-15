@@ -76,8 +76,6 @@ export interface ReaderContext {
   blurLevel: number;
   /** Line cross-sections already measured, by line and stretch of staff. */
   profiles: Map<number, LineProfile>;
-  /** Read only digits (used while the blur level is being chosen). */
-  digitsOnly?: boolean;
   /** Score penalty per template once the face of the staff is known (see `facePenalties`). */
   penalty?: Float32Array | null;
   /** The faces that explain the staff best, best first (indices into the face list). */
@@ -87,6 +85,13 @@ export interface ReaderContext {
    * them). Only then is the line taken out of a glyph that hangs on it.
    */
   lineThrough: boolean;
+  /**
+   * Where the line runs through a typical digit of this staff, in rows of a normalised glyph
+   * (see {@link struckReference}), used while the blur level is judged.
+   */
+  struckRef?: { centre: number; thickness: number } | null;
+  /** The struck geometries this staff reads with so far (a dozen at most; see {@link struckKey}). */
+  struckKeys?: { centre: number; thickness: number }[];
 }
 
 /** True for the digit classes. */
@@ -100,7 +105,7 @@ export const isDigitLabel = (label: string): boolean => label.length === 1 && la
 const CLASS_PRIOR: Record<string, number> = { x: 0.03, '(': 0.05, ')': 0.05, '<': 0.05, '>': 0.05, h: 0.1, p: 0.1, b: 0.1, s: 0.1, r: 0.1, '/': 0.1, '\\': 0.1, '~': 0.2 };
 
 /** Cross-section of line `line` around column x (cached per stretch of two staff spaces). */
-function profileFor(ctx: ReaderContext, line: number, x: number): LineProfile {
+export function profileFor(ctx: Pick<ReaderContext, 'gray' | 'lineYs' | 'space' | 'lineThickness' | 'profiles'>, line: number, x: number): LineProfile {
   const bucket = Math.floor(x / (2 * ctx.space));
   const key = line * 100000 + bucket;
   let p = ctx.profiles.get(key);
@@ -125,17 +130,68 @@ export function readGlyph(ctx: ReaderContext, rough: Box, line: number, fused: b
   }
   const box = refineBox(ctx.gray, rough, profile);
   let templates = ctx.templates;
-  if (profile && !ctx.digitsOnly) {
-    const at = lineInBox(profile, box);
+  if (profile) {
+    const at = struckKey(ctx, lineInBox(profile, box));
     templates = struckTemplates(ctx.blurLevel, at.centre, at.thickness);
   }
   const patch = extractPatch(ctx.gray, box, profile);
   const relH = (box.y1 - box.y0) / ctx.inkHeight;
-  const raw = classifyPatch(patch, templates, { relH, relHTolerance: 0.25, allow: ctx.digitsOnly ? (t) => !t.music && t.cls < 10 : (t) => !t.music, penalty: ctx.penalty });
+  const raw = classifyPatch(patch, templates, { relH, relHTolerance: 0.25, allow: (t) => !t.music, penalty: ctx.penalty });
   if (!raw.length) return null;
   const ranked = raw.map((r) => ({ ...r, score: r.score - (CLASS_PRIOR[r.label] ?? 0) })).sort((a, b) => b.score - a.score);
   if (ctx.topFaces && ranked.length > 1 && ranked[0].cls <= 9 && ranked[0].score - ranked[1].score < CLOSE_CALL) settleCloseCall(patch, templates, ranked, ctx.topFaces);
   return { box, line, ranked, label: ranked[0].label, score: ranked[0].score, margin: ranked[0].score - (ranked[1]?.score ?? 0), fused, patch, templates };
+}
+
+/**
+ * The struck template geometry a glyph is compared with: where the line crosses it, to half rows
+ * (the one-pixel shift search absorbs the rest). Each geometry is a set of templates to draw
+ * (5-15 ms), and a noisy staff could ask for dozens: past {@link MAX_STRUCK_PER_STAFF} the nearest
+ * one this staff already uses serves. With `rough` (judging the blur level, where a few typical
+ * digits suffice) anything within 0.75 rows of the staff's reference geometry is taken as that.
+ * The choice depends on the staff alone, never on what was read before.
+ */
+export function struckKey(ctx: Pick<ReaderContext, 'struckRef' | 'struckKeys'>, at: { centre: number; thickness: number }, rough = false): { centre: number; thickness: number } {
+  const ref = ctx.struckRef;
+  if (rough && ref && Math.abs(at.centre - ref.centre) <= 0.75 && Math.abs(at.thickness - ref.thickness) <= 0.75) return ref;
+  const own = { centre: Math.round(at.centre * 2) / 2, thickness: Math.max(0.5, Math.round(at.thickness * 2) / 2) };
+  const used = ctx.struckKeys;
+  if (!used) return own;
+  const same = used.find((o) => o.centre === own.centre && o.thickness === own.thickness);
+  if (same) return same;
+  if (used.length < MAX_STRUCK_PER_STAFF) {
+    used.push(own);
+    return own;
+  }
+  const dist = (o: { centre: number; thickness: number }): number => Math.abs(o.centre - at.centre) + Math.abs(o.thickness - at.thickness);
+  return used.reduce((x, y) => (dist(y) < dist(x) ? y : x));
+}
+
+/** Struck template geometries one staff may use (see {@link struckKey}). */
+const MAX_STRUCK_PER_STAFF = 12;
+
+/**
+ * The staff's typical line geometry in glyph rows (median over the digit-sized pieces that hang on
+ * a line, to half rows), or null when fewer than three can be measured.
+ */
+export function struckReference(ctx: Pick<ReaderContext, 'gray' | 'lineYs' | 'space' | 'lineThickness' | 'profiles' | 'digitHeight'>, blobs: LineBlob[]): { centre: number; thickness: number } | null {
+  const hd = ctx.digitHeight;
+  const cs: number[] = [];
+  const ts: number[] = [];
+  for (const b of blobs) {
+    const h = b.box.y1 - b.box.y0;
+    const w = b.box.x1 - b.box.x0;
+    if (!b.fused || Math.abs(b.offset) > 0.2 || h < 0.8 * hd || h > 1.2 * hd || w < 0.2 * hd || w > 0.85 * hd) continue;
+    const profile = profileFor(ctx, b.line, (b.box.x0 + b.box.x1) / 2);
+    const at = lineInBox(profile, refineBox(ctx.gray, b.box, profile));
+    if (at.thickness <= 0) continue;
+    cs.push(at.centre);
+    ts.push(at.thickness);
+    if (cs.length >= 40) break;
+  }
+  if (cs.length < 3) return null;
+  const med = (v: number[]): number => v.sort((a, b) => a - b)[v.length >> 1];
+  return { centre: Math.round(med(cs) * 2) / 2, thickness: Math.max(0.5, Math.round(med(ts) * 2) / 2) };
 }
 
 /** Lead below which the two best digit readings are compared face by face. */
@@ -469,6 +525,22 @@ export function assembleLine(glyphs: Glyph[], digitHeight: number, maxGap = 0.36
       else if (could(g, ')') && prev && isDigitLabel(prev.label) && prev.box.y1 - prev.box.y0 < 1.1 * inkHeight && g.box.x0 - prev.box.x1 <= 0.6 * hd) row[i] = relabel(g, ')');
     }
   }
+  // Both brackets read as 1s: "1 5 1" or "1 1 2 1" set tight is no fret (frets have one or two
+  // digits), but a number in brackets is, when both outer glyphs could be the brackets.
+  for (let i = 0; i + 2 < row.length; i++) {
+    if (!could(row[i], '(')) continue;
+    for (const inner of [1, 2]) {
+      const j = i + inner + 1;
+      if (j >= row.length || !could(row[j], ')')) continue;
+      const mid = row.slice(i + 1, j);
+      if (!mid.every((g) => isDigitLabel(g.label))) continue;
+      if (row[i + 1].box.x0 - row[i].box.x1 > 0.6 * hd || row[j].box.x0 - row[j - 1].box.x1 > 0.6 * hd) continue;
+      if (inner === 2 && mid[1].box.x0 - mid[0].box.x1 > maxGap) continue;
+      row[i] = relabel(row[i], '(');
+      row[j] = relabel(row[j], ')');
+      break;
+    }
+  }
   for (let i = 0; i < row.length; i++) {
     const g = row[i];
     const pair = g.label === '(' || g.label === '<' ? (g.label === '(' ? ')' : '>') : g.label === ')' || g.label === '>' ? (g.label === ')' ? '(' : '<') : null;
@@ -625,6 +697,17 @@ export function facePenalties(glyphs: Glyph[], templates: GlyphTemplate[], faceC
  * struck-through when that holds for most of its digit-sized blobs.
  */
 export function detectLineThrough(gray: GrayImage, blobs: LineBlob[], lineYs: number[], digitHeight: number): boolean {
+  return lineThroughEvidence(gray, blobs, lineYs, digitHeight).through;
+}
+
+/**
+ * The evidence behind {@link detectLineThrough}: for each digit-sized blob that hangs on its line,
+ * the lightest pixel of the line's centre row inside the glyph, as a share of the bare line's ink
+ * just outside it. `median` of those ratios (0 without samples): well above 1 where the line runs
+ * through the numbers (the glyph adds to it), below 1 where it is blanked behind them, near 1
+ * where blur has closed the blanked gap.
+ */
+export function lineThroughEvidence(gray: GrayImage, blobs: LineBlob[], lineYs: number[], digitHeight: number): { through: boolean; median: number; samples: number } {
   const ratios: number[] = [];
   for (const b of blobs) {
     const h = b.box.y1 - b.box.y0;
@@ -651,7 +734,9 @@ export function detectLineThrough(gray: GrayImage, blobs: LineBlob[], lineYs: nu
     if (lineInk < 60) continue;
     ratios.push((255 - light) / lineInk);
   }
-  if (ratios.length < 3) return ratios.length > 0 && ratios.every((r) => r > 0.75);
+  if (!ratios.length) return { through: false, median: 0, samples: 0 };
   ratios.sort((a, b) => a - b);
-  return ratios[ratios.length >> 1] > 0.75;
+  const median = ratios[ratios.length >> 1];
+  const through = ratios.length < 3 ? ratios[0] > 0.75 : median > 0.75;
+  return { through, median, samples: ratios.length };
 }

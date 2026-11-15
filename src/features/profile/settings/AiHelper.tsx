@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { aiStatus, apiKeyHint, clearApiKey, hasApiKey, host, setApiKey, verifyApiKey, type AiStatus } from '@/core/platform';
 import { setPrefs, usePrefs } from '@/core/progress';
 import { Badge, Banner, Button, Spinner, Switch, TextField, confirmDialog, toast } from '@/ui';
+import { keyCheckOutcome, type KeyCheck } from './model';
 import styles from './Settings.module.css';
 
 /** What the last check of the key found. The key itself is never kept in this component's state after it is saved. */
-type Check = { state: 'idle' } | { state: 'checking' } | { state: 'ok' } | { state: 'rejected'; message: string } | { state: 'unsure'; message: string };
+type Check = { state: 'idle' } | { state: 'checking' } | KeyCheck;
 
 function Purpose() {
   return (
@@ -70,22 +71,14 @@ function OwnKey() {
 
   const verify = async (): Promise<void> => {
     setCheck({ state: 'checking' });
-    const result = await verifyApiKey();
+    const outcome = keyCheckOutcome(await verifyApiKey());
+    // The stored key and the switch are dealt with even if the learner has left this screen
+    // meanwhile: a key Anthropic rejects is of no use and must not stay saved.
+    if (outcome.forget) clearApiKey();
+    if (outcome.enabled !== null) setPrefs({ ai: { enabled: outcome.enabled } });
     if (!alive.current) return;
-    if (result.ok) {
-      setCheck({ state: 'ok' });
-      setPrefs({ ai: { enabled: true } });
-      return;
-    }
-    if (result.error.kind === 'bad-key') {
-      // A key Anthropic rejects is of no use: do not keep it around.
-      clearApiKey();
-      setHint(null);
-      setPrefs({ ai: { enabled: false } });
-      setCheck({ state: 'rejected', message: 'Anthropic did not accept that key. It may be mistyped, expired or revoked. It was not saved. Copy the whole key again and paste it here.' });
-      return;
-    }
-    setCheck({ state: 'unsure', message: result.error.message });
+    if (outcome.forget) setHint(null);
+    setCheck(outcome.check);
   };
 
   const submit = (event: FormEvent): void => {

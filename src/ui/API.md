@@ -102,7 +102,7 @@ Conventions that hold for the whole kit:
 |---|---|---|
 | `Page` | `title`, `subtitle?`, `eyebrow?`, `back?: string \| { to?, params?, label?, onClick? }`, `actions?`, `width?: 'content' \| 'prose' \| 'full'` [content], `gap?` [8], `hideHeader?` | Screen wrapper. `back="songs"` renders a real link; name the destination with `label`. |
 | `Section` | `title?`, `description?`, `eyebrow?`, `actions?`, `level?: 2 \| 3`, `divided?`, `gap?` [4] | Titled block; no card. |
-| `ActionBar` | `start?`, `stretchOnMobile?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`. |
+| `ActionBar` | `start?`, `stretchOnMobile?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`. While mounted it publishes its height as `--action-bar-h` on `<html>`; toasts already add it, and any other fixed bottom layer should too. |
 | `Stack` | `gap?` [4], `align?`, `justify?`, `as?` | Vertical flow. |
 | `Row` | `gap?` [3], `align?`, `justify?`, `wrap?`, `stackOnMobile?`, `as?` | One line, centred vertically. |
 | `Cluster` | `gap?` [2], `align?`, `justify?`, `as?` | Wrapping group of small things. |
@@ -297,7 +297,7 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 | Export | Use |
 |---|---|
 | `useMediaQuery(query)`, `useIsMobile()`, `usePrefersReducedMotion()`, `useIsTouch()` | Live media queries. `BREAKPOINTS`, `MOBILE_QUERY`, `WIDE_QUERY`. `usePrefersReducedMotion()` is the learner's own motion setting in the app when they chose one (`data-motion` on `<html>`), otherwise the device's: use it for anything animated from JavaScript. |
-| `useElementSize<T>()` → `[ref, { width, height }]` | ResizeObserver on a callback ref (size a canvas or fretboard to its container). |
+| `useElementSize<T>()` → `[ref, { width, height }]` | ResizeObserver on a callback ref (size a canvas or fretboard to its container). Safe under StrictMode. |
 | `useLocalState(key, initial)` → `[value, set, reset]` | `useState` persisted through the platform storage layer. For small screen preferences only; progress lives in `core/progress`. |
 | `useInterval(fn, ms \| null)`, `useTimeout(fn, ms \| null)` | `null` pauses. Not for musical timing. |
 | `useRafLoop(fn(dtMs, timeMs), running?)` | Frame loop with cleanup; delta capped at `MAX_FRAME_MS`. |

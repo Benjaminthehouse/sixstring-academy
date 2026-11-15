@@ -18,6 +18,7 @@
 }
 .helper {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-4);
@@ -48,13 +49,14 @@
   background: var(--xp-soft);
   color: var(--xp);
 }
+/* The words keep a readable width; when the row is too narrow for them and the button, the button moves under them. */
 .helperText {
-  flex: 1 1 auto;
+  flex: 1 1 12rem;
   min-width: 0;
 }
 .helperBuy {
   flex: none;
-  font-family: var(--font-mono);
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
 .helperStatus {
@@ -211,6 +213,7 @@
 }
 .tileRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--sp-3);
 }
@@ -218,7 +221,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1 1 auto;
+  /* With very large text the words drop under the swatch instead of squeezing beside it. */
+  flex: 1 1 8rem;
   min-width: 0;
   /* Room for the check mark a selected card draws in its corner. */
   padding-right: var(--sp-6);

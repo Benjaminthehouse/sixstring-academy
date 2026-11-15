@@ -11,11 +11,16 @@ const { loadTs } = require('./lib/harness.cjs');
 const SR = 48000;
 
 let signals = null;
-/** The pitch module's signal generators, loaded once (pluckedString, concat, silence, addNoise, whiteNoise, encodeWav). */
+/** The pitch module (`@/core/pitch`) with its test signals, loaded once: pluckedString, concat, silence, addNoise, whiteNoise, encodeWav. */
 async function loadSignals() {
-  signals ??= await loadTs('/src/core/pitch/signals.ts');
+  signals ??= await loadTs('/src/core/pitch/index.ts');
   return signals;
 }
+
+/** Room noise under the whole recording, this many dB below its average level (a quiet room, a phone close to the guitar). */
+const ROOM_SNR_DB = 45;
+/** For a recording with nothing in it at all: a hiss at about -68 dBFS, so the input is never digital silence. */
+const ROOM_FLOOR_RMS = 0.0004;
 
 /** Frequency of a MIDI note `cents` away from equal temperament. */
 function freqOf(midi, cents = 0, a4 = 440) {
@@ -38,10 +43,11 @@ function pluck(sig, { midi, cents = 0, a4 = 440, dur = 1.7, amplitude = 0.5, dam
 /**
  * Build a recording from parts and write it as the 16-bit WAV Chromium's fake microphone plays.
  *   parts: { pluck: { midi, cents, a4, dur }, gap } | { silence: seconds } | { noise: seconds, rms }
- * A little room noise (60 dB below the plucks) is added so the input is never digital silence.
+ * Room noise is added under everything with `addNoise` (`roomSnrDb` below the recording's average
+ * level, 45 dB by default), so the input is never digital silence, as no real microphone is.
  * Returns the path with "%noloop": the file is played once from the moment the microphone opens.
  */
-async function makeRecording(name, parts, { lead = 2.5, tail = 1.5, room = true } = {}) {
+async function makeRecording(name, parts, { lead = 2.5, tail = 1.5, room = true, roomSnrDb = ROOM_SNR_DB } = {}) {
   const sig = await loadSignals();
   const chunks = [sig.silence(lead, SR)];
   for (const part of parts) {
@@ -54,13 +60,46 @@ async function makeRecording(name, parts, { lead = 2.5, tail = 1.5, room = true 
   chunks.push(sig.silence(tail, SR));
   let x = sig.concat(...chunks);
   if (room) {
-    const hiss = sig.whiteNoise(x.length, 0.0004, 11);
-    for (let i = 0; i < x.length; i++) x[i] += hiss[i];
+    if (x.some((v) => v !== 0)) x = sig.addNoise(x, roomSnrDb, 11);
+    else x = sig.whiteNoise(x.length, ROOM_FLOOR_RMS, 11);
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tuner-e2e-'));
   const file = path.join(dir, `${name}.wav`);
   fs.writeFileSync(file, Buffer.from(sig.encodeWav(x, SR, { bitDepth: 16 })));
   return { file, fakeAudio: `${file}%noloop`, seconds: x.length / SR };
+}
+
+let kit = null;
+/**
+ * A recording made with a second, independent string model: the audio engine's waveguide guitar
+ * (`renderNote` from the pitch module's adversarial kit) at 44.1 kHz, under pink room noise
+ * `roomDb` below the first 0.3 s of the first note (a fridge, traffic: noise that the end of a
+ * ringing string sinks into). notes: { string, cents, ring } (seconds the string rings).
+ */
+async function makeEngineRecording(name, notes, { lead = 2.5, gap = 0.6, tail = 1.5, roomDb = -28 } = {}) {
+  const sr = 44100;
+  kit ??= await loadTs('/src/core/pitch/adversarial-kit.ts');
+  const sig = await loadSignals();
+  const total = lead + notes.reduce((s, n) => s + n.ring + gap, 0) + tail;
+  let x = new Float32Array(Math.round(total * sr));
+  let at = lead;
+  for (const n of notes) {
+    const note = Float32Array.from(kit.renderNote({ string: n.string, fret: 0, tone: 'steel', velocity: 0.7, cents: n.cents, sampleRate: sr }, n.ring + 0.5).subarray(0, Math.round(n.ring * sr)));
+    const fade = Math.round(0.04 * sr);
+    for (let i = 0; i < fade; i++) note[note.length - 1 - i] *= i / fade;
+    x = kit.mixInto(x, note, 1, Math.round(at * sr));
+    at += n.ring + gap;
+  }
+  const ref = kit.rms(x, Math.round(lead * sr), Math.round((lead + 0.3) * sr));
+  const room = kit.background('pink', sr, x.length, 7);
+  x = kit.mixInto(x, room, (ref * Math.pow(10, roomDb / 20)) / kit.rms(room));
+  let peak = 0;
+  for (const v of x) peak = Math.max(peak, Math.abs(v));
+  for (let i = 0; i < x.length; i++) x[i] *= 0.6 / peak;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tuner-e2e-'));
+  const file = path.join(dir, `${name}.wav`);
+  fs.writeFileSync(file, Buffer.from(sig.encodeWav(x, sr, { bitDepth: 16 })));
+  return { file, fakeAudio: `${file}%noloop`, seconds: total };
 }
 
 /** Storage that skips the first-run dialog and (by default) the tuner's first-time guided flow. */
@@ -159,4 +198,4 @@ function episodes(log) {
   });
 }
 
-module.exports = { SR, loadSignals, freqOf, pluck, makeRecording, seedStorage, seed, waitForTuner, startLog, readLog, readout, episodes, READOUT };
+module.exports = { SR, loadSignals, freqOf, pluck, makeRecording, makeEngineRecording, seedStorage, seed, waitForTuner, startLog, readLog, readout, episodes, READOUT };

@@ -284,6 +284,61 @@ function render(t: GlyphTemplate, sigma: number, maxWidth: number, geom: BlurGeo
 }
 
 /**
+ * What erasing the rows under a line takes away from a blurred template: the erased ink alone,
+ * blurred and cut like the whole glyph (`geom`). Blur and resampling are linear, so the struck
+ * template is the plain one minus this, and only the few rows of the line need blurring.
+ */
+function struckDelta(t: GlyphTemplate, sigma: number, geom: BlurGeometry, erase: { centre: number; thickness: number }): Float32Array {
+  const pad = geom.pad;
+  const W = t.w + 2 * pad;
+  const Hh = GLYPH_H + 2 * pad;
+  const ch = geom.y1 - geom.y0;
+  const yl = geom.y0 + (erase.centre * ch) / GLYPH_H;
+  const half = (erase.thickness * ch) / GLYPH_H / 2;
+  const band = new Float32Array(W * Hh);
+  let ya = Hh;
+  let yb = -1;
+  for (let y = pad; y < pad + GLYPH_H; y++) {
+    const cover = Math.min(1, Math.max(0, Math.min(y + 1, yl + half) - Math.max(y, yl - half)));
+    if (cover <= 0) continue;
+    if (y < ya) ya = y;
+    yb = y;
+    for (let x = 0; x < t.w; x++) band[y * W + x + pad] = t.px[(y - pad) * t.w + x] * cover;
+  }
+  if (yb < 0) return new Float32Array(geom.w * GLYPH_H);
+  if (sigma < 0.15) return resampleBox(band, W, Hh, geom, geom.w, GLYPH_H);
+  // The same kernel as blurGlyph, applied to the band rows only.
+  const r = Math.max(1, Math.ceil(sigma * 2.5));
+  const k = new Float32Array(2 * r + 1);
+  let sum = 0;
+  for (let i = -r; i <= r; i++) {
+    k[i + r] = Math.exp(-(i * i) / (2 * sigma * sigma));
+    sum += k[i + r];
+  }
+  for (let i = 0; i < k.length; i++) k[i] /= sum;
+  const tmp = new Float32Array(W * Hh);
+  for (let y = ya; y <= yb; y++) {
+    for (let x = 0; x < W; x++) {
+      let a = 0;
+      for (let i = -r; i <= r; i++) {
+        const xx = x + i;
+        if (xx >= 0 && xx < W) a += k[i + r] * band[y * W + xx];
+      }
+      tmp[y * W + x] = a;
+    }
+  }
+  const soft = new Float32Array(W * Hh);
+  for (let y = Math.max(0, ya - r); y <= Math.min(Hh - 1, yb + r); y++) {
+    for (let x = 0; x < W; x++) {
+      let a = 0;
+      for (let yy = Math.max(ya, y - r); yy <= Math.min(yb, y + r); yy++) a += k[yy - y + r] * tmp[yy * W + x];
+      soft[y * W + x] = a;
+    }
+  }
+  return resampleBox(soft, W, Hh, geom, geom.w, GLYPH_H);
+}
+
+/**
  * A template as it looks after an optical blur of `sigma` px (at {@link GLYPH_H} rows) and the
  * reader's own cropping: the glyph is blurred on a padded canvas, cut to the outline a threshold
  * would find (blur makes a glyph's box grow) and brought back to {@link GLYPH_H} rows.
@@ -291,6 +346,15 @@ function render(t: GlyphTemplate, sigma: number, maxWidth: number, geom: BlurGeo
 export function blurTemplate(t: GlyphTemplate, sigma: number, maxWidth = 28): GlyphTemplate {
   const r = render(t, sigma, maxWidth, null, null);
   return { ...t, w: r.geom.w, px: r.px, ...sumsOf(r.px) };
+}
+
+/**
+ * A struck template drawn the slow, direct way (erase, then blur the whole glyph): the reference
+ * the fast path of {@link struckTemplates} is tested against.
+ */
+export function struckTemplateDirect(level: number, index: number, centre: number, thickness: number): Float32Array {
+  const { geom } = levelSet(level);
+  return render(loadTemplates()[index], BLUR_LEVELS[level] ?? 0, 28, geom[index], { centre, thickness }).px;
 }
 
 /** Blur levels (sigma in px at {@link GLYPH_H} rows) the templates are kept at. */
@@ -321,10 +385,12 @@ export function templatesAtBlur(level: number): GlyphTemplate[] {
 }
 
 const struck = new Map<string, GlyphTemplate[]>();
-/** Line positions already rendered, per blur level: [centre, thickness]. */
-const struckKeys = new Map<number, [number, number][]>();
-/** Most struck sets kept per blur level; beyond that the nearest existing one is used. */
-const MAX_STRUCK_SETS = 20;
+/**
+ * Struck sets kept (least recently used dropped first). Each is a few hundred KB; a page needs a
+ * handful, and an evicted one is rebuilt exactly (8-18 ms), so a reading never depends on what
+ * was read before it.
+ */
+const MAX_STRUCK_SETS = 32;
 
 /**
  * The template set for glyphs a staff line strikes through, as they look once the bare line has
@@ -334,25 +400,17 @@ const MAX_STRUCK_SETS = 20;
  *
  * `centre` and `thickness` place the sharp line in rows of the finished template (0..GLYPH_H);
  * both are rounded to half rows (the search over one-pixel shifts absorbs the rest) and the sets
- * are cached, so a page builds a handful of them. A noisy staff could ask for any number of
- * positions; past a limit the nearest set already built is returned. Indices match
- * {@link templatesAtBlur}.
+ * are cached. Indices match {@link templatesAtBlur}.
  */
 export function struckTemplates(level: number, centre: number, thickness: number): GlyphTemplate[] {
-  let c = Math.round(centre * 2) / 2;
-  let th = Math.max(0.5, Math.round(thickness * 2) / 2);
-  let key = `${level}|${c}|${th}`;
+  const c = Math.round(centre * 2) / 2;
+  const th = Math.max(0.5, Math.round(thickness * 2) / 2);
+  const key = `${level}|${c}|${th}`;
   let hit = struck.get(key);
-  if (hit) return hit;
-  let keys = struckKeys.get(level);
-  if (!keys) struckKeys.set(level, (keys = []));
-  if (keys.length >= MAX_STRUCK_SETS) {
-    let best = keys[0];
-    for (const k of keys) if (Math.abs(k[0] - c) + Math.abs(k[1] - th) < Math.abs(best[0] - c) + Math.abs(best[1] - th)) best = k;
-    [c, th] = best;
-    key = `${level}|${c}|${th}`;
-    hit = struck.get(key);
-    if (hit) return hit;
+  if (hit) {
+    struck.delete(key);
+    struck.set(key, hit);
+    return hit;
   }
   const { set, geom } = levelSet(level);
   const sigma = BLUR_LEVELS[level] ?? 0;
@@ -360,10 +418,27 @@ export function struckTemplates(level: number, centre: number, thickness: number
   hit = base.map((t, i) => {
     // Rests and time-signature numerals are never read this way: keep their plain drawing.
     if (t.music) return set[i];
-    const px = render(t, sigma, 28, geom[i], { centre: c, thickness: th }).px;
-    return { ...set[i], px, ...sumsOf(px) };
+    // Drawn on first use: a glyph is only compared with templates of about its width and height,
+    // so most of a set is never needed.
+    const plain = set[i];
+    let px: Float32Array | null = null;
+    let s1 = 0;
+    let s2 = 0;
+    const draw = (): Float32Array => {
+      const delta = struckDelta(t, sigma, geom[i], { centre: c, thickness: th });
+      const out = new Float32Array(plain.px.length);
+      for (let j = 0; j < out.length; j++) out[j] = Math.max(0, plain.px[j] - delta[j]);
+      ({ s1, s2 } = sumsOf(out));
+      return (px = out);
+    };
+    return {
+      cls: plain.cls, label: plain.label, family: plain.family, weight: plain.weight, music: plain.music, w: plain.w, relH: plain.relH, relY: plain.relY, faces: plain.faces,
+      get px(): Float32Array { return px ?? draw(); },
+      get s1(): number { if (!px) draw(); return s1; },
+      get s2(): number { if (!px) draw(); return s2; },
+    };
   });
   struck.set(key, hit);
-  keys.push([c, th]);
+  if (struck.size > MAX_STRUCK_SETS) struck.delete(struck.keys().next().value as string);
   return hit;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_CALIBRATION, detectBleed, estimateOffset, isBleed, normalizeCalibration, offsetFor } from './calibration';
-import { LiveJudge, MIC_WINDOWS, TAP_WINDOWS, formatMs, scoreTaps, starsFor, summarise, verdictLabel, type TargetMeta } from './scoring';
+import { EMPTY_CALIBRATION, detectBleed, estimateOffset, isBleed, judgeEstimate, normalizeCalibration, offsetFor } from './calibration';
+import { LiveJudge, MIC_WINDOWS, TAP_WINDOWS, WRONG_WAY_SHARE, formatMs, scoreTaps, starsFor, summarise, verdictLabel, wrongWay, type TargetMeta } from './scoring';
 import { pickTip } from './tips';
 
 /** Quarter notes at 120 BPM starting at t = 1 s. */
@@ -154,6 +154,29 @@ describe('round statistics', () => {
     expect(stats.silent.meanMs).toBeCloseTo(30, 3);
   });
 
+  it('leaves unheard soft notes out only when asked to, and still scores the ones that were heard', () => {
+    const metas: TargetMeta[] = [0, 1, 2, 3].map((id) => ({ id, part: id % 2 ? 'a' : 'beat', soft: id % 2 === 1 }));
+    const judge = new LiveJudge(metas.map((m) => ({ id: m.id, time: 1 + m.id * 0.2 })), MIC_WINDOWS);
+    judge.tap(1);
+    judge.tap(1.4);
+    judge.tap(1.61);
+    judge.finish();
+    // Note 1 (soft) went unheard; note 3 (soft) was heard 10 ms late.
+    const strict = summarise(metas, judge.judgements);
+    expect(strict.total).toBe(4);
+    expect(strict.miss).toBe(1);
+    expect(strict.forgiven).toBe(0);
+    const fair = summarise(metas, judge.judgements, { forgiveSoft: true });
+    expect(fair.total).toBe(3);
+    expect(fair.miss).toBe(0);
+    expect(fair.forgiven).toBe(1);
+    expect(fair.accuracy).toBe(1);
+    expect(fair.bestRun).toBe(3);
+    // Without the soft flag the same unheard note is a miss, forgiving or not.
+    const plainMiss = summarise(metas.map((m) => ({ ...m, soft: false })), judge.judgements, { forgiveSoft: true });
+    expect(plainMiss.miss).toBe(1);
+  });
+
   it('scores a round that was cut short: unjudged notes are misses', () => {
     const metas: TargetMeta[] = [0, 1, 2, 3].map((id) => ({ id, part: 'beat' }));
     const judge = new LiveJudge(metas.map((m) => ({ id: m.id, time: 1 + m.id * 0.5 })));
@@ -258,5 +281,85 @@ describe('calibration', () => {
     expect(isBleed({ time: 5.064, levelDb: -12 }, [5], bleed)).toBe(false);
     expect(isBleed({ time: 5.3, levelDb: -30 }, [5], bleed)).toBe(false);
     expect(isBleed({ time: 5.064, levelDb: -30 }, [5], null)).toBe(false);
+  });
+});
+
+// Review fixes. Each block reproduces a bug found by using the trainer, then pins the fix.
+
+describe('stroke direction counts in the score', () => {
+  // Down-up eighths: D on the beats, U in between, every stroke perfectly on time.
+  const t = beats(16, 0.3);
+  const dirs = t.map((_, i) => (i % 2 ? 'U' : 'D') as 'D' | 'U');
+
+  it('a round of well-timed strokes that all go the wrong way earns no star', () => {
+    // Before the fix this scored 100 % and three stars ("Locked in") while the tip said every stroke was reversed.
+    const reversed = dirs.map((d) => (d === 'D' ? 'U' : 'D') as 'D' | 'U');
+    const { stats } = scoreTaps(t, t, { dirs, tapDirs: reversed });
+    expect(stats.hits).toBe(16);
+    expect(stats.wrongDirection).toBe(16);
+    expect(stats.accuracy).toBeCloseTo(WRONG_WAY_SHARE, 9);
+    expect(stats.stars).toBe(0);
+    expect(pickTip(stats, { source: 'tap', calibrated: true }).id).toBe('direction');
+  });
+
+  it('a few reversed strokes cost a little and the tip names them', () => {
+    const played = dirs.map((d, i) => ([3, 8, 13].includes(i) ? (d === 'D' ? 'U' : 'D') : d) as 'D' | 'U');
+    const { stats } = scoreTaps(t, t, { dirs, tapDirs: played });
+    expect(stats.wrongDirection).toBe(3);
+    expect(stats.accuracy).toBeCloseTo((13 + 3 * WRONG_WAY_SHARE) / 16, 9);
+    const tip = pickTip(stats, { source: 'tap', calibrated: true });
+    expect(tip.id).toBe('direction');
+    expect(tip.detail).toContain('3 strokes');
+  });
+
+  it('never charges a tap that carries no direction (Space, the microphone) or a note that has none', () => {
+    expect(scoreTaps(t, t, { dirs }).stats.accuracy).toBe(1);
+    expect(scoreTaps(t, t, { tapDirs: dirs.map(() => 'U' as const) }).stats.accuracy).toBe(1);
+    expect(wrongWay(undefined, 'D')).toBe(false);
+    expect(wrongWay('D', undefined)).toBe(false);
+    expect(wrongWay('D', 'U')).toBe(true);
+  });
+
+  it('pairs each direction with its own tap even when the taps arrive out of order', () => {
+    const late = [...t].reverse();
+    const lateDirs = [...dirs].reverse();
+    expect(scoreTaps(t, late, { dirs, tapDirs: lateDirs }).stats.wrongDirection).toBe(0);
+  });
+});
+
+describe('calibration results that cannot be true are never stored', () => {
+  const clicks = beats(16, 0.6);
+
+  it('turns down a steady offset beyond what any device adds, however steady', () => {
+    // Before the fix this read as "a little uneven (it varied by about 0 ms)", and "Keep it anyway"
+    // then said "Saved" while nothing was stored.
+    const early = estimateOffset(clicks, clicks.map((c) => c - 0.2), { periodSec: 0.6 });
+    expect(early.quality).toBe('good');
+    expect(judgeEstimate(early, 'tap')).toBe('implausible');
+    const offBeat = estimateOffset(clicks, clicks.map((c) => c + 0.29), { periodSec: 0.6 });
+    expect(judgeEstimate(offBeat, 'tap')).toBe('save');
+    const mic = estimateOffset(clicks, clicks.map((c) => c + 0.69), { periodSec: 0.6, earliestMs: -100 });
+    expect(judgeEstimate(mic, 'mic')).toBe('save');
+  });
+
+  it('saves good measurements, offers another go for uneven ones and asks for more taps', () => {
+    expect(judgeEstimate(estimateOffset(clicks, clicks.map((c) => c + 0.035), { periodSec: 0.6 }), 'tap')).toBe('save');
+    const wild = clicks.map((c, i) => c + ((i * 97) % 200) / 1000 - 0.1);
+    expect(judgeEstimate(estimateOffset(clicks, wild, { periodSec: 0.6 }), 'tap')).toBe('uneven');
+    expect(judgeEstimate(estimateOffset(clicks, clicks.slice(0, 3), { periodSec: 0.6 }), 'tap')).toBe('too-few');
+  });
+
+  it('keeps no date for a value that was thrown away', () => {
+    const cal = normalizeCalibration({ tapMs: -200, tapAt: 1_700_000_000_000, micMs: 120, micAt: 1_700_000_000_000 });
+    expect(cal.tapMs).toBeNull();
+    expect(cal.tapAt).toBeNull();
+    expect(cal.micAt).toBe(1_700_000_000_000);
+  });
+
+  it('bounds the browser-reported microphone delay used before calibration', () => {
+    expect(offsetFor(EMPTY_CALIBRATION, 'mic', 5000)).toBe(700);
+    expect(offsetFor(EMPTY_CALIBRATION, 'mic', -40)).toBe(0);
+    expect(offsetFor(EMPTY_CALIBRATION, 'mic', Number.NaN)).toBe(60);
+    expect(offsetFor(EMPTY_CALIBRATION, 'mic', 95)).toBe(95);
   });
 });

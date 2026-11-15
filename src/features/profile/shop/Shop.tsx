@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buy, equipCosmetic, shopOf, useGems, useHearts, usePrefs, useProgress, useProgressStore, useXpBoost, type ConsumableView, type CosmeticView } from '@/core/progress';
 import { ActionBar, Badge, Button, Card, GemChip, Icon, LinkButton, Section, toast, useInterval } from '@/ui';
+import { Fretboard, inlayFromCosmetic, woodFromCosmetic, type FretMarker } from '@/ui/music';
 import { plural } from '../format';
 import { FretPreview } from './FretPreview';
 import { CATEGORIES, HOW_TO_EARN, accentName, consumableState, cosmeticAction, cosmeticStatus, cosmeticsOf, lookWith, purchaseMessage, type Look } from './model';
@@ -25,12 +26,22 @@ function AccentSample({ accent }: { accent: string }) {
   );
 }
 
-/** The look being tried on: the neck in its wood and inlays, and the accent at work. */
+/** An open C chord, so the board on the stage looks the way it does in a lesson. */
+const STAGE_MARKERS: FretMarker[] = [
+  { string: 5, fret: 3, note: 'C', noteLabel: true, color: 'deg-1', root: true },
+  { string: 4, fret: 2, note: 'E', noteLabel: true, color: 'deg-3' },
+  { string: 2, fret: 1, note: 'C', noteLabel: true, color: 'deg-1', root: true },
+];
+
+/**
+ * The look being tried on: the app's own fretboard in that wood and those inlays (so what is
+ * tried on is exactly what every lesson will show), and the accent at work.
+ */
 function Stage({ look, trying, leftHanded }: { look: Look; trying: CosmeticView | null; leftHanded: boolean }) {
   return (
-    <div className={styles.stage} data-stage="" data-look-wood={look.wood} data-look-inlay={look.inlay} data-look-accent={look.accent}>
-      <div className={styles.stageBoard}>
-        <FretPreview wood={look.wood} inlay={look.inlay} leftHanded={leftHanded} />
+    <div className={styles.stage} data-stage="" data-look-wood={look.wood} data-look-inlay={look.inlay} data-look-accent={look.accent} data-left-handed={leftHanded || undefined}>
+      <div className={styles.stageBoard} aria-hidden="true">
+        <Fretboard frets={[0, 12]} size="sm" wood={woodFromCosmetic(look.wood)} inlay={inlayFromCosmetic(look.inlay)} leftHanded={leftHanded} stringLabels={false} fretNumbers="none" minFretWidth={12} markers={STAGE_MARKERS} />
       </div>
       <div className={styles.stageInfo}>
         <p className={styles.stageCaption} aria-live="polite">
@@ -65,8 +76,9 @@ function Helper({ item }: { item: ConsumableView }) {
           {state.reason && <span className={styles.helperReason}> · {state.reason}</span>}
         </p>
       </div>
+      {/* A button says what it does: "Buy for 60", not a bare price that reads like a label. */}
       <Button className={styles.helperBuy} disabled={blocked} iconLeft="Gem" aria-label={`Buy ${item.name} for ${item.price} gems`} onClick={() => say(purchaseMessage(buy(item.id), { name: item.name, price: item.price, gems }))}>
-        {item.price}
+        Buy for {item.price}
       </Button>
     </li>
   );

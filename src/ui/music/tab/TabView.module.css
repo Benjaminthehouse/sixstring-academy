@@ -1,0 +1,550 @@
+/*
+ * Tablature is ink on the page: it follows the theme. String lines are a hairline lighter than
+ * the fret numbers (so the numbers carry the eye), barlines a step stronger, rhythm and
+ * techniques in full ink, labels muted. Every size is a base size times `--z` (the zoom); the
+ * base sizes match FONT_PX in metrics.ts, which the layout measures with.
+ */
+.root {
+  --z: 1;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--r-sm);
+  --focus-radius: var(--r-sm);
+}
+.line {
+  scroll-behavior: auto;
+}
+.content {
+  position: relative;
+}
+.interactive {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.placeholder {
+  height: 9rem;
+}
+.empty {
+  color: var(--fg-muted);
+  padding: var(--sp-4) 0;
+}
+
+/* ── layers ── */
+.underlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tile {
+  position: absolute;
+}
+.svg {
+  position: relative;
+  display: block;
+  overflow: visible;
+}
+.loop,
+.selection,
+.pending {
+  position: absolute;
+  border-radius: var(--r-sm);
+}
+.loop {
+  background: var(--info-soft);
+}
+.loop[data-start] {
+  border-left: 2px solid var(--info);
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+}
+.loop[data-end] {
+  border-right: 2px solid var(--info);
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+.selection {
+  background: color-mix(in srgb, var(--accent-soft) 85%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.pending {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
+}
+.beat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: calc(5px * var(--z));
+  background: var(--accent-soft);
+  opacity: 0;
+  will-change: transform;
+}
+.cursor {
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  opacity: 0;
+  will-change: transform;
+}
+
+/* ── loop handles: a 44 px target around the grip on the loop's top edge (the staff stays tappable) ── */
+.handle {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+  --focus-radius: var(--r-sm);
+}
+.handleGrip {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 14px;
+  height: 22px;
+  margin-left: -7px;
+  border-radius: var(--r-pill);
+  background: var(--info);
+  box-shadow: var(--shadow-1);
+}
+.handleGrip::before,
+.handleGrip::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: var(--info-fg);
+}
+.handleGrip::before {
+  left: 4.5px;
+}
+.handleGrip::after {
+  right: 4.5px;
+}
+.handle:hover .handleGrip {
+  transform: scale(1.08);
+}
+
+/* ── chord diagrams and the notation staff ── */
+.diagram {
+  position: absolute;
+  pointer-events: none;
+}
+.diagram svg[data-size] {
+  width: 100%;
+}
+.score {
+  position: absolute;
+  left: 0;
+  color: var(--fg);
+  pointer-events: none;
+}
+.scoreInk :global(svg) {
+  display: block;
+  overflow: visible;
+}
+.scoreInk :global(.vf-stave) {
+  color: var(--fg-muted);
+}
+.scorePlaceholder {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.scorePlaceholder line {
+  stroke: var(--line);
+  stroke-width: 1;
+  animation: breathe 1.4s var(--ease) infinite alternate;
+}
+@keyframes breathe {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scorePlaceholder line {
+    animation: none;
+  }
+}
+
+/* ── the staff ── */
+.string {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+.bar {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1.1px * var(--z));
+}
+.barThick {
+  fill: var(--fg);
+}
+.repeatDot {
+  fill: var(--fg);
+}
+.tuning {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--z));
+  font-weight: 600;
+}
+.clef {
+  fill: var(--fg);
+  font-family: var(--font-display);
+  font-size: calc(10.5px * var(--z));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.timesig {
+  fill: var(--fg);
+  font-family: var(--font-display);
+  font-size: calc(25px * var(--z));
+  font-weight: 800;
+}
+.barnum,
+.repeatCount {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: calc(9px * var(--z));
+  font-weight: 600;
+}
+.repeatCount {
+  fill: var(--fg);
+  font-weight: 700;
+}
+
+/* ── fret numbers ── */
+.fret,
+.fretTied,
+.fretDead {
+  fill: var(--fg);
+  font-family: var(--font-mono);
+  font-size: calc(12px * var(--z));
+  font-weight: 600;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.fretTied {
+  fill: var(--fg-muted);
+  font-weight: 500;
+}
+.fretDead {
+  font-weight: 700;
+}
+.paren {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1.1px * var(--z));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pill {
+  fill: none;
+}
+.note[data-state='upcoming'] .pill {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+}
+.note[data-state='target'] .pill {
+  fill: var(--accent);
+}
+.note[data-state='target'] text {
+  fill: var(--accent-fg);
+  font-weight: 750;
+}
+.note[data-state='target'] .paren {
+  stroke: var(--accent-fg);
+}
+.note[data-state='hit'] .pill {
+  fill: var(--ok-soft);
+  stroke: var(--ok);
+  stroke-width: 1.5px;
+}
+.note[data-state='hit'] text {
+  fill: var(--ok-text);
+  font-weight: 750;
+}
+.note[data-state='miss'] .pill {
+  fill: var(--bad-soft);
+  stroke: var(--bad);
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 2;
+}
+.note[data-state='miss'] text {
+  fill: var(--bad-text);
+  font-weight: 750;
+}
+/* The notes under the cursor. */
+.note[data-now] text {
+  fill: var(--accent-text);
+  font-weight: 800;
+}
+.note[data-now][data-state='target'] text {
+  fill: var(--accent-fg);
+}
+.finger {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: calc(9px * var(--z));
+  font-weight: 650;
+}
+
+/* ── rests, slashes, rhythm ── */
+.rest {
+  fill: var(--fg);
+}
+.restLine {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.5px * var(--z));
+  stroke-linecap: round;
+}
+.slash {
+  fill: var(--fg);
+  stroke: var(--fg);
+  stroke-width: calc(1.6px * var(--z));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.slashOpen {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.2px * var(--z));
+  stroke-linejoin: round;
+}
+.stem {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1px * var(--z));
+}
+.beam {
+  fill: var(--fg);
+}
+.flag {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.5px * var(--z));
+  stroke-linecap: round;
+}
+.dot {
+  fill: var(--fg);
+}
+.tuplet {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(9px * var(--z));
+  font-weight: 700;
+  font-style: italic;
+}
+.tupletBracket {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1px * var(--z));
+}
+
+/* ── techniques ── */
+.slur,
+.tie {
+  fill: var(--fg);
+  stroke: var(--fg);
+  stroke-width: calc(0.4px * var(--z));
+}
+.tie {
+  fill: var(--fg-muted);
+  stroke: var(--fg-muted);
+}
+.slurLetter {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(9px * var(--z));
+  font-weight: 700;
+}
+.slide {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.25px * var(--z));
+  stroke-linecap: round;
+}
+.bend {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.25px * var(--z));
+  stroke-linecap: round;
+}
+.bendHead {
+  fill: var(--fg);
+}
+.bendLabel {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(10px * var(--z));
+  font-weight: 700;
+}
+.vibrato {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.6px * var(--z));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.spanLabel {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: calc(10px * var(--z));
+  font-weight: 650;
+  font-style: italic;
+}
+.spanLine {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1px * var(--z));
+  stroke-dasharray: calc(3px * var(--z)) calc(2.5px * var(--z));
+}
+.artic {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.3px * var(--z));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.articText {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(9px * var(--z));
+  font-weight: 700;
+}
+.stroke {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: calc(1.3px * var(--z));
+  stroke-linejoin: round;
+}
+.strokeFill {
+  fill: var(--fg);
+}
+.pluck {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: calc(9px * var(--z));
+  font-weight: 650;
+  font-style: italic;
+}
+
+/* ── words above and below ── */
+.chord {
+  fill: var(--fg);
+  font-family: var(--font-display);
+  font-size: calc(13px * var(--z));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.lyric {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(12.5px * var(--z));
+  font-weight: 500;
+}
+.hyphen {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1px * var(--z));
+}
+.annotation {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: calc(10.5px * var(--z));
+  font-weight: 500;
+  font-style: italic;
+}
+.sectionBox {
+  fill: var(--surface-2);
+  stroke: var(--line-strong);
+  stroke-width: 1px;
+}
+.sectionText {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(11px * var(--z));
+  font-weight: 700;
+}
+.tempo {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: calc(11px * var(--z));
+  font-weight: 600;
+}
+.tempoNote {
+  fill: var(--fg-muted);
+}
+.tempoStem {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1.1px * var(--z));
+}
+.volta {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: calc(1.1px * var(--z));
+}
+.voltaText {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(10px * var(--z));
+  font-weight: 700;
+}
+
+/* ── the inline snippet ── */
+.snippet {
+  margin: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.snippetBar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.snippetCaption {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.snippetError {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}

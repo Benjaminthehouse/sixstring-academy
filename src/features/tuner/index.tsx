@@ -42,6 +42,7 @@ import {
   Tooltip,
   cx,
   focusRing,
+  toast,
   useEventListener,
   useIsTouch,
   useLocalState,
@@ -68,6 +69,8 @@ const TWO_PANE_QUERY = '(min-width: 1160px)';
 const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 520px)';
 /** A laptop too short for a page heading above the meter (in one column the heading is always left out: the shell names the screen). */
 const SHORT_QUERY = '(max-height: 759.98px)';
+/** A phone too short to show the strings between the readout and the action bar while the tab bar is up. */
+const SHORT_PHONE_QUERY = '(max-width: 719.98px) and (max-height: 739.98px) and (orientation: portrait)';
 
 function failureReason(reason: MediaFailure | 'audio-failed'): MediaFailure {
   return reason === 'audio-failed' ? 'unknown' : reason;
@@ -85,9 +88,8 @@ export default function TunerScreen(_props: RouteProps) {
   const twoPane = useMediaQuery(TWO_PANE_QUERY);
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
   const shortScreen = useMediaQuery(SHORT_QUERY);
+  const shortPhone = useMediaQuery(SHORT_PHONE_QUERY);
   const touch = useIsTouch();
-  // On a phone held sideways there is no room for the tab bar: the shell keeps a Back button.
-  useImmersive(sideways, 'focus');
 
   const naming = prefs.noteNaming;
   const a4 = clampA4(prefs.a4);
@@ -99,6 +101,9 @@ export default function TunerScreen(_props: RouteProps) {
 
   const hostBlocked = isArtifact();
   const listening = view.source === 'mic';
+  // The chrome steps aside (the shell keeps a Back button) on a phone held sideways, and on a short
+  // phone while the microphone is on: there the tab bar would cover the strings being tuned.
+  useImmersive(sideways || (shortPhone && (listening || view.source === 'starting')), 'focus');
   /** The string chosen for tuning by ear; null while the microphone is the way in. */
   const [earIndex, setEarIndex] = useState<number | null>(hostBlocked ? 0 : null);
   const ear = !listening && view.source !== 'starting' && earIndex !== null ? Math.min(earIndex, targets.length - 1) : null;
@@ -143,16 +148,21 @@ export default function TunerScreen(_props: RouteProps) {
     async (gesture: boolean) => {
       tone.stop();
       setFailureSeen(false);
-      const ok = await session.start({ gesture });
-      if (!ok) return;
-      setEarIndex(null);
-      refreshMics();
-      // A first-timer who taps Start is walked through every string; someone whose browser already
-      // trusts the microphone has been here before and gets the automatic tuner straight away.
-      if (gesture && !guideSeenRef.current && !session.getView().guide) {
+      // A first visit walks through every string, thickest first, however the microphone starts:
+      // the mode control shows Guided before Start (see `modeShown`), so Start must do just that.
+      // Begun before the microphone opens, so the screen never flashes "Auto" while it starts.
+      const guiding = !guideSeenRef.current && !session.getView().guide;
+      if (guiding) {
         lastResult.current = null;
         session.startGuide();
       }
+      const ok = await session.start({ gesture });
+      if (!ok) {
+        if (guiding) session.leaveGuide();
+        return;
+      }
+      setEarIndex(null);
+      refreshMics();
     },
     [session, tone, refreshMics],
   );
@@ -389,10 +399,24 @@ export default function TunerScreen(_props: RouteProps) {
   );
   const deleteTuning = useCallback(
     (id: string) => {
+      const removed = saved.find((s) => s.id === id);
+      const wasInUse = prefs.tuningId === id;
       setStoredTunings((prev) => sanitizeSavedTunings(prev).filter((s) => s.id !== id));
-      if (prefs.tuningId === id) setPrefs({ tuningId: 'standard' });
+      if (wasInUse) setPrefs({ tuningId: 'standard' });
+      if (!removed) return;
+      // Nothing is lost by a slip of the finger: the tuning comes back with one tap.
+      toast({
+        title: `${removed.name} removed from your tunings`,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setStoredTunings((prev) => [...sanitizeSavedTunings(prev).filter((s) => s.id !== id), removed]);
+            if (wasInUse) setPrefs({ tuningId: id });
+          },
+        },
+      });
     },
-    [setStoredTunings, prefs.tuningId],
+    [saved, setStoredTunings, prefs.tuningId],
   );
   const chooseMic = useCallback(
     (id: string | null) => {
@@ -438,8 +462,12 @@ export default function TunerScreen(_props: RouteProps) {
   const referenceNote = listening ? (view.shownNote ? noteParts(view.shownNote, naming).short : '') : ear !== null ? noteParts(targets[ear].note, naming).short : '';
   const guideNumber = view.guide && !view.guide.finished ? view.confirmed.filter(Boolean).length + view.guide.skipped.filter(Boolean).length + 1 : 0;
 
+  // On a first visit Start leads into the guided flow (see `startMic`): show that choice before it begins.
+  const modeShown = view.source === 'off' && !view.guide && !options.guideSeen && view.mode === 'auto' ? 'guide' : view.mode;
+
   let caption: string;
   if (ear !== null) caption = 'Tap a string to hear it. Tap again to stop.';
+  else if (modeShown === 'guide' && !view.guide) caption = 'One string at a time, thickest first.';
   else if (view.mode === 'guide') caption = `String ${Math.min(guideNumber, targets.length)} of ${targets.length}. It moves on by itself.`;
   else if (view.mode === 'locked' && view.target >= 0) caption = `Held on the ${stringWords(view.target, targets.length, tuning.reentrant).name}. Tap it again to let go.`;
   else if (view.mode === 'chromatic') caption = 'Any note: the nearest of all twelve.';
@@ -563,7 +591,7 @@ export default function TunerScreen(_props: RouteProps) {
                   ) : (
                     <IconButton icon="Mic" label="Tune with the microphone" variant="secondary" size="lg" className={styles.compact} onClick={() => void startMic(true)} data-tuner-start="" />
                   ))}
-                <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.start} onClick={earNext} data-tuner-ear-next="">
+                <Button variant="primary" size="lg" wrap iconRight="ArrowRight" className={styles.start} onClick={earNext} data-tuner-ear-next="">
                   Sounds right, next
                 </Button>
               </>
@@ -600,11 +628,11 @@ export default function TunerScreen(_props: RouteProps) {
               </>
             ) : (
               <>
-                <Button size="lg" iconLeft="Ear" onClick={startByEar} data-tuner-by-ear="">
+                <Button size="lg" wrap iconLeft="Ear" onClick={startByEar} data-tuner-by-ear="">
                   By ear
                 </Button>
                 <Tooltip content="Space">
-                  <Button variant="primary" size="lg" iconLeft="Mic" className={styles.start} onClick={() => void startMic(true)} data-tuner-start="">
+                  <Button variant="primary" size="lg" wrap iconLeft="Mic" className={styles.start} onClick={() => void startMic(true)} data-tuner-start="">
                     Start tuning
                   </Button>
                 </Tooltip>
@@ -651,7 +679,7 @@ export default function TunerScreen(_props: RouteProps) {
                   { value: 'auto', label: 'Auto' },
                   { value: 'chromatic', label: 'Chromatic' },
                 ]}
-                value={view.mode}
+                value={modeShown}
                 onChange={(mode) => chooseMode(mode as 'guide' | 'auto' | 'chromatic')}
               />
             )}

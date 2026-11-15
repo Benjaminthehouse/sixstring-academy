@@ -3,22 +3,26 @@
  * Browser check of the Tuner screen (#tuner) in real Chromium. Run:
  *   node e2e/tuner.cjs [--quick] [--only group,group] [--verbose]
  *
- * Microphone recordings are built from the pitch module's own test signals (pluckedString, concat,
- * silence, whiteNoise, encodeWav) and fed to the real screen as the fake microphone. The check
+ * Microphone recordings are built from the pitch module's own test signals (`@/core/pitch`:
+ * pluckedString, concat, silence, addNoise, whiteNoise, encodeWav; see tuner-lib.cjs) and fed to
+ * the real screen as the fake microphone. The check
  * reads what the screen mirrors on its readout element (data-state, data-note, data-cents,
  * data-string) over time and cuts that into the notes that were heard.
  *
  * Groups:
  *   standard   every string of standard tuning at -30, +30, -8, +8, -2, +2 and 0 cents: the right
  *              string is named, the settled reading is within 1.5 cents of the truth, "in tune" is
- *              confirmed only inside the tolerance; all six ticked at the end, one tuner activity
+ *              confirmed only inside the tolerance; all six ticked at the end, one tuner activity.
+ *              Room noise 30 dB below the playing here (45 dB in the other groups)
  *   tunings    Drop D and Open G chosen through the picker, heard string by string
  *   chromatic  notes that are not strings of the tuning, named in chromatic mode
  *   reference  A4 = 432 Hz from the settings: targets move, the 440 Hz A reads 32 cents sharp
  *   capo       capo on fret 2: targets move up two frets and the screen says so
  *   quiet      silence and steady noise: no note, ever
- *   far        a string a minor third flat: in automatic mode the tuner asks which string it is
- *              instead of guessing; held on the string (or guided) it gives the far-below warning
+ *   far        a string a minor third flat: held on the string (or guided) it gives the far-below
+ *              warning, never "loosen" for the neighbouring string; in automatic mode the low E
+ *              does too, and the A string (whose note lies nearer the low E) makes it ask which
+ *              string it is instead of guessing
  *   guide      the first-time flow: Start leads through all six strings to the summary
  *   byear      the microphone refused (declined, and inside the Claude viewer): no dead end, the
  *              reference notes really sound at the right pitch, the by-ear flow reaches its summary
@@ -29,6 +33,12 @@
  *              "listening" screen that hears nothing
  *   picker     the tuning picker: search, how to get there from standard, a custom tuning that is
  *              saved, remembered and removed
+ *   layout     a short phone (375 x 667) keeps every string above the action bar while listening
+ *              (the tab bar steps aside, and comes back on stop); a phone held sideways puts the
+ *              strings beside the readout, all on screen
+ *   review     cases an independent review caught: ticks kept while a string rings out into room
+ *              noise (waveguide strings, 44.1 kHz), no offset number for another string's note,
+ *              a first visit shows Guided before Start and keeps Auto when it is chosen
  *
  * A group that fails is run once more (the machine is shared; audio timing can slip under load).
  * Prints one line per check when --verbose, a summary per group, then PASSED or FAILED.
@@ -53,6 +63,8 @@ const STRINGS = [
 /** Ends on 0 so every string finishes ticked. */
 const OFFSETS = [-30, 30, -8, 8, -2, 2, 0];
 const TOLERANCE = 3;
+/** The standard-tuning group is heard through a noisier room than the rest (see makeRecording). */
+const STANDARD_ROOM_SNR_DB = 30;
 const BENIGN = [/favicon\.ico/i, /Download the React DevTools/i];
 
 let results = [];
@@ -121,7 +133,8 @@ async function chooseTuning(page, name) {
 async function standard() {
   const strings = quick ? [STRINGS[0], STRINGS[5]] : STRINGS;
   const plan = strings.flatMap((s) => OFFSETS.map((cents) => ({ ...s, cents })));
-  const recording = await lib.makeRecording('standard', plan.map((p) => ({ pluck: { midi: p.midi, cents: p.cents, dur: 1.5 }, gap: 0.6 })), { lead: 3 });
+  // Room noise 30 dB below the playing (about -55 dBFS): a phone on a music stand in an ordinary room.
+  const recording = await lib.makeRecording('standard', plan.map((p) => ({ pluck: { midi: p.midi, cents: p.cents, dur: 1.5 }, gap: 0.6 })), { lead: 3, roomSnrDb: STANDARD_ROOM_SNR_DB });
   await open({ recording }, async ({ page, errors }) => {
     // Permission is already granted: the screen listens without a tap, in automatic mode.
     await state(page, 'listening');
@@ -131,20 +144,24 @@ async function standard() {
     const eps = await heard(page, recording);
     check(`heard ${plan.length} separate notes`, eps.length === plan.length, `${eps.length} episodes: ${eps.map((e) => e.notes.join('/')).join(' ')}`);
     let worst = 0;
+    let worstLabel = '';
     plan.forEach((p, i) => {
       const ep = eps[i];
       if (!ep) return;
       const label = `${p.note} at ${p.cents > 0 ? '+' : ''}${p.cents} cents`;
       check(`${label}: names ${p.note} on string ${p.string}`, ep.notes.length === 1 && ep.notes[0] === p.note && ep.strings.length === 1 && ep.strings[0] === p.string, `notes ${ep.notes} strings ${ep.strings}`);
       const error = Math.abs(ep.cents - p.cents);
-      if (error > worst) worst = error;
+      if (error > worst) {
+        worst = error;
+        worstLabel = `${label}, read ${ep.cents}`;
+      }
       check(`${label}: reads within 1.5 cents`, error <= 1.5, `read ${ep.cents}`);
       const expectInTune = Math.abs(p.cents) <= TOLERANCE;
       check(`${label}: ${expectInTune ? 'confirmed in tune' : 'not confirmed'}`, ep.inTune === expectInTune, `in tune: ${ep.inTune}, instructions ${ep.instructions}`);
       const want = p.cents < -TOLERANCE ? /tighten/ : p.cents > TOLERANCE ? /loosen/ : /in-tune/;
       check(`${label}: says ${want.source}`, ep.instructions.some((x) => want.test(x)), ep.instructions.join(','));
     });
-    console.log(`    largest reading error ${worst.toFixed(2)} cents over ${plan.length} notes`);
+    console.log(`    largest settled reading error ${worst.toFixed(2)} cents over ${plan.length} notes${worstLabel ? ` (${worstLabel})` : ''}`);
     const final = await lib.readout(page);
     const expectTuned = strings.map((s) => s.string).join(',');
     check('every string ends ticked', final.tuned === expectTuned, `data-tuned="${final.tuned}"`);
@@ -302,7 +319,15 @@ async function far() {
   const LEAD = 3.5;
   const recording = await lib.makeRecording(
     'far',
-    [{ pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 }, { silence: 3 }, { pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 }, { silence: 5 }, { pluck: { midi: 37, cents: 0, dur: 2.2 }, gap: 1 }],
+    [
+      { pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 },
+      { silence: 3 },
+      { pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 },
+      { silence: 5 },
+      { pluck: { midi: 37, cents: 0, dur: 2.2 }, gap: 1 },
+      { silence: 3 },
+      { pluck: { midi: 37, cents: 0, dur: 2.2 }, gap: 1 },
+    ],
     { lead: LEAD },
   );
   await open({ recording, mobile: true }, async ({ page, errors }) => {
@@ -340,6 +365,16 @@ async function far() {
     eps = lib.episodes(await lib.readLog(page));
     check('guided: the low E a minor third flat is read as E2', eps.length === 1 && eps[0].notes.join() === 'E2' && eps[0].strings.join() === '6', JSON.stringify(eps.map((e) => [e.notes, e.strings])));
     check('guided: the far-below warning is shown, the guide does not move on', !!eps[0] && eps[0].instructions.includes('far-below') && (await lib.readout(page)).target === 'E2', eps[0] ? eps[0].instructions.join(',') : '');
+
+    // 4. Automatic again, the same flat low E: nothing lies below it, so it can only be that string.
+    await page.keyboard.press('a');
+    await attr(page, 'mode', 'auto');
+    await lib.startLog(page);
+    await until(LEAD + 2.2 + 1.2 + 3 + 2.2 + 1.2 + 5 + 2.2 + 1 + 3 + 2.2 + 0.8);
+    eps = lib.episodes(await lib.readLog(page));
+    check('automatic: the low E a minor third flat is read as E2, string 6', eps.length === 1 && eps[0].notes.join() === 'E2' && eps[0].strings.join() === '6', JSON.stringify(eps.map((e) => [e.notes, e.strings])));
+    check('automatic: it warns far below rather than asking or snapping', !!eps[0] && eps[0].instructions.includes('far-below') && !eps[0].instructions.some((x) => /^(which-string|loosen|far-above|other-string)/.test(x)), eps[0] ? eps[0].instructions.join(',') : '');
+    check('automatic: reads about -300 cents, not confirmed', !!eps[0] && Math.abs(eps[0].cents + 300) < 3 && !eps[0].inTune, eps[0] ? `read ${eps[0].cents}` : '');
     noErrors(errors);
   });
 }
@@ -691,7 +726,162 @@ async function picker() {
   });
 }
 
-const GROUPS = { standard, tunings, chromatic, reference, capo, quiet, far, guide, byear: byEar, controls, autostart, picker };
+/** Where the strings and the action bar are, and what the shell is showing. */
+const layoutOf = (page) =>
+  page.evaluate(() => {
+    const box = (sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return null;
+      const b = e.getBoundingClientRect();
+      return { top: b.top, bottom: b.bottom };
+    };
+    const bar = document.querySelector('[data-tuner-stop], [data-tuner-start]')?.parentElement;
+    const barBox = bar ? bar.getBoundingClientRect() : null;
+    return {
+      strip: box('[role="group"][aria-label^="Strings"]'),
+      bar: barBox ? { top: barBox.top, bottom: barBox.bottom } : null,
+      immersive: document.querySelector('[data-immersive]')?.dataset.immersive ?? '',
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      height: innerHeight,
+    };
+  });
+
+async function layout() {
+  const recording = await lib.makeRecording('layout', [{ pluck: { midi: 45, cents: -12, dur: 3, decay: 0.9 }, gap: 0.6 }], { lead: 0.5, tail: 0.2 });
+  const loop = { ...recording, fakeAudio: recording.file };
+  // A short phone (iPhone SE): while listening the tab bar steps aside so the strings stay in view.
+  await withApp({ mobile: true, viewport: { width: 375, height: 667 }, fakeAudio: loop.fakeAudio }, async ({ page, context, goto, errors }) => {
+    await lib.seed(context, lib.seedStorage());
+    await goto('tuner');
+    await lib.waitForTuner(page);
+    await state(page, 'hearing');
+    await sleep(400);
+    let l = await layoutOf(page);
+    check('short phone, listening: the tab bar steps aside', l.immersive === 'focus', l.immersive);
+    check('short phone, listening: every string is above the action bar', !!l.strip && !!l.bar && l.strip.bottom <= l.bar.top + 1 && l.strip.top >= 0, JSON.stringify(l));
+    await page.click('[data-tuner-stop]');
+    await state(page, 'idle');
+    await sleep(400);
+    l = await layoutOf(page);
+    check('short phone, stopped: the tab bar comes back', l.immersive === 'none', l.immersive);
+    check('short phone: no sideways scroll', l.overflow <= 1, `${l.overflow}px`);
+    noErrors(errors, 'short phone: no console errors');
+  });
+  // A phone held sideways: readout and strings side by side, both inside the screen.
+  await withApp({ mobile: true, viewport: { width: 844, height: 390 }, fakeAudio: loop.fakeAudio }, async ({ page, context, goto, errors }) => {
+    await lib.seed(context, lib.seedStorage());
+    await goto('tuner');
+    await lib.waitForTuner(page);
+    await state(page, 'hearing');
+    await sleep(400);
+    const l = await layoutOf(page);
+    const readout = await page.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return { left: b.left, right: b.right, bottom: b.bottom }; }, lib.READOUT);
+    check('sideways: the shell steps aside', l.immersive === 'focus', l.immersive);
+    check('sideways: the readout fits the screen height', readout.bottom <= l.height + 1, JSON.stringify(readout));
+    check('sideways: the strings sit beside the readout, on screen', !!l.strip && l.strip.bottom <= l.height + 1 && (await page.evaluate(() => document.querySelector('[role="group"][aria-label^="Strings"]').getBoundingClientRect().left)) >= readout.right, JSON.stringify(l.strip));
+    check('sideways: no sideways scroll', l.overflow <= 1, `${l.overflow}px`);
+    noErrors(errors, 'sideways: no console errors');
+  });
+}
+
+/**
+ * Cases an independent review of the screen caught, each one first seen by using it:
+ *  - a string confirmed in tune lost its tick as it rang out: the last tenth of a second of a
+ *    string sinking into room noise can read 15 to 20 cents flat. Strings here come from a second
+ *    string model (the audio engine's waveguide guitar, 44.1 kHz) under pink noise 28 dB down;
+ *  - held on the low E, an A string's note showed "505 cents high" with the marker pinned at the
+ *    sharp end, inviting a learner to slacken the wrong string by five frets;
+ *  - a first visit showed "Auto" chosen, then Start went into the guided flow, and choosing Auto
+ *    before Start was ignored.
+ */
+async function review() {
+  // Cents from 440 Hz; the tuner is set to A = 442 Hz (7.85 cents higher), the setting this was seen with.
+  const notes = [
+    { string: 6, cents: -17, ring: 3.2 },
+    { string: 5, cents: 5, ring: 3.2 },
+    { string: 4, cents: 8, ring: 3.2 },
+    { string: 5, cents: 9, ring: 3.2 },
+    { string: 5, cents: 5, ring: 3.2 },
+    { string: 5, cents: 7, ring: 3.2 },
+  ];
+  const recording = await lib.makeEngineRecording('review-fade', notes, { lead: 3 });
+  await open({ recording }, async ({ page, errors }) => {
+    await restart(page, () => page.getByRole('radio', { name: '442 Hz' }).click());
+    await sleep(recording.seconds * 1000 + 600);
+    const log = await lib.readLog(page);
+    for (const n of [notes[1], notes[2]]) {
+      const s = String(n.string);
+      const has = (e) => (e.tuned || '').split(',').includes(s);
+      const first = log.findIndex(has);
+      const lost = first >= 0 ? log.slice(first).find((e) => !has(e)) : null;
+      check(`string ${s} is ticked and keeps its tick while it rings out`, first >= 0 && !lost, first < 0 ? 'never ticked' : lost ? `lost while showing ${lost.state} ${lost.note} ${lost.cents}` : '');
+    }
+
+    // Held on the low E while the A string plays: no number, the marker rests.
+    await page.click('[data-tuner-stop]');
+    await state(page, 'idle');
+    await page.click('[data-tuner-start]');
+    await state(page, 'listening');
+    await page.click('[data-string="6"]');
+    await attr(page, 'mode', 'locked');
+    await attr(page, 'instruction', 'other-string', 15000);
+    await sleep(300);
+    const shown = await page.evaluate((sel) => {
+      const root = document.querySelector(sel);
+      const unit = root.querySelector('button[aria-label^="cents"]');
+      return { parked: root.querySelector('[data-parked]')?.dataset.parked, numberVisible: unit ? getComputedStyle(unit.parentElement).visibility !== 'hidden' : null, text: root.innerText.replace(/\s+/g, ' ') };
+    }, lib.READOUT);
+    check('held on E, the A string: says it is another string', /Is that the right string\?/.test(shown.text), shown.text.slice(0, 160));
+    check('held on E, the A string: no offset number, the marker rests in the middle', shown.parked === 'true' && shown.numberVisible === false, JSON.stringify({ parked: shown.parked, numberVisible: shown.numberVisible }));
+    noErrors(errors);
+  });
+
+  // A first visit, microphone not yet allowed (the browser asks; the fake prompt says yes).
+  const quietRec = await lib.makeRecording('review-quiet', [{ silence: 4 }], { lead: 0.5, tail: 0.5 });
+  const server = await startServer();
+  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${quietRec.file}`] });
+  try {
+    for (const pick of [null, 'Auto']) {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, colorScheme: 'dark', permissions: [] });
+      await lib.seed(context, lib.seedStorage({ guideSeen: false }));
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+      page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+      await page.goto(`${server.url}#tuner`, { waitUntil: 'load' });
+      await lib.waitForTuner(page);
+      await sleep(500);
+      const checked = () => page.evaluate(() => document.querySelector('[role="radiogroup"][aria-label^="How the tuner"] [aria-checked="true"]')?.textContent.trim() ?? '');
+      if (!pick) {
+        check('first visit: the mode control shows Guided before Start', (await checked()) === 'Guided', await checked());
+        // The mode the readout reports must never be "auto" on the way into the guided flow.
+        await page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          window.__modes = [];
+          new MutationObserver(() => window.__modes.push(el.dataset.source + ':' + el.dataset.mode)).observe(el, { attributes: true });
+        }, lib.READOUT);
+        await page.click('[data-tuner-start]');
+        await state(page, 'listening');
+        const modes = await page.evaluate(() => window.__modes);
+        check('first visit: Start goes straight into the guided flow', (await lib.readout(page)).mode === 'guide' && !modes.some((m) => /^(starting|mic):auto$/.test(m)), modes.join(' '));
+      } else {
+        await page.getByRole('radio', { name: pick }).click();
+        check('first visit: Auto can be chosen before Start', (await checked()) === pick, await checked());
+        await page.click('[data-tuner-start]');
+        await state(page, 'listening');
+        await sleep(300);
+        check('first visit: Auto chosen before Start is kept', (await lib.readout(page)).mode === 'auto', (await lib.readout(page)).mode);
+      }
+      noErrors(errors, `first visit${pick ? `, ${pick} chosen` : ''}: no console errors`);
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+}
+
+const GROUPS = { standard, tunings, chromatic, reference, capo, quiet, far, guide, byear: byEar, controls, autostart, picker, layout, review };
 
 (async () => {
   let failedGroups = 0;

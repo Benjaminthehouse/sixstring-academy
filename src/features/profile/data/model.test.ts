@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyFixture, richFixture } from '../testing/fixtures';
-import { MAX_IMPORT_BYTES, RESET_WORD, confirmsReset, diffRows, exportFileName, importFailureText, previewImport, progressFingerprint, readBackup, storageStatus, summarise } from './model';
+import { MAX_IMPORT_BYTES, RESET_WORD, confirmsReset, diffRows, exportFileName, importFailureText, previewImport, progressFingerprint, readBackup, rejectionReason, storageStatus, summarise } from './model';
 
 const NOW = Date.parse('2026-11-15T19:10:00Z');
 const ENV = { now: NOW, timeZone: 'UTC' };
@@ -111,12 +111,25 @@ describe('reading a backup file', () => {
         expect(read.description.length).toBeGreaterThan(20);
       }
     }
-    for (const reason of ['not-json', 'not-an-export', 'newer-version', 'invalid', 'too-large', 'unreadable'] as const) {
+    for (const reason of ['not-json', 'not-an-export', 'newer-version', 'invalid', 'too-large', 'wrong-type', 'unreadable'] as const) {
       const words = importFailureText(reason);
       expect(words.title).not.toMatch(/error|invalid json|exception/i);
       expect(words.description.endsWith('.')).toBe(true);
     }
     expect(MAX_IMPORT_BYTES).toBeGreaterThan(JSON.stringify(richFixture(NOW, 'UTC').actions.exportProgress()).length * 10);
+  });
+
+  // Review: a file over the size limit was turned away by the picker, and the screen then said
+  // "The file is valid, but it was not made by Export", which is not true of a file never read.
+  it('says why the picker turned a file away, without claiming it was read', () => {
+    expect(rejectionReason([{ size: MAX_IMPORT_BYTES + 1 }])).toBe('too-large');
+    expect(rejectionReason([{ size: 1200 }])).toBe('wrong-type');
+    expect(rejectionReason([{ size: 1200 }, { size: MAX_IMPORT_BYTES * 3 }])).toBe('too-large');
+    for (const reason of ['too-large', 'wrong-type'] as const) {
+      const words = importFailureText(reason);
+      expect(`${words.title} ${words.description}`).not.toMatch(/valid|damaged|could not be read/i);
+    }
+    expect(importFailureText('too-large').title).toMatch(/too large/);
   });
 });
 

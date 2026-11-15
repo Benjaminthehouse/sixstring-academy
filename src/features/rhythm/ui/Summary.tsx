@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { ActionBar, Badge, Button, Celebration, Heading, Icon, LinkButton, StarRating, Text } from '@/ui';
 import type { TipAction } from '../core/tips';
 import { SpreadPlot } from './SpreadPlot';
@@ -28,6 +28,11 @@ const HEADLINES = ['Not there yet', 'You got through it', 'Good timing', 'Locked
 /** The end of a round: stars, XP, the numbers, one tip, the timing picture and the way forward. */
 export function Summary({ round, bpm, slowerBpm, fasterBpm, onAgain, onAction, next, children }: SummaryProps) {
   const { result, outcome, tip } = round;
+  const root = useRef<HTMLDivElement | null>(null);
+  // The round that had the keyboard is gone: hand focus to the way forward, so Enter goes on.
+  useEffect(() => {
+    root.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
+  }, []);
   if (!result) return null;
   const { stats } = result;
   const stars = result.completed ? stats.stars : 0;
@@ -56,7 +61,7 @@ export function Summary({ round, bpm, slowerBpm, fasterBpm, onAgain, onAction, n
   }
 
   return (
-    <div className={styles.summary} data-rhythm-summary data-stars={stars} data-accuracy={percent}>
+    <div ref={root} className={styles.summary} data-rhythm-summary data-stars={stars} data-accuracy={percent}>
       <Celebration fire={stars >= 3 ? result : null} intensity="low" />
       <div className={styles.summaryHead} role="status">
         <StarRating value={stars} size={40} animate label={`${stars} of 3 stars`} />
@@ -65,7 +70,8 @@ export function Summary({ round, bpm, slowerBpm, fasterBpm, onAgain, onAction, n
         </Heading>
         <div className={styles.summaryLine}>
           <Text tone="muted">
-            {stats.hits} of {stats.total} notes · {percent}% · {bpm} BPM
+            {/* Extra taps are what pull a score below the notes that were caught: say so next to the number. */}
+            {stats.hits} of {stats.total} notes{stats.extra > 0 ? ` · ${stats.extra} extra ${stats.extra === 1 ? 'tap' : 'taps'}` : ''} · {percent}% · {bpm} BPM
           </Text>
           {outcome && outcome.xp > 0 && (
             <Badge tone="xp" icon="Zap">
@@ -120,6 +126,11 @@ export function Summary({ round, bpm, slowerBpm, fasterBpm, onAgain, onAction, n
               <dd className={stats.extra ? styles.toneMiss : undefined}>{stats.extra}</dd>
             </div>
           </dl>
+          {stats.forgiven > 0 && (
+            <Text size="sm" tone="muted">
+              {stats.forgiven === 1 ? 'One quick upstroke was' : `${stats.forgiven} quick upstrokes were`} not heard and left out of the score: under a ringing chord a microphone hears them poorly.
+            </Text>
+          )}
         </section>
       </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { href } from '@/app/router';
 import { isArtifact } from '@/core/platform';
 import { useProgress } from '@/core/progress';
 import { Button, ButtonGroup, Callout, Card, ChipGroup, Grid, Heading, IconButton, LinkButton, Page, PlayButton, Section, SegmentedControl, StarRating, Stepper, Switch, Tag, Text, toast, useLocalState, useRafLoop } from '@/ui';
@@ -26,6 +27,7 @@ import {
 import { STRUM_CHORDS } from '../engine/sounds';
 import { useRhythmPrefs } from '../ui/prefs';
 import { RoundScreen } from '../ui/RoundScreen';
+import { lastTempo } from '../ui/useRound';
 import { StrumGrid, type StrumGridHandle } from '../ui/StrumGrid';
 import { StrumStage, slotAtTick, useListen } from '../ui/StrumStage';
 import styles from '../ui/Rhythm.module.css';
@@ -40,9 +42,12 @@ function strumSkill(pattern: StrumPattern): string {
 /** One pattern: listen to it, tap along, or play along through the microphone. */
 export function StrumScreen({ pattern }: { pattern: StrumPattern }) {
   const [prefs, setPrefs] = useRhythmPrefs();
-  const [bpm, setBpm] = useState(pattern.bpm);
-  const [chord, setChord] = useState(pattern.chord);
   const meter = meterInfo(pattern.meter);
+  const bpmMin = meter.compound ? 30 : 40;
+  const bpmMax = pattern.grid === 'sixteenth' ? 132 : 184;
+  // Built patterns share one skill, so they start at their own tempo rather than the last one used.
+  const [bpm, setBpm] = useState(() => (pattern.custom ? pattern.bpm : lastTempo(strumSkill(pattern), pattern.bpm, bpmMin, bpmMax)));
+  const [chord, setChord] = useState(pattern.chord);
   const bars = pattern.grid === 'sixteenth' && !meter.compound ? 4 : meter.compound ? 4 : 8;
   // With the microphone on, the app's own guitar would be heard as the learner's strums.
   const viaMic = prefs.source === 'mic' && !isArtifact();
@@ -63,8 +68,8 @@ export function StrumScreen({ pattern }: { pattern: StrumPattern }) {
       chart={chart}
       bpm={bpm}
       onBpm={setBpm}
-      bpmMin={meter.compound ? 30 : 40}
-      bpmMax={pattern.grid === 'sixteenth' ? 132 : 184}
+      bpmMin={bpmMin}
+      bpmMax={bpmMax}
       padMode="strum"
       display={(ctx) => <StrumStage ctx={ctx} pattern={pattern} bpm={bpm} chord={chord} />}
       quick={
@@ -160,6 +165,8 @@ export function StrumBuilder() {
   const empty = ![...draft.slots].some((c) => c !== '-');
   const code = encodeCustom(draft.meter, draft.grid, draft.slots);
   const pattern = useMemo(() => customPattern(draft.meter, draft.grid, draft.slots), [draft.meter, draft.grid, draft.slots]);
+  // Building something the library already has is worth knowing: it has a name, a "how" and its own stars.
+  const known = STRUM_PATTERNS.find((p) => p.meter === draft.meter && p.grid === draft.grid && p.slots === draft.slots) ?? null;
   const listen = useListen(pattern, bpm, 'G');
   const grid = useRef<StrumGridHandle | null>(null);
   const meter = meterInfo(draft.meter);
@@ -197,10 +204,15 @@ export function StrumBuilder() {
           <div className={styles.strumHead}>
             <div>
               <Text variant="eyebrow">Your pattern</Text>
-              <p className={styles.nickname}>{empty ? 'Nothing yet' : patternNickname(pattern)}</p>
+              <p className={styles.nickname}>{empty ? 'Nothing yet' : patternNickname(known ?? pattern)}</p>
               <Text size="sm" tone="muted" mono>
                 {empty ? 'Press a slot to add a strum' : patternCount(draft)}
               </Text>
+              {known && (
+                <Text size="sm" className={styles.knownLine}>
+                  A pattern from the library: <a href={href('rhythm', 'strum', known.id)}>{known.name}</a>
+                </Text>
+              )}
             </div>
             <PlayButton playing={listen.playing} loading={listen.loading} onClick={listen.toggle} label={listen.playing ? 'Stop' : 'Listen to your pattern'} size="md" tone="neutral" />
           </div>

@@ -178,9 +178,12 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
     icon = 'Check';
   }
 
-  const showReading = listening && !view.paused && view.shownNote !== '' && (view.shownLive || view.shownIndex < 0 || view.mode === 'auto');
+  // Another string is ringing, not the one held: its offset from this one ("505 cents high") would
+  // only send a learner turning the wrong way, so the number goes and the marker rests.
+  const offString = listening && view.instruction === 'other-string';
+  const showReading = listening && !view.paused && !offString && view.shownNote !== '' && (view.shownLive || view.shownIndex < 0 || view.mode === 'auto');
   const readingLive = showReading && view.shownLive;
-  const parked = !listening || view.paused || view.shownNote === '' || (!view.shownLive && (view.mode === 'guide' || view.mode === 'locked'));
+  const parked = !listening || view.paused || offString || view.shownNote === '' || (!view.shownLive && (view.mode === 'guide' || view.mode === 'locked'));
 
   // One line under the instruction. A warning from the instruction itself (far off, wrong string)
   // comes first, then a problem with the input level, then a hint, then the plain explanation.
@@ -250,7 +253,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
         {headerStart}
         <span className={cx(styles.status, listening && !view.paused && styles.statusOn)}>
           {view.source === 'starting' ? <Spinner size={14} /> : <Icon name={ear ? 'Volume2' : listening ? (view.paused ? 'Pause' : 'Mic') : 'MicOff'} size="xs" />}
-          <span>{statusText}</span>
+          <span className={styles.statusText}>{statusText}</span>
           {listening && <LevelBar session={session} hot={view.advice === 'too-loud'} />}
         </span>
         {headerEnd}

@@ -194,6 +194,35 @@ describe('notation recognizer: what the shared corpus does not cover', () => {
   });
 });
 
+describe('notation recognizer on pages from another engraver (held out)', () => {
+  // alphaTab (tools/alphatab-pages.cjs): nothing of it went into the templates or the tuning
+  // beyond what these pages revealed. Read the way the app reads a page: staff by staff through
+  // recognizeNotationStaff, which carries key and time down the page.
+  const runPage = async (id: string, tier: DegradeTier): Promise<PageScore> => {
+    const page = loadDevPage(id, tier);
+    const readings: (StaffReading | null)[] = page.analysis.layout.staves.map(() => null);
+    for (const st of page.strips) readings[st.staffIndex] = await recognizeNotationStaff(st.input);
+    return scorePage(assemblePage(page.analysis, readings), page.truth);
+  };
+  const IDS = ['at-ode-c', 'at-greensleeves-am', 'at-romance-em', 'at-chords-c', 'at-dotted-eb', 'at-ties-bb'];
+
+  for (const tier of ['clean', 'scan'] as const) {
+    it(`reads them at ${tier} tier`, async () => {
+      const s = emptyScore();
+      for (const id of IDS) addScore(s, await runPage(id, tier));
+      expect(s.notes.tp).toBeGreaterThan(300);
+      expect(recall(s.notes)).toBeGreaterThanOrEqual(0.98);
+      expect(precision(s.notes)).toBeGreaterThanOrEqual(0.98);
+      expect(rate(s.pitch)).toBeGreaterThanOrEqual(0.98);
+      expect(rate(s.duration)).toBeGreaterThanOrEqual(0.95);
+      expect(rate(s.ties)).toBeGreaterThanOrEqual(0.75);
+      expect(rate(s.key)).toBe(1);
+      expect(rate(s.time)).toBe(1);
+      expect(rate(s.measureExact)).toBeGreaterThanOrEqual(0.9);
+    });
+  }
+});
+
 describe('second opinion from a vision model', () => {
   // The middle measure lost its dot: q. e h reads as q e h (3.5 of 4 beats).
   const build = () => {

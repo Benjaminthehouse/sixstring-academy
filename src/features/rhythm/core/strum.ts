@@ -98,6 +98,20 @@ export function sounds(stroke: Stroke): boolean {
   return stroke.kind !== 'ghost';
 }
 
+/**
+ * True for an upstroke that a microphone may not hear: one sixteenth after a downstroke whose chord
+ * is still ringing, the light upstroke adds too little to stand out. Measured with `detectOnsets` on
+ * four bars of every library pattern played by the synthesised guitar: 14 of 76 such upstrokes were
+ * found, against 515 of 516 of all other strokes (lower thresholds only traded misses for false
+ * onsets). A play-along round through the microphone does not count one of these as missed when it
+ * goes unheard.
+ */
+export function quietUpstroke(pattern: Pick<StrumPattern, 'meter' | 'grid' | 'slots' | 'staccato'>, stroke: Stroke): boolean {
+  if (stroke.dir !== 'U' || stroke.kind === 'ghost' || pattern.grid !== 'sixteenth' || pattern.staccato) return false;
+  const before = stroke.slot > 0 ? pattern.slots[stroke.slot - 1] : '';
+  return before === 's' || before === 'a';
+}
+
 /** The arrows of a pattern, derived from its slots: `D . D U . U D U`. */
 export function patternArrows(pattern: Pick<StrumPattern, 'meter' | 'grid' | 'slots'>): string {
   return strokes(pattern)

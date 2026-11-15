@@ -56,12 +56,15 @@ export function normalizeCalibration(raw: unknown): Calibration {
   const bleedRaw = r.bleed && typeof r.bleed === 'object' ? (r.bleed as Record<string, unknown>) : null;
   const loopMs = bleedRaw ? num(bleedRaw.loopMs, -50, 700) : null;
   const db = bleedRaw ? num(bleedRaw.db, -120, 0) : null;
+  const tapMs = num(r.tapMs, ...OFFSET_LIMITS.tap);
+  const micMs = num(r.micMs, ...OFFSET_LIMITS.mic);
   return {
     v: 1,
-    tapMs: num(r.tapMs, ...OFFSET_LIMITS.tap),
-    micMs: num(r.micMs, ...OFFSET_LIMITS.mic),
-    tapAt: num(r.tapAt, 0, Number.MAX_SAFE_INTEGER),
-    micAt: num(r.micAt, 0, Number.MAX_SAFE_INTEGER),
+    tapMs,
+    micMs,
+    // A date without a value would say "measured" about nothing.
+    tapAt: tapMs === null ? null : num(r.tapAt, 0, Number.MAX_SAFE_INTEGER),
+    micAt: micMs === null ? null : num(r.micAt, 0, Number.MAX_SAFE_INTEGER),
     offered: r.offered === true,
     micOffered: r.micOffered === true,
     bleed: loopMs !== null && db !== null ? { loopMs, db } : null,
@@ -91,7 +94,10 @@ export function isCalibrated(cal: Calibration, source: InputSource): boolean {
  */
 export function offsetFor(cal: Calibration, source: InputSource, fallbackMicMs = 60): number {
   if (source === 'tap') return cal.tapMs ?? 0;
-  return cal.micMs ?? fallbackMicMs;
+  if (cal.micMs !== null) return cal.micMs;
+  // What a browser reports is not always believable (Bluetooth stacks have reported whole seconds).
+  const [lo, hi] = OFFSET_LIMITS.mic;
+  return Number.isFinite(fallbackMicMs) ? Math.min(hi, Math.max(0, lo, fallbackMicMs)) : 60;
 }
 
 /** Result of measuring a run of taps against a run of clicks. */
@@ -156,6 +162,21 @@ export function estimateOffset(clickTimes: readonly number[], tapTimes: readonly
   const spreadMs = used.length > 1 ? Math.sqrt(used.reduce((a, b) => a + (b - offsetMs) * (b - offsetMs), 0) / (used.length - 1)) : 0;
   const quality: OffsetEstimate['quality'] = used.length < minTaps ? 'too-few' : spreadMs <= 45 && used.length >= taps.length * 0.7 ? 'good' : 'uneven';
   return { offsetMs, spreadMs, used: used.length, matched: taps.length, quality, deviations: used };
+}
+
+/** What a measurement is worth: keep it, offer another go, or turn it down as impossible. */
+export type EstimateVerdict = 'save' | 'uneven' | 'implausible' | 'too-few';
+
+/**
+ * Decide what to do with a calibration result. An offset outside `OFFSET_LIMITS` is never stored,
+ * however steady the taps were: no device delays a tap that much, so the taps were following
+ * something other than the click (the off-beat, say).
+ */
+export function judgeEstimate(estimate: OffsetEstimate, source: InputSource): EstimateVerdict {
+  if (estimate.quality === 'too-few') return 'too-few';
+  const [lo, hi] = OFFSET_LIMITS[source];
+  if (!(estimate.offsetMs >= lo && estimate.offsetMs <= hi)) return 'implausible';
+  return estimate.quality === 'good' ? 'save' : 'uneven';
 }
 
 /**

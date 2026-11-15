@@ -45,6 +45,7 @@ const SHOTS = {
   'flat-desktop-light': { opts: { theme: 'light' }, audio: loop(45, -12), run: hearing },
   'flat-sideways': { opts: SIDEWAYS, audio: loop(45, -12), run: hearing },
   'flat-small': { opts: SMALL, audio: loop(45, -12), run: hearing },
+  'flat-se': { opts: { mobile: true, viewport: { width: 375, height: 667 } }, audio: loop(45, -12), run: hearing },
   'flat-laptop': { opts: LAPTOP, audio: loop(45, -12), run: hearing },
   'sharp-phone': { opts: PHONE, audio: loop(59, 34), run: hearing },
   'offscale-phone': { opts: PHONE, audio: loop(55, -75), run: hearing },

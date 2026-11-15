@@ -54,6 +54,15 @@ export interface RoundSpec {
   rawTiming?: boolean;
   /** Every microphone onset as it arrives, before any filtering (calibration looks at levels too). */
   onOnset?: (onset: OnsetEvent) => void;
+  /** Ignore the keyboard (a sheet is open over the screen and has the keys). */
+  keysOff?: boolean;
+}
+
+/** The tempo a skill was last played at (kept in range), or `fallback` when it has never been played. */
+export function lastTempo(skill: string, fallback: number, min: number, max: number): number {
+  const data = getProgress().skills[skill]?.data;
+  const bpm = data && typeof data === 'object' && !Array.isArray(data) ? data.bpm : undefined;
+  return typeof bpm === 'number' && Number.isFinite(bpm) ? Math.min(max, Math.max(min, Math.round(bpm))) : fallback;
 }
 
 /** The most recent judgement, numbered so the same verdict twice still re-triggers feedback. */
@@ -183,7 +192,7 @@ export function useRound(spec: RoundSpec): Round {
           accuracy: stats.accuracy,
           stars: res.completed ? stats.stars : 0,
           score: Math.round(stats.accuracy * 100),
-          mistakes: stats.miss + stats.extra + stats.ok,
+          mistakes: stats.miss + stats.extra + stats.ok + stats.wrongDirection,
           combo: stats.bestRun,
           count: stats.total,
           durationSec: Math.round(res.durationSec),
@@ -191,6 +200,8 @@ export function useRound(spec: RoundSpec): Round {
           route: 'rhythm',
           params: s.params,
           meta: { bpm: sessionRef.current?.chart.bpm ?? 0, meanMs: Math.round(stats.meanMs), sdMs: Math.round(stats.sdMs) },
+          // The tempo the learner chose is where they pick up next time.
+          data: { bpm: sessionRef.current?.chart.bpm ?? s.chart.bpm },
         });
       }
       setResult(res);
@@ -276,6 +287,7 @@ export function useRound(spec: RoundSpec): Round {
       offsetMs: s.rawTiming ? 0 : offsetFor(cal, src, micLatency),
       graceMs: src === 'mic' ? 280 : 120,
       extraPenalty: src === 'mic' ? 0.15 : undefined,
+      forgiveSoft: src === 'mic',
     });
     startedAs.current = { source: src, calibrated: isCalibrated(cal, src) };
     sessionRef.current = live;
@@ -365,7 +377,7 @@ export function useRound(spec: RoundSpec): Round {
   // Keys: Space, F and J tap while a round runs; Space or Enter start it; Escape stops it.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || offerRef.current) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || offerRef.current || specRef.current.keysOff) return;
       const p = phaseRef.current;
       if (p === 'running') {
         if (e.code in TAP_KEYS) {
@@ -394,7 +406,7 @@ export function useRound(spec: RoundSpec): Round {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [start, stop, tap]);
+  }, [start, stop, tap, specRef]);
 
   const micLevel = useCallback(() => micRef.current?.levelDb ?? -100, []);
   const clearMicFailure = useCallback(() => setMic({ status: 'off' }), []);

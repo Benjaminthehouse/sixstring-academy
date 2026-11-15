@@ -27,15 +27,15 @@ export class SynthStrip {
     return this.lineYs[4] - pos * 10;
   }
 
-  private template(glyph: string): Template {
-    const t = templatesOf(glyph).find((q) => q.font === this.font);
-    if (!t) throw new Error(`no template ${glyph} in ${this.font}`);
+  private template(glyph: string, font = this.font): Template {
+    const t = templatesOf(glyph).find((q) => q.font === font);
+    if (!t) throw new Error(`no template ${glyph} in ${font}`);
     return t;
   }
 
   /** Draw a glyph with its origin (left edge, staff position) at (x, y). Returns its box. */
-  glyph(glyph: string, x: number, y: number): { x0: number; y0: number; x1: number; y1: number } {
-    const t = this.template(glyph);
+  glyph(glyph: string, x: number, y: number, font = this.font): { x0: number; y0: number; x1: number; y1: number } {
+    const t = this.template(glyph, font);
     const left = Math.round(x - t.ox);
     const top = Math.round(y - t.oy);
     for (let ty = 0; ty < t.height; ty++) {
@@ -84,6 +84,15 @@ export class SynthStrip {
       const t = (x - a.stemX) / Math.max(1, b.stemX - a.stemX);
       const y = a.tipY + (b.tipY - a.tipY) * t + inward * level * 15;
       this.rect(x, inward > 0 ? y : y - 10, x + 1, inward > 0 ? y + 10 : y);
+    }
+  }
+
+  /** A curved arc (tie, slur) from (x0, y0) to (x1, y1) bulging `height` px (negative = upwards), 3 px thick. */
+  arc(x0: number, y0: number, x1: number, y1: number, height: number): void {
+    for (let x = Math.round(x0); x <= Math.round(x1); x++) {
+      const t = (x - x0) / Math.max(1, x1 - x0);
+      const y = y0 + (y1 - y0) * t + 4 * height * t * (1 - t);
+      this.rect(x, y - 1.5, x + 1, y + 1.5);
     }
   }
 

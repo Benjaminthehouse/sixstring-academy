@@ -4,13 +4,14 @@ import type { RouteProps } from '@/app/routes';
 import { useScreenTitle } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
 import { AVATARS, useAchievements, useGems, useProfile, useProgress } from '@/core/progress';
-import { Avatar, GemChip, Icon, Page, Skeleton } from '@/ui';
+import { Avatar, GemChip, Icon, Page, Skeleton, cx } from '@/ui';
 import pkg from '../../../package.json';
 import About from './about/About';
 import Achievements from './achievements/Achievements';
 import DataScreen from './data/Data';
 import Overview from './overview/Overview';
 import { dateText, plural } from './format';
+import { useEdgeFade } from './parts/edgeFade';
 import { SECTIONS, locate, paramsFor, type SectionDef, type SectionId } from './sections';
 import Shop from './shop/Shop';
 import styles from './Profile.module.css';
@@ -21,6 +22,7 @@ const Settings = lazy(() => import('./settings/Settings'));
 /** The strip of links (phone) or the side list (wide) that leads to each part of the Me area. */
 function SectionNav({ current }: { current: SectionId }) {
   const listRef = useRef<HTMLUListElement | null>(null);
+  const fade = useEdgeFade(listRef);
   // On a phone the strip scrolls sideways: keep the current part in view.
   useEffect(() => {
     const list = listRef.current;
@@ -33,7 +35,7 @@ function SectionNav({ current }: { current: SectionId }) {
   }, [current]);
   return (
     <nav className={styles.nav} aria-label="Me">
-      <ul className={styles.navList} ref={listRef}>
+      <ul className={cx(styles.navList, fade.start && styles.fadeStart, fade.end && styles.fadeEnd)} ref={listRef}>
         {SECTIONS.map((section) => (
           <li key={section.id}>
             <a className={styles.navLink} href={href('profile', ...paramsFor(section.id))} aria-current={section.id === current ? 'page' : undefined}>

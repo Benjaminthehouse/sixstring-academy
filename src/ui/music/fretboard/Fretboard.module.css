@@ -1,0 +1,382 @@
+/*
+ * The fretboard in instrument materials. Wood, nickel, bone and pearl come from the --fb-* tokens
+ * (the same in both themes: wood is wood); only the text outside the board (string names, fret
+ * numbers) follows the page theme. Each wood is a recipe mixed from the material tokens.
+ */
+.root {
+  --wood: var(--fb-wood);
+  --wood-edge: var(--fb-wood-2);
+  --grain: var(--fb-wood-2);
+  --head: var(--fb-wood-2);
+  --inlay-fill: var(--fb-inlay);
+  --inlay-tint-a: color-mix(in srgb, var(--fb-inlay) 80%, var(--deg-5));
+  --inlay-tint-b: color-mix(in srgb, var(--fb-inlay) 82%, var(--deg-1));
+  --dot-edge: color-mix(in srgb, var(--fb-dot-edge) 70%, transparent);
+  --path: var(--fb-label);
+  --mark: var(--fb-label);
+  --ring-fill: color-mix(in srgb, var(--fb-dot-edge) 55%, transparent);
+  --ring-fg: var(--fb-label);
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.root[data-wood='maple'],
+.root[data-wood='roasted-maple'],
+.root[data-wood='koa'] {
+  --inlay-fill: var(--fb-dot-edge);
+  --inlay-tint-a: color-mix(in srgb, var(--fb-dot-edge) 85%, var(--deg-5));
+  --inlay-tint-b: color-mix(in srgb, var(--fb-dot-edge) 85%, var(--deg-1));
+  --dot-edge: var(--fb-dot-edge);
+  --path: var(--fb-dot-edge);
+  --mark: var(--fb-dot-edge);
+  --ring-fill: color-mix(in srgb, var(--fb-inlay) 60%, transparent);
+  --ring-fg: var(--fb-dot-edge);
+}
+.root[data-wood='maple'] {
+  --wood: var(--fb-wood-light);
+  --wood-edge: color-mix(in srgb, var(--fb-wood-light) 80%, var(--fb-wood));
+  --grain: color-mix(in srgb, var(--fb-wood-light) 78%, var(--fb-wood));
+  --head: color-mix(in srgb, var(--fb-wood-light) 86%, var(--fb-wood));
+}
+.root[data-wood='ebony'] {
+  --wood: color-mix(in srgb, var(--fb-wood-2) 40%, var(--fb-dot-edge));
+  --wood-edge: var(--fb-dot-edge);
+  --grain: color-mix(in srgb, var(--fb-wood-2) 70%, var(--fb-dot-edge));
+  --head: var(--fb-dot-edge);
+}
+.root[data-wood='pau-ferro'] {
+  --wood: color-mix(in srgb, var(--fb-wood) 68%, var(--fb-wood-light));
+  --wood-edge: var(--fb-wood);
+  --grain: var(--fb-wood);
+  --head: var(--fb-wood);
+}
+.root[data-wood='roasted-maple'] {
+  --wood: color-mix(in srgb, color-mix(in srgb, var(--fb-wood-light) 72%, var(--fb-wood)) 80%, var(--deg-2));
+  --wood-edge: color-mix(in srgb, var(--fb-wood-light) 50%, var(--fb-wood));
+  --grain: color-mix(in srgb, var(--fb-wood-light) 45%, var(--fb-wood));
+  --head: color-mix(in srgb, var(--fb-wood-light) 55%, var(--fb-wood));
+}
+.root[data-wood='koa'] {
+  --wood: color-mix(in srgb, color-mix(in srgb, var(--fb-wood-light) 62%, var(--deg-3)) 76%, var(--fb-wood));
+  --wood-edge: color-mix(in srgb, var(--fb-wood-light) 40%, var(--fb-wood));
+  --grain: color-mix(in srgb, var(--fb-wood) 70%, var(--deg-2));
+  --head: color-mix(in srgb, var(--fb-wood-light) 45%, var(--fb-wood));
+}
+
+/* Wide ranges scroll inside their own box, never the page. */
+.scroller {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--r-sm);
+}
+.scroller:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.stage {
+  position: relative;
+  margin-inline: auto;
+}
+.svg {
+  display: block;
+  overflow: visible;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── materials ── */
+.woodStop1 { stop-color: var(--wood-edge); }
+.woodStop2 { stop-color: var(--wood); }
+.headStop1 { stop-color: color-mix(in srgb, var(--head) 80%, var(--fb-dot-edge)); }
+.headStop2 { stop-color: var(--head); }
+.fretStop1 { stop-color: var(--fb-fret-shade); }
+.fretStop2 { stop-color: var(--fb-fret); }
+.fretStop3 { stop-color: color-mix(in srgb, var(--fb-fret) 50%, var(--fb-inlay)); }
+.nutStop1 { stop-color: color-mix(in srgb, var(--fb-nut) 78%, var(--fb-wood-light)); }
+.nutStop2 { stop-color: var(--fb-nut); }
+.pearlStop1 { stop-color: var(--inlay-fill); }
+.pearlStop2 { stop-color: var(--inlay-tint-a); }
+.pearlStop3 { stop-color: var(--inlay-tint-b); }
+
+.shadow {
+  fill: var(--fb-dot-edge);
+  opacity: 0.22;
+}
+.grain {
+  fill: none;
+  stroke: var(--grain);
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+.inlay {
+  stroke: none;
+}
+.vine {
+  fill: none;
+  stroke: var(--inlay-fill);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.wireShadow {
+  fill: var(--fb-dot-edge);
+  opacity: 0.35;
+}
+.nutEdge {
+  fill: color-mix(in srgb, var(--fb-nut) 60%, var(--fb-wood-2));
+}
+.stringShadow {
+  stroke: var(--fb-dot-edge);
+  opacity: 0.38;
+  stroke-linecap: round;
+}
+.string {
+  stroke: var(--fb-string);
+  stroke-linecap: round;
+}
+.string[data-wound='true'] {
+  stroke: var(--fb-string-wound);
+}
+.winding {
+  stroke: color-mix(in srgb, var(--fb-string-wound) 55%, var(--fb-dot-edge));
+  opacity: 0.65;
+}
+.stringShine {
+  stroke: var(--fb-inlay);
+  opacity: 0.45;
+  stroke-linecap: round;
+}
+.capo {
+  fill: var(--fb-dot-edge);
+}
+.capoShine {
+  fill: var(--fb-inlay);
+  opacity: 0.55;
+}
+.capoLabel {
+  fill: var(--fg);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+.capoShade {
+  fill: var(--fb-dot-edge);
+  opacity: 0.42;
+}
+
+/* Text beside the board is on the page, so it follows the theme. */
+.stringLabel,
+.fretNumber {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+.fretNumber {
+  font-size: 11px;
+  font-weight: 500;
+}
+.mark {
+  fill: none;
+  stroke: var(--mark);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* ── overlays ── */
+.box {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.boxLabel {
+  fill: var(--accent-text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 650;
+  dominant-baseline: central;
+}
+.path {
+  fill: none;
+  stroke: var(--path);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+.arrowHead {
+  fill: var(--path);
+}
+.barre {
+  fill: var(--c);
+  stroke: var(--dot-edge);
+  stroke-width: 1;
+}
+.barreLabel {
+  fill: var(--c-fg);
+  font-family: var(--font-body);
+  font-weight: 700;
+  dominant-baseline: central;
+  text-anchor: middle;
+}
+
+/* ── markers ── */
+.marker {
+  pointer-events: none;
+}
+.markerBody {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop var(--dur-2) var(--ease) both;
+  transition: opacity var(--dur-2) var(--ease);
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.dot {
+  fill: var(--c);
+  stroke: var(--dot-edge);
+  stroke-width: 1;
+}
+.marker[data-shape='ring'] .dot {
+  fill: var(--ring-fill);
+  stroke: var(--c);
+}
+.label {
+  fill: var(--c-fg);
+  font-family: var(--font-body);
+  font-weight: 700;
+  dominant-baseline: central;
+  text-anchor: middle;
+  letter-spacing: -0.02em;
+}
+.marker[data-shape='ring'] .label {
+  fill: var(--ring-fg);
+}
+.halo {
+  fill: none;
+  stroke: var(--fb-inlay);
+  stroke-width: 2;
+}
+.marker[data-state='ghost'] .markerBody {
+  opacity: 0.38;
+}
+.pulse {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse 1.3s var(--ease) infinite;
+}
+@keyframes pulse {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.92);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+.targetRing {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.badge {
+  stroke: var(--fb-dot-edge);
+  stroke-width: 1;
+}
+.badge[data-kind='hit'] {
+  fill: var(--ok);
+}
+.badge[data-kind='miss'] {
+  fill: var(--bad);
+}
+.badgeMark {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.badge[data-kind='hit'] + .badgeMark {
+  stroke: var(--ok-fg);
+}
+.badge[data-kind='miss'] + .badgeMark {
+  stroke: var(--bad-fg);
+}
+
+/* ── touch cells: real buttons over the drawing ── */
+.cells {
+  position: absolute;
+  inset: 0;
+}
+.cell {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.cell::after {
+  content: '';
+  width: var(--hover-d, 22px);
+  height: var(--hover-d, 22px);
+  border-radius: 50%;
+  border: 2px dashed var(--fb-label);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.root[data-wood='maple'] .cell::after,
+.root[data-wood='roasted-maple'] .cell::after,
+.root[data-wood='koa'] .cell::after {
+  border-color: var(--fb-dot-edge);
+}
+@media (hover: hover) {
+  .cell:hover::after {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+}
+/* A pearl ring inside a blue one: visible on dark and pale woods in both themes. */
+.cell:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--info), inset 0 0 0 5px var(--fb-inlay);
+}
+.cell:focus-visible::after {
+  opacity: 0.9;
+  transform: scale(1);
+}
+.cell:active::after {
+  opacity: 1;
+  transform: scale(0.85);
+  border-style: solid;
+}

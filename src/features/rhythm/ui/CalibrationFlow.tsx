@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { OnsetEvent } from '@/core/pitch';
-import { Banner, Button, ButtonGroup, Heading, Icon, MediaBlocked, Text, usePrefersReducedMotion } from '@/ui';
-import { detectBleed, estimateOffset, loadCalibration, saveCalibration, OFFSET_LIMITS, type Bleed, type InputSource, type OffsetEstimate } from '../core/calibration';
+import { Banner, Button, ButtonGroup, Heading, Icon, MediaBlocked, Text, cx, usePrefersReducedMotion } from '@/ui';
+import { detectBleed, estimateOffset, judgeEstimate, loadCalibration, saveCalibration, type Bleed, type EstimateVerdict, type InputSource, type OffsetEstimate } from '../core/calibration';
 import { CALIBRATION_BPM, PROBE_TICKS, calibrationChart } from '../core/charts';
 import { BeatLane } from './BeatLane';
 import { DEFAULT_PREFS } from './prefs';
@@ -17,11 +17,14 @@ export interface CalibrationFlowProps {
   onDone?: () => void;
   /** Label of the closing button (default "Done"). */
   doneLabel?: string;
+  /** Called after a value has been stored, so a screen showing the stored values can read them again. */
+  onSaved?: () => void;
 }
 
 interface Measured {
   estimate: OffsetEstimate;
   bleed: Bleed | null;
+  verdict: EstimateVerdict;
   saved: boolean;
 }
 
@@ -36,7 +39,7 @@ const describe = (ms: number, source: InputSource): string => {
  * Ten seconds of tapping (or clapping) with a click, turned into the latency of this device.
  * Nothing is judged while it runs: the point is to measure, not to score.
  */
-export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: CalibrationFlowProps) {
+export function CalibrationFlow({ source, onDone, doneLabel = 'Done', onSaved }: CalibrationFlowProps) {
   const reduced = usePrefersReducedMotion();
   const chart = useMemo(() => calibrationChart({ probe: source === 'mic' }), [source]);
   const onsets = useRef<OnsetEvent[]>([]);
@@ -67,11 +70,9 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
       const probeSeg = session.chart.segments.find((s) => s.kind === 'listen');
       if (probeSeg) bleed = detectBleed(PROBE_TICKS.map((tick) => session.timeOfTick(probeSeg.startTick + tick)), onsets.current);
     }
-    const [lo, hi] = OFFSET_LIMITS[source];
-    const believable = estimate.offsetMs >= lo && estimate.offsetMs <= hi;
-    const good = estimate.quality === 'good' && believable;
-    if (good) save(estimate, bleed);
-    setMeasured({ estimate: believable ? estimate : { ...estimate, quality: 'uneven' }, bleed, saved: good });
+    const verdict = judgeEstimate(estimate, source);
+    if (verdict === 'save') save(estimate, bleed);
+    setMeasured({ estimate, bleed, verdict, saved: verdict === 'save' });
     // Measured once per finished round: `save` and the refs it reads do not belong in the dependencies.
   }, [phase, session, result]);
 
@@ -79,6 +80,7 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
     const at = Date.now();
     if (source === 'mic') saveCalibration({ micMs: Math.round(estimate.offsetMs * 10) / 10, micAt: at, micOffered: true, bleed });
     else saveCalibration({ tapMs: Math.round(estimate.offsetMs * 10) / 10, tapAt: at, offered: true });
+    onSaved?.();
   };
 
   const again = () => {
@@ -102,11 +104,13 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
   }
 
   if (measured && phase === 'done') {
-    const { estimate, bleed, saved } = measured;
+    const { estimate, bleed, saved, verdict } = measured;
     const centred = estimate.deviations.map((d) => d - estimate.offsetMs);
+    const n = Math.round(Math.abs(estimate.offsetMs));
+    const what = source === 'mic' ? 'claps' : 'taps';
     return (
-      <div className={styles.calib} data-calibration-result={estimate.quality} data-offset={Math.round(estimate.offsetMs)}>
-        {estimate.quality === 'too-few' ? (
+      <div className={styles.calib} data-calibration-result={verdict} data-offset={Math.round(estimate.offsetMs)}>
+        {verdict === 'too-few' ? (
           <>
             <Heading level={3} size="lg">
               Not enough to measure
@@ -115,10 +119,24 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
               {source === 'mic' ? `Only ${estimate.matched} claps were heard. Clap once on every click, close to the device.` : `Only ${estimate.matched} taps arrived. Tap once on every click, all sixteen.`}
             </Text>
           </>
+        ) : verdict === 'implausible' ? (
+          <div className={styles.calibHead}>
+            <span className={cx(styles.calibIcon, styles.toneOff)}>
+              <Icon name="CircleAlert" size={28} />
+            </span>
+            <div>
+              <Heading level={3} size="lg">
+                That did not line up with the click
+              </Heading>
+              <Text tone="muted">
+                {`Your ${what} came about ${n} ms ${estimate.offsetMs < 0 ? 'before' : 'after'} each click. No ${source === 'mic' ? 'microphone' : 'device'} delays a ${source === 'mic' ? 'clap' : 'tap'} by that much, so they were probably following something else, such as the off-beat. Nothing was saved: try again and ${source === 'mic' ? 'clap' : 'tap'} exactly when you hear each click.`}
+              </Text>
+            </div>
+          </div>
         ) : (
           <>
             <div className={styles.calibHead}>
-              <span className={saved ? styles.toneHit : styles.toneOff}>
+              <span className={cx(styles.calibIcon, saved ? styles.toneHit : styles.toneOff)}>
                 <Icon name={saved ? 'CircleCheck' : 'CircleAlert'} size={28} />
               </span>
               <div>
@@ -141,10 +159,11 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
           </Banner>
         )}
         <ButtonGroup align="end">
-          <Button iconLeft="RotateCcw" onClick={again}>
+          {/* Nothing usable came out of it: measuring again is the way forward. */}
+          <Button iconLeft="RotateCcw" onClick={again} variant={!saved && verdict !== 'uneven' ? 'primary' : 'secondary'} data-calibrate-again>
             Measure again
           </Button>
-          {!saved && estimate.quality === 'uneven' && (
+          {!saved && verdict === 'uneven' && (
             <Button
               onClick={() => {
                 save(estimate, bleed);
@@ -155,7 +174,7 @@ export function CalibrationFlow({ source, onDone, doneLabel = 'Done' }: Calibrat
             </Button>
           )}
           {onDone && (
-            <Button variant="primary" onClick={onDone} data-autofocus>
+            <Button variant={saved || verdict === 'uneven' ? 'primary' : 'secondary'} onClick={onDone} data-autofocus>
               {doneLabel}
             </Button>
           )}

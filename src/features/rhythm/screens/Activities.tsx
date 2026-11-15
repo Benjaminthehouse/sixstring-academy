@@ -9,7 +9,7 @@ import { BeatLane } from '../ui/BeatLane';
 import { useRhythmPrefs } from '../ui/prefs';
 import { ReadReview, ReadStage } from '../ui/ReadStage';
 import { RoundScreen, type DisplayContext } from '../ui/RoundScreen';
-import type { Round } from '../ui/useRound';
+import { lastTempo, type Round } from '../ui/useRound';
 import styles from '../ui/Rhythm.module.css';
 
 /** How many times a skill has been attempted: the seed of its next round, so every visit is new and repeatable. */
@@ -23,7 +23,7 @@ const lane = (ctx: DisplayContext, counts = true) => (
 
 /** Feel the beat: tap along with a click. */
 export function BeatScreen({ level }: { level: BeatLevel }) {
-  const [bpm, setBpm] = useState(level.bpm);
+  const [bpm, setBpm] = useState(() => lastTempo(skillId('beat', level.id), level.bpm, 40, 208));
   const chart = useMemo(() => pulseChart({ meter: level.meter, bpm, bars: level.bars, hit: level.hit }), [level, bpm]);
   return (
     <RoundScreen
@@ -51,7 +51,8 @@ export function BeatScreen({ level }: { level: BeatLevel }) {
 export function ReadScreen({ level }: { level: ReadLevel }) {
   const skill = skillId('read', level.id);
   const [prefs, setPrefs] = useRhythmPrefs();
-  const [bpm, setBpm] = useState(level.bpm);
+  const bpmMax = level.meter === '6/8' ? 96 : 160;
+  const [bpm, setBpm] = useState(() => lastTempo(skill, level.bpm, 40, bpmMax));
   const [seed, setSeed] = useState(() => attemptsOf(skill));
   const phrases = useMemo(() => generateRound(level, seed), [level, seed]);
   const chart = useMemo(() => readChart(phrases, { bpm, echo: prefs.echo }), [phrases, bpm, prefs.echo]);
@@ -71,7 +72,7 @@ export function ReadScreen({ level }: { level: ReadLevel }) {
       bpm={bpm}
       onBpm={setBpm}
       bpmMin={40}
-      bpmMax={level.meter === '6/8' ? 96 : 160}
+      bpmMax={bpmMax}
       padMode={dense ? 'hands' : 'single'}
       display={(ctx) => <ReadStage ctx={ctx} phrases={phrases} />}
       quick={echoSwitch}
@@ -116,7 +117,8 @@ function SwitchCue({ ctx, sequence }: { ctx: DisplayContext; sequence: readonly 
 /** Subdivision and counting drills. */
 export function DrillScreen({ drill }: { drill: Drill }) {
   const skill = skillId('drill', drill.id);
-  const [bpm, setBpm] = useState(drill.bpm);
+  const bpmMax = drill.kind === 'switch' ? 120 : 160;
+  const [bpm, setBpm] = useState(() => lastTempo(skill, drill.bpm, 40, bpmMax));
   const [seed, setSeed] = useState(() => attemptsOf(skill));
   const sequence = useMemo(() => (drill.kind === 'switch' ? switchSequence(drill.pool, drill.bars, seededRandom(seed * 13 + 7)) : []), [drill, seed]);
   const chart = useMemo(() => {
@@ -139,7 +141,7 @@ export function DrillScreen({ drill }: { drill: Drill }) {
       bpm={bpm}
       onBpm={setBpm}
       bpmMin={40}
-      bpmMax={drill.kind === 'switch' ? 120 : 160}
+      bpmMax={bpmMax}
       padMode={fast ? 'hands' : 'single'}
       display={(ctx) => (drill.kind === 'switch' ? <SwitchCue ctx={ctx} sequence={sequence} /> : lane(ctx))}
       hasCounts
@@ -183,7 +185,7 @@ function ClockReview({ round }: { round: Round }) {
 
 /** Inner clock: the click drops out and comes back. */
 export function ClockScreen({ level }: { level: ClockLevel }) {
-  const [bpm, setBpm] = useState(level.bpm);
+  const [bpm, setBpm] = useState(() => lastTempo(skillId('clock', level.id), level.bpm, 40, 160));
   const chart = useMemo(() => clockChart({ bpm, on: level.on, off: level.off, cycles: level.cycles }), [level, bpm]);
   return (
     <RoundScreen

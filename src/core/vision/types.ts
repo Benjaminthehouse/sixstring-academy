@@ -155,6 +155,24 @@ export interface MarkerHint {
   placement?: 'bass-edge' | 'treble-edge' | 'board';
   /** Approximate sticker hue in degrees (0 red, 120 green, 300 magenta), if known. */
   hue?: number;
+  /**
+   * Colours the learner sampled with one tap per marker (`sampleMarkerColor`), in the order of
+   * `frets`. With colours the markers are found by colour and anchor the pose as well as the
+   * numbering. Two different colours are best (they also say which end is the nut).
+   */
+  colors?: MarkerColor[];
+}
+
+/** The colour of a marker as sampled from a frame: mean RGB (0..255) and its hue (degrees), saturation and value (0..1). */
+export interface MarkerColor {
+  r: number;
+  g: number;
+  b: number;
+  hue: number;
+  saturation: number;
+  value: number;
+  /** Spread of the hue over the sampled pixels, degrees (wider tolerance when matching). */
+  spread: number;
 }
 
 /** Hints a caller may give `detect`. All optional; defaults are the common webcam case. */

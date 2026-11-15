@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { OmrNotationEvent } from '../types';
 import { readHeader } from './header';
 import { findHeads } from './heads';
 import { analyzeNotationStaff, ledgerSupport, recognizeNotationStaff } from './index';
@@ -7,7 +8,7 @@ import { buildChords, readDots, readTails } from './notes';
 import { AccidentalState, keyAlterations, pitchOf } from './pitch';
 import { type RhythmEvent, inferMeasureTicks, measureTicks, optionTicks, solveMeasure, stepValue } from './rhythm';
 import { findStrokes } from './stems';
-import { buildStrip, distanceTransform, inkFraction, integralOf, posAt, posY } from './strip';
+import { buildStrip, distanceTransform, inkFraction, integralOf, posAt, posY, stripQuality } from './strip';
 import { TEMPLATE_SPACE, scaleTemplate, templateGlyphs, templatesOf } from './templates';
 import { SynthStrip } from './tools/synth';
 
@@ -414,5 +415,194 @@ describe('robustness', () => {
     expect(a.mismatches).toEqual([]);
     expect(a.events.map((e) => e.rhythm.chosen)).toEqual([0, 0, 0, 0, 0, 0, 0]);
     expect(a.events.map((e) => e.rhythm.options[0].value)).toEqual(['quarter', 'quarter', 'quarter', 'quarter', 'quarter', 'half', 'half']);
+  });
+});
+
+// What other engravers do differently from the corpus engraver (seen in the held-out alphaTab
+// pages, tools/alphatab-pages.cjs): dots on the line, high ties, italic tuplet numbers, metre
+// shown once per page, displaced whole-note seconds, light ledger lines.
+describe('engraving variants', () => {
+  const kinds = (input: ReturnType<SynthStrip['input']>): string[] => {
+    const r = recognizeNotationStaff(input) as { events: OmrNotationEvent[] };
+    return r.events.map((e) => `${e.kind === 'rest' ? 'r' : e.notes.map((n) => n.pitch.midi).join('+')}:${e.duration.value}${'.'.repeat(e.duration.dots)}${e.duration.tuplet ? 't' : ''}`);
+  };
+  const header = (s: SynthStrip, time: [number, number] | null): void => {
+    s.glyph('gClef', 30, s.y(2));
+    if (time) {
+      s.glyph(`timeSig${time[0]}`, 100, s.y(6));
+      s.glyph(`timeSig${time[1]}`, 100, s.y(2));
+    }
+  };
+
+  it('reads an augmentation dot printed on the line, after a note and after a rest', () => {
+    const s = new SynthStrip(1000);
+    header(s, [3, 4]);
+    // | G4 q. (on the second line, dot on the line)  A4 8  B4 q (on the middle line) |
+    s.note(220, 2);
+    s.glyph('augmentationDot', 244, s.y(2));
+    const f = s.note(320, 3);
+    s.glyph('flag8thUp', f.stemX - 1.5, f.tipY);
+    s.note(420, 4);
+    s.barline(500);
+    // | quarter rest . (dot on the middle line)  A4 8  G4 q |
+    s.glyph('restQuarter', 540, s.y(4));
+    s.glyph('augmentationDot', 572, s.y(4));
+    const g = s.note(640, 3);
+    s.glyph('flag8thUp', g.stemX - 1.5, g.tipY);
+    s.note(740, 2);
+    s.barline(860);
+    expect(kinds(s.input())).toEqual(['55:quarter.', '57:eighth', '59:quarter', 'r:quarter.', '57:eighth', '55:quarter']);
+  });
+
+  it('keeps the two heads of a whole-note second in one chord', () => {
+    const s = new SynthStrip(600);
+    header(s, [4, 4]);
+    s.note(260, 6, { head: 'noteheadWhole', stem: null });
+    s.note(294, 7, { head: 'noteheadWhole', stem: null });
+    s.barline(400);
+    expect(kinds(s.input())).toEqual(['62+64:whole']);
+  });
+
+  it('finds a tie that leaves the heads from their tops and arches well above them', () => {
+    const s = new SynthStrip(700);
+    header(s, [2, 4]);
+    s.note(240, 4, { stem: 'down' });
+    s.note(380, 4, { stem: 'down' });
+    s.arc(250, s.y(4) - 11, 370, s.y(4) - 11, -22);
+    s.barline(460);
+    const a = analyzeNotationStaff(s.input());
+    const chords = a.events.filter((e) => e.kind === 'chord');
+    expect(chords.map((e) => [e.tieStart[0], e.tieStop[0]])).toEqual([[true, false], [false, true]]);
+  });
+
+  it('reads groups of three eighths as triplets when the printed metre says so, even without a 3', () => {
+    const s = new SynthStrip(1100);
+    header(s, [3, 4]);
+    for (let g = 0; g < 3; g++) {
+      const x = 200 + g * 220;
+      const a = s.note(x, 2, { stem: 'up' });
+      s.note(x + 60, 3, { stem: 'up' });
+      const c = s.note(x + 120, 4, { stem: 'up' });
+      s.beam(a, c, 'up');
+    }
+    s.barline(880);
+    const a = analyzeNotationStaff(s.input());
+    expect(a.header.time?.value).toMatchObject({ beats: 3, beatValue: 4 });
+    expect(a.measureOk[0]).toBe(true);
+    const k = kinds(s.input());
+    expect(k).toHaveLength(9);
+    expect(k.every((q) => q.endsWith(':eightht'))).toBe(true);
+  });
+
+  it('reads a tuplet 3 set in an italic text face', () => {
+    const s = new SynthStrip(900);
+    header(s, [2, 4]);
+    // | triplet 8 8 8 (with a printed 3)  quarter |
+    const a = s.note(220, 2, { stem: 'up' });
+    s.note(280, 3, { stem: 'up' });
+    const c = s.note(340, 4, { stem: 'up' });
+    s.beam(a, c, 'up');
+    s.glyph('tuplet3', 270, a.tipY - 14, 'Liberation Serif Bold Italic');
+    s.note(460, 2);
+    s.barline(560);
+    const an = analyzeNotationStaff(s.input());
+    const trip = an.events.filter((e) => e.chord?.tuplet);
+    expect(trip).toHaveLength(3);
+    // Read from the mark, not inferred from the measure length.
+    expect(trip.every((e) => !e.inferred)).toBe(true);
+  });
+
+  it('carries the time signature down the page to staves that do not print it', () => {
+    const first = new SynthStrip(700);
+    header(first, [3, 4]);
+    first.note(220, 2);
+    first.note(320, 3);
+    first.note(420, 4);
+    first.barline(520);
+    const second = new SynthStrip(900);
+    header(second, null);
+    for (let g = 0; g < 3; g++) {
+      const x = 160 + g * 220;
+      const a = second.note(x, 2, { stem: 'up' });
+      second.note(x + 60, 3, { stem: 'up' });
+      const c = second.note(x + 120, 4, { stem: 'up' });
+      second.beam(a, c, 'up');
+    }
+    second.barline(840);
+    // On its own the second staff reads as 9/8: nine plain eighths.
+    expect(kinds(second.input()).every((k) => k.endsWith(':eighth'))).toBe(true);
+    // As the staff below a 3/4 staff of the same page they are triplets.
+    const a = first.input();
+    const b = second.input();
+    b.index = 1;
+    b.page = a.page;
+    recognizeNotationStaff(a);
+    expect(kinds(b).every((k) => k.endsWith(':eightht'))).toBe(true);
+  });
+
+  it('does not take the stem of a note right after the clef for a key-signature flat', () => {
+    const s = new SynthStrip(600);
+    header(s, null);
+    s.note(112, 9, { stem: 'down' });
+    s.note(220, 7, { stem: 'down' });
+    const h = readHeader(buildStrip(s.input()));
+    expect(h.key).toBeNull();
+  });
+
+  it('accepts ledger lines printed too light to survive binarisation', () => {
+    const s = new SynthStrip(600);
+    header(s, null);
+    // A5 (written) on its own ledger line, the ledger line only in the grey picture.
+    const x = 260;
+    s.glyph('noteheadBlack', x - 12, s.y(10));
+    s.rect(x - 12 + 1, s.y(10), x - 12 + 4, s.y(10) + 70);
+    const input = s.input();
+    const grey = input.gray.data;
+    for (let y = Math.round(s.y(10)) - 1; y <= Math.round(s.y(10)) + 1; y++) {
+      for (let xx = x - 20; xx < x + 20; xx++) if (grey[y * input.gray.width + xx] > 128) grey[y * input.gray.width + xx] = 175;
+    }
+    expect(kinds(input)).toEqual(['69:quarter']);
+  });
+});
+
+describe('picture quality', () => {
+  it('rates a clean strip 1 and a blurred, noisy one below one half, and says so', () => {
+    const s = new SynthStrip(900);
+    s.glyph('gClef', 30, s.y(2));
+    for (let i = 0; i < 6; i++) s.note(200 + i * 100, 2 + (i % 3));
+    s.barline(820);
+    const clean = s.input();
+    expect(stripQuality(buildStrip(clean)).score).toBe(1);
+    // Blur (a 5 x 5 box twice) and noise (deterministic, sigma about 14 grey levels).
+    const poor = s.input();
+    const { width: w, height: h } = poor.gray;
+    let g: Uint8Array = poor.gray.data;
+    for (let pass = 0; pass < 2; pass++) {
+      const out = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          let sum = 0;
+          let n = 0;
+          for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+            const yy = y + dy;
+            const xx = x + dx;
+            if (yy >= 0 && yy < h && xx >= 0 && xx < w) { sum += g[yy * w + xx]; n++; }
+          }
+          out[y * w + x] = Math.round(sum / n);
+        }
+      }
+      g = out;
+    }
+    let seed = 7;
+    for (let i = 0; i < g.length; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      g[i] = Math.max(0, Math.min(255, g[i] + ((seed % 49) - 24)));
+    }
+    poor.gray = { width: w, height: h, data: g };
+    const q = stripQuality(buildStrip(poor));
+    expect(q.noise).toBeGreaterThan(10);
+    expect(q.score).toBeLessThan(0.5);
+    const a = analyzeNotationStaff(poor);
+    expect(a.warnings.some((x) => x.code === 'low-quality')).toBe(true);
   });
 });

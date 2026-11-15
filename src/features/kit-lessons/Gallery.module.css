@@ -1,0 +1,64 @@
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.preview {
+  --figure-bg: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.preview-ok {
+  border-color: var(--ok);
+}
+.preview-bad {
+  border-color: var(--bad);
+}
+.previewBar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.frame {
+  --figure-bg: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.barSample {
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+}
+.bar-ok {
+  background: var(--ok-soft);
+  border-top: 2px solid var(--ok);
+}
+.bar-bad {
+  background: var(--bad-soft);
+  border-top: 2px solid var(--bad);
+}
+.bar-info {
+  background: var(--info-soft);
+  border-top: 2px solid var(--info);
+}
+
+.lessonLink {
+  justify-content: flex-start;
+}

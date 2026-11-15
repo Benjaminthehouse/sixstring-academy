@@ -7,7 +7,7 @@ import type { DurationValue } from '../types';
 import { inkBox } from './header';
 import { type Match, matchAt, searchMatch } from './match';
 import { ownBox } from './marks';
-import { type SBox, dotsAt } from './notes';
+import { type SBox, dotOnLine, dotsAt } from './notes';
 import { CLAIM, type Strip, posY } from './strip';
 import { templatesOf } from './templates';
 
@@ -113,7 +113,12 @@ export function readRests(strip: Strip, xFrom: number, xTo: number, opts: RestOp
     owner[id] = CLAIM.rest;
     // Augmentation dots sit in the third space, right of the glyph.
     const dotY = posY(strip, 5 + top.shift);
-    const dots = top.value === 'whole' ? [] : dotsAt(strip, b.x1 + 0.05 * s, dotY, 1.0 * s);
+    let dots = top.value === 'whole' ? [] : dotsAt(strip, b.x1 + 0.05 * s, dotY, 1.0 * s);
+    // Some engravers put it on the middle line instead.
+    if (!dots.length && top.value !== 'whole') {
+      const d = dotOnLine(strip, b.x1 + 0.05 * s, posY(strip, 4 + top.shift), 1.0 * s);
+      if (d) dots = [d];
+    }
     for (const d of dots) ownBox(strip, d, CLAIM.dot);
     out.push({
       value: top.value,

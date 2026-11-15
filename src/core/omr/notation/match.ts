@@ -21,7 +21,8 @@ export interface Match {
  * paper. Returns 0 when the image window is flat.
  */
 export function matchAt(strip: Strip, t: Template, ox: number, oy: number): number {
-  const { w, h, ink, rowWeight } = strip;
+  const { w, h, ink, rowWeight, inkRowSum, inkRowSumSq } = strip;
+  const W1 = w + 1;
   const left = Math.round(ox - t.ox);
   const top = Math.round(oy - t.oy);
   const W = t.width;
@@ -42,17 +43,13 @@ export function matchAt(strip: Strip, t: Template, ox: number, oy: number): numb
     sT += wt * t.rowSum[ty];
     sTT += wt * t.rowSumSq[ty];
     if (y < 0 || y >= h || xb <= xa) continue;
-    let rI = 0;
-    let rII = 0;
+    const r0 = y * W1 + left;
+    const rI = inkRowSum[r0 + xb] - inkRowSum[r0 + xa];
+    const rII = inkRowSumSq[r0 + xb] - inkRowSumSq[r0 + xa];
     let rIT = 0;
     let p = y * w + left + xa;
     let q = ty * W + xa;
-    for (let tx = xa; tx < xb; tx++) {
-      const v = ink[p++];
-      rI += v;
-      rII += v * v;
-      rIT += v * T[q++];
-    }
+    for (let tx = xa; tx < xb; tx++) rIT += ink[p++] * T[q++];
     sI += wt * rI;
     sII += wt * rII;
     sIT += wt * rIT;

@@ -45,6 +45,12 @@
   white-space: nowrap;
   color: var(--fg-muted);
 }
+/* With large text the word gives way (an ellipsis) rather than running under the settings button. */
+.statusText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .header > :first-child:not(.status) + .status {
   margin-left: auto;
   margin-right: 0;
@@ -366,6 +372,21 @@
   }
   .offsetAmount {
     font-size: var(--text-2xl);
+  }
+}
+
+/*
+ * A short phone held upright (iPhone SE, 360 x 640): a little less air and a slightly smaller note,
+ * so the strings still show between the card and the action bar while tuning. The meter keeps its size.
+ */
+@media (max-width: 719.98px) and (max-height: 739.98px) and (orientation: portrait) {
+  .readout {
+    --note-size: clamp(4.75rem, min(28vw, 13.5vh), 8rem);
+    --pad-y: var(--sp-2);
+    --gap: 0.3125rem;
+  }
+  .instruction {
+    padding-top: var(--sp-1);
   }
 }
 

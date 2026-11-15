@@ -14,10 +14,10 @@ import { writePng } from '../../eval/png';
 import type { GtNotationEvent, GtNotationStaff } from '../../eval/truth';
 import { assemblePage } from '../../page';
 import type { StaffReading } from '../../types';
-import { type StaffAnalysis, type StripEvent, analyzeNotationStaff, toReading } from '../index';
+import { type NotationContext, type StaffAnalysis, type StripEvent, analyzeNotationStaff, contextAfter, toReading } from '../index';
 import { measureHead } from '../heads';
 import { baseValue } from '../notes';
-import { boxToStrip, loadDevPage } from './strips';
+import { alphaTabIds, boxToStrip, loadDevPage } from './strips';
 
 interface Args {
   cmd: string;
@@ -105,6 +105,63 @@ function diagnose(a: StaffAnalysis, truth: GtNotationStaff): string[] {
   return out;
 }
 
+/** Counts of right and wrong readings by reported confidence. */
+interface Calibration {
+  pitchWrong: number;
+  pitchWrongSure: number;
+  pitchRight: number;
+  pitchRightUnsure: number;
+  durWrong: number;
+  durWrongSure: number;
+  durRight: number;
+  durRightUnsure: number;
+  extra: number;
+  extraSure: number;
+}
+
+function emptyCalibration(): Calibration {
+  return { pitchWrong: 0, pitchWrongSure: 0, pitchRight: 0, pitchRightUnsure: 0, durWrong: 0, durWrongSure: 0, durRight: 0, durRightUnsure: 0, extra: 0, extraSure: 0 };
+}
+
+/** Does the reading say "sure" (confidence >= 0.5) about what it got wrong? Page coordinates. */
+function calibrate(reading: StaffReading, truth: GtNotationStaff, cal: Calibration): void {
+  const gHeads = truth.measures.flatMap((m) => m.events.flatMap((e) => e.notes.map((n) => ({ n, e }))));
+  const dHeads = reading.events.flatMap((e) => (e.kind === 'chord' ? e.notes.map((n) => ({ n, e })) : []));
+  const centre = (b: { x: number; y: number; w: number; h: number }): { x: number; y: number } => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+  const pairs = matchPoints(gHeads.map((g) => ({ x: g.n.head[0] + g.n.head[2] / 2, y: g.n.head[1] + g.n.head[3] / 2 })), dHeads.map((d) => centre(d.n.bbox)), 0.6 * truth.space);
+  const seen = new Set<object>();
+  for (const [gi, di] of pairs) {
+    const g = gHeads[gi];
+    const d = dHeads[di];
+    const sure = d.n.confidence >= 0.5;
+    if (d.n.pitch.midi === g.n.midi) {
+      cal.pitchRight++;
+      if (!sure) cal.pitchRightUnsure++;
+    } else {
+      cal.pitchWrong++;
+      if (sure) cal.pitchWrongSure++;
+    }
+    if (seen.has(d.e)) continue;
+    seen.add(d.e);
+    const dur = d.e.duration;
+    const ok = dur && dur.value === g.e.duration.value && dur.dots === g.e.duration.dots && !!dur.tuplet === !!g.e.duration.tuplet;
+    const durSure = !!dur && dur.confidence >= 0.5;
+    if (ok) {
+      cal.durRight++;
+      if (!durSure) cal.durRightUnsure++;
+    } else {
+      cal.durWrong++;
+      if (durSure) cal.durWrongSure++;
+    }
+  }
+  const used = new Set(pairs.map((p) => p[1]));
+  dHeads.forEach((d, i) => {
+    if (used.has(i)) return;
+    cal.extra++;
+    if (d.n.confidence >= 0.5) cal.extraSure++;
+  });
+}
+
 /** Draw the analysis over the strip. */
 function drawAnalysis(a: StaffAnalysis, truth: GtNotationStaff | null): Canvas {
   const { strip } = a;
@@ -166,14 +223,18 @@ function drawAnalysis(a: StaffAnalysis, truth: GtNotationStaff | null): Canvas {
 /** Entry point called by dev.cjs. */
 export async function main(args: Args): Promise<void> {
   const tiers = args.tiers as DegradeTier[];
-  let list = loadManifest().filter((m) => m.subset !== 'tab');
+  // --alphatab: the held-out pages engraved by alphaTab instead of the VexFlow corpus.
+  let list: { id: string; subset: string }[] = args.args.includes('--alphatab') ? alphaTabIds().map((id) => ({ id, subset: 'notation' })) : loadManifest().filter((m) => m.subset !== 'tab');
   if (args.subset) list = list.filter((m) => m.subset === args.subset);
   if (args.match) list = list.filter((m) => args.match.split(',').some((q) => m.id.includes(q)));
   const totals = new Map<string, PageScore>();
+  const cal = emptyCalibration();
   const stage: Record<string, number> = {};
   let staves = 0;
   let msTotal = 0;
   const msList: number[] = [];
+  // Process CPU time per staff: comparable across runs on a shared machine, unlike wall time.
+  const cpuList: number[] = [];
   for (const tier of tiers) {
     const sum = emptyScore();
     totals.set(tier, sum);
@@ -181,16 +242,33 @@ export async function main(args: Args): Promise<void> {
       const page = loadDevPage(meta.id, tier, args.seed);
       const readings: (StaffReading | null)[] = page.analysis.layout.staves.map(() => null);
       const lines: string[] = [];
+      // Clef, key and time carry from staff to staff down the page, as in recognizeNotationStaff.
+      let context: NotationContext = {};
       for (const st of page.strips) {
         if (args.staff >= 0 && st.staffIndex !== args.staff) continue;
         const t0 = performance.now();
-        const a = analyzeNotationStaff(st.input);
+        const c0 = process.cpuUsage();
+        const a = analyzeNotationStaff(st.input, { context });
         const ms = performance.now() - t0;
+        const cpu = process.cpuUsage(c0);
+        cpuList.push((cpu.user + cpu.system) / 1000);
         msTotal += ms;
         msList.push(ms);
         staves++;
         for (const [k, v] of Object.entries(a.timings)) stage[k] = (stage[k] ?? 0) + v;
-        readings[st.staffIndex] = toReading(a);
+        const reading = toReading(a, { context });
+        context = contextAfter(reading, context);
+        readings[st.staffIndex] = reading;
+        if (st.truth) {
+          const before = { ...cal };
+          calibrate(reading, st.truth, cal);
+          if (args.args.includes('--staffstats')) {
+            const hs = a.events.flatMap((e) => e.chord?.heads ?? []).map((hd) => hd.score).sort((p, q) => p - q);
+            const checked = a.measureOk.filter((v) => v !== null).length;
+            const bad = a.measureOk.filter((v) => v === false).length;
+            console.log(`STAFF ${meta.id} ${st.staffIndex} noise ${a.quality.noise.toFixed(1)} lineWidth ${a.quality.lineWidth.toFixed(2)} quality ${a.quality.score.toFixed(2)} heads ${hs.length} medScore ${(hs[hs.length >> 1] ?? 0).toFixed(2)} p20 ${(hs[Math.floor(hs.length * 0.2)] ?? 0).toFixed(2)} thick/s ${(a.strip.thick / a.strip.s).toFixed(3)} bad ${bad}/${checked} src ${st.input.sourceSpace.toFixed(1)} | pitchWrong ${cal.pitchWrong - before.pitchWrong} durWrong ${cal.durWrong - before.durWrong} extra ${cal.extra - before.extra} right ${cal.pitchRight - before.pitchRight}`);
+          }
+        }
         if (st.truth) for (const l of diagnose(a, st.truth)) lines.push(`    staff ${st.staffIndex}: ${l}`);
         else lines.push(`    staff ${st.staffIndex}: no truth staff matched`);
         if (args.dump) {
@@ -213,6 +291,10 @@ export async function main(args: Args): Promise<void> {
   for (const [tier, s] of totals) {
     console.log(`${tier.padEnd(11)} ${pct(precision(s.notes))}  ${pct(recall(s.notes))}  ${pct(rate(s.pitch))} ${pct(rate(s.duration))}  ${f1(s.rests).toFixed(3)}  ${pct(rate(s.accidentals))} ${pct(rate(s.ties))}   ${pct(rate(s.measureExact))}  ${pct(rate(s.key))}  ${pct(rate(s.time))}   (${s.notes.tp}/${s.notes.fp}/${s.notes.fn}, ${s.rests.tp}/${s.rests.fp}/${s.rests.fn}; acc ${s.accidentals.correct}/${s.accidentals.total} tie ${s.ties.correct}/${s.ties.total} meas ${s.measureExact.correct}/${s.measureExact.total} key ${s.key.correct}/${s.key.total} time ${s.time.correct}/${s.time.total})`);
   }
+  console.log(`\ncalibration (confidence >= 0.5 counts as "sure"): pitch wrong ${cal.pitchWrong} (sure ${cal.pitchWrongSure}), right ${cal.pitchRight} (unsure ${cal.pitchRightUnsure}); duration wrong ${cal.durWrong} (sure ${cal.durWrongSure}), right ${cal.durRight} (unsure ${cal.durRightUnsure}); extra heads ${cal.extra} (sure ${cal.extraSure})`);
   msList.sort((a, b) => a - b);
+  cpuList.sort((a, b) => a - b);
+  const q = (l: number[], f: number): string => (l.length ? l[Math.min(l.length - 1, Math.floor(f * l.length))].toFixed(0) : '-');
+  console.log(`CPU per staff: median ${q(cpuList, 0.5)} ms, p90 ${q(cpuList, 0.9)} ms, max ${q(cpuList, 1)} ms`);
   console.log(`\n${staves} staves, recognizer ${(msTotal / Math.max(1, staves)).toFixed(0)} ms/staff mean, median ${msList[msList.length >> 1]?.toFixed(0)} ms, max ${msList[msList.length - 1]?.toFixed(0)} ms; stages: ${Object.entries(stage).map(([k, v]) => `${k} ${(v / Math.max(1, staves)).toFixed(0)}`).join(', ')}`);
 }

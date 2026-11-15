@@ -3,8 +3,8 @@
   z-index: 300;
   left: 0;
   right: 0;
-  /* Clear of the phone tab bar and the home indicator. */
-  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-3));
+  /* Clear of the phone tab bar, the home indicator and a screen's ActionBar (see Page.tsx). */
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--action-bar-h, 0px) + var(--sp-3));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,7 +18,7 @@
   .viewport {
     left: auto;
     right: var(--sp-6);
-    bottom: var(--sp-6);
+    bottom: calc(var(--action-bar-h, 0px) + var(--sp-6));
     align-items: flex-end;
     padding: 0;
   }

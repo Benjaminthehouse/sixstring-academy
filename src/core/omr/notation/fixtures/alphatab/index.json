@@ -1,0 +1,110 @@
+{
+ "generator": "src/core/omr/notation/tools/alphatab-pages.cjs",
+ "pages": [
+  {
+   "id": "at-ode-c",
+   "staves": 4,
+   "heads": 62,
+   "staffSpace": 14.4,
+   "dpi": 209
+  },
+  {
+   "id": "at-greensleeves-am",
+   "staves": 3,
+   "heads": 70,
+   "staffSpace": 19.8,
+   "dpi": 287
+  },
+  {
+   "id": "at-romance-em",
+   "staves": 2,
+   "heads": 64,
+   "staffSpace": 16.2,
+   "dpi": 234
+  },
+  {
+   "id": "at-arpeggio16-c",
+   "staves": 2,
+   "heads": 69,
+   "staffSpace": 17.2,
+   "dpi": 249
+  },
+  {
+   "id": "at-scale-g",
+   "staves": 2,
+   "heads": 53,
+   "staffSpace": 11.7,
+   "dpi": 170
+  },
+  {
+   "id": "at-rests-d",
+   "staves": 2,
+   "heads": 15,
+   "staffSpace": 15.3,
+   "dpi": 222
+  },
+  {
+   "id": "at-accidentals-f",
+   "staves": 2,
+   "heads": 32,
+   "staffSpace": 17.1,
+   "dpi": 248
+  },
+  {
+   "id": "at-ties-bb",
+   "staves": 2,
+   "heads": 18,
+   "staffSpace": 15.1,
+   "dpi": 219
+  },
+  {
+   "id": "at-chords-c",
+   "staves": 2,
+   "heads": 92,
+   "staffSpace": 18,
+   "dpi": 261
+  },
+  {
+   "id": "at-twovoice-am",
+   "staves": 1,
+   "heads": 23,
+   "staffSpace": 16.2,
+   "dpi": 235
+  },
+  {
+   "id": "at-high-e",
+   "staves": 2,
+   "heads": 32,
+   "staffSpace": 13.5,
+   "dpi": 196
+  },
+  {
+   "id": "at-dotted-eb",
+   "staves": 1,
+   "heads": 22,
+   "staffSpace": 19.5,
+   "dpi": 282
+  },
+  {
+   "id": "at-waltz-a",
+   "staves": 2,
+   "heads": 17,
+   "staffSpace": 10.8,
+   "dpi": 156
+  },
+  {
+   "id": "at-twinkle-d",
+   "staves": 2,
+   "heads": 28,
+   "staffSpace": 13.9,
+   "dpi": 201
+  },
+  {
+   "id": "at-ode-scoretab",
+   "staves": 2,
+   "heads": 30,
+   "staffSpace": 14.4,
+   "dpi": 209
+  }
+ ]
+}

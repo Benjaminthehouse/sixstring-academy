@@ -3,11 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { ClassScore } from './glyph';
-import { type Glyph, MAX_FRET, assembleLine, buildNumber, detectLineThrough, facePenalties, glyphConfidence, isDigitLabel } from './numbers';
+import { type Glyph, MAX_FRET, assembleLine, buildNumber, detectLineThrough, facePenalties, glyphConfidence, isDigitLabel, lineThroughEvidence, struckKey, struckReference } from './numbers';
 import { labelComponents } from '../image/cc';
 import { synthStaff } from './dev/synth';
 import { findLineBlobs } from './segment';
-import { GLYPH_LABELS } from './templates';
+import { GLYPH_H, GLYPH_LABELS } from './templates';
 
 /** A glyph at x with the given ranking: [label, score] pairs, best first. */
 function glyph(x: number, ranking: [string, number][], width = 11, height = 19): Glyph {
@@ -97,6 +97,16 @@ describe('assembleLine', () => {
     expect(assembleLine([maybe(0, '('), d(9, '5')], 19).map((n) => n.fret)).toEqual([15]);
   });
 
+  it('reads both brackets of a tight "1 5 1" or "1 1 2 1" as brackets (no fret has three digits)', () => {
+    const one = (x: number, alt: string): Glyph => glyph(x, [['1', 0.86], [alt, 0.69]], 5, 16);
+    const plain = (x: number, label: string): Glyph => glyph(x, [[label, 0.95]], 10, 17);
+    expect(assembleLine([one(0, '('), plain(11, '5'), one(25, ')')], 17).map((n) => [n.fret, !!n.parenthesized])).toEqual([[5, true]]);
+    expect(assembleLine([one(0, '('), plain(12, '1'), plain(25, '2'), one(39, ')')], 17).map((n) => [n.fret, !!n.parenthesized])).toEqual([[12, true]]);
+    // Spaced like separate notes, they stay notes; and a crisp 1 with no bracket among its readings stays a 1.
+    expect(assembleLine([one(0, '('), plain(30, '5'), one(70, ')')], 17).map((n) => n.fret)).toEqual([1, 5, 1]);
+    expect(assembleLine([plain(0, '1'), plain(11, '5'), plain(25, '1')], 17).map((n) => n.parenthesized ?? false)).not.toContain(true);
+  });
+
   it('attaches a technique letter to the number before it and re-reads a stray letter as the digit it resembles', () => {
     const h = glyph(13, [['h', 0.9], ['4', 0.6]]);
     const nums = assembleLine([d(0, '5'), h, d(40, '7'), glyph(100, [['b', 0.85], ['6', 0.8]])], 19);
@@ -114,7 +124,34 @@ describe('staff-level evidence', () => {
       const { input } = synthStaff({ lineThrough, items: ['0', '2', '3', '5', '7', '10'].map((text, i) => ({ line: 2, x: 130 + i * 80, text })) });
       const blobs = findLineBlobs(labelComponents(input.noLines), input, labelComponents(input.binary));
       expect(detectLineThrough(input.gray, blobs, input.lineYs, 19)).toBe(lineThrough);
+      const evidence = lineThroughEvidence(input.gray, blobs, input.lineYs, 19);
+      // Struck: the line is at least as dark inside the glyph as beside it; blanked: far lighter.
+      if (lineThrough) expect(evidence.median).toBeGreaterThanOrEqual(0.95);
+      else expect(evidence.median).toBeLessThan(0.5);
+      if (lineThrough) {
+        // One geometry for the staff's typical digit, measured on the staff itself.
+        const ref = struckReference({ gray: input.gray, lineYs: input.lineYs, space: input.space, lineThickness: input.lineThickness, profiles: new Map(), digitHeight: 19 }, blobs);
+        expect(ref).not.toBeNull();
+        expect(Math.abs((ref as { centre: number }).centre - GLYPH_H / 2)).toBeLessThan(2.5);
+      }
     }
+  });
+
+  it('keeps the struck template geometries of a staff few and independent of earlier staves', () => {
+    const ctx = { struckRef: { centre: 8, thickness: 2.5 }, struckKeys: [] as { centre: number; thickness: number }[] };
+    // Near the reference: snapped to it only while the blur is being judged.
+    expect(struckKey(ctx, { centre: 8.4, thickness: 2.2 }, true)).toBe(ctx.struckRef);
+    expect(struckKey(ctx, { centre: 8.4, thickness: 2.2 })).toEqual({ centre: 8.5, thickness: 2 });
+    // A dozen distinct geometries at most; past that the nearest one in use serves.
+    for (let i = 0; i < 30; i++) struckKey(ctx, { centre: 2 + i * 0.5, thickness: 2 });
+    expect(ctx.struckKeys.length).toBe(12);
+    const far = struckKey(ctx, { centre: 15.2, thickness: 2 });
+    expect(ctx.struckKeys).toContain(far);
+    // The same staff read twice asks for the same geometries.
+    const again = { struckRef: null, struckKeys: [] as { centre: number; thickness: number }[] };
+    const first = { struckRef: null, struckKeys: [] as { centre: number; thickness: number }[] };
+    const seq = [7.2, 7.9, 8.6, 3.1, 12.4];
+    expect(seq.map((c) => struckKey(first, { centre: c, thickness: 3 }))).toEqual(seq.map((c) => struckKey(again, { centre: c, thickness: 3 })));
   });
 
   it('needs a handful of clear digits before it favours a face', () => {

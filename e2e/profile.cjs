@@ -25,6 +25,11 @@
  *            printed; a key Anthropic accepts shows only its hint; inside Claude there is no field.
  *            Requests to api.anthropic.com are answered by this script: nothing leaves the machine
  *  about     version, credits for every dependency, what works where, the honest limits
+ *  review    cases an independent review found broken: a too-large or non-JSON import named
+ *            truthfully, theme-neutral calendar words and an honest activity sentence, the month
+ *            table at 200 % text, the strip's scroll fade, helper buttons that say "Buy for",
+ *            the shop stage drawn with the app's own fretboard, a rejected key forgotten even
+ *            when the screen is left mid-check, and the level test with no microphone at all
  *
  * Prints one line per group and exits non-zero if any check failed. A failed step is not retried
  * blindly: on a busy machine re-run the script before believing a timeout.
@@ -583,8 +588,11 @@ async function settings(browser, url, seeds, accents) {
 
   // --- left-handed flips the neck in the shop preview
   await ctx.goto('profile--shop', 'shop');
-  const flipped = await page.locator('[data-stage] svg g').first().getAttribute('transform');
-  check(group, 'playing hand: left-handed flips the neck drawn in the shop', /scale\(-1 1\)/.test(flipped || ''), flipped);
+  // The stage draws the app's own fretboard with an open C chord (fret 3, fret 2, fret 1, in that
+  // order): right-handed the frets run away from the nut to the right, left-handed to the left.
+  const markerX = await page.evaluate(() => [...document.querySelectorAll('[data-stage] svg [data-shape]')].map((g) => Number(/translate\(([-\d.]+)/.exec(g.getAttribute('transform') || '')?.[1])));
+  const flipped = markerX.length === 3 && markerX[0] < markerX[1] && markerX[1] < markerX[2];
+  check(group, 'playing hand: left-handed flips the neck drawn in the shop', flipped, JSON.stringify(markerX));
 
   // --- a reload keeps everything
   await page.evaluate(() => {
@@ -1093,6 +1101,125 @@ async function about(browser, url, seeds) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// review: the cases an independent review found broken, kept so they stay fixed
+// ---------------------------------------------------------------------------------------------
+
+async function review(browser, url, seeds) {
+  const group = 'review';
+
+  // --- a file the picker turns away is described truthfully (it was never read)
+  const ctx = await open(browser, url, { mobile: true, saved: seeds.rich.saved });
+  const { page } = ctx;
+  await ctx.goto('profile--data', 'data');
+  const input = page.locator('[data-card="import"] input[type="file"]');
+  // The file picker shows its own one-line reason too; the screen's banner is the one that ends "Nothing was changed."
+  const banner = page.locator('[data-card="import"] [role="alert"]', { hasText: 'Nothing was changed' });
+  await input.setInputFiles({ name: 'huge.json', mimeType: 'application/json', buffer: Buffer.alloc(8_100_000, 32) });
+  const huge = (await banner.innerText({ timeout: 10000 }).catch(() => '')).replace(/\s+/g, ' ');
+  await input.setInputFiles({ name: 'holiday.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) });
+  await page.waitForTimeout(300);
+  const picture = (await banner.innerText({ timeout: 10000 }).catch(() => '')).replace(/\s+/g, ' ');
+  check(group, 'a file over the size limit is called too large, a picture is called not a backup, and neither is called "valid"', /too large/.test(huge) && !/valid/i.test(huge) && /not a backup file/.test(picture) && !/valid/i.test(picture) && /Nothing was changed/.test(picture), `${huge.slice(0, 90)} / ${picture.slice(0, 90)}`);
+
+  // --- the overview: theme-neutral calendar words, an honest activity sentence, the month table at 200 % text
+  await ctx.goto('profile', 'overview');
+  const words = await page.evaluate(async () => {
+    const p = await import('/src/core/progress/index.ts');
+    const rows = p.minutesByKind(p.getProgress(), 'week').filter((k) => k.sec > 0);
+    const total = rows.reduce((sum, k) => sum + k.sec, 0);
+    const top = Math.max(...rows.map((k) => k.sec));
+    const text = document.querySelector('[data-profile-section]').textContent;
+    const sentence = [...document.querySelectorAll('p')].map((el) => el.textContent).find((t) => / in all this week/.test(t)) || '';
+    return { half: top * 2 > total, sentence, darker: /darker/i.test(text), stronger: /stronger/.test(text) };
+  });
+  check(group, 'the calendar speaks of a stronger colour, never "darker" (more XP is brighter in the dark theme)', !words.darker && words.stronger);
+  check(group, 'the activity sentence says "most of it" only when one activity really took more than half', words.sentence !== '' && (words.half || !/most of it/.test(words.sentence)) && (!words.half || /most of it|all of it/.test(words.sentence)), words.sentence);
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  await page.getByText('Show the calendar as a table').click();
+  await page.waitForTimeout(300);
+  const table = await page.evaluate(() => {
+    const scroller = document.querySelector('details[open] table').parentElement;
+    scroller.scrollLeft = scroller.scrollWidth;
+    const last = document.querySelector('details[open] thead th:last-child').getBoundingClientRect();
+    return { page: document.documentElement.scrollWidth - document.documentElement.clientWidth, overflow: getComputedStyle(scroller).overflowX, lastRight: Math.round(last.right), width: document.documentElement.clientWidth };
+  });
+  check(group, 'with text at 200 % on a phone the month table scrolls in its own box: every column can be reached and the page does not scroll sideways', table.page <= 1 && table.overflow === 'auto' && table.lastRight <= table.width, JSON.stringify(table));
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '';
+  });
+
+  // --- the strip of parts shows that it scrolls
+  const maskOf = () => page.evaluate(() => {
+    const list = document.querySelector('nav[aria-label="Me"] ul');
+    const css = getComputedStyle(list);
+    return css.maskImage || css.webkitMaskImage || 'none';
+  });
+  const atStart = await maskOf();
+  await page.evaluate(() => {
+    const list = document.querySelector('nav[aria-label="Me"] ul');
+    list.scrollLeft = list.scrollWidth;
+  });
+  await page.waitForTimeout(250);
+  const atEnd = await maskOf();
+  check(group, 'on a phone the strip of parts fades the edge with more links beyond it, as chip rows do', /gradient/.test(atStart) && /gradient/.test(atEnd) && atStart !== atEnd, `${atStart.slice(0, 60)} | ${atEnd.slice(0, 60)}`);
+
+  // --- shop: helpers say what their button does; the stage is the app's own fretboard
+  await ctx.goto('profile--shop', 'shop');
+  const helperLabels = await page.locator('[data-item="streak-freeze"] button, [data-item="heart-refill"] button, [data-item="xp-boost"] button').allInnerTexts();
+  check(group, 'each helper button says what it does ("Buy for 60"), not a bare price', helperLabels.length === 3 && helperLabels.every((t) => /^Buy for \d+$/.test(t.trim())), helperLabels.join(' / '));
+  await page.locator('[data-item="inlay-sharkfin"]').click();
+  await page.locator('[data-item="wood-koa"]').click();
+  const board = await page.evaluate(() => {
+    const stage = document.querySelector('[data-stage]');
+    const real = stage.querySelector('[data-wood][data-inlay]');
+    // The app's Fretboard (not a drawing of its own) has note markers: the stage shows an open C chord on it.
+    return real ? { wood: real.getAttribute('data-wood'), inlay: real.getAttribute('data-inlay'), look: stage.getAttribute('data-look-wood'), markers: real.querySelectorAll('[data-shape]').length } : null;
+  });
+  check(group, 'the stage tries a cosmetic on the fretboard every lesson uses, so what is shown is what is bought', !!board && board.wood === 'koa' && board.look === 'wood-koa' && board.inlay === 'dots' && board.markers === 3, JSON.stringify(board));
+  await page.locator('[data-shop-action]').getByRole('button', { name: 'Take it off' }).click();
+  const noise = ctx.takeErrors();
+  check(group, 'these steps logged no errors', noise.length === 0, noise[0]);
+  await ctx.close();
+
+  // --- a rejected API key is forgotten even when the learner leaves while it is being checked
+  const away = await open(browser, url, { saved: seeds.rich.saved });
+  await away.context.route('https://api.anthropic.com/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }) }).catch(() => undefined);
+  });
+  await away.goto('profile--settings--ai', 'settings');
+  await away.page.getByLabel('Anthropic API key').fill('sk-ant-api03-review-made-up-key-0000000000000000000000000000000000000000000000000000LEFT');
+  await away.page.getByRole('button', { name: /Save and check the key/ }).click();
+  await away.page.locator('nav[aria-label="Me"] a', { hasText: 'Overview' }).click();
+  await away.page.waitForTimeout(3000);
+  const kept = await away.page.evaluate(() => localStorage.getItem('ssa:ai.anthropic-key'));
+  check(group, 'a key Anthropic rejects is not kept, even if the screen was left while it was checked', kept === null, kept ? 'the key is still stored' : '');
+  await away.close();
+}
+
+/** Without any microphone (as inside Claude, or a desktop with none) the level test explains itself. Needs a browser without fake devices. */
+async function noMicrophone(url, seeds) {
+  const group = 'review';
+  const { chromium } = require('playwright');
+  const bare = await chromium.launch();
+  try {
+    const ctx = await open(bare, url, { mobile: true, saved: seeds.rich.saved });
+    await ctx.goto('profile--settings--microphone', 'settings');
+    await ctx.page.getByRole('button', { name: /Test the microphone/ }).click();
+    const said = await ctx.page.locator('[data-settings-mic]').innerText({ timeout: 10000 });
+    await ctx.page.waitForTimeout(1500);
+    const text = (await ctx.page.locator('[data-settings-mic]').innerText()).replace(/\s+/g, ' ');
+    const noise = ctx.takeErrors();
+    check(group, 'with no microphone at all the level test says what is missing and what still works, without errors', /microphone/i.test(text) && /still work/.test(text) && noise.length === 0, `${text.slice(-200)} ${noise[0] || ''} ${said.length}`);
+    await ctx.close();
+  } finally {
+    await bare.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------------------------
 
@@ -1136,6 +1263,8 @@ async function main() {
     await run('data', () => data(browser, url, seeds));
     await run('ai', () => ai(browser, url, seeds));
     await run('about', () => about(browser, url, seeds));
+    await run('review', () => review(browser, url, seeds));
+    await run('review', () => noMicrophone(url, seeds));
   });
 
   const groups = [...new Set(results.map((r) => r.group))];

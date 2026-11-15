@@ -1,5 +1,5 @@
 import { useMemo, useRef, type ReactNode } from 'react';
-import { useLatest, useRafLoop } from '@/ui';
+import { cx, useLatest, useRafLoop } from '@/ui';
 import type { TunerSession } from '../model/session';
 import { METER_RANGE, meterPosition, meterTicks } from '../model/scale';
 import styles from './Meter.module.css';
@@ -9,7 +9,7 @@ export interface NeedleMeterProps {
   session: TunerSession;
   /** Cents either side of the note that count as in tune: sets the width of the centre zone. */
   tolerance: number;
-  /** Nothing to point at (not listening, or waiting with no note): the marker rests in the middle. */
+  /** Nothing to point at (not listening, waiting with no note, or the note is another string's): the marker rests in the middle. */
   parked: boolean;
   /** Move without easing. */
   reducedMotion: boolean;
@@ -42,8 +42,8 @@ export function NeedleMeter({ session, tolerance, parked, reducedMotion, childre
     const mover = moverRef.current;
     if (!root || !mover) return;
 
-    const active = f.live || f.inTune;
-    const target = parkedRef.current && !active ? 0 : meterPosition(f.cents);
+    const active = (f.live || f.inTune) && !parkedRef.current;
+    const target = parkedRef.current ? 0 : meterPosition(f.cents);
     const k = reducedRef.current || dt <= 0 ? 1 : 1 - Math.exp(-dt / FOLLOW_MS);
     const next = Math.abs(target - d.position) < 0.0005 ? target : d.position + (target - d.position) * k;
     if (next !== d.position) {
@@ -67,7 +67,7 @@ export function NeedleMeter({ session, tolerance, parked, reducedMotion, childre
       root.dataset.intune = f.inTune ? 'true' : 'false';
       root.dataset.off = off;
       root.dataset.side = side;
-      root.dataset.parked = parkedRef.current && !active ? 'true' : 'false';
+      root.dataset.parked = parkedRef.current ? 'true' : 'false';
     }
   });
 
@@ -96,7 +96,7 @@ export function NeedleMeter({ session, tolerance, parked, reducedMotion, childre
         {ticks
           .filter((t) => t.label)
           .map((t) => (
-            <span key={t.cents} className={styles.tickLabel} style={{ left: `${50 + t.position * 50}%` }}>
+            <span key={t.cents} className={cx(styles.tickLabel, t.cents !== 0 && Math.abs(t.cents) !== METER_RANGE && styles.tickLabelInner)} style={{ left: `${50 + t.position * 50}%` }}>
               {t.label}
             </span>
           ))}

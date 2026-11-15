@@ -20,6 +20,16 @@
 .jump::-webkit-scrollbar {
   display: none;
 }
+/* Fade the edge that has more groups beyond it (phones only; wider screens wrap the row). */
+.fadeStart {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 2rem);
+}
+.fadeEnd {
+  mask-image: linear-gradient(to left, transparent 0, var(--fg) 2rem);
+}
+.fadeStart.fadeEnd {
+  mask-image: linear-gradient(to right, transparent 0, var(--fg) 2rem, var(--fg) calc(100% - 2rem), transparent 100%);
+}
 @media (min-width: 720px) {
   .jump {
     flex-wrap: wrap;
@@ -91,9 +101,15 @@
   background: var(--surface-2);
   color: var(--fg-muted);
 }
+.groupHead > div {
+  min-width: 0;
+}
+/* Level with the 32 px icon at normal text sizes; with large text the line simply grows. */
 .groupTitle {
+  padding-block: max(0px, calc((32px - 1.3em) / 2));
   font-size: var(--text-xl);
-  line-height: 32px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
   outline: none;
 }
 /* The heading takes focus when a shortcut jumps to its group; it is not a control, so no ring. */

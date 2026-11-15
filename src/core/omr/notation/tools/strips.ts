@@ -2,11 +2,15 @@
  * Development helpers (Node only): load a fixture at a degradation tier and cut the notation
  * strips together with their ground truth mapped into strip coordinates.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { degrade, type DegradeTier } from '../../eval/degrade';
+import { readPngGray } from '../../eval/png';
 import { loadFixture } from '../../eval/fixtures';
 import { truthStaffFor } from '../../eval/oracle';
 import { tierSeed } from '../../eval/runner';
-import type { Box, GroundTruth, GtNotationStaff } from '../../eval/truth';
+import { type Box, type GroundTruth, type GtNotationStaff, hydrateTruth } from '../../eval/truth';
 import type { GrayImage } from '../../image/gray';
 import { type PageAnalysis, analyzePage, extractStaff } from '../../page';
 import type { StaffInput } from '../../types';
@@ -30,10 +34,26 @@ export interface DevPage {
   strips: DevStrip[];
 }
 
+/** Directory of the held-out pages engraved by alphaTab (`alphatab-pages.cjs`). */
+export function alphaTabDir(): string {
+  return fileURLToPath(new URL('../fixtures/alphatab/', import.meta.url));
+}
+
+/** Ids of the held-out alphaTab pages. */
+export function alphaTabIds(): string[] {
+  return (JSON.parse(readFileSync(join(alphaTabDir(), 'index.json'), 'utf8')) as { pages: { id: string }[] }).pages.map((p) => p.id);
+}
+
+/** A corpus fixture, or a held-out alphaTab page when the id starts with "at-". */
+function loadAny(id: string): { gray: GrayImage; truth: GroundTruth } {
+  if (!id.startsWith('at-')) return loadFixture(id);
+  return { gray: readPngGray(join(alphaTabDir(), `${id}.png`)), truth: hydrateTruth(JSON.parse(readFileSync(join(alphaTabDir(), `${id}.json`), 'utf8'))) };
+}
+
 /** Degrade a fixture exactly like the evaluation runner does and cut its notation strips. */
 export function loadDevPage(id: string, tier: DegradeTier, seed = 1): DevPage {
-  const fx = loadFixture(id);
-  const d = degrade(fx.gray, fx.truth, tier, tierSeed(fx.meta.id, tier, seed));
+  const fx = loadAny(id);
+  const d = degrade(fx.gray, fx.truth, tier, tierSeed(id, tier, seed));
   const analysis = analyzePage(d.gray);
   const truth = d.truth as GroundTruth;
   const strips: DevStrip[] = [];

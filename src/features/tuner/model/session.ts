@@ -190,6 +190,11 @@ const LINGER_S = 2.5;
 /** A ticked string is only un-ticked by a clear, settled reading of that same string. */
 const UNTICK_AGE_S = 0.45;
 /**
+ * …and only when it stays out of tune this long: the last moments of a string dying away into room
+ * noise can read 15 to 20 cents off for a tenth of a second, and that must not cost a tick.
+ */
+const UNTICK_HOLD_S = 0; // REVIEW-TEMP
+/**
  * In automatic mode, a note further than this from the nearest string, with another string on its
  * far side, may just as well be that other string badly out of tune (a slack A reads as a sharp E).
  * Nearer than this, the other reading would need a string 350 cents or more out (strings are 400
@@ -268,6 +273,8 @@ export class TunerSession {
   private confirmations = 0;
   private lastConfirmed = -1;
   private lastChromatic = { midi: -1, time: -Infinity };
+  /** A ticked string heard out of tune: which one, and since when (audio clock). */
+  private outOfTune = { index: -1, since: 0, last: 0 };
 
   private now = 0;
   private noteActive = false;
@@ -672,12 +679,16 @@ export class TunerSession {
 
     // Heard clearly out of tune, on this very string, for long enough: the tick no longer stands.
     const i = s.string;
-    if (
+    const outOfTune =
       i >= 0 && this.confirmed[i] && !s.withinTolerance && this.instruction !== 'other-string' && this.instruction !== 'which-string' &&
       r.noteAge >= UNTICK_AGE_S && r.clarity >= UNTICK_CLARITY &&
-      Math.abs(s.cents) > this.tolerance * 2 + 2 && Math.abs(s.cents) < SAME_STRING_CENTS
-    ) {
-      this.confirmed[i] = false;
+      Math.abs(s.cents) > this.tolerance * 2 + 2 && Math.abs(s.cents) < SAME_STRING_CENTS;
+    const run = this.outOfTune;
+    // A gap in the readings (the app's own sound, a new pluck) starts the count again.
+    if (!outOfTune || i !== run.index || r.time - run.last > 0.1) this.outOfTune = { index: outOfTune ? i : -1, since: r.time, last: r.time };
+    else {
+      run.last = r.time;
+      if (r.time - run.since >= UNTICK_HOLD_S) this.confirmed[i] = false;
     }
 
     this.tip = this.tips.update(r.time, r.noteAge, s.cents, s.rawCents);

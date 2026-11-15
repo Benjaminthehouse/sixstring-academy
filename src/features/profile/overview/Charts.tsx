@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties, type KeyboardEvent, type MouseEv
 import { minutesByKind, useHeatmap, useProgress, useWeek, type HeatCell, type ProgressState } from '@/core/progress';
 import { EmptyState, Icon, LinkButton, SegmentedControl, cx, useElementSize } from '@/ui';
 import { durationText, plural } from '../format';
-import { HEAT_LEVELS, calendarLayout, heatCellText, heatColumns, heatSentence, historyWeeks, kindShares, summariseHeat, weekChart, weekSentence } from './model';
+import { CALENDAR_TEXT, HEAT_LEVELS, calendarLayout, heatCellText, heatColumns, heatSentence, historyWeeks, kindSentence, kindShares, summariseHeat, weekChart, weekSentence } from './model';
 import styles from './Overview.module.css';
 
 /** From this width the day detail and the summary sit beside the grid instead of under it. */
@@ -11,7 +11,7 @@ const SIDE_WIDTH = 288;
 const WEEKDAY_INITIALS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 /**
- * The practice calendar: one square per day, darker for more XP against that day's goal. Hovering
+ * The practice calendar: one square per day, a stronger colour for more XP against that day's goal. Hovering
  * or tapping a square (or the arrow keys, once the calendar has focus) names the day underneath;
  * the sentence and the month table say the same thing in words.
  */
@@ -109,30 +109,35 @@ export function PracticeCalendar() {
 
       <details className={cx(styles.table, styles.calendarTable)}>
         <summary>Show the calendar as a table</summary>
-        <table>
-          <caption className="sr-only">Practice by month</caption>
-          <thead>
-            <tr>
-              <th scope="col">Month</th>
-              <th scope="col">Days practised</th>
-              <th scope="col">Goals met</th>
-              <th scope="col">XP</th>
-              <th scope="col">Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.months.map((month) => (
-              <tr key={month.key}>
-                <th scope="row">{month.label}</th>
-                <td>{month.practised}</td>
-                <td>{month.met}</td>
-                <td>{month.xp}</td>
-                <td>{durationText(month.sec)}</td>
+        {/* With large text the table is wider than a phone: it scrolls in its own box, never off the page. */}
+        <div className={styles.tableScroll} tabIndex={0} role="region" aria-label="Practice by month">
+          <table>
+            <caption className="sr-only">Practice by month</caption>
+            <thead>
+              <tr>
+                <th scope="col">Month</th>
+                <th scope="col">Days practised</th>
+                <th scope="col">Goals met</th>
+                <th scope="col">XP</th>
+                <th scope="col">Time</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className={styles.tableNote}>Squares get darker with the day’s XP: {HEAT_LEVELS.map((entry) => entry.text.toLowerCase()).join(', ')}.</p>
+            </thead>
+            <tbody>
+              {summary.months.map((month) => (
+                <tr key={month.key}>
+                  <th scope="row">{month.label}</th>
+                  <td>{month.practised}</td>
+                  <td>{month.met}</td>
+                  <td>{month.xp}</td>
+                  <td>{durationText(month.sec)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={styles.tableNote}>
+          {CALENDAR_TEXT.tableNote} {HEAT_LEVELS.map((entry) => entry.text.toLowerCase()).join(', ')}.
+        </p>
       </details>
     </div>
   );
@@ -176,7 +181,6 @@ export function ActivityTime() {
   const today = useProgress((s) => s.meta.today);
   const weekStart = useProgress((s) => s.prefs.weekStart);
   const rows = useMemo(() => kindShares(minutesByKind({ days, stats, meta: { today }, prefs: { weekStart } } as ProgressState, range)), [days, stats, today, weekStart, range]);
-  const total = rows.reduce((sum, row) => sum + row.sec, 0);
   return (
     <div className={styles.kinds}>
       <SegmentedControl
@@ -218,9 +222,7 @@ export function ActivityTime() {
               </li>
             ))}
           </ul>
-          <p className={styles.chartText}>
-            {durationText(total)} in all{range === 'week' ? ' this week' : ''}, most of it on {rows[0].label.toLowerCase()}.
-          </p>
+          <p className={styles.chartText}>{kindSentence(rows, range)}</p>
         </>
       )}
     </div>

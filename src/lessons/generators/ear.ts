@@ -7,7 +7,7 @@ import {
 } from '@/core/theory';
 import type { Rng } from '../rng';
 import type { ChoiceOption, ListenChoiceExercise } from '../types';
-import { article, cap, checkParams, count, defineGenerator, distinct, noteList, pool } from './core';
+import { article, cap, checkParams, count, defineGenerator, distinct, noteList, pool, scaleTitle } from './core';
 
 const INTERVALS_BY_EAR = ['P8', 'P5', 'M3', 'm3', 'P4', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
 const TYPES_BY_EAR = ['major', 'minor', 'dim', 'aug', 'sus4', '7', 'maj7', 'm7'];
@@ -82,7 +82,9 @@ export const intervalEar = defineGenerator({
       sound: { kind: 'interval', from, interval: ivl.name, play: p.play ?? 'up' },
       options: labelled(rng, ivl.name, inPlay.filter((i) => interval(i).semitones !== ivl.semitones), (i) => cap(intervalName(i))),
       prompt: 'Which interval do you hear?',
-      explain: `That was ${article(name)} ${name}: ${count(ivl.semitones, 'half step')}, here {n:${from}} and {n:${to}}.`,
+      explain: `That was ${article(name)} ${name}: ${count(ivl.semitones, 'half step')}, here ${
+        p.play === 'down' ? `{n:${to}} down to {n:${from}}` : p.play === 'together' ? `{n:${from}} and {n:${to}} together` : `{n:${from}} up to {n:${to}}`
+      }.`,
     };
     return out;
   },
@@ -133,7 +135,7 @@ export const scaleEar = defineGenerator({
       sound: { kind: 'scale', tonic, scale: scale.id, direction: 'up' },
       options: labelled(rng, scale, inPlay.filter((s) => s.id !== scale.id), (s) => s.name),
       prompt: 'Which scale do you hear?',
-      explain: `That was the ${scale.name.toLowerCase()} scale, starting on {n:${parseNote(tonic)!.pcName}}: degrees ${scale.degrees.map((d) => `{d:${d}}`).join(' ')}.`,
+      explain: `That was the ${scaleTitle(scale.name)} scale, starting on {n:${parseNote(tonic)!.pcName}}: degrees ${scale.degrees.map((d) => `{d:${d}}`).join(' ')}.`,
     };
     return out;
   },

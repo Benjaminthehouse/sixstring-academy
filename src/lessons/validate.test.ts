@@ -254,7 +254,7 @@ describe('exercises must be gradable, with safe distractors', () => {
   it('the classic trap: two names for one pitch in the same option list', () => {
     const trap = choice({ prompt: 'Which note is one fret above {n:C}?', options: [{ text: '{n:C#}', correct: true }, { text: '{n:Db}' }, { text: '{n:D}' }] });
     const p = find(stepCase(trap), 'exercise.enharmonic');
-    expect(p.message).toMatch(/Options "c♯" and "d♭" are the same pitch under two names, so both could be right.*spelling: 'exact'/);
+    expect(p.message).toMatch(/Options "C♯" and "D♭" are the same pitch under two names, so both could be right.*spelling: 'exact'/);
     // When telling the names apart IS the question, the author says so.
     expect(courseErrors(withStep('musical-alphabet', 1, { ...trap, spelling: 'exact' }))).toEqual([]);
     // Bare note names, chords, intervals and keys are caught as well.

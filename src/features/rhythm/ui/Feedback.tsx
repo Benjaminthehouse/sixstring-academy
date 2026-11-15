@@ -1,5 +1,5 @@
 import { Icon, cx } from '@/ui';
-import { formatMs, verdictLabel, type Verdict } from '../core/scoring';
+import { formatMs, verdictLabel, wrongWay, type Verdict } from '../core/scoring';
 import type { LastJudgement } from './useRound';
 import styles from './Rhythm.module.css';
 
@@ -27,11 +27,19 @@ export function Feedback({ last, showMs, idle = 'Tap with the click' }: Feedback
   const hit = j && j.verdict !== 'miss' && j.verdict !== 'extra';
   const position = hit ? Math.max(-1, Math.min(1, j.errorMs / RANGE)) : 0;
   const ahead = hit && j.verdict !== 'perfect' ? (j.errorMs < 0 ? 'ChevronsLeft' : 'ChevronsRight') : null;
+  // On time but the wrong way: the direction is the thing to fix, so it is what the words say.
+  const expected = last?.target?.dir;
+  const reversed = !!hit && wrongWay(expected, j.dir);
   return (
     <div className={styles.feedback}>
       {/* Not a live region: a screen reader cannot keep up with a tap per beat. The summary is announced instead. */}
-      <div className={cx(styles.verdict, j && TONE[j.verdict])} key={last?.n ?? 0} data-verdict={j?.verdict ?? 'none'}>
-        {j ? (
+      <div className={cx(styles.verdict, j && (reversed ? styles.toneOff : TONE[j.verdict]))} key={last?.n ?? 0} data-verdict={reversed ? 'wrong-way' : j?.verdict ?? 'none'}>
+        {j && reversed ? (
+          <>
+            <Icon name={expected === 'D' ? 'ArrowDown' : 'ArrowUp'} size={22} strokeWidth={2.5} />
+            <span>{expected === 'D' ? 'That one goes down' : 'That one goes up'}</span>
+          </>
+        ) : j ? (
           <>
             <Icon name={ahead ?? ICON[j.verdict]} size={22} strokeWidth={2.5} />
             <span>{verdictLabel(j)}</span>

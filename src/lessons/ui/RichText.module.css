@@ -1,0 +1,53 @@
+.root {
+  overflow-wrap: break-word;
+}
+
+/* A music symbol never breaks across lines (F♯ stays together, so does Am7). */
+.symbol {
+  white-space: nowrap;
+  font-feature-settings: 'tnum' 1;
+}
+
+.term {
+  display: inline;
+  margin: 0;
+  padding: 0 0.05em;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--accent-text);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+@media (hover: hover) {
+  .term:hover {
+    background: var(--accent-soft);
+  }
+}
+.term:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.definition {
+  display: block;
+  max-width: 18rem;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--fg);
+}
+.defTerm {
+  font-family: var(--font-display);
+}
+
+.blank {
+  display: inline-block;
+  width: 3em;
+  height: 1em;
+  vertical-align: -0.15em;
+  border-bottom: 2px solid var(--line-strong);
+}

@@ -284,14 +284,6 @@ export function applyHomography(H: Mat3, x: number, y: number): Point {
   return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w };
 }
 
-/** Allocation-free `applyHomography`: writes into `out` and returns it. */
-export function applyHomographyInto(H: Mat3, x: number, y: number, out: Point): Point {
-  const w = H[6] * x + H[7] * y + H[8];
-  out.x = (H[0] * x + H[1] * y + H[2]) / w;
-  out.y = (H[3] * x + H[4] * y + H[5]) / w;
-  return out;
-}
-
 /** The projective weight of a point; its sign changes across the plane's horizon line. */
 export function homogeneousW(H: Mat3, x: number, y: number): number {
   return H[6] * x + H[7] * y + H[8];
@@ -1433,73 +1425,6 @@ export function poseDistancePx(a: PoseLike, b: FretboardPose, range: FretRange =
     }
   }
   return n > 0 ? Math.sqrt(sum / n) : Infinity;
-}
-
-/** Settings of the pose smoother (a One-Euro filter on the control points). */
-export interface PoseSmootherOptions {
-  /** Cutoff in Hz when the guitar is still: lower = steadier markers, more lag (default 1.2). */
-  minCutoff?: number;
-  /** How quickly the cutoff opens up with speed, per (frame-widths per second) (default 12). */
-  beta?: number;
-  /** Cutoff in Hz of the speed estimate (default 1.5). */
-  speedCutoff?: number;
-  /** A jump larger than this fraction of the frame width resets the filter instead of smearing (default 0.2). */
-  resetDistance?: number;
-}
-
-/** A stateful pose filter: steady when the guitar is still, responsive when it moves. */
-export interface PoseSmoother {
-  /** Feed the newest raw pose with its capture time; returns the smoothed pose. */
-  update(pose: FretboardPose, timeMs: number): FretboardPose;
-  /** Forget history (call after the board was lost). */
-  reset(): void;
-}
-
-/** Create a pose smoother. Markers stop shimmering at rest without lagging behind real movement. */
-export function createPoseSmoother(options: PoseSmootherOptions = {}): PoseSmoother {
-  const minCutoff = options.minCutoff ?? 1.2;
-  const beta = options.beta ?? 12;
-  const speedCutoff = options.speedCutoff ?? 1.5;
-  const resetDistance = options.resetDistance ?? 0.2;
-  let filtered: Point[] | null = null;
-  let lastRaw: Point[] | null = null;
-  let lastTime = 0;
-  let speed = 0;
-  const alpha = (dt: number, cutoff: number): number => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
-  return {
-    update(pose, timeMs) {
-      const raw = poseControlPoints(pose);
-      if (!filtered || !lastRaw) {
-        filtered = raw;
-        lastRaw = raw;
-        lastTime = timeMs;
-        speed = 0;
-        return pose;
-      }
-      const dt = Math.max(1e-3, (timeMs - lastTime) / 1000);
-      let moved = 0;
-      for (let i = 0; i < 4; i++) moved += Math.hypot(raw[i].x - lastRaw[i].x, raw[i].y - lastRaw[i].y);
-      moved /= 4 * pose.frameWidth;
-      lastRaw = raw;
-      lastTime = timeMs;
-      if (!(moved < resetDistance)) {
-        filtered = raw;
-        speed = 0;
-        return pose;
-      }
-      const aSpeed = alpha(dt, speedCutoff);
-      speed += aSpeed * (moved / dt - speed);
-      const a = alpha(dt, minCutoff + beta * speed);
-      const prev = filtered;
-      filtered = raw.map((p, i) => ({ x: prev[i].x + a * (p.x - prev[i].x), y: prev[i].y + a * (p.y - prev[i].y) }));
-      return poseFromControlPoints(filtered, pose) ?? pose;
-    },
-    reset() {
-      filtered = null;
-      lastRaw = null;
-      speed = 0;
-    },
-  };
 }
 
 // ---------------------------------------------------------------------------------------------

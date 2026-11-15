@@ -21,7 +21,7 @@ import { closestGoals, progressFraction, progressText, recentTrophies, TIER_NAME
 import { dateText, durationText, hoursNumber, plural, thousands, timeAgo } from '../format';
 import { Medal } from '../parts/Medal';
 import { ActivityTime, PracticeCalendar, WeekMinutes } from './Charts';
-import { crownsText, rustiestSkills, strongestSkills, STRENGTH_TEXT, type SkillLine } from './model';
+import { CALENDAR_TEXT, crownsText, rustiestSkills, strongestSkills, STRENGTH_TEXT, type SkillLine } from './model';
 import styles from './Overview.module.css';
 
 function Hero() {
@@ -347,7 +347,7 @@ export default function Overview() {
     <div className={styles.overview}>
       <Hero />
       <Numbers />
-      <Section title="Practice calendar" description="One square per day. Darker means more XP against that day’s goal.">
+      <Section title="Practice calendar" description={CALENDAR_TEXT.description}>
         <StreakLine />
         <PracticeCalendar />
       </Section>

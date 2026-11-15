@@ -4,6 +4,7 @@ import { TUNINGS, getTuning } from '@/core/guitar';
 import { speak, speechAvailable, stopSpeaking } from '@/core/platform';
 import { AVATARS, COSMETICS, equipCosmetic, setDailyGoal, setPrefs, setProfile, usePrefs, useProfile, useProgress, type DailyGoalXp, type ExperienceLevel, type TeacherId } from '@/core/progress';
 import { Button, Field, Icon, LinkButton, RadioGroup, SegmentedControl, Select, Slider, Stepper, Switch, TextField, cx, useLocalState, usePrefersReducedMotion } from '@/ui';
+import { useEdgeFade } from '../parts/edgeFade';
 import { accentName } from '../shop/model';
 import { AiHelper } from './AiHelper';
 import { MicSettings } from './MicTest';
@@ -390,6 +391,8 @@ function More() {
  */
 export default function Settings({ focus }: { focus?: string | null }) {
   const root = useRef<HTMLDivElement | null>(null);
+  const jumpRow = useRef<HTMLElement | null>(null);
+  const fade = useEdgeFade(jumpRow);
   const calm = usePrefersReducedMotion();
   const jump = (id: string, smooth: boolean): void => {
     const target = root.current?.querySelector<HTMLElement>(`[data-settings-group="${id}"]`);
@@ -408,7 +411,7 @@ export default function Settings({ focus }: { focus?: string | null }) {
 
   return (
     <div className={styles.screen} ref={root}>
-      <nav className={styles.jump} aria-label="Jump to a group">
+      <nav className={cx(styles.jump, fade.start && styles.fadeStart, fade.end && styles.fadeEnd)} aria-label="Jump to a group" ref={jumpRow}>
         {GROUPS.map((group) => (
           <button key={group.id} type="button" className={styles.jumpLink} onClick={() => jump(group.id, true)}>
             {group.title}

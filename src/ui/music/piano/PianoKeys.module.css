@@ -1,0 +1,114 @@
+/*
+ * Ivory and ebony in both themes (the instrument's materials, like the fretboard). Marked keys get
+ * a tint of their colour and a labelled dot; the label is never the only signal of the colour.
+ */
+.root {
+  width: 100%;
+  min-width: 0;
+}
+.scroller {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.stage {
+  position: relative;
+  margin-inline: auto;
+}
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.bed {
+  fill: var(--fb-dot-edge);
+}
+.felt {
+  fill: color-mix(in srgb, var(--deg-1) 55%, var(--fb-dot-edge));
+}
+.keyShape {
+  fill: var(--fb-nut);
+  stroke: color-mix(in srgb, var(--fb-nut) 70%, var(--fb-dot-edge));
+  stroke-width: 0.6;
+  transition: fill var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+  transform-box: fill-box;
+  transform-origin: top;
+}
+.key[data-black] .keyShape {
+  fill: var(--fb-dot-edge);
+  stroke: color-mix(in srgb, var(--fb-dot-edge) 70%, var(--fb-fret-shade));
+}
+.key[data-marked] .keyShape {
+  fill: color-mix(in srgb, var(--c) 26%, var(--fb-nut));
+}
+.key[data-black][data-marked] .keyShape {
+  fill: color-mix(in srgb, var(--c) 42%, var(--fb-dot-edge));
+}
+.key[data-state='ghost'] {
+  opacity: 0.5;
+}
+.key[data-down] .keyShape {
+  transform: scaleY(0.985);
+  fill: color-mix(in srgb, var(--fb-nut) 82%, var(--fb-fret-shade));
+}
+.key[data-black][data-down] .keyShape {
+  fill: color-mix(in srgb, var(--fb-dot-edge) 75%, var(--fb-fret-shade));
+}
+.dot {
+  fill: var(--c);
+  stroke: var(--fb-dot-edge);
+  stroke-width: 0.6;
+}
+.key[data-state='target'] .dot {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.tick {
+  fill: none;
+  stroke: var(--fb-dot-edge);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.text {
+  fill: color-mix(in srgb, var(--fb-dot-edge) 80%, var(--fb-nut));
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.dotText {
+  fill: var(--c-fg);
+}
+.buttons {
+  position: absolute;
+  inset: 0;
+}
+.button {
+  position: absolute;
+  top: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.blackButton {
+  z-index: 1;
+}
+.button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--info), inset 0 0 0 5px var(--fb-nut);
+}
+@media (hover: hover) {
+  .button:hover {
+    background: color-mix(in srgb, var(--info) 14%, transparent);
+  }
+}

@@ -19,6 +19,17 @@ export function staffPlaceWords(note: string): string {
   return lines === 0 ? `just ${side} the staff` : `${side} the ${lines === 1 ? 'first' : ordinal(lines)} ledger line ${side} the staff`;
 }
 
+/** The places on the five lines and four spaces where a note name (no octave) is written, bottom first. */
+export function onStaffPlaces(name: string): string[] {
+  const out: string[] = [];
+  for (let octave = 2; octave <= 5; octave++) {
+    const full = `${name}${octave}`;
+    const p = staffPosition(full).position;
+    if (p >= 0 && p <= 8) out.push(staffPlaceWords(full));
+  }
+  return out;
+}
+
 function validNote(name: string | undefined): boolean {
   return name === undefined || (parseNote(name)?.midi ?? null) !== null;
 }
@@ -48,16 +59,20 @@ export const staffNote = defineGenerator({
     const midi = rng.pick(midis.length ? midis : [low]);
     // A black key is written with a sharp or a flat, half of the time each.
     const full = midiToNote(midi, { prefer: rng.chance() ? 'sharps' : 'flats' });
-    const name = parseNote(full)!.pcName;
-    const placed = `{n:${name}} is ${staffPlaceWords(full)}.`;
+    const parsed = parseNote(full)!;
+    const name = parsed.pcName;
+    const sign = parsed.alt > 0 ? ', with a sharp sign in front' : parsed.alt < 0 ? ', with a flat sign in front' : '';
+    const placed = `{n:${name}} is ${staffPlaceWords(full)}${sign}.`;
     const memory = 'Lines from the bottom: E G B D F. Spaces: F A C E.';
     if (p.ask === 'place') {
+      // Any octave counts, so name the places on the five lines themselves (E and F have two).
+      const places = onStaffPlaces(name);
       const out: StaffPlaceExercise = {
         type: 'staff-place',
         note: name,
         octave: 'any',
         prompt: `Put {n:${name}} on the staff.`,
-        explain: `One place for it: ${placed} ${memory}`,
+        explain: `{n:${name}} sits ${places.length ? places.join(' or ') : staffPlaceWords(full)}${sign}. ${memory}`,
       };
       return out;
     }

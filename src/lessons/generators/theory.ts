@@ -8,7 +8,7 @@ import {
   pcToNote, relativeKey, romanToChord, scaleContains, scaleNotes, similarChordTypes, transpose, type Key,
 } from '@/core/theory';
 import type { ChordBuildExercise, FillBlanksExercise, MatchPairsExercise, OrderExercise } from '../types';
-import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, keysUpTo, noteList, ordinal, pool, retry } from './core';
+import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, keysUpTo, noteList, ordinal, pool, retry, scaleTitle } from './core';
 
 const NATURALS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'M2', 'm2', 'P8', 'M6', 'm6', 'm7', 'M7', 'A4'];
@@ -66,7 +66,8 @@ export const intervalName_ = defineGenerator({
       rng,
       {
         prompt: `Which interval is it from {n:${pick.root}} up to {n:${pick.upper}}?`,
-        explain: `${lettersBetween(pick.root, ivl.number)}: ${count(ivl.number, 'letter name')} make it ${ivl.number === 8 ? 'an octave' : `a ${ordinal(ivl.number)}`}, and ${count(ivl.semitones, 'half step')} ${ivl.semitones === 1 ? 'makes' : 'make'} it ${article(intervalName(ivl.name))} ${intervalName(ivl.name)}.`,
+        // The letters are counted whatever the accidentals: E♭ to F is E, F, so a 2nd.
+        explain: `{n:${pick.root}} to {n:${pick.upper}} spans ${count(ivl.number, 'letter name')} (${lettersBetween(pick.root, ivl.number)}), so it is ${ivl.number === 8 ? 'an octave' : `a ${ordinal(ivl.number)}`}; ${count(ivl.semitones, 'half step')} ${ivl.semitones === 1 ? 'makes' : 'make'} it ${article(intervalName(ivl.name))} ${intervalName(ivl.name)}.`,
       },
       cap(intervalName(ivl.name)),
       wrong.map((w) => cap(intervalName(w))),
@@ -227,7 +228,7 @@ export const scaleNotes_ = defineGenerator({
       () => ({ scale: getScale(scales[0])!, tonic: 'C', notes: scaleNotes('C', scales[0]) }),
     );
     const { scale, tonic, notes } = pick;
-    const title = `{n:${tonic}} ${scale.name.toLowerCase()}`;
+    const title = `{n:${tonic}} ${scaleTitle(scale.name)}`;
     const spelled = `The ${title} scale is ${noteList(notes)}.`;
     const form = p.form ?? 'order';
     if (form === 'fill') {
@@ -257,9 +258,16 @@ export const scaleNotes_ = defineGenerator({
         () => pcToNote((pcOf(tonic) + [1, 3, 6, 8, 10].find((s) => !scale.semitones.includes(s))!) % 12, 'sharps'),
       );
       const insiders = rng.sample(notes, 3);
+      // "There is no D in B major" reads oddly when D♯ is in it: say which D the scale has.
+      const sameLetter = notes.find((n) => parseNote(n)?.letter === parseNote(outsider)?.letter);
       return choiceOf(
         rng,
-        { prompt: `Which of these notes is NOT in the ${title} scale?`, explain: `${spelled} There is no {n:${outsider}} in it.` },
+        {
+          prompt: `Which of these notes is NOT in the ${title} scale?`,
+          explain: `${spelled} There is no {n:${outsider}} in it${
+            !sameLetter ? '' : parseNote(sameLetter)!.alt === 0 ? `: it has a plain {n:${sameLetter}}` : `: its ${parseNote(sameLetter)!.letter} is {n:${sameLetter}}`
+          }.`,
+        },
         `{n:${outsider}}`,
         insiders.map((n) => `{n:${n}}`),
       );
@@ -294,7 +302,7 @@ export const scaleFormula = defineGenerator({
     const notes = scaleNotes('C', scale, { closed: true });
     const out: OrderExercise = {
       type: 'order',
-      prompt: `Build the ${scale.name.toLowerCase()} scale: put its steps in order.`,
+      prompt: `Build the ${scaleTitle(scale.name)} scale: put its steps in order.`,
       tiles: scale.steps.map((s) => STEP_WORDS[s]),
       explain: `${cap(scale.name)} goes ${scale.steps.map((s) => STEP_WORDS[s].toLowerCase()).join(', ')}. From {n:C}: ${noteList(notes)}.`,
     };
@@ -378,7 +386,11 @@ export const relativeKey_ = defineGenerator({
       rng,
       {
         prompt: `What is the relative ${answer.mode} of {k:${key.name}}?`,
-        explain: `{k:${major.name}} and {k:${minor.name}} share one key signature (${signatureWords(key.fifths)}). The relative minor starts on the 6th note of the major scale: ${noteList(major.scale.slice(0, 6))}.`,
+        explain: `{k:${major.name}} and {k:${minor.name}} share one key signature (${signatureWords(key.fifths)}). ${
+          answer.mode === 'minor'
+            ? `The relative minor starts on the 6th note of the major scale: ${noteList(major.scale.slice(0, 6))}.`
+            : `The relative major starts on the 3rd note of the minor scale: ${noteList(minor.scale.slice(0, 3))}.`
+        }`,
       },
       `{k:${answer.name}}`,
       wrong.map((k) => `{k:${k.name}}`),
@@ -626,7 +638,9 @@ export const romanChord = defineGenerator({
     const symbol = romanToChord(numeral, key);
     const chord = parseChord(symbol)!;
     const others = diatonic.filter((c) => pcOf(c.root) !== pcOf(chord.root));
-    const explain = `{r:${numeral.text}} is the ${chord.type.name}${/chord$/.test(chord.type.name) ? '' : ' chord'} on the ${ordinal(numeral.degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.`;
+    // Numerals take their accidental from the major scale (the engine's convention), so ♭III in A minor needs a word.
+    const flatNote = key.mode === 'minor' && numeral.alt < 0 ? ` The ${numeral.alt === -1 ? 'flat' : 'double flat'} says it sits lower than in the major scale.` : '';
+    const explain = `{r:${numeral.text}} is the ${chord.type.name}${/chord$/.test(chord.type.name) ? '' : ' chord'} on the ${ordinal(numeral.degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.${flatNote}`;
     if (p.direction === 'to-roman') {
       return choiceOf(
         rng,

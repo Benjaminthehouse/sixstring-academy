@@ -1,0 +1,107 @@
+.host {
+  min-width: 0;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  min-width: 0;
+}
+.centred {
+  align-items: center;
+}
+.caption {
+  max-width: var(--prose-max);
+  text-align: start;
+}
+.centred .caption {
+  text-align: center;
+}
+
+.unavailable {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.staff {
+  /* Notation is ink on the page; keep it readable without a box. */
+  color: var(--fg);
+  min-height: 7rem;
+}
+
+.keyboard {
+  width: 100%;
+  max-width: 30rem;
+  overflow-x: auto;
+}
+
+.circle {
+  width: min(100%, 20rem);
+}
+.circleSm {
+  width: min(100%, 11rem);
+}
+
+/* Tab */
+.tabScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.tab {
+  display: block;
+  max-width: none;
+  color: var(--fg);
+}
+.tabLine {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.tabBar {
+  stroke: var(--fg-muted);
+  stroke-width: 2;
+}
+.tabLabel {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.tabKnock {
+  fill: var(--figure-bg, var(--bg));
+}
+.tabFret {
+  fill: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+}
+.tabRest {
+  fill: var(--fg-muted);
+  font-family: var(--font-body);
+  font-size: 10px;
+}
+
+/* Audio */
+.audio {
+  gap: var(--sp-3);
+}
+.audioRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.audioText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.slow {
+  margin-left: calc(var(--sp-2) * -1);
+}

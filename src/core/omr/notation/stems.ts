@@ -171,7 +171,13 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
   out.sort((a, b) => a.x - b.x || a.top - b.top);
   const merged: Stroke[] = [];
   for (const st of out) {
-    const m = merged.find((q) => Math.abs(q.x - st.x) <= 2.5 && Math.min(q.bottom, st.bottom) - Math.max(q.top, st.top) >= -2);
+    // (A stem that a perspective correction left slightly slanted comes in pieces a little apart
+    // sideways, one continuing the other.)
+    const continues = (q: Stroke): boolean => {
+      const overlap = Math.min(q.yb, st.yb) - Math.max(q.ya, st.ya);
+      return Math.abs(q.x - st.x) <= 0.18 * s && overlap <= 0.3 * Math.min(q.yb - q.ya, st.yb - st.ya) && overlap >= -s;
+    };
+    const m = merged.find((q) => (Math.abs(q.x - st.x) <= 2.5 && Math.min(q.bottom, st.bottom) - Math.max(q.top, st.top) >= -2) || continues(q));
     if (m) {
       const la = m.yb - m.ya + 1;
       const lb = st.yb - st.ya + 1;

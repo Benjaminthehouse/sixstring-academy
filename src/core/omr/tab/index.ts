@@ -15,13 +15,13 @@ export const recognizeTabStaff: RecognizeTabStaff = (input, options) => {
   const detail = readTabStaff(input, options);
   const ai = options?.ai;
   if (!ai || options?.signal?.aborted || !needsSecondOpinion(detail.reading.events, detail.debug.reliability)) return detail.reading;
-  return askSecondOpinion(input, detail.reading.events, detail.debug.stripX, detail.debug.reliability, ai, options?.signal, options?.tuning).then((answered) => {
+  return askSecondOpinion(input, detail.reading.events, detail.debug.stripX, detail.debug.reliability, ai, options?.signal, detail.debug.tuning).then((answered) => {
     if (!answered) (detail.reading.warnings ??= []).push({ code: 'ai-unavailable', message: 'The second opinion on this staff could not be obtained; the reading from the picture alone is shown.' });
     return detail.reading;
   });
 };
 
-export { type TabColumn, type TabDebug, type TabReadingDetail, readTabStaff } from './recognize';
+export { type TabColumn, type TabDebug, type TabReadingDetail, readTabStaff, tuningFor } from './recognize';
 export { type Glyph, type TabNumber, MAX_FRET, assembleLine, buildNumber, glyphConfidence, readCluster } from './numbers';
 export { type Box, type ClassScore, type GlyphPatch, type LineProfile, classifyPatch, correlate, extractPatch, lineProfileAt, refineBox } from './glyph';
 export { type LineBlob, columnProfile, estimateDigitHeight, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, profileValleys } from './segment';

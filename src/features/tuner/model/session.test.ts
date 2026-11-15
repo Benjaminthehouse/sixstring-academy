@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { getTuning, STANDARD_TUNING } from '@/core/guitar';
 import type { PitchTrackerOptions } from '@/core/pitch';
+import { pitchWarp } from '@/core/pitch/adversarial-kit';
 import { TunerSession, type Confirmation, type ReadoutState, type SessionOptions } from './session';
 import { buildTargets } from './targets';
-import { FakeTracker, join, pluck, rest } from './testkit';
+import { FakeTracker, TEST_SR, join, pluck, rest } from './testkit';
 
 interface Rig {
   session: TunerSession;
@@ -160,6 +161,22 @@ describe('TunerSession: automatic mode on real analysed audio', () => {
     expect(r.confirmations[1]).toMatchObject({ index: 1, fresh: false });
     expect(r.session.getView().confirmations).toBe(1);
     r.tracker.play(join(pluck(45, 25), rest(0.5)));
+    expect(r.session.getView().confirmed[1]).toBe(false);
+  });
+
+  it('keeps the tick when the last moments of a dying note read off pitch', async () => {
+    // Found in the browser: an A string confirmed in tune lost its tick as it faded into room noise,
+    // because the last 150 ms of readings slid 18 cents flat. A string is only un-ticked by a
+    // reading that stays out of tune, not by a moment of one.
+    const r = rig();
+    await r.session.start();
+    // This string rings out at about 1.46 s; from 1.25 s its pitch slides 25 cents flat.
+    const ring = pitchWarp(pluck(45, 0, { duration: 2.5, damp: false }), TEST_SR, 2.2, (t) => (t < 1.25 ? 0 : -25 * Math.min(1, (t - 1.25) / 0.03)));
+    r.tracker.play(join(ring, rest(0.5)));
+    expect(r.confirmations).toHaveLength(1);
+    expect(r.session.getView().confirmed[1]).toBe(true);
+    // Turned away from the note and left there, it does lose the tick.
+    r.tracker.play(join(pluck(45, -12), rest(0.5)));
     expect(r.session.getView().confirmed[1]).toBe(false);
   });
 

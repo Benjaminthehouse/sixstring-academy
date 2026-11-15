@@ -7,6 +7,7 @@
  * inside Suspense and an error boundary that resets on navigation, and receives `params`.
  * See `API.md` in this folder for what the shell offers to screens.
  */
+import { lazy, Suspense } from 'react';
 import { isArtifact } from '@/core/platform/env';
 import { getProgressStore } from '@/core/progress';
 import { UIProvider } from '@/ui';
@@ -29,6 +30,9 @@ if (isArtifact()) {
   void import('@/core/platform/sync').then((m) => m.startCloudSync()).catch(() => undefined);
 }
 
+// The practice feature's "session in progress" bar, shown on every other screen while a session runs.
+const PracticeSessionBar = lazy(() => import('@/features/practice/SessionBar'));
+
 /** The root component mounted by `main.tsx`. */
 export default function App() {
   useDocumentAppearance();
@@ -43,6 +47,11 @@ export default function App() {
       </QuietBoundary>
       <QuietBoundary name="The first-run flow" onError={closeOnboarding}>
         <OnboardingHost />
+      </QuietBoundary>
+      <QuietBoundary name="The practice session bar">
+        <Suspense fallback={null}>
+          <PracticeSessionBar />
+        </Suspense>
       </QuietBoundary>
     </UIProvider>
   );

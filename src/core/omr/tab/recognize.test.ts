@@ -8,11 +8,11 @@ import { loadFixture } from '../eval/fixtures';
 import { rate, scorePage } from '../eval/metrics';
 import { tierSeed } from '../eval/runner';
 import { analyzePage, assemblePage, extractStaff } from '../page';
-import type { OmrTabEvent, StaffReading } from '../types';
+import type { OmrTabEvent, OmrWarning, StaffReading } from '../types';
 import { loadAnyFixture, ownFixtures } from './dev/cache';
 import { type SynthItem, synthStaff } from './dev/synth';
 import { recognizeTabStaff } from './index';
-import { readTabStaff } from './recognize';
+import { readTabStaff, tuningFor } from './recognize';
 
 /** Frets per column, as "string:fret" lists, left to right. */
 function columns(events: OmrTabEvent[]): string[] {
@@ -120,6 +120,37 @@ describe('readTabStaff on synthetic strips', () => {
     expect(columns(reading.events)).toEqual(['1:5', '4:3', '2:12 3:10']);
     expect(reading.events[0].notes[0].midi).toBe(48);
     expect(reading.events[1].notes[0].midi).toBe(31);
+  });
+
+  it('reads a four-line staff as bass without being told, and says so', () => {
+    const { input } = synthStaff({ lines: 4, items: [{ line: 0, x: 150, text: '5' }, { line: 3, x: 230, text: '3' }] });
+    const reading = readTabStaff(input).reading;
+    expect(reading.events.map((e) => e.notes[0].midi)).toEqual([48, 31]);
+    expect(reading.warnings?.some((w) => /bass/.test(w.message))).toBe(true);
+    // A tuning with the wrong number of strings is not applied blindly.
+    const warnings: OmrWarning[] = [];
+    expect(tuningFor(4, [40, 45, 50, 55, 59, 64], warnings)).toEqual([28, 33, 38, 43]);
+    expect(warnings).toHaveLength(1);
+    expect(tuningFor(6, undefined, [])).toEqual([40, 45, 50, 55, 59, 64]);
+    expect(tuningFor(7, undefined, [])[0]).toBe(35);
+  });
+
+  it('chooses the blur of a soft staff that holds only two-digit frets', () => {
+    // A riff at the 12th fret: no lone digit to judge the blur by.
+    const twos = ['12', '15', '12', '14', '12', '14', '17', '15', '12', '14', '15', '17'];
+    const { input } = synthStaff({ weight: 700, blur: 2.2, width: 1300, items: [...row(1, twos.slice(0, 6), 120, 180), ...row(2, twos.slice(6), 210, 180)] });
+    const { reading, debug } = readTabStaff(input);
+    expect(debug.blurLevel).toBeGreaterThanOrEqual(2);
+    expect(reading.events.flatMap((e) => e.notes.map((q) => q.fret))).toEqual([12, 17, 15, 15, 12, 12, 14, 14, 12, 15, 14, 17]);
+  });
+
+  it('marks a staff of nothing but lone 1s as doubtful (strokes, not frets)', () => {
+    const { input } = synthStaff({ items: row(2, ['1', '1', '1', '1', '1', '1']).concat(row(4, ['1', '1'], 160)) });
+    const { reading } = readTabStaff(input);
+    const notes = reading.events.flatMap((e) => e.notes);
+    expect(notes.length).toBe(8);
+    expect(notes.every((q) => q.fret === 1 && q.confidence < 0.5)).toBe(true);
+    expect(reading.warnings?.some((w) => /1/.test(w.message))).toBe(true);
   });
 
   it('returns an empty, calm reading for an empty staff', () => {

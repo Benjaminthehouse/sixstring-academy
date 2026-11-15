@@ -122,13 +122,18 @@ export interface ReadFile {
 /** A file that cannot be imported, with the words to show. */
 export interface UnreadableFile {
   ok: false;
-  reason: ImportFailure | 'too-large' | 'unreadable';
+  reason: ImportFailure | 'too-large' | 'wrong-type' | 'unreadable';
   title: string;
   description: string;
 }
 
 /** Larger than any real export (three years of daily practice is under 2 MB). */
 export const MAX_IMPORT_BYTES = 8_000_000;
+
+/** Why the file picker turned a file away before it was read: its size, or else its type. */
+export function rejectionReason(files: ReadonlyArray<{ size: number }>, maxBytes = MAX_IMPORT_BYTES): 'too-large' | 'wrong-type' {
+  return files.some((file) => file.size > maxBytes) ? 'too-large' : 'wrong-type';
+}
 
 /** The words for a file that cannot be imported. */
 export function importFailureText(reason: UnreadableFile['reason']): { title: string; description: string } {
@@ -141,6 +146,8 @@ export function importFailureText(reason: UnreadableFile['reason']): { title: st
       return { title: 'That backup comes from a newer version of the app', description: 'Update this app first (reload the page), then import the file again.' };
     case 'too-large':
       return { title: 'That file is too large to be a backup', description: 'A backup is a small .json file. Check that you picked the right one.' };
+    case 'wrong-type':
+      return { title: 'That is not a backup file', description: 'A backup is the .json file that Export saved. Check that you picked the right one.' };
     case 'unreadable':
       return { title: 'That file could not be opened', description: 'The browser could not read it. Try picking it again.' };
     default:

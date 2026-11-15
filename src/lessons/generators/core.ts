@@ -95,6 +95,15 @@ export function article(word: string): string {
   return /^[aeiou]/i.test(word) ? 'an' : 'a';
 }
 
+// First words of catalog scale names that are ordinary adjectives; the rest (Dorian, Hungarian ...) are names.
+const COMMON_SCALE_WORDS = new Set(['major', 'minor', 'natural', 'melodic', 'harmonic', 'dominant', 'double', 'altered', 'whole', 'diminished', 'augmented', 'chromatic', 'bebop', 'combined', 'six-tone', 'tritone', 'leading']);
+
+/** A catalog scale name as it reads inside a sentence: `natural minor`, `major pentatonic`, but `Dorian`, `bebop Dorian`. */
+export function scaleTitle(name: string): string {
+  const [first, ...rest] = name.split(' ');
+  return COMMON_SCALE_WORDS.has(first.toLowerCase()) ? [first.toLowerCase(), ...rest].join(' ') : name;
+}
+
 /** `1 half step`, `3 half steps`. */
 export function count(n: number, singular: string, pluralForm = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralForm}`;

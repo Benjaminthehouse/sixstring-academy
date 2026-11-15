@@ -1,0 +1,44 @@
+.card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.quiet {
+  box-shadow: none;
+  background: transparent;
+}
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--r-lg);
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.quiet .icon {
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.text {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.button {
+  flex: none;
+}
+@media (max-width: 420px) {
+  .button {
+    flex: 1 1 100%;
+  }
+}

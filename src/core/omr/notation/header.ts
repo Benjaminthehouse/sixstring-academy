@@ -11,7 +11,7 @@
 import type { ClefType } from '../types';
 import { type Match, coarseToFine, matchAt, searchMatch } from './match';
 import { classifyHead, measureHead } from './heads';
-import { type Strip, posY } from './strip';
+import { type Strip, posAt, posY } from './strip';
 import { type Template, scaleTemplate, templatesOf } from './templates';
 
 /** A symbol of the staff header with its box in strip px. */
@@ -129,6 +129,18 @@ function readKey(strip: Strip, fromX: number, clefShift: number, firstReach = 1.
       }
     }
     if (rest > best.scores[0]) return { item: null, endX: fromX };
+    // A lone flat may also be the stem of the first note: a stem-down note has its head at the top
+    // right of the stroke, a stem-up note at the bottom left (a flat's stem with nothing in its bowl).
+    const headNear = (cx: number, yFrom: number, yTo: number): boolean => {
+      for (let p = Math.floor(posAt(strip, yTo)); p <= Math.ceil(posAt(strip, yFrom)); p++) {
+        const { feat } = measureHead(strip, cx, posY(strip, p), 2, 2);
+        if (classifyHead(feat, feat.core >= 0.3 ? 'core' : 'ring', 0.6)) return true;
+      }
+      return false;
+    };
+    // (Left of the stroke only when there is room for a head after the clef: the clef's own
+    // curves are not heads.)
+    if (best.fifths === -1 && (headNear(b0.x0 + 0.6 * s, b0.y0 - 1.2 * s, b0.y0 + 0.2 * s) || (b0.x0 - 1.1 * s >= fromX && headNear(b0.x0 - 0.5 * s, b0.y1 - 0.2 * s, b0.y1 + 1.2 * s)))) return { item: null, endX: fromX };
   }
   // An accidental with a note head right behind it at its own height belongs to that note.
   {
@@ -270,7 +282,7 @@ function readNumber(strip: Strip, x0: number, y0: number, x1: number, y1: number
 /** How usual a time signature is (added to the match score when choosing between readings). */
 function metrePrior(beats: number, beatValue: number): number {
   // (One beat to the bar is not a metre anyone prints.)
-  if (![1, 2, 4, 8, 16].includes(beatValue) || beats < 2 || beats > 16) return -0.3;
+  if (![2, 4, 8, 16].includes(beatValue) || beats < 2 || beats > 16) return -0.3;
   const k = `${beats}/${beatValue}`;
   if (['4/4', '3/4', '2/4', '6/8'].includes(k)) return 0.08;
   if (['3/8', '2/2', '12/8', '9/8', '5/4', '6/4', '3/2'].includes(k)) return 0.04;

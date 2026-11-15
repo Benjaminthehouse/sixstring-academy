@@ -1,4 +1,4 @@
-import { useId, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
 import { href as routeHref } from '@/app/router';
 import { Icon } from '../icon/Icon';
 import { cx } from '../util/cx';
@@ -132,6 +132,19 @@ export function Section({ title, description, eyebrow, actions, level = 2, divid
   );
 }
 
+/**
+ * Mounted ActionBars and their heights. The tallest is published on <html> as `--action-bar-h`, so
+ * toasts and other fixed bottom layers can sit above the bar instead of covering its buttons.
+ */
+const actionBars = new Map<object, number>();
+function publishActionBars() {
+  if (typeof document === 'undefined') return;
+  const h = Math.max(0, ...actionBars.values());
+  const root = document.documentElement;
+  if (h > 0) root.style.setProperty('--action-bar-h', `${h}px`);
+  else root.style.removeProperty('--action-bar-h');
+}
+
 /** Props for `<ActionBar>`. */
 export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
   /** Content at the start of the bar: feedback text, a progress note, a secondary link. */
@@ -148,8 +161,26 @@ export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
  *   <ActionBar start={<Text tone="ok">Correct</Text>}><Button variant="primary">Continue</Button></ActionBar>
  */
 export function ActionBar({ start, stretchOnMobile = true, className, children, ...rest }: ActionBarProps) {
+  const el = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = el.current;
+    if (!node) return;
+    const key = {};
+    const measure = () => {
+      actionBars.set(key, Math.round(node.getBoundingClientRect().height));
+      publishActionBars();
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(node);
+    return () => {
+      ro?.disconnect();
+      actionBars.delete(key);
+      publishActionBars();
+    };
+  }, []);
   return (
-    <div className={cx(styles.actionBar, stretchOnMobile && styles.actionBarStretch, className)} {...rest}>
+    <div ref={el} className={cx(styles.actionBar, stretchOnMobile && styles.actionBarStretch, className)} data-ui-action-bar="" {...rest}>
       {start != null && <div className={styles.actionBarStart}>{start}</div>}
       {children}
     </div>

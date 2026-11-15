@@ -104,8 +104,13 @@ export function naturalWidth(ticks: number): number {
   return 2.25 + 1.5 * Math.log2(Math.max(240, ticks) / 240);
 }
 
+/** Room for one item: triplet notes get a little extra so "trip" and "let" do not run together. */
+function itemWidth(item: RhythmItem): number {
+  return naturalWidth(item.ticks) + (item.tuplet ? 1 : 0);
+}
+
 function barNatural(items: readonly RhythmItem[]): number {
-  return BAR_PAD * 2 + items.reduce((sum, i) => sum + naturalWidth(i.ticks), 0);
+  return BAR_PAD * 2 + items.reduce((sum, i) => sum + itemWidth(i), 0);
 }
 
 /** Layout options. */
@@ -198,7 +203,7 @@ export function layoutRhythm(rhythm: Rhythm, opts: LayoutOptions): RhythmLayout 
       const placed: PlacedItem[] = [];
       const soloRest = bar.items.length === 1 && bar.items[0].rest;
       bar.items.forEach((item, index) => {
-        const w = naturalWidth(item.ticks) * scale * stretch;
+        const w = itemWidth(item) * scale * stretch;
         const glyphW = (item.rest ? 1.1 : item.value === 'w' ? 1.69 : NOTEHEAD) * scale;
         // A rest that fills the bar sits in the middle of it, as engravers place it.
         const left = soloRest ? x + (naturals[barIndex] * scale * stretch - glyphW) / 2 : cursor;

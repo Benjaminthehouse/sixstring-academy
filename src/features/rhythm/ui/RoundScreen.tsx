@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { navigate } from '@/app/router';
 import { useScreenTitle } from '@/app/shell';
-import { ActionBar, Button, Callout, Icon, Kbd, MediaBlocked, Page, SegmentedControl, Sheet, Stepper, Switch, Text, cx, useInterval, useIsTouch, usePrefersReducedMotion, useRafLoop } from '@/ui';
+import { ActionBar, Button, Callout, Icon, Kbd, MediaBlocked, Page, SegmentedControl, Sheet, Stepper, Switch, Text, cx, useIsTouch, usePrefersReducedMotion, useRafLoop } from '@/ui';
 import { saveCalibration, type InputSource } from '../core/calibration';
 import type { Chart } from '../core/charts';
 import { countAt } from '../core/counting';
@@ -117,15 +116,19 @@ function Cue({ round }: { round: Round }) {
 
 /** Shown instead of the pad while the microphone is the input. */
 function Listening({ round }: { round: Round }) {
-  const [level, setLevel] = useState(0);
-  useInterval(() => setLevel(Math.max(0, Math.min(1, (round.micLevel() + 60) / 50))), round.phase === 'running' ? 90 : null);
+  // The level moves every frame: written straight to the bar, never through React state.
+  const fill = useRef<HTMLDivElement | null>(null);
+  useRafLoop(() => {
+    const level = Math.max(0, Math.min(1, (round.micLevel() + 60) / 50));
+    if (fill.current) fill.current.style.transform = `scaleX(${level.toFixed(3)})`;
+  }, round.phase === 'running');
   return (
     <div className={styles.listening} data-rhythm-listening>
       <Icon name="Mic" size={24} />
       <div className={styles.listeningText}>
         <span>Listening: clap or strum</span>
         <div className={styles.listeningMeter} aria-hidden="true">
-          <div className={styles.listeningFill} style={{ transform: `scaleX(${level.toFixed(2)})` }} />
+          <div ref={fill} className={styles.listeningFill} />
         </div>
       </div>
     </div>
@@ -143,6 +146,8 @@ export function RoundScreen(props: RoundScreenProps) {
   const touch = useIsTouch();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [offerStage, setOfferStage] = useState<'ask' | 'flow'>('ask');
+  // Calibrating from Options or from a tip happens right here, in a sheet over the round.
+  const [calibrating, setCalibrating] = useState<InputSource | null>(null);
 
   const round = useRound({
     skill,
@@ -157,8 +162,26 @@ export function RoundScreen(props: RoundScreenProps) {
     canSlow: bpm - 8 >= bpmMin,
     canSpeedUp: bpm + 6 <= bpmMax,
     countsHidden: hasCounts && !prefs.counts,
+    keysOff: optionsOpen || calibrating !== null,
   });
   useScreenTitle(title);
+
+  // A round fills the screen: start it from the top, wherever the ready page had been scrolled to.
+  const running = round.phase === 'running';
+  useEffect(() => {
+    if (running) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [running]);
+
+  // A microphone that cannot be opened is explained next to the controls. On a phone that is far
+  // below the Start button that was pressed, so bring the explanation into view and give it focus.
+  const micFailed = round.mic.status === 'failed' && !!round.mic.reason;
+  const blocked = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = blocked.current;
+    if (!micFailed || !el) return;
+    el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    el.focus({ preventScroll: true });
+  }, [micFailed, reduced]);
 
   // The offer is made once: seeing it counts, whatever the answer.
   const offer = round.offer;
@@ -182,9 +205,15 @@ export function RoundScreen(props: RoundScreenProps) {
     if (action === 'slower' && slower !== null) onBpm(slower);
     else if (action === 'faster' && faster !== null) onBpm(faster);
     else if (action === 'counts') setPrefs({ counts: true });
-    else if (action === 'calibrate') return navigate('rhythm', 'calibrate');
-    else if (action === 'headphones') return navigate('rhythm', 'calibrate', 'mic');
+    else if (action === 'calibrate') return setCalibrating(round.source);
+    else if (action === 'headphones') return setCalibrating('mic');
     round.reset();
+  };
+
+  const closeCalibration = () => {
+    setCalibrating(null);
+    // Back from a tip on the summary: the next round is scored with the new offset.
+    if (round.phase === 'done') round.reset();
   };
 
   const sourceControl = !round.micBlocked && (
@@ -216,7 +245,14 @@ export function RoundScreen(props: RoundScreenProps) {
               Ten seconds that make the scoring fair on this device.
             </Text>
           </div>
-          <Button size="sm" iconLeft="Gauge" onClick={() => navigate('rhythm', 'calibrate', round.source === 'mic' ? 'mic' : undefined)}>
+          <Button
+            size="sm"
+            iconLeft="Gauge"
+            onClick={() => {
+              setOptionsOpen(false);
+              setCalibrating(round.source);
+            }}
+          >
             Calibrate
           </Button>
         </div>
@@ -247,6 +283,12 @@ export function RoundScreen(props: RoundScreenProps) {
         </div>
       )}
       {offer && offerStage === 'flow' && <CalibrationFlow source={offer} onDone={() => round.answerOffer('close')} doneLabel="Back to the round" />}
+    </Sheet>
+  );
+
+  const calibrationSheet = (
+    <Sheet open={calibrating !== null} onClose={closeCalibration} title={calibrating === 'mic' ? 'Microphone calibration' : 'Tap calibration'} size="md">
+      {calibrating && <CalibrationFlow source={calibrating} onDone={closeCalibration} doneLabel="Back to the round" />}
     </Sheet>
   );
 
@@ -283,16 +325,16 @@ export function RoundScreen(props: RoundScreenProps) {
             {review?.(round)}
           </Summary>
         </div>
+        {calibrationSheet}
       </Page>
     );
   }
 
-  const micFailed = round.mic.status === 'failed' && round.mic.reason;
   return (
     <Page title={title} eyebrow={eyebrow} subtitle={subtitle} back={{ to: 'rhythm', params: back.params, label: back.label }}>
       <div className={styles.ready} data-rhythm-phase="ready">
-        <div className={styles.readyStage}>{display(ctx)}</div>
-        <div className={styles.readySide}>
+        <div className={styles.readyMain}>
+          <div className={styles.readyStage}>{display(ctx)}</div>
           <Callout tone="tip" label="How">
             {teach}
           </Callout>
@@ -301,7 +343,10 @@ export function RoundScreen(props: RoundScreenProps) {
               {props.mistake}
             </Callout>
           )}
+        </div>
+        <div className={styles.readySide}>
           {micFailed && (
+            <div ref={blocked} tabIndex={-1} className={styles.micBlocked} data-rhythm-mic-blocked>
             <MediaBlocked
               reason={round.mic.reason === 'audio-failed' ? 'unknown' : round.mic.reason!}
               device="microphone"
@@ -316,6 +361,7 @@ export function RoundScreen(props: RoundScreenProps) {
             >
               Every round works by tapping the screen or the keyboard too.
             </MediaBlocked>
+            </div>
           )}
           <div className={styles.controls}>
             <Stepper label="Tempo" unit="BPM" min={bpmMin} max={bpmMax} step={2} largeStep={10} value={bpm} onChange={onBpm} />
@@ -341,15 +387,17 @@ export function RoundScreen(props: RoundScreenProps) {
               )}
             </div>
           </div>
-          <ActionBar>
-            <Button variant="primary" size="lg" iconLeft={round.source === 'mic' ? 'Mic' : 'Play'} onClick={round.start} loading={round.phase === 'starting'} data-rhythm-start>
-              {props.startLabel ?? 'Start'}
-            </Button>
-          </ActionBar>
         </div>
+        {/* A child of the whole layout, so it stays pinned to the bottom of a phone from the first screen. */}
+        <ActionBar className={styles.readyAction}>
+          <Button variant="primary" size="lg" iconLeft={round.source === 'mic' ? 'Mic' : 'Play'} onClick={round.start} loading={round.phase === 'starting'} data-rhythm-start>
+            {props.startLabel ?? 'Start'}
+          </Button>
+        </ActionBar>
       </div>
       {optionsSheet}
       {offerSheet}
+      {calibrationSheet}
     </Page>
   );
 }

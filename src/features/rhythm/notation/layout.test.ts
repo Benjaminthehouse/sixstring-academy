@@ -117,6 +117,28 @@ describe('what is drawn', () => {
     expect(barTwo.final).toBe(true);
   });
 
+  it('leaves room between the counting syllables, triplets and sixteenths included', () => {
+    // Counts are set in the mono font (0.6 em per character) at the size RhythmStaff uses.
+    for (const width of [326, 436, 700]) {
+      for (const level of READ_LEVELS) {
+        for (let seed = 0; seed < 8; seed++) {
+          const l = layoutRhythm(generatePhrase(level, seed), { width, counts: true, marks: true });
+          const size = Math.max(11, l.scale * 1.42);
+          for (const system of l.systems) {
+            const labels = [
+              ...system.items.filter((p) => p.count.text && (p.item.rest || p.onset !== null)).map((p) => ({ x: p.cx, text: p.count.text })),
+              ...system.held.map((h) => ({ x: h.x, text: h.text })),
+            ].sort((a, b) => a.x - b.x);
+            for (let i = 1; i < labels.length; i++) {
+              const need = ((labels[i - 1].text.length + labels[i].text.length) * 0.6 * size) / 2 + 1;
+              expect(labels[i].x - labels[i - 1].x, `level ${level.id} seed ${seed} width ${width}: "${labels[i - 1].text}" / "${labels[i].text}"`).toBeGreaterThanOrEqual(need);
+            }
+          }
+        }
+      }
+    }
+  });
+
   it('describes itself for screen readers', () => {
     expect(describeRhythm(parseRhythm('q. e rq 3e 3e 3e | h~ h'))).toBe('Rhythm in 4/4: dotted quarter, eighth, quarter rest, triplet eighth, triplet eighth, triplet eighth; half tied, half.');
     expect(describeRhythm(parseRhythm('e e e q.', '6/8', { swing: false }))).toContain('6/8');

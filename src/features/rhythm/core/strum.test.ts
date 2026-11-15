@@ -15,6 +15,7 @@ import {
   patternArrows,
   patternCount,
   patternNickname,
+  quietUpstroke,
   resolvePattern,
   setSlot,
   slotsPerBar,
@@ -61,6 +62,22 @@ describe('the strumming library', () => {
     expect(strokes(strumPattern('swung-eighths')!).map((s) => s.playTick)).toEqual([0, 640, 960, 1600, 1920, 2560, 2880, 3520]);
     expect(strokes(strumPattern('down-up')!).map((s) => s.playTick)).toEqual([0, 480, 960, 1440, 1920, 2400, 2880, 3360]);
     expect(strokes(strumPattern('six-eight')!).map((s) => s.tick)[11]).toBe(11 * 240);
+  });
+
+  it('marks the quick upstrokes a microphone may not hear: one sixteenth after a ringing downstroke', () => {
+    const quiet = (id: string) => {
+      const p = strumPattern(id)!;
+      return strokes(p).filter((s) => quietUpstroke(p, s)).map((s) => s.slot);
+    };
+    expect(quiet('gallop')).toEqual([3, 7, 11, 15]);
+    expect(quiet('sixteenths')).toEqual([1, 3, 5, 7, 9, 11, 13, 15]);
+    expect(quiet('six-eight-roll')).toEqual([3, 5, 9, 11]);
+    // The "e" after a ghost on beat 3 follows nothing that rings.
+    expect(quiet('pop-sixteenth')).not.toContain(9);
+    // Eighth grids leave time for the chord to settle; staccato funk chops leave silence.
+    for (const id of ['down-up', 'folk-pop', 'swung-eighths', 'waltz-roll', 'funk-scratch', 'reggae']) expect(quiet(id), id).toEqual([]);
+    const chart = strumChart(strumPattern('gallop')!, { bpm: 72, bars: 1, mode: 'play', guitar: false });
+    expect(chart.targets.filter((t) => t.soft).map((t) => t.ref)).toEqual([3, 7, 11, 15]);
   });
 
   it('covers what a beginner needs', () => {

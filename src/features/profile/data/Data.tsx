@@ -3,7 +3,7 @@ import { canSaveFile, copyText, getSyncStatus, host, isPersistent, readFileText,
 import { exportProgress, importProgress, resetProgress, useProgress, useProgressEvent, useProgressStore, type MergeStrategy, type ProgressExport } from '@/core/progress';
 import { Banner, Button, Card, Checkbox, FileDrop, Icon, Modal, RadioGroup, Section, TextField, toast } from '@/ui';
 import { dateTimeText, thousands, timeAgo } from '../format';
-import { MAX_IMPORT_BYTES, RESET_WORD, confirmsReset, exportFileName, importFailureText, previewImport, readBackup, storageStatus, summarise, type ReadFile } from './model';
+import { MAX_IMPORT_BYTES, RESET_WORD, confirmsReset, exportFileName, importFailureText, previewImport, readBackup, rejectionReason, storageStatus, summarise, type ReadFile } from './model';
 import styles from './Data.module.css';
 
 const TONE_ICON = { ok: 'ShieldCheck', warn: 'TriangleAlert', bad: 'ShieldAlert', info: 'Info', busy: 'RefreshCw' } as const;
@@ -190,7 +190,7 @@ function ImportCard() {
         <p className={styles.actionBody}>Pick a file that Export saved. You see exactly what would change before anything does.</p>
       </div>
       <div className={styles.actionWide}>
-        <FileDrop compact accept=".json,application/json,text/plain" maxBytes={MAX_IMPORT_BYTES} title="Drop a backup file here" hint="A .json file saved by Export" browseLabel="Choose a backup file" icon="FileUp" busy={reading ? 'Reading the backup' : false} onFiles={([first]) => void take(first)} onReject={() => setProblem(importFailureText('not-an-export'))} />
+        <FileDrop compact accept=".json,application/json,text/plain" maxBytes={MAX_IMPORT_BYTES} title="Drop a backup file here" hint="A .json file saved by Export" browseLabel="Choose a backup file" icon="FileUp" busy={reading ? 'Reading the backup' : false} onFiles={([first]) => void take(first)} onReject={(rejected) => setProblem(importFailureText(rejectionReason(rejected)))} />
         {problem && (
           <Banner tone="warn" title={problem.title} live onDismiss={() => setProblem(null)}>
             {problem.description} Nothing was changed.

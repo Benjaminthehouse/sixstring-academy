@@ -49,7 +49,7 @@ describe('courseMap', () => {
     map = courseMap(FIXTURE, rig.store.getState(), rig.clock.now());
     expect(states(FIXTURE, rig)).toEqual(['a:done', 'b:done', 'c:done', 'd:current', 'e:available']);
     expect(map.units[0]).toMatchObject({ state: 'done', done: 3, fraction: 1, crowns: 3 });
-    expect(map.units[0].checkpoint).toEqual({ state: 'passed', completes: [] });
+    expect(map.units[0].checkpoint).toEqual({ state: 'passed', ahead: false, completes: [] });
 
     complete(rig, 'theory:u2:d');
     complete(rig, 'theory:u2:e');
@@ -111,15 +111,27 @@ describe('courseMap', () => {
 });
 
 describe('checkpoints on the map', () => {
-  it('a checkpoint is available once its unit is reachable, and says what it would complete', () => {
+  it('a checkpoint is open on every unit not passed yet (testing out may jump ahead), and says what it would complete', () => {
     const rig = makeRig();
     const map = courseMap(FIXTURE, rig.store.getState(), rig.clock.now());
-    expect(map.units[0].checkpoint).toEqual({ state: 'available', completes: ['a', 'b', 'c'] });
-    expect(map.units[1].checkpoint).toEqual({ state: 'locked', completes: ['d', 'e'] });
+    expect(map.units[0].checkpoint).toEqual({ state: 'available', ahead: false, completes: ['a', 'b', 'c'] });
+    // Unit 2 is not reached yet, but its checkpoint lets a learner who knows it jump there.
+    expect(map.units[1].state).toBe('locked');
+    expect(map.units[1].checkpoint).toEqual({ state: 'available', ahead: true, completes: ['d', 'e'] });
     complete(rig, 'theory:u1:a');
     const later = courseMap(FIXTURE, rig.store.getState(), rig.clock.now());
-    expect(later.units[0].checkpoint).toEqual({ state: 'available', completes: ['b', 'c'] });
-    expect(later.units[1].checkpoint!.state).toBe('available');
+    expect(later.units[0].checkpoint).toEqual({ state: 'available', ahead: false, completes: ['b', 'c'] });
+    expect(later.units[1].checkpoint).toMatchObject({ state: 'available', ahead: false });
+  });
+
+  it('jumping ahead: passing a later unit marks it done and leaves the earlier unit to do', () => {
+    const rig = makeRig();
+    const predicted = checkpointUnlocks(FIXTURE, 'u2', rig.store.getState(), rig.clock.now());
+    expect(predicted.completes).toEqual(['d', 'e']);
+    for (const id of predicted.completes) rig.actions.markSkill(`theory:u2:${id}`, { completed: true, masteryAtLeast: 1 });
+    const map = courseMap(FIXTURE, rig.store.getState(), rig.clock.now());
+    expect(map.units[1]).toMatchObject({ state: 'done', checkpoint: { state: 'passed', ahead: false, completes: [] } });
+    expect(map.next).toEqual({ unitId: 'u1', lessonId: 'a' });
   });
 
   it('checkpointUnlocks: what passing would complete and open', () => {
@@ -149,7 +161,10 @@ describe('the demo course on the map', () => {
     const rig = makeRig();
     const map = courseMap(DEMO_COURSE, rig.store.getState(), rig.clock.now());
     expect(map.total).toBe(8);
-    expect(map.units.map((u) => [u.id, u.total, u.checkpoint?.state])).toEqual([['first-notes', 4, 'available'], ['building-blocks', 4, 'locked']]);
+    expect(map.units.map((u) => [u.id, u.total, u.state, u.checkpoint?.state, u.checkpoint?.ahead])).toEqual([
+      ['first-notes', 4, 'current', 'available', false],
+      ['building-blocks', 4, 'locked', 'available', true],
+    ]);
     expect(map.next).toEqual({ unitId: 'first-notes', lessonId: 'musical-alphabet' });
     for (const { lesson } of lessonsInOrder(DEMO_COURSE)) {
       complete(rig, lesson.skill);

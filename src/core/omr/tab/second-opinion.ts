@@ -178,10 +178,18 @@ export async function askSecondOpinion(
 ): Promise<boolean> {
   const band = staffBand(input);
   let answer: unknown;
+  let onAbort: (() => void) | null = null;
   try {
-    answer = await ai.ask({ gray: band.gray }, TAB_VISION_PROMPT.replace('{lines}', String(input.lineCount)), signal);
+    // A model that ignores the abort signal must not keep the reading waiting once the user has left.
+    const aborted = new Promise<null>((resolve) => {
+      onAbort = () => resolve(null);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+    answer = await Promise.race([ai.ask({ gray: band.gray }, TAB_VISION_PROMPT.replace('{lines}', String(input.lineCount)), signal), aborted]);
   } catch {
     return false;
+  } finally {
+    if (onAbort) signal?.removeEventListener('abort', onAbort);
   }
   if (signal?.aborted) return false;
   const vision = parseVisionColumns(answer, input.lineCount);

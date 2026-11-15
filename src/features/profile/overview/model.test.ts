@@ -3,6 +3,7 @@ import { minutesByKind, practiceHeatmap, selectWeek, type HeatCell, type KindTim
 import { emptyFixture, richFixture } from '../testing/fixtures';
 import {
   CALENDAR,
+  CALENDAR_TEXT,
   HEAT_LEVELS,
   calendarLayout,
   crownsText,
@@ -11,6 +12,7 @@ import {
   heatSentence,
   historyWeeks,
   isPlayingSkill,
+  kindSentence,
   kindShares,
   rustiestSkills,
   skillNameFromId,
@@ -138,6 +140,16 @@ describe('heat map in words', () => {
   });
 });
 
+describe('calendar wording', () => {
+  // Review: "Darker means more XP" is false in the dark theme, where more XP is drawn brighter.
+  it('speaks of a stronger colour, which holds in both themes', () => {
+    for (const text of Object.values(CALENDAR_TEXT)) {
+      expect(text).not.toMatch(/dark|light|bright|pale/i);
+      expect(text).toMatch(/stronger/);
+    }
+  });
+});
+
 describe('this week', () => {
   it('turns the week into chart columns', () => {
     const week = selectWeek(rich.store.getState());
@@ -180,6 +192,23 @@ describe('time by activity', () => {
     expect(rows.reduce((sum, r) => sum + r.sec, 0)).toBe(many.reduce((sum, k) => sum + k.sec, 0));
     expect(kindShares(many.slice(0, 6), 6).some((r) => r.label === 'Everything else')).toBe(false);
     expect(kindShares([])).toEqual([]);
+  });
+
+  // Review: the sentence said "most of it on theory lesson" for 28 of 96 minutes.
+  it('says "most" only when the largest share is more than half', () => {
+    const real = (k: string, label: string, sec: number): KindTime => ({ kind: k as KindTime['kind'], label, icon: 'Activity', sec, minutes: Math.round(sec / 60) });
+    const spread = kindShares([real('theory-lesson', 'Theory lesson', 28 * 60), real('song', 'Song', 20 * 60), real('tuner', 'Tuner', 18 * 60), real('ear', 'Ear training', 30 * 60)]);
+    expect(kindSentence(spread, 'week')).toBe('1 h 36 min in all this week. The biggest share went to ear training: 30 min.');
+    const lopsided = kindShares([real('song', 'Song', 50 * 60), real('tuner', 'Tuner', 10 * 60)]);
+    expect(kindSentence(lopsided, 'all')).toBe('1 h in all, most of it on song.');
+    expect(kindSentence(kindShares([real('tuner', 'Tuner', 5 * 60)]), 'week')).toBe('5 min in all this week, all of it on tuner.');
+    expect(kindSentence([], 'week')).toBe('');
+    // A folded "Everything else" row is never named as where the time went.
+    const many = Array.from({ length: 9 }, (_, i) => real(['song', 'tuner', 'ear', 'rhythm', 'metronome', 'technique', 'camera', 'scan', 'review'][i], `K${i}`, (12 - i) * 60));
+    const folded = kindShares(many, 6);
+    expect(folded[5].label).toBe('Everything else');
+    expect(folded[5].sec).toBeGreaterThan(folded[0].sec);
+    expect(kindSentence(folded, 'week')).toContain('went to k0');
   });
 
   it('works on the store’s own numbers', () => {

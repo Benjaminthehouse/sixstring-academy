@@ -6,6 +6,7 @@ import { ROUTES } from '@/app/routes';
 import { explainMediaFailure } from '@/core/platform/media';
 import Kit from '@/features/kit';
 import {
+  ActionBar,
   Avatar,
   Button,
   Card,
@@ -501,5 +502,21 @@ describe('the gallery', () => {
   it('shows a single group for #kit--inputs', () => {
     const { el } = mount(<Kit params={['inputs']} />);
     expect(Array.from(el.querySelectorAll('[data-kit-group]')).map((n) => n.getAttribute('data-kit-group'))).toEqual(['inputs']);
+  });
+});
+
+describe('ActionBar', () => {
+  it('publishes its height as --action-bar-h so toasts sit above it, and clears it on unmount', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 390, height: 72.4, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) });
+    const root = document.documentElement;
+    const { rerender } = mount(
+      <ActionBar>
+        <Button>Done</Button>
+      </ActionBar>,
+    );
+    expect(root.style.getPropertyValue('--action-bar-h')).toBe('72px');
+    rerender(<p>no bar</p>);
+    expect(root.style.getPropertyValue('--action-bar-h')).toBe('');
+    spy.mockRestore();
   });
 });

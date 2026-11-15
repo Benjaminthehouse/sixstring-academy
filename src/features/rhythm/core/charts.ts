@@ -11,7 +11,7 @@ import { PPQ } from '@/core/theory';
 import { countAt, type CountPart } from './counting';
 import { meterInfo, type MeterInfo } from './meter';
 import { rhythmOnsets, type Rhythm } from './rhythm';
-import { sounds as strokeSounds, strokes, type StrokeKind, type StrumPattern } from './strum';
+import { quietUpstroke, sounds as strokeSounds, strokes, type StrokeKind, type StrumPattern } from './strum';
 
 /** Loudness of a metronome click (the audio engine's levels). */
 export type ClickLevel = 'accent' | 'medium' | 'beat' | 'sub';
@@ -36,6 +36,8 @@ export interface Target {
   dir?: 'D' | 'U';
   /** The click is silent here. */
   silent?: boolean;
+  /** A quick upstroke over a ringing chord: through the microphone it is judged when heard, never counted as missed. */
+  soft?: boolean;
 }
 
 /** A stretch of the round. */
@@ -115,10 +117,12 @@ class Builder {
     return seg;
   }
 
-  target(seg: Segment, tickInSeg: number, ref: number, extra: { dir?: 'D' | 'U'; writtenTick?: number } = {}): void {
+  target(seg: Segment, tickInSeg: number, ref: number, extra: { dir?: 'D' | 'U'; writtenTick?: number; soft?: boolean } = {}): void {
     const written = extra.writtenTick ?? tickInSeg;
     const count = countAt(((written % this.meter.barTicks) + this.meter.barTicks) % this.meter.barTicks, this.meter);
-    this.targets.push({ id: this.targets.length, tick: seg.startTick + tickInSeg, part: count.part, label: count.text, seg: seg.index, ref, dir: extra.dir, silent: seg.silent });
+    const t: Target = { id: this.targets.length, tick: seg.startTick + tickInSeg, part: count.part, label: count.text, seg: seg.index, ref, dir: extra.dir, silent: seg.silent };
+    if (extra.soft) t.soft = true;
+    this.targets.push(t);
   }
 
   done(loop?: Chart['loop']): Chart {
@@ -184,7 +188,7 @@ export function strumChart(pattern: StrumPattern, opts: { bpm: number; bars: num
     const base = bar * b.meter.barTicks;
     for (const s of list) {
       if (opts.guitar) b.sounds.push({ tick: seg.startTick + base + s.playTick, type: 'strum', dir: s.dir, kind: s.kind as Exclude<StrokeKind, 'ghost'>, bar });
-      if (opts.mode === 'play') b.target(seg, base + s.playTick, s.slot, { dir: s.dir, writtenTick: s.tick });
+      if (opts.mode === 'play') b.target(seg, base + s.playTick, s.slot, { dir: s.dir, writtenTick: s.tick, soft: quietUpstroke(pattern, s) });
     }
   }
   return b.done(opts.mode === 'listen' ? { start: seg.startTick, end: seg.endTick } : undefined);

@@ -184,3 +184,30 @@ export const NAME_MAX = 40;
 
 /** Storage key (through platform storage) of the "read explanations aloud" switch. */
 export const SPEECH_PREF_KEY = 'prefs.speech';
+
+/** What the AI helper says after a key was checked with Anthropic. */
+export type KeyCheck = { state: 'ok' } | { state: 'rejected'; message: string } | { state: 'unsure'; message: string };
+
+/** What to do once a key check has answered: forget the key or not, switch the helper on or off (null: leave it), and what to say. */
+export interface KeyCheckOutcome {
+  forget: boolean;
+  enabled: boolean | null;
+  check: KeyCheck;
+}
+
+/**
+ * Decide what a key check means. An accepted key switches the helper on; a key Anthropic rejects
+ * is forgotten and the helper switched off; anything else (no network, an outage) keeps the key
+ * and says it could not be checked.
+ */
+export function keyCheckOutcome(result: { ok: true } | { ok: false; error: { kind: string; message: string } }): KeyCheckOutcome {
+  if (result.ok) return { forget: false, enabled: true, check: { state: 'ok' } };
+  if (result.error.kind === 'bad-key') {
+    return {
+      forget: true,
+      enabled: false,
+      check: { state: 'rejected', message: 'Anthropic did not accept that key. It may be mistyped, expired or revoked. It was not saved. Copy the whole key again and paste it here.' },
+    };
+  }
+  return { forget: false, enabled: null, check: { state: 'unsure', message: result.error.message } };
+}

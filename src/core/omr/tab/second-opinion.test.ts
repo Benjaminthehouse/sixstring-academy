@@ -102,4 +102,14 @@ describe('recognizeTabStaff with a model', () => {
     const none = recognizeTabStaff(doubtful.input, { ai: null });
     expect(none).not.toBeInstanceOf(Promise);
   });
+
+  it('stops waiting for a model that never answers once the reading is aborted', async () => {
+    const doubtful = synthStaff({ items: [{ line: 1, x: 200, text: '29' }] });
+    const ctl = new AbortController();
+    const pending = recognizeTabStaff(doubtful.input, { ai: { ask: () => new Promise(() => undefined) }, signal: ctl.signal });
+    setTimeout(() => ctl.abort(), 20);
+    const reading = await pending;
+    expect(reading.events.length).toBe(1);
+    expect(reading.warnings?.some((w) => w.code === 'ai-unavailable')).toBe(true);
+  });
 });

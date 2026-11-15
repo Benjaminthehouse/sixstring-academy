@@ -162,11 +162,11 @@ function checkLessonShape(report: Report, unit: Unit, lesson: Lesson): void {
   const at = { unit: unit.id, lesson: lesson.id };
   const steps = Array.isArray(lesson.steps) ? lesson.steps : [];
   const [minSteps, maxSteps] = LESSON_LIMITS.steps;
-  if (steps.length < minSteps) report.add('error', 'lesson.length', at, `The lesson has ${steps.length} steps; a lesson needs at least ${minSteps} to teach one idea and practise it. Add steps (show the idea on a card, then ask about it several ways).`);
+  if (steps.length < minSteps) report.add('error', 'lesson.length', at, `The lesson has ${steps.length} step${steps.length === 1 ? '' : 's'}; a lesson needs at least ${minSteps} to teach one idea and practise it. Add steps (show the idea on a card, then ask about it several ways).`);
   if (steps.length > maxSteps) report.add('error', 'lesson.length', at, `The lesson has ${steps.length} steps; ${maxSteps} is the most that fits in five minutes. Split it into two lessons.`);
   const exercises = steps.filter((s) => s && typeof s === 'object' && (isGenerated(s) || s.type !== 'card'));
   const [minEx, maxEx] = LESSON_LIMITS.exercises;
-  if (exercises.length < minEx) report.add('error', 'lesson.length', at, `The lesson has ${exercises.length} exercises; it needs at least ${minEx} so the idea is practised, not only read. Add exercises.`);
+  if (exercises.length < minEx) report.add('error', 'lesson.length', at, `The lesson has ${exercises.length} exercise${exercises.length === 1 ? '' : 's'}; it needs at least ${minEx} so the idea is practised, not only read. Add exercises.`);
   if (exercises.length > maxEx) report.add('error', 'lesson.length', at, `The lesson has ${exercises.length} exercises; ${maxEx} is the most. Split the lesson.`);
 
   if (!(typeof lesson.minutes === 'number' && lesson.minutes >= LESSON_LIMITS.minutes[0] && lesson.minutes <= LESSON_LIMITS.minutes[1])) {

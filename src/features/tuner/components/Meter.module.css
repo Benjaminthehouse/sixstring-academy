@@ -167,6 +167,7 @@
 .labels {
   position: relative;
   height: 1rem;
+  container-type: inline-size;
 }
 .tickLabel {
   position: absolute;
@@ -175,9 +176,16 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1rem;
-  color: var(--fg-faint);
+  /* Small text: muted, not faint (faint fails contrast at this size). */
+  color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+/* Large text on a narrow meter: the ±10 and ±30 labels would run into each other; the ends and 0 stay. */
+@container (max-width: 14rem) {
+  .tickLabelInner {
+    display: none;
+  }
 }
 
 .ends {

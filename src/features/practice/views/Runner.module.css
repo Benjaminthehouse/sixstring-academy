@@ -1,0 +1,330 @@
+/*
+ * The session runner. Phones: one column (timer, what to do, the screen to open) with Pause and
+ * Next in the bottom action bar. From 900 px: the timer and controls on the left, the block's
+ * details and the session outline on the right.
+ */
+.page {
+  --page-max: 64rem;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ---------- Segments ---------- */
+.strip {
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.segment {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 6px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+.segmentFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 400ms linear;
+}
+.segmentFill[data-outcome='done'],
+.segmentFill[data-outcome='partial'] {
+  background: var(--ok);
+}
+.segmentFill[data-outcome='skipped'] {
+  background: var(--line-strong);
+}
+.segmentNow {
+  outline: 2px solid var(--line-strong);
+  outline-offset: 1px;
+}
+
+/* ---------- Timer ---------- */
+/* Full width of its column, so the ring can be measured against the room it has. */
+.timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--sp-2) 0;
+}
+.time {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.timeUnit {
+  margin-top: var(--sp-1);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.sessionLeft {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---------- What to do ---------- */
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.goal {
+  max-width: 38rem;
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+}
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.steps li {
+  position: relative;
+  padding-left: 2.25rem;
+  line-height: var(--leading-normal);
+  counter-increment: step;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0.1em;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.linksBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.moreButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.openNote {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.upNext {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.upNextLabel {
+  margin-right: var(--sp-1);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Phones: Pause and Next share the bar, but never shrink below their words ("N…" at large text):
+   when both cannot fit, each takes a row of its own. */
+.controlBar > .control {
+  min-width: max-content;
+}
+
+/* ---------- Wide ---------- */
+.wide {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.1fr);
+  gap: var(--sp-10);
+  align-items: start;
+}
+.stage {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--sp-4));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* A phone held sideways: a compact timer card beside the details. */
+.sideways {
+  grid-template-columns: minmax(13rem, 0.75fr) minmax(0, 1.25fr);
+  gap: var(--sp-6);
+}
+.sideways .stage {
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+.sideways .timer {
+  gap: var(--sp-2);
+  padding: 0;
+}
+.sideways .time {
+  font-size: var(--text-3xl);
+}
+.sideways .controls {
+  flex-wrap: nowrap;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.sideways .controls > * {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: var(--sp-3);
+}
+.sideHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.sideEyebrow {
+  margin: 0;
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sideTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+/* ---------- Outline ---------- */
+.outlineBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.outlineHeading {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.outline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.outlineItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.outlineNow .outlineTitle {
+  font-weight: 700;
+}
+.nowDot {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.outlineText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.outlineTitle {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.outlineMeta {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmentFill {
+    transition: none;
+  }
+}

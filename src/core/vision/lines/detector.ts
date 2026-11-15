@@ -348,19 +348,20 @@ function nearestNumbering(pose: FretboardPose, earlier: FretboardPose): { delta:
 /**
  * Fret numbers for a pose whose own numbering is unsure, from an earlier trusted pose of the same
  * neck: by aspect when the strings are locked (any amount of sliding along the neck is fine), else
- * by nearness. Returns the whole-fret shift for `pose` and the confidence it deserves, or null.
+ * by nearness (only right if the neck moved less than half a fret in between). Returns the
+ * whole-fret shift for `pose`, the confidence it deserves and which argument gave it, or null.
  */
-export function carryNumbering(pose: FretboardPose, earlier: FretboardPose, stringsLocked: boolean): { delta: number; confidence: number } | null {
+export function carryNumbering(pose: FretboardPose, earlier: FretboardPose, stringsLocked: boolean): { delta: number; confidence: number; how: 'aspect' | 'near' } | null {
   const scaled = earlier.frameWidth === pose.frameWidth ? earlier : { ...earlier, H: scaleH(earlier.H, pose.frameWidth / earlier.frameWidth) };
   const near = nearestNumbering(pose, scaled);
   if (stringsLocked) {
     const byAspect = numberingFromEarlier(pose, scaled);
     if (byAspect && byAspect.residual < 0.25) {
       const agree = near !== null && near.delta === byAspect.delta && near.distance < 0.4;
-      return { delta: byAspect.delta, confidence: earlier.numberingConfidence * (agree ? 0.98 : byAspect.residual < 0.12 ? 0.9 : 0.7) };
+      return { delta: byAspect.delta, confidence: earlier.numberingConfidence * (agree ? 0.98 : byAspect.residual < 0.12 ? 0.9 : 0.7), how: 'aspect' };
     }
   }
-  if (near && near.distance < 0.3) return { delta: near.delta, confidence: earlier.numberingConfidence * 0.7 };
+  if (near && near.distance < 0.3) return { delta: near.delta, confidence: earlier.numberingConfidence * 0.7, how: 'near' };
   return null;
 }
 

@@ -70,7 +70,8 @@ export function Hub() {
                 <Text tone="muted">{next.blurb}</Text>
               </div>
             </div>
-            <ProgressBar label="The rhythm class" value={done} max={LADDER.length} valueText={`${done} of ${LADDER.length} steps · ${stars} stars`} tone="accent" />
+            {/* The stars go with the label, which wraps: the value text never does, and must fit a narrow phone at large text. */}
+            <ProgressBar label={`The rhythm class · ${stars} ${stars === 1 ? 'star' : 'stars'}`} value={done} max={LADDER.length} valueText={`${done} of ${LADDER.length} steps`} tone="accent" />
             <LinkButton variant="primary" size="lg" fullWidth wrap to="rhythm" params={next.params} iconRight="ArrowRight">
               {finished ? 'Play it again' : done === 0 ? 'Start' : 'Continue'}: {next.title}
             </LinkButton>

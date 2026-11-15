@@ -17,13 +17,13 @@ import { type Header, classifyBox, readHeader } from './header';
 import { type Head, findHeads } from './heads';
 import { type AccidentalMark, findTuplets, ownBox, readAccidentals, tieBetween } from './marks';
 import { type Chord, type SBox, baseValue, buildChords, readDots, readTails } from './notes';
-import { AccidentalState, pitchOf } from './pitch';
+import { AccidentalState, keyAlterations, pitchOf } from './pitch';
 import { type RestMark, readRests } from './rests';
 import { type DurationOption, type RhythmEvent, inferMeasureTicks, measureTicks, metreOfTicks, optionTicks, solveMeasure, stepValue } from './rhythm';
 import { type Stroke, findStrokes, stemFromHead } from './stems';
-import { CLAIM, type Strip, buildStrip, posY } from './strip';
+import { CLAIM, type Strip, type StripQuality, buildStrip, posY, stripQuality } from './strip';
 
-export { buildStrip, type Strip } from './strip';
+export { buildStrip, type Strip, type StripQuality, stripQuality } from './strip';
 export { type Header, readHeader } from './header';
 export { type Head, type HeadKind, findHeads } from './heads';
 export { type Chord } from './notes';
@@ -75,6 +75,8 @@ export interface StaffAnalysis {
   mismatches: { measure: number; voice: number; message: string }[];
   /** Per measure: does it hold two voices? */
   twoVoices: boolean[];
+  /** Picture quality of the strip (blur, noise): scales every confidence of the reading. */
+  quality: StripQuality;
   /** Milliseconds per stage. */
   timings: Record<string, number>;
 }
@@ -101,13 +103,44 @@ export function ledgerSupport(strip: Strip, head: Head): number {
     }
     return n ? hit / n : 0;
   };
+  // A ledger line printed light (grey) or washed out by the capture can miss the binary
+  // altogether: then it is a row of the grey picture darker than the paper just above and below.
+  const gray = strip.input.gray.data;
+  const faint = (xa: number, xb: number, y: number): boolean => {
+    const yi = Math.round(y);
+    const off = Math.round(0.3 * s);
+    if (yi - off - 1 < 0 || yi + off + 1 >= h) return false;
+    let line = 0;
+    let paper = 0;
+    let n = 0;
+    const cols: number[] = [];
+    for (let x = Math.round(xa); x < Math.round(xb); x++) {
+      if (x < 0 || x >= w) continue;
+      let darkest = 0;
+      for (let dy = -1; dy <= 1; dy++) darkest = Math.max(darkest, 255 - gray[(yi + dy) * w + x]);
+      line += darkest;
+      cols.push(darkest);
+      // Paper on both sides of the line: the brighter of the two rows does not hide a letter's stroke.
+      paper += Math.max(255 - gray[(yi - off) * w + x], 255 - gray[(yi + off) * w + x]);
+      n++;
+    }
+    if (!n) return false;
+    // A line is evenly dark along its length (the strokes of letters are not), with paper around it.
+    const mean = line / n;
+    return mean - paper / n >= 25 && mean >= 2 * (paper / n) && cols.every((v) => v >= 0.6 * mean);
+  };
   let found = 0;
   for (const p of need) {
     const y = posY(strip, p);
-    const left = cover(head.x - head.w / 2 - 0.3 * s, head.x - head.w / 2 - 0.05 * s, y);
-    const right = cover(head.x + head.w / 2 + 0.05 * s, head.x + head.w / 2 + 0.3 * s, y);
+    const la = head.x - head.w / 2 - 0.3 * s;
+    const lb = head.x - head.w / 2 - 0.05 * s;
+    const ra = head.x + head.w / 2 + 0.05 * s;
+    const rb = head.x + head.w / 2 + 0.3 * s;
+    const left = cover(la, lb, y);
+    const right = cover(ra, rb, y);
     const through = Math.abs(p - head.pos) <= 1 ? 1 : cover(head.x - head.w / 2, head.x + head.w / 2, y);
     if (Math.max(left, right) >= 0.6 && Math.min(left, right) >= 0.2 && through >= 0.6) found++;
+    else if (faint(la, lb, y) && faint(ra, rb, y) && (Math.abs(p - head.pos) <= 1 || faint(head.x - head.w / 2, head.x + head.w / 2, y))) found++;
   }
   return found / need.length;
 }
@@ -275,16 +308,16 @@ function assignVoices(strip: Strip, list: StripEvent[], target: number): boolean
 }
 
 /**
- * A measure that is too long may hide triplets whose "3" was not found: try reading groups of
- * three equal notes (a beam group of three, or three equal notes in a row) as triplets and keep
- * the choice that makes the measure add up. Returns true when it did.
+ * A measure that is too long may hide triplets whose "3" was not found: groups of three equal
+ * notes (a beam group of three, or three equal notes in a row) read as triplets. Returns the
+ * groups whose choice makes the measure add up, or null when none or more than one choice does.
  */
-function inferTriplets(list: StripEvent[], target: number): boolean {
-  const chordsIn = list.filter((e) => e.chord);
-  if (chordsIn.some((e) => (e.chord as Chord).tuplet)) return false;
+function tripletChoice(list: StripEvent[], target: number): StripEvent[][] | null {
+  // Notes already read as tuplets (their number was found) stay as they are.
+  const chordsIn = list.filter((e) => e.chord && !(e.chord as Chord).tuplet);
   const plain = (e: StripEvent): string | null => {
     const o = e.rhythm.options[0];
-    return e.chord && o.dots === 0 ? o.value : null;
+    return e.chord && !(e.chord as Chord).tuplet && o.dots === 0 ? o.value : null;
   };
   const groups: StripEvent[][] = [];
   const byBeam = new Map<number, StripEvent[]>();
@@ -302,7 +335,7 @@ function inferTriplets(list: StripEvent[], target: number): boolean {
     if ((i > 0 && plain(list[i - 1]) === v && list[i - 1].rhythm.group < 0) || (i + 3 < list.length && plain(list[i + 3]) === v && list[i + 3].rhythm.group < 0)) continue;
     groups.push(run);
   }
-  if (!groups.length || groups.length > 6) return false;
+  if (!groups.length || groups.length > 6) return null;
   const base = list.reduce((q, e) => q + optionTicks(e.rhythm.options[0]), 0);
   const gain = groups.map((g) => g.reduce((q, e) => q + optionTicks(e.rhythm.options[0]), 0) / 3);
   let pick = -1;
@@ -311,18 +344,45 @@ function inferTriplets(list: StripEvent[], target: number): boolean {
     for (let k = 0; k < groups.length; k++) if (mask & (1 << k)) t -= gain[k];
     if (Math.abs(t - target) > 2) continue;
     // Ambiguous when two different choices fit: leave it to the dots and flags.
-    if (pick >= 0) return false;
+    if (pick >= 0) return null;
     pick = mask;
   }
-  if (pick < 0) return false;
-  for (let k = 0; k < groups.length; k++) {
-    if (!(pick & (1 << k))) continue;
-    for (const e of groups[k]) {
+  if (pick < 0) return null;
+  return groups.filter((_, k) => pick & (1 << k));
+}
+
+/** Read the groups chosen by {@link tripletChoice} as triplets. Returns true when it did. */
+function inferTriplets(list: StripEvent[], target: number): boolean {
+  const chosen = tripletChoice(list, target);
+  if (!chosen) return false;
+  for (const g of chosen) {
+    for (const e of g) {
       const c = e.chord as Chord;
       c.tuplet = { actual: 3, normal: 2 };
       e.rhythm.options = chordOptions(c);
       e.inferred = true;
     }
+  }
+  return true;
+}
+
+/**
+ * A "3" read where there is none (a dynamic letter, a fingering) shortens its notes: when the
+ * measure is short and comes out exactly right without the tuplets read from marks, those marks
+ * were wrong. Returns true when it dropped them.
+ */
+function dropFalseTuplets(list: StripEvent[], target: number): boolean {
+  const marked = list.filter((e) => e.chord?.tuplet && !e.inferred);
+  if (!marked.length) return false;
+  const plain = (e: StripEvent): number => {
+    const o = e.rhythm.options[0];
+    return marked.includes(e) ? optionTicks({ ...o, tuplet: undefined }) : optionTicks(o);
+  };
+  if (Math.abs(list.reduce((q, e) => q + plain(e), 0) - target) > 2) return false;
+  for (const e of marked) {
+    const c = e.chord as Chord;
+    c.tuplet = undefined;
+    e.rhythm.options = chordOptions(c);
   }
   return true;
 }
@@ -364,7 +424,9 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
   // above the staff ("o", "d") from being read as notes.
   heads = heads.filter((hd) => {
     const support = ledgerSupport(strip, hd);
-    if (support < 0.5) return false;
+    // (Beyond the guitar's range, from below drop-D's low D to above the 15th fret of the top
+    // string, half of the ledger lines is too little to go on: that is where text sits.)
+    if (support < (hd.pos >= 15 || hd.pos <= -9 ? 0.75 : 0.5)) return false;
     if (support < 1) hd.score *= 0.7;
     return true;
   });
@@ -543,10 +605,13 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
         if (mx >= list[0].x - 0.6 * s && mx <= list[list.length - 1].x + 0.6 * s) members = list;
       }
     }
-    // The number is printed next to its notes, not across the staff from them.
+    // The number is printed next to its notes (beyond the heads, or beyond the stems and beam,
+    // with or without a bracket), not across the staff from them.
     members = members.filter((e) => {
       const c = e.chord as Chord;
-      return mark.box.y1 > c.box.y0 - 4.5 * s && mark.box.y0 < c.box.y1 + 4.5 * s;
+      const y0 = Math.min(c.box.y0, c.stem ? c.tipY : c.box.y0);
+      const y1 = Math.max(c.box.y1, c.stem ? c.tipY : c.box.y1);
+      return mark.box.y1 > y0 - 3 * s && mark.box.y0 < y1 + 3 * s;
     });
     if (members.length === 3) for (const e of members) (e.chord as Chord).tuplet = { actual: 3, normal: 2 };
   }
@@ -585,7 +650,7 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
         const to = (lastBar && lastBar.x0 > from ? lastBar.x0 : strip.x1) - 2;
         if (to - from < 0.8 * s) return;
         // Some engravers draw the open end of a tie along the nearest staff line, where most of it is hidden.
-        const tie = tieBetween(strip, from, to, hd.y, 0.2);
+        const tie = tieBetween(strip, from, to, hd.y, 0.2, true);
         if (tie.found) last.tieStart[i] = true;
       });
     }
@@ -597,7 +662,7 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
         const to = hd.x - hd.w / 2 - 1;
         const from = Math.max(musicX0, to - 2.2 * s);
         if (to - from < 0.8 * s) return;
-        const tie = tieBetween(strip, from, to, hd.y, 0.2);
+        const tie = tieBetween(strip, from, to, hd.y, 0.2, true);
         if (tie.found) first.tieStop[i] = true;
       });
     }
@@ -620,7 +685,10 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
   if (header.time) {
     let ticks = measureTicks(header.time.value.beats, header.time.value.beatValue);
     const agree = (t: number): number => sums.filter((v) => v === t).length;
-    if (mode && mode !== ticks && (header.time.confidence < 0.5 || agree(mode) >= 2 * Math.max(1, agree(ticks)))) {
+    // Measures that fit the printed metre once unmarked triplets are read as such (a piece in
+    // triplets throughout makes every measure equally "too long").
+    const agreeSig = (t: number): number => perMeasure.filter((list, i) => sums[i] === t || (sums[i] > t && tripletChoice(list, t) !== null)).length;
+    if (mode && mode !== ticks && (header.time.confidence < 0.5 || agree(mode) >= 2 * Math.max(1, agreeSig(ticks)))) {
       // Most measures agree with each other but not with the time signature: the numbers were
       // misread more likely than every measure. Take the alternative reading that fits, or at
       // least do not bend the notes to a wrong metre.
@@ -671,6 +739,7 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
           }
         }
         if (sum > target) inferTriplets(list, target);
+        else if (sum < target && !mayBeShort) dropFalseTuplets(list, target);
         const sol = solveMeasure(list.map((e) => e.rhythm), target, mayBeShort ? 1.25 : 3.2);
         if (sol.consistent) {
           for (const e of list) e.durationConfidence = e.rhythm.chosen === 0 && !e.rhythm.dropped ? (e.inferred ? 0.6 : 0.95) : 0.55;
@@ -693,11 +762,15 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
   // What is left above the staff is text for the caller to read (chord symbols, tempo, titles).
   const texts = textRegions(strip, musicX0);
   lap('text');
+  const quality = stripQuality(strip);
+  if (quality.score < 0.5) {
+    warnings.push({ code: 'low-quality', message: 'This staff is blurred or noisy in the picture: check every note and rhythm, or retake the photo closer and in better light.' });
+  }
 
   return {
     strip, header, strokes, heads, chords, rests,
     events: events.filter((e) => !e.rhythm.dropped),
-    measureTicks: target, measureOk, texts, warnings, mismatches, twoVoices, timings,
+    measureTicks: target, measureOk, texts, warnings, mismatches, twoVoices, quality, timings,
   };
 }
 
@@ -744,6 +817,14 @@ export function toReading(a: StaffAnalysis, options: RecognizeOptions = {}): Sta
   const clefType: ClefType = header.clef?.value ?? ctx.clef ?? 'treble-8vb';
   const fifths = header.key?.value ?? (header.clef ? 0 : ctx.fifths ?? 0);
   const state = new AccidentalState(fifths, clefType);
+  // A poor picture makes every reading less certain: rhythm most (one wrong dot or flag, one
+  // missed bar line), positions somewhat (a blurred head near the boundary of two positions).
+  const q = a.quality.score;
+  const noteFactor = 0.6 + 0.4 * q;
+  const durFactor = 0.4 + 0.6 * q;
+  // With neither clef nor key signature seen and nothing carried from a staff above, the start
+  // of the staff was probably lost (cut off, in shadow): the key, and so every pitch, is a guess.
+  const keyUnknown = !header.clef && !header.key && ctx.fifths === undefined;
   const events: (OmrNotationEvent & { measureIndex?: number })[] = [];
   let measure = -1;
   let total = 0;
@@ -761,11 +842,11 @@ export function toReading(a: StaffAnalysis, options: RecognizeOptions = {}): Sta
       alts.push({ value: { value: o.value, dots: o.dots }, confidence: round2(Math.max(0.02, Math.min(0.45, 0.5 / (1 + o.cost + (k === 0 ? 0 : 0))))) });
     });
     const full = e.rhythm.measureRest && a.measureTicks ? a.measureTicks : durationTicks(opt.value, opt.dots, opt.tuplet);
-    const duration = { value: opt.value, dots: opt.dots, tuplet: opt.tuplet, ticks: full, confidence: round2(e.durationConfidence), alternatives: alts.length ? alts : undefined };
+    const duration = { value: opt.value, dots: opt.dots, tuplet: opt.tuplet, ticks: full, confidence: round2(e.durationConfidence * durFactor), alternatives: alts.length ? alts : undefined };
     const centre = input.toPage(e.x, e.kind === 'chord' ? (e.chord as Chord).heads[0].y : (e.box.y0 + e.box.y1) / 2);
     if (e.kind === 'rest') {
       const r = e.rest as RestMark;
-      const conf = round2(Math.max(0.05, Math.min(1, (r.score - 0.35) / 0.4)));
+      const conf = round2(Math.max(0.05, Math.min(1, (r.score - 0.35) / 0.4)) * noteFactor);
       events.push({ id: '', bbox: toPageBox(input, r.box), confidence: conf, source: e.fromModel ? 'merged' : 'image', kind: 'rest', x: round2(centre.x), notes: [], duration, voice: r.voice, measureIndex: e.measure });
       total += conf;
       n++;
@@ -775,11 +856,18 @@ export function toReading(a: StaffAnalysis, options: RecognizeOptions = {}): Sta
     const notes: OmrNote[] = c.heads.map((hd, i) => {
       const acc = e.accidentals[i];
       const pitch = state.read(hd.pos, acc ? acc.type : null, e.tieStop[i], e.tieStart[i]);
-      const conf = round2(Math.max(0.05, Math.min(1, (hd.score - 0.35) / 0.4)));
+      const conf = round2(Math.min(keyUnknown ? 0.45 : 1, Math.max(0.05, Math.min(1, (hd.score - 0.35) / 0.4)) * noteFactor));
       const alternatives: Alternative<OmrPitch>[] = [];
       if (acc) {
         for (const alt of acc.alternatives.slice(0, 2)) alternatives.push({ value: pitchOf(hd.pos, accAlter(alt.type), clefType), confidence: round2(Math.max(0.02, Math.min(0.45, alt.score - 0.3))) });
         if (acc.score < 0.7) alternatives.push({ value: pitchOf(hd.pos, pitchOf(hd.pos, 0, clefType).alter, clefType), confidence: 0.2 });
+      }
+      // On a poor picture a head can be one position off: offer the neighbours (in the key).
+      if (q < 0.75) {
+        for (const p of [hd.pos + 1, hd.pos - 1]) {
+          const step = pitchOf(p, 0, clefType).step;
+          alternatives.push({ value: pitchOf(p, keyAlterations(fifths)[step], clefType), confidence: round2(0.1 + 0.15 * (1 - q)) });
+        }
       }
       const note: OmrNote = {
         id: '',
@@ -812,15 +900,26 @@ export function toReading(a: StaffAnalysis, options: RecognizeOptions = {}): Sta
     total += conf;
     n++;
   }
+  const warnings = [...a.warnings, ...a.mismatches.map((m): OmrWarning => ({ code: 'measure-mismatch', message: m.message }))];
+  if (keyUnknown && events.some((e) => e.kind === 'chord')) {
+    warnings.push({ code: 'other', message: 'The start of this staff (clef and key signature) could not be read: the pitches assume no sharps or flats in the key.' });
+  }
   const reading: StaffReading<OmrNotationEvent> = {
     events,
     confidence: round2(n ? total / n : header.clef ? 0.5 : 0),
-    warnings: a.warnings.length || a.mismatches.length ? [...a.warnings, ...a.mismatches.map((m): OmrWarning => ({ code: 'measure-mismatch', message: m.message }))] : undefined,
+    warnings: warnings.length ? warnings : undefined,
   };
   if (header.clef) {
     reading.clef = {
       id: '', bbox: toPageBox(input, header.clef), confidence: round2(header.clef.confidence), source: 'image', type: header.clef.value,
       alternatives: header.clef.alternatives?.length ? header.clef.alternatives : undefined,
+    };
+  } else if (events.some((e) => e.kind === 'chord')) {
+    // No clef seen (cut off, faint): say which one the pitches assume, as a guess to confirm.
+    const x0 = strip.x0;
+    reading.clef = {
+      id: '', bbox: toPageBox(input, { x0, y0: strip.top - strip.s, x1: x0 + 2 * strip.s, y1: strip.bottom + strip.s }), confidence: ctx.clef ? 0.45 : 0.3, source: 'inferred', type: clefType,
+      alternatives: clefType === 'bass' ? [{ value: 'treble-8vb', confidence: 0.2 }] : [{ value: 'bass', confidence: 0.1 }],
     };
   }
   if (header.key) {
@@ -921,15 +1020,60 @@ export async function refineWithModel(a: StaffAnalysis, ai: OmrVisionModel, sign
   return repaired;
 }
 
+/** What a reading leaves for the staves after it: clef, key and time in force at its end. */
+export function contextAfter(reading: StaffReading<OmrNotationEvent>, before: NotationContext): NotationContext {
+  const out: NotationContext = { ...before };
+  if (reading.clef && reading.clef.confidence >= 0.5) out.clef = reading.clef.type;
+  if (reading.keySignature && reading.keySignature.confidence >= 0.5) out.fifths = reading.keySignature.fifths;
+  if (reading.timeSignature && reading.timeSignature.confidence >= 0.5) {
+    out.beats = reading.timeSignature.beats;
+    out.beatValue = reading.timeSignature.beatValue;
+  }
+  return out;
+}
+
 /**
- * Read one notation staff strip (stateless: key and time come from the strip or from
- * `options.context`). With `options.ai`, measures that do not add up are shown to the vision
- * model for a second opinion (see {@link refineWithModel}); the result is then a promise.
+ * Per page picture: what each staff read left in force, by staff index. Later systems rarely
+ * repeat the time signature, so a staff takes clef, key and time from the nearest staff ABOVE it
+ * on the same page (never from one below, so reading order and re-runs do not matter).
  */
-export const recognizeNotationStaff: RecognizeNotationStaff = (input: StaffInput, options?: RecognizeOptions) => {
-  const analysis = analyzeNotationStaff(input, options);
-  if (options?.ai && analysis.mismatches.length) return refineWithModel(analysis, options.ai, options.signal).then(() => toReading(analysis, options));
-  return toReading(analysis, options);
+const pageMemory = new WeakMap<object, Map<number, NotationContext>>();
+
+function inheritedContext(input: StaffInput): NotationContext {
+  const mem = input.page ? pageMemory.get(input.page.gray) : undefined;
+  if (!mem) return {};
+  let best = -1;
+  for (const k of mem.keys()) if (k < input.index && k > best) best = k;
+  return best >= 0 ? { ...(mem.get(best) as NotationContext) } : {};
+}
+
+function remember(input: StaffInput, ctx: NotationContext): void {
+  if (!input.page) return;
+  let mem = pageMemory.get(input.page.gray);
+  if (!mem) {
+    mem = new Map();
+    pageMemory.set(input.page.gray, mem);
+  }
+  mem.set(input.index, ctx);
+}
+
+/**
+ * Read one notation staff strip. Key and time come from the strip, else from `options.context`,
+ * else from the staves above it on the same page picture (read earlier with this function). With
+ * `options.ai`, measures that do not add up are shown to the vision model for a second opinion
+ * (see {@link refineWithModel}); the result is then a promise.
+ */
+export const recognizeNotationStaff: RecognizeNotationStaff = (input: StaffInput, options: RecognizeOptions = {}) => {
+  const inherited = inheritedContext(input);
+  const opts: RecognizeOptions = { ...options, context: { ...inherited, ...options.context } };
+  const analysis = analyzeNotationStaff(input, opts);
+  const finish = (): StaffReading<OmrNotationEvent> => {
+    const reading = toReading(analysis, opts);
+    remember(input, contextAfter(reading, opts.context ?? {}));
+    return reading;
+  };
+  if (opts.ai && analysis.mismatches.length) return refineWithModel(analysis, opts.ai, opts.signal).then(finish);
+  return finish();
 };
 
 /**
@@ -937,18 +1081,13 @@ export const recognizeNotationStaff: RecognizeNotationStaff = (input: StaffInput
  * does: later systems of a page rarely repeat the time signature. Make one per page.
  */
 export function createNotationRecognizer(): RecognizeNotationStaff {
-  const memory: NotationContext = {};
+  let memory: NotationContext = {};
   return async (input: StaffInput, options: RecognizeOptions = {}) => {
     const opts: RecognizeOptions = { ...options, context: { ...memory, ...options.context } };
     const analysis = analyzeNotationStaff(input, opts);
     if (opts.ai && analysis.mismatches.length) await refineWithModel(analysis, opts.ai, opts.signal);
     const reading = toReading(analysis, opts);
-    if (reading.clef && reading.clef.confidence >= 0.5) memory.clef = reading.clef.type;
-    if (reading.keySignature && reading.keySignature.confidence >= 0.5) memory.fifths = reading.keySignature.fifths;
-    if (reading.timeSignature && reading.timeSignature.confidence >= 0.5) {
-      memory.beats = reading.timeSignature.beats;
-      memory.beatValue = reading.timeSignature.beatValue;
-    }
+    memory = contextAfter(reading, memory);
     return reading;
   };
 }

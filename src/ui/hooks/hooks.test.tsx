@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, useRef, type ReactNode } from 'react';
+import { act, StrictMode, useRef, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readJSON } from '@/core/platform/storage';
@@ -300,6 +300,42 @@ describe('useElementSize', () => {
     expect(size).toEqual({ width: 500, height: 60 });
     view.unmount();
     expect(disconnect).toHaveBeenCalled();
+  });
+
+  it('keeps observing under StrictMode, whose dev-only effect cleanup runs once on mount', () => {
+    const live = new Set<object>();
+    let notify: ((entries: Array<{ contentRect: { width: number; height: number } }>) => void) | null = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: typeof notify) {
+          notify = cb;
+        }
+        observe() {
+          live.add(this);
+        }
+        disconnect() {
+          live.delete(this);
+        }
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 390, height: 20, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) });
+    let size = { width: -1, height: -1 };
+    function Probe() {
+      const [ref, s] = useElementSize<HTMLDivElement>();
+      size = s;
+      return <div ref={ref} />;
+    }
+    const view = mount(
+      <StrictMode>
+        <Probe />
+      </StrictMode>,
+    );
+    expect(live.size).toBe(1);
+    act(() => notify?.([{ contentRect: { width: 360, height: 20 } }]));
+    expect(size).toEqual({ width: 360, height: 20 });
+    view.unmount();
+    expect(live.size).toBe(0);
   });
 });
 

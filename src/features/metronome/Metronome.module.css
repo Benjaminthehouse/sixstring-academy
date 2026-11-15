@@ -1,0 +1,374 @@
+/*
+ * Metronome screen layout.
+ *   column     phones and narrow windows: one column the height of the screen; the dial, the tempo
+ *              buttons and Start sit in the lower half (the thumb zone), settings open as sheets
+ *   sideways   a phone on its side: the dial on the left, everything else on the right
+ *   two panes  from 1100 px: the metronome on the left (it stays in view), settings on the right
+ */
+
+/* Doubled class: this has to win over the Page's own padding whatever order the styles load in. */
+.screen.screen {
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-3);
+}
+
+.layout {
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  /* The whole screen, minus the shell's bars and the page padding: Start lands at the bottom. */
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-2) - var(--sp-3));
+}
+
+/* ---- time signature chips ---- */
+.meterRow {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Room for the chips' 44 px touch areas and focus rings inside the scroller. */
+  padding: 4px 2px;
+  margin: -4px -2px;
+}
+.meterRow::-webkit-scrollbar {
+  display: none;
+}
+.meterChip {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.moreChip {
+  gap: 0.25rem;
+}
+
+/* ---- helpers that are switched on ---- */
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+}
+.flag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--info-soft);
+  color: var(--info-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.flag::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+.flag:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---- settings tiles (phones) ---- */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.tile {
+  --focus-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+  min-height: 3.75rem;
+  padding: var(--sp-2) var(--sp-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.tile:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tileIcon {
+  display: grid;
+  place-items: center;
+  height: 1.5rem;
+  color: var(--fg);
+}
+.tilePicture {
+  width: 2.6em;
+  height: 1.6em;
+}
+.tileText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.tileLabel {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.tileValue,
+.tileLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tileValue {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+}
+
+/* ---- the dial ---- */
+.dialArea {
+  flex: 1 1 0;
+  min-height: 11rem;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.dialBox {
+  width: min(100cqw, 100cqh, 28rem);
+}
+
+/* ---- slower, tap, faster ---- */
+.tempoRow {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  gap: var(--sp-2);
+}
+.step,
+.tap {
+  --focus-radius: var(--r-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 3.25rem;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.step:hover:not(:disabled),
+.tap:hover {
+  background: var(--surface-2);
+}
+.step:active:not(:disabled),
+.tap:active {
+  transform: translateY(1px);
+  background: var(--surface-3);
+}
+.step:focus-visible,
+.tap:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tapLabel {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.tapping {
+  border-color: var(--accent-strong);
+}
+
+.live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  margin: 0;
+}
+
+/* ---- start ---- */
+.startRow {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.start {
+  min-height: 3.5rem;
+  font-size: var(--text-lg);
+}
+.time {
+  position: absolute;
+  right: var(--sp-4);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+/* The time sits on the button: amber Start or neutral Stop. */
+.startRow[data-on='start'] .time {
+  color: var(--accent-fg);
+}
+.startRow[data-on='stop'] .time {
+  color: var(--fg-muted);
+  opacity: 1;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.keys > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ================= a phone held sideways ================= */
+.sideways {
+  max-width: none;
+}
+.sideways .stage {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  grid-template-rows: auto auto auto auto 1fr auto auto;
+  grid-template-areas:
+    'dial meter'
+    'dial flags'
+    'dial beats'
+    'dial tiles'
+    'dial .'
+    'dial tempo'
+    'dial start';
+  column-gap: var(--sp-5);
+  row-gap: var(--sp-2);
+}
+.sideways .meterRow {
+  grid-area: meter;
+}
+.sideways .flags {
+  grid-area: flags;
+}
+.sideways .beats {
+  grid-area: beats;
+}
+.sideways .tiles {
+  grid-area: tiles;
+}
+.sideways .dialArea {
+  grid-area: dial;
+  min-height: 0;
+}
+.sideways .tempoRow {
+  grid-area: tempo;
+}
+.sideways .startRow {
+  grid-area: start;
+}
+.sideways .tile {
+  flex-direction: row;
+  justify-content: center;
+  min-height: var(--tap);
+  gap: var(--sp-2);
+}
+.sideways .tileValue,
+.sideways .tileIcon {
+  display: none;
+}
+.sideways .tileText {
+  align-items: flex-start;
+}
+.sideways .step,
+.sideways .tap {
+  min-height: var(--tap);
+}
+.sideways .start {
+  min-height: 3rem;
+}
+
+/* ================= two panes ================= */
+.twoPane {
+  display: grid;
+  grid-template-columns: minmax(23rem, 1fr) minmax(22rem, 1fr);
+  align-items: start;
+  gap: var(--sp-8);
+  max-width: none;
+}
+.twoPane .stage {
+  position: sticky;
+  top: var(--sp-6);
+  min-height: 0;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.twoPane .dialArea {
+  flex: none;
+  height: min(22rem, calc(100dvh - 27rem));
+  min-height: 14rem;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+  max-width: 40rem;
+}
+.sideBlock {
+  scroll-margin-top: var(--sp-6);
+}

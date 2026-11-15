@@ -47,6 +47,8 @@ export interface SessionOptions {
   graceMs?: number;
   /** Cost of an extra tap in notes (default: the scoring module's). */
   extraPenalty?: number;
+  /** Leave unheard soft notes (quick upstrokes) out of the score and do not report them as missed: the microphone may not hear them. */
+  forgiveSoft?: boolean;
   clock?: TransportClock;
 }
 
@@ -153,10 +155,19 @@ export class RhythmSession {
   private poll(): void {
     if (this.state !== 'running') return;
     const now = this.clock.soundingNow();
-    for (const j of this.judge.advance(now - this.lateness)) this.emit('judge', { judgement: j, target: this.targetById.get(j.targetId ?? -1) ?? null });
+    this.emitMisses(this.judge.advance(now - this.lateness));
     const cut = this.clock.now() - 0.5;
     if (this.pending.length > 64) this.pending = this.pending.filter((p) => p.time > cut);
     if (!this.chart.loop && now >= this.endTime + this.lateness) this.finish(true);
+  }
+
+  /** Report notes that went by untouched, except the ones nobody could have heard. */
+  private emitMisses(misses: readonly Judgement[]): void {
+    for (const j of misses) {
+      const target = this.targetById.get(j.targetId ?? -1) ?? null;
+      if (target?.soft && this.opts.forgiveSoft) continue;
+      this.emit('judge', { judgement: j, target });
+    }
   }
 
   /** Audio-clock time at which the chart ends. */
@@ -226,11 +237,11 @@ export class RhythmSession {
   private finish(completed: boolean): SessionResult {
     if (this.result) return this.result;
     const now = this.clock.soundingNow();
-    if (completed) for (const j of this.judge.finish()) this.emit('judge', { judgement: j, target: this.targetById.get(j.targetId ?? -1) ?? null });
+    if (completed) this.emitMisses(this.judge.finish());
     // A round that was stopped early is scored on the notes that had come due.
     const horizon = now - this.lateness;
     const due = completed ? this.chart.targets : this.chart.targets.filter((t) => this.targetTime(t.id) <= horizon);
-    const stats = summarise(due, this.judge.judgements, { extraPenalty: this.opts.extraPenalty });
+    const stats = summarise(due, this.judge.judgements, { extraPenalty: this.opts.extraPenalty, forgiveSoft: this.opts.forgiveSoft });
     this.result = { stats, judgements: [...this.judge.judgements], completed, durationSec: Math.max(0, Math.min(now, this.endTime) - this.startTime), due: due.length };
     this.halt();
     this.state = 'ended';

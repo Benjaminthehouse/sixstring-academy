@@ -169,6 +169,12 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* Very large text on a small phone: one number per row rather than numbers spilling sideways. */
+@container (max-width: 17rem) {
+  .numbers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 /* ---------- Streak line ---------- */
 .streakLine {
@@ -361,6 +367,16 @@
     background: var(--surface-2);
     color: var(--fg);
   }
+}
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--r-sm);
+}
+.tableScroll:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .table table {
   width: 100%;

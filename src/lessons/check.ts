@@ -19,7 +19,7 @@ import { COUNT_LIMITS, MAX_FRET, TEMPO_LIMITS, TEXT_LIMITS, type TextLimit } fro
 import { parseRhythm } from './rhythm';
 import { createRng } from './rng';
 import { soundProblems, tabProblems } from './sound';
-import { looseSymbols, parseRichText, textKey, textLength, tokenize } from './text';
+import { looseSymbols, parseRichText, plainText, textKey, textLength, tokenize } from './text';
 import type { CardStep, ChoiceOption, CourseLevel, Exercise, ExerciseStep, Figure, RichText, Step } from './types';
 
 /** One thing that is wrong with a step. */
@@ -144,15 +144,17 @@ export function pitchSignature(text: RichText | string, glossary?: GlossaryLooku
 
 /** Pairs of texts that sound the same but are written differently. */
 function enharmonicTwins(texts: ReadonlyArray<RichText | string>, glossary?: GlossaryLookup): Array<[string, string]> {
-  const seen = new Map<string, string>();
+  // Compared by key, reported as the author sees them ("C♯" and "D♭", not the lower-cased keys).
+  const seen = new Map<string, { key: string; shown: string }>();
   const twins: Array<[string, string]> = [];
   for (const text of texts) {
     const signature = pitchSignature(text, glossary);
     if (signature === null) continue;
     const key = textKey(text);
+    const shown = plainText(text, { glossary });
     const other = seen.get(signature);
-    if (other !== undefined && other !== key) twins.push([other, key]);
-    else seen.set(signature, key);
+    if (other !== undefined && other.key !== key) twins.push([other.shown, shown]);
+    else seen.set(signature, { key, shown });
   }
   return twins;
 }

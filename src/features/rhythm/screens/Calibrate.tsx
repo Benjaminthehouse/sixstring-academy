@@ -16,8 +16,10 @@ const when = (at: number | null): string => {
 export function CalibrateScreen({ initial }: { initial: InputSource }) {
   const micBlocked = isArtifact();
   const [source, setSource] = useState<InputSource>(initial === 'mic' && !micBlocked ? 'mic' : 'tap');
-  // Bumped after a reset so the stored values are read again.
+  // Bumped after a reset so the stored values are read again (and the measuring starts over).
   const [version, setVersion] = useState(0);
+  // Bumped when a measurement is stored, so the list below shows it at once.
+  const [, setStored] = useState(0);
   const cal = loadCalibration();
   const line = (label: string, ms: number | null, at: number | null) => (
     <div className={styles.calibStored} key={label}>
@@ -54,9 +56,9 @@ export function CalibrateScreen({ initial }: { initial: InputSource }) {
           />
         )}
         <Card padding="lg" variant="raised">
-          <CalibrationFlow key={`${source}-${version}`} source={source} onDone={() => navigate('rhythm')} doneLabel="Back to rhythm" />
+          <CalibrationFlow key={`${source}-${version}`} source={source} onDone={() => navigate('rhythm')} doneLabel="Back to rhythm" onSaved={() => setStored((n) => n + 1)} />
         </Card>
-        <div className={styles.calibStoredBox}>
+        <div className={styles.calibStoredBox} data-calibration-stored>
           {line('Taps and keys', cal.tapMs, cal.tapAt)}
           {!micBlocked && line('Microphone', cal.micMs, cal.micAt)}
           {(cal.tapMs !== null || cal.micMs !== null) && (

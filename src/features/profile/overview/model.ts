@@ -155,6 +155,15 @@ export function heatCellText(cell: HeatCell, today: string): string {
   return `${day}: ${cell.xp} XP${time}. ${goal}`;
 }
 
+/**
+ * The words around the heat map. They speak of a stronger colour, not a darker one: in the dark
+ * theme more XP is drawn brighter, in the light theme darker.
+ */
+export const CALENDAR_TEXT = {
+  description: 'One square per day. The stronger the colour, the more XP against that day’s goal.',
+  tableNote: 'The colour of a square gets stronger with the day’s XP:',
+} as const;
+
 /** The legend of the heat map: what each of the five intensities means. */
 export const HEAT_LEVELS: ReadonlyArray<{ level: 0 | 1 | 2 | 3 | 4; text: string }> = [
   { level: 0, text: 'No practice' },
@@ -248,6 +257,21 @@ export function kindShares(kinds: readonly KindTime[], limit = 6): KindShare[] {
   const total = rows.reduce((sum, k) => sum + k.sec, 0);
   const max = Math.max(1, ...rows.map((k) => k.sec));
   return rows.map((k) => ({ ...k, fraction: k.sec / max, share: total > 0 ? k.sec / total : 0 }));
+}
+
+/**
+ * The sentence under the "by activity" bars: the total, and where the largest share went. It says
+ * "most of it" only when that share really is more than half.
+ */
+export function kindSentence(rows: readonly KindShare[], range: 'week' | 'all'): string {
+  if (rows.length === 0) return '';
+  const total = rows.reduce((sum, row) => sum + row.sec, 0);
+  const top = rows.reduce((best, row) => (row.kind !== 'other' && row.sec > best.sec ? row : best), rows[0]);
+  const lead = `${durationText(total)} in all${range === 'week' ? ' this week' : ''}`;
+  const name = top.label.toLowerCase();
+  if (top.sec >= total) return `${lead}, all of it on ${name}.`;
+  if (top.sec * 2 > total) return `${lead}, most of it on ${name}.`;
+  return `${lead}. The biggest share went to ${name}: ${durationText(top.sec)}.`;
 }
 
 // ---------------------------------------------------------------------------------------------

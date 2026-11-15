@@ -4,7 +4,7 @@ import { getProgress } from '@/core/progress';
 import { PlayButton, Text, useRafLoop } from '@/ui';
 import { strumChart, type Chart } from '../core/charts';
 import { meterInfo, secondsPerTick } from '../core/meter';
-import type { Judgement } from '../core/scoring';
+import { wrongWay, type Judgement } from '../core/scoring';
 import { patternNickname, slotTicks, type StrumPattern } from '../core/strum';
 import { rhythmDebug } from '../engine/debug';
 import { RhythmSession } from '../engine/session';
@@ -77,7 +77,7 @@ export function slotMarks(chart: Chart, marks: ReadonlyMap<number, Judgement>, s
   const out: Array<SlotMark | undefined> = Array<SlotMark | undefined>(slots).fill(undefined);
   for (const t of chart.targets) {
     const j = marks.get(t.id);
-    if (j) out[t.ref] = { verdict: j.verdict, errorMs: j.errorMs };
+    if (j) out[t.ref] = { verdict: j.verdict, errorMs: j.errorMs, wrongWay: j.verdict !== 'miss' && wrongWay(t.dir, j.dir) };
   }
   return out;
 }
