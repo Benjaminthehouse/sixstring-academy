@@ -228,12 +228,14 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
   const hi = Math.floor(posAt(strip, 0.6 * s));
   for (let pos = lo; pos <= hi; pos++) {
     const y = posY(strip, pos);
-    const ledger = pos % 2 === 0 && (pos >= 10 || pos <= -2);
+    // On a staff line too: the line fills a narrow hole, and is not removed where it touches the ring.
+    const ledger = pos % 2 === 0;
     let runStart = -1;
-    let bestX = 0;
+    let runEnd = -1;
     let bestV = -1;
     const flush = (): void => {
-      if (runStart >= 0 && bestV >= 0) out.push({ x: bestX + 0.5, y, from: 'ring', strength: bestV });
+      // The walls are symmetric about the centre of the head: take the middle of the stretch.
+      if (runStart >= 0 && bestV >= 0) out.push({ x: (runStart + runEnd) / 2 + 0.5, y, from: 'ring', strength: bestV });
       runStart = -1;
       bestV = -1;
     };
@@ -243,14 +245,20 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
       let ok = centre <= 0.5;
       let v = 0;
       if (ok) {
-        const left = inkFraction(strip, x - 12 * u, y - 3 * u, x - 8 * u, y + 3 * u);
-        const right = inkFraction(strip, x + 8 * u, y - 3 * u, x + 12 * u, y + 3 * u);
+        // The walls of a half note stand 8-13 px from the centre, those of a whole note further out.
+        let left = 0;
+        let right = 0;
+        for (const d of [7, 9, 11]) {
+          left = Math.max(left, inkFraction(strip, x - (d + 4) * u, y - 3 * u, x - d * u, y + 3 * u));
+          right = Math.max(right, inkFraction(strip, x + d * u, y - 3 * u, x + (d + 4) * u, y + 3 * u));
+        }
         ok = left >= 0.5 && right >= 0.5;
         v = left + right - centre;
       }
       if (ok) {
         if (runStart < 0) runStart = x;
-        if (v > bestV) { bestV = v; bestX = x; }
+        runEnd = x;
+        if (v > bestV) bestV = v;
       } else {
         flush();
       }
@@ -260,11 +268,7 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
   return out;
 }
 
-/** Options for {@link findHeads}. */
-export interface HeadOptions {
-  /** Lowest correlation accepted for any kind. Default 0.45. */
-  minScore?: number;
-}
+
 
 /** Hole darkness below which a head is open: filled heads measure >= 1.0, open ones <= 0.8 up to mild photo blur. */
 export const HOLE_SPLIT = 0.9;
@@ -275,13 +279,17 @@ export function classifyHead(feat: HeadFeatures, from: 'core' | 'ring', minScore
   const hole = Math.min(holeOpen, holeWhole, 1.2);
   const margin = Math.min(1, Math.abs(hole - HOLE_SPLIT) / 0.25);
   if (hole >= HOLE_SPLIT) {
-    // Solid: only a blob found by its core can be a filled head.
-    if (from === 'ring' || zFilled < minScore) return null;
+    // Solid: only a blob found by its core can be a filled head (the thick wall of a whole note
+    // has a core too, but does not look like a head).
+    if (from === 'ring' || zFilled < Math.max(minScore, 0.62)) return null;
+    // A grace note is two thirds the size: its solid core is too small for a real head.
+    if (feat.core < 0.38) return null;
     return { kind: 'filled', score: zFilled, kindScore: margin };
   }
   const whole = zWhole > zOpen + 0.04;
   const z = whole ? zWhole : zOpen;
-  if (z < minScore) {
+  // Ring-like shapes are everywhere (flag loops, the eye of a sharp, digits): ask more of them.
+  if (z < (from === 'ring' ? Math.max(minScore, 0.55) : minScore)) {
     // A solid-looking blob whose "hole" is only a light spot: still a filled head if it matches one.
     if (from === 'core' && zFilled >= Math.max(minScore, 0.7) && hole > 0.7) return { kind: 'filled', score: zFilled, kindScore: 0.2 };
     return null;
@@ -289,25 +297,86 @@ export function classifyHead(feat: HeadFeatures, from: 'core' | 'ring', minScore
   return { kind: whole ? 'whole' : 'open', score: z, kindScore: margin };
 }
 
+/** Options for {@link findHeads}. */
+export interface HeadOptions {
+  /** Lowest correlation accepted for any kind. Default 0.45. */
+  minScore?: number;
+  /** Thin vertical strokes: solid ink beside one, on a staff position, is tried as a head of a chord. */
+  strokes?: { x: number; top: number; bottom: number; barline: boolean }[];
+}
+
+/**
+ * Solid places beside a stem, one per staff position: the heads of a chord fuse into one blob
+ * whose distance transform has fewer peaks than heads.
+ */
+function stemSeeds(strip: Strip, strokes: NonNullable<HeadOptions['strokes']>, xFrom: number, xTo: number): Seed[] {
+  const { w, h, dt, s } = strip;
+  const out: Seed[] = [];
+  for (const st of strokes) {
+    if (st.barline || st.x < xFrom || st.x > xTo || st.bottom - st.top < 1.9 * s) continue;
+    const lo = Math.ceil(posAt(strip, st.bottom + 0.3 * s));
+    const hi = Math.floor(posAt(strip, st.top - 0.3 * s));
+    for (let pos = lo; pos <= hi; pos++) {
+      const y = posY(strip, pos);
+      for (const side of [-1, 1]) {
+        const x = st.x + side * 0.55 * s;
+        const xi = Math.round(x);
+        const yi = Math.round(y);
+        if (xi < 2 || yi < 2 || xi >= w - 2 || yi >= h - 2) continue;
+        let v = 0;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) v = Math.max(v, dt[(yi + dy) * w + xi + dx]);
+        if (v >= 0.3 * s && v <= 0.75 * s) out.push({ x, y, from: 'core', strength: v / s });
+        else if (v < 0.3 * s) {
+          // Not solid, but about a ring's worth of ink: an open head (the displaced one of a
+          // second is found here; the wall test is thrown off by its neighbour).
+          const f = inkFraction(strip, x - 0.6 * s, y - 0.45 * s, x + 0.6 * s, y + 0.45 * s);
+          if (f >= 0.25 && f <= 0.92) out.push({ x, y, from: 'ring', strength: f });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /** Find the note heads between columns `xFrom` and `xTo`. Heads are returned left to right. */
 export function findHeads(strip: Strip, xFrom: number, xTo: number, opts: HeadOptions = {}): Head[] {
   const minScore = opts.minScore ?? 0.45;
   const { s } = strip;
   const seeds = coreSeeds(strip, xFrom, xTo);
+  const anchored: Seed[] = [];
+  if (opts.strokes) {
+    const peaks = seeds.length;
+    for (const r of stemSeeds(strip, opts.strokes, xFrom, xTo)) {
+      if (r.from === 'ring') {
+        anchored.push(r);
+        continue;
+      }
+      let dup = false;
+      // Only a peak that snaps to the same staff position is the same head (the peak of two fused heads lies between them).
+      for (let i = 0; i < peaks && !dup; i++) dup = Math.abs(seeds[i].x - r.x) < 0.45 * s && Math.round(posAt(strip, seeds[i].y)) === Math.round(posAt(strip, r.y));
+      if (!dup) seeds.push(r);
+    }
+  }
   const cores = seeds.length;
   for (const r of ringSeeds(strip, xFrom, xTo)) {
     let dup = false;
-    for (let i = 0; i < cores && !dup; i++) dup = Math.abs(seeds[i].x - r.x) < 0.5 * s && Math.abs(seeds[i].y - r.y) < 0.4 * s;
+    // The same place as a solid blob (a filled head on a line passes the ring test too).
+    for (let i = 0; i < cores && !dup; i++) dup = Math.abs(seeds[i].x - r.x) < 0.3 * s && Math.round(posAt(strip, seeds[i].y)) === Math.round(posAt(strip, r.y));
+    if (!dup) seeds.push(r);
+  }
+  for (const r of anchored) {
+    let dup = false;
+    for (let i = 0; i < seeds.length && !dup; i++) dup = Math.abs(seeds[i].x - r.x) < 0.3 * s && Math.round(posAt(strip, seeds[i].y)) === Math.round(posAt(strip, r.y));
     if (!dup) seeds.push(r);
   }
   const heads: Head[] = [];
   for (const seed of seeds) {
     // Heads sit on staff positions: snap the centre before matching.
-    const pos0 = Math.round(posAt(strip, seed.y));
+    const pos0 = Math.round(posAt(strip, seed.y)) + 0; // (+ 0: no negative zero)
     let best: Head | null = null;
     const tries = seed.from === 'core' ? [pos0] : [pos0];
     for (const pos of tries) {
-      const { feat, matches } = measureHead(strip, seed.x, posY(strip, pos), 2, 2, seed.from === 'core');
+      const { feat, matches } = measureHead(strip, seed.x, posY(strip, pos), seed.from === 'core' ? 2 : 4, 2, seed.from === 'core');
       const c = classifyHead(feat, seed.from, minScore);
       if (!c) continue;
       const m = matches[c.kind] as Match;
@@ -331,4 +400,16 @@ export function findHeads(strip: Strip, xFrom: number, xTo: number, opts: HeadOp
   }
   kept.sort((a, b) => a.x - b.x || a.y - b.y);
   return kept;
+}
+
+/** Every seed with its measurements and verdict (development aid). */
+export function debugSeeds(strip: Strip, xFrom: number, xTo: number): string[] {
+  const out: string[] = [];
+  for (const seed of [...coreSeeds(strip, xFrom, xTo), ...ringSeeds(strip, xFrom, xTo)]) {
+    const pos = Math.round(posAt(strip, seed.y));
+    const { feat } = measureHead(strip, seed.x, posY(strip, pos), seed.from === 'core' ? 2 : 4, 2, seed.from === 'core');
+    const c = classifyHead(feat, seed.from, 0.45);
+    out.push(`seed ${seed.from} x ${seed.x.toFixed(1)} y ${seed.y.toFixed(1)} pos ${pos} strength ${seed.strength.toFixed(2)} zF ${feat.zFilled.toFixed(2)} zO ${feat.zOpen.toFixed(2)} zW ${feat.zWhole.toFixed(2)} hole ${feat.holeOpen.toFixed(2)}/${feat.holeWhole.toFixed(2)} core ${feat.core.toFixed(2)} -> ${c ? `${c.kind} ${c.score.toFixed(2)}` : 'rejected'}`);
+  }
+  return out;
 }

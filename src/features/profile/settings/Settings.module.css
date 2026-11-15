@@ -1,0 +1,384 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+  max-width: 46rem;
+}
+
+/* ---------- Shortcuts to the groups ---------- */
+/* One row that swipes sideways on a phone and wraps where there is room. */
+.jump {
+  display: flex;
+  gap: var(--sp-2);
+  margin: 0 calc(var(--_gr, 0px) * -1) 0 calc(var(--_gl, 0px) * -1);
+  padding: 2px var(--_gr, 0px) 2px var(--_gl, 0px);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.jump::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 720px) {
+  .jump {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+}
+.jumpLink {
+  position: relative;
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease);
+}
+/* A 44 px touch target around the smaller pill. */
+.jumpLink::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+@media (hover: hover) {
+  .jumpLink:hover {
+    background: var(--surface-2);
+  }
+}
+.jumpLink:active {
+  background: var(--surface-2);
+}
+.jumpLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+
+/* ---------- A group: a heading and one card of fields ---------- */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  /* Clear the strip of links (and the top bar, which the shell's own scroll padding covers). */
+  scroll-margin-top: calc(var(--tap) + var(--sp-6));
+}
+@media (min-width: 1080px) {
+  .group {
+    scroll-margin-top: var(--sp-6);
+  }
+}
+.groupHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.groupIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}
+.groupTitle {
+  font-size: var(--text-xl);
+  line-height: 32px;
+  outline: none;
+}
+/* The heading takes focus when a shortcut jumps to its group; it is not a control, so no ring. */
+.groupTitle:focus-visible {
+  box-shadow: none;
+}
+.groupNote {
+  max-width: var(--prose-max);
+  color: var(--fg-muted);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-4);
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .fields {
+    padding: var(--sp-5);
+  }
+}
+.fields + .fields {
+  border-top: 1px solid var(--line);
+}
+.fieldLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.prose {
+  max-width: var(--prose-max);
+}
+.note {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* ---------- A control with its Test button ---------- */
+.withTest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.withTestControl {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.testButton {
+  flex: none;
+}
+/* Under a label: level with the input, which starts one label line down. */
+.withTest[data-align='field'] .testButton {
+  margin-top: calc(var(--text-sm) * 1.5 + var(--sp-1) + 4px);
+}
+.withTest[data-align='end'] {
+  align-items: flex-end;
+}
+.withTest[data-align='center'] {
+  align-items: center;
+}
+
+/* ---------- Picture ---------- */
+.avatars {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tap), 1fr));
+  gap: var(--sp-2);
+  max-width: 28rem;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg-muted);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .avatar:hover {
+    border-color: var(--line-strong);
+    color: var(--fg);
+  }
+}
+.avatar:active {
+  transform: scale(0.94);
+}
+.avatar:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-md);
+}
+.avatarOn {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+
+/* ---------- Accent colour ---------- */
+.accents {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.accent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-3) 0 var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .accent:hover {
+    background: var(--surface-2);
+  }
+}
+.accent:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+.accentOn {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+.accentDot {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: inset 0 0 0 2px var(--accent-strong);
+}
+
+/* ---------- Reference pitch ---------- */
+.a4 {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+/* ---------- Microphone test ---------- */
+.micTest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.micHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.meter {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.meterFill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* Fast enough to follow a pluck, slow enough not to flicker. */
+  transition: transform 60ms linear;
+}
+.meter[data-verdict='loud'] .meterFill {
+  background: var(--bad);
+}
+.meter[data-verdict='quiet'] .meterFill,
+.meter[data-verdict='silent'] .meterFill {
+  background: var(--fg-muted);
+}
+.meterPeak {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--fg);
+  opacity: 0;
+}
+.meter[data-running] .meterPeak {
+  opacity: 0.7;
+}
+/* The zone a good signal reaches: from -35 dB to just under full scale. */
+.meterGood {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 42%;
+  right: 5%;
+  border-left: 2px solid var(--fg-muted);
+  border-right: 2px solid var(--fg-muted);
+  opacity: 0.55;
+}
+.micStatus {
+  min-height: 3em;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.micStatus[data-mic-status='good'] {
+  color: var(--ok-text);
+}
+.micStatus[data-mic-status='loud'] {
+  color: var(--bad-text);
+}
+.micStatus strong {
+  font-family: var(--font-mono);
+  color: var(--fg);
+}
+.micDevice {
+  color: var(--fg-muted);
+}
+
+/* ---------- AI helper ---------- */
+.keyForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-width: 34rem;
+}
+.keyRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.keyText {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.keyHint {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  letter-spacing: 0.02em;
+}
+.keyState {
+  flex: none;
+}
+.keyButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* A segmented control as wide as its options, not as its card. (Two classes, so it holds whatever order the kit's own styles load in.) */
+.fields .fit {
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+}

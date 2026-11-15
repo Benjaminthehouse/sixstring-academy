@@ -1,5 +1,11 @@
-import { loadManifest } from '../../eval/fixtures';
+/**
+ * Development statistics (Node only): geometry of the ground truth in strip px, and the head
+ * features measured at the true head positions. Used to choose thresholds.
+ */
 import type { DegradeTier } from '../../eval/degrade';
+import { loadManifest } from '../../eval/fixtures';
+import { measureHead } from '../heads';
+import { buildStrip } from '../strip';
 import { boxToStrip, loadDevPage } from './strips';
 
 /** Print geometry statistics of the ground truth in strip px. */
@@ -33,9 +39,6 @@ export function explore(match: string, tier: DegradeTier): string[] {
   }
   return out;
 }
-
-import { measureHead } from '../heads';
-import { buildStrip } from '../strip';
 
 /** Distribution of the head features at the true head positions. */
 export function headStats(match: string, tier: DegradeTier): string[] {

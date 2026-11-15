@@ -213,19 +213,23 @@ export function gaussianBlur(src: GrayImage, sigma: number, out?: GrayImage | nu
   return dst;
 }
 
-/** Halve an image by averaging 2x2 blocks (odd trailing rows / columns are dropped). */
-export function halve(src: GrayImage, out?: GrayImage | null): GrayImage {
+/** Halve an image by averaging 2x2 blocks (odd trailing rows / columns are dropped). With a rectangle (pixels of the halved image) only that part is written. */
+export function halve(src: GrayImage, out?: GrayImage | null, rect?: PixelRect): GrayImage {
   const w = src.width >> 1;
   const h = src.height >> 1;
   const dst = ensureImage(w, h, out);
   const s = src.data;
   const d = dst.data;
   const W = src.width;
-  for (let y = 0; y < h; y++) {
+  const x0 = rect ? Math.max(0, rect.x0) : 0;
+  const x1 = rect ? Math.min(w - 1, rect.x1) : w - 1;
+  const y0 = rect ? Math.max(0, rect.y0) : 0;
+  const y1 = rect ? Math.min(h - 1, rect.y1) : h - 1;
+  for (let y = y0; y <= y1; y++) {
     const a = 2 * y * W;
     const b = a + W;
     const o = y * w;
-    for (let x = 0; x < w; x++) d[o + x] = 0.25 * (s[a + 2 * x] + s[a + 2 * x + 1] + s[b + 2 * x] + s[b + 2 * x + 1]);
+    for (let x = x0; x <= x1; x++) d[o + x] = 0.25 * (s[a + 2 * x] + s[a + 2 * x + 1] + s[b + 2 * x] + s[b + 2 * x + 1]);
   }
   return dst;
 }
@@ -245,11 +249,25 @@ export interface Pyramid {
 
 let HALF_SCRATCH: GrayImage | null = null;
 
-/** Build (or refill) the two-level pyramid of a working-frame grey image. */
-export function buildPyramid(gray: GrayImage, reuse?: Pyramid | null): Pyramid {
-  const fine = gaussianBlur(gray, SIGMA_FINE, reuse?.fine);
-  HALF_SCRATCH = halve(fine, HALF_SCRATCH);
-  const coarse = gaussianBlur(HALF_SCRATCH, SIGMA_COARSE, reuse?.coarse);
+/**
+ * Build (or refill) the two-level pyramid of a working-frame grey image. With a rectangle (working
+ * pixels) only that part of both levels is refreshed, which is all a tracker needs; whatever lies
+ * outside it is left over from earlier frames and must not be read.
+ */
+export function buildPyramid(gray: GrayImage, reuse?: Pyramid | null, rect?: PixelRect): Pyramid {
+  if (!rect || !reuse || reuse.fine.width !== gray.width || reuse.fine.height !== gray.height) {
+    const fine = gaussianBlur(gray, SIGMA_FINE, reuse?.fine);
+    HALF_SCRATCH = halve(fine, HALF_SCRATCH);
+    const coarse = gaussianBlur(HALF_SCRATCH, SIGMA_COARSE, reuse?.coarse);
+    return { fine, coarse };
+  }
+  const fine = gaussianBlur(gray, SIGMA_FINE, reuse.fine, rect);
+  // The halved image must be fresh a kernel radius beyond what the coarse blur writes; the fine
+  // level is fresh only inside `rect`, so the coarse rectangle is that much smaller.
+  const half: PixelRect = { x0: (rect.x0 + 1) >> 1, y0: (rect.y0 + 1) >> 1, x1: (rect.x1 - 1) >> 1, y1: (rect.y1 - 1) >> 1 };
+  HALF_SCRATCH = halve(fine, HALF_SCRATCH, half);
+  const r = (gaussianKernel(SIGMA_COARSE).length - 1) >> 1;
+  const coarse = gaussianBlur(HALF_SCRATCH, SIGMA_COARSE, reuse.coarse, { x0: half.x0 + r, y0: half.y0 + r, x1: half.x1 - r, y1: half.y1 - r });
   return { fine, coarse };
 }
 

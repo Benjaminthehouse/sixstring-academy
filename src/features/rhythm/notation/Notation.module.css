@@ -1,0 +1,71 @@
+/* Rhythm notation: ink on the page, tinted only where a note has been played. */
+.staff {
+  position: relative;
+  width: 100%;
+  color: var(--fg);
+}
+.svg {
+  display: block;
+  max-width: 100%;
+}
+.line {
+  fill: var(--fg-muted);
+}
+.note,
+.rest,
+.beam {
+  fill: currentColor;
+}
+.rest {
+  color: var(--fg);
+}
+.tuplet {
+  color: var(--fg-muted);
+}
+.tuplet text {
+  fill: currentColor;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+}
+.counts text {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.counts .countStrong {
+  fill: var(--fg);
+  font-weight: 700;
+}
+.counts .countFaint {
+  fill: var(--fg-faint);
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Verdict tints. Each is paired with a sign under the note, so colour is never the only signal. */
+.hit {
+  color: var(--ok);
+}
+.near {
+  color: var(--info);
+}
+.off {
+  color: var(--warn);
+}
+.miss {
+  color: var(--bad);
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}

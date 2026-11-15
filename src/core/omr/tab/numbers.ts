@@ -5,8 +5,8 @@
  * and turn correlation scores into confidences and alternatives.
  */
 import type { BinaryImage, GrayImage } from '../image/gray';
-import { type Box, type ClassScore, type GlyphPatch, type LineProfile, classifyPatch, correlate, correlateComposite, extractPatch, lineProfileAt } from './glyph';
-import { GLYPH_H } from './templates';
+import { type Box, type ClassScore, type GlyphPatch, type LineProfile, classifyPatch, correlate, correlateComposite, discriminate, extractPatch, lineInBox, lineProfileAt, refineBox, widthTolerance } from './glyph';
+import { GLYPH_H, struckTemplates } from './templates';
 import { type LineBlob, columnProfile, offLineExtent, profileValleys, tightBox } from './segment';
 import type { GlyphTemplate } from './templates';
 
@@ -28,6 +28,11 @@ export interface Glyph {
   fused: boolean;
   /** The glyph was cut out of a wider blob of touching glyphs. */
   split?: boolean;
+  /** The glyph comes from ink cut out of a larger shape (a chord column, a number with an arc on it). */
+  welded?: boolean;
+  /** The resampled picture of the glyph and the template set it was compared with (same indices as `ranked[].template`). */
+  patch?: GlyphPatch;
+  templates?: GlyphTemplate[];
 }
 
 /** A fret number: one or two digit glyphs on a line. */
@@ -61,16 +66,22 @@ export interface ReaderContext {
   lineYs: number[];
   space: number;
   lineThickness: number;
-  /** Digit height of the staff, strip px. */
+  /** Digit height of the staff, strip px: as boxed on the binarised strip, and of the ink proper (half-maximum outline). */
   digitHeight: number;
-  /** Templates at the blur level chosen for the staff. */
+  inkHeight: number;
+  /** How far below its line the centre of a digit sits on this staff, strip px (a property of the face and the engraver). */
+  centreOffset: number;
+  /** Templates at the blur level chosen for the staff, and that level (index into BLUR_LEVELS). */
   templates: GlyphTemplate[];
+  blurLevel: number;
   /** Line cross-sections already measured, by line and stretch of staff. */
   profiles: Map<number, LineProfile>;
   /** Read only digits (used while the blur level is being chosen). */
   digitsOnly?: boolean;
   /** Score penalty per template once the face of the staff is known (see `facePenalties`). */
   penalty?: Float32Array | null;
+  /** The faces that explain the staff best, best first (indices into the face list). */
+  topFaces?: number[];
   /**
    * The staff lines strike through the numbers of this staff (rather than being blanked behind
    * them). Only then is the line taken out of a glyph that hangs on it.
@@ -101,21 +112,90 @@ function profileFor(ctx: ReaderContext, line: number, x: number): LineProfile {
   return p;
 }
 
-/** Classify the content of a box. In a struck-through staff, `fused` boxes have the staff line taken out first. */
-export function readGlyph(ctx: ReaderContext, box: Box, line: number, fused: boolean): (Glyph & { patch: GlyphPatch }) | null {
-  const h = box.y1 - box.y0;
-  const w = box.x1 - box.x0;
-  if (h < 3 || w < 1.5) return null;
-  const patch = extractPatch(ctx.gray, box, fused && ctx.lineThrough ? profileFor(ctx, line, (box.x0 + box.x1) / 2) : null);
-  const relH = h / ctx.digitHeight;
-  const raw = classifyPatch(patch, ctx.templates, { relH, relHTolerance: 0.25, allow: ctx.digitsOnly ? (t) => t.cls < 10 : undefined, penalty: ctx.penalty });
+/**
+ * Classify the content of a box. In a struck-through staff, a glyph that hangs on its line has
+ * the line subtracted and is compared with templates struck by the same line.
+ */
+export function readGlyph(ctx: ReaderContext, rough: Box, line: number, fused: boolean): Glyph | null {
+  if (rough.y1 - rough.y0 < 3 || rough.x1 - rough.x0 < 1.5) return null;
+  let profile: LineProfile | null = null;
+  if (fused && ctx.lineThrough) {
+    profile = profileFor(ctx, line, (rough.x0 + rough.x1) / 2);
+    if (lineInBox(profile, rough).thickness <= 0) profile = null;
+  }
+  const box = refineBox(ctx.gray, rough, profile);
+  let templates = ctx.templates;
+  if (profile && !ctx.digitsOnly) {
+    const at = lineInBox(profile, box);
+    templates = struckTemplates(ctx.blurLevel, at.centre, at.thickness);
+  }
+  const patch = extractPatch(ctx.gray, box, profile);
+  const relH = (box.y1 - box.y0) / ctx.inkHeight;
+  const raw = classifyPatch(patch, templates, { relH, relHTolerance: 0.25, allow: ctx.digitsOnly ? (t) => !t.music && t.cls < 10 : (t) => !t.music, penalty: ctx.penalty });
   if (!raw.length) return null;
   const ranked = raw.map((r) => ({ ...r, score: r.score - (CLASS_PRIOR[r.label] ?? 0) })).sort((a, b) => b.score - a.score);
-  return { box, line, ranked, label: ranked[0].label, score: ranked[0].score, margin: ranked[0].score - (ranked[1]?.score ?? 0), fused, patch };
+  if (ctx.topFaces && ranked.length > 1 && ranked[0].cls <= 9 && ranked[0].score - ranked[1].score < CLOSE_CALL) settleCloseCall(patch, templates, ranked, ctx.topFaces);
+  return { box, line, ranked, label: ranked[0].label, score: ranked[0].score, margin: ranked[0].score - (ranked[1]?.score ?? 0), fused, patch, templates };
+}
+
+/** Lead below which the two best digit readings are compared face by face. */
+const CLOSE_CALL = 0.07;
+
+/**
+ * Two digits score almost alike. The overall best templates of the two may come from different
+ * faces (a light 0 against a bold 6), which blurs the comparison; so the two readings are put
+ * head to head inside each of the staff's likely faces, on the pixels where that face's two
+ * digits differ, and the verdicts are averaged. A clear verdict reorders the ranking; the scores
+ * are moved apart or together accordingly so the confidence follows.
+ */
+function settleCloseCall(patch: GlyphPatch, templates: GlyphTemplate[], ranked: ClassScore[], topFaces: number[]): void {
+  const first = ranked[0];
+  for (let k = 1; k < Math.min(3, ranked.length); k++) {
+    const other = ranked[k];
+    if (other.cls > 9 || first.score - other.score >= CLOSE_CALL) break;
+    let sum = 0;
+    let n = 0;
+    for (const f of topFaces) {
+      const pick = (cls: number): GlyphTemplate | null => {
+        let best: GlyphTemplate | null = null;
+        let bs = -2;
+        for (const t of templates) {
+          if (t.cls !== cls || t.music || !t.faces.includes(f) || Math.abs(t.w - patch.w) > widthTolerance(patch.w)) continue;
+          const s = correlate(patch, t);
+          if (s > bs) {
+            bs = s;
+            best = t;
+          }
+        }
+        return best;
+      };
+      const a = pick(first.cls);
+      const b = pick(other.cls);
+      if (!a || !b) continue;
+      sum += discriminate(patch, a, b);
+      n++;
+    }
+    if (!n) continue;
+    const verdict = sum / n;
+    // The head-to-head difference is about three times as sensitive as the overall scores.
+    const lead = first.score - other.score + 0.35 * verdict;
+    const mid = (first.score + other.score) / 2;
+    if (lead < 0) {
+      const a = { ...other, score: mid - lead / 2 };
+      const b = { ...first, score: mid + lead / 2 };
+      ranked[0] = a;
+      ranked[k] = b;
+      ranked.sort((x, y) => y.score - x.score);
+      return;
+    }
+    first.score = mid + lead / 2;
+    other.score = mid - lead / 2;
+  }
+  ranked.sort((x, y) => y.score - x.score);
 }
 
 /** Lowest correlation at which a glyph is accepted at all. */
-export const MIN_GLYPH_SCORE = 0.5;
+export const MIN_GLYPH_SCORE = 0.6;
 
 /** Sub-box between two columns, tightened to its ink; keeps the full height when the piece is clearly cut short. */
 function pieceBox(ctx: ReaderContext, box: Box, xa: number, xb: number): Box | null {
@@ -159,25 +239,40 @@ function readRun(ctx: ReaderContext, atoms: LineBlob[]): RunReading {
       if (box.x1 - ext.x1 >= 2) box.x1 = ext.x1;
     }
   }
-  const w = box.x1 - box.x0;
-  const h = box.y1 - box.y0;
-  if (h < 0.45 * hd || h > 1.75 * hd || w > 2.3 * hd) return nothing;
-  if (Math.abs((box.y0 + box.y1) / 2 - ctx.lineYs[line]) > 0.34 * hd) return nothing;
+  let w = box.x1 - box.x0;
+  let h = box.y1 - box.y0;
+  if (h < 0.45 * hd || h > 2.4 * hd || w > 2.3 * hd) return nothing;
   // The worth of a glyph grows with its width: explaining a whole digit well beats explaining
   // its two halves passably.
   const worth = (g: Glyph): number => ((g.box.x1 - g.box.x0) / hd) * (g.score - 0.5);
-  const single = readGlyph(ctx, box, line, fused);
+  const centred = (b: Box): boolean => Math.abs((b.y0 + b.y1) / 2 - ctx.lineYs[line]) <= 0.34 * hd;
+  let single = h <= 1.75 * hd && centred(box) ? readGlyph(ctx, box, line, fused) : null;
+  if (h > 1.15 * hd) {
+    // Taller than a digit: something hangs on it (the end of a tie, a stem). Look at the part
+    // where a digit of this staff would be, and keep whichever reads better.
+    const mid = ctx.lineYs[line] + ctx.centreOffset;
+    const cut = tightBox(ctx.noLines, { x0: box.x0, y0: Math.max(box.y0, mid - 0.56 * hd), x1: box.x1, y1: Math.min(box.y1, mid + 0.56 * hd) });
+    if (cut && cut.y1 - cut.y0 >= 0.7 * hd) {
+      const clipped = readGlyph(ctx, cut, line, true);
+      if (clipped && (!single || clipped.score > single.score)) {
+        single = clipped;
+        box.x0 = cut.x0; box.y0 = cut.y0; box.x1 = cut.x1; box.y1 = cut.y1;
+        w = box.x1 - box.x0;
+        h = box.y1 - box.y0;
+      }
+    }
+  }
+  if (h > 1.75 * hd || !centred(box)) return nothing;
   const mustSplit = w > 1.02 * hd;
   const digitHigh = h >= 0.7 * hd && h <= 1.3 * hd;
-  if (!digitHigh || w < 0.56 * hd || (single && single.score >= 0.9 && !mustSplit)) {
+  if (!digitHigh || w < 0.6 * hd || (single && single.score >= 0.9 && !mustSplit)) {
     return single && single.score >= MIN_GLYPH_SCORE && !mustSplit ? { glyphs: [single], value: worth(single) } : nothing;
   }
   const profile = columnProfile(ctx.gray, box, fused ? { lineY: ctx.lineYs[line], band: ctx.lineThickness / 2 + 2 } : null);
   // Two touching glyphs? Lay the best pair of templates over the whole blob and compare that
   // with the blob read as one glyph: both scores are then about the same pixels.
   let best: { left: Glyph; right: Glyph; s: number } | null = null;
-  const k = GLYPH_H / h;
-  for (const cut of profileValleys(profile, 0.2 * hd, 4)) {
+  for (const cut of profileValleys(profile, 0.2 * hd, 3)) {
     const lb = pieceBox(ctx, box, box.x0, Math.floor(box.x0) + cut);
     const rb = pieceBox(ctx, box, Math.floor(box.x0) + cut, box.x1);
     if (!lb || !rb) continue;
@@ -187,10 +282,12 @@ function readRun(ctx: ReaderContext, atoms: LineBlob[]): RunReading {
     // A blob no wider than one digit is two glyphs only if both are digits and one is a 1.
     if (!mustSplit && !(isDigitLabel(left.label) && isDigitLabel(right.label) && (left.label === '1' || right.label === '1'))) continue;
     let s = Math.min(left.score, right.score);
-    if (single) {
+    if (single?.patch && left.templates && right.templates) {
+      // Columns of the whole blob's patch that each half is meant to explain.
+      const k = GLYPH_H / (single.box.y1 - single.box.y0);
       s = correlateComposite(single.patch, [
-        { t: ctx.templates[left.ranked[0].template], c0: (lb.x0 - box.x0) * k, c1: (lb.x1 - box.x0) * k },
-        { t: ctx.templates[right.ranked[0].template], c0: (rb.x0 - box.x0) * k, c1: (rb.x1 - box.x0) * k },
+        { t: left.templates[left.ranked[0].template], c0: (left.box.x0 - single.box.x0) * k, c1: (left.box.x1 - single.box.x0) * k },
+        { t: right.templates[right.ranked[0].template], c0: (right.box.x0 - single.box.x0) * k, c1: (right.box.x1 - single.box.x0) * k },
       ]) - Math.max(CLASS_PRIOR[left.label] ?? 0, CLASS_PRIOR[right.label] ?? 0);
     }
     if (!best || s > best.s) best = { left: { ...left, split: true }, right: { ...right, split: true }, s };
@@ -206,8 +303,25 @@ function readRun(ctx: ReaderContext, atoms: LineBlob[]): RunReading {
  * into runs of up to three pieces whose readings are best overall.
  */
 export function readCluster(ctx: ReaderContext, atoms: LineBlob[]): Glyph[] {
+  const glyphs = readClusterRaw(ctx, atoms);
+  if (!atoms.some((a) => a.welded)) return glyphs;
+  // Ink cut out of a larger shape may be anything; it counts as a glyph only when it reads well.
+  return glyphs.filter((g) => {
+    const from = atoms.some((a) => a.welded && a.box.x1 > g.box.x0 && a.box.x0 < g.box.x1);
+    if (from) g.welded = true;
+    return !from || g.score >= WELDED_MIN_SCORE;
+  });
+}
+
+/** Lowest correlation at which a glyph cut out of a larger shape is accepted. */
+export const WELDED_MIN_SCORE = 0.72;
+
+function readClusterRaw(ctx: ReaderContext, atoms: LineBlob[]): Glyph[] {
   const k = atoms.length;
   if (k === 1) return readRun(ctx, atoms).glyphs;
+  // A long chain of pieces is not a number but dirt along the line (or a line broken into
+  // crumbs): read the pieces one by one rather than try every way of joining them.
+  if (k > 10) return atoms.flatMap((a) => readRun(ctx, [a]).glyphs);
   const best: { value: number; prev: number; glyphs: Glyph[] }[] = [{ value: 0, prev: -1, glyphs: [] }];
   for (let i = 1; i <= k; i++) {
     let pick: { value: number; prev: number; glyphs: Glyph[] } | null = null;
@@ -329,12 +443,51 @@ function asDigit(g: Glyph): Glyph | null {
  * Turn the glyphs of one string line into numbers. Digits closer than `maxGap` form one number;
  * an x is a dead note; brackets mark the number they enclose; a technique letter or slash counts
  * only where it stands next to a number (otherwise it is re-read as the digit it resembles most,
- * or dropped), and is attached to the number before it.
+ * or dropped), and is attached to the number before it. `inkHeight` (height of the digits' ink)
+ * lets a tall "1" beside a number be recognised as the bracket it is.
  */
-export function assembleLine(glyphs: Glyph[], digitHeight: number, maxGap = 0.36 * digitHeight): TabNumber[] {
+export function assembleLine(glyphs: Glyph[], digitHeight: number, maxGap = 0.36 * digitHeight, inkHeight = 0): TabNumber[] {
   const hd = digitHeight;
   let row = glyphs.slice().sort((a, b) => a.box.x0 - b.box.x0);
   const numberLike = (g: Glyph | undefined): boolean => !!g && (isDigitLabel(g.label) || g.label === 'x');
+  // Brackets come in pairs. A 1 that could as well be a bracket IS one when its partner stands
+  // on the other side of the number: "1 5 )" is "(5)", and "( 5 1" is too.
+  const could = (g: Glyph | undefined, label: string): boolean => !!g && g.label === '1' && g.ranked.some((r) => r.label === label && r.score >= g.score - 0.25 && r.score >= 0.45);
+  const relabel = (g: Glyph, label: string): Glyph => {
+    const hit = g.ranked.find((r) => r.label === label) as ClassScore;
+    return { ...g, label, score: hit.score, margin: 0, ranked: [hit, ...g.ranked.filter((r) => r !== hit)] };
+  };
+  // A bracket is taller than the digits it encloses. A "1" that tall, with a bracket among its
+  // readings and a digit on its inner side, is the bracket (the pair rule below still applies).
+  if (inkHeight > 0) {
+    for (let i = 0; i < row.length; i++) {
+      const g = row[i];
+      if (g.label !== '1' || g.box.y1 - g.box.y0 < 1.14 * inkHeight) continue;
+      const next = row[i + 1];
+      const prev = row[i - 1];
+      if (could(g, '(') && next && isDigitLabel(next.label) && next.box.y1 - next.box.y0 < 1.1 * inkHeight && next.box.x0 - g.box.x1 <= 0.6 * hd) row[i] = relabel(g, '(');
+      else if (could(g, ')') && prev && isDigitLabel(prev.label) && prev.box.y1 - prev.box.y0 < 1.1 * inkHeight && g.box.x0 - prev.box.x1 <= 0.6 * hd) row[i] = relabel(g, ')');
+    }
+  }
+  for (let i = 0; i < row.length; i++) {
+    const g = row[i];
+    const pair = g.label === '(' || g.label === '<' ? (g.label === '(' ? ')' : '>') : g.label === ')' || g.label === '>' ? (g.label === ')' ? '(' : '<') : null;
+    if (!pair) continue;
+    const forward = g.label === '(' || g.label === '<';
+    const step = forward ? 1 : -1;
+    // The digits of the number, then the glyph beyond them.
+    let k = i + step;
+    let digits = 0;
+    while (row[k] && isDigitLabel(row[k].label) && digits < 2) {
+      k += step;
+      digits++;
+    }
+    if (digits >= 1 && row[k]?.label === pair) continue; // the partner is there
+    // No partner: the outermost "digit" is it, if it is a 1 that could be a bracket and a digit remains inside.
+    const outer = k - step;
+    if (digits >= 2 && could(row[outer], pair)) row[outer] = relabel(row[outer], pair);
+    else if (digits === 1 && row[k] && could(row[k], pair) && Math.abs(row[k].box.x0 - g.box.x0) <= 3.2 * hd) row[k] = relabel(row[k], pair);
+  }
   // Marks need a number beside them.
   const kept: Glyph[] = [];
   for (let i = 0; i < row.length; i++) {
@@ -348,10 +501,24 @@ export function assembleLine(glyphs: Glyph[], digitHeight: number, maxGap = 0.36
     const gapL = prev ? g.box.x0 - prev.box.x1 : Infinity;
     const gapR = next ? next.box.x0 - g.box.x1 : Infinity;
     let ok = false;
-    if (g.label === '(' || g.label === '<') ok = numberLike(next) && gapR <= 0.6 * hd;
-    else if (g.label === ')' || g.label === '>') ok = numberLike(prev) && gapL <= 0.6 * hd;
-    else if (LEGATO_MARKS.has(g.label)) ok = (numberLike(prev) || prev?.label === ')') && gapL <= 1.4 * hd && (numberLike(next) || next?.label === '(') && gapR <= 1.4 * hd;
-    else if (AFTER_MARKS.has(g.label)) ok = (numberLike(prev) || prev?.label === ')') && gapL <= 1.4 * hd;
+    // A bracket needs its number AND its partner on the far side of it: a lone "<" is more likely
+    // the end of a slide stroke than half a harmonic.
+    const partner = (from: number, step: number, label: string): boolean => {
+      let k = from + step;
+      let digits = 0;
+      while (row[k] && numberLike(row[k]) && digits < 2) {
+        k += step;
+        digits++;
+      }
+      return digits >= 1 && row[k]?.label === label;
+    };
+    if (g.label === '(' || g.label === '<') ok = numberLike(next) && gapR <= 0.6 * hd && partner(i, 1, g.label === '(' ? ')' : '>');
+    else if (g.label === ')' || g.label === '>') ok = numberLike(prev) && gapL <= 0.6 * hd && partner(i, -1, g.label === ')' ? '(' : '<');
+    else if (LEGATO_MARKS.has(g.label)) {
+      // "5h7": the letter leans on the number before it, or stands between two numbers.
+      const left = (numberLike(prev) || prev?.label === ')') && gapL <= 1.4 * hd;
+      ok = left && (gapL <= 0.5 * hd || ((numberLike(next) || next?.label === '(') && gapR <= 1.4 * hd));
+    } else if (AFTER_MARKS.has(g.label)) ok = (numberLike(prev) || prev?.label === ')') && gapL <= 1.4 * hd;
     if (ok) {
       kept.push(g);
       continue;
@@ -415,8 +582,8 @@ export function assembleLine(glyphs: Glyph[], digitHeight: number, maxGap = 0.36
  * shape that only an unlikely face draws - a dotted zero in a staff set in a plain sans - has to
  * win by a margin. Null when fewer than five glyphs read clearly.
  */
-export function facePenalties(glyphs: (Glyph & { patch?: GlyphPatch })[], templates: GlyphTemplate[], faceCount: number, strength = 0.7, cap = 0.08): Float32Array | null {
-  const sure = glyphs.filter((g) => g.patch && isDigitLabel(g.label) && g.score >= 0.8 && g.margin >= 0.06);
+export function facePenalties(glyphs: Glyph[], templates: GlyphTemplate[], faceCount: number, strength = 0.7, cap = 0.08, ratings?: number[]): Float32Array | null {
+  const sure = glyphs.filter((g) => g.patch && g.templates && isDigitLabel(g.label) && g.score >= 0.8 && g.margin >= 0.06);
   if (sure.length < 5) return null;
   const step = Math.max(1, Math.floor(sure.length / 36));
   const sum = new Float32Array(faceCount);
@@ -427,8 +594,8 @@ export function facePenalties(glyphs: (Glyph & { patch?: GlyphPatch })[], templa
     const patch = g.patch as GlyphPatch;
     const cls = g.ranked[0].cls;
     best.fill(-1);
-    for (const t of templates) {
-      if (t.cls !== cls || Math.abs(t.w - patch.w) > Math.max(3, 0.42 * patch.w)) continue;
+    for (const t of g.templates as GlyphTemplate[]) {
+      if (t.cls !== cls || t.music || Math.abs(t.w - patch.w) > widthTolerance(patch.w)) continue;
       let s = -1;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s = Math.max(s, correlate(patch, t, dx, dy));
       for (const f of t.faces) if (s > best[f]) best[f] = s;
@@ -441,6 +608,7 @@ export function facePenalties(glyphs: (Glyph & { patch?: GlyphPatch })[], templa
   }
   let top = 0;
   for (let f = 0; f < faceCount; f++) top = Math.max(top, sum[f] / Math.max(1, cnt[f]));
+  if (ratings) for (let f = 0; f < faceCount; f++) ratings[f] = sum[f] / Math.max(1, cnt[f]);
   const out = new Float32Array(templates.length);
   templates.forEach((t, i) => {
     let near = Infinity;

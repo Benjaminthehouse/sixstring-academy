@@ -4,6 +4,7 @@
  * hanging from the fourth line, half rest sitting on the middle line, the others centred).
  */
 import type { DurationValue } from '../types';
+import { inkBox } from './header';
 import { type Match, matchAt, searchMatch } from './match';
 import { ownBox } from './marks';
 import { type SBox, dotsAt } from './notes';
@@ -19,8 +20,10 @@ export interface RestMark {
   dots: number;
   dotBoxes: SBox[];
   alternatives: { value: DurationValue; score: number }[];
-  /** Voice: 1 unless the rest is displaced for a second voice. */
+  /** Voice: 1 unless the staff has two voices. */
   voice: number;
+  /** Printed away from its usual height (to make room for another voice). */
+  displaced: boolean;
 }
 
 const RESTS: { value: DurationValue; glyph: string; pos: number }[] = [
@@ -103,6 +106,9 @@ export function readRests(strip: Strip, xFrom: number, xTo: number, opts: RestOp
     const top = found[0];
     if (!top || top.m.score < minScore) continue;
     const b = boxOf(top.m);
+    // The ink under the glyph must be about as tall as the glyph: a fat dot is not an eighth rest.
+    const ib = inkBox(strip, b.x0, b.y0, b.x1, b.y1);
+    if (!ib || ib.y1 - ib.y0 < 0.7 * top.m.template.glyphHeight) continue;
     ownBox(strip, b, CLAIM.rest, 0.4);
     owner[id] = CLAIM.rest;
     // Augmentation dots sit in the third space, right of the glyph.
@@ -117,7 +123,8 @@ export function readRests(strip: Strip, xFrom: number, xTo: number, opts: RestOp
       dots: dots.length,
       dotBoxes: dots,
       alternatives: found.slice(1, 3).filter((f) => f.m.score > 0.35).map((f) => ({ value: f.value, score: f.m.score })),
-      voice: top.shift === 0 ? 1 : top.shift > 0 ? 1 : 2,
+      voice: 1,
+      displaced: top.shift !== 0,
     });
   }
   out.sort((a, b) => a.x - b.x);

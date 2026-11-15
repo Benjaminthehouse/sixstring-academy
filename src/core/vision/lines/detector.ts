@@ -67,12 +67,67 @@ interface Workspace {
   grad?: Gradients;
 }
 
-interface Candidate {
+/** One board hypothesis of the bottom-up search, in working-image pixels. */
+export interface LineCandidate {
   H: Mat3;
   refine: RefineResult;
   comb: Comb;
   fit: FretFit;
   confidence: number;
+}
+
+type Candidate = LineCandidate;
+
+/** Acceptance thresholds of the bottom-up search; see the fields of the same names in `LineDetectorOptions`. */
+export type LineLimits = Pick<Required<LineDetectorOptions>, 'minFrets' | 'minSupport' | 'minStringsLooked' | 'minStringSupport' | 'minJointSupport' | 'minConfidence'>;
+
+/** The working image of a frame as the line stages see it: smoothed luminance and frame pixels per working pixel. */
+export interface LineView {
+  img: Image32;
+  factor: number;
+}
+
+/** Outcome of `LineDetector.propose`. */
+export interface LineProposal {
+  /** The best board candidate that passed the limits, or null. */
+  best: LineCandidate | null;
+  /** Why there is none (or why the last candidate examined was turned down). */
+  reason: string;
+}
+
+/** The line-structure detector with its stages exposed, so the production pipeline can combine them with the alignment stages. */
+export interface LineDetector extends Detector {
+  /** Build the working image of a frame; valid until the next `prepare`, `detect` or `track`. */
+  prepare(frame: Frame): LineView;
+  /** `Detector.track`, optionally on a view already prepared for this frame. */
+  track(frame: Frame, previousPose: FretboardPose, options?: DetectOptions, view?: LineView): DetectionResult;
+  /** The line evidence behind the pose `track` returned last (null after a failed track or a reset). */
+  lastTrackEvidence(): RefineResult | null;
+  /** Bottom-up search on a prepared view under the given limits (default: the detector's own). */
+  propose(view: LineView, model: NeckModel, options?: DetectOptions, limits?: Partial<LineLimits>, diagnostics?: { timings: Record<string, number>; stats: Record<string, number>; features?: DiagnosticFeature[] }): LineProposal;
+}
+
+/** Confidence (0..1) of a refined pose from how much of the predicted comb, its edges and its fit the image supports. */
+export function lineConfidence(r: RefineResult): number {
+  const frets = Math.min(1, r.fretsFound / 9);
+  const edges = 0.5 + 0.5 * r.edgeSupport;
+  const fit = Number.isFinite(r.residualPx) ? 1 / (1 + (r.residualPx / 2.5) * (r.residualPx / 2.5)) : 0.5;
+  return Math.max(0, Math.min(1, r.support * (0.4 + 0.6 * frets) * edges * (0.5 + 0.5 * fit)));
+}
+
+/**
+ * Why a refined pose is not a fretboard under the given limits, or null when it passes: enough of
+ * the comb supported, six strings in the cells, no wires in the gaps, a convincing total.
+ */
+export function lineVerdict(refined: RefineResult, lim: LineLimits): string | null {
+  if (refined.fretsFound < lim.minFrets + 1 || refined.support < lim.minSupport) return 'weak-support';
+  // Six strings running through the cells are what a ladder, a keyboard or a shelf of books lack.
+  if (refined.stringsLooked < lim.minStringsLooked || refined.stringSupport < lim.minStringSupport || refined.support * refined.stringSupport < lim.minJointSupport) return 'no-strings';
+  // Wires in the gaps: the comb in the image is not the comb of the model (half a fret off, or twice as dense).
+  if (refined.antiSupport > 0.3 && refined.antiSupport > 0.5 * refined.support) return 'wires-between-wires';
+  // Every figure just above its own threshold is not a board: wrong poses cluster down here.
+  if (lineConfidence(refined) < lim.minConfidence) return 'unconvincing';
+  return null;
 }
 
 const DEFAULTS: Required<LineDetectorOptions> = { workingWidth: 640, maxAxes: 8, maxBands: 6, minFrets: 5, minSupport: 0.5, minTrackSupport: 0.42, minStringsLooked: 18, minStringSupport: 0.4, minJointSupport: 0.33, minConfidence: 0.39, debug: false };
@@ -290,6 +345,25 @@ function nearestNumbering(pose: FretboardPose, earlier: FretboardPose): { delta:
   return { delta: nearest - mid, distance: Math.hypot(where.x - at.x, where.y - at.y) / spacing };
 }
 
+/**
+ * Fret numbers for a pose whose own numbering is unsure, from an earlier trusted pose of the same
+ * neck: by aspect when the strings are locked (any amount of sliding along the neck is fine), else
+ * by nearness. Returns the whole-fret shift for `pose` and the confidence it deserves, or null.
+ */
+export function carryNumbering(pose: FretboardPose, earlier: FretboardPose, stringsLocked: boolean): { delta: number; confidence: number } | null {
+  const scaled = earlier.frameWidth === pose.frameWidth ? earlier : { ...earlier, H: scaleH(earlier.H, pose.frameWidth / earlier.frameWidth) };
+  const near = nearestNumbering(pose, scaled);
+  if (stringsLocked) {
+    const byAspect = numberingFromEarlier(pose, scaled);
+    if (byAspect && byAspect.residual < 0.25) {
+      const agree = near !== null && near.delta === byAspect.delta && near.distance < 0.4;
+      return { delta: byAspect.delta, confidence: earlier.numberingConfidence * (agree ? 0.98 : byAspect.residual < 0.12 ? 0.9 : 0.7) };
+    }
+  }
+  if (near && near.distance < 0.3) return { delta: near.delta, confidence: earlier.numberingConfidence * 0.7 };
+  return null;
+}
+
 interface TrackState {
   /** The last pose handed out (in frame pixels) and the one before it, with their capture times. */
   last: FretboardPose;
@@ -314,12 +388,13 @@ function sameH(a: Mat3, b: Mat3): boolean {
 }
 
 /** Create the line-structure detector. */
-export function createLineDetector(options: LineDetectorOptions = {}): Detector {
+export function createLineDetector(options: LineDetectorOptions = {}): LineDetector {
   const cfg: Required<LineDetectorOptions> = { ...DEFAULTS, ...options };
   const ws: Workspace = {};
   let state: TrackState | null = null;
   let anchor: Anchor | null = null;
   let clock = 0;
+  let tracked: RefineResult | null = null;
   const remember = (pose: FretboardPose, time: number | undefined, r: RefineResult, continues: boolean): void => {
     const t = time ?? clock + 33;
     clock = t;
@@ -336,24 +411,6 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     if (pose.numbering !== 'assumed' && pose.numberingConfidence >= 0.5) anchor = { pose, time: t };
   };
 
-  /**
-   * Fret numbers for a pose whose own numbering is unsure, from an earlier trusted pose: by aspect
-   * when the strings are locked (any amount of sliding along the neck is fine), else by nearness.
-   */
-  const carryNumbering = (pose: FretboardPose, earlier: FretboardPose, stringsLocked: boolean): { delta: number; confidence: number } | null => {
-    const scaled = earlier.frameWidth === pose.frameWidth ? earlier : { ...earlier, H: scaleH(earlier.H, pose.frameWidth / earlier.frameWidth) };
-    const near = nearestNumbering(pose, scaled);
-    if (stringsLocked) {
-      const byAspect = numberingFromEarlier(pose, scaled);
-      if (byAspect && byAspect.residual < 0.25) {
-        const agree = near !== null && near.delta === byAspect.delta && near.distance < 0.4;
-        return { delta: byAspect.delta, confidence: earlier.numberingConfidence * (agree ? 0.98 : byAspect.residual < 0.12 ? 0.9 : 0.7) };
-      }
-    }
-    if (near && near.distance < 0.3) return { delta: near.delta, confidence: earlier.numberingConfidence * 0.7 };
-    return null;
-  };
-
   const prepare = (frame: Frame): { img: Image32; factor: number } => {
     const factor = workingFactor(frame.width, cfg.workingWidth);
     ws.gray = toWorkingGray(frame, factor, ws.gray);
@@ -363,12 +420,7 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     return { img: ws.smooth, factor };
   };
 
-  const confidenceOf = (r: RefineResult): number => {
-    const frets = Math.min(1, r.fretsFound / 9);
-    const edges = 0.5 + 0.5 * r.edgeSupport;
-    const fit = Number.isFinite(r.residualPx) ? 1 / (1 + (r.residualPx / 2.5) * (r.residualPx / 2.5)) : 0.5;
-    return Math.max(0, Math.min(1, r.support * (0.4 + 0.6 * frets) * edges * (0.5 + 0.5 * fit)));
-  };
+  const confidenceOf = lineConfidence;
 
   /** The board is still there: enough of the comb is supported and, where they can be seen, the strings are too. */
   const trackOk = (r: RefineResult, stringsSeen = 1): boolean => {
@@ -378,6 +430,132 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     // too coarse for the strings must still track on the wires alone).
     if (stringsSeen >= 0.6 && r.stringsLooked >= cfg.minStringsLooked) return r.stringSupport >= 0.3 && r.support * r.stringSupport >= 0.25;
     return r.support >= cfg.minTrackSupport + 0.15;
+  };
+
+  /** The bottom-up search: lines -> axes -> bands -> comb -> fret pattern -> homography -> refinement, best candidate under `lim`. */
+  const search = (img: Image32, factor: number, model: NeckModel, options: DetectOptions, lim: LineLimits, timings: Record<string, number>, stats: Record<string, number>, features: DiagnosticFeature[] | undefined): LineProposal => {
+    let clock = performance.now();
+    const lap = (stage: string): void => {
+      const now = performance.now();
+      timings[stage] = (timings[stage] ?? 0) + now - clock;
+      clock = now;
+    };
+    ws.grad = sobel(img, ws.grad);
+    lap('gradient');
+    const { lines } = detectLines(ws.grad);
+    lap('lines');
+    stats.lines = lines.length;
+    if (features) {
+      for (const l of lines.slice(0, 40)) {
+        const [a, b] = lineEndpoints(l);
+        features.push({ kind: 'line', points: [{ x: a.x * factor, y: a.y * factor }, { x: b.x * factor, y: b.y * factor }] });
+      }
+    }
+    if (lines.length === 0) return { best: null, reason: 'no-lines' };
+
+    const region = regionBounds(options.region);
+    const axes = clusterAxes(lines, 7, 0.25 * img.height, cfg.maxAxes);
+    stats.axes = axes.length;
+    stats.bands = 0;
+    let best: Candidate | null = null;
+    let reason = 'no-band';
+
+    /** Full analysis of one band: comb -> fret pattern -> homography -> refinement. */
+    const evaluate = (band: BandQuad): Candidate | null => {
+      const comb = analyseBand(img, band);
+      lap('comb');
+      if (!comb || comb.frets.length < lim.minFrets) {
+        reason = 'no-comb';
+        return null;
+      }
+      if (features) features.push(quadFeature('band', comb.band, factor, `${comb.frets.length}`));
+      if (region) {
+        // A region hint: the comb must sit inside it (its candidates' centre of mass, in frame pixels).
+        let cx = 0;
+        let cy = 0;
+        for (const f of comb.frets) {
+          cx += (f.p0.x + f.p1.x) / 2;
+          cy += (f.p0.y + f.p1.y) / 2;
+        }
+        cx = (cx / comb.frets.length) * factor;
+        cy = (cy / comb.frets.length) * factor;
+        if (cx < region.x || cx > region.x + region.width || cy < region.y || cy > region.y + region.height) {
+          reason = 'outside-region';
+          return null;
+        }
+      }
+      const lay = layout(comb, options);
+      const candidates = comb.frets.map((f) => ({ u: f.u, weight: f.weight }));
+      // Hypotheses: the best comb any camera could have produced, and (when frets are hidden, so that
+      // the number of hidden ones is in doubt) the best comb consistent with how the band tapers.
+      const fits: FretFit[] = [];
+      const wide = fitFretPattern(candidates, { direction: lay.direction, minInliers: lim.minFrets });
+      if (wide) fits.push(wide);
+      if (!wide || wide.missing >= 2 || wide.inliers <= 8) {
+        // Few wires, or wires hidden: spacing alone leaves the perspective (and with it the number of
+        // hidden wires) open, and the taper of the band has to settle it.
+        const narrow = fitFretPattern(candidates, { direction: lay.direction, depthRatio: depthRange(comb, model, lay.direction), minInliers: lim.minFrets });
+        if (narrow && !(wide && sameLabels(wide, narrow) && Math.abs(Math.log(wide.depthRatio / narrow.depthRatio)) < 0.08)) fits.unshift(narrow);
+      }
+      lap('fit');
+      if (fits.length === 0) {
+        reason = 'no-fret-pattern';
+        return null;
+      }
+      let top: Candidate | null = null;
+      for (const fit of fits) {
+        // Provisional numbering: the lowest matched wire is called the nut. The numbering stage shifts it.
+        const H0 = composeHomography(comb, fit, lay.bassEdge, model, 0);
+        if (!H0) {
+          reason = 'degenerate-fit';
+          continue;
+        }
+        const view = checkPlausibleView(H0, model, img.width, img.height, { mirrored: options.mirrored ?? false, leftHanded: options.leftHanded ?? false, minSpan: 0.08, maxSpan: 6, maxLogAspect: Math.log(3.6), maxSkew: 0.5, maxTiltDeg: 80, maxScaleRatio: 4.5 });
+        if (!view.plausible) {
+          reason = `implausible-${view.reasons[0]}`;
+          continue;
+        }
+        const refined = refinePose(img, H0, model, { polarity: band.polarity, windows: [0.3, 0.2], evidence: true, fromFret: -6 });
+        lap('refine');
+        if (!refined) {
+          reason = 'refine-failed';
+          continue;
+        }
+        const verdict = lineVerdict(refined, lim);
+        if (verdict) {
+          reason = verdict;
+          continue;
+        }
+        const confidence = confidenceOf(refined);
+        if (!top || confidence > top.confidence) top = { H: refined.H, refine: refined, comb, fit, confidence };
+        // A reading that the image supports this well needs no second opinion.
+        if (confidence > 0.6) break;
+      }
+      if (features && top) {
+        const fit = top.fit;
+        comb.frets.forEach((f, i) => {
+          features.push({ kind: fit.indices[i] === null ? 'spurious' : 'fret', points: [{ x: f.p0.x * factor, y: f.p0.y * factor }, { x: f.p1.x * factor, y: f.p1.y * factor }] });
+        });
+      }
+      return top;
+    };
+
+    // Axes are examined strongest first, and the search stops at the first convincing board.
+    const seen: BandQuad[] = [];
+    search: for (const axis of axes) {
+      const bands = findBands(img, axis, { minFrets: lim.minFrets });
+      lap('bands');
+      for (const band of bands) {
+        if (seen.some((other) => sameBand(other, band))) continue;
+        seen.push(band);
+        stats.bands++;
+        const candidate = evaluate(band);
+        if (candidate && (!best || candidate.confidence > best.confidence)) best = candidate;
+        if (best && best.confidence > 0.7) break search;
+        if (seen.length >= cfg.maxBands) break search;
+      }
+    }
+    return { best, reason };
   };
 
   const detect = (frame: Frame, input: DetectOptions = {}): DetectionResult => {
@@ -405,135 +583,8 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     // neck in front of the camera, and keeping it makes old and new poses comparable; else the preset.
     const model = typeof options.model === 'object' ? neckModel(options.model) : options.previousPose ? options.previousPose.model : neckModel(options.model ?? 'steel');
     lap('gray');
-    ws.grad = sobel(img, ws.grad);
-    lap('gradient');
-    const { lines } = detectLines(ws.grad);
-    lap('lines');
-    stats.lines = lines.length;
-    if (features) {
-      for (const l of lines.slice(0, 40)) {
-        const [a, b] = lineEndpoints(l);
-        features.push({ kind: 'line', points: [{ x: a.x * factor, y: a.y * factor }, { x: b.x * factor, y: b.y * factor }] });
-      }
-    }
-    if (lines.length === 0) return finish(null, 'no-lines');
-
-    const region = regionBounds(options.region);
-    const axes = clusterAxes(lines, 7, 0.25 * img.height, cfg.maxAxes);
-    stats.axes = axes.length;
-    stats.bands = 0;
-    let best: Candidate | null = null;
-    let reason = 'no-band';
-
-    /** Full analysis of one band: comb -> fret pattern -> homography -> refinement. */
-    const evaluate = (band: BandQuad): Candidate | null => {
-      const comb = analyseBand(img, band);
-      lap('comb');
-      if (!comb || comb.frets.length < cfg.minFrets) {
-        reason = 'no-comb';
-        return null;
-      }
-      if (features) features.push(quadFeature('band', comb.band, factor, `${comb.frets.length}`));
-      if (region) {
-        // A region hint: the comb must sit inside it (its candidates' centre of mass, in frame pixels).
-        let cx = 0;
-        let cy = 0;
-        for (const f of comb.frets) {
-          cx += (f.p0.x + f.p1.x) / 2;
-          cy += (f.p0.y + f.p1.y) / 2;
-        }
-        cx = (cx / comb.frets.length) * factor;
-        cy = (cy / comb.frets.length) * factor;
-        if (cx < region.x || cx > region.x + region.width || cy < region.y || cy > region.y + region.height) {
-          reason = 'outside-region';
-          return null;
-        }
-      }
-      const lay = layout(comb, options);
-      const candidates = comb.frets.map((f) => ({ u: f.u, weight: f.weight }));
-      // Hypotheses: the best comb any camera could have produced, and (when frets are hidden, so that
-      // the number of hidden ones is in doubt) the best comb consistent with how the band tapers.
-      const fits: FretFit[] = [];
-      const wide = fitFretPattern(candidates, { direction: lay.direction, minInliers: cfg.minFrets });
-      if (wide) fits.push(wide);
-      if (!wide || wide.missing >= 2 || wide.inliers <= 8) {
-        // Few wires, or wires hidden: spacing alone leaves the perspective (and with it the number of
-        // hidden wires) open, and the taper of the band has to settle it.
-        const narrow = fitFretPattern(candidates, { direction: lay.direction, depthRatio: depthRange(comb, model, lay.direction), minInliers: cfg.minFrets });
-        if (narrow && !(wide && sameLabels(wide, narrow) && Math.abs(Math.log(wide.depthRatio / narrow.depthRatio)) < 0.08)) fits.unshift(narrow);
-      }
-      lap('fit');
-      if (fits.length === 0) {
-        reason = 'no-fret-pattern';
-        return null;
-      }
-      let top: Candidate | null = null;
-      for (const fit of fits) {
-        // Provisional numbering: the lowest matched wire is called the nut. The numbering stage shifts it.
-        const H0 = composeHomography(comb, fit, lay.bassEdge, model, 0);
-        if (!H0) {
-          reason = 'degenerate-fit';
-          continue;
-        }
-        const view = checkPlausibleView(H0, model, img.width, img.height, { mirrored: options.mirrored ?? false, leftHanded: options.leftHanded ?? false, minSpan: 0.08, maxSpan: 6, maxLogAspect: Math.log(3.6), maxSkew: 0.5, maxTiltDeg: 80, maxScaleRatio: 4.5 });
-        if (!view.plausible) {
-          reason = `implausible-${view.reasons[0]}`;
-          continue;
-        }
-        const refined = refinePose(img, H0, model, { polarity: band.polarity, windows: [0.3, 0.2], evidence: true, fromFret: -6 });
-        lap('refine');
-        if (!refined) {
-          reason = 'refine-failed';
-          continue;
-        }
-        if (refined.fretsFound < cfg.minFrets + 1 || refined.support < cfg.minSupport) {
-          reason = 'weak-support';
-          continue;
-        }
-        // Six strings running through the cells are what a ladder, a keyboard or a shelf of books lack.
-        if (refined.stringsLooked < cfg.minStringsLooked || refined.stringSupport < cfg.minStringSupport || refined.support * refined.stringSupport < cfg.minJointSupport) {
-          reason = 'no-strings';
-          continue;
-        }
-        // Wires in the gaps: the comb in the image is not the comb of the model (half a fret off, or twice as dense).
-        if (refined.antiSupport > 0.3 && refined.antiSupport > 0.5 * refined.support) {
-          reason = 'wires-between-wires';
-          continue;
-        }
-        const confidence = confidenceOf(refined);
-        // Every figure just above its own threshold is not a board: wrong poses cluster down here.
-        if (confidence < cfg.minConfidence) {
-          reason = 'unconvincing';
-          continue;
-        }
-        if (!top || confidence > top.confidence) top = { H: refined.H, refine: refined, comb, fit, confidence };
-        // A reading that the image supports this well needs no second opinion.
-        if (confidence > 0.6) break;
-      }
-      if (features && top) {
-        const fit = top.fit;
-        comb.frets.forEach((f, i) => {
-          features.push({ kind: fit.indices[i] === null ? 'spurious' : 'fret', points: [{ x: f.p0.x * factor, y: f.p0.y * factor }, { x: f.p1.x * factor, y: f.p1.y * factor }] });
-        });
-      }
-      return top;
-    };
-
-    // Axes are examined strongest first, and the search stops at the first convincing board.
-    const seen: BandQuad[] = [];
-    search: for (const axis of axes) {
-      const bands = findBands(img, axis, { minFrets: cfg.minFrets });
-      lap('bands');
-      for (const band of bands) {
-        if (seen.some((other) => sameBand(other, band))) continue;
-        seen.push(band);
-        stats.bands++;
-        const candidate = evaluate(band);
-        if (candidate && (!best || candidate.confidence > best.confidence)) best = candidate;
-        if (best && best.confidence > 0.7) break search;
-        if (seen.length >= cfg.maxBands) break search;
-      }
-    }
+    const { best, reason } = search(img, factor, model, options, cfg, timings, stats, features);
+    clock = performance.now();
     if (!best) return finish(null, reason);
     stats.support = best.refine.support;
     stats.fretsFound = best.refine.fretsFound;
@@ -609,15 +660,16 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     return finish(pose);
   };
 
-  const track = (frame: Frame, previousPose: FretboardPose, options: DetectOptions = {}): DetectionResult => {
+  const track = (frame: Frame, previousPose: FretboardPose, options: DetectOptions = {}, view?: LineView): DetectionResult => {
     const t0 = performance.now();
     const timings: Record<string, number> = {};
     const done = (pose: FretboardPose | null, reason?: string, stats?: Record<string, number>): DetectionResult => {
       timings.total = performance.now() - t0;
       return { pose, diagnostics: { timings, reason, stats } };
     };
+    tracked = null;
     if (!frame || frame.width < 32 || frame.height < 32 || !previousPose) return done(null, 'bad-input');
-    const { img, factor } = prepare(frame);
+    const { img, factor } = view ?? prepare(frame);
     timings.gray = performance.now() - t0;
     // The previous pose may refer to a frame of another size (e.g. the display canvas).
     const toWork = (pose: FretboardPose): Mat3 => {
@@ -694,7 +746,7 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     }
     timings.refine = performance.now() - t0 - timings.gray;
     if (!refined) return done(null, 'lost-no-evidence');
-    const stats: Record<string, number> = { support: refined.support, antiSupport: refined.antiSupport, fretsFound: refined.fretsFound, edgeSupport: refined.edgeSupport, stringSupport: refined.stringSupport, residualPx: refined.residualPx };
+    const stats: Record<string, number> = { support: refined.support, antiSupport: refined.antiSupport, fretsFound: refined.fretsFound, edgeSupport: refined.edgeSupport, edgeError: refined.edgeError, edgeShift: refined.edgeShift, stringSupport: refined.stringSupport, stringsLooked: refined.stringsLooked, residualPx: refined.residualPx, polarity: refined.polarity };
     if (!trackOk(refined, seen)) return done(null, refined.stringsLooked >= cfg.minStringsLooked && refined.stringSupport < 0.3 ? 'lost-no-strings' : 'lost-weak-support', stats);
 
     // A whole-fret slip keeps every wire on a wire but changes the scale along the neck by 5.9%
@@ -730,6 +782,7 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     // A confirmation tap overrides the numbers being carried.
     if (options.fretHint) pose = confirmFretAt(pose, options.fretHint.point, options.fretHint.fret) ?? pose;
     remember(pose, now, refined, mine !== null);
+    tracked = refined;
     return done(pose, undefined, stats);
   };
 
@@ -737,10 +790,14 @@ export function createLineDetector(options: LineDetectorOptions = {}): Detector 
     name: 'lines',
     detect,
     track,
+    prepare,
+    lastTrackEvidence: () => tracked,
+    propose: (view, model, options = {}, limits = {}, diagnostics) => search(view.img, view.factor, model, options, { ...cfg, ...limits }, diagnostics?.timings ?? {}, diagnostics?.stats ?? {}, diagnostics?.features),
     reset: () => {
       state = null;
       anchor = null;
       clock = 0;
+      tracked = null;
     },
   };
 }

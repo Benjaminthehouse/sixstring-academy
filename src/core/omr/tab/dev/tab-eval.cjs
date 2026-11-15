@@ -9,6 +9,7 @@
  *   node src/core/omr/tab/dev/tab-eval.cjs --fixtures               # also one line per fixture
  *   node src/core/omr/tab/dev/tab-eval.cjs --rebuild                # rebuild the cache (after the foundation changed)
  *   node src/core/omr/tab/dev/tab-eval.cjs --seed 2                 # another draw of the degradations
+ *   node src/core/omr/tab/dev/tab-eval.cjs --own                    # the reader's own pages: technique marks, held-out faces, bass tab
  *
  * The official numbers are those of src/core/omr/eval/cli.cjs; this tool scores the same way
  * (matching by box centre within 0.6 staff space) but in strip coordinates.
@@ -34,6 +35,7 @@ const flag = (name) => args.includes(name);
       rebuild: flag('--rebuild'),
       dump: flag('--dump'),
       show: flag('--show'),
+      own: flag('--own'),
       explain: flag('--explain'),
       noDuration: flag('--no-dur'),
       log: (l) => console.log(l),

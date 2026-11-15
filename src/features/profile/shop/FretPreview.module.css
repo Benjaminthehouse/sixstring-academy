@@ -1,0 +1,87 @@
+/*
+ * The neck drawn in a wood and an inlay style. Woods without a token of their own are mixed from
+ * the instrument-material tokens (which are the same in both themes: wood is wood), so no colour
+ * is typed here.
+ */
+.board {
+  --wood: var(--fb-wood);
+  --grain: var(--fb-wood-2);
+  --marker: var(--fb-inlay);
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+}
+.swatch {
+  width: 3.5rem;
+  height: 3.5rem;
+  flex: none;
+  border-radius: var(--r-md);
+}
+
+.board[data-wood='rosewood'] {
+  --wood: var(--fb-wood);
+  --grain: var(--fb-wood-2);
+}
+.board[data-wood='maple'] {
+  --wood: var(--fb-wood-light);
+  --grain: color-mix(in srgb, var(--fb-wood-light) 82%, var(--fb-wood));
+  --marker: var(--fb-dot-edge);
+}
+.board[data-wood='ebony'] {
+  --wood: color-mix(in srgb, var(--fb-wood-2) 40%, var(--fb-dot-edge));
+  --grain: var(--fb-dot-edge);
+}
+.board[data-wood='pau-ferro'] {
+  --wood: color-mix(in srgb, var(--fb-wood) 68%, var(--fb-wood-light));
+  --grain: var(--fb-wood);
+}
+.board[data-wood='roasted-maple'] {
+  --wood: color-mix(in srgb, color-mix(in srgb, var(--fb-wood-light) 72%, var(--fb-wood)) 80%, var(--deg-2));
+  --grain: color-mix(in srgb, var(--fb-wood-light) 45%, var(--fb-wood));
+  --marker: var(--fb-dot-edge);
+}
+.board[data-wood='koa'] {
+  --wood: color-mix(in srgb, color-mix(in srgb, var(--fb-wood-light) 62%, var(--deg-3)) 76%, var(--fb-wood));
+  --grain: color-mix(in srgb, var(--fb-wood) 70%, var(--deg-2));
+  --marker: var(--fb-dot-edge);
+}
+
+.wood {
+  fill: var(--wood);
+}
+.grain path {
+  fill: none;
+  stroke: var(--grain);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+/* Koa is a figured wood: its grain is broad and plain to see. */
+.board[data-wood='koa'] .grain path {
+  stroke-width: 4;
+  opacity: 0.4;
+}
+.inlay {
+  fill: var(--marker);
+}
+.stem {
+  fill: none;
+  stroke: var(--marker);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.frets line {
+  stroke: var(--fb-fret);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.nut {
+  fill: var(--fb-nut);
+}
+.plain {
+  stroke: var(--fb-string);
+}
+.wound {
+  stroke: var(--fb-string-wound);
+}

@@ -6,13 +6,16 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { dumpDir } from '../../eval/debug';
 import { type DegradeTier, degrade } from '../../eval/degrade';
 import { loadFixture, loadManifest } from '../../eval/fixtures';
+import { readPngGray } from '../../eval/png';
+import type { GrayImage } from '../../image/gray';
 import { matchStaves } from '../../eval/metrics';
 import { tierSeed } from '../../eval/runner';
-import type { FixtureMeta, GroundTruth, GtTabStaff } from '../../eval/truth';
+import { type FixtureMeta, type GroundTruth, type GtTabStaff, hydrateTruth } from '../../eval/truth';
 import { analyzePage, extractStaff } from '../../page';
 import type { BarlineType, DurationValue, StaffInput } from '../../types';
 
@@ -23,6 +26,12 @@ export interface CachedNote {
   /** x0, y0, x1, y1 in strip px. */
   box: [number, number, number, number];
   event: number;
+  tieStop?: boolean;
+  /** Extras of the reader's own fixtures: dead note, brackets, and the mark after the number. */
+  dead?: boolean;
+  paren?: boolean;
+  harmonic?: boolean;
+  mark?: string | null;
 }
 
 /** A ground-truth event in strip coordinates. */
@@ -87,8 +96,29 @@ export function cacheDir(): string {
 const pageFile = (id: string, tier: string, seed: number): string => join(cacheDir(), `${id}.${tier}.s${seed}.json`);
 const stripFile = (id: string, tier: string, seed: number, k: number): string => join(cacheDir(), `${id}.${tier}.s${seed}.${k}.bin.gz`);
 
-/** Fixtures that contain a tab staff. */
-export function tabFixtures(match?: string): FixtureMeta[] {
+/** Directory of the tab reader's own fixtures (technique marks, held-out faces, bass tab). */
+export function ownFixturesDir(): string {
+  return fileURLToPath(new URL('../fixtures/', import.meta.url));
+}
+
+/** The tab reader's own fixtures (written by scripts/omr-digit-templates.cjs --fixtures). */
+export function ownFixtures(match?: string): FixtureMeta[] {
+  const file = join(ownFixturesDir(), 'manifest.json');
+  if (!existsSync(file)) return [];
+  const doc = JSON.parse(readFileSync(file, 'utf8')) as { fixtures: FixtureMeta[] };
+  return doc.fixtures.filter((m) => !match || m.id.includes(match));
+}
+
+/** Load a fixture of the shared corpus or one of the reader's own (those carry the tag 'tech' or 'held-out'). */
+export function loadAnyFixture(meta: FixtureMeta): { gray: GrayImage; truth: GroundTruth } {
+  if (!meta.tags.includes('tech') && !meta.tags.includes('held-out')) return loadFixture(meta);
+  const dir = ownFixturesDir();
+  return { gray: readPngGray(join(dir, meta.image)), truth: hydrateTruth(JSON.parse(readFileSync(join(dir, meta.truth), 'utf8'))) };
+}
+
+/** Fixtures that contain a tab staff: the shared corpus, or (with `own`) the reader's own pages. */
+export function tabFixtures(match?: string, own = false): FixtureMeta[] {
+  if (own) return ownFixtures(match);
   return loadManifest().filter((m) => m.subset !== 'notation' && (!match || m.id.includes(match)));
 }
 
@@ -102,7 +132,7 @@ export function cachePage(meta: FixtureMeta, tier: DegradeTier, seed = 1, force 
   const file = pageFile(meta.id, tier, seed);
   if (!force && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8')) as CachedPage;
   mkdirSync(cacheDir(), { recursive: true });
-  const fx = loadFixture(meta);
+  const fx = loadAnyFixture(meta);
   const d = degrade(fx.gray, fx.truth, tier, tierSeed(meta.id, tier, seed));
   const truth = d.truth as GroundTruth;
   const analysis = analyzePage(d.gray);
@@ -136,7 +166,10 @@ export function cachePage(meta: FixtureMeta, tier: DegradeTier, seed = 1, force 
           hidden: !!e.hidden,
           box: e.type === 'rest' && e.bbox ? boxToStrip(input, e.bbox) : undefined,
         });
-        for (const n of e.notes) notes.push({ string: n.string, fret: n.fret, box: boxToStrip(input, n.bbox), event: k });
+        for (const n of e.notes) {
+          const x = n as typeof n & { dead?: boolean; paren?: boolean; harmonic?: boolean; mark?: string | null };
+          notes.push({ string: n.string, fret: n.fret, box: boxToStrip(input, n.bbox), event: k, tieStop: n.tieStop || undefined, dead: x.dead || undefined, paren: x.paren || undefined, harmonic: x.harmonic || undefined, mark: x.mark ?? undefined });
+        }
       }
     });
     const k = out.strips.length;
@@ -179,8 +212,14 @@ export function cachePage(meta: FixtureMeta, tier: DegradeTier, seed = 1, force 
   return out;
 }
 
+/** One stand-in "page image" per cached page, so that the strips of a page share what a real page's staves share. */
+const pageObjects = new Map<string, { width: number; height: number; data: Uint8Array }>();
+
 /** Rebuild a `StaffInput` from the cache. Strip px double as "page" px (identity transforms). */
 export function loadStrip(meta: CachedStripMeta, k: number, seed = 1): StaffInput {
+  const pageKey = `${meta.fixture}|${meta.tier}|${seed}`;
+  let pageGray = pageObjects.get(pageKey);
+  if (!pageGray || k === 0) pageObjects.set(pageKey, (pageGray = { width: 1, height: 1, data: new Uint8Array(1) }));
   const buf = gunzipSync(readFileSync(stripFile(meta.fixture, meta.tier, seed, k)));
   const n = meta.width * meta.height;
   const gray = { width: meta.width, height: meta.height, data: new Uint8Array(buf.subarray(0, n)) };
@@ -216,6 +255,6 @@ export function loadStrip(meta: CachedStripMeta, k: number, seed = 1): StaffInpu
     toPageBox: (x, y, w, h) => ({ x, y, w, h }),
     fromPage: (x, y) => ({ x, y }),
     partnerIndex: meta.partnerIndex,
-    page: { gray, width: meta.width, height: meta.height },
+    page: { gray: pageGray, width: meta.width, height: meta.height },
   };
 }

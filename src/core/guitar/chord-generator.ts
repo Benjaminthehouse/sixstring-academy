@@ -6,13 +6,17 @@
  * the bass and can be fingered with four fingers, and scores them for ease and for how much they
  * sound like something a guitarist would actually play. Curated library shapes are merged in and
  * ranked first where they fit.
+ *
+ * Nothing comes back that a hand cannot hold, and no chord comes back empty: where a tuning has no
+ * room for the whole chord (a 13th chord on a four-string bass) the search gives up what matters
+ * least, step by step, and the voicings say so in `omitted` and `rootless`.
  */
 import { chord as parseChord, chordTones, note as parseNote, type Chord, type ChordTone } from '@/core/theory';
-import { libraryVoicings } from './chord-library';
+import { curatedBonus, libraryCoverage, libraryVoicings } from './chord-library';
 import type { NeckOptions } from './fretboard';
 import { tuning, type Tuning } from './tunings';
 import {
-  assignFingers, findBarres, tryBuildVoicing, voicingDifficulty, type Frets, type Voicing, type VoicingCategory,
+  assignFingers, essentialTones, findBarres, hasBassRegister, tryBuildVoicing, voicingDifficulty, type Frets, type Voicing, type VoicingCategory,
 } from './voicing';
 
 /** What to look for. */
@@ -21,11 +25,14 @@ export interface VoicingSearchOptions extends NeckOptions {
   minFret?: number;
   /** Highest fret a fretted note may use (default 15). */
   maxFret?: number;
-  /** Frets the fretted notes may span, inclusive (default 4). Shapes with open strings get one more. */
+  /** Frets the fretted notes may span, inclusive (default 4: one finger per fret). 5 also admits one-fret stretches. */
   maxSpan?: number;
   /** May open strings ring? Default true, within the first five frets; `'always'` allows them under any position. */
   allowOpen?: boolean | 'always';
-  /** Must the lowest note be the root (or the slash bass)? Default true; false also returns inversions. */
+  /**
+   * Must the lowest note be the root (or the slash bass)? Default true (false on ukuleles and
+   * re-entrant tunings, which have no bass register); false also returns inversions.
+   */
   rootInBass?: boolean;
   /** Only these strings may sound (string numbers, 1 = thinnest). */
   strings?: number[];
@@ -40,7 +47,7 @@ export interface VoicingSearchOptions extends NeckOptions {
   top?: string;
   /** Muted strings allowed between sounding ones (default 1). */
   innerMutes?: number;
-  /** Drop anything harder than this (1–10). */
+  /** Drop anything harder than this (1–10). Default 9, waived when a chord has nothing easier in the tuning. */
   maxDifficulty?: number;
   /** How many voicings to return (default 12). */
   maxResults?: number;
@@ -51,8 +58,15 @@ export interface VoicingSearchOptions extends NeckOptions {
 interface Candidate {
   frets: Array<number | null>;
   score: number;
+  difficulty: number;
   library: Voicing | null;
 }
+
+/**
+ * Shapes harder than this are left out unless the caller sets `maxDifficulty` or nothing easier
+ * exists: a hand can hold them, but nobody should be handed one as "a way to play this chord".
+ */
+const DEFAULT_MAX_DIFFICULTY = 9;
 
 /** How much a curated shape outranks a computed one of the same quality: the more a shape is "the" way to play a chord, the more. */
 const LIBRARY_BONUS: Record<VoicingCategory, number> = {
@@ -82,12 +96,21 @@ interface Plan {
   maxNotes: number;
   maxSpan: number;
   innerMutes: number;
+  /** The caller asked for voicings without the root: shapes that contain it are refused. */
   rootless: boolean;
-  /** True when the instrument has fewer strings than the chord has essential tones, so some had to go. */
+  /** True when tones the chord needs had to go: too few strings for them, or nothing playable with all of them. */
   incomplete: boolean;
 }
 
-function makePlan(c: Chord, t: Tuning, capo: number, opts: VoicingSearchOptions): Plan {
+/**
+ * How far the search may be relaxed when the full chord cannot be played in a tuning (C13b9 on a
+ * four-string bass): 1 opens the hand (one more muted string inside, a five-fret span), 2 lets the
+ * root go, each further step drops the least important tone that is left.
+ */
+const MAX_RELAX = 6;
+
+/** The plan for a search, or null when `relax` asks for more than can be given up. */
+function makePlan(c: Chord, t: Tuning, capo: number, opts: VoicingSearchOptions, relax = 0): Plan | null {
   const tones = chordTones(c);
   const byPc = new Map<number, ChordTone>();
   for (const tone of tones) {
@@ -97,19 +120,22 @@ function makePlan(c: Chord, t: Tuning, capo: number, opts: VoicingSearchOptions)
   const rootPc = parseNote(c.root).chroma;
   const strings = opts.strings?.length ?? t.stringCount;
   const rootless = (opts.rootless ?? false) && tones.length >= 4;
-  // Start from the tones theory says a voicing must keep; then make it fit the strings there are.
-  let keep = tones.filter((tone) => !tone.omittable && !(rootless && tone.role === 'root'));
-  if (c.type.id === '7alt') keep = tones.filter((tone) => ['root', 'third', 'seventh'].includes(tone.role) && !(rootless && tone.role === 'root'));
+  // Start from the tones a voicing must keep; then make it fit the strings there are.
+  let keep = essentialTones(c).filter((tone) => !(rootless && tone.role === 'root'));
   const room = Math.min(strings, opts.maxNotes ?? strings);
-  if (keep.length > room) keep = keep.filter((tone) => tone.role !== 'root');
-  const incomplete = keep.length > room;
-  while (keep.length > room) {
-    // Still too many: drop the least important tone that is left.
+  if (keep.length > room || (relax >= 2 && keep.length > 2)) keep = keep.filter((tone) => tone.role !== 'root');
+  // Too many tones for the strings, or told to give some up: the least important tone goes first.
+  let incomplete = false;
+  let drop = Math.max(0, relax - 2);
+  while (keep.length > room || (drop > 0 && keep.length > 2)) {
+    if (keep.length <= room) drop--;
     const worst = keep.reduce((a, b) => (b.priority >= a.priority ? b : a));
     keep = keep.filter((tone) => tone !== worst);
+    incomplete = true;
   }
+  if (drop > 0) return null;
   const foreign = c.bass && c.inversion === null ? parseNote(c.bass).chroma : null;
-  const wantsRootBass = opts.rootInBass ?? !t.reentrant;
+  const wantsRootBass = opts.rootInBass ?? hasBassRegister(t);
   const bassPc = rootless ? null : c.bass ? parseNote(c.bass).chroma : wantsRootBass && keep.some((tone) => tone.role === 'root') ? rootPc : null;
   const fewest = c.type.intervals.length <= 2 ? 2 : Math.min(3, strings);
   return {
@@ -119,8 +145,8 @@ function makePlan(c: Chord, t: Tuning, capo: number, opts: VoicingSearchOptions)
     topPc: opts.top ? parseNote(opts.top).chroma : null,
     minNotes: Math.max(2, opts.minNotes ?? fewest),
     maxNotes: opts.maxNotes ?? t.stringCount,
-    maxSpan: opts.maxSpan ?? 4,
-    innerMutes: opts.innerMutes ?? 1,
+    maxSpan: opts.maxSpan ?? (relax >= 1 ? 5 : 4),
+    innerMutes: opts.innerMutes ?? (relax >= 1 ? 2 : 1),
     rootless,
     incomplete,
   };
@@ -184,16 +210,20 @@ function scoreShape(plan: Plan, frets: Frets, difficulty: number): number {
   // Fuller is better for a strummed chord, up to five strings (three for a power chord, which lives on the low strings).
   const power = plan.tones.length <= 2;
   score += 4 * Math.min(power ? 3 : 5, midi.length);
-  if (power) score += 0.5 * (t.stringCount - 1 - sounding[0]);
-  score -= 5 * (sounding[sounding.length - 1] - sounding[0] + 1 - sounding.length);
+  if (power) score += 2 * (t.stringCount - 1 - sounding[0]) - (sounding[0] > 2 ? 8 : 0);
+  // A hole in the middle of a chord has to be damped; in a power chord it has no business at all.
+  score -= (power ? 10 : 5) * (sounding[sounding.length - 1] - sounding[0] + 1 - sounding.length);
+  // A ukulele is strummed whole: every string left out is one to dodge.
+  if (!hasBassRegister(t)) score -= 4 * (t.stringCount - sounding.length);
   const counts = new Map<number, number>();
   for (const m of midi) counts.set(mod12(m), (counts.get(mod12(m)) ?? 0) + 1);
   const alt = plan.c.type.id === '7alt';
   if (alt) {
     // The usual reading of "alt": one altered ninth and one altered fifth.
     const has = (semis: number) => counts.has(mod12(plan.rootPc + semis));
-    if (has(1) || has(3)) score += 5;
-    if (has(6) || has(8)) score += 5;
+    const ninth = has(1) || has(3);
+    const fifth = has(6) || has(8);
+    score += ninth && fifth ? 16 : ninth || fifth ? 5 : 0;
   }
   for (const tone of plan.tones) {
     const pc = parseNote(tone.note).chroma;
@@ -204,7 +234,7 @@ function scoreShape(plan: Plan, frets: Frets, difficulty: number): number {
     else if (n > 1 && tone.role !== 'root' && tone.role !== 'fifth') score -= (tone.role === 'third' ? 2 : 3) * (n - 1);
   }
   const sorted = [...midi].sort((a, b) => a - b);
-  if (mod12(sorted[0]) === plan.rootPc) score += 6;
+  if (mod12(sorted[0]) === plan.rootPc && hasBassRegister(t)) score += 6;
   // A third (or closer) right above a low bass note is mud.
   if (sorted.length > 1 && sorted[1] - sorted[0] <= 4 && sorted[0] < 48) score -= 6;
   for (let i = 1; i < sorted.length; i++) {
@@ -227,7 +257,8 @@ function scoreShape(plan: Plan, frets: Frets, difficulty: number): number {
     if (tone && ['ninth', 'eleventh', 'thirteenth'].includes(tone.role) && m < floor) score -= tone.altered ? 12 : 5;
   }
   score -= 1.5 * Math.max(0, base - 3) + Math.max(0, base - 9);
-  if (hasOpen) score += base <= 3 ? 5 : base <= 5 ? -3 : -8;
+  // Open strings ring best under the first frets. (A power chord gains nothing from one unless it is its root.)
+  if (hasOpen && !(power && frets[sounding[0]] !== 0)) score += base <= 3 ? 5 : base <= 5 ? -3 : -8;
   // A chord that stops short of the two highest strings loses its sparkle.
   if (sounding[sounding.length - 1] < t.stringCount - 2 && plan.tones.length > 2) score -= 3;
   return score;
@@ -257,7 +288,7 @@ function search(plan: Plan, opts: VoicingSearchOptions): Candidate[] {
     // Each shape is found once: in the window that starts at its lowest fretted fret.
     if (anyFretted ? Math.min(...pressed) !== base : base !== minFret) return;
     const hasOpen = frets.some((f) => f === 0);
-    if (pressed.length && Math.max(...pressed) - base + 1 > plan.maxSpan + (hasOpen ? 1 : 0)) return;
+    if (pressed.length && Math.max(...pressed) - base + 1 > plan.maxSpan) return;
     if (hasOpen && allowOpen !== 'always' && base > 5) return;
     if (!acceptable(plan, frets)) return;
     const key = frets.join(',');
@@ -268,7 +299,7 @@ function search(plan: Plan, opts: VoicingSearchOptions): Candidate[] {
     if (findBarres(frets, fingering.fingers).length > 2) return;
     const difficulty = voicingDifficulty(frets, fingering.fingers);
     if (opts.maxDifficulty !== undefined && difficulty > opts.maxDifficulty) return;
-    found.set(key, { frets: [...frets], score: scoreShape(plan, frets, difficulty), library: null });
+    found.set(key, { frets: [...frets], score: scoreShape(plan, frets, difficulty), difficulty, library: null });
   };
 
   // The search is a tree of one choice per string. Three things keep it small: a sounding block may
@@ -300,7 +331,7 @@ function search(plan: Plan, opts: VoicingSearchOptions): Candidate[] {
       const previous = index > 0 ? frets[index - 1] : null;
       for (const fret of toneFrets[index]) {
         if (fret < base) continue;
-        if (fret > base + plan.maxSpan) break;
+        if (fret > base + plan.maxSpan - 1) break;
         const nowUnits = units + (fret > base && fret !== previous ? 1 : 0);
         if (nowUnits > 3) continue;
         frets[index] = fret;
@@ -311,8 +342,18 @@ function search(plan: Plan, opts: VoicingSearchOptions): Candidate[] {
   };
 
   for (let base = minFret; base <= maxFret; base++) walk(0, base, false, 0, 0, 0, 0);
-  (globalThis as Record<string, unknown>).__leaves = SEARCH_BUDGET - budget;
   return [...found.values()];
+}
+
+const SMALL_FAMILIES: readonly VoicingCategory[] = ['triad', 'shell', 'drop2', 'drop3'];
+
+/** What a curated voicing is worth over a computed one in a tuning. */
+function libraryBonus(t: Tuning, v: Voicing): number {
+  // A movable family that lands on open strings is a slice of some open chord: it competes as any computed shape does.
+  if (SMALL_FAMILIES.includes(v.category) && !v.movable) return 0;
+  // With a seventh string below them, the six-string power chords are no longer the lowest ones there are.
+  if (v.category === 'power' && t.stringCount > 6) return 10;
+  return LIBRARY_BONUS[v.category] + curatedBonus(v);
 }
 
 /** True when a library voicing respects the search options that restrict where and what may sound. */
@@ -321,7 +362,7 @@ function libraryFits(plan: Plan, v: Voicing, opts: VoicingSearchOptions): boolea
   if (pressed.length && Math.min(...pressed) < (opts.minFret ?? 1)) return false;
   if (pressed.length && Math.max(...pressed) > (opts.maxFret ?? 15)) return false;
   if (opts.allowOpen === false && !v.movable) return false;
-  if (v.span > plan.maxSpan + (v.movable ? 0 : 1)) return false;
+  if (v.span > plan.maxSpan) return false;
   const strings = v.notes.map((n) => n.string);
   if (Math.max(...strings) - Math.min(...strings) + 1 - strings.length > plan.innerMutes) return false;
   if (opts.maxDifficulty !== undefined && v.difficulty > opts.maxDifficulty) return false;
@@ -360,49 +401,35 @@ function describe(plan: Plan, frets: Frets): { label?: string; category?: Voicin
   return {};
 }
 
-/**
- * How two shapes relate when one is the other with strings muted and the bass note is the same:
- * the number of strings they differ by, or 0 when they are different voicings. A small chord
- * on the high strings is not a "thinner" version of a full barre: its bass is an octave up.
- */
-function mutedTwin(plan: Plan, a: Frets, b: Frets): number {
-  let onlyA = 0;
-  let onlyB = 0;
-  let lowA = Infinity;
-  let lowB = Infinity;
-  for (let i = 0; i < a.length; i++) {
-    const fa = a[i];
-    const fb = b[i];
-    if (fa !== null) lowA = Math.min(lowA, plan.t.midi[i] + fa);
-    if (fb !== null) lowB = Math.min(lowB, plan.t.midi[i] + fb);
-    if (fa === fb) continue;
-    if (fa !== null && fb !== null) return 0;
-    if (fa === null) onlyB++;
-    else onlyA++;
+/** True when `small` sounds only strings that `big` sounds, at the same frets, and fewer of them. */
+function isSlice(small: Frets, big: Frets): boolean {
+  let fewer = false;
+  for (let i = 0; i < small.length; i++) {
+    if (small[i] === big[i]) continue;
+    if (small[i] !== null) return false;
+    fewer = true;
   }
-  if ((onlyA > 0 && onlyB > 0) || lowA !== lowB) return 0;
-  return onlyA + onlyB;
+  return fewer;
 }
 
-/** Complete shapes one search may examine. A six-string chord needs a few thousand; this only bites on a dozen strings. */
-const SEARCH_BUDGET = 40_000_000;
+/**
+ * Complete shapes one search may examine. The largest chord takes about 55 000 on six strings,
+ * 190 000 on seven and 570 000 on eight with default options (1.1 million on seven with every
+ * option opened up), so this only bites on instruments with nine strings or more.
+ */
+const SEARCH_BUDGET = 2_000_000;
 
 const CACHE = new Map<string, Voicing[]>();
-const CACHE_LIMIT = 600;
+const CACHE_LIMIT = 2000;
 
 function cacheKey(c: Chord, t: Tuning, capo: number, opts: VoicingSearchOptions, generatedOnly: boolean): string {
   const rest: Record<string, unknown> = { ...opts, tuning: undefined, capo: undefined };
   return `${c.symbol}|${t.id}|${t.midi.join(',')}|${capo}|${generatedOnly ? 'g' : 'a'}|${JSON.stringify(rest)}`;
 }
 
-function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOnly: boolean): Voicing[] {
-  const c = parseChord(chordInput);
-  const t = tuning(opts.tuning);
-  const capo = opts.capo ?? 0;
-  const key = cacheKey(c, t, capo, opts, generatedOnly);
-  const cached = CACHE.get(key);
-  if (cached) return [...cached];
-  const plan = makePlan(c, t, capo, opts);
+/** Every candidate shape of one plan: the search, with the curated shapes that fit merged in. */
+function gather(plan: Plan, opts: VoicingSearchOptions, generatedOnly: boolean): Map<string, Candidate> {
+  const { c, t, capo } = plan;
   const candidates = new Map<string, Candidate>();
   for (const cand of search(plan, opts)) candidates.set(cand.frets.join(','), cand);
   if (!generatedOnly && opts.library !== false) {
@@ -411,10 +438,52 @@ function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOn
       if (!libraryFits(plan, v, opts)) continue;
       const id = v.frets.join(',');
       const base = candidates.get(id)?.score ?? scoreShape(plan, v.frets, v.difficulty);
-      candidates.set(id, { frets: v.frets, score: base + LIBRARY_BONUS[v.category], library: v });
+      candidates.set(id, { frets: v.frets, score: base + libraryBonus(t, v), difficulty: v.difficulty, library: v });
+    }
+    // In a drop tuning the open chords grow downward: drop D exists to play D as 000232, not xx0232.
+    // The fullest shape that adds only open strings to a curated open chord takes its place.
+    if (libraryCoverage(t) === 'partial') {
+      for (const v of curated) {
+        if (v.category !== 'open') continue;
+        let fullest: Candidate | null = null;
+        for (const cand of candidates.values()) {
+          if (cand.library || !isSlice(v.frets, cand.frets) || cand.frets.some((f, i) => f !== v.frets[i] && f !== 0)) continue;
+          if (!fullest || cand.frets.filter((f) => f !== null).length > fullest.frets.filter((f) => f !== null).length) fullest = cand;
+        }
+        if (!fullest) continue;
+        fullest.score += LIBRARY_BONUS.open + curatedBonus(v);
+        candidates.delete(v.frets.join(','));
+      }
     }
   }
-  const ranked = [...candidates.values()].sort((a, b) => b.score - a.score || a.frets.join(',').localeCompare(b.frets.join(',')));
+  return candidates;
+}
+
+function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOnly: boolean): Voicing[] {
+  const c = parseChord(chordInput);
+  const t = tuning(opts.tuning);
+  const capo = opts.capo ?? 0;
+  const key = cacheKey(c, t, capo, opts, generatedOnly);
+  const cached = CACHE.get(key);
+  if (cached) {
+    // Recently used entries are the last to go.
+    CACHE.delete(key);
+    CACHE.set(key, cached);
+    return [...cached];
+  }
+  // When the chord as written cannot be played here, give up what matters least until something can.
+  let plan = makePlan(c, t, capo, opts)!;
+  let candidates = gather(plan, opts, generatedOnly);
+  for (let relax = 1; !candidates.size && relax <= MAX_RELAX; relax++) {
+    const relaxed = makePlan(c, t, capo, opts, relax);
+    if (!relaxed) break;
+    plan = relaxed;
+    candidates = gather(plan, opts, generatedOnly);
+  }
+  let ranked = [...candidates.values()].sort((a, b) => b.score - a.score || a.frets.join(',').localeCompare(b.frets.join(',')));
+  if (opts.maxDifficulty === undefined && ranked.some((cand) => cand.difficulty <= DEFAULT_MAX_DIFFICULTY)) {
+    ranked = ranked.filter((cand) => cand.difficulty <= DEFAULT_MAX_DIFFICULTY);
+  }
   const limit = opts.maxResults ?? 12;
   const out: Voicing[] = [];
   const kept: Candidate[] = [];
@@ -423,26 +492,46 @@ function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOn
   const make = (cand: Candidate) => cand.library
     ?? tryBuildVoicing(c, cand.frets, { tuning: t, capo, source: 'generated', allowIncomplete: plan.incomplete, ...describe(plan, cand.frets) });
   const sounding = (cand: Candidate) => cand.frets.filter((f) => f !== null).length;
+  const lowest = (cand: Candidate) => {
+    let low = Infinity;
+    cand.frets.forEach((fret, i) => {
+      if (fret !== null) low = Math.min(low, t.midi[i] + fret);
+    });
+    return low;
+  };
+  const power = plan.tones.length <= 2;
   for (const cand of ranked) {
-    // The same shape with one string more or less muted is not a new voicing (curated shapes are kept even so).
-    const exempt = cand.library !== null;
-    // The small movable families (triads, shells, drop voicings) sometimes land on open strings near
-    // the nut and turn out to be a slice of an open chord already listed: that adds nothing.
-    const slice = cand.library !== null && ['triad', 'shell', 'drop2', 'drop3'].includes(cand.library.category) && !cand.library.movable;
-    if (slice && kept.some((k) => sounding(k) > sounding(cand) && mutedTwin(plan, k.frets, cand.frets) > 0)) continue;
-    const twinAt = exempt ? -1 : kept.findIndex((k) => mutedTwin(plan, k.frets, cand.frets) === 1);
-    if (twinAt >= 0) {
-      // The fuller shape is the chord (320003 rather than 32000x): let it take the place its thinner
-      // twin earned, unless it is clearly the worse shape. Power chords stay small.
-      const twin = kept[twinAt];
-      if (!twin.library && plan.tones.length > 2 && sounding(cand) > sounding(twin) && earned[twinAt] - cand.score <= 5) {
-        const voicing = make(cand);
+    const open = cand.frets.includes(0);
+    if (cand.library) {
+      // The small movable families (triads, shells, drop voicings) sometimes land on open strings near
+      // the nut and turn out to be a slice of an open chord already listed: that adds nothing.
+      if (SMALL_FAMILIES.includes(cand.library.category) && open && kept.some((k) => isSlice(cand.frets, k.frets))) continue;
+    } else {
+      // A computed shape that is a kept one with strings left out is the same chord strummed thinner
+      // (32000x after 320003), unless it is a movable shape with a bass of its own (the top of a barre).
+      if (kept.some((k) => isSlice(cand.frets, k.frets) && (open || lowest(k) === lowest(cand)))) continue;
+      // The other way round, the fuller shape is the chord: let it take the place its thinner twin
+      // earned, unless it is clearly the worse shape. Power chords stay small.
+      const isTwin = (k: Candidate) => !k.library && isSlice(k.frets, cand.frets) && lowest(k) === lowest(cand);
+      const twinAt = kept.findIndex(isTwin);
+      if (twinAt >= 0) {
+        const voicing = (!power || sounding(cand) <= 3) && earned[twinAt] - cand.score <= 5 ? make(cand) : null;
         if (voicing) {
           kept[twinAt] = cand;
           out[twinAt] = voicing;
+          // Other thinner versions of the same shape further down the list go with it.
+          for (let i = kept.length - 1; i > twinAt; i--) {
+            if (!isTwin(kept[i])) continue;
+            kept.splice(i, 1);
+            earned.splice(i, 1);
+            out.splice(i, 1);
+          }
+          continue;
         }
+        // One more string of a shape already listed adds nothing; a much fuller one (the whole
+        // barre under a four-string grip) is a voicing of its own and takes its own place below.
+        if (power || kept.some((k) => isTwin(k) && sounding(cand) - sounding(k) === 1)) continue;
       }
-      continue;
     }
     if (out.length >= limit) continue;
     const voicing = make(cand);
@@ -451,7 +540,8 @@ function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOn
     earned.push(cand.score);
     out.push(voicing);
   }
-  if (CACHE.size >= CACHE_LIMIT) CACHE.clear();
+  // The oldest entries make room: a chord browser walks through hundreds of chords.
+  if (CACHE.size >= CACHE_LIMIT) for (const old of [...CACHE.keys()].slice(0, CACHE_LIMIT / 4)) CACHE.delete(old);
   CACHE.set(key, out);
   return [...out];
 }
@@ -459,8 +549,9 @@ function run(chordInput: string | Chord, opts: VoicingSearchOptions, generatedOn
 /**
  * Playable voicings of any chord in any tuning, best first: curated shapes where the library has
  * them, computed ones for everything else. `chordVoicings('C')[0]` is the open C every beginner
- * learns; `chordVoicings('F#m7b5', { minFret: 5, strings: [4, 3, 2, 1] })` asks for something specific.
- * Results are cached: treat the voicings as read-only.
+ * learns, `chordVoicings('F')[0]` the full barre with the small F right behind it;
+ * `chordVoicings('F#m7b5', { minFret: 5, strings: [4, 3, 2, 1] })` asks for something specific.
+ * Results are cached (a repeated call is a table lookup): treat the voicings as read-only.
  */
 export function chordVoicings(chordInput: string | Chord, opts: VoicingSearchOptions = {}): Voicing[] {
   return run(chordInput, opts, false);
@@ -484,7 +575,8 @@ export function easiestVoicing(chordInput: string | Chord, opts: VoicingSearchOp
 
 /**
  * How hard a chord is on the guitar as it is normally played: the difficulty (1–10) of its
- * top-ranked voicing (Em 2.2, C 3.4, F 4.4, B flat 6.9); 10 when it has none.
+ * top-ranked voicing (Em 2.2, C 3.4, F 6.9 for the full barre, B flat 7.2); 10 when it has none.
+ * `easiestVoicing(chord).difficulty` is what a beginner's version costs (the small F: 4.4).
  */
 export function chordDifficulty(chordInput: string | Chord, opts: NeckOptions = {}): number {
   return bestVoicing(chordInput, opts)?.difficulty ?? 10;

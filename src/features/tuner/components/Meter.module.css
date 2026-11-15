@@ -1,0 +1,257 @@
+/*
+ * The tuning meter. A pick-shaped marker slides over a ruled scale; the centre zone is the target.
+ * Position carries the reading, the marker changes shape when it is on the note or off the scale,
+ * and the words under the meter say the same thing: colour is only the third signal.
+ */
+.meter {
+  --marker-w: 2.5rem;
+  --marker-ink: var(--fg);
+  --marker-mark: var(--surface);
+  position: relative;
+  width: 100%;
+  user-select: none;
+  /* The moving layer is as wide as the scale and slides half its width either way: keep it from widening the page. */
+  overflow: hidden;
+  overflow: clip visible;
+}
+
+/* The lane and the scale are inset by half a marker, so the marker can reach both ends. */
+.lane,
+.track,
+.labels {
+  margin-inline: calc(var(--marker-w) / 2 + 2px);
+}
+
+.lane {
+  position: relative;
+  height: 2.875rem;
+}
+.mover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  will-change: transform;
+}
+.marker {
+  flex: none;
+  width: var(--marker-w);
+  height: 2.875rem;
+  overflow: visible;
+  transition: opacity var(--dur-2) var(--ease);
+}
+.markerBody {
+  fill: var(--marker-ink);
+  stroke: var(--surface);
+  stroke-width: 2;
+  transition: fill var(--dur-1) var(--ease);
+}
+.markerDot {
+  fill: var(--marker-mark);
+}
+.markerCheck,
+.markerLow,
+.markerHigh {
+  fill: none;
+  stroke: var(--marker-mark);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+/* Waiting: the marker rests hollow in the middle. */
+.meter[data-parked='true'] .markerBody {
+  fill: var(--surface-2);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.meter[data-parked='true'] .markerDot {
+  fill: var(--line-strong);
+}
+/* The note has stopped: the last reading stays, faded. */
+.meter[data-live='false'][data-parked='false'] .marker {
+  opacity: 0.38;
+}
+
+/* Inside the tolerance: the dot becomes a tick. */
+.meter[data-within='true'] {
+  --marker-ink: var(--ok);
+  --marker-mark: var(--ok-fg);
+}
+.meter[data-intune='true'] .markerDot {
+  opacity: 0;
+}
+.meter[data-intune='true'] .markerCheck {
+  opacity: 1;
+}
+.meter[data-intune='true'] .marker {
+  animation: settle 420ms var(--ease);
+}
+
+/* Off the end of the scale: arrows say which way it has gone. */
+.meter[data-off='low'],
+.meter[data-off='high'] {
+  --marker-ink: var(--warn);
+  --marker-mark: var(--warn-fg);
+}
+.meter[data-off='low'] .markerDot,
+.meter[data-off='high'] .markerDot {
+  opacity: 0;
+}
+.meter[data-off='low'] .markerLow,
+.meter[data-off='high'] .markerHigh {
+  opacity: 1;
+}
+
+@keyframes settle {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.track {
+  position: relative;
+  height: 1.125rem;
+  border-top: 2px solid var(--line-strong);
+}
+.tick,
+.tickMajor,
+.tickCentre {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 0 0 1px 1px;
+  background: var(--line-strong);
+}
+.tick {
+  height: 0.3125rem;
+}
+.tickMajor {
+  height: 0.5625rem;
+}
+.tickCentre {
+  height: 1rem;
+  background: var(--fg);
+}
+
+/* The centre zone: a bracket that fills from the middle while the string holds still on the note. */
+.zone {
+  position: absolute;
+  top: -0.5625rem;
+  height: 0.5rem;
+  border: 2px solid var(--fg-muted);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.zoneFill {
+  position: absolute;
+  inset: 0;
+  background: var(--ok);
+  transform: scaleX(0);
+  transform-origin: center;
+}
+.meter[data-within='true'] .zone {
+  border-color: var(--ok);
+}
+
+.labels {
+  position: relative;
+  height: 1rem;
+}
+.tickLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1rem;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ends {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-height: 1.5rem;
+  margin-top: 0.125rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+.endLow {
+  text-align: left;
+}
+.endHigh {
+  grid-column: 3;
+  text-align: right;
+}
+/* The side the string is on speaks up. */
+.meter[data-side='low'] .endLow,
+.meter[data-side='high'] .endHigh {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* Strobe */
+.strobeBox {
+  height: 4.875rem;
+  margin-bottom: 0.125rem;
+  padding: 0.5rem 0;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  overflow: hidden;
+  /* Fade the bands at both ends so they do not seem to pop in and out (any opaque token works as a mask). */
+  -webkit-mask-image: linear-gradient(to right, transparent, var(--fg) 12%, var(--fg) 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, var(--fg) 12%, var(--fg) 88%, transparent);
+}
+.strobeInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.strobeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* A phone held sideways: a shorter marker and no numbers under the ticks (the offset is printed anyway). */
+@media (orientation: landscape) and (max-height: 520px) {
+  .meter {
+    --marker-w: 2rem;
+  }
+  .lane,
+  .marker {
+    height: 2.3rem;
+  }
+  .labels {
+    display: none;
+  }
+  .strobeBox {
+    height: 3.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter[data-intune='true'] .marker {
+    animation: none;
+  }
+}

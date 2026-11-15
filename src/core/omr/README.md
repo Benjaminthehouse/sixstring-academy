@@ -145,3 +145,138 @@ page, preprocess + layout on one core of a busy 4-core machine (load 5-7): media
   systems, no page-boundary detection (the dewarp uses staves only), no text / chord-symbol
   reading here (`OmrText` is in the model for the recognizers or OCR to fill).
 - Curl is modelled as a smooth bow; real book gutters are untested.
+
+## 9. Tab recognizer (`tab/`)
+
+`recognizeTabStaff` reads printed tablature from one staff strip: fret numbers per string, grouped
+into columns (chords) in time order, with rhythm when stems are printed, technique marks in the
+simple cases, the TAB clef and a time signature when the staff shows one. Six-line and four-line
+staves. Import it from `@/core/omr/tab` (the `@/core/omr` barrel does not re-export it) and pass
+it to `recognizePage(gray, { tab: recognizeTabStaff, notation })`.
+
+```ts
+import { recognizeTabStaff, readTabStaff } from '@/core/omr/tab';
+
+const reading = await recognizeTabStaff(extractStaff(analysis, i), { tuning, context, ai });
+// reading.events: OmrTabEvent[] ('tab' | 'tab-rest'), x in page px, notes top string first
+// note: { string, fret, midi, confidence, alternatives?, parenthesized?, tieStop?, technique? }
+// reading.clef ('tab'), reading.timeSignature, reading.warnings ('low-quality', 'other', 'ai-unavailable')
+const { reading: r, debug } = readTabStaff(input);   // + internals: glyphs, numbers, stems, marks, timings
+```
+
+`technique` is a string of marks: `x` dead note (its `fret` is a placeholder 0), `<>` harmonic,
+then the mark that follows the number towards the next one on its string: `h` `p` `/` `\` `b` `r`.
+`parenthesized` = printed in brackets; `tieStop` = an arc ties it to the same fret before it.
+The call is synchronous unless `options.ai` is given and the picture left doubts (section 9.4).
+
+### 9.1 How it reads
+
+| Step | File | What happens |
+|---|---|---|
+| ink on lines | `segment.ts` | Components of the strip WITH its lines that stand free are whole numbers (line blanked behind them); what hangs on a line comes from the line-free strip and is `fused`. Stacked pieces of a cut glyph are rejoined; numbers welded to their chord neighbours, to an arc or to a stem are cut out again (`findWeldedBlobs`). Bar lines are re-checked (`barlineSolidity`): a column of stacked numbers the layout took for a bar line does not swallow its numbers. |
+| digit size, style | `segment.ts`, `numbers.ts` | Median digit height and centre offset of the staff; `detectLineThrough` decides whether lines strike through the numbers. |
+| box | `glyph.ts` | `refineBox`: every box goes to the half-maximum outline of its own ink (sub-pixel). Templates are cut by the same rule, so a soft glyph and a sharp one match in scale (a Liberation Sans 2 against its own template: 0.87 with the thresholded box, 0.98 with this one). |
+| classify | `glyph.ts`, `templates.ts` | Normalised correlation of a 16-row grey patch with 430 templates (10 digits + `x ( ) < > h p b s r / \ ~`, rests, time-signature numerals) drawn from 14 text families (33 faces) and 4 music fonts, at the blur level that fits the staff (`BLUR_LEVELS`). One-pixel shift search; relative glyph height as soft evidence. |
+| struck-through | `templates.ts` | The bare line (median profile around the glyph) is subtracted from the patch, and the patch is compared with `struckTemplates`: glyphs whose rows under the line were erased BEFORE blurring. A stroke hidden in the line is hidden in both. |
+| touching digits, broken digits | `numbers.ts` | Neighbouring pieces of a line form a cluster; the split into glyphs is the one the classifier likes best (`readCluster`), a wide blob is cut where the pair of templates laid side by side explains the whole blob better than one template (`correlateComposite`). |
+| one face per staff | `numbers.ts` | Faces are rated on the clearly read digits; doubtful glyphs are re-read with other faces penalised and close calls settled head to head inside the likely faces on the pixels where the two digits differ (`discriminate`). |
+| numbers, columns | `numbers.ts`, `segment.ts` | Digits closer than 0.36 digit heights form a fret; numbers above one another form an event; brackets count only in pairs. |
+| sanity | `numbers.ts`, `recognize.ts` | Fret > 24, leading zero, wide gap inside a number ("10" or "1 0"), chord span > 5 frets: used to choose among near-equal alternatives and to lower confidence, never to rewrite silently; the raw reading stays in `alternatives`. |
+| rhythm | `rhythm.ts`, `header.ts` | Stems under or over the staff, beams / flags counted at the tip; rests and the time signature from music-font templates. What stems cannot show (half vs quarter, dots) is solved per measure against the time signature (printed, from `options.context`, remembered from an earlier staff of the page, or inferred from measures that add up) using the spacing; inferred values get confidence below 0.5-0.6 and alternatives. |
+| marks | `marks.ts` | Arcs between two numbers of a string (tie if equal frets, else `h` / `p`), slanted strokes (slides), strokes climbing above the staff into an arrow head (bends). |
+| reliability | `recognize.ts` | Mean correlation of the digits read: 0.95+ on good pictures. Towards 0.8 every confidence is scaled down, weak matches are dropped and a `low-quality` warning is raised. |
+
+### 9.2 Measured
+
+Corpus: the 31 fixtures with a tab staff (57 staves, 1111 fret numbers; five digit faces; 100 /
+150 / 220 dpi). `node src/core/omr/eval/cli.cjs --subset tab|linked --no-strips`, seed 1:
+
+| Tier | Subset | tabP % | tabR % | fret % | string % | tabDur % | tabMeasEx % |
+|---|---|---|---|---|---|---|---|
+| clean | tab / linked | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
+| scan | tab / linked | 100 / 100 | 100 / 100 | 99.9 / 100 | 100 / 100 | 100 / 100 | 97.0 / 100 |
+| photo-good | tab / linked | 99.9 / 100 | 100 / 99.8 | 98.2 / 99.8 | 100 / 100 | 100 / 100 | 92.1 / 96.6 |
+| photo-bad | tab / linked | 90.0 / 75.7 | 68.5 / 72.2 | 65.8 / 57.9 | 100 / 100 | 73.2 / 100 | 9.9 / 17.9 |
+
+Both subsets together (strip-level tool of section 9.5, same matching rule): fret accuracy 100 /
+99.9 / 98.8 / 62.8 % (seed 1) and - / 99.9 / 97.0 / 65.3 % (seed 2) for clean / scan / photo-good
+/ photo-bad; precision and recall 100 / 100, 100 / 100, 99.9 / 99.9, 85.1 / 69.8 (seed 1). Wrong
+frets reported with confidence >= 0.5: 0 of 0, 0 of 1, 2 of 13, 5 of 289. photo-bad is not usable
+without proofreading: 100-dpi pages there are illegible to a person too (27 % of matched numbers
+right), 220-dpi pages reach 79 %; such staves carry the `low-quality` warning and confidences
+below 0.5. tabMeasEx falls behind the fret numbers because it also needs every bar line of the
+layout stage to be right.
+
+The reader's own pages (`tab/fixtures/`, written by `scripts/omr-digit-templates.cjs --fixtures`;
+12 pages, 30 staves, 751 numbers) test what the corpus cannot: two faces with NO templates
+(Carlito, Caladea), a four-line bass staff, technique marks, typewriter-style tab.
+
+| Tier | P % / R % | fret % | held-out, line blanked | held-out, line struck through | marks read / right (of 86) |
+|---|---|---|---|---|---|
+| clean | 100 / 100 | 99.7 | 100 (5 pages, incl. bass) | 100 and 97.6 | 85 / 85 |
+| scan | 99.6 / 99.7 | 95.1 | 97.8 - 100 | 76.5 and 90.4 | 75 / 75 |
+| photo-good | 98.8 / 97.6 | 90.0 | 71.3 (bold at 100 dpi), 92.3, 100, 100, 100 | 69.4 and 89.2 | 60 / 57 (of 78 found) |
+| photo-bad | 80.7 / 73.9 | 31.5 | 18 - 48 | 9 - 22 | not usable |
+
+Leave-one-family-out on the templates themselves (`glyph.test.ts`): 247 of 247 digits right when
+sharp, 246 at blur levels 1 and 2, 243 at level 3.
+
+Speed: process CPU time per staff strip, warm, 57 strips per tier averaging 19.5 numbers, on a
+4-core machine under load 14-18 from other jobs: median 27-32 ms, p95 66-87 ms, max about 100 ms
+in every tier (wall time under that load: median 40-85 ms). Once per session: 12 ms to decode the
+templates and 15-40 ms for each of the five blur levels when it is first tried; each new line
+position of a struck-through staff 8-18 ms (cached, at most 20 per blur level).
+
+### 9.3 Known limits
+
+- A line struck through the numbers hides the middle of 0 / 6 / 8 / 9 and the bar of 4. Clean
+  pages read (corpus 100 %, held-out 97.6-100 %); blurred ones confuse 0, 6, 8, 9 (held-out faces
+  69-90 % at scan and photo-good), almost always with confidence below 0.5 and the right digit
+  among the alternatives.
+- Rhythm: augmentation dots and half notes are inferred, not seen (many engravers print neither
+  in tab); without any time signature and with ambiguous measures the guess is 4/4. Tuplet
+  numbers, whole and half rests (the hanging / sitting blocks) and stems above the staff with
+  flags are not read or not tested. The memory of a page's time signature assumes staves are read
+  top to bottom.
+- Marks: arcs must end on two neighbouring numbers of one string; "H" / "P" printed over an arc
+  are not read (the direction of the fret change decides); a bend's "full" / "1/2" is not read;
+  vibrato, trills, palm-mute lines, let-ring, tapping marks are not looked for. At scan and worse
+  thin strokes near a line (slides) fuse with it and are missed (never invented: 0 false marks on
+  the corpus at clean, scan and photo-good).
+- The corpus engraver draws no visible arc for ties in tab, so its 7 tab ties cannot be seen.
+- Chord symbols, lyrics, tempo and section text are not read here (`texts` stays empty).
+- Unusual tab: numbers set BETWEEN the lines (French lute style), letters for frets, stems drawn
+  through the staff from the numbers are untested; fret numbers in a slanted or handwritten face
+  have no templates.
+- The second opinion (9.4) is tested against fakes only; no real model was available.
+
+### 9.4 Second opinion from a vision model
+
+With `options.ai` (an `OmrVisionModel`), a staff that reads poorly (reliability < 0.75) or holds
+guesses (a note below 0.5) is shown to the model once: the staff band as a grey image and
+`TAB_VISION_PROMPT`, which asks for `{"columns":[{"x":0..1,"notes":[{"string","fret"}]}]}`.
+`mergeVision` never lets the answer override what the picture shows clearly: agreement raises a
+doubtful reading (`source: 'merged'`); a different fret is taken only for a guess and only if it
+was among the reader's own alternatives, otherwise it becomes the first alternative; numbers only
+the model saw are added as guesses (`source: 'ai'`, 0.3) on poorly read staves and ignored on
+good ones. No answer, a malformed answer or an abort leaves the reading as it was, with an
+`ai-unavailable` warning.
+
+### 9.5 Tools and data
+
+```bash
+node src/core/omr/tab/dev/tab-eval.cjs                       # corpus, all tiers: per tier / font / dpi, confusions, calibration, time
+node src/core/omr/tab/dev/tab-eval.cjs --tier scan --dump    # + e2e/out/omr/tab-mistakes.<tier>.png (look at it with Read)
+node src/core/omr/tab/dev/tab-eval.cjs --match ode --show    # + every strip with its reading drawn in
+node src/core/omr/tab/dev/tab-eval.cjs --own --fixtures      # the reader's own pages (held-out faces, marks, bass)
+node src/core/omr/tab/dev/tab-eval.cjs --explain             # classifier ranking of every misread number
+node scripts/omr-digit-templates.cjs [--sheet]               # rebuild tab/digit-templates.data.ts (61 KB; contact sheet in e2e/out/omr)
+node scripts/omr-digit-templates.cjs --fixtures              # rebuild tab/fixtures/ (0.4 MB)
+npx vitest run src/core/omr/tab                              # 67 tests, about 25 s
+```
+
+`tab-eval` caches the staff strips of every fixture and tier under `e2e/out/omr/tab-cache/`
+(`--rebuild` after the foundation changes). `dev/synth.ts` draws synthetic strips from the
+templates for unit tests. Templates: every glyph drawn once in the bundled Chromium, cropped to
+its ink, 16 rows, 4 bits per pixel, near-duplicates within a class merged (each template keeps
+the list of faces it stands for). Carlito and Caladea are installed but deliberately left out.

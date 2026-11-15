@@ -1,0 +1,265 @@
+{
+ "fixtures": [
+  {
+   "id": "tech-marks-dejavu-150",
+   "image": "tech-marks-dejavu-150.png",
+   "truth": "tech-marks-dejavu-150.json",
+   "subset": "tab",
+   "name": "tech-marks-dejavu-150",
+   "dpi": 156,
+   "size": 1,
+   "staffSpace": 10.77,
+   "musicFont": "none",
+   "tabFont": "400 DejaVu Sans",
+   "width": 1158,
+   "height": 420,
+   "systems": 2,
+   "staves": 2,
+   "measures": 4,
+   "tags": [
+    "tech",
+    "marks"
+   ],
+   "bytes": 9368
+  },
+  {
+   "id": "tech-marks-freeserif-300",
+   "image": "tech-marks-freeserif-300.png",
+   "truth": "tech-marks-freeserif-300.json",
+   "subset": "tab",
+   "name": "tech-marks-freeserif-300",
+   "dpi": 313,
+   "size": 1,
+   "staffSpace": 21.54,
+   "musicFont": "none",
+   "tabFont": "700 FreeSerif",
+   "width": 2316,
+   "height": 840,
+   "systems": 2,
+   "staves": 2,
+   "measures": 4,
+   "tags": [
+    "tech",
+    "marks"
+   ],
+   "bytes": 20735
+  },
+  {
+   "id": "tech-marks-through-inter-220",
+   "image": "tech-marks-through-inter-220.png",
+   "truth": "tech-marks-through-inter-220.json",
+   "subset": "tab",
+   "name": "tech-marks-through-inter-220",
+   "dpi": 223,
+   "size": 1,
+   "staffSpace": 15.38,
+   "musicFont": "none",
+   "tabFont": "600 Inter",
+   "width": 1654,
+   "height": 600,
+   "systems": 2,
+   "staves": 2,
+   "measures": 4,
+   "tags": [
+    "tech",
+    "marks",
+    "line-through"
+   ],
+   "bytes": 13925
+  },
+  {
+   "id": "tech-ascii-libmono-150",
+   "image": "tech-ascii-libmono-150.png",
+   "truth": "tech-ascii-libmono-150.json",
+   "subset": "tab",
+   "name": "tech-ascii-libmono-150",
+   "dpi": 156,
+   "size": 1,
+   "staffSpace": 10.77,
+   "musicFont": "none",
+   "tabFont": "400 Liberation Mono",
+   "width": 981,
+   "height": 420,
+   "systems": 2,
+   "staves": 2,
+   "measures": 4,
+   "tags": [
+    "tech",
+    "ascii"
+   ],
+   "bytes": 5357
+  },
+  {
+   "id": "tech-ascii-jbm-220",
+   "image": "tech-ascii-jbm-220.png",
+   "truth": "tech-ascii-jbm-220.json",
+   "subset": "tab",
+   "name": "tech-ascii-jbm-220",
+   "dpi": 223,
+   "size": 1,
+   "staffSpace": 15.38,
+   "musicFont": "none",
+   "tabFont": "500 JetBrains Mono",
+   "width": 1402,
+   "height": 600,
+   "systems": 2,
+   "staves": 2,
+   "measures": 4,
+   "tags": [
+    "tech",
+    "ascii"
+   ],
+   "bytes": 9066
+  },
+  {
+   "id": "heldout-carlito-150",
+   "image": "heldout-carlito-150.png",
+   "truth": "heldout-carlito-150.json",
+   "subset": "tab",
+   "name": "heldout-carlito-150",
+   "dpi": 156,
+   "size": 1,
+   "staffSpace": 10.77,
+   "musicFont": "none",
+   "tabFont": "400 Carlito",
+   "width": 1473,
+   "height": 616,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out"
+   ],
+   "bytes": 13525
+  },
+  {
+   "id": "heldout-carlito-bold-100",
+   "image": "heldout-carlito-bold-100.png",
+   "truth": "heldout-carlito-bold-100.json",
+   "subset": "tab",
+   "name": "heldout-carlito-bold-100",
+   "dpi": 112,
+   "size": 1,
+   "staffSpace": 7.69,
+   "musicFont": "none",
+   "tabFont": "700 Carlito",
+   "width": 926,
+   "height": 440,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out"
+   ],
+   "bytes": 8348
+  },
+  {
+   "id": "heldout-caladea-150",
+   "image": "heldout-caladea-150.png",
+   "truth": "heldout-caladea-150.json",
+   "subset": "tab",
+   "name": "heldout-caladea-150",
+   "dpi": 156,
+   "size": 1,
+   "staffSpace": 10.77,
+   "musicFont": "none",
+   "tabFont": "400 Caladea",
+   "width": 1473,
+   "height": 616,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out"
+   ],
+   "bytes": 13901
+  },
+  {
+   "id": "heldout-caladea-bold-220",
+   "image": "heldout-caladea-bold-220.png",
+   "truth": "heldout-caladea-bold-220.json",
+   "subset": "tab",
+   "name": "heldout-caladea-bold-220",
+   "dpi": 223,
+   "size": 1,
+   "staffSpace": 15.38,
+   "musicFont": "none",
+   "tabFont": "700 Caladea",
+   "width": 2104,
+   "height": 880,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out"
+   ],
+   "bytes": 23097
+  },
+  {
+   "id": "heldout-caladea-through-220",
+   "image": "heldout-caladea-through-220.png",
+   "truth": "heldout-caladea-through-220.json",
+   "subset": "tab",
+   "name": "heldout-caladea-through-220",
+   "dpi": 223,
+   "size": 1,
+   "staffSpace": 15.38,
+   "musicFont": "none",
+   "tabFont": "400 Caladea",
+   "width": 2104,
+   "height": 880,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out",
+    "line-through"
+   ],
+   "bytes": 22848
+  },
+  {
+   "id": "heldout-carlito-through-150",
+   "image": "heldout-carlito-through-150.png",
+   "truth": "heldout-carlito-through-150.json",
+   "subset": "tab",
+   "name": "heldout-carlito-through-150",
+   "dpi": 156,
+   "size": 1,
+   "staffSpace": 10.77,
+   "musicFont": "none",
+   "tabFont": "700 Carlito",
+   "width": 1473,
+   "height": 616,
+   "systems": 3,
+   "staves": 3,
+   "measures": 9,
+   "tags": [
+    "held-out",
+    "line-through"
+   ],
+   "bytes": 13930
+  },
+  {
+   "id": "bass-carlito-150",
+   "image": "bass-carlito-150.png",
+   "truth": "bass-carlito-150.json",
+   "subset": "tab",
+   "name": "bass-carlito-150",
+   "dpi": 167,
+   "size": 1,
+   "staffSpace": 11.54,
+   "musicFont": "none",
+   "tabFont": "400 Carlito",
+   "width": 1390,
+   "height": 391,
+   "systems": 2,
+   "staves": 2,
+   "measures": 6,
+   "tags": [
+    "held-out",
+    "four-line"
+   ],
+   "bytes": 7851
+  }
+ ]
+}

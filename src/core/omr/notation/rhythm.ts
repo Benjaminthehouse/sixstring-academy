@@ -125,9 +125,9 @@ export function inferMeasureTicks(sums: number[]): number {
   return best;
 }
 
-/** The time signatures a bar length usually belongs to, most common first. */
+/** The usual time signature of a bar length (4/4, 3/4, 2/4, 3/8, 9/8, 12/8), or null. */
 export function metreOfTicks(ticks: number): { beats: number; beatValue: number } | null {
-  const table: [number, number, number][] = [[3840, 4, 4], [2880, 3, 4], [1920, 2, 4], [1440, 3, 8], [2880 * 2, 6, 4], [4320, 9, 8], [5760, 12, 8]];
+  const table: [number, number, number][] = [[3840, 4, 4], [2880, 3, 4], [1920, 2, 4], [1440, 3, 8], [4320, 9, 8], [5760, 12, 8], [4800, 5, 4]];
   for (const [t, b, v] of table) if (t === ticks) return { beats: b, beatValue: v };
   return null;
 }

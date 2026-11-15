@@ -91,8 +91,9 @@ export function readAccidentals(strip: Strip, chords: Chord[], limitX: (c: Chord
         continue;
       }
       const b = boxOf(best.m);
-      // It must stand clear of the head it belongs to and right of the previous symbol.
-      if (b.x1 > left + 0.1 * s || b.x0 < floor - 0.3 * s) {
+      // It must stand clear of the head it belongs to and right of the previous symbol, and there
+      // must be about a glyph's worth of ink (the stub of a ledger line is not a flat).
+      if (b.x1 > left + 0.1 * s || b.x0 < floor - 0.3 * s || inkIn(strip, b.x0, b.y0, b.x1, b.y1) < 0.6 * best.m.template.area) {
         marks.push(null);
         continue;
       }
@@ -110,18 +111,25 @@ export function readAccidentals(strip: Strip, chords: Chord[], limitX: (c: Chord
 /**
  * Is there a tie between two heads at the same staff position? A tie is a thin arc that leaves
  * the first head near its right edge and reaches the second near its left edge, bulging gently
- * above or below. Where the arc runs along a staff line it was erased with the line, so columns
- * inside a line band count as "hidden", not as missing.
+ * above or below. It is followed column by column as a thin vertical run that moves smoothly.
+ * Where the arc runs into a staff line it was erased with the line or fused with it, so such
+ * columns count as "hidden", not as missing; stems and bar lines that cross it are skipped.
  */
-export function tieBetween(strip: Strip, xa: number, xb: number, y: number): { found: boolean; score: number; box: SBox | null } {
-  const { w, h, nl, s, rowWeight, cc, owner } = strip;
-  const x0 = Math.round(xa);
-  const x1 = Math.round(xb);
+export function tieBetween(strip: Strip, xa: number, xb: number, y: number, minSeen = 0.3): { found: boolean; score: number; box: SBox | null } {
+  const { w, h, nl, s, rowWeight } = strip;
+  const x0 = Math.max(0, Math.round(xa));
+  const x1 = Math.min(w - 1, Math.round(xb));
   const span = x1 - x0;
   if (span < 0.5 * s) return { found: false, score: 0, box: null };
+  const inBand = (yy: number): boolean => {
+    for (let d = -2; d <= 2; d++) {
+      const r = Math.round(yy) + d;
+      if (r >= 0 && r < h && rowWeight[r] < 1) return true;
+    }
+    return false;
+  };
   let bestScore = 0;
   let bestBox: SBox | null = null;
-  // Try the arc below and above the heads.
   for (const dir of [1, -1]) {
     let seen = 0;
     let hidden = 0;
@@ -129,81 +137,107 @@ export function tieBetween(strip: Strip, xa: number, xb: number, y: number): { f
     let prev = -1;
     let yMin = Infinity;
     let yMax = -Infinity;
-    let jumps = 0;
+    const ya = Math.max(0, Math.round(dir > 0 ? y + 0.1 * s : y - 1.6 * s));
+    const yb = Math.min(h - 1, Math.round(dir > 0 ? y + 1.6 * s : y - 0.1 * s));
     for (let x = x0; x <= x1; x++) {
-      total++;
-      // Thin run nearest to the expected arc height in this column.
-      const ya = Math.round(dir > 0 ? y + 0.1 * s : y - 1.5 * s);
-      const yb = Math.round(dir > 0 ? y + 1.5 * s : y - 0.1 * s);
-      let hit = -1;
-      let hitD = Infinity;
-      let yy = Math.max(0, ya);
-      const end = Math.min(h - 1, yb);
-      while (yy <= end) {
+      const guess = prev >= 0 ? prev : y + dir * 0.55 * s;
+      // The run of this column nearest to where the arc should be.
+      let best: { a: number; b: number; d: number } | null = null;
+      let yy = ya;
+      while (yy <= yb) {
         if (!nl[yy * w + x]) { yy++; continue; }
-        const a = yy;
-        while (yy <= end && nl[yy * w + x]) yy++;
-        const b = yy - 1;
-        const id = cc.labels[a * w + x];
-        if (b - a + 1 > 0.4 * s) continue;
-        if (id && owner[id] && owner[id] !== CLAIM.tie) continue;
-        const mid = (a + b) / 2;
-        const d = prev >= 0 ? Math.abs(mid - prev) : Math.abs(mid - (y + dir * 0.6 * s));
-        if (d < hitD) { hitD = d; hit = mid; }
+        let a = yy;
+        while (a > 0 && nl[(a - 1) * w + x]) a--;
+        let b = yy;
+        while (b < h - 1 && nl[(b + 1) * w + x]) b++;
+        const d = guess < a ? a - guess : guess > b ? guess - b : 0;
+        if (!best || d < best.d) best = { a, b, d };
+        yy = b + 1;
       }
-      if (hit >= 0 && (prev < 0 || Math.abs(hit - prev) <= 0.25 * s)) {
-        seen++;
-        if (prev >= 0 && Math.abs(hit - prev) > 2.5) jumps++;
-        prev = hit;
-        yMin = Math.min(yMin, hit);
-        yMax = Math.max(yMax, hit);
-      } else if (prev >= 0 && rowWeight[Math.max(0, Math.min(h - 1, Math.round(prev)))] < 1) {
-        hidden++;
-      } else if (prev < 0) {
-        // Not started yet: the arc may begin inside a line band.
-        const guess = Math.round(y + dir * 0.5 * s);
-        if (rowWeight[Math.max(0, Math.min(h - 1, guess))] < 1) hidden++;
+      if (best && best.d <= (prev >= 0 ? 0.25 : 0.7) * s) {
+        const thickness = best.b - best.a + 1;
+        const mid = (best.a + best.b) / 2;
+        if (thickness > 1.6 * s) continue; // a stem or bar line crossing: says nothing
+        total++;
+        if (thickness <= 0.36 * s && !(rowWeight[Math.round(mid)] < 1 && thickness <= strip.thick + 2)) {
+          seen++;
+          prev = mid;
+          yMin = Math.min(yMin, mid);
+          yMax = Math.max(yMax, mid);
+        } else if (thickness <= 1.0 * s && (inBand(best.a) || inBand(best.b) || inBand(mid))) {
+          hidden++;
+        }
+        continue;
       }
+      total++;
+      if (inBand(guess)) hidden++;
     }
+    if (total < 0.5 * span) continue;
     const cover = (seen + hidden) / total;
-    const score = seen >= 0.45 * total && jumps <= 0.15 * total ? cover : 0;
+    const score = seen >= minSeen * total && yMax - yMin <= 0.9 * s ? cover : 0;
     if (score > bestScore) {
       bestScore = score;
       bestBox = { x0, y0: yMin - 2, x1: x1 + 1, y1: yMax + 3 };
     }
   }
-  return { found: bestScore >= 0.8, score: bestScore, box: bestBox };
+  return { found: bestScore >= 0.82, score: bestScore, box: bestBox };
+}
+
+/** A tuplet number found near the notes, with the stretch of staff it governs. */
+export interface TupletMark {
+  value: number;
+  /** Box of the digit. */
+  box: SBox;
+  /** Columns covered: the bracket when there is one, else just the digit. */
+  x0: number;
+  x1: number;
+  bracket: boolean;
+  score: number;
 }
 
 /**
- * Look for a tuplet number (a small 3) above or below a group of chords. Returns the digit read
- * and its box, or null.
+ * Find tuplet numbers: a small "3" above or below the notes, alone or in the gap of a bracket.
+ * Only unexplained components are looked at, so call this after notes, rests, accidentals and
+ * dots are known. The components of each mark are claimed.
  */
-export function tupletNumber(strip: Strip, group: Chord[]): { value: number; box: SBox; score: number } | null {
-  const { w, h, s, cc, owner } = strip;
-  if (!group.length) return null;
-  const x0 = Math.min(...group.map((c) => c.box.x0));
-  const x1 = Math.max(...group.map((c) => c.box.x1));
-  const top = Math.min(...group.map((c) => c.box.y0));
-  const bottom = Math.max(...group.map((c) => c.box.y1));
-  const mid = (x0 + x1) / 2;
-  let best: { value: number; box: SBox; score: number } | null = null;
-  for (const [ya, yb] of [[top - 2.6 * s, top - 0.05 * s], [bottom + 0.05 * s, bottom + 2.6 * s]]) {
-    const seen = new Set<number>();
-    for (let y = Math.max(0, Math.round(ya)); y < Math.min(h, Math.round(yb)); y++) {
-      for (let x = Math.max(0, Math.round(mid - 1.2 * s)); x < Math.min(w, Math.round(mid + 1.2 * s)); x++) {
-        const id = cc.labels[y * w + x];
-        if (!id || owner[id] || seen.has(id)) continue;
-        seen.add(id);
-        const cw = cc.x1[id] - cc.x0[id] + 1;
-        const ch = cc.y1[id] - cc.y0[id] + 1;
-        if (ch < 0.7 * s || ch > 1.9 * s || cw < 0.4 * s || cw > 1.4 * s) continue;
-        const g = classifyBox(strip, cc.x0[id], cc.y0[id], cc.x1[id] + 1, cc.y1[id] + 1, ['timeSig2', 'timeSig3', 'timeSig5', 'timeSig6', 'timeSig7', 'timeSig8', 'timeSig9']);
-        if (!g.length || g[0].score < 0.5) continue;
-        const value = Number(g[0].glyph.slice(-1));
-        if (!best || g[0].score > best.score) best = { value, score: g[0].score, box: { x0: cc.x0[id], y0: cc.y0[id], x1: cc.x1[id] + 1, y1: cc.y1[id] + 1 } };
+export function findTuplets(strip: Strip, xFrom: number, xTo: number, noteBoxes: SBox[]): TupletMark[] {
+  const { s, cc, owner } = strip;
+  const out: TupletMark[] = [];
+  for (let id = 1; id <= cc.count; id++) {
+    if (owner[id]) continue;
+    const cw = cc.x1[id] - cc.x0[id] + 1;
+    const ch = cc.y1[id] - cc.y0[id] + 1;
+    if (cc.x0[id] < xFrom || cc.x1[id] > xTo) continue;
+    if (ch < 0.7 * s || ch > 2.4 * s || cw < 0.4 * s || cw > 1.7 * s || cw > 1.2 * ch) continue;
+    const b: SBox = { x0: cc.x0[id], y0: cc.y0[id], x1: cc.x1[id] + 1, y1: cc.y1[id] + 1 };
+    // A tuplet number stands clear of the notes.
+    if (noteBoxes.some((n) => b.x0 < n.x1 && b.x1 > n.x0 && b.y0 < n.y1 && b.y1 > n.y0)) continue;
+    const g = classifyBox(strip, b.x0, b.y0, b.x1, b.y1, ['timeSig1', 'timeSig2', 'timeSig3', 'timeSig4', 'timeSig5', 'timeSig6', 'timeSig7', 'timeSig8', 'timeSig9']);
+    if (!g.length || g[0].glyph !== 'timeSig3' || g[0].score < 0.6) continue;
+    // Bracket arms: thin, wide components level with the digit on either side.
+    const cy = (b.y0 + b.y1) / 2;
+    let x0 = b.x0;
+    let x1 = b.x1;
+    const arms: number[] = [];
+    for (let a = 1; a <= cc.count; a++) {
+      if (a === id || owner[a]) continue;
+      const aw = cc.x1[a] - cc.x0[a] + 1;
+      const ah = cc.y1[a] - cc.y0[a] + 1;
+      if (aw < 0.8 * s || ah > 1.4 * s || aw < 2 * ah) continue;
+      const ay = (cc.y0[a] + cc.y1[a] + 1) / 2;
+      if (Math.abs(ay - cy) > 1.0 * s) continue;
+      const gapLeft = b.x0 - (cc.x1[a] + 1);
+      const gapRight = cc.x0[a] - b.x1;
+      if ((gapLeft >= -2 && gapLeft <= 1.5 * s) || (gapRight >= -2 && gapRight <= 1.5 * s)) {
+        arms.push(a);
+        x0 = Math.min(x0, cc.x0[a]);
+        x1 = Math.max(x1, cc.x1[a] + 1);
       }
     }
+    owner[id] = CLAIM.tuplet;
+    for (const a of arms) owner[a] = CLAIM.tuplet;
+    out.push({ value: 3, box: b, x0, x1, bracket: arms.length > 0, score: g[0].score });
   }
-  return best;
+  return out;
 }
+

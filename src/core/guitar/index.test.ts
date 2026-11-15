@@ -4,8 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import * as guitar from './index';
 import {
-  TUNINGS, arpeggioPatterns, chordDifficulty, chordVoicings, difficultyLevel, identifyFretted, nearestString, neckPoint, noteAt, planFingering,
-  practiceSequence, scalePatterns, stringTargets, suggestCapo, voicingLibrary, voicingTransition,
+  TUNINGS, arpeggioPatterns, beginnerVoicing, chordChange, chordDifficulty, chordVoicings, degreeNumber, difficultyLevel, easiestVoicing, identifyFretted, libraryCoverage,
+  nearestString, neckPoint, noteAt, placeChord, planFingering, positionAtPoint, practiceSequence, progressionChanges, rootToRoot, scalePatterns,
+  stringTargets, suggestCapo, voicingLibrary, voicingTransition,
 } from './index';
 
 describe('API.md examples', () => {
@@ -19,15 +20,25 @@ describe('API.md examples', () => {
     expect(melody.every((v) => v.movable && v.notes[v.notes.length - 1].note === 'B')).toBe(true);
     expect(chordVoicings('Am7', { tuning: 'ukulele' })[0].frets).toEqual([0, 0, 0, 0]);
     expect(chordVoicings('F#m7b5').length).toBe(12);
+    expect(chordVoicings('F').slice(0, 2).map((v) => v.label)).toEqual(['E-shape barre at fret 1', 'Small barre (strings 4–1)']);
+    expect(chordVoicings('D', { tuning: 'drop-d' })[0].frets).toEqual([0, 0, 0, 2, 3, 2]);
+    expect(chordVoicings('B9')[0].frets).toEqual([null, 2, 1, 2, 2, 2]);
+    expect(easiestVoicing('Bm')!.frets).toEqual([null, null, null, 4, 3, 2]);
+    expect(['C', 'F', 'Fm', 'Bm', 'G7'].map((symbol) => beginnerVoicing(symbol)!.frets.map((f) => f ?? 'x').join(''))).toEqual(['x32010', 'xx3211', 'xx3111', 'x24432', '320001']);
+    expect([beginnerVoicing('N.C.'), beginnerVoicing('nope')]).toEqual([null, null]);
+    expect([libraryCoverage('standard'), libraryCoverage('drop-d'), libraryCoverage('dadgad')]).toEqual(['full', 'partial', 'none']);
+    const bass = chordVoicings('C13b9', { tuning: 'bass' })[0];
+    expect([bass.rootless, bass.omitted]).toEqual([true, ['1', '5']]);
   });
 
   it('difficulty figures', () => {
     expect(chordDifficulty('Em')).toBe(2.2);
     expect(chordDifficulty('C')).toBe(3.4);
-    expect(chordDifficulty('F')).toBe(4.4);
-    expect(chordDifficulty('Bb')).toBe(6.9);
-    expect(chordVoicings('F')[1].difficulty).toBe(6.9);
-    expect([2.2, 3.4, 4.4, 6.9].map(difficultyLevel)).toEqual(['easy', 'easy', 'medium', 'hard']);
+    expect(chordDifficulty('F')).toBe(6.9);
+    expect(chordDifficulty('Bb')).toBe(7.2);
+    expect(chordVoicings('F')[1].difficulty).toBe(4.4);
+    expect(easiestVoicing('F')!.difficulty).toBeLessThanOrEqual(4.4);
+    expect([2.2, 3.4, 4.4, 6.9, 7.2].map(difficultyLevel)).toEqual(['easy', 'easy', 'medium', 'hard', 'hard']);
   });
 
   it('scale patterns and sequences', () => {
@@ -42,6 +53,9 @@ describe('API.md examples', () => {
     expect(scalePatterns('G', 'major', { system: '3nps' })[0].notes).toHaveLength(18);
     expect(scalePatterns('A', 'minor-pentatonic', { allOctaves: true }).some((p) => p.id === 'box-1-8va')).toBe(true);
     expect(arpeggioPatterns('Cmaj7')).toHaveLength(5);
+    expect(scalePatterns('A', 'minor-pentatonic', { upTheNeck: true }).map((p) => p.minFret)).toEqual([5, 7, 9, 12, 14]);
+    expect(rootToRoot(box1, { octaves: 1 }).map((n) => n.note)).toEqual(['A', 'C', 'D', 'E', 'G', 'A']);
+    expect([degreeNumber('b3'), degreeNumber('#11'), degreeNumber('bb7')]).toEqual([3, 4, 7]);
   });
 
   it('identification, capo, tuner, spelling, geometry, hand', () => {
@@ -61,6 +75,14 @@ describe('API.md examples', () => {
     expect(voicingTransition(chordVoicings('C')[0], chordVoicings('Am')[0]).tips[0]).toMatch(/^Keep your middle finger down on string 4, fret 2/);
   });
 
+  it('chord changes and placing notes', () => {
+    expect(chordChange('C', 'Am')!.tips[0]).toBe('Keep your middle finger down on string 4, fret 2: it does not move.');
+    const song = progressionChanges(['G', 'D', 'Em', 'C'], { loop: true });
+    expect([`${song.hardest!.from.chord}–${song.hardest!.to.chord}`, song.hardest!.difficulty]).toEqual(['C–G', 5.4]);
+    expect(positionAtPoint(neckPoint({ string: 3, fret: 7 }))).toMatchObject({ string: 3, fret: 7, onNeck: true });
+    expect(placeChord([60, 64])!.positions).toEqual([{ string: 2, fret: 1 }, { string: 1, fret: 0 }]);
+  });
+
   it('catalog sizes quoted in the digest', () => {
     const ids = TUNINGS.map((t) => t.id);
     for (const id of ['standard', 'half-step-down', 'whole-step-down', 'drop-d', 'double-drop-d', 'drop-c-sharp', 'drop-c', 'dadgad', 'open-g', 'open-d',
@@ -69,8 +91,10 @@ describe('API.md examples', () => {
     expect(ids).toHaveLength(26);
     const library = voicingLibrary();
     expect(library.length).toBeGreaterThan(3000);
-    expect(library.length).toBeLessThan(3500);
-    expect(guitar.OPEN_SHAPES.length).toBeGreaterThanOrEqual(65);
+    expect(library.length).toBeGreaterThan(3400);
+    expect(library.length).toBeLessThan(3700);
+    expect(guitar.OPEN_SHAPES).toHaveLength(99);
+    expect(guitar.OPEN_SHAPES.filter((o) => o.chord.includes('/'))).toHaveLength(28);
   });
 });
 
@@ -94,6 +118,8 @@ describe('the barrel', () => {
       'suggestCapo', 'bestCapo', 'capoShapes', 'progressionDifficulty', 'transpositionDifficulty', 'rankTranspositions',
       'planFingering', 'handMove', 'RESTING_HAND', 'DEFAULT_HAND_WEIGHTS', 'positionChangeCost', 'simultaneousCost', 'voicingTransition',
       'changeDifficulty', 'closestVoicing',
+      'degreeNumber', 'positionAtPoint', 'rootToRoot', 'essentialTones', 'hasBassRegister', 'libraryCoverage', 'curatedBonus', 'chordChange',
+      'progressionChanges', 'placeChord', 'beginnerVoicing',
     ];
     const exported = guitar as Record<string, unknown>;
     for (const name of names) expect(exported[name], name).toBeDefined();

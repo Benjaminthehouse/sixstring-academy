@@ -32,6 +32,8 @@ export interface LineBlob {
    * blur closed the gap around it). False: the glyph stands free and is complete as it is.
    */
   fused: boolean;
+  /** Cut out of a larger shape (see {@link findWeldedBlobs}): to be believed only when it reads well. */
+  welded?: boolean;
 }
 
 /** Index of the line nearest to y, and the signed distance from it in spaces. */
@@ -154,18 +156,29 @@ export function findLineBlobs(noLines: Components, g: StripGeometry, withLines?:
  * value scales every later test. Falls back to 0.8 space when the staff is nearly empty.
  */
 export function estimateDigitHeight(blobs: LineBlob[], g: StripGeometry): number {
+  return digitMetrics(blobs, g).height;
+}
+
+/**
+ * Digit height of the staff (see {@link estimateDigitHeight}) and the typical offset of a
+ * digit's centre below its line, both in strip px, from the digit-sized blobs.
+ */
+export function digitMetrics(blobs: LineBlob[], g: StripGeometry): { height: number; centreOffset: number } {
   const sp = g.space;
   const hs: number[] = [];
+  const offs: number[] = [];
   for (const b of blobs) {
     const h = b.box.y1 - b.box.y0;
     const w = b.box.x1 - b.box.x0;
     if (Math.abs(b.offset) > 0.2 || h < 0.5 * sp || h > 1.25 * sp || w > 1.9 * sp || w < 0.12 * sp) continue;
     if (nearBarline(g, b.box.x0, b.box.x1, 1)) continue;
     hs.push(h);
+    offs.push(b.offset * sp);
   }
-  if (hs.length < 3) return hs.length ? hs.sort((a, b) => a - b)[hs.length >> 1] : 0.8 * sp;
+  if (!hs.length) return { height: 0.8 * sp, centreOffset: 0 };
   hs.sort((a, b) => a - b);
-  return hs[hs.length >> 1];
+  offs.sort((a, b) => a - b);
+  return { height: hs[hs.length >> 1], centreOffset: offs[offs.length >> 1] };
 }
 
 /**
@@ -310,4 +323,125 @@ export function groupColumns<T extends Span & { line: number }>(items: T[], tole
   }
   cols.sort((a, b) => a.cx - b.cx);
   return cols.map((c) => c.items.sort((a, b) => a.line - b.line));
+}
+
+/**
+ * Is this really a bar line? A bar line is a stroke from the top line to the bottom line, so
+ * every space of the staff is inked at its x. A column of stacked fret numbers, which blur can
+ * turn into something the layout stage takes for a bar line, leaves at least the outermost half
+ * spaces empty. Returns the share of the staff's height that is inked (1 = solid).
+ */
+export function barlineSolidity(bin: BinaryImage, g: Pick<StripGeometry, 'lineYs' | 'space'>, bar: { x0: number; x1: number }): number {
+  const top = Math.round(g.lineYs[0] + 0.15 * g.space);
+  const bottom = Math.round(g.lineYs[g.lineYs.length - 1] - 0.15 * g.space);
+  const xa = Math.max(0, Math.floor(bar.x0) - 1);
+  const xb = Math.min(bin.width - 1, Math.ceil(bar.x1) + 1);
+  let inked = 0;
+  let rows = 0;
+  for (let y = Math.max(0, top); y <= bottom && y < bin.height; y++) {
+    rows++;
+    const o = y * bin.width;
+    for (let x = xa; x <= xb; x++) {
+      if (bin.data[o + x]) {
+        inked++;
+        break;
+      }
+    }
+  }
+  return rows ? inked / rows : 0;
+}
+
+/**
+ * Numbers welded to something else: to the numbers above and below them in a chord (blur closes
+ * the gap between two bold digits), to a tie or slur arc that ends on them, to a stem that hangs
+ * from them. Such ink is one component too tall or too wide to be a number and is skipped by
+ * {@link findLineBlobs}; here the part of it that lies where a number of each string line would
+ * be is cut out again.
+ *
+ * A cut-out piece is kept when it could be a number, unless the ink runs on through it both
+ * upwards and downwards at full strength: that is a stroke crossing the line (a rest, a stem, a
+ * brace), not a number. Welds between stacked numbers are faint bridges and do not count.
+ *
+ * `cc` are the components of the line-free strip (row 0 = strip row `dy`), `digitHeight` and
+ * `centreOffset` describe the numbers of the staff, `skip` rules out stretches of it (clef, bar
+ * lines).
+ */
+export function findWeldedBlobs(cc: Components, dy: number, g: StripGeometry, gray: GrayImage, digitHeight: number, centreOffset: number, skip: (x0: number, x1: number) => boolean): LineBlob[] {
+  const sp = g.space;
+  const n = g.lineYs.length;
+  const hd = digitHeight;
+  const out: LineBlob[] = [];
+  const reach = 0.58 * hd;
+  const inkAt = (x: number, y: number): number => 255 - gray.data[y * gray.width + x];
+  for (let c = 1; c <= cc.count; c++) {
+    const h = cc.y1[c] - cc.y0[c] + 1;
+    const w = cc.x1[c] - cc.x0[c] + 1;
+    if (h <= MAX_GLYPH_H * sp && w <= MAX_GLYPH_W * sp) continue;
+    if (w < 0.2 * hd || cc.area[c] < 0.1 * hd * hd) continue;
+    const top = cc.y0[c] + dy;
+    const bottom = cc.y1[c] + 1 + dy;
+    // The shape that begins on the staff's opening bar line is the bar line, a bracket and often
+    // the clef letters run together: nothing in its first few spaces is a number.
+    const opening = cc.x0[c] < g.x0 + 0.6 * sp ? g.x0 + 4.5 * sp : -Infinity;
+    const has = (x: number, y: number): boolean => y >= top && y < bottom && cc.labels[(y - dy) * cc.width + x] === c;
+    const pieces: (LineBlob & { through: boolean })[] = [];
+    let lines = 0;
+    for (let l = 0; l < n; l++) {
+      const mid = g.lineYs[l] + centreOffset;
+      const ya = Math.max(top, Math.ceil(mid - reach));
+      const yb = Math.min(bottom, Math.floor(mid + reach) + 1);
+      if (yb - ya < 0.5 * hd) continue;
+      // Runs of columns that carry ink of this component inside the window.
+      let x = cc.x0[c];
+      let any = false;
+      while (x <= cc.x1[c]) {
+        const col = (xx: number): boolean => {
+          for (let y = ya; y < yb; y++) if (has(xx, y)) return true;
+          return false;
+        };
+        if (!col(x)) {
+          x++;
+          continue;
+        }
+        const start = x;
+        while (x <= cc.x1[c] && (col(x) || (x + 1 <= cc.x1[c] && col(x + 1)))) x++;
+        const end = x; // exclusive
+        if (start < opening || skip(start, end)) continue;
+        let y0 = yb, y1 = ya - 1, area = 0, peak = 0, x0 = end, x1 = start - 1;
+        for (let y = ya; y < yb; y++) {
+          for (let xx = start; xx < end; xx++) {
+            if (!has(xx, y)) continue;
+            area++;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+            if (xx < x0) x0 = xx;
+            if (xx > x1) x1 = xx;
+            peak = Math.max(peak, inkAt(xx, y));
+          }
+        }
+        const pw = x1 - x0 + 1;
+        const ph = y1 - y0 + 1;
+        if (ph < 0.6 * hd || pw < 0.2 * hd || pw > 2.3 * hd || area < 0.06 * hd * hd) continue;
+        // Does the ink run on beyond the window, and how dark is it there?
+        const beyond = (yy: number): number => {
+          let dark = 0;
+          if (yy < 0 || yy >= gray.height) return 0;
+          for (let xx = x0; xx <= x1; xx++) if (has(xx, yy)) dark = Math.max(dark, inkAt(xx, yy));
+          return dark;
+        };
+        const gapUp = Math.max(1, Math.round((sp - 2 * reach) / 2));
+        const above = Math.min(beyond(ya - 1), beyond(ya - 1 - gapUp));
+        const below = Math.min(beyond(yb), beyond(yb + gapUp));
+        const strong = 0.78 * peak;
+        any = true;
+        pieces.push({ box: { x0, y0, x1: x1 + 1, y1: y1 + 1 }, line: l, offset: ((y0 + y1 + 1) / 2 - g.lineYs[l]) / sp, area, fused: true, through: above > strong && below > strong });
+      }
+      if (any) lines++;
+    }
+    if (!pieces.length) continue;
+    // A broken bar line also falls into one thin piece per line; a chord of nothing but 1s over the whole staff does not exist.
+    if (lines >= n - 1 && pieces.every((p) => p.box.x1 - p.box.x0 <= 0.45 * hd)) continue;
+    for (const p of pieces) if (!p.through) out.push({ box: p.box, line: p.line, offset: p.offset, area: p.area, fused: p.fused, welded: true });
+  }
+  return out;
 }

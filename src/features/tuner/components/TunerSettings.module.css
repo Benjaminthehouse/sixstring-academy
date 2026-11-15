@@ -1,0 +1,78 @@
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* A plain disclosure: the advanced options stay one tap away. */
+.more {
+  border-top: 1px solid var(--line);
+}
+.moreSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-1) 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--r-sm);
+}
+.moreSummary::-webkit-details-marker {
+  display: none;
+}
+.moreSummary::after {
+  content: '';
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: var(--sp-1);
+  border-right: 2px solid var(--fg-muted);
+  border-bottom: 2px solid var(--fg-muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--dur-1) var(--ease);
+}
+.more[open] > .moreSummary::after {
+  transform: rotate(-135deg) translateY(-2px);
+}
+.moreSummary:hover {
+  color: var(--accent-text);
+}
+.moreSummary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.moreBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-3) 0 var(--sp-4);
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  align-items: center;
+  margin: 0;
+  padding: var(--sp-2) 0 var(--sp-4);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.keys dt {
+  white-space: nowrap;
+}
+.keys dd {
+  margin: 0;
+}

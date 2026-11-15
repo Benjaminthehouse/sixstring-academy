@@ -565,7 +565,7 @@ export interface NoteScore {
   onsetErrorMs: number;
   /** The first note-on in the note's span was a different note. */
   wrongFirst: boolean;
-  /** Note-ons with another MIDI number during the note. */
+  /** Note-ons with another MIDI number reported during the note. */
   wrongNoteOns: number;
   /** ...of which an octave, a twelfth or two octaves away (up or down). */
   octaveNoteOns: number;
@@ -631,7 +631,10 @@ export function scoreScene(scene: Scene, opts: ScoreOptions = {}): SceneScore {
     const from = t.start - earlyMs / 1000;
     const mine = noteOns.filter((n) => n.time >= from && n.time < t.end);
     const right = mine.filter((n) => n.midi === t.midi);
-    const wrong = mine.filter((n) => n.midi !== t.midi);
+    // A wrong note-on is one that was reported while the note was still being scored. (When a
+    // ringing string takes over at the very end of the span, its note-on arrives after the span
+    // and is back-dated to where that string was first heard, which can be a few ms inside it.)
+    const wrong = mine.filter((n) => n.midi !== t.midi && n.detectedAt < t.end);
     const first = right[0];
     const a = t.start + settleMs / 1000;
     const b = untilMs === undefined ? t.end : Math.min(t.end, t.start + untilMs / 1000);
@@ -654,7 +657,7 @@ export function scoreScene(scene: Scene, opts: ScoreOptions = {}): SceneScore {
       detected: !!first,
       latencyMs: first ? (first.detectedAt - t.start) * 1000 : Number.NaN,
       onsetErrorMs: first ? (first.time - t.start) * 1000 : Number.NaN,
-      wrongFirst: mine.length > 0 && mine[0].midi !== t.midi,
+      wrongFirst: mine.length > 0 && mine[0].midi !== t.midi && mine[0].detectedAt < t.end,
       wrongNoteOns: wrong.length,
       octaveNoteOns: wrong.filter((n) => OCTAVE_SHIFTS.includes(n.midi - t.midi)).length,
       repeats: Math.max(0, right.length - 1),

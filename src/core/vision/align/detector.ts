@@ -7,13 +7,13 @@
  *            a coarse rigid search when the board moved far; returns null when the score collapses.
  */
 import { checkPlausibleView, computeVisibleFrets, confirmFretAt, fretX, makePose, neckModel, stringSpacingAt } from '../geometry';
-import type { DetectOptions, DetectionDiagnostics, DetectionResult, Detector, DiagnosticFeature, Frame, FretboardPose, MarkerHint, Mat3, NeckModel, NumberingSource, Point } from '../types';
+import type { DetectOptions, DetectionDiagnostics, DetectionResult, Detector, DiagnosticFeature, Frame, FretboardPose, MarkerHint, Mat3, NeckModel, NumberingSource, Point, Rect } from '../types';
 import { AxisSearch, computeRidgeField, type RidgeField } from './axis';
 import type { PixelRect } from './image';
 import { measureBoard, measurementHomography, type BoardMeasurement, type OrientationHints } from './hypothesis';
 import { buildPyramid, toWorkingGray, type GrayImage, type Pyramid } from './image';
 import { blendHomography, controlDistance, controlPointsOf, predictShift, searchShift, shiftRigidly } from './motion';
-import { resolveMarkers, resolveNumbering } from './numbering';
+import { resolveMarkers, resolveNumbering, type NumberingDecision } from './numbering';
 import { refineHomography, refineRigid, visibleSpan, type FretSpan } from './refine';
 import { renumberHomography, rigidity } from './rigidity';
 import { lengthTrend, scorePose, type PoseScore } from './score';
@@ -64,13 +64,51 @@ export interface Hypothesis {
 }
 
 /** The frame as the stages see it. */
-interface WorkFrame {
+export interface AlignView {
   pyramid: Pyramid;
   width: number;
   height: number;
   /** Working pixels per frame pixel. */
   scaleX: number;
   scaleY: number;
+}
+
+type WorkFrame = AlignView;
+
+/** Outcome of `AlignDetector.propose`: the best hypothesis of the top-down search and how it fares at each acceptance gate. */
+export interface AlignProposal {
+  /** The best-ranked hypothesis (working pixels, provisional numbering), whether or not it passes the gates; null when the search found none. */
+  hypothesis: Hypothesis | null;
+  /** The first gate of the detector's own thresholds that turns it down, or undefined when it passes them all. */
+  reason?: string;
+  /** Rigidity residual under the most favourable numbering (see rigidity.ts); Infinity when not computed. */
+  rigidity: number;
+  /** Relative change of the measured wire length along the neck against the pose (see `lengthTrend`); NaN when not measurable. */
+  lengthTrend: number;
+  /** Numbering read off the hypothesis (null when there is none). */
+  numbering: NumberingDecision | null;
+  /** The board shows its strings or a clear nut (what short runs of fret-like clutter lack). */
+  corroborated: boolean;
+}
+
+/** The alignment detector with its stages exposed, so the production pipeline can combine them with the line stages. */
+export interface AlignDetector extends Detector {
+  /**
+   * Build the image pyramid of a frame; valid until the next `prepare`, `detect` or `track`. With a
+   * region (frame pixels) only that part is refreshed: enough for `track` and `score` near a known
+   * board, not for `propose`.
+   */
+  prepare(frame: Frame, region?: Rect): AlignView;
+  /** `Detector.track`, optionally on a view already prepared for this frame. */
+  track(frame: Frame, previousPose: FretboardPose, options?: DetectOptions, view?: AlignView): DetectionResult;
+  /** Top-down search on a prepared view. */
+  propose(view: AlignView, model: NeckModel, options?: DetectOptions, diagnostics?: { timings: Record<string, number>; stats: Record<string, number> }): AlignProposal;
+  /** Score a homography (neck mm -> working pixels of the view). With no polarity given both are tried and the better kept. */
+  score(view: AlignView, H: Mat3, model: NeckModel, polarity?: 1 | -1, span?: FretSpan): { score: PoseScore; polarity: 1 | -1; span: FretSpan };
+  /** Read the absolute numbering off a scored pose (nut, inlays, board end; else a geometric guess). */
+  numbering(view: AlignView, H: Mat3, model: NeckModel, polarity: 1 | -1, score: PoseScore): NumberingDecision;
+  /** Could a camera have seen a neck like this: rigidity residual under the most favourable numbering, and the trend of the wire lengths against the pose. */
+  plausibility(view: AlignView, H: Mat3, model: NeckModel, polarity: 1 | -1, score: PoseScore): { rigidity: number; lengthTrend: number };
 }
 
 /** What the tracker remembers between frames. */
@@ -117,7 +155,7 @@ function scaleH(H: Mat3, sx: number, sy: number): Mat3 {
 }
 
 /** Create the alignment detector. One instance per camera stream (it keeps buffers and motion state). */
-export function createAlignDetector(options: AlignDetectorOptions = {}): Detector {
+export function createAlignDetector(options: AlignDetectorOptions = {}): AlignDetector {
   const maxCandidates = options.maxCandidates ?? 6;
   const minQuality = options.minQuality ?? 0.6;
   const minFrets = options.minFrets ?? 7;
@@ -145,10 +183,12 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
   let sinceVerify = 0;
   let verifyGap = 2;
 
-  const prepare = (frame: Frame): WorkFrame => {
+  const prepare = (frame: Frame, region?: Rect): WorkFrame => {
     const work = toWorkingGray(frame, gray);
     gray = work.gray;
-    pyramid = buildPyramid(gray, pyramid);
+    // A tracker only reads the neighbourhood of the board: smooth just that (the rest goes stale).
+    const rect = region ? { x0: Math.floor(region.x * work.scaleX), y0: Math.floor(region.y * work.scaleY), x1: Math.ceil((region.x + region.width) * work.scaleX), y1: Math.ceil((region.y + region.height) * work.scaleY) } : undefined;
+    pyramid = buildPyramid(gray, pyramid, rect);
     return { pyramid, width: gray.width, height: gray.height, scaleX: work.scaleX, scaleY: work.scaleY };
   };
 
@@ -311,17 +351,8 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     trace?: string;
   }
 
-  /** Detect from scratch on a prepared frame. `stale` (working pixels) lends its numbering when the image offers none. */
-  const fullDetect = (
-    wf: WorkFrame,
-    model: NeckModel,
-    hints: OrientationHints,
-    stale: { H: Mat3; numberingConfidence: number } | null,
-    markers: { frame: Frame; hint: MarkerHint } | null,
-    timings: Record<string, number>,
-    stats: Record<string, number>,
-    region?: PixelRect,
-  ): FullDetection | { H: null; reason: string } => {
+  /** The top-down search and the acceptance gates, without the final numbering step. */
+  const propose = (wf: WorkFrame, model: NeckModel, hints: OrientationHints, timings: Record<string, number>, stats: Record<string, number>, region?: PixelRect): AlignProposal => {
     const { fine, coarse } = wf.pyramid;
     let t1 = performance.now();
     field = computeRidgeField(fine, {}, field);
@@ -355,7 +386,7 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     timings.measure = measureMs;
     timings.align = alignMs;
     stats.candidates = examined;
-    if (!best) return { H: null, reason: 'no-hypothesis' };
+    if (!best) return { hypothesis: null, reason: 'no-hypothesis', rigidity: Infinity, lengthTrend: NaN, numbering: null, corroborated: false };
     stats.quality = best.score.quality;
     stats.seen = best.score.seen;
     stats.coverage = best.score.coverage;
@@ -365,24 +396,49 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     stats.overrun = best.score.overrun;
     stats.strings = best.score.strings;
     stats.thickness = best.score.thickness;
-    if (best.score.quality < minQuality || best.score.seen < minFrets) return { H: null, reason: 'low-score' };
+    let reason: string | undefined;
+    if (best.score.quality < minQuality || best.score.seen < minFrets) reason = 'low-score';
+    if (best.score.seen < 2) return { hypothesis: best, reason, rigidity: Infinity, lengthTrend: NaN, numbering: null, corroborated: false };
     // Could a camera have seen a neck like this? Under the most favourable numbering, that is.
     const seen = best.score.seenSpan;
-    const xRef = fretX(model, (seen.min + seen.max) / 2);
     const context = numberingContext(best.H, model, wf, seen);
     stats.rigid = context.minRigidity;
-    if (context.minRigidity > maxRigidity) return { H: null, reason: 'not-rigid' };
+    if (!reason && context.minRigidity > maxRigidity) reason = 'not-rigid';
     const trend = lengthTrend(fine, coarse, best.H, model, best.polarity, best.score);
     stats.lengthTrend = trend;
-    if (Math.abs(trend) > maxLengthTrend) return { H: null, reason: 'wires-do-not-taper' };
+    if (!reason && Math.abs(trend) > maxLengthTrend) reason = 'wires-do-not-taper';
     // Numbering, then one more alignment under the final numbering (the taper depends on it).
     const decision = resolveNumbering(fine, coarse, best.H, model, best.polarity, best.score, context);
     // A short run of evenly ruled thin lines (piano keys, a radiator, the edges of a row of books)
     // can pass for a few frets. A short run of real frets shows something more: its strings or a
     // clear nut. (Inlay dots do not count: alternating light and dark keys read as dots too.)
     const corroborated = best.score.strings >= minStringsWhenFew || (decision.source === 'nut' && decision.confidence >= 0.8);
-    // (Stickers found below corroborate too, but they are looked for only once the board is accepted.)
-    if (best.score.seen < confidentFrets && best.score.quality < excellentQuality && !corroborated) return { H: null, reason: 'few-frets-uncorroborated' };
+    // (Stickers found later corroborate too, but they are looked for only once the board is accepted.)
+    if (!reason && best.score.seen < confidentFrets && best.score.quality < excellentQuality && !corroborated) reason = 'few-frets-uncorroborated';
+    timings.numbering = performance.now() - t2;
+    return { hypothesis: best, reason, rigidity: context.minRigidity, lengthTrend: trend, numbering: decision, corroborated };
+  };
+
+  /** Detect from scratch on a prepared frame. `stale` (working pixels) lends its numbering when the image offers none. */
+  const fullDetect = (
+    wf: WorkFrame,
+    model: NeckModel,
+    hints: OrientationHints,
+    stale: { H: Mat3; numberingConfidence: number } | null,
+    markers: { frame: Frame; hint: MarkerHint } | null,
+    timings: Record<string, number>,
+    stats: Record<string, number>,
+    region?: PixelRect,
+  ): FullDetection | { H: null; reason: string } => {
+    const { fine, coarse } = wf.pyramid;
+    const proposal = propose(wf, model, hints, timings, stats, region);
+    const best = proposal.hypothesis;
+    const decision = proposal.numbering;
+    if (!best || proposal.reason || !decision) return { H: null, reason: proposal.reason ?? 'no-hypothesis' };
+    const t2 = performance.now();
+    const seen = best.score.seenSpan;
+    const xRef = fretX(model, (seen.min + seen.max) / 2);
+    const context = numberingContext(best.H, model, wf, seen);
     let delta = decision.delta;
     let source = decision.source;
     let numberingConfidence = decision.confidence;
@@ -420,7 +476,7 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
         finalH = shifted;
       }
     }
-    timings.numbering = performance.now() - t2;
+    timings.numbering = (timings.numbering ?? 0) + performance.now() - t2;
     stats.numberingDelta = delta;
     return { H: finalH, score: finalScore, polarity: best.polarity, source, numberingConfidence, trace };
   };
@@ -501,7 +557,7 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     return finish(pose);
   };
 
-  const track = (frame: Frame, previousPose: FretboardPose, opts?: DetectOptions): DetectionResult => {
+  const track = (frame: Frame, previousPose: FretboardPose, opts?: DetectOptions, view?: AlignView): DetectionResult => {
     const t0 = performance.now();
     const timings: Record<string, number> = {};
     const stats: Record<string, number> = {};
@@ -513,7 +569,7 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     const model = previousPose.model;
     const hints = hintsOf(opts, previousPose);
     const timeMs = opts?.timeMs ?? ++frameClock * 33;
-    const wf = prepare(frame);
+    const wf = view ?? prepare(frame);
     const t1 = performance.now();
     timings.prepare = t1 - t0;
     const Hprev = scaleH(previousPose.H, wf.width / previousPose.frameWidth, wf.height / previousPose.frameHeight);
@@ -522,6 +578,7 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     if (!hyp) return finish(null, 'lost');
     stats.quality = hyp.score.quality;
     stats.seen = hyp.score.seen;
+    stats.polarity = hyp.polarity;
     if (hyp.score.quality < trackMinQuality || hyp.score.seen < 4) return finish(null, 'low-score');
     streamPolarity = hyp.polarity;
     // A doubtful fit (a pose that settled a little wrong, or a board coming out from behind
@@ -581,6 +638,23 @@ export function createAlignDetector(options: AlignDetectorOptions = {}): Detecto
     name: options.name ?? 'align',
     detect,
     track,
+    prepare,
+    propose: (view, model, opts, diagnostics) => propose(view, model, hintsOf(opts, opts?.previousPose), diagnostics?.timings ?? {}, diagnostics?.stats ?? {}, regionOf(opts, view)),
+    score: (view, H, model, polarity, span) => {
+      const { fine, coarse } = view.pyramid;
+      const over = span ?? visibleSpan(H, model, view.width, view.height, 0, model.fretCount);
+      let best: { score: PoseScore; polarity: 1 | -1; span: FretSpan } | null = null;
+      for (const pol of polarity ? [polarity] : ([1, -1] as const)) {
+        const score = scorePose(fine, coarse, H, model, pol, over);
+        if (!best || score.quality > best.score.quality) best = { score, polarity: pol, span: over };
+      }
+      return best as { score: PoseScore; polarity: 1 | -1; span: FretSpan };
+    },
+    numbering: (view, H, model, polarity, score) => resolveNumbering(view.pyramid.fine, view.pyramid.coarse, H, model, polarity, score, numberingContext(H, model, view, score.seenSpan)),
+    plausibility: (view, H, model, polarity, score) => ({
+      rigidity: score.seenSpan.max >= score.seenSpan.min ? numberingContext(H, model, view, score.seenSpan).minRigidity : Infinity,
+      lengthTrend: lengthTrend(view.pyramid.fine, view.pyramid.coarse, H, model, polarity, score),
+    }),
     reset(): void {
       motion = null;
       streamPolarity = 0;

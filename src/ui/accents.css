@@ -1,5 +1,188 @@
 /*
  * Accent cosmetics. The progress store sets data-accent on <html> when the learner equips one
  * (cherry, ocean, forest, violet, silverburst); with no attribute the sunburst amber in tokens.css
- * applies. Each block redefines only the --accent* tokens, for light and for dark.
+ * applies. Each block redefines only the five --accent* tokens, for light and for dark.
+ *
+ * Three rules per accent, mirroring the three places tokens.css defines the amber:
+ *   light       :root[data-accent='x']
+ *   dark        :root:not([data-theme='light'])[data-accent='x']  inside prefers-color-scheme: dark
+ *   dark        :root[data-theme='dark'][data-accent='x']
+ * The dark selectors carry one attribute more than the light one, so they win wherever they apply.
+ *
+ * Each rule also matches [data-accent-scope='x'] on any element. That previews an accent inside
+ * one box (the shop's "try it on" stage) without touching the rest of the page. The sunburst block
+ * repeats the amber of tokens.css for exactly that purpose: a preview of the house colour while
+ * another accent is equipped.
+ *
+ * Contrast (checked by src/features/profile/accents.test.ts, which parses this file and
+ * tokens.css): --accent-fg on --accent and on --accent-strong is 4.5:1 or better; --accent-text
+ * on --bg, --surface, --surface-2 and on --accent-soft is 4.5:1 or better; in both themes.
  */
+
+/* ---------- Sunburst: the house amber (same values as tokens.css) ---------- */
+:root[data-accent='sunburst'],
+[data-accent-scope='sunburst'] {
+  --accent: #f2a20c;
+  --accent-strong: #d98200;
+  --accent-fg: #201400;
+  --accent-text: #965000;
+  --accent-soft: #fdeed0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='sunburst'],
+  :root:not([data-theme='light']) [data-accent-scope='sunburst'] {
+    --accent: #f5ae2e;
+    --accent-strong: #ffc65c;
+    --accent-fg: #1b1200;
+    --accent-text: #f7bb55;
+    --accent-soft: #38290b;
+  }
+}
+:root[data-theme='dark'][data-accent='sunburst'],
+:root[data-theme='dark'] [data-accent-scope='sunburst'] {
+  --accent: #f5ae2e;
+  --accent-strong: #ffc65c;
+  --accent-fg: #1b1200;
+  --accent-text: #f7bb55;
+  --accent-soft: #38290b;
+}
+
+/* ---------- Cherry: deep cherry red ---------- */
+:root[data-accent='cherry'],
+[data-accent-scope='cherry'] {
+  --accent: #c2283f;
+  --accent-strong: #9e1a30;
+  --accent-fg: #ffffff;
+  --accent-text: #a81d34;
+  --accent-soft: #fbe1e4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='cherry'],
+  :root:not([data-theme='light']) [data-accent-scope='cherry'] {
+    --accent: #f0627a;
+    --accent-strong: #ff8b9d;
+    --accent-fg: #2a050c;
+    --accent-text: #f58497;
+    --accent-soft: #3b151c;
+  }
+}
+:root[data-theme='dark'][data-accent='cherry'],
+:root[data-theme='dark'] [data-accent-scope='cherry'] {
+  --accent: #f0627a;
+  --accent-strong: #ff8b9d;
+  --accent-fg: #2a050c;
+  --accent-text: #f58497;
+  --accent-soft: #3b151c;
+}
+
+/* ---------- Ocean: cool turquoise ---------- */
+:root[data-accent='ocean'],
+[data-accent-scope='ocean'] {
+  --accent: #0b7d87;
+  --accent-strong: #07656d;
+  --accent-fg: #ffffff;
+  --accent-text: #086770;
+  --accent-soft: #d5f0f1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='ocean'],
+  :root:not([data-theme='light']) [data-accent-scope='ocean'] {
+    --accent: #35c4cf;
+    --accent-strong: #6fdde6;
+    --accent-fg: #021d20;
+    --accent-text: #4fd0da;
+    --accent-soft: #0c3236;
+  }
+}
+:root[data-theme='dark'][data-accent='ocean'],
+:root[data-theme='dark'] [data-accent-scope='ocean'] {
+  --accent: #35c4cf;
+  --accent-strong: #6fdde6;
+  --accent-fg: #021d20;
+  --accent-text: #4fd0da;
+  --accent-soft: #0c3236;
+}
+
+/* ---------- Forest: mossy green ---------- */
+:root[data-accent='forest'],
+[data-accent-scope='forest'] {
+  --accent: #3d7a34;
+  --accent-strong: #2c6125;
+  --accent-fg: #ffffff;
+  --accent-text: #2f6628;
+  --accent-soft: #dff0da;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='forest'],
+  :root:not([data-theme='light']) [data-accent-scope='forest'] {
+    --accent: #7cc46f;
+    --accent-strong: #a1dc95;
+    --accent-fg: #0a1f07;
+    --accent-text: #8fd083;
+    --accent-soft: #17321a;
+  }
+}
+:root[data-theme='dark'][data-accent='forest'],
+:root[data-theme='dark'] [data-accent-scope='forest'] {
+  --accent: #7cc46f;
+  --accent-strong: #a1dc95;
+  --accent-fg: #0a1f07;
+  --accent-text: #8fd083;
+  --accent-soft: #17321a;
+}
+
+/* ---------- Violet: dusky purple ---------- */
+:root[data-accent='violet'],
+[data-accent-scope='violet'] {
+  --accent: #7a4bc4;
+  --accent-strong: #6035a6;
+  --accent-fg: #ffffff;
+  --accent-text: #6a3db3;
+  --accent-soft: #ece3fa;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='violet'],
+  :root:not([data-theme='light']) [data-accent-scope='violet'] {
+    --accent: #b392f0;
+    --accent-strong: #cfb8fb;
+    --accent-fg: #170a33;
+    --accent-text: #bda1f5;
+    --accent-soft: #2a1e47;
+  }
+}
+:root[data-theme='dark'][data-accent='violet'],
+:root[data-theme='dark'] [data-accent-scope='violet'] {
+  --accent: #b392f0;
+  --accent-strong: #cfb8fb;
+  --accent-fg: #170a33;
+  --accent-text: #bda1f5;
+  --accent-soft: #2a1e47;
+}
+
+/* ---------- Silverburst: graphite fading to silver ---------- */
+:root[data-accent='silverburst'],
+[data-accent-scope='silverburst'] {
+  --accent: #46535a;
+  --accent-strong: #2c363b;
+  --accent-fg: #ffffff;
+  --accent-text: #3c484e;
+  --accent-soft: #e1e7ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-accent='silverburst'],
+  :root:not([data-theme='light']) [data-accent-scope='silverburst'] {
+    --accent: #c3ccd2;
+    --accent-strong: #e7edf0;
+    --accent-fg: #12191c;
+    --accent-text: #c9d2d7;
+    --accent-soft: #2b353a;
+  }
+}
+:root[data-theme='dark'][data-accent='silverburst'],
+:root[data-theme='dark'] [data-accent-scope='silverburst'] {
+  --accent: #c3ccd2;
+  --accent-strong: #e7edf0;
+  --accent-fg: #12191c;
+  --accent-text: #c9d2d7;
+  --accent-soft: #2b353a;
+}

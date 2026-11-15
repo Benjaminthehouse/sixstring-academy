@@ -4,15 +4,16 @@
  * drop-2 and drop-3 seventh chords in every inversion).
  *
  * The shapes are written for standard tuning. They also serve every tuning with the same string
- * intervals (E flat standard, D standard, seven-string standard) and any capo: the library looks
- * up the shape that *sounds* the chord there. Other tunings get their voicings from the generator.
+ * intervals (E flat standard, D standard, seven-string standard, Nashville) and any capo: the
+ * library looks up the shape that *sounds* the chord there. Drop tunings keep the shapes that stay
+ * off the retuned strings. Other tunings get their voicings from the generator.
  */
 import { buildChord, chord as parseChord, getChordType, note as parseNote, type Chord, type ChordType } from '@/core/theory';
 import { MOVABLE_SHAPES, OPEN_SHAPES, type MovableShape } from './chord-shapes';
 import type { NeckOptions } from './fretboard';
-import { hasStandardIntervals, tuning, type Tuning } from './tunings';
+import { tuning, type Tuning, type TuningInput } from './tunings';
 import type { CagedShape } from './types';
-import { parseFrets, tryBuildVoicing, type Voicing, type VoicingCategory } from './voicing';
+import { hasBassRegister, parseFrets, tryBuildVoicing, type Voicing, type VoicingCategory } from './voicing';
 
 /** Categories in the order the library lists them. */
 export const VOICING_CATEGORIES: readonly VoicingCategory[] = ['open', 'barre', 'caged', 'power', 'shell', 'triad', 'jazz', 'drop2', 'drop3', 'generated'];
@@ -47,6 +48,18 @@ interface Shape {
   label: string;
   category: VoicingCategory;
   shape: CagedShape | null;
+  /** Ranking adjustment of a curated shape (see `OpenShape.bonus`). */
+  bonus?: number;
+}
+
+const BONUS = new WeakMap<Voicing, number>();
+
+/**
+ * The ranking adjustment a curated voicing carries: 0 for nearly all, negative for a simplified
+ * version that is offered after the standard shape (the small F after the full barre).
+ */
+export function curatedBonus(voicing: Voicing): number {
+  return BONUS.get(voicing) ?? 0;
 }
 
 function mod12(n: number): number {
@@ -149,25 +162,65 @@ function shapesFor(rootPc: number, type: ChordType, bassPc: number | null, withI
     if (o.chord.type.id !== type.id || parseNote(o.chord.root).chroma !== rootPc) continue;
     const bass = o.chord.bass ? parseNote(o.chord.bass).chroma : rootPc;
     if (bass !== wantedBass && !(withInversions && type.semitones.some((s) => mod12(rootPc + s) === bass))) continue;
-    out.push({ frets: [...o.frets], fingers: o.def.fingers, label: 'Open', category: 'open', shape: null });
+    out.push({ frets: [...o.frets], fingers: o.def.fingers, label: o.def.label ?? 'Open', category: 'open', shape: null, bonus: o.def.bonus });
   }
   if (wantedBass === rootPc || withInversions) {
     for (const m of MOVABLE_PARSED) {
       if (m.def.type !== type.id) continue;
-      const shift = mod12(rootPc - m.rootPc);
+      // The lowest place on the neck where the shape still has no open string.
+      const written = Math.min(...m.frets.filter((f): f is number => f !== null));
+      let shift = mod12(rootPc - m.rootPc);
+      if (written + shift - 12 >= 1) shift -= 12;
       const frets = m.frets.map((f) => (f === null ? null : f + shift));
-      const base = Math.min(...frets.filter((f): f is number => f !== null));
-      out.push({ frets, fingers: m.def.fingers, label: movableLabel(m.def, base), category: m.def.category, shape: m.def.shape });
+      const base = written + shift;
+      out.push({ frets, fingers: m.def.fingers, label: movableLabel(m.def, base), category: m.def.category, shape: m.def.shape, bonus: m.def.bonus });
     }
   }
   for (const shape of computedShapes(rootPc, type)) out.push(shape);
   return out;
 }
 
-/** Semitones the tuning (with capo) sounds above standard, or null when the curated shapes do not apply to it. */
-function libraryOffset(t: Tuning, capo: number): number | null {
-  if (t.stringCount < 6 || !hasStandardIntervals(t)) return null;
-  return t.midi[t.stringCount - 6] - STANDARD[0] + capo;
+interface Frame {
+  /** Semitones the tuning (with capo) sounds above standard on the strings that follow it. */
+  offset: number;
+  /** Which of the six highest strings (low to high) are tuned like standard, give or take the offset. */
+  valid: boolean[];
+  /** True when every one of them is: the whole library applies. */
+  full: boolean;
+}
+
+/**
+ * How the curated shapes map onto a tuning. Standard intervals on the six highest strings serve
+ * the whole library (octaves aside: Nashville tuning plays every standard shape). A drop tuning
+ * (drop D, double drop D, drop C) keeps them on four or five neighbouring strings: every shape
+ * that only sounds those strings is as good there as in standard tuning. Anything else gets null
+ * and is left to the generator.
+ */
+function libraryFrame(t: Tuning, capo: number): Frame | null {
+  if (t.stringCount < 6) return null;
+  const base = t.stringCount - 6;
+  const diffs = STANDARD.map((midi, i) => mod12(t.midi[base + i] - midi));
+  let best: Frame | null = null;
+  let most = 0;
+  for (const diff of new Set(diffs)) {
+    const valid = diffs.map((d) => d === diff);
+    const count = valid.filter(Boolean).length;
+    // The strings that agree have to be neighbours, or no shape of any size survives.
+    const first = valid.indexOf(true);
+    if (count < 4 || count <= most || !valid.slice(first, first + count).every(Boolean)) continue;
+    best = { offset: diff + capo, valid, full: count === 6 };
+    most = count;
+  }
+  return best;
+}
+
+/**
+ * How much of the curated library a tuning gets: `full` (standard intervals: every shape),
+ * `partial` (a drop tuning, all fourths: the shapes that leave the retuned strings alone) or `none`.
+ */
+export function libraryCoverage(tuningInput: TuningInput = 'standard'): 'full' | 'partial' | 'none' {
+  const frame = libraryFrame(tuning(tuningInput), 0);
+  return !frame ? 'none' : frame.full ? 'full' : 'partial';
 }
 
 /**
@@ -175,14 +228,16 @@ function libraryOffset(t: Tuning, capo: number): number | null {
  * shapes, power chords, shells, triads, jazz grips, drop 2, drop 3. A plain symbol gets the shapes
  * with the root in the bass; a slash chord (`C/E`) the shapes with that bass; `inversions: true`
  * every inversion. Empty for chords the library has no shape for (use `chordVoicings`, which
- * also generates) and for tunings without standard intervals.
+ * also generates) and for tunings the shapes do not fit; drop tunings get the shapes that stay
+ * off the retuned strings (and no power chords: there the one-finger shapes of the tuning rule).
  */
 export function libraryVoicings(chordInput: string | Chord, opts: LibraryOptions = {}): Voicing[] {
   const c = parseChord(chordInput);
   const t = tuning(opts.tuning);
   const capo = opts.capo ?? 0;
-  const offset = libraryOffset(t, capo);
-  if (offset === null) return [];
+  const frame = libraryFrame(t, capo);
+  if (!frame) return [];
+  const { offset } = frame;
   const maxFret = opts.maxFret ?? 15;
   const rootPc = mod12(parseNote(c.root).chroma - offset);
   const bassPc = c.bass ? mod12(parseNote(c.bass).chroma - offset) : null;
@@ -190,9 +245,13 @@ export function libraryVoicings(chordInput: string | Chord, opts: LibraryOptions
   const plain = buildChord(c.root, c.type);
   const out: Voicing[] = [];
   const seen = new Set<string>();
-  for (const shape of shapesFor(rootPc, c.type, bassPc, opts.inversions ?? false)) {
+  // High-strung and re-entrant tunings have no bass to speak of: a shape is the chord it is written
+  // as, whichever of its notes ends up lowest, and the slash-chord shapes are just more of the same.
+  const anyBass = !hasBassRegister(t) && !c.bass;
+  for (const shape of shapesFor(rootPc, c.type, bassPc, anyBass ? false : opts.inversions ?? false)) {
     if (opts.categories && !opts.categories.includes(shape.category)) continue;
     if (shape.frets.some((f) => f !== null && f > maxFret)) continue;
+    if (!frame.full && (c.type.id === '5' || shape.frets.some((f, i) => f !== null && !frame.valid[i]))) continue;
     const key = shape.frets.join(',');
     if (seen.has(key)) continue;
     // A non-chord bass (Am/G) is part of the symbol; chord-tone basses are read off the shape.
@@ -203,8 +262,9 @@ export function libraryVoicings(chordInput: string | Chord, opts: LibraryOptions
     if (!voicing) continue;
     const bass = parseNote(voicing.bass).chroma;
     const wanted = c.bass ? parseNote(c.bass).chroma : parseNote(c.root).chroma;
-    if (bass !== wanted && !opts.inversions) continue;
+    if (bass !== wanted && !opts.inversions && !anyBass) continue;
     seen.add(key);
+    if (shape.bonus) BONUS.set(voicing, shape.bonus);
     out.push(voicing);
   }
   return out.sort((a, b) => VOICING_CATEGORIES.indexOf(a.category) - VOICING_CATEGORIES.indexOf(b.category));
@@ -225,7 +285,7 @@ let openCache: Voicing[] | null = null;
 export function openChordVoicings(): Voicing[] {
   if (!openCache) {
     openCache = OPEN_PARSED.map((o) => {
-      const voicing = tryBuildVoicing(o.chord, o.frets, { fingers: o.def.fingers, label: 'Open', category: 'open', source: 'library' });
+      const voicing = tryBuildVoicing(o.chord, o.frets, { fingers: o.def.fingers, label: o.def.label ?? 'Open', category: 'open', source: 'library' });
       /* c8 ignore next */
       if (!voicing) throw new Error(`Open shape ${o.def.chord} ${o.def.frets} is not a valid voicing`);
       return voicing;

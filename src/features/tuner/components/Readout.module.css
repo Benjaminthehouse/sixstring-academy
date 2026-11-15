@@ -1,0 +1,459 @@
+/*
+ * The tuner's face. Sized to be read from a metre away: the note is the biggest thing on the
+ * screen, the instruction the second biggest. Nothing in here changes height while tuning, and
+ * on a phone the whole card plus the strings and the action bar fit one screen.
+ */
+.readout {
+  --note-size: clamp(5.5rem, min(30vw, 15vh), 8rem);
+  --pad-y: var(--sp-3);
+  --pad-x: var(--sp-4);
+  --gap: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+  padding: var(--pad-y) var(--pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-2) var(--ease);
+}
+.toneWarn {
+  border-color: var(--warn);
+}
+.toneOk {
+  border-color: var(--ok);
+}
+
+/* Top row: tuning chip, status and level, settings. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.5rem;
+  min-width: 0;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-right: auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.header > :first-child:not(.status) + .status {
+  margin-left: auto;
+  margin-right: 0;
+}
+.statusOn {
+  color: var(--fg);
+}
+.level {
+  position: relative;
+  flex: none;
+  width: clamp(1.75rem, 9vw, 3rem);
+  height: 0.375rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.levelFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--fg-muted);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.levelHot {
+  background: var(--bad);
+}
+.levelGate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--surface);
+}
+
+/* The note */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+}
+.note,
+.waiting,
+.tuningHero {
+  margin: 0;
+  height: var(--note-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.note {
+  gap: 0.06em;
+  font-family: var(--font-display);
+  font-size: var(--note-size);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+  transition: color var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
+}
+.noteLetter {
+  display: block;
+  line-height: 0.86;
+}
+.noteSide {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-self: stretch;
+  padding: 0.16em 0 0.1em;
+  min-width: 0.3em;
+  font-size: 0.34em;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.noteAccidental {
+  min-height: 1em;
+}
+.noteOctave {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.82em;
+  color: var(--fg-muted);
+}
+/* A target that has not been heard yet, or the last note after it stopped. Large type, so the faint ink is allowed. */
+.noteWaiting {
+  color: var(--fg-faint);
+  opacity: 0.55;
+}
+.noteWaiting .noteOctave {
+  color: inherit;
+}
+.noteInTune {
+  color: var(--ok-text);
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-2);
+  margin: 0;
+  min-height: 1.5rem;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-align: center;
+}
+.badge {
+  padding: 0.0625rem var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--info-soft);
+  color: var(--info-text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.hz {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.hzTarget {
+  color: var(--fg-muted);
+}
+
+/* Listening, nothing heard yet: five bars breathing. */
+.waiting {
+  gap: 0.5rem;
+}
+.waiting span {
+  width: 0.5rem;
+  height: 34%;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  transform-origin: center;
+  animation: breathe 1.5s var(--ease) infinite;
+}
+.waiting span:nth-child(2) {
+  animation-delay: 0.12s;
+  height: 50%;
+}
+.waiting span:nth-child(3) {
+  animation-delay: 0.24s;
+  height: 64%;
+}
+.waiting span:nth-child(4) {
+  animation-delay: 0.36s;
+  height: 50%;
+}
+.waiting span:nth-child(5) {
+  animation-delay: 0.48s;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Not listening: the strings of the tuning, spelled out. */
+.tuningHero {
+  gap: clamp(0.5rem, 3vw, 1.25rem);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, calc(58vw / var(--count, 6)), 3rem);
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+.tuningNote {
+  display: inline-flex;
+  align-items: flex-start;
+}
+.tuningAccidental {
+  font-size: 0.55em;
+  margin-top: 0.1em;
+}
+
+/* Meter, with the number between its two ends */
+.meterSlot {
+  min-height: 6.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.offset {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3em;
+  min-width: 7.5rem;
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--fg);
+  transition: opacity var(--dur-2) var(--ease);
+}
+.offsetHidden {
+  visibility: hidden;
+}
+.offsetStale {
+  opacity: 0.45;
+}
+.offsetAmount {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.offsetUnit {
+  --focus-radius: var(--r-sm);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--fg-muted);
+  text-underline-offset: 0.2em;
+}
+.offsetSide {
+  min-width: 2.2em;
+  text-align: left;
+}
+.help {
+  margin: 0;
+  max-width: 17rem;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+}
+
+/* The instruction: icon and title on one line, the explanation under them. */
+.instruction {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'icon title'
+    'detail detail';
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+}
+.instructionIcon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--fg);
+  transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
+}
+.toneOk .instructionIcon {
+  background: var(--ok);
+  color: var(--ok-fg);
+}
+.toneWarn .instructionIcon {
+  background: var(--warn);
+  color: var(--warn-fg);
+}
+.instructionTitle {
+  grid-area: title;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+/* A long prompt is set smaller so it stays on one line beside its icon. */
+.titleLong {
+  font-size: var(--text-xl);
+}
+.toneOk .instructionTitle {
+  color: var(--ok-text);
+}
+.toneWarn .instructionTitle {
+  color: var(--warn-text);
+}
+.instructionDetail {
+  grid-area: detail;
+  margin: 0;
+  /* Two lines are always reserved, so a longer hint never moves the strings below. */
+  min-height: 2.625rem;
+  font-size: var(--text-sm);
+  line-height: 1.3125rem;
+  color: var(--fg-muted);
+}
+.detailWarn {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+.detailIcon {
+  display: inline-block;
+  vertical-align: -0.125em;
+  margin-right: var(--sp-1);
+}
+
+@media (min-width: 720px) {
+  .readout {
+    --note-size: clamp(6.5rem, min(14vw, 21vh), 11rem);
+    --pad-y: clamp(1rem, 3vh, 1.75rem);
+    --pad-x: var(--sp-8);
+    --gap: clamp(0.5rem, 1.6vh, 1rem);
+  }
+  .instruction {
+    grid-template-areas:
+      'icon title'
+      'icon detail';
+    align-items: start;
+    column-gap: var(--sp-4);
+    padding-top: var(--sp-4);
+  }
+  .instructionIcon {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+  .instructionTitle,
+  .titleLong {
+    font-size: var(--text-3xl);
+  }
+  .instructionDetail {
+    font-size: var(--text-md);
+    line-height: 1.5rem;
+    min-height: 3rem;
+  }
+  .caption {
+    font-size: var(--text-lg);
+    min-height: 1.75rem;
+  }
+  .offset {
+    font-size: var(--text-lg);
+  }
+  .offsetAmount {
+    font-size: var(--text-2xl);
+  }
+}
+
+/* A phone held sideways: everything a size down, and the whole card fits under the top bar. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .readout {
+    --note-size: clamp(3.25rem, 20vh, 5rem);
+    --pad-y: var(--sp-2);
+    --pad-x: var(--sp-4);
+    --gap: 0.125rem;
+  }
+  .header {
+    min-height: 2.25rem;
+  }
+  .meterSlot {
+    min-height: 5.25rem;
+  }
+  .caption {
+    min-height: 1.25rem;
+    font-size: var(--text-sm);
+  }
+  .instruction {
+    grid-template-areas:
+      'icon title'
+      'icon detail';
+    column-gap: var(--sp-3);
+    row-gap: 0;
+    padding-top: var(--sp-2);
+  }
+  .instructionIcon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .instructionTitle,
+  .titleLong {
+    font-size: var(--text-lg);
+  }
+  .instructionDetail {
+    font-size: var(--text-xs);
+    line-height: 1rem;
+    min-height: 1rem;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+  }
+  .toneWarn .instructionDetail {
+    -webkit-line-clamp: 2;
+  }
+  .offset {
+    font-size: var(--text-sm);
+  }
+  .offsetAmount {
+    font-size: var(--text-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting span {
+    animation: none;
+  }
+}

@@ -1,0 +1,327 @@
+/*
+ * Tuner screen layout.
+ *   phone      one column sized to the viewport: tuning, readout, strings, mode, and the action bar in the thumb zone
+ *   sideways   a phone on its side: readout left, everything else right
+ *   two panes  from 1160 px: readout and actions left, strings, tuning and settings right
+ */
+
+/* Doubled class: this has to win over the Page's own padding whatever order the styles load in. */
+.screen.screen {
+  padding-top: var(--sp-2);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'notices'
+    'stage'
+    'side'
+    'actions';
+  gap: 0.625rem;
+  /* The Page body is a flex column: without an explicit width, auto margins would shrink-wrap the grid. */
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+/* The tuning chip in the card's top row. */
+.tuningChip {
+  --focus-radius: var(--r-pill);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 56%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 2.25rem;
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease);
+}
+/* The visual is 36 px; the touch target is the full 44. */
+.tuningChip {
+  position: relative;
+}
+.tuningChip::before {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+.tuningChip:hover {
+  background: var(--surface-2);
+}
+.tuningChip > :last-child {
+  flex: none;
+  color: var(--fg-muted);
+}
+.tuningName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+/* Things worth knowing before the first pluck: capo, an unusual reference pitch, no microphone. */
+.notices {
+  grid-area: notices;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.notices:empty {
+  display: none;
+}
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--info-soft);
+  color: var(--info-text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.flag strong {
+  font-weight: 700;
+  color: var(--fg);
+}
+.blocked {
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.hostLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.linkButton {
+  min-height: 1.75rem;
+  padding: 0 var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.linkButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.stage {
+  grid-area: stage;
+  min-width: 0;
+}
+
+.side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.caption {
+  margin: 0;
+  /* One line reserved: the wording changes with the mode, the layout does not. */
+  min-height: 1.3125rem;
+  font-size: var(--text-sm);
+  line-height: 1.3125rem;
+  color: var(--fg-muted);
+}
+
+/* By ear: the play control sits where the meter is. */
+.earControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+}
+
+/* Actions: a bar in the thumb zone that stays put while the page scrolls. */
+.actions {
+  grid-area: actions;
+  position: sticky;
+  bottom: var(--sticky-bottom, 0px);
+  z-index: 20;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-2);
+  margin: 0 calc(var(--_gr, 0px) * -1) calc(var(--_pb, 0px) * -1) calc(var(--_gl, 0px) * -1);
+  padding: var(--sp-3) var(--_gr, 0px) max(var(--sp-3), env(safe-area-inset-bottom, 0px)) var(--_gl, 0px);
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Doubled class: narrower side padding than a large button has by itself, so three labels fit a phone. */
+.actions.actions > * {
+  padding-inline: var(--sp-3);
+}
+.actions > .start {
+  flex-grow: 1.7;
+}
+/* An icon-only control keeps its own width. */
+.actions > .compact {
+  flex: none;
+}
+
+/* Wide-screen cards */
+.tuningCard,
+.settingsCard {
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.tuningCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tuningCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.kicker {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.tuningCardName {
+  margin: var(--sp-1) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+.tuningCardNotes {
+  margin: var(--sp-1) 0 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+}
+.tuningCardText {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--fg-muted);
+}
+
+@media (min-width: 720px) {
+  .screen.screen {
+    padding-top: var(--sp-6);
+  }
+  .layout {
+    gap: var(--sp-4);
+  }
+}
+
+/* Two panes */
+.twoPane {
+  grid-template-columns: minmax(0, 1.35fr) minmax(21rem, 0.65fr);
+  grid-template-areas:
+    'notices notices'
+    'stage side'
+    'actions side';
+  /* The right pane is the taller one: the last row takes the difference, so the buttons stay under the meter. */
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+  column-gap: var(--sp-8);
+  row-gap: var(--sp-4);
+  max-width: none;
+}
+.twoPane .side {
+  gap: var(--sp-4);
+}
+.twoPane .actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  gap: var(--sp-3);
+}
+.twoPane .caption {
+  min-height: 0;
+}
+
+/* A phone on its side */
+@media (orientation: landscape) and (max-height: 520px) {
+  .screen.screen {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-2);
+  }
+}
+.sideways {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-areas:
+    'notices notices'
+    'stage side'
+    'stage actions';
+  grid-template-rows: auto 1fr auto;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-2);
+  max-width: none;
+}
+.sideways .side {
+  gap: var(--sp-2);
+}
+.sideways .caption {
+  min-height: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+.sideways .actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

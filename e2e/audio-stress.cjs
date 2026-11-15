@@ -263,7 +263,11 @@ function partOne({ quick }) {
     {
       const fire = T.impulsePlayer(engine);
       const log = [];
-      const m = new audio.Metronome({ tempo: 120, output: { click: (set, level, time) => { log.push(time); fire(time); } } });
+      const entries = [];
+      const m = new audio.Metronome({
+        tempo: 120,
+        output: { click: (set, level, time) => { const e = { time, cancelled: false }; entries.push(e); log.push(time); const c = fire(time); return () => { if (ctx.currentTime < time - 0.0065) e.cancelled = true; c(); }; } },
+      });
       m.subdivision = 'eighth';
       const stop = recorder.capture();
       const before = thrown.length;
@@ -284,15 +288,15 @@ function partOne({ quick }) {
       await sleep(300);
       const cap = stop();
       const found = T.findImpulses(cap.samples, fs, cap.start);
-      const wanted = log.filter((t) => t <= stopAt - 0.007).sort((a, b) => a - b);
-      const cmp = T.compare(wanted, found.filter((t) => t <= stopAt - 0.006));
+      const wanted = entries.filter((e) => !e.cancelled).map((e) => e.time).sort((a, b) => a - b);
+      const cmp = T.compare(wanted, found);
       let order = true, closest = Infinity;
       for (let i = 1; i < log.length; i++) { if (!(log[i] > log[i - 1])) order = false; closest = Math.min(closest, log[i] - log[i - 1]); }
       const tail = log.filter((t) => t > stopAt - 0.7 && t <= stopAt);
       let grid = 0;
       for (let i = 1; i < tail.length; i++) grid = Math.max(grid, Math.abs(tail[i] - tail[i - 1] - 60 / 180 / 2));
       check(`tempo changed ${changes} times while running (20..400 BPM): no error, clicks in order`, thrown.length === before && order && closest > 0.03, `closest clicks ${fmt(closest * 1000, 1)} ms apart`);
-      check('tempo sweep: every click heard at its time, and the final tempo is exact', cmp.missing === 0 && cmp.extra === 0 && cmp.worst < 0.002 && grid < 1e-9 && tail.length > 2, `${cmp.n} clicks, worst ${fmt(cmp.worst * 1000, 4)} ms, final grid error ${grid.toExponential(2)} s`);
+      check('tempo sweep: every click heard at its time, and the final tempo is exact', cmp.missing === 0 && cmp.extra === 0 && cmp.worst < 0.002 && grid < 1e-9 && tail.length > 2, `${cmp.n} clicks, ${cmp.missing} missing, ${cmp.extra} extra, worst ${fmt(cmp.worst * 1000, 4)} ms, final grid error ${grid.toExponential(2)} s`);
       m.dispose();
     }
 
@@ -429,6 +433,9 @@ function bandRun({ seconds, tempoFactor }) {
     const recorder = window.__stressRecorder || (window.__stressRecorder = await T.recorder(ctx, audio.getEngine().output));
     const stop = recorder.capture();
     let chords = 0, peakVoices = 0;
+    // Every drum once, quietly: the kit gives each drum its place in the stereo picture the first
+    // time it is hit, and those places stay. They are furniture, not a leak.
+    audio.DRUM_NAMES.forEach((d, i) => audio.playDrum(d, audio.audioNow() + 0.05 + i * 0.01, 0.02));
     const band = new audio.BackingBand();
     band.setMuted('guitar', false);
     const off = band.onChord(() => { chords++; });
@@ -485,7 +492,7 @@ withApp({}, async ({ page, context, goto, errors }) => {
   report.info['audio nodes alive'] = `before ${base.total}, after ${after.total} (${JSON.stringify(after.byType)})`;
   check(`${seconds} s of backing band, every player, 14 styles: nothing clips, no bad samples`, r.peak <= 0.985 && r.bad === 0 && r.rms > 0.03 && r.chords > seconds / 4, `peak ${r.peak.toFixed(3)}, rms ${r.rms.toFixed(4)}, ${r.chords} chord changes`);
   check('after the band stops, no voice is left sounding or scheduled', r.guitarVoices === 0 && r.bassVoices === 0 && r.drumHits === 0, `guitar ${r.guitarVoices}, bass ${r.bassVoices}, drums ${r.drumHits}`);
-  check('no audio node leak: as many nodes alive after the run as before it', grew <= 12, `${base.total} -> ${after.total} (${grew >= 0 ? '+' : ''}${grew})${Object.keys(diff).length ? ' ' + JSON.stringify(diff) : ''}`);
+  check('no audio node leak: as many nodes alive after the run as before it', grew <= 4, `${base.total} -> ${after.total} (${grew >= 0 ? '+' : ''}${grew})${Object.keys(diff).length ? ' ' + JSON.stringify(diff) : ''}`);
   check('the band made no AudioContext of its own', after.contexts <= base.contexts, `${base.contexts} contexts alive before, ${after.contexts} after`);
   check('note cache still inside its budget after the band', r.cache.bytes <= r.cache.limit, `${(r.cache.bytes / 1e6).toFixed(1)} MB of ${(r.cache.limit / 1e6).toFixed(0)} MB`);
 

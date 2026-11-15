@@ -204,18 +204,8 @@ export class DrumKit {
     const t = engine.nodeTime(at);
     for (const s of [...this.active]) {
       if (s.start >= at) {
-        s.onDone = null;
-        this.active.delete(s);
-        this.openHats.delete(s);
-        try {
-          s.src.onended = null;
-          s.src.stop();
-          s.src.disconnect();
-          s.gain.disconnect();
-        } catch {
-          // ignore
-        }
-        s.done = true;
+        // Not heard yet: take it back (silently, unless its first milliseconds are already on their way out).
+        s.cancel();
         continue;
       }
       s.gain.gain.cancelScheduledValues(t);

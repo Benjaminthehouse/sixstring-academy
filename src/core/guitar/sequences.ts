@@ -127,6 +127,22 @@ export function practiceSequence(pattern: ScalePattern | readonly PatternNote[],
   }
 }
 
+/**
+ * The stretch of a pattern from its lowest root up to its highest root: the scale as it is first
+ * practised, starting and ending on the tonic. `octaves` stops after that many octaves instead.
+ * A pattern with a single root runs from that root to its top note; one with no root comes back whole.
+ */
+export function rootToRoot(pattern: ScalePattern | readonly PatternNote[], opts: { octaves?: number } = {}): PatternNote[] {
+  const notes = notesOf(pattern);
+  const first = notes.findIndex((n) => n.isRoot);
+  if (first < 0) return [...notes];
+  let last = -1;
+  for (let i = notes.length - 1; i > first && last < 0; i--) {
+    if (notes[i].isRoot && (opts.octaves === undefined || notes[i].midi - notes[first].midi <= 12 * opts.octaves)) last = i;
+  }
+  return notes.slice(first, last < 0 ? notes.length : last + 1);
+}
+
 /** The sequences that make sense for a pattern: string skipping needs three strings, wide intervals enough notes. */
 export function sequencesFor(pattern: ScalePattern | readonly PatternNote[]): SequenceInfo[] {
   const notes = notesOf(pattern);

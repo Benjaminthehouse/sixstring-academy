@@ -71,9 +71,25 @@ function isEasy(v: Voicing | null): boolean {
   return !curated && !v.movable && v.baseFret <= 3 && !fullBarre && v.difficulty <= 3.5;
 }
 
-/** The voicing a player would reach for first at this capo position: the top-ranked one near the capo. */
+/**
+ * The voicing a learner would reach for at this capo position: the top-ranked one near the capo,
+ * or the easy version listed right behind it when the standard shape is a barre (the small F).
+ */
 function pickVoicing(c: Chord, tuningInput: TuningInput | undefined, capo: number): Voicing | null {
-  return chordVoicings(c, { tuning: tuningInput, capo, maxResults: 1, maxFret: 12 - Math.min(capo, 7) })[0] ?? null;
+  const list = chordVoicings(c, { tuning: tuningInput, capo, maxResults: 3, maxFret: 12 - Math.min(capo, 7) });
+  return list.find(isEasy) ?? list[0] ?? null;
+}
+
+/**
+ * The shape to show someone who is still learning their first chords: the standard voicing, or
+ * the easy version taught on the way to it when the standard one is a barre.
+ * `beginnerVoicing('C')` is the open C; `beginnerVoicing('F')` the small F (`xx3211`) rather than the
+ * full barre; `beginnerVoicing('Bm')` is the barre, because nothing easy stands in for it.
+ * Null when the symbol is not a chord.
+ */
+export function beginnerVoicing(chordInput: string | Chord, opts: { tuning?: TuningInput; capo?: number } = {}): Voicing | null {
+  const c = typeof chordInput === 'string' ? (isNoChord(chordInput) ? null : parseChord(chordInput)) : chordInput;
+  return c ? pickVoicing(c, opts.tuning, opts.capo ?? 0) : null;
 }
 
 /**

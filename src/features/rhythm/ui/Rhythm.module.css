@@ -1,0 +1,1157 @@
+/*
+ * Rhythm. One layout idea runs through every round: the picture of the rhythm on top, the answer
+ * to the last tap under it, and the tap pad at the bottom edge where the thumbs are. On a phone
+ * held sideways the pads move to the two sides of the picture.
+ */
+
+/* ---------- Verdict tones (always next to a word or a sign, never colour alone) ---------- */
+.toneHit {
+  color: var(--ok-text);
+}
+.toneNear {
+  color: var(--info-text);
+}
+.toneOff {
+  color: var(--warn-text);
+}
+.toneMiss {
+  color: var(--bad-text);
+}
+
+/* ---------- Hub ---------- */
+.hub {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-8);
+}
+.hubMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+.hubSide {
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  .hub {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+  .hubSide {
+    position: sticky;
+    top: var(--sp-8);
+  }
+}
+.nextCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.nextTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.nextIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.nextText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.nextTag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.stage {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.stageSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 3.5rem;
+  padding: var(--sp-3) var(--sp-4);
+  cursor: pointer;
+  list-style: none;
+}
+.stageSummary::-webkit-details-marker {
+  display: none;
+}
+.stageSummary:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-lg);
+}
+@media (hover: hover) {
+  .stageSummary:hover {
+    background: var(--surface-2);
+  }
+}
+.stage[open] > .stageSummary {
+  border-bottom: 1px solid var(--line);
+}
+.stageChevron {
+  flex: none;
+  color: var(--fg-muted);
+  transition: transform var(--dur-2) var(--ease);
+}
+.stage[open] .stageChevron {
+  transform: rotate(180deg);
+}
+.stageNumber {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.stageNumberDone {
+  background: var(--ok);
+  color: var(--ok-fg);
+}
+.stageText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.stageTitle {
+  font-weight: 700;
+}
+.stageBlurb {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.stageCount,
+.freeCount {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.stageBody {
+  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+}
+.levelNumber {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+/* ---------- Before a round ---------- */
+.ready {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-5);
+}
+.readyStage {
+  min-width: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.readySide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .readyStage {
+    padding: var(--sp-6);
+  }
+}
+@media (min-width: 1000px) {
+  .ready {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+  }
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.controlsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+.keysHint {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.optionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+/* ---------- While a round runs ---------- */
+/* Doubled selector: the stage fills the screen, so the page's own bottom padding has to give way. */
+.runPage.runPage {
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-3);
+}
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: 60rem;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-6));
+  margin-inline: auto;
+}
+.runBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.runTitle {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.runProgress {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.runProgressFill {
+  height: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.cue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  min-height: 2.75rem;
+}
+.cueWord {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.cueWordSoft {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.cueBeat {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  animation: pop var(--dur-2) var(--ease);
+}
+.runStage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The answer to the last tap. */
+.feedback {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: center;
+}
+@media (min-width: 720px) {
+  .feedback {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: var(--sp-6);
+  }
+}
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2rem;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  animation: pop var(--dur-1) var(--ease);
+}
+.verdictIdle {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.verdictMs {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.meterEnd {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.meterTrack {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+/* 35 ms of the 130 ms half-width, each side of the centre: the "on it" zone. */
+.meterZone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 36.5%;
+  width: 27%;
+  border-radius: var(--r-pill);
+  background: var(--ok-soft);
+}
+.meterCentre {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: calc(50% - 1px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--fg-muted);
+}
+.meterDot {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px var(--surface);
+  transition: left var(--dur-1) var(--ease);
+}
+
+/* The pad. */
+.pads {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+.padsSplit {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  width: 100%;
+  height: clamp(7rem, 25dvh, 12.5rem);
+  padding: var(--sp-2);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.pad:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.pad:active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.pad[data-hit='1'] {
+  animation: padHit 180ms var(--ease);
+}
+.pad:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.padLabel {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.padKey {
+  color: var(--fg-muted);
+}
+@media (min-width: 720px) and (min-height: 521px) {
+  .pad {
+    height: 7.5rem;
+  }
+}
+.listening {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 5.5rem;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.listeningText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.listeningMeter {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.listeningFill {
+  height: 100%;
+  background: var(--ok);
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
+/* A phone on its side: the picture in the middle, a pad under each thumb. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .run {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 28%);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    column-gap: var(--sp-4);
+    row-gap: var(--sp-2);
+    max-width: none;
+    min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-6));
+  }
+  /* The shell's bar already carries the title: keep only Stop, on the cue's own row. */
+  .run .runTitle {
+    display: none;
+  }
+  .run > .runBar {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    z-index: 1;
+  }
+  .run > .cue {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 2.25rem;
+    padding-right: 6rem;
+    align-items: center;
+  }
+  .run > .runProgress {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .run > .runStage {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .run > .feedback {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .run > .pads,
+  .run > .listening {
+    grid-column: 2;
+    grid-row: 1 / 5;
+  }
+  .run .pad {
+    height: 100%;
+    min-height: 6rem;
+  }
+  /* Two pads: one at each edge, the picture between them. */
+  .runSplit {
+    grid-template-columns: minmax(6rem, 15%) minmax(0, 1fr) minmax(6rem, 15%);
+  }
+  .runSplit > .runBar,
+  .runSplit > .cue,
+  .runSplit > .runProgress,
+  .runSplit > .runStage,
+  .runSplit > .feedback {
+    grid-column: 2;
+  }
+  .runSplit > .pads {
+    display: contents;
+  }
+  .runSplit > .pads > .pad:first-child {
+    grid-column: 1;
+    grid-row: 1 / 5;
+  }
+  .runSplit > .pads > .pad:last-child {
+    grid-column: 3;
+    grid-row: 1 / 5;
+  }
+}
+
+/* ---------- The beat lane ---------- */
+.lane {
+  width: 100%;
+  height: clamp(9.5rem, 26dvh, 13.5rem);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+/* Inside the framed preview the lane needs no frame of its own. */
+.readyStage .lane {
+  border: 0;
+  border-radius: var(--r-sm);
+}
+.runStage .lane {
+  height: clamp(10rem, 32dvh, 17rem);
+}
+.laneCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Read and tap ---------- */
+.readStage {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-3);
+  min-height: 13rem;
+}
+.readMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-4);
+}
+.pips {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+.pip {
+  width: 1.75rem;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+.pip[data-state='done'] {
+  background: var(--fg-muted);
+}
+.pip[data-state='now'] {
+  background: var(--accent);
+}
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.reviewItem {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+/* ---------- Drills ---------- */
+.switchStage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.switchCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.switchName {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+  animation: pop var(--dur-2) var(--ease);
+}
+.switchSay {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--fg-muted);
+}
+.clockRows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.clockRows li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.clockRows li span {
+  color: var(--fg-muted);
+}
+
+/* ---------- Strumming ---------- */
+.strumStage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.strumHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.nickname {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.strumLegend {
+  margin: 0;
+}
+.strumGrid {
+  display: flex;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.strumBeat {
+  display: flex;
+  flex: 1 1 0;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--sp-2) 3px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.slot {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0.95rem 0 var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--fg);
+  font: inherit;
+}
+.slot[data-active='1'] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.slotButton {
+  min-height: var(--tap);
+  cursor: pointer;
+  --focus-radius: var(--r-sm);
+}
+@media (hover: hover) {
+  .slotButton:hover {
+    background: var(--surface-3);
+  }
+}
+.arrow {
+  display: block;
+  width: 100%;
+  max-width: 1.75rem;
+  height: 3.5rem;
+}
+.arrowShaft,
+.arrowHead,
+.arrowCross {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.slot[data-kind='accent'] .arrowShaft,
+.slot[data-kind='accent'] .arrowHead {
+  stroke-width: 5;
+}
+.slot[data-kind='ghost'] .arrow {
+  color: var(--fg-faint);
+  opacity: 0.6;
+}
+.slot[data-kind='ghost'] .arrowShaft,
+.slot[data-kind='ghost'] .arrowHead {
+  stroke-width: 2.25;
+  stroke-dasharray: 2.5 5;
+}
+.slot[data-kind='mute'] .arrowShaft,
+.slot[data-kind='mute'] .arrowHead {
+  color: var(--fg-muted);
+  stroke-width: 2.75;
+}
+.accentMark {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg);
+}
+.slotCount {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  color: var(--fg-muted);
+}
+.slotCountStrong {
+  font-weight: 700;
+  color: var(--fg);
+}
+.slot[data-kind='ghost'] .slotCount {
+  opacity: 0.6;
+}
+.slotMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+}
+.strumGridDense {
+  gap: var(--sp-1);
+}
+.strumGridDense .strumBeat {
+  gap: 0;
+  padding-inline: 1px;
+}
+.strumGridDense .arrow {
+  height: 3rem;
+}
+.strumGridDense .slotCount {
+  font-size: var(--text-xs);
+}
+.strumGridSm .strumBeat {
+  padding: 2px 1px;
+}
+.strumGridSm .slot {
+  padding: 2px 0;
+}
+.strumGridSm .arrow {
+  height: 1.75rem;
+}
+.strumGridSm .accentMark {
+  display: none;
+}
+.patternCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.patternTop,
+.patternMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.patternNick {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.builder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+}
+.builderCard,
+.builderSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+@media (min-width: 1000px) {
+  .builder {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+  }
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.legend li::before {
+  content: '';
+  height: 1rem;
+  border-left: 3px solid var(--fg);
+  border-radius: 2px;
+}
+.legend li[data-kind='accent']::before {
+  border-left-width: 5px;
+}
+.legend li[data-kind='mute']::before {
+  content: '×';
+  height: auto;
+  border: 0;
+  font-weight: 700;
+  color: var(--fg);
+}
+.legend li[data-kind='ghost']::before {
+  border-left: 3px dotted var(--fg-faint);
+}
+.savedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.savedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.savedLink {
+  min-width: 0;
+}
+
+/* ---------- After a round ---------- */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+.summaryHead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.summaryLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+.summaryGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+@media (min-width: 900px) {
+  .summaryGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.tipCard,
+.spreadCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.tipKicker {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.tally {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+}
+.tally div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.tally dt {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.tally dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.spread {
+  margin: 0;
+}
+.spreadSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.spreadZone {
+  fill: var(--ok-soft);
+}
+.spreadAxis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.spreadCentre {
+  stroke: var(--fg-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.spreadDot {
+  fill: var(--fg);
+}
+.spreadMean {
+  fill: var(--info);
+}
+.spreadLabel {
+  fill: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.spreadCaption {
+  margin-top: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* ---------- Calibration ---------- */
+.calib {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.calibHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.calibLane .lane {
+  height: 8rem;
+}
+.calibCue {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.calibPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.calibStoredBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.calibStored {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-4);
+}
+
+/* ---------- Motion ---------- */
+@keyframes pop {
+  from {
+    opacity: 0.4;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes padHit {
+  from {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  to {
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cueBeat,
+  .verdict,
+  .switchName,
+  .pad[data-hit='1'] {
+    animation: none;
+  }
+  .meterDot,
+  .stageChevron,
+  .listeningFill {
+    transition: none;
+  }
+}
+:global(:root[data-motion='reduce']) .cueBeat,
+:global(:root[data-motion='reduce']) .verdict,
+:global(:root[data-motion='reduce']) .switchName,
+:global(:root[data-motion='reduce']) .pad[data-hit='1'] {
+  animation: none;
+}
+:global(:root[data-motion='reduce']) .meterDot,
+:global(:root[data-motion='reduce']) .stageChevron,
+:global(:root[data-motion='reduce']) .listeningFill {
+  transition: none;
+}
+
+/* Sideways phone, continued: these come last so they win over the defaults above. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .lane {
+    height: clamp(6rem, 34dvh, 9rem);
+  }
+  .readStage {
+    min-height: 0;
+    gap: var(--sp-1);
+  }
+  .readMeta,
+  .strumLegend {
+    display: none;
+  }
+  .cueWord {
+    font-size: var(--text-lg);
+  }
+  .cueBeat {
+    font-size: var(--text-2xl);
+  }
+  /* The cue card beside the lane instead of above it. */
+  .switchStage {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .switchCard {
+    justify-content: center;
+    padding: var(--sp-2) var(--sp-4);
+  }
+  .switchName {
+    font-size: var(--text-xl);
+  }
+  .switchSay {
+    font-size: var(--text-sm);
+  }
+  .strumStage {
+    gap: var(--sp-2);
+  }
+  .nickname {
+    font-size: var(--text-lg);
+  }
+  .arrow {
+    height: 2.75rem;
+  }
+  .runStage .lane {
+    height: clamp(6rem, 36dvh, 9rem);
+  }
+  .switchStage .lane {
+    height: 100%;
+    min-height: 6rem;
+  }
+}

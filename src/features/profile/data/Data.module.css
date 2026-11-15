@@ -1,0 +1,196 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* ---------- Where the data lives ---------- */
+.statuses {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.status {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.status + .status {
+  border-top: 1px solid var(--line);
+}
+.statusIcon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 1px;
+  color: var(--fg-muted);
+}
+.status[data-tone='ok'] .statusIcon {
+  color: var(--ok);
+}
+.status[data-tone='warn'] .statusIcon {
+  color: var(--warn);
+}
+.status[data-tone='bad'] .statusIcon {
+  color: var(--bad);
+}
+.status[data-tone='info'] .statusIcon,
+.status[data-tone='busy'] .statusIcon {
+  color: var(--info);
+}
+.statusText {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.statusTitle {
+  font-weight: 650;
+}
+.statusBody {
+  margin-top: 2px;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.statusAction {
+  flex: none;
+}
+
+/* ---------- Export, import, reset: one card each ---------- */
+.action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-3) var(--sp-4);
+}
+.actionIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}
+.actionIcon[data-tone='bad'] {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.actionText {
+  min-width: 0;
+}
+.actionTitle {
+  font-size: var(--text-lg);
+}
+.actionBody {
+  margin-top: var(--sp-1);
+  max-width: var(--prose-max);
+  color: var(--fg-muted);
+}
+.actionNote {
+  margin-top: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.actionButtons,
+.actionWide {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.actionWide {
+  align-items: stretch;
+}
+@media (min-width: 720px) {
+  .actionButtons,
+  .actionWide {
+    grid-column: 2;
+  }
+}
+@media (max-width: 719.98px) {
+  /* The button fills the row under the thumb. */
+  .actionButtons > * {
+    width: 100%;
+  }
+}
+
+/* ---------- Import preview ---------- */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.diff th,
+.diff td {
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) 0;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  vertical-align: baseline;
+}
+.diff th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+.diff thead th {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.diff td {
+  color: var(--fg-muted);
+}
+.diff td.after {
+  color: var(--fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.diff tr[data-change='same'] td.after {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+.after svg {
+  margin-left: var(--sp-1);
+  vertical-align: -2px;
+}
+.up {
+  color: var(--ok);
+}
+.down {
+  color: var(--bad);
+}
+.changed {
+  color: var(--info);
+}
+.previewNote {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* ---------- Reset ---------- */
+.reset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.reset > :last-child {
+  align-self: stretch;
+}
+
+.resetNote {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}

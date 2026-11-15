@@ -1,18 +1,26 @@
 /**
  * The printed-tablature reader: one cleaned staff strip in, fret numbers per string out.
  *
- *   ink on string lines ─▶ digit height ─▶ classify / cut / join into numbers ─▶ columns
- *   (chords) ─▶ sanity checks ─▶ rhythm from stems ─▶ events with page boxes and confidences
+ *   header (TAB letters, time signature) ─▶ ink on string lines ─▶ digit height, line style,
+ *   blur ─▶ classify / cut / join into numbers (twice: the second time knowing the staff's
+ *   face) ─▶ reliability of the staff ─▶ marks between numbers ─▶ columns (chords) ─▶ sanity
+ *   checks ─▶ rhythm from stems and rests ─▶ events with page boxes, confidences, alternatives
+ *
+ * Everything is measured in strip px (24 per staff space by default) and scaled by the digit
+ * height found on the staff itself, so other strip resolutions and staff sizes work unchanged.
  */
 import { type Components, labelComponents } from '../image/cc';
 import { cropBinary } from '../image/gray';
 import {
-  type Alternative, type OmrClef, type OmrTabEvent, type OmrTabNote, type OmrText, type OmrTimeSignature, type OmrWarning,
-  type RecognizeOptions, type StaffInput, type StaffReading, STANDARD_TUNING, midiAtFret,
+  type Alternative, type DurationValue, type OmrClef, type OmrTabEvent, type OmrTabNote, type OmrText, type OmrTimeSignature, type OmrWarning,
+  type RecognizeOptions, type StaffInput, type StaffReading, STANDARD_TUNING, durationTicks, midiAtFret,
 } from '../types';
-import type { Box } from './glyph';
-import { type Glyph, type ReaderContext, type TabNumber, assembleLine, detectLineThrough, facePenalties, readCluster } from './numbers';
-import { type LineBlob, estimateDigitHeight, findLineBlobs, groupAdjacent, groupColumns, nearBarline } from './segment';
+import { type Box, type GlyphPatch, classifyPatch, extractPatch, refineBox } from './glyph';
+import { type TabMark, applyMarks, findArcs, findBends, findSlides } from './marks';
+import { type Glyph, type ReaderContext, type TabNumber, assembleLine, detectLineThrough, facePenalties, isDigitLabel, readCluster } from './numbers';
+import { type LineBlob, type StripGeometry, barlineSolidity, digitMetrics, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, nearBarline } from './segment';
+import { type RestReading, findRests, readTimeSignature } from './header';
+import { type MeasureEvent, type ReadDuration, type Stem, assignDurations, findStems } from './rhythm';
 import { BLUR_LEVELS, TEMPLATE_FACE_LIST, templatesAtBlur } from './templates';
 
 /** One column of numbers before it becomes an event. */
@@ -31,12 +39,23 @@ export interface TabDebug {
   blurLevel: number;
   /** The staff lines strike through the numbers. */
   lineThrough: boolean;
+  /** How well each face explains the clearly read digits (mean correlation; empty when too few). */
+  faceRatings: number[];
+  /** Mean correlation of the digits read, and the 0..1 reliability derived from it. */
+  meanScore: number;
+  reliability: number;
   blobs: LineBlob[];
   glyphs: Glyph[];
   numbers: TabNumber[];
   columns: TabColumn[];
+  marks: TabMark[];
   /** Right end of the TAB letters in strip px (0 when there are none). */
   clefEnd: number;
+  /** Strip x of each event of the reading, in the same order. */
+  stripX: number[];
+  /** Stems found, and the measure length (ticks) the rhythm was fitted to (null = none). */
+  stems: Stem[];
+  measureTicks: number | null;
   /** Time spent, ms: total and per stage. */
   ms: number;
   timings: Record<string, number>;
@@ -50,14 +69,25 @@ export interface TabReadingDetail {
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
+/**
+ * What earlier staves of a page have established for the later ones: a time signature is
+ * printed once, at the top, and holds for the systems below. The staves of a page share the page
+ * image object, which keys this memory; it goes away with the image.
+ */
+interface PageMemory {
+  time?: { beats: number; beatValue: number };
+  /** Measure length in ticks that at least two measures of an earlier staff showed outright. */
+  ticks?: number;
+}
+const pageMemory = new WeakMap<object, PageMemory>();
+
 /** Find the stacked T-A-B letters at the start of the staff; returns their box in strip px. */
 function findClef(cc: Components, dy: number, input: StaffInput): Box | null {
   const sp = input.space;
   const n = input.lineCount;
   const top = input.lineYs[0];
   const bottom = input.lineYs[n - 1];
-  let box: Box | null = null;
-  let count = 0;
+  const letters: Box[] = [];
   for (let c = 1; c <= cc.count; c++) {
     const w = cc.x1[c] - cc.x0[c] + 1;
     const h = cc.y1[c] - cc.y0[c] + 1;
@@ -67,17 +97,43 @@ function findClef(cc: Components, dy: number, input: StaffInput): Box | null {
     if (h < 1.05 * sp || h > 2.6 * sp || w < 0.5 * sp || w > 2.6 * sp) continue;
     if (cy < top - 0.3 * sp || cy > bottom + 0.3 * sp) continue;
     if (nearBarline(input, cc.x0[c], cc.x1[c] + 1, 0) && w < 0.6 * sp) continue;
-    count++;
-    const b = { x0: cc.x0[c], y0: cc.y0[c] + dy, x1: cc.x1[c] + 1, y1: cc.y1[c] + 1 + dy };
-    box = box ? { x0: Math.min(box.x0, b.x0), y0: Math.min(box.y0, b.y0), x1: Math.max(box.x1, b.x1), y1: Math.max(box.y1, b.y1) } : b;
+    letters.push({ x0: cc.x0[c], y0: cc.y0[c] + dy, x1: cc.x1[c] + 1, y1: cc.y1[c] + 1 + dy });
   }
-  // Two or three letters stacked over most of the staff height.
-  if (!box || count < 2 || box.y1 - box.y0 < 0.55 * (bottom - top) || box.x1 - box.x0 > 3 * sp) return null;
-  return box;
+  // The letters stand in one column (a time signature right of them is another column): take
+  // the leftmost letter and everything stacked with it.
+  letters.sort((a, b) => a.x0 - b.x0);
+  for (const first of letters) {
+    const mid = (first.x0 + first.x1) / 2;
+    const column = letters.filter((l) => l.x0 < mid && l.x1 > mid);
+    const box: Box = { x0: Math.min(...column.map((l) => l.x0)), y0: Math.min(...column.map((l) => l.y0)), x1: Math.max(...column.map((l) => l.x1)), y1: Math.max(...column.map((l) => l.y1)) };
+    // Two or three letters stacked over most of the staff height.
+    if (column.length >= 2 && box.y1 - box.y0 >= 0.55 * (bottom - top) && box.x1 - box.x0 <= 3 * sp) return box;
+  }
+  return null;
+}
+
+/**
+ * Height of the digits' ink proper: the median height of digit-sized blobs once their boxes are
+ * brought to the half-maximum outline. Relative glyph heights are measured against this.
+ */
+function inkHeightOf(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs: LineBlob[]): number {
+  const hd = ctx.digitHeight;
+  const hs: number[] = [];
+  for (const b of blobs) {
+    const h = b.box.y1 - b.box.y0;
+    const w = b.box.x1 - b.box.x0;
+    if (Math.abs(b.offset) > 0.2 || h < 0.8 * hd || h > 1.2 * hd || w > 0.95 * hd || w < 0.2 * hd) continue;
+    const r = refineBox(ctx.gray, b.box, null);
+    hs.push(r.y1 - r.y0);
+    if (hs.length >= 40) break;
+  }
+  if (hs.length < 2) return hd;
+  hs.sort((a, b) => a - b);
+  return hs[hs.length >> 1];
 }
 
 /** Pick the template blur that suits this strip: the level at which sample digits correlate best. */
-function chooseBlur(ctx: Omit<ReaderContext, 'templates'>, blobs: LineBlob[]): number {
+function chooseBlur(ctx: Omit<ReaderContext, 'templates' | 'blurLevel'>, blobs: LineBlob[]): number {
   const hd = ctx.digitHeight;
   const sample = blobs.filter((b) => {
     const h = b.box.y1 - b.box.y0;
@@ -85,23 +141,35 @@ function chooseBlur(ctx: Omit<ReaderContext, 'templates'>, blobs: LineBlob[]): n
     return Math.abs(b.offset) < 0.2 && h > 0.8 * hd && h < 1.2 * hd && w < 0.85 * hd && w > 0.2 * hd;
   });
   if (sample.length < 2) return 1;
-  const step = Math.max(1, Math.floor(sample.length / 14));
-  let best = 0;
-  let bestScore = -Infinity;
-  for (let level = 0; level < BLUR_LEVELS.length; level++) {
-    const c: ReaderContext = { ...ctx, templates: templatesAtBlur(level), digitsOnly: true };
-    let sum = 0;
-    let k = 0;
-    for (let i = 0; i < sample.length; i += step) {
-      const g = readCluster(c, [sample[i]]);
-      sum += g.length === 1 ? g[0].score : 0;
-      k++;
+  // A dozen digits spread over the staff are enough; each is cut and resampled once.
+  const step = Math.max(1, Math.floor(sample.length / 12));
+  const patches: { patch: GlyphPatch; relH: number }[] = [];
+  for (let i = 0; i < sample.length; i += step) {
+    const b = sample[i];
+    const box = refineBox(ctx.gray, b.box, null);
+    patches.push({ patch: extractPatch(ctx.gray, box, null), relH: (box.y1 - box.y0) / ctx.inkHeight });
+  }
+  const cache = new Map<number, number>();
+  const rate = (level: number): number => {
+    let v = cache.get(level);
+    if (v === undefined) {
+      const templates = templatesAtBlur(level);
+      let sum = 0;
+      for (const q of patches) sum += classifyPatch(q.patch, templates, { allow: (t) => !t.music && t.cls < 10, relH: q.relH, relHTolerance: 0.3, coarse: true })[0]?.score ?? 0;
+      v = sum / patches.length;
+      cache.set(level, v);
     }
-    const mean = sum / Math.max(1, k);
-    if (mean > bestScore + 0.004) {
-      bestScore = mean;
-      best = level;
-    }
+    return v;
+  };
+  // Walk uphill from a middle level: the mean score has a single peak along the blur ladder.
+  let best = 2;
+  for (;;) {
+    const here = rate(best);
+    const down = best > 0 ? rate(best - 1) : -Infinity;
+    const up = best < BLUR_LEVELS.length - 1 ? rate(best + 1) : -Infinity;
+    if (down >= here && down >= up) best--;
+    else if (up > here + 0.003) best++;
+    else break;
   }
   return best;
 }
@@ -139,8 +207,54 @@ function checkStretch(col: TabColumn): void {
   odd.flags.push('wide-stretch');
 }
 
+/**
+ * Read the rhythm of the columns from the stems of the staff. Measures are the stretches between
+ * the bar lines that passed the solidity check, so a column of numbers mistaken for a bar line
+ * does not upset the arithmetic.
+ */
+function readRhythm(input: StaffInput, columns: TabColumn[], rests: RestReading[], bars: { x: number }[], knownTicks: number | null): { durations: ReadDuration[]; restDurations: ReadDuration[]; stems: Stem[]; measureTicks: number | null; assumed: boolean; support: number } {
+  const sp = input.space;
+  const none = { durations: columns.map(() => null), restDurations: rests.map(() => null), stems: [], measureTicks: knownTicks, assumed: false, support: 0 };
+  if (!columns.length) return none;
+  let chosen: { stems: Stem[]; match: (Stem | null)[]; hits: number } | null = null;
+  for (const side of [1, -1] as const) {
+    const stems = findStems(input.binary, input, side);
+    if (!stems.length) continue;
+    const used = new Set<Stem>();
+    const match = columns.map((col) => {
+      let best: Stem | null = null;
+      for (const st of stems) if (!used.has(st) && Math.abs(st.x - col.x) <= 0.5 * sp && (!best || Math.abs(st.x - col.x) < Math.abs(best.x - col.x))) best = st;
+      if (best) used.add(best);
+      return best;
+    });
+    const hits = match.filter(Boolean).length;
+    if (!chosen || hits > chosen.hits) chosen = { stems, match, hits };
+  }
+  // A staff carries rhythm when a fair share of its columns have a stem.
+  if (!chosen || chosen.hits < 2 || chosen.hits < 0.25 * columns.length) return none;
+  const picked = chosen;
+  const events: (MeasureEvent & { col: number; rest: DurationValue | undefined; index: number })[] = [
+    ...columns.map((col, i) => ({ x: col.x, stem: !!picked.match[i], beams: picked.match[i]?.beams ?? 0, col: i, rest: undefined, index: i })),
+    ...rests.map((r, i) => ({ x: r.x, stem: false, beams: 0, col: -1, rest: r.value, index: i })),
+  ].sort((a, b) => a.x - b.x);
+  const cuts = [...bars.map((b) => b.x).filter((x) => x > input.x0 + 0.5 * sp && x < input.x1 - 0.5 * sp), input.x1].sort((a, b) => a - b);
+  const measures: { events: number[]; xEnd: number }[] = cuts.map((x) => ({ events: [], xEnd: x }));
+  events.forEach((e, i) => {
+    const m = measures.find((q) => e.x < q.xEnd) ?? measures[measures.length - 1];
+    m.events.push(i);
+  });
+  const res = assignDurations(events, measures, knownTicks);
+  const durations: ReadDuration[] = columns.map(() => null);
+  const restDurations: ReadDuration[] = rests.map(() => null);
+  events.forEach((e, i) => {
+    if (e.col >= 0) durations[e.col] = res.durations[i];
+    else restDurations[e.index] = res.durations[i];
+  });
+  return { durations, restDurations, stems: chosen.stems, measureTicks: res.measureTicks, assumed: res.assumed, support: res.support };
+}
+
 /** Read one tab staff and return the reading with its internals. */
-export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}): TabReadingDetail {
+export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, force: { blurLevel?: number } = {}): TabReadingDetail {
   const t0 = now();
   const timings: Record<string, number> = {};
   const sp = input.space;
@@ -149,7 +263,7 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
   const warnings: OmrWarning[] = [];
 
   // Components of the staff band, with and without the lines.
-  const bandY = Math.max(0, Math.floor(input.lineYs[0] - 1.1 * sp));
+  const bandY = Math.max(0, Math.floor(input.lineYs[0] - 1.7 * sp));
   const bandH = Math.min(input.gray.height, Math.ceil(input.lineYs[n - 1] + 1.1 * sp)) - bandY;
   const ccFree = labelComponents(cropBinary(input.noLines, 0, bandY, input.noLines.width, bandH));
   const ccFull = labelComponents(cropBinary(input.binary, 0, bandY, input.binary.width, bandH));
@@ -157,11 +271,23 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
   const clefBox = findClef(ccFree, bandY, input);
   const clefEnd = clefBox ? clefBox.x1 : 0;
 
+  // Bar lines the layout stage found, minus those that are really a column of stacked numbers.
+  const bars = input.barlines.filter((bar) => {
+    const solid = barlineSolidity(input.binary, input, bar) >= 0.93;
+    if (!solid) warnings.push({ code: 'other', message: 'A bar line found on this staff looks like a column of fret numbers; check the measures around it.' });
+    return solid;
+  });
+  const barred: StripGeometry = { ...input, barlines: bars };
+  // The header: clef letters and, on some tab staves, a time signature in big numerals.
+  const timeSig = readTimeSignature(input.noLines, ccFree, bandY, barred, clefEnd, templatesAtBlur(1));
+  const headerEnd = Math.max(clefEnd, timeSig ? timeSig.box.x1 : 0);
+
   let blobs = findLineBlobs(ccFree, input, ccFull, bandY);
   blobs = blobs.filter((b) => {
-    if (b.box.x0 < clefEnd + 0.15 * sp) return false;
-    if (b.box.x1 < input.x0 - 0.5 * sp || b.box.x0 > input.x1 + 0.5 * sp) return false;
-    for (const bar of input.barlines) {
+    if (b.box.x0 < headerEnd + 0.15 * sp) return false;
+    // Nothing is printed on the very ends of the staff but the lines that close it.
+    if (b.box.x1 < input.x0 + 0.3 * sp || b.box.x0 > input.x1 - 0.3 * sp) return false;
+    for (const bar of bars) {
       // The remains of a bar line: no wider than the bar itself.
       if (b.box.x1 > bar.x0 - 1 && b.box.x0 < bar.x1 + 1 && b.box.x1 - b.box.x0 <= 2.2 * (bar.x1 - bar.x0) + 2) return false;
       // The dots of a repeat sign (they can land on a line in a six-line staff).
@@ -170,22 +296,32 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
     }
     return true;
   });
-  const digitHeight = estimateDigitHeight(blobs, input);
-  const base: Omit<ReaderContext, 'templates'> = {
+  const metrics = digitMetrics(blobs, barred);
+  const digitHeight = metrics.height;
+  // Numbers welded to their neighbours in a chord, or to an arc or stem, come as one oversized component: cut them out again.
+  let rests = findRests(input.noLines, ccFree, bandY, barred, headerEnd + 0.2 * sp, templatesAtBlur(1));
+  // A shape that is clearly a rest is not searched for numbers; a doubtful one is, and loses if numbers are found in it.
+  const inRest = (xa: number, xb: number): boolean => rests.some((r) => r.confidence >= 0.6 && xb > r.box.x0 && xa < r.box.x1);
+  const welded = findWeldedBlobs(ccFree, bandY, input, input.gray, digitHeight, metrics.centreOffset, (xa, xb) => xa < headerEnd + 0.15 * sp || xa < input.x0 + 0.4 * sp || xb > input.x1 - 0.4 * sp || nearBarline(barred, xa, xb, 0) || inRest(xa, xb));
+  if (welded.length) blobs = blobs.concat(welded);
+  const base: Omit<ReaderContext, 'templates' | 'blurLevel'> = {
     gray: input.gray,
     noLines: input.noLines,
     lineYs: input.lineYs,
     space: sp,
     lineThickness: input.lineThickness,
     digitHeight,
+    inkHeight: digitHeight,
+    centreOffset: metrics.centreOffset,
     profiles: new Map(),
     lineThrough: detectLineThrough(input.gray, blobs, input.lineYs, digitHeight),
   };
+  base.inkHeight = inkHeightOf(base, blobs);
   let t1 = now();
-  const blurLevel = chooseBlur(base, blobs);
+  const blurLevel = force.blurLevel ?? chooseBlur(base, blobs);
   timings.blur = now() - t1;
   t1 = now();
-  const ctx: ReaderContext = { ...base, templates: templatesAtBlur(blurLevel) };
+  const ctx: ReaderContext = { ...base, templates: templatesAtBlur(blurLevel), blurLevel };
 
   // Glyphs: clusters of neighbouring pieces on a line, divided the way the classifier likes best.
   const maxGap = 0.36 * digitHeight;
@@ -198,18 +334,37 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
     }
   }
   // Second look at the doubtful ones, now knowing which face the staff is set in.
-  const penalty = facePenalties(clusters.flatMap((c) => c.glyphs), ctx.templates, TEMPLATE_FACE_LIST.length);
-  if (penalty) {
-    const ctx2: ReaderContext = { ...ctx, penalty };
+  const faceRatings: number[] = [];
+  const penalty = facePenalties(clusters.flatMap((c) => c.glyphs), ctx.templates, TEMPLATE_FACE_LIST.length, 0.7, 0.08, faceRatings);
+  // (Not worth it on a staff that is mostly noise: there the first reading is as good as any.)
+  const firstScores = clusters.flatMap((c) => c.glyphs).filter((g) => isDigitLabel(g.label)).map((g) => g.score);
+  const firstMean = firstScores.length ? firstScores.reduce((a, b) => a + b, 0) / firstScores.length : 0;
+  if (penalty && firstMean >= 0.8) {
+    const topFaces = faceRatings.map((v, f) => ({ v, f })).sort((a, b) => b.v - a.v).slice(0, 6).map((o) => o.f);
+    const ctx2: ReaderContext = { ...ctx, penalty, topFaces };
     for (const c of clusters) {
       if (c.glyphs.length && c.glyphs.every((g) => g.margin >= 0.15 && g.score >= 0.8)) continue;
       c.glyphs = readCluster(ctx2, c.atoms);
     }
   }
-  const glyphs: Glyph[] = clusters.flatMap((c) => c.glyphs);
+  let glyphs: Glyph[] = clusters.flatMap((c) => c.glyphs);
+  // How readable is this staff? On a good picture the digits correlate at 0.95 and above with
+  // their templates; where the average sinks towards 0.8 the staff is mostly noise, every
+  // reading is a guess, and weak matches are more likely dirt than numbers.
+  const digitScores = glyphs.filter((g) => isDigitLabel(g.label)).map((g) => g.score);
+  const meanScore = digitScores.length ? digitScores.reduce((a, b) => a + b, 0) / digitScores.length : 0;
+  const reliability = digitScores.length ? Math.max(0, Math.min(1, (meanScore - 0.74) / 0.18)) : 1;
+  if (reliability < 0.35) glyphs = glyphs.filter((g) => g.score >= 0.68);
   const numbers: TabNumber[] = [];
-  for (let l = 0; l < n; l++) numbers.push(...assembleLine(glyphs.filter((g) => g.line === l), digitHeight, maxGap));
+  for (let l = 0; l < n; l++) numbers.push(...assembleLine(glyphs.filter((g) => g.line === l), digitHeight, maxGap, base.inkHeight));
+  rests = rests.filter((r) => r.confidence >= 0.6 || !numbers.some((q) => q.box.x1 > r.box.x0 && q.box.x0 < r.box.x1 && q.box.y1 > r.box.y0 && q.box.y0 < r.box.y1));
+  if (reliability < 1) for (const q of numbers) q.confidence *= 0.3 + 0.7 * reliability;
+  if (reliability < 0.5 && numbers.length) warnings.push({ code: 'low-quality', message: 'The numbers on this staff are hard to make out in this picture; treat them as guesses.' });
   timings.glyphs = now() - t1;
+
+  // Marks drawn between the numbers: ties and slurs, slides, bends.
+  const marks: TabMark[] = reliability >= 0.5 ? [...findArcs(input.noLines, barred, numbers, digitHeight), ...findSlides(input.noLines, barred, numbers), ...findBends(input.binary, barred, numbers)] : [];
+  applyMarks(marks);
 
   // Columns: numbers printed above one another sound together.
   const columns: TabColumn[] = groupColumns(numbers, 0.42 * digitHeight).map((items) => ({
@@ -219,8 +374,22 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
   }));
   for (const col of columns) checkStretch(col);
 
+  // Rhythm: stems under (or over) the staff, one per column; rests printed among the numbers.
+  t1 = now();
+
+  let memory = pageMemory.get(input.page.gray);
+  if (!memory) pageMemory.set(input.page.gray, (memory = {}));
+  if (timeSig && timeSig.confidence >= 0.5) memory.time = { beats: timeSig.beats, beatValue: timeSig.beatValue };
+  const ctxTime = options.context;
+  const time = timeSig ?? (ctxTime?.beats && ctxTime.beatValue ? { beats: ctxTime.beats, beatValue: ctxTime.beatValue } : memory.time ?? null);
+  const knownTicks = time ? Math.round((time.beats * 3840) / time.beatValue) : memory.ticks ?? null;
+  const rhythm = readRhythm(input, columns, rests, bars, knownTicks);
+  if (!knownTicks && rhythm.measureTicks && rhythm.support >= 2) memory.ticks = rhythm.measureTicks;
+  timings.rhythm = now() - t1;
+
   const events: (OmrTabEvent & { measureIndex?: number })[] = [];
-  for (const col of columns) {
+  const eventX = new Map<OmrTabEvent, number>();
+  columns.forEach((col, ci) => {
     const notes: OmrTabNote[] = col.numbers.map((q) => {
       const string = q.line + 1;
       const alternatives: Alternative<number>[] | undefined = q.alternatives.length ? q.alternatives.map((a) => ({ value: a.value, confidence: a.confidence })) : undefined;
@@ -245,7 +414,7 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
     const y1 = Math.max(...col.numbers.map((q) => q.box.y1));
     const mid = input.toPage(col.x, (y0 + y1) / 2);
     const measure = input.measures.find((m) => col.x >= m.x0 && col.x < m.x1);
-    events.push({
+    const event: OmrTabEvent & { measureIndex?: number } = {
       id: '',
       bbox: input.toPageBox(x0, y0, x1 - x0, y1 - y0),
       confidence: Math.min(...notes.map((q) => q.confidence)),
@@ -253,17 +422,43 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}):
       kind: 'tab',
       x: mid.x,
       notes,
+      duration: rhythm.durations[ci] ?? undefined,
       measureIndex: measure?.index,
-    });
-  }
+    };
+    events.push(event);
+    eventX.set(event, col.x);
+  });
+
+  rests.forEach((r, i) => {
+    const duration = rhythm.restDurations[i] ?? { value: r.value, dots: 0 as const, ticks: durationTicks(r.value), confidence: r.confidence };
+    const mid = input.toPage(r.x, (r.box.y0 + r.box.y1) / 2);
+    const event: OmrTabEvent & { measureIndex?: number } = {
+      id: '',
+      bbox: input.toPageBox(r.box.x0, r.box.y0, r.box.x1 - r.box.x0, r.box.y1 - r.box.y0),
+      confidence: r.confidence,
+      source: 'image',
+      kind: 'tab-rest',
+      x: mid.x,
+      notes: [],
+      duration,
+      measureIndex: input.measures.find((m) => r.x >= m.x0 && r.x < m.x1)?.index,
+    };
+    events.push(event);
+    eventX.set(event, r.x);
+  });
+  // Time order is order along the staff (in strip px: on a rotated page the page x alone could mislead).
+  events.sort((a, b) => (eventX.get(a) as number) - (eventX.get(b) as number));
+  const stripX = events.map((e) => eventX.get(e) as number);
 
   let clef: OmrClef | undefined;
   if (clefBox) clef = { id: '', bbox: input.toPageBox(clefBox.x0, clefBox.y0, clefBox.x1 - clefBox.x0, clefBox.y1 - clefBox.y0), confidence: 0.9, source: 'image', type: 'tab' };
-  const timeSignature: OmrTimeSignature | undefined = undefined;
+  const timeSignature: OmrTimeSignature | undefined = timeSig
+    ? { id: '', bbox: input.toPageBox(timeSig.box.x0, timeSig.box.y0, timeSig.box.x1 - timeSig.box.x0, timeSig.box.y1 - timeSig.box.y0), confidence: timeSig.confidence, source: 'image', beats: timeSig.beats, beatValue: timeSig.beatValue }
+    : undefined;
   const texts: OmrText[] = [];
   const confidence = events.length ? events.reduce((a, e) => a + e.confidence, 0) / events.length : 0.5;
   return {
     reading: { events, clef, timeSignature, texts, confidence, warnings },
-    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, blobs, glyphs, numbers, columns, clefEnd, ms: now() - t0, timings },
+    debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, ms: now() - t0, timings },
   };
 }

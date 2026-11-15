@@ -25,11 +25,13 @@ export interface Stroke {
   width: number;
   /** Lies on a bar line reported by the layout stage. */
   barline: boolean;
+  /** Runs exactly from the top staff line to the bottom one: possibly a bar line nobody reported. */
+  staffSpan?: boolean;
 }
 
 /** Options for {@link findStrokes}. */
 export interface StrokeOptions {
-  /** Widest horizontal run that still counts as thin, in staff spaces. Default 0.42. */
+  /** Widest horizontal run that still counts as thin, in staff spaces. Default 0.55 (half a note head). */
   maxWidth?: number;
   /** Shortest thin run kept, in staff spaces. Default 1.1. */
   minLength?: number;
@@ -38,7 +40,10 @@ export interface StrokeOptions {
 /** Find the thin vertical strokes between columns `xFrom` and `xTo`. */
 export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: StrokeOptions = {}): Stroke[] {
   const { w, h, nl, s } = strip;
-  const maxW = Math.max(3, Math.round((opts.maxWidth ?? 0.42) * s));
+  const maxW = Math.max(3, Math.round((opts.maxWidth ?? 0.55) * s));
+  // A soft stem swells where it crosses a staff line; bridge those few rows.
+  const maxGap = Math.max(2, Math.round(0.2 * s));
+  const bandGap = Math.ceil(strip.thick + 4);
   const minLen = Math.round((opts.minLength ?? 1.1) * s);
   const xa = Math.max(0, Math.floor(xFrom));
   const xb = Math.min(w - 1, Math.ceil(xTo));
@@ -57,7 +62,7 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
       x = b + 1;
     }
   }
-  // Long vertical runs of thin pixels, per column (gaps of up to 2 px are bridged).
+  // Long vertical runs of thin pixels, per column (small gaps are bridged).
   interface Run { x: number; y0: number; y1: number; group: number }
   const runs: Run[] = [];
   const byCol: number[][] = [];
@@ -70,8 +75,18 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
       let y1 = y;
       let gap = 0;
       let yy = y + 1;
-      while (yy < h && gap <= 2) {
-        if (thin[yy * w + x]) { y1 = yy; gap = 0; } else gap++;
+      let band = 0;
+      while (yy < h && gap <= maxGap && band <= bandGap) {
+        if (thin[yy * w + x]) {
+          y1 = yy;
+          gap = 0;
+          band = 0;
+        } else if (strip.rowWeight[yy] < 1) {
+          // Where a faint stem crosses a staff line it is often erased with the line: that gap is free.
+          band++;
+        } else {
+          gap++;
+        }
         yy++;
       }
       if (y1 - y0 + 1 >= minLen) {
@@ -131,6 +146,9 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
     const width = wsum / len;
     // A stroke leans by at most a few degrees after the strip was straightened.
     if (gx1 - gx0 + 1 > maxW + 0.06 * len) continue;
+    // A soft stem may swell to half a space in places, but not along its whole length: the wall
+    // of a stack of whole notes is that thick everywhere.
+    if (width > 0.42 * s) continue;
     const x = sum / wsum;
     const xc = Math.min(w - 1, Math.max(0, Math.floor(x)));
     // Follow the ink of the stroke's columns beyond the thin part.
@@ -171,12 +189,77 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
   }
   out.length = 0;
   out.push(...merged);
-  // Bar lines found by the layout stage.
+  // Bar lines found by the layout stage; a stroke that runs exactly from the top line to the bottom
+  // line may be one the layout stage missed (a stem rarely ends on both outer lines).
   for (const st of out) {
     for (const b of strip.input.barlines) {
       if (st.x >= b.x0 - 0.2 * s && st.x <= b.x1 + 0.2 * s && st.ya <= strip.top + 0.6 * s && st.yb >= strip.bottom - 0.6 * s) st.barline = true;
     }
+    if (Math.abs(st.top - strip.top) <= 0.3 * s && Math.abs(st.bottom - strip.bottom) <= 0.3 * s) st.staffSpan = true;
   }
   out.sort((a, b) => a.x - b.x);
   return out;
+}
+
+/**
+ * Look for the stem of a note head directly in the grey image: a dark vertical ridge leaving the
+ * head at its right edge upwards or at its left edge downwards. Used for heads whose stem did not
+ * survive binarisation (blurred or low-contrast captures). Returns a stroke, or null.
+ */
+export function stemFromHead(strip: Strip, hx: number, hy: number, hw: number): Stroke | null {
+  const { w, h, ink, s, rowWeight } = strip;
+  // Darkness of the head itself is the yardstick: a blurred stem keeps a fraction of it.
+  let ref = 0;
+  let n = 0;
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      const x = Math.round(hx) + dx;
+      const y = Math.round(hy) + dy;
+      if (x >= 0 && y >= 0 && x < w && y < h) { ref += ink[y * w + x]; n++; }
+    }
+  }
+  ref = n ? ref / n : 0;
+  if (ref < 60) return null;
+  let best: { frac: number; x: number; dir: 1 | -1; tip: number } | null = null;
+  for (const dir of [-1, 1] as const) {
+    // dir -1: stem up from the right edge; dir +1: stem down from the left edge.
+    const xs = dir < 0 ? hx + hw / 2 - 1.5 : hx - hw / 2 + 1.5;
+    for (let dx = -4; dx <= 4; dx++) {
+      const x = Math.round(xs + dx);
+      if (x < 10 || x >= w - 10) continue;
+      const rowOk = (y: number): boolean | null => {
+        if (y < 0 || y >= h) return false;
+        // On or right next to a staff line (a blurred line is wider than its band): no evidence either way.
+        if (rowWeight[y] < 1 || rowWeight[Math.max(0, y - 2)] < 1 || rowWeight[Math.min(h - 1, y + 2)] < 1) return null;
+        const o = y * w;
+        const centre = Math.max(ink[o + x - 1], ink[o + x], ink[o + x + 1]);
+        const left = Math.min(ink[o + x - 7], ink[o + x - 8], ink[o + x - 9]);
+        const right = Math.min(ink[o + x + 7], ink[o + x + 8], ink[o + x + 9]);
+        return centre >= 0.22 * ref && centre - Math.max(left, right) >= 0.12 * ref;
+      };
+      let ok = 0;
+      let seen = 0;
+      for (let d = Math.round(0.6 * s); d <= Math.round(2.6 * s); d++) {
+        const r = rowOk(Math.round(hy) + dir * d);
+        if (r === null) continue;
+        seen++;
+        if (r) ok++;
+      }
+      if (seen < 0.6 * s) continue;
+      const frac = ok / seen;
+      if (best && frac <= best.frac) continue;
+      // Follow the ridge to its end.
+      let tip = Math.round(hy) + dir * Math.round(2.6 * s);
+      for (let d = Math.round(2.6 * s) + 1, miss = 0; d <= Math.round(6 * s) && miss <= 3; d++) {
+        const r = rowOk(Math.round(hy) + dir * d);
+        if (r === null) continue;
+        if (r) { tip = Math.round(hy) + dir * d; miss = 0; } else miss++;
+      }
+      best = { frac, x, dir, tip };
+    }
+  }
+  if (!best || best.frac < 0.72) return null;
+  const top = Math.max(0, Math.min(best.tip, Math.round(hy)));
+  const bottom = Math.min(h - 1, Math.max(best.tip, Math.round(hy)));
+  return { x: best.x + 0.5, xa: best.x - 1, xb: best.x + 1, ya: top, yb: bottom, top, bottom, width: 3, barline: false };
 }

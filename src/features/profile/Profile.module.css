@@ -1,0 +1,137 @@
+/*
+ * The Me area. Phone and tablet: one column with a strip of links that sticks under the top bar.
+ * From 1080 px: a side list beside the part being shown.
+ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+  min-width: 0;
+}
+.detail {
+  min-width: 0;
+}
+
+/* ---------- The strip (phones and tablets) ---------- */
+.nav {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 20;
+  /* Bleed to the page's edges so the strip scrolls edge to edge under the thumb. */
+  margin: calc(var(--sp-2) * -1) calc(var(--_gr, 0px) * -1) 0 calc(var(--_gl, 0px) * -1);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.navList {
+  display: flex;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: var(--sp-2) var(--_gr, 0px) var(--sp-2) var(--_gl, 0px);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.navList::-webkit-scrollbar {
+  display: none;
+}
+.navList > li {
+  flex: none;
+}
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.navLink[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+@media (hover: hover) {
+  .navLink:hover:not([aria-current='page']) {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}
+.navLink:active:not([aria-current='page']) {
+  background: var(--surface-2);
+}
+.navLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-pill);
+}
+
+/* ---------- The side list (wide) ---------- */
+@media (min-width: 1080px) {
+  .layout {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--sp-10);
+    align-items: start;
+  }
+  .nav {
+    top: var(--sp-8);
+    margin: 0;
+    border-bottom: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .navList {
+    flex-direction: column;
+    gap: 2px;
+    padding: 0;
+    overflow: visible;
+  }
+  .navLink {
+    display: flex;
+    width: 100%;
+    padding: 0 var(--sp-3);
+    border-radius: var(--r-md);
+    font-size: var(--text-md);
+  }
+  .navLink:focus-visible {
+    border-radius: var(--r-md);
+  }
+}
+
+/* A phone held sideways has little height: the strip scrolls away with the page there. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .nav {
+    position: static;
+  }
+}
+
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* The learner's picture beside their name in the page title. */
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.who > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

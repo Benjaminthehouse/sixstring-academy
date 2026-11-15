@@ -30,6 +30,10 @@ export interface TabTally {
   durTotal: number;
   durOk: number;
   ms: number;
+  /** Technique marks (dead notes, brackets, ties, slurs, slides, bends): in the truth, reported, and right. */
+  marksTruth: number;
+  marksRead: number;
+  marksOk: number;
   /** Wrong frets reported with confidence >= 0.5, and right ones below 0.5. */
   confidentWrong: number;
   timidRight: number;
@@ -38,11 +42,11 @@ export interface TabTally {
   wrong: number;
 }
 
-const zero = (): TabTally => ({ strips: 0, truth: 0, detected: 0, matched: 0, fretOk: 0, stringOk: 0, bothOk: 0, lost: 0, measures: 0, measuresExact: 0, durTotal: 0, durOk: 0, ms: 0, confidentWrong: 0, timidRight: 0, confRight: 0, confWrong: 0, wrong: 0 });
+const zero = (): TabTally => ({ strips: 0, truth: 0, detected: 0, matched: 0, fretOk: 0, stringOk: 0, bothOk: 0, lost: 0, measures: 0, measuresExact: 0, durTotal: 0, durOk: 0, marksTruth: 0, marksRead: 0, marksOk: 0, ms: 0, confidentWrong: 0, timidRight: 0, confRight: 0, confWrong: 0, wrong: 0 });
 
 /** One mistake, with what is needed to draw it. */
 export interface Mistake {
-  kind: 'miss' | 'extra' | 'fret' | 'string' | 'duration';
+  kind: 'miss' | 'extra' | 'fret' | 'string' | 'duration' | 'mark';
   fixture: string;
   tier: DegradeTier;
   strip: number;
@@ -62,6 +66,8 @@ export interface TabEvalOptions {
   rebuild?: boolean;
   /** Write contact sheets of the mistakes. */
   dump?: boolean;
+  /** Evaluate the reader's own fixtures (marks, held-out faces) instead of the shared corpus. */
+  own?: boolean;
   /** Leave rhythm mistakes out of the contact sheets. */
   noDuration?: boolean;
   /** Print the classifier's ranking for every misread number. */
@@ -135,7 +141,7 @@ export function evaluateTab(opts: TabEvalOptions): { text: string; tiers: Record
   const mistakes: Mistake[] = [];
   const stripMs: number[] = [];
   for (const tier of opts.tiers) {
-    for (const meta of tabFixtures(opts.match)) {
+    for (const meta of tabFixtures(opts.match, opts.own)) {
       const page = cachePage(meta, tier, seed, opts.rebuild);
       const keys = [`tier ${tier}`, `${tier} font ${meta.tabFont}`, `${tier} dpi ${meta.dpi}`, `${tier} ${meta.subset}`, `${tier} fixture ${meta.id}`];
       for (const lost of page.missed) for (const k of keys) {
@@ -196,6 +202,13 @@ export function evaluateTab(opts: TabEvalOptions): { text: string; tiers: Record
             }
           }
           if (!stringOk) push({ kind: 'string', box: g.box, truth: `S${g.string}`, read: `S${d.n.string}`, confidence: d.n.confidence });
+          // Marks, as one string per note: x = dead, () = ghost, <> = harmonic, t = tied to the note before, then the mark after it.
+          const want = `${g.dead ? 'x' : ''}${g.paren ? '()' : ''}${g.harmonic ? '<>' : ''}${g.tieStop ? 't' : ''}${g.mark && g.mark !== 't' ? g.mark : ''}`;
+          const got = `${d.n.technique?.includes('x') ? 'x' : ''}${d.n.parenthesized ? '()' : ''}${d.n.technique?.includes('<>') ? '<>' : ''}${d.n.tieStop ? 't' : ''}${(d.n.technique ?? '').replace('x', '').replace('<>', '')}`;
+          if (want) local.marksTruth++;
+          if (got) local.marksRead++;
+          if (want && want === got) local.marksOk++;
+          if (want !== got) push({ kind: 'mark', box: g.box, truth: want || 'none', read: got || 'none', confidence: d.n.confidence });
           if (!eventPair.has(g.event)) eventPair.set(g.event, d.e);
         }
         sm.notes.forEach((g, gi) => {
@@ -244,7 +257,7 @@ export function evaluateTab(opts: TabEvalOptions): { text: string; tiers: Record
     }
   }
   const lines: string[] = [];
-  const head = 'group                                     strips truth  det   P%    R%   fret%  str%  e2e%  measEx%  dur%  confOK confBad  confidentWrong timidRight  ms/strip';
+  const head = 'group                                     strips truth  det   P%    R%   fret%  str%  e2e%  measEx%  dur%  confOK confBad  confidentWrong timidRight  ms/strip  marks(truth/read/ok)';
   lines.push(head);
   const order = [...groups.keys()].sort((a, b) => {
     const ta = opts.tiers.findIndex((t) => a.includes(t));
@@ -260,7 +273,7 @@ export function evaluateTab(opts: TabEvalOptions): { text: string; tiers: Record
       key.padEnd(42), String(t.strips).padStart(5), String(t.truth).padStart(5), String(t.detected).padStart(5), pct(t.matched, t.detected), pct(t.matched, t.truth),
       pct(t.fretOk, t.matched), pct(t.stringOk, t.matched), pct(t.bothOk, t.truth), pct(t.measuresExact, t.measures).padStart(7), pct(t.durOk, t.durTotal),
       (right ? t.confRight / right : 0).toFixed(2).padStart(6), (t.wrong ? t.confWrong / t.wrong : 0).toFixed(2).padStart(7),
-      `${t.confidentWrong}/${t.wrong}`.padStart(14), `${t.timidRight}/${right}`.padStart(10), (t.strips ? t.ms / t.strips : 0).toFixed(1).padStart(8),
+      `${t.confidentWrong}/${t.wrong}`.padStart(14), `${t.timidRight}/${right}`.padStart(10), (t.strips ? t.ms / t.strips : 0).toFixed(1).padStart(8), `  ${t.marksTruth}/${t.marksRead}/${t.marksOk}`,
     ].join(' '));
   }
   const conf = [...confusions.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([k, v]) => `${k} x${v}`).join('  ');

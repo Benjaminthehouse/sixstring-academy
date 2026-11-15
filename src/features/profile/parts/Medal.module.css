@@ -1,0 +1,100 @@
+/*
+ * Medals. The four metals are mixed from the instrument-material tokens, which are the same in
+ * both themes: metal is metal, like wood is wood. A tier is always also written in words.
+ */
+.medal {
+  --metal: var(--fb-fret);
+  --metal-ink: var(--fb-dot-edge);
+  --metal-edge: var(--fb-fret-shade);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+}
+.medal[data-tier='bronze'] {
+  --metal: color-mix(in srgb, var(--deg-2) 62%, var(--fb-wood));
+  --metal-ink: var(--fb-nut);
+  --metal-edge: color-mix(in srgb, var(--deg-2) 35%, var(--fb-wood));
+}
+.medal[data-tier='silver'] {
+  --metal: var(--fb-fret);
+  --metal-ink: var(--fb-dot-edge);
+  --metal-edge: var(--fb-fret-shade);
+}
+.medal[data-tier='gold'] {
+  --metal: var(--deg-3);
+  --metal-ink: var(--deg-3-fg);
+  --metal-edge: color-mix(in srgb, var(--deg-3) 60%, var(--fb-wood));
+}
+.medal[data-tier='platinum'] {
+  --metal: color-mix(in srgb, var(--fb-inlay) 62%, var(--deg-5));
+  --metal-ink: var(--deg-5-fg);
+  --metal-edge: color-mix(in srgb, var(--deg-5) 70%, var(--fb-wood));
+}
+
+.face {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* Earned: the metal, a darker rim, and an inner ring like a struck coin. */
+.earned .face {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--metal) 72%, var(--fb-label)) 0%, var(--metal) 46%, color-mix(in srgb, var(--metal) 82%, var(--metal-edge)) 100%);
+  color: var(--metal-ink);
+  box-shadow:
+    inset 0 0 0 2px var(--metal-edge),
+    inset 0 0 0 5px color-mix(in srgb, var(--metal) 86%, var(--fb-label)),
+    inset 0 0 0 6px color-mix(in srgb, var(--metal-edge) 55%, transparent),
+    var(--shadow-1);
+}
+
+/* Locked: an outline of the same size, so a group of medals keeps its rhythm. */
+.locked .face {
+  border: 2px dashed var(--line-strong);
+  background: var(--surface-2);
+  color: var(--fg-faint);
+}
+.lock {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 38%;
+  height: 38%;
+  min-width: 18px;
+  min-height: 18px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--fg-muted);
+}
+
+/* One slow highlight across the face when a trophy is opened. */
+.shine .face::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 38%, color-mix(in srgb, var(--fb-label) 70%, transparent) 50%, transparent 62%);
+  transform: translateX(-120%);
+  animation: sweep 900ms var(--ease) 180ms both;
+}
+@keyframes sweep {
+  to {
+    transform: translateX(120%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shine .face::after {
+    display: none;
+  }
+}
+:global(:root[data-motion='reduce']) .shine .face::after {
+  display: none;
+}

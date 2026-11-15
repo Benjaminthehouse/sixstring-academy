@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chord as parseChord, chordPcs, getChordType, identifyChords, note as parseNote } from '@/core/theory';
 import {
   LIBRARY_ROOTS, MOVABLE_SHAPES, OPEN_SHAPES, VOICING_CATEGORIES, VOICING_CATEGORY_INFO, checkVoicingFingering, formatFrets, libraryChordTypes,
-  libraryVoicings, midiAt, openChordVoicings, parseFrets, voicingLibrary, type Voicing,
+  libraryCoverage, libraryVoicings, midiAt, openChordVoicings, parseFrets, voicingLibrary, type Voicing,
 } from './index';
 
 /** The same chord: same root pitch class, same type, same bass pitch class. */
@@ -11,6 +11,21 @@ function sameChord(a: string, b: string): boolean {
   const y = parseChord(b);
   const pc = (name: string) => parseNote(name).chroma;
   return pc(x.root) === pc(y.root) && x.type.id === y.type.id && pc(x.bass ?? x.root) === pc(y.bass ?? y.root);
+}
+
+/**
+ * The same sound under its other name. A big chord that leaves tones out can be, note for note, a
+ * smaller chord on the same root, and the chord namer prefers that one: a #11 chord without its
+ * fifth is the b5 chord (F A B E is Fmaj7#11 to every guitarist), m11 without the ninth is m7add11.
+ */
+function enharmonicTwin(a: string, voicing: Voicing): boolean {
+  const x = parseChord(a);
+  const named = new Set(chordPcs(x));
+  const asked = new Set(chordPcs(voicing.chord));
+  const sounding = [...new Set(voicing.midi.map((m) => m % 12))];
+  // Same root; the reading covers every sounding note and claims nothing the chord asked for does not have.
+  return parseNote(x.root).chroma === parseNote(voicing.root).chroma && !x.bass && voicing.omitted.length > 0
+    && sounding.every((pc) => named.has(pc)) && [...named].every((pc) => asked.has(pc));
 }
 
 const shapes = (list: Voicing[]) => list.map((v) => formatFrets(v.frets));
@@ -43,8 +58,9 @@ describe('the whole library sounds what it claims', () => {
   it('every voicing is identified as its chord by the theory engine', () => {
     for (const v of LIBRARY) {
       const matches = identifyChords(v.midi, { limit: 80 });
-      const hit = matches.find((m) => sameChord(m.symbol, v.chord));
+      const hit = matches.find((m) => sameChord(m.symbol, v.chord)) ?? matches.find((m) => enharmonicTwin(m.symbol, v));
       expect(hit, `${v.chord} ${formatFrets(v.frets)} (${v.label}) is read as ${matches.map((m) => m.symbol).join(', ')}`).toBeDefined();
+      if (!sameChord(hit!.symbol, v.chord)) continue;
       // A complete voicing is an exact reading; "partial" is only acceptable when the voicing says what it leaves out.
       if (hit!.kind === 'partial') expect(v.omitted.length, v.id).toBeGreaterThan(0);
       if (v.omitted.length === 0 && parseChord(v.chord).inversion !== null) expect(hit!.kind, v.id).toBe('exact');
@@ -162,7 +178,9 @@ describe('curated shapes', () => {
       for (const root of LIBRARY_ROOTS) {
         const type = getChordType(m.type)!;
         const list = libraryVoicings(`${root}${type.symbol}`, { maxFret: 24, inversions: true });
-        const shift = (parseNote(root).chroma - parseNote(m.root).chroma + 12) % 12;
+        // Each shape sits at its lowest place on the neck: B9 is x2122x, not the same grip twelve frets up.
+        let shift = (parseNote(root).chroma - parseNote(m.root).chroma + 12) % 12;
+        if (Math.min(...written) + shift - 12 >= 1) shift -= 12;
         const want = formatFrets(parseFrets(m.frets).map((f) => (f === null ? null : f + shift)));
         const found = list.find((v) => formatFrets(v.frets) === want);
         expect(found, `${m.id} on ${root} (${want})`).toBeDefined();
@@ -306,9 +324,34 @@ describe('looking chords up', () => {
     expect(shapes(seven)).toEqual(['x022000']);
     expect(seven[0].fingers).toEqual([null, 0, 2, 3, 0, 0, 0]);
     // Shapes written for standard tuning mean something else elsewhere: no library there.
-    expect(libraryVoicings('D', { tuning: 'drop-d' })).toEqual([]);
     expect(libraryVoicings('C', { tuning: 'ukulele' })).toEqual([]);
     expect(voicingLibrary({ tuning: 'dadgad' })).toEqual([]);
+    expect(voicingLibrary({ tuning: 'open-g' })).toEqual([]);
+    expect(['standard', 'half-step-down', 'standard-7', 'baritone', 'nashville'].map((t) => libraryCoverage(t))).toEqual(['full', 'full', 'full', 'full', 'full']);
+    expect(['dadgad', 'open-g', 'open-d', 'open-e', 'open-em', 'open-c', 'ukulele', 'bass'].map((t) => libraryCoverage(t))).toEqual(new Array(8).fill('none'));
+    // High-strung, every chord shape is the one you know; nobody asks which note is lowest.
+    expect(shapes(libraryVoicings('C', { tuning: 'nashville', categories: ['open'] }))).toEqual(['x32010']);
+    expect(libraryVoicings('C', { tuning: 'nashville' })[0].chord).toBe('C');
+  });
+
+  it('serves drop tunings with the shapes that leave the dropped string alone', () => {
+    expect(['drop-d', 'double-drop-d', 'drop-c', 'drop-c-sharp', 'all-fourths'].map((t) => libraryCoverage(t))).toEqual(new Array(5).fill('partial'));
+    // Strings 5 to 1 are still standard: the open C, the A-shape barre and the D shapes are what they always were.
+    expect(shapes(libraryVoicings('C', { tuning: 'drop-d', categories: ['open'] }))).toEqual(['x32010']);
+    expect(shapes(libraryVoicings('Bm', { tuning: 'drop-d', categories: ['barre'] }))).toEqual(['x24432']);
+    expect(shapes(libraryVoicings('D', { tuning: 'drop-d', categories: ['open'] }))).toEqual(['xx0232']);
+    // Nothing that touches string 6, and no power chords: one finger across three strings does that job there.
+    const all = [...libraryVoicings('G', { tuning: 'drop-d', inversions: true }), ...libraryVoicings('E7', { tuning: 'drop-d', inversions: true })];
+    expect(all.length).toBeGreaterThan(10);
+    for (const v of all) expect(v.frets[0], v.id).toBeNull();
+    expect(libraryVoicings('A5', { tuning: 'drop-d' })).toEqual([]);
+    for (const v of voicingLibrary({ tuning: 'drop-d' })) {
+      expect(v.frets[0], v.id).toBeNull();
+      for (const n of v.notes) expect(n.midi, v.id).toBe(midiAt(n, { tuning: 'drop-d' }));
+      expect(chordPcs(v.chord), v.id).toEqual(expect.arrayContaining([...new Set(v.midi.map((m) => m % 12))]));
+    }
+    // Drop C is drop D a whole step down: C is fingered as the open D shape.
+    expect(shapes(libraryVoicings('C', { tuning: 'drop-c', categories: ['open'] }))).toEqual(['xx0232']);
   });
 
   it('has nothing for chords it has no shape for, and says what it covers', () => {

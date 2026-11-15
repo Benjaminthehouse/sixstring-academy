@@ -1,8 +1,9 @@
 /**
  * Micro-benchmark: the detector must cost well under 3 ms per frame so it can run 40+ (in fact
  * 100) times a second with room to spare, and the whole engine must run many times faster than
- * real time. Each figure is the best of several passes: that is the cost of the code itself, and
- * it keeps a busy test machine (other suites run in parallel) from failing the run by accident.
+ * real time. Each figure is the best of several passes, measured in CPU time of this thread where
+ * Node can report it: that is the cost of the code itself, and it keeps a busy test machine (other
+ * suites run in parallel, several of them heavy) from failing the run by accident.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { midiToFreq } from '@/core/math/pitch-math';
@@ -14,11 +15,25 @@ import { addNoise, pluckedString, strum, whiteNoise } from './signals';
 const SR = 48000;
 const lines: string[] = [];
 afterAll(() => {
-  process.stdout.write(`\nCost per frame (best of repeated passes, this machine)\n${lines.join('\n')}\n\n`);
+  process.stdout.write(`\nCost per frame (CPU time, best of repeated passes, this machine)\n${lines.join('\n')}\n\n`);
 });
 
 function best(values: number[]): number {
   return Math.min(...values);
+}
+
+/**
+ * Milliseconds of CPU this thread has used so far (the wall clock where Node cannot tell). Waiting
+ * for a turn on an overloaded machine costs wall-clock time but no CPU time, and it is not what
+ * these tests are about.
+ */
+function cpuNow(): number {
+  const proc = process as unknown as { threadCpuUsage?: () => { user: number; system: number } };
+  if (typeof proc.threadCpuUsage === 'function') {
+    const used = proc.threadCpuUsage();
+    return (used.user + used.system) / 1000;
+  }
+  return performance.now();
 }
 
 /** Time of one detect() call in ms, sliding along `x` in 10 ms hops. */
@@ -28,7 +43,7 @@ function detectCost(det: PitchDetector, x: Float32Array, hinted: boolean): numbe
   const samples: number[] = [];
   for (let pass = 0; pass < 6; pass++) {
     let hint = 0;
-    const t0 = performance.now();
+    const t0 = cpuNow();
     let n = 0;
     for (let end = start; end <= x.length; end += hop) {
       const est = det.detect(x, hinted ? hint : 0, end);
@@ -36,7 +51,7 @@ function detectCost(det: PitchDetector, x: Float32Array, hinted: boolean): numbe
       n++;
     }
     // The first pass warms the JIT up and is not counted.
-    if (pass > 0) samples.push((performance.now() - t0) / n);
+    if (pass > 0) samples.push((cpuNow() - t0) / n);
   }
   return best(samples);
 }
@@ -76,10 +91,10 @@ describe('performance', () => {
       const times: number[] = [];
       for (let pass = 0; pass < 6; pass++) {
         const engine = new PitchEngine({ sampleRate: SR, chroma });
-        const t0 = performance.now();
+        const t0 = cpuNow();
         for (let i = 0; i < x.length; i += 256) engine.process(x.subarray(i, i + 256));
         // The first passes run while the JIT is still optimising and are not counted.
-        if (pass > 1) times.push(performance.now() - t0);
+        if (pass > 1) times.push(cpuNow() - t0);
       }
       return best(times);
     };
@@ -98,9 +113,9 @@ describe('performance', () => {
     const ex = new ChromaExtractor({ sampleRate: SR });
     const times: number[] = [];
     for (let pass = 0; pass < 6; pass++) {
-      const t0 = performance.now();
+      const t0 = cpuNow();
       for (let i = 0; i < 20; i++) ex.analyze(chord);
-      if (pass > 0) times.push((performance.now() - t0) / 20);
+      if (pass > 0) times.push((cpuNow() - t0) / 20);
     }
     lines.push(`  chroma  one frame (${ex.windowSize} samples): ${best(times).toFixed(3)} ms`);
     expect(best(times)).toBeLessThan(10);

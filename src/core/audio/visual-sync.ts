@@ -15,6 +15,11 @@ interface Entry {
 const STALE_SECONDS = 0.5;
 /** Fire up to half a frame early, so a flash lands on the frame nearest the sound. */
 const FRAME_LEAD = 0.008;
+/**
+ * Most callbacks kept waiting. In a hidden tab the frame pump stands still while the music plays
+ * on, and every beat would add one more for ever; the oldest are the ones that will be stale anyway.
+ */
+const MAX_WAITING = 1024;
 
 /** A time-ordered queue of callbacks keyed by audio-clock time. */
 export class VisualQueue {
@@ -37,6 +42,7 @@ export class VisualQueue {
     let i = e.length;
     while (i > 0 && e[i - 1].time > time) i--;
     e.splice(i, 0, { time, fn });
+    if (e.length > MAX_WAITING) e.splice(0, e.length - MAX_WAITING);
     this.pump();
   }
 

@@ -8,7 +8,11 @@
  *     found from its harmonics. The period is the first NSDF peak within `peakThreshold` of the
  *     highest one; that rule is the octave-error protection (a sub-multiple of the period is only
  *     accepted if it is nearly as periodic as the period itself), and a hint from the previous
- *     frame adds hysteresis in both directions so a decaying note does not flip octaves. A second
+ *     frame adds hysteresis in both directions so a decaying note does not flip octaves. Frames
+ *     without a hint (the first of a note) can be held to a stricter fraction (`freshThreshold`),
+ *     which keeps a note with a weak fundamental and weak odd partials from starting an octave
+ *     high. A sound that is as periodic at a lag shorter than the range allows (a string squeak,
+ *     a whistle) is not a note at all and yields no pitch. A second
  *     check guards the other side: when two strings a fourth or fifth apart ring together, their
  *     common sub-harmonic is the most periodic lag of all, and only its spectrum (two interleaved
  *     partial series instead of one complete one) gives it away.

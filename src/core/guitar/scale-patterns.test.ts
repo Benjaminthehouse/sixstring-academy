@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SCALES, filterScales, getScale, scalePcs, scaleToneMap } from '@/core/theory';
 import {
   CAGED_ORDER, PATTERN_SYSTEMS, TUNINGS, allScalePatterns, cagedShapeOfRoots, checkFingering, fingerLine, hasStandardIntervals, midiAt,
-  patternContaining, patternRootPc, patternSystemsFor, positionPatternAt, scalePattern, scalePatterns, scalePositions, tonePositions,
+  patternContaining, patternRootPc, patternSystemsFor, positionPatternAt, scalePattern, scalePatterns, scalePositions, tonePositions, tuningIntervals,
   type FretPosition, type PatternSystem, type ScalePattern,
 } from './index';
 
@@ -438,7 +438,11 @@ describe('every scale, every system, every tuning', () => {
             expectSound(p, tonic, scaleId, { tuning: t.id });
             expect(p.tuning).toBe(t.id);
             expect(p.shape === null || hasStandardIntervals(t)).toBe(true);
-            if (system === 'position' || system === 'caged') expect(p.span, `${t.id} ${p.id}`).toBeLessThanOrEqual(5);
+            // A hand position is five frets at most, unless two strings are tuned more than a fourth apart:
+            // there the lower string carries on up the neck (a shift) so that no scale note goes missing.
+            const wide = tuningIntervals(t).some((step) => step > 5);
+            if (system === 'position' || system === 'caged') expect(p.span, `${t.id} ${p.id}`).toBeLessThanOrEqual(wide ? 8 : 5);
+            if (wide && p.span > 5) expect(p.hasShift || p.hasStretch || p.minFret === 0, `${t.id} ${p.id}`).toBe(true);
           }
         }
       }

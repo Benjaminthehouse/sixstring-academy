@@ -8,6 +8,7 @@ import { GuitarSynth, getGuitar, pluck, strum } from './guitar';
 import { Metronome } from './metronome';
 import { normalizeClickSet } from './percussion';
 import { normalizeTone, resolveTone } from './tones';
+import { VisualQueue } from './visual-sync';
 import { DrumKit, playChord, playClick, playDrum, playTone, playUi, startDrone } from './voices';
 import { MockContext, MockNode, MockParam, MockSource, asAudioContext } from './web-audio-mock';
 
@@ -408,6 +409,37 @@ describe('garbage in', () => {
     expect(normalizeClickSet('beep')).toBe('beep');
     expect(normalizeClickSet('kazoo')).toBe('woodblock');
     expect(normalizeClickSet(null)).toBe('woodblock');
+  });
+});
+
+describe('callbacks waiting for their sound', () => {
+  it('fire in time order when their time comes, skip stale ones, and never pile up without bound', () => {
+    let now = 0;
+    const q = new VisualQueue(() => now);
+    const fired: number[] = [];
+    for (const t of [0.5, 0.1, 0.3, NaN]) q.add(t, () => fired.push(t));
+    q.flush();
+    expect(fired.length).toBe(1); // the one with no usable time: as soon as possible
+    now = 0.31;
+    q.flush();
+    expect(fired.slice(1)).toEqual([0.1, 0.3]);
+    now = 5; // the tab was hidden: the last one is far too old to be worth a flash
+    q.flush();
+    expect(fired.length).toBe(3);
+    expect(q.size).toBe(0);
+    // A hidden tab for an hour of metronome: the queue keeps only the newest.
+    for (let i = 0; i < 5000; i++) q.add(10 + i * 0.3, () => undefined);
+    expect(q.size).toBeLessThanOrEqual(1024);
+    // A listener that throws does not stop the ones behind it.
+    const q2 = new VisualQueue(() => 1);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let reached = false;
+    q2.add(0.9, () => { throw new Error('broken listener'); });
+    q2.add(0.95, () => { reached = true; });
+    q2.flush();
+    expect(reached).toBe(true);
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
   });
 });
 

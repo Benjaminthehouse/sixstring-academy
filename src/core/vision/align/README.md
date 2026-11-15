@@ -53,7 +53,8 @@ Tracking from the true pose (three sets): still, sway, hand-slide 100%; jerk 97 
 97 / 97 / 87% (nothing is reported while occluded; recovery 1-3 frames); nut-exit 100 / 67 / 100% (13
 frames *lost* in motion blur); clutter 95 / 100 / 54% (17 lost in a dark noisy stretch); jitter 0.01-0.02 px,
 wobble <= 0.3 px. Cold start (`VISION_TRACK_INIT=detect`, the app's real path): 96.0 / 88.1 / 86.1; the
-losses are a wrong first lock that tracking keeps (jerk 78-80% on two sets, clutter 73% and 3%).
+extra losses are frames reported but wrong (jerk 78-80% on two sets, clutter 73% and 3%); the one traced
+(clutter, offset 2000) is a poor first lock that tracking keeps.
 Time per 640x360 frame, best of 5 on a shared 4-core sandbox (calibration 2.8 ms): detect median
 28 / 30 / 35 / 57 ms on easy / medium / hard / extreme (p95 36 / 86 / 86 / 99), 69 ms when nothing is found
 (all candidates tried; p95 109); track median 8-9 ms, about 50 ms on a verification frame. Single runs

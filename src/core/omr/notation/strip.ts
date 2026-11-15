@@ -20,7 +20,7 @@ export interface Strip {
   thick: number;
   /** Binary with staff lines (1 = ink). */
   bin: Uint8Array;
-  /** Binary without staff lines. */
+  /** Binary without staff lines (the layout stage's removal plus a second, more tolerant pass). */
   nl: Uint8Array;
   /** Symbol darkness 0..255: the grey strip inverted, staff lines whitened. */
   ink: Uint8Array;
@@ -154,14 +154,52 @@ export function integralOf(bin: Uint8Array, w: number, h: number): Int32Array {
   return out;
 }
 
+/**
+ * Second pass of staff-line removal. The layout stage erases runs no thicker than a line; on a
+ * soft or enlarged strip stretches of line are a pixel or two thicker than that and stay behind,
+ * joining symbols that have nothing to do with each other. Here every vertical run that stays
+ * inside a slightly wider band around a line is erased as well; anything that leaves the band
+ * (a head, a stem, a beam, a rest block) is a symbol and is kept.
+ */
+function cleanLines(input: StaffInput, thick: number): { nl: Uint8Array; mask: Uint8Array } {
+  const w = input.gray.width;
+  const h = input.gray.height;
+  const nl = input.noLines.data.slice();
+  const mask = input.lineMask.data.slice();
+  // A line plus two pixels: a beam (half a space thick) lying on a line must survive.
+  const lim = thick / 2 + 1.25;
+  for (const ly of input.lineYs) {
+    const ya = Math.max(0, Math.ceil(ly - lim));
+    const yb = Math.min(h - 1, Math.floor(ly + lim) - 1);
+    for (let x = 0; x < w; x++) {
+      let y = ya;
+      while (y <= yb) {
+        if (!nl[y * w + x]) { y++; continue; }
+        let a = y;
+        while (a > 0 && nl[(a - 1) * w + x]) a--;
+        let b = y;
+        while (b < h - 1 && nl[(b + 1) * w + x]) b++;
+        if (a >= ya && b <= yb) {
+          for (let yy = a; yy <= b; yy++) {
+            nl[yy * w + x] = 0;
+            mask[yy * w + x] = 1;
+          }
+        }
+        y = b + 1;
+      }
+    }
+  }
+  return { nl, mask };
+}
+
 /** Prepare the working view of a staff strip. */
 export function buildStrip(input: StaffInput): Strip {
   const w = input.gray.width;
   const h = input.gray.height;
   const s = input.space;
   const bin = input.binary.data;
-  const nl = input.noLines.data;
-  const mask = input.lineMask.data;
+  const thick = Math.max(1, input.lineThickness);
+  const { nl, mask } = cleanLines(input, thick);
   const gray = input.gray.data;
   const ink = new Uint8Array(w * h);
   for (let i = 0; i < ink.length; i++) ink[i] = mask[i] ? 0 : 255 - gray[i];
@@ -174,7 +212,6 @@ export function buildStrip(input: StaffInput): Strip {
       if (mask[i - w] || mask[i + w]) ink[i] = 0;
     }
   }
-  const thick = Math.max(1, input.lineThickness);
   const rowWeight = new Float32Array(h).fill(1);
   const band = thick / 2 + 1;
   // Staff lines, and the places where ledger lines run above and below the staff: a line through
@@ -184,7 +221,7 @@ export function buildStrip(input: StaffInput): Strip {
     const ly = bottomY - k * s;
     for (let y = Math.max(0, Math.floor(ly - band)); y <= Math.min(h - 1, Math.ceil(ly + band - 1)); y++) rowWeight[y] = 0.3;
   }
-  const cc = labelComponents(input.noLines);
+  const cc = labelComponents({ width: w, height: h, data: nl });
   return {
     input, w, h, s, thick, bin, nl, ink, rowWeight,
     dt: distanceTransform(nl, w, h),

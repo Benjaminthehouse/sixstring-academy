@@ -222,6 +222,16 @@ export function neckRange(opts: NeckOptions & { frets?: number } = {}): { low: n
   return { low: Math.min(...t.midi) + capo, high: Math.max(...t.midi) + (opts.frets ?? DEFAULT_FRETS) };
 }
 
+/**
+ * The scale step 1–7 behind a degree label, for the fixed degree colours (`--deg-1` … `--deg-7`):
+ * `b3` -> 3, `#4` -> 4, `bb7` -> 7, and the compound degrees fold back (`9` -> 2, `#11` -> 4, `b13` -> 6).
+ * Anything that is not a degree gives 1.
+ */
+export function degreeNumber(degree: string): number {
+  const n = Number(/\d+/.exec(degree)?.[0] ?? 1);
+  return n >= 1 ? ((n - 1) % 7) + 1 : 1;
+}
+
 /** Stable text key of a position, for sets and maps: `{ string: 5, fret: 3 }` -> `5:3`. */
 export function positionKey(pos: FretPosition): string {
   return `${pos.string}:${pos.fret}`;

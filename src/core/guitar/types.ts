@@ -19,6 +19,25 @@ export interface FretPosition {
 /** A fretting-hand finger: 1 index, 2 middle, 3 ring, 4 little. 0 means an open string (no finger). */
 export type Finger = 0 | 1 | 2 | 3 | 4;
 
+/**
+ * One marker on a fretboard drawing: what every source of notes has in common. The notes of a
+ * scale (`scalePositions`), of a pattern (`ScalePattern.notes`), of an arpeggio and of a chord
+ * voicing (`Voicing.notes`) can all be drawn as `FretDot[]` without conversion.
+ */
+export interface FretDot extends FretPosition {
+  /** Sounding MIDI note: what to play when the dot is tapped. */
+  midi: number;
+  /** Spelled name without octave, the way the scale or chord spells it. */
+  note: string;
+  /** Degree against the root: `1`, `b3`, `#11`. `degreeNumber` turns it into the colour 1–7. */
+  degree: string;
+  isRoot: boolean;
+  /** Fretting finger 1–4 (0 = open string), where the source knows one. */
+  finger?: Finger;
+  /** For chord tones: `root`, `third`, `seventh` … (`bass` for a slash bass outside the chord). */
+  role?: string;
+}
+
 /** The five CAGED shapes, named after the open chord each one is built around. */
 export type CagedShape = 'C' | 'A' | 'G' | 'E' | 'D';
 

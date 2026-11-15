@@ -9,7 +9,8 @@
  *   glyphs scaled to its size, because engravers print time signatures in very different sizes.
  */
 import type { ClefType } from '../types';
-import { type Match, coarseToFine, matchAt } from './match';
+import { type Match, coarseToFine, matchAt, searchMatch } from './match';
+import { classifyHead, measureHead } from './heads';
 import { type Strip, posY } from './strip';
 import { type Template, scaleTemplate, templatesOf } from './templates';
 
@@ -85,7 +86,7 @@ function columnInk(strip: Strip, from: number, to: number, ya: number, yb: numbe
 
 function readKey(strip: Strip, fromX: number, clefShift: number): { item: HeaderItem<number> | null; endX: number } {
   const { s } = strip;
-  const chains: { fifths: number; x1: number; x0: number; y0: number; y1: number; score: number; scores: number[] }[] = [];
+  const chains: { fifths: number; x1: number; x0: number; y0: number; y1: number; score: number; scores: number[]; boxes: { x0: number; y0: number; x1: number; y1: number }[] }[] = [];
   for (const kind of ['sharp', 'flat'] as const) {
     const templates = templatesOf(kind === 'sharp' ? 'accidentalSharp' : 'accidentalFlat');
     const positions = kind === 'sharp' ? SHARP_POSITIONS : FLAT_POSITIONS;
@@ -95,24 +96,58 @@ function readKey(strip: Strip, fromX: number, clefShift: number): { item: Header
     let y0 = Infinity;
     let y1 = -Infinity;
     const scores: number[] = [];
+    const boxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
     for (let k = 0; k < 7; k++) {
       // The first accidental follows the clef after a small gap; the next ones are packed.
-      const reach = k === 0 ? 1.6 * s : 0.8 * s;
+      const reach = k === 0 ? 1.4 * s : 0.8 * s;
       const m = coarseToFine(strip, templates, x + reach / 2, posY(strip, positions[k] + clefShift), Math.ceil(reach / 2), 2, 2);
       if (!m || m.score < 0.55) break;
       const b = box(m);
       scores.push(m.score);
+      boxes.push(b);
       count++;
       x0 = Math.min(x0, b.x0);
       y0 = Math.min(y0, b.y0);
       y1 = Math.max(y1, b.y1);
       x = b.x1 - 0.1 * s;
     }
-    if (count) chains.push({ fifths: kind === 'sharp' ? count : -count, x0, x1: x + 0.1 * s, y0, y1, score: scores.reduce((a, b) => a + b, 0) / count, scores });
+    if (count) chains.push({ fifths: kind === 'sharp' ? count : -count, x0, x1: x + 0.1 * s, y0, y1, score: scores.reduce((a, b) => a + b, 0) / count, scores, boxes });
   }
   if (!chains.length) return { item: null, endX: fromX };
   chains.sort((a, b) => Math.abs(b.fifths) * b.score - Math.abs(a.fifths) * a.score);
   const best = chains[0];
+  // A lone flat or sharp may be a rest that starts the staff (a sixteenth rest has a flat's outline).
+  if (Math.abs(best.fifths) === 1) {
+    const b0 = best.boxes[0];
+    let rest = 0;
+    for (const glyph of ['rest8th', 'rest16th', 'restQuarter']) {
+      for (const t of templatesOf(glyph)) {
+        const m = searchMatch(strip, t, b0.x0 + (t.ox - t.pad), posY(strip, 4 + clefShift), 6, 3, 2);
+        if (m.score > rest) rest = m.score;
+      }
+    }
+    if (rest > best.scores[0]) return { item: null, endX: fromX };
+  }
+  // An accidental with a note head right behind it at its own height belongs to that note.
+  {
+    const sharp = best.fifths > 0;
+    const n = Math.abs(best.fifths);
+    const pos = (sharp ? SHARP_POSITIONS : FLAT_POSITIONS)[n - 1] + clefShift;
+    const lastX1 = best.boxes[n - 1].x1;
+    let noteBehind = false;
+    for (const gap of [0.3 * s, 0.6 * s]) {
+      const { feat } = measureHead(strip, lastX1 + gap + 0.6 * s, posY(strip, pos), 2, 2);
+      const c = classifyHead(feat, feat.core >= 0.3 ? 'core' : 'ring', 0.6);
+      if (c) noteBehind = true;
+    }
+    if (noteBehind) {
+      if (n === 1) return { item: null, endX: fromX };
+      best.fifths -= Math.sign(best.fifths);
+      best.boxes.pop();
+      best.scores.pop();
+      best.x1 = best.boxes[n - 2].x1;
+    }
+  }
   const alt = chains[1];
   const alternatives: { value: number; confidence: number }[] = [];
   if (alt) alternatives.push({ value: alt.fifths, confidence: 0.3 * alt.score });
@@ -230,73 +265,125 @@ function readNumber(strip: Strip, x0: number, y0: number, x1: number, y1: number
   return best;
 }
 
+/** How usual a time signature is (added to the match score when choosing between readings). */
+function metrePrior(beats: number, beatValue: number): number {
+  // (One beat to the bar is not a metre anyone prints.)
+  if (![1, 2, 4, 8, 16].includes(beatValue) || beats < 2 || beats > 16) return -0.3;
+  const k = `${beats}/${beatValue}`;
+  if (['4/4', '3/4', '2/4', '6/8'].includes(k)) return 0.08;
+  if (['3/8', '2/2', '12/8', '9/8', '5/4', '6/4', '3/2'].includes(k)) return 0.04;
+  return 0;
+}
+
 function readTime(strip: Strip, fromX: number): { item: Header['time']; endX: number } {
-  const { s } = strip;
+  const { s, cc } = strip;
   const mid = posY(strip, 4);
-  // Blocks of ink (separated by blank columns) in the stretch after the key signature. A time
-  // signature is the first block that reaches into both halves of the staff and is 1-3 spaces wide.
-  const span = Math.round(5.5 * s);
-  const cols = columnInk(strip, fromX, fromX + span, strip.top - 2.2 * s, strip.bottom + 2.2 * s);
-  let i = 0;
-  const gapMax = Math.round(0.25 * s);
-  while (i < cols.length) {
+  // The time signature is the first block of ink inside the staff after the key signature. Its
+  // columns are found from the rows of the staff only (text above the staff does not reach into
+  // it); its height from the components that live in those columns (numbers taller than the
+  // staff, as some engravers print them, are followed out of it).
+  const { w, h } = strip;
+  const scanX = Math.round(fromX + 0.1 * s);
+  const cols = columnInk(strip, scanX, scanX + 5 * s, strip.top + 2, strip.bottom - 2);
+  const b = { x0: 0, y0: h, x1: 0, y1: 0 };
+  for (let i = 0; i < cols.length;) {
     while (i < cols.length && cols[i] === 0) i++;
-    if (i >= cols.length) break;
-    let j = i;
-    let gap = 0;
+    if (i >= cols.length) return { item: null, endX: fromX };
     let end = i;
-    while (j < cols.length && gap <= gapMax) {
+    for (let j = i, gap = 0; j < cols.length && gap <= 0.25 * s; j++) {
       if (cols[j] > 0) { end = j; gap = 0; } else gap++;
-      j++;
     }
-    const xa = fromX + i;
-    const xb = fromX + end + 1;
+    const xa = scanX + i;
+    const xb = scanX + end + 1;
     i = end + 1;
-    const b = inkBox(strip, xa, strip.top - 2.2 * s, xb, strip.bottom + 2.2 * s);
-    if (!b) continue;
-    const width = b.x1 - b.x0;
-    if (width < 0.9 * s) continue; // specks, a bar line
-    if (width > 3.6 * s) break; // music
-    const upper = inkBox(strip, b.x0, b.y0, b.x1, mid);
-    const lower = inkBox(strip, b.x0, mid, b.x1, b.y1);
-    if (!upper || !lower || upper.y1 - upper.y0 < 0.8 * s || lower.y1 - lower.y0 < 0.8 * s) break;
-    // Two stacked numbers meet near the middle line: cut at the emptiest row there.
-    let split = Math.round(mid);
-    {
-      const { w, nl } = strip;
-      let least = Infinity;
-      for (let y = Math.round(mid - 0.6 * s); y <= Math.round(mid + 0.6 * s); y++) {
-        let n = 0;
-        for (let x = b.x0; x < b.x1; x++) n += nl[y * w + x];
-        // Prefer the middle line itself among equally empty rows.
-        const cost = n + 0.02 * Math.abs(y - mid);
-        if (cost < least) { least = cost; split = y; }
+    // The last sliver of the key signature, a speck, an opening bar line.
+    if (xb - xa < 0.6 * s) continue;
+    b.x0 = xb;
+    b.x1 = xa;
+    const seen = new Set<number>();
+    for (let y = Math.round(strip.top + 2); y < Math.round(strip.bottom - 2); y++) {
+      for (let x = xa; x < xb && x < w; x++) {
+        const id = cc.labels[y * w + x];
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        // A component of the block may stick out a little above or below the staff rows scanned.
+        if (cc.x0[id] < xa - 0.5 * s || cc.x1[id] > xb + 0.5 * s) continue;
+        b.x0 = Math.min(b.x0, cc.x0[id]);
+        b.y0 = Math.min(b.y0, cc.y0[id]);
+        b.x1 = Math.max(b.x1, cc.x1[id] + 1);
+        b.y1 = Math.max(b.y1, cc.y1[id] + 1);
       }
-    }
-    const top = readNumber(strip, b.x0, b.y0, b.x1, split);
-    const bottom = readNumber(strip, b.x0, split, b.x1, b.y1);
-    const digitScore = top && bottom ? Math.min(top.score, bottom.score) : -1;
-    const g = classifyBox(strip, b.x0, b.y0, b.x1, b.y1, ['timeSigCommon', 'timeSigCutCommon']);
-    const symbolScore = g.length ? g[0].score : -1;
-    if (top && bottom && digitScore >= 0.4 && digitScore >= symbolScore) {
-      const validBottom = [1, 2, 4, 8, 16, 32].includes(bottom.value);
-      const conf = Math.max(0.1, Math.min(1, (digitScore - 0.4) / 0.3)) * (validBottom && top.value > 0 ? 1 : 0.3);
-      const alternatives: { value: { beats: number; beatValue: number }; confidence: number }[] = [];
-      for (const a of top.alternatives) if (a.value > 0) alternatives.push({ value: { beats: a.value, beatValue: bottom.value }, confidence: 0.4 * Math.max(0, a.score) });
-      for (const a of bottom.alternatives) if ([2, 4, 8, 16].includes(a.value)) alternatives.push({ value: { beats: top.value, beatValue: a.value }, confidence: 0.4 * Math.max(0, a.score) });
-      alternatives.sort((p, q) => q.confidence - p.confidence);
-      return { item: { value: { beats: top.value, beatValue: bottom.value }, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, confidence: conf, alternatives: alternatives.slice(0, 3) }, endX: b.x1 };
-    }
-    if (g.length && symbolScore >= 0.5) {
-      const cut = g[0].glyph === 'timeSigCutCommon';
-      return {
-        item: { value: cut ? { beats: 2, beatValue: 2, symbol: 'cut' } : { beats: 4, beatValue: 4, symbol: 'common' }, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, confidence: Math.min(1, (symbolScore - 0.4) / 0.3) },
-        endX: b.x1,
-      };
     }
     break;
   }
-  return { item: null, endX: fromX };
+  const width = b.x1 - b.x0;
+  const none = { item: null, endX: fromX };
+  if (width < 0.9 * s || width > 3.6 * s) return none;
+  // It fills the staff: both halves hold a good part of a number.
+  if (b.y0 > mid - 0.9 * s || b.y1 < mid + 0.9 * s) return none;
+  // Two stacked numbers meet at the middle line.
+  let split = Math.round(mid);
+  {
+    const { w, nl } = strip;
+    let least = Infinity;
+    for (let y = Math.round(mid - 0.2 * s); y <= Math.round(mid + 0.2 * s); y++) {
+      let n = 0;
+      for (let x = b.x0; x < b.x1; x++) n += nl[y * w + x];
+      const cost = n + 0.02 * Math.abs(y - mid);
+      if (cost < least) { least = cost; split = y; }
+    }
+  }
+  // Notes right after the key signature (later systems have no time signature) fill the staff
+  // too: when the block looks more like a note head than like numbers, it is music.
+  let headScore = 0;
+  for (let pos = -2; pos <= 10; pos++) {
+    const { feat } = measureHead(strip, (b.x0 + b.x1) / 2, posY(strip, pos), 6, 2);
+    const c = classifyHead(feat, feat.core >= 0.3 ? 'core' : 'ring', 0.6);
+    if (c && c.score > headScore) headScore = c.score;
+  }
+  const top = readNumber(strip, b.x0, b.y0, b.x1, split);
+  const bottom = readNumber(strip, b.x0, split, b.x1, b.y1);
+  const g = classifyBox(strip, b.x0, b.y0, b.x1, b.y1, ['timeSigCommon', 'timeSigCutCommon']);
+  const symbolScore = g.length ? g[0].score : -1;
+  let restScore = 0;
+  for (const glyph of ['rest8th', 'rest16th', 'restQuarter']) {
+    for (const t of templatesOf(glyph)) {
+      const m = searchMatch(strip, t, b.x0 + (t.ox - t.pad), posY(strip, 4), 6, 3, 2);
+      if (m.score > restScore) restScore = m.score;
+    }
+  }
+  if (top && bottom) {
+    // Every pairing of the best few readings of each number, weighted by how usual the metre is.
+    const tops = [{ value: top.value, score: top.score }, ...top.alternatives];
+    const bottoms = [{ value: bottom.value, score: bottom.score }, ...bottom.alternatives];
+    // The lower number is one of very few; when it is too blurred to tell, keep them all as weak
+    // readings so that the notes can decide later.
+    for (const v of [4, 8, 2]) if (!bottoms.some((q) => q.value === v)) bottoms.push({ value: v, score: v === 4 ? 0.33 : 0.3 });
+    const combos: { beats: number; beatValue: number; score: number; total: number }[] = [];
+    for (const t of tops) for (const q of bottoms) combos.push({ beats: t.value, beatValue: q.value, score: Math.min(t.score, q.score), total: Math.min(t.score, q.score) + metrePrior(t.value, q.value) });
+    combos.sort((p, q) => q.total - p.total);
+    for (let k = combos.length - 1; k > 0; k--) if (metrePrior(combos[k].beats, combos[k].beatValue) <= -0.2) combos.splice(k, 1);
+    const best = combos[0];
+    // Both numbers must look like numbers (the lower one may be unreadable, but not absent), and
+    // more like numbers than like a note head or a rest: a sixteenth rest or a stack of whole
+    // notes right after the clef fills the staff too.
+    const weakest = Math.min(top.score, bottom.score);
+    const readable = best.score >= 0.4 || (top.score >= 0.6 && bottom.score >= 0.5);
+    if (readable && weakest >= 0.4 && weakest >= symbolScore && weakest + 0.08 >= headScore && weakest >= restScore && metrePrior(best.beats, best.beatValue) > -0.2) {
+      const second = combos[1]?.total ?? 0;
+      const conf = Math.max(0.1, Math.min(1, (best.score - 0.4) / 0.25)) * (best.total - second >= 0.08 ? 1 : 0.6);
+      const alternatives = combos.slice(1, 5).filter((c) => metrePrior(c.beats, c.beatValue) > -0.2).map((c) => ({ value: { beats: c.beats, beatValue: c.beatValue }, confidence: Math.max(0.02, Math.min(0.45, 0.5 * c.score)) }));
+      return { item: { value: { beats: best.beats, beatValue: best.beatValue }, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, confidence: conf, alternatives }, endX: b.x1 };
+    }
+  }
+  if (g.length && symbolScore >= 0.6 && symbolScore + 0.05 >= headScore && symbolScore >= restScore) {
+    const cut = g[0].glyph === 'timeSigCutCommon';
+    return {
+      item: { value: cut ? { beats: 2, beatValue: 2, symbol: 'cut' } : { beats: 4, beatValue: 4, symbol: 'common' }, x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, confidence: Math.min(1, (symbolScore - 0.4) / 0.3) },
+      endX: b.x1,
+    };
+  }
+  return none;
 }
 
 /** Read clef, key signature and time signature at the start of the staff. */

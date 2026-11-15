@@ -24,3 +24,4 @@ export * from './chord-identify';
 export * from './arpeggio';
 export * from './capo';
 export * from './hand';
+export * from './chord-changes';

@@ -144,6 +144,32 @@ export function neckPoint(pos: FretPosition, geometry: NeckGeometry = NECK_PRESE
   return { x, y: stringOffset(pos.string, x, geometry) };
 }
 
+/** Where a point on the neck plane lies in terms of strings and frets. */
+export interface NeckHit extends FretPosition {
+  /** How far the point is from that string, in string spacings: 0 on it, ±0.5 halfway to the next (+ toward string 1). */
+  stringOffset: number;
+  /** True when the point is on the fretboard: between the nut and the last fret, inside both edges. */
+  onNeck: boolean;
+}
+
+/**
+ * The string and fret space a point on the neck plane falls on: the inverse of `neckPoint`, for
+ * reading a fingertip the camera sees. `fret` 0 means on or behind the nut. Points off the board
+ * still get their nearest string and fret, with `onNeck: false`.
+ */
+export function positionAtPoint(point: NeckPoint, geometry: NeckGeometry = NECK_PRESETS.electric): NeckHit {
+  const { stringCount, scaleLength, frets } = geometry;
+  const space = fretSpaceAt(point.x, scaleLength);
+  const fret = Number.isFinite(space) ? space : frets + 1;
+  const x = Math.min(Math.max(point.x, 0), scaleLength);
+  const gap = stringCount > 1 ? (stringOffset(1, x, geometry) - stringOffset(stringCount, x, geometry)) / (stringCount - 1) : 1;
+  // String 1 has the largest offset; one spacing lower each string after it.
+  const exact = stringCount > 1 ? 1 + (stringOffset(1, x, geometry) - point.y) / gap : 1;
+  const string = Math.min(stringCount, Math.max(1, Math.round(exact)));
+  const onNeck = point.x >= 0 && fret <= frets && Math.abs(point.y) <= fretboardHalfWidth(x, geometry);
+  return { string, fret, stringOffset: string - exact, onNeck };
+}
+
 /** The two ends of fret wire `fret` on the neck plane, low-string edge first. */
 export function fretWireSegment(fret: number, geometry: NeckGeometry = NECK_PRESETS.electric): [NeckPoint, NeckPoint] {
   const x = fretDistance(fret, geometry.scaleLength);

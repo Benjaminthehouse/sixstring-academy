@@ -344,7 +344,8 @@ describe('adversarial corpus: every fret, degraded', () => {
             }
           }
         }
-        clearNoteCacheIfLarge();
+        // The standard run uses other positions in the next family: nothing worth keeping.
+        if (!FULL) clearNoteCache();
       }
 
       report.push('', `Notes: 6 strings x frets 0-20, tones ${TONES.join('/')}, velocities ${VELOCITIES.join('/')}, 44.1 and 48 kHz, ${NOTE_S} s each.`);
@@ -388,12 +389,6 @@ describe('adversarial corpus: every fret, degraded', () => {
     }
   });
 });
-
-function clearNoteCacheIfLarge(): void {
-  // Rendered notes are reused by every member of a family; between families only the neck itself is worth keeping.
-  if (FULL) return;
-  clearNoteCache();
-}
 
 // ---------------------------------------------------------------------------------------------
 // Playing techniques

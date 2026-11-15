@@ -28,7 +28,9 @@ describe('identifying fretted chords', () => {
   it('names every open chord of the library', () => {
     for (const v of openChordVoicings()) {
       const found = identifyFretted(v.frets);
-      expect(found.matches.map((m) => m.symbol), formatFrets(v.frets)).toContain(v.chord);
+      // A #11 chord without its fifth is read under its other name (xx3200: Fmaj7#11 or Fmaj7b5).
+      const names = found.matches.map((m) => m.symbol.replace('maj7b5', 'maj7#11'));
+      expect(names, formatFrets(v.frets)).toContain(v.chord);
     }
   });
 

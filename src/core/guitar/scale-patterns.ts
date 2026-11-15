@@ -14,6 +14,10 @@
  * a shape is found by cost: notes outside the four-fret core of the position cost a little,
  * strings that need a five-fret stretch cost more. For the major scale and its modes this
  * reproduces the textbook CAGED fingerings exactly.
+ *
+ * Every pattern is an unbroken run of the scale. Where two strings are tuned more than a fourth
+ * apart (drop D, DADGAD, open tunings) five frets cannot hold all of it, so the lower string
+ * carries on up the neck to meet the next one, marked as a shift.
  */
 import { getScale, note as parseTheoryNote, scaleToneMap, toneAt, type ChordToneRole, type ScaleType, type ToneMap } from '@/core/theory';
 import { fingerLine, type FingerLineOptions } from './fingering';
@@ -80,7 +84,7 @@ export interface ScalePattern {
   span: number;
   /** String numbers used, lowest string first. */
   strings: number[];
-  /** The notes in playing order, ascending, each with degree, spelled note and finger. */
+  /** The notes in playing order, ascending in pitch (string by string, except where a re-entrant string cuts in), each with degree, spelled note and finger. */
   notes: PatternNote[];
   /** Where the roots are. */
   roots: FretPosition[];
@@ -92,6 +96,13 @@ export interface ScalePattern {
 export interface PatternOptions extends FretRangeOptions {
   /** Also return the repeats of each pattern twelve frets higher that still fit below `maxFret`. */
   allOctaves?: boolean;
+  /**
+   * Lay the patterns out as one climb up the neck: pattern 1 at its lowest place and every next
+   * one above the one before (A minor pentatonic boxes at frets 5, 7, 9, 12 and 14) instead of
+   * each at its own lowest place (boxes 4 and 5 in open and 2nd position). A pattern the neck has
+   * no room for above stays at its lowest place. For the `box`, `3nps`, `position` and `diagonal` systems.
+   */
+  upTheNeck?: boolean;
 }
 
 interface Ctx {
@@ -236,6 +247,30 @@ interface Window {
 }
 
 /**
+ * Fill the holes a five-fret window leaves between two strings tuned more than a fourth apart
+ * (the low strings of drop D, DADGAD, open tunings): the lower string carries on up the neck until
+ * it meets the first note of the next one, so the pattern is the whole scale and not most of it.
+ * Works on `tones` in place (string by string, frets ascending) and returns how many notes it added.
+ */
+function bridgeGaps(ctx: Ctx, tones: NeckTone[]): number {
+  let added = 0;
+  for (let i = tones.length - 1; i > 0; i--) {
+    const below = tones[i - 1];
+    const above = tones[i];
+    if (below.string === above.string || above.midi - below.midi < 2) continue;
+    const index = ctx.t.stringCount - below.string;
+    const extra: NeckTone[] = [];
+    for (let fret = below.fret + 1; ctx.t.midi[index] + ctx.capo + fret < above.midi && fret <= ctx.max; fret++) {
+      const tone = toneOn(ctx, index, fret);
+      if (tone) extra.push(tone);
+    }
+    tones.splice(i, 0, ...extra);
+    added += extra.length;
+  }
+  return added;
+}
+
+/**
  * Every scale note in frets `start`…`start + 4`, each pitch once. `start` 0 is open position:
  * open strings plus frets 1–4, which is free of stretches by definition.
  */
@@ -268,14 +303,17 @@ function windowAt(ctx: Ctx, start: number): Window | null {
     // The extra fret beyond the core is only a bridge between strings. Past the outer string it
     // leads nowhere: drop it there (below the core on the lowest string, above it on the highest).
     const edge = core === start ? { string: 1, fret: start + 4 } : { string: ctx.t.stringCount, fret: start };
-    const tones = all.filter((tone) => byMidi.get(tone.midi) === tone && !(start > 0 && tone.string === edge.string && tone.fret === edge.fret));
-    const outside = tones.filter((tone) => !inCore(tone.fret)).length;
+    let tones = all.filter((tone) => byMidi.get(tone.midi) === tone && !(start > 0 && tone.string === edge.string && tone.fret === edge.fret));
+    const bridged = ctx.t.reentrant ? 0 : bridgeGaps(ctx, tones);
+    // Where a string is tuned below its lower neighbour (ukulele), playing order is pitch order, not string order.
+    if (ctx.t.reentrant) tones = [...tones].sort((a, b) => a.midi - b.midi);
+    const outside = tones.filter((tone) => !inCore(tone.fret)).length - bridged;
     let stretched = 0;
     for (let index = 0; index < ctx.t.stringCount; index++) {
       const frets = tones.filter((tone) => tone.string === ctx.t.stringCount - index && tone.fret > 0).map((tone) => tone.fret);
       if (frets.length && Math.max(...frets) - Math.min(...frets) >= 4) stretched++;
     }
-    const cost = start === 0 ? 0 : 10 * outside + 15 * stretched;
+    const cost = (start === 0 ? 0 : 10 * outside + 15 * stretched) + 4 * bridged;
     const onCore = tones.filter((tone) => tone.fret === core).length;
     if (!best || cost < best.cost || (cost === best.cost && onCore > bestOnCore)) {
       best = { start, core, cost, tones };
@@ -389,6 +427,14 @@ function buildCaged(ctx: Ctx, opts: PatternOptions): ScalePattern[] {
 
 function buildPositions(ctx: Ctx, opts: PatternOptions): ScalePattern[] {
   const windows = positionWindows(ctx);
+  if (opts.upTheNeck) {
+    // Each position above the one before; one the neck has no room for stays where it is.
+    for (let i = 1; i < windows.length; i++) {
+      if (windows[i].window.start > windows[i - 1].window.start) continue;
+      const higher = windowAt(ctx, windows[i].window.start + 12);
+      if (higher && higher.start + 4 <= ctx.max) windows[i] = { shape: windows[i].shape, window: higher };
+    }
+  }
   const out = windows.map(({ shape, window }, index) => windowPattern(ctx, {
     id: `position-${index + 1}`, system: 'position', index, name: `Position ${index + 1}`, shape,
   }, window));
@@ -463,20 +509,26 @@ function walkStrings(ctx: Ctx, startDegree: number, startFret: number, plan: Arr
   return tones;
 }
 
-/** A walk at its lowest place on the neck, plus octave repeats when asked for. */
+/**
+ * A walk at its lowest place on the neck, plus octave repeats when asked for. `above` (for
+ * `upTheNeck`) asks for the first note to sit above that fret; when the neck has no room for that,
+ * the walk falls back to its lowest place.
+ */
 function placeWalk(
   ctx: Ctx, opts: PatternOptions, startDegree: number, plan: Array<{ index: number; count: number }>,
-  make: (tones: NeckTone[], octave: number) => ScalePattern,
+  make: (tones: NeckTone[], octave: number) => ScalePattern, above = -1,
 ): ScalePattern[] {
   const out: ScalePattern[] = [];
-  let fret = lowestFretOf(ctx, plan[0].index, startDegree, ctx.min);
-  let octave = 0;
-  for (let tries = 0; tries < 4 && fret <= ctx.max; tries++, fret += 12) {
+  const first = lowestFretOf(ctx, plan[0].index, startDegree, ctx.min);
+  const walks: Array<{ fret: number; tones: NeckTone[] }> = [];
+  for (let tries = 0, fret = first; tries < 4 && fret <= ctx.max; tries++, fret += 12) {
     const tones = walkStrings(ctx, startDegree, fret, plan);
-    if (!tones) continue;
-    out.push(make(tones, octave++));
-    if (!opts.allOctaves) break;
+    if (tones) walks.push({ fret, tones });
   }
+  const from = Math.max(0, walks.findIndex((w) => w.fret > above));
+  walks.slice(from).forEach((w, octave) => {
+    if (octave === 0 || opts.allOctaves) out.push(make(w.tones, octave));
+  });
   return out;
 }
 
@@ -487,8 +539,16 @@ function everyString(ctx: Ctx, count: number): Array<{ index: number; count: num
 function buildPerString(ctx: Ctx, opts: PatternOptions, perString: 2 | 3): ScalePattern[] {
   const out: ScalePattern[] = [];
   const size = ctx.map.tones.length;
-  for (let degree = 0; degree < size; degree++) {
-    out.push(...placeWalk(ctx, opts, degree, everyString(ctx, perString), (tones, octave) => {
+  // Patterns are numbered by the note they start with on string 6, as every method does. A seven-string
+  // keeps those numbers: its extra low string only extends each pattern downward.
+  const extra = hasStandardIntervals(ctx.t) ? ctx.t.stringCount - 6 : 0;
+  const shift = (((perString * extra) % size) + size) % size;
+  let above = -1;
+  for (let number = 0; number < size; number++) {
+    // The degree the walk starts on, on the lowest string.
+    const start = (((number - shift) % size) + size) % size;
+    const degree = number;
+    const placed = placeWalk(ctx, opts, start, everyString(ctx, perString), (tones, octave) => {
       const suffix = '-8va'.repeat(octave);
       if (perString === 2) {
         // A box is played in position: the hand lives where most strings start.
@@ -510,7 +570,9 @@ function buildPerString(ctx: Ctx, opts: PatternOptions, perString: 2 | 3): Scale
         return finish(ctx, { id: `box-${degree + 1}${suffix}`, system: 'box', index: degree, name: `Box ${degree + 1}`, home }, tones, { home });
       }
       return finish(ctx, { id: `3nps-${degree + 1}${suffix}`, system: '3nps', index: degree, name: `3NPS pattern ${degree + 1}`, shape: null }, tones, { wide: true });
-    }));
+    }, above);
+    if (opts.upTheNeck && placed.length) above = placed[0].notes[0].fret;
+    out.push(...placed);
   }
   return out;
 }
@@ -556,8 +618,9 @@ function buildDiagonal(ctx: Ctx, opts: PatternOptions): ScalePattern[] {
   // One octave per string pair, always the same shape: the smaller half below, the larger above.
   const lower = Math.floor(size / 2);
   const plan = Array.from({ length: ctx.t.stringCount }, (_unused, index) => ({ index, count: index % 2 === 0 ? lower : size - lower }));
+  let above = -1;
   for (let degree = 0; degree < size; degree++) {
-    out.push(...placeWalk(ctx, opts, degree, plan, (tones, octave) => {
+    const placed = placeWalk(ctx, opts, degree, plan, (tones, octave) => {
       // Close the run on the octave of its first note when the neck allows.
       const last = tones[tones.length - 1];
       const consumed = plan.reduce((sum, p) => sum + p.count, 0);
@@ -566,7 +629,9 @@ function buildDiagonal(ctx: Ctx, opts: PatternOptions): ScalePattern[] {
       return finish(ctx, {
         id: `diagonal-${degree + 1}${'-8va'.repeat(octave)}`, system: 'diagonal', index: degree, name: `Diagonal ${degree + 1}`, shape: null,
       }, closing ? [...tones, closing] : tones, { reach: size >= 7 ? 4 : 3 });
-    }));
+    }, above);
+    if (opts.upTheNeck && placed.length) above = placed[0].notes[0].fret;
+    out.push(...placed);
   }
   return out;
 }

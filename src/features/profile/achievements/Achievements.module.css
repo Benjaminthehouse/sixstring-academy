@@ -1,0 +1,185 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* ---------- How many, and of which metal ---------- */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 560px) {
+  .tiers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.tier {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.tierText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.tierName {
+  font-weight: 650;
+}
+.tierCount {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.summaryNote {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.groupCount {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+/* ---------- The cabinet ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(9.25rem, calc(50% - var(--sp-2))), 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.grid > li {
+  display: flex;
+  min-width: 0;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 9.5rem;
+  padding: var(--sp-4) var(--sp-3) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    transform var(--dur-2) var(--ease);
+}
+/* Locked tiles sit back a little, so the earned ones are what the eye finds first. */
+.tile:not(.tileEarned) {
+  background: transparent;
+}
+@media (hover: hover) {
+  .tile:hover {
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+  }
+}
+.tile:active {
+  transform: none;
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-1);
+}
+.tile:focus-visible {
+  outline: none;
+  border-radius: var(--r-lg);
+  box-shadow: var(--focus-ring);
+}
+.tileName {
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tile:not(.tileEarned) .tileName {
+  color: var(--fg-muted);
+}
+.tileMeta {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+.tileProgress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  margin-top: auto;
+}
+.tileEarned .tileMeta {
+  margin-top: auto;
+}
+.tileTrack {
+  display: block;
+  width: 100%;
+  max-width: 6.5rem;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+.tileFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--fg-muted);
+}
+
+/* ---------- One achievement, up close ---------- */
+.detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2) 0 var(--sp-3);
+  text-align: center;
+}
+.detailBadges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.detailText {
+  max-width: 26rem;
+  font-size: var(--text-lg);
+}
+.detailNote {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.detailProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 22rem;
+  text-align: left;
+}
+.detailProgress .detailNote {
+  text-align: center;
+}

@@ -185,8 +185,8 @@ export function planFingering(midiNotes: readonly number[], opts: PlanOptions = 
   const w = { ...DEFAULT_HAND_WEIGHTS, ...opts.weights };
   const range: FretRangeOptions = { tuning: opts.tuning, capo: opts.capo, minFret: opts.minFret, maxFret: opts.maxFret ?? DEFAULT_FRETS - (opts.capo ?? 0) };
   type Place = { position: number; finger: Finger; stretch: boolean };
-  interface Node { pos: FretPosition; total: number; back: number; move: HandMove }
-  const layers: Node[][] = [];
+  interface Step { pos: FretPosition; total: number; back: number; move: HandMove }
+  const layers: Step[][] = [];
   const kept: number[] = [];
   const unplayable: number[] = [];
   const start = opts.start ?? RESTING_HAND;
@@ -202,9 +202,9 @@ export function planFingering(midiNotes: readonly number[], opts: PlanOptions = 
     const prior: Array<{ state: HandState; total: number; back: number }> = previous
       ? previous.map((node, back) => ({ state: node.move.state, total: node.total, back }))
       : [{ state: start, total: 0, back: -1 }];
-    const layer: Node[] = [];
+    const layer: Step[] = [];
     const consider = (pos: FretPosition, place: Place | null, from: Array<{ state: HandState; total: number; back: number }>) => {
-      let best: Node | null = null;
+      let best: Step | null = null;
       for (const f of from) {
         const move = moveCost(f.state, pos, place, w, ease);
         let cost = move.cost;
@@ -237,7 +237,7 @@ export function planFingering(midiNotes: readonly number[], opts: PlanOptions = 
   const total = lastLayer[at].total;
   const notes: PlannedNote[] = new Array(layers.length);
   for (let i = layers.length - 1; i >= 0; i--) {
-    const node: Node = layers[i][at];
+    const node: Step = layers[i][at];
     const move = node.move;
     notes[i] = {
       string: node.pos.string, fret: node.pos.fret, midi: midiNotes[kept[i]], finger: move.finger,
@@ -251,7 +251,8 @@ export function planFingering(midiNotes: readonly number[], opts: PlanOptions = 
 /**
  * How hard it is to hold several positions at once (a double stop, a chord fragment in an
  * arrangement): the difficulty of the shape, 1–10, or Infinity when no hand can hold it (two
- * notes on one string, more than four fingers, a span of more than five frets).
+ * notes on one string, more than four fingers, a span of more than five frets). The notes are
+ * taken to be plucked, so strings between them cost nothing.
  */
 export function simultaneousCost(positions: readonly FretPosition[], opts: { tuning?: PlanOptions['tuning'] } = {}): number {
   const t = tuning(opts.tuning);
@@ -264,7 +265,7 @@ export function simultaneousCost(positions: readonly FretPosition[], opts: { tun
   const pressed = frets.filter((f): f is number => f !== null && f > 0);
   if (pressed.length && Math.max(...pressed) - Math.min(...pressed) > 4) return Infinity;
   const fingering = assignFingers(frets);
-  return fingering ? voicingDifficulty(frets, fingering.fingers) : Infinity;
+  return fingering ? voicingDifficulty(frets, fingering.fingers, { strummed: false }) : Infinity;
 }
 
 // ── Chord changes ──────────────────────────────────────────────────────────────────────────
@@ -338,13 +339,17 @@ export function voicingTransition(from: Voicing, to: Voicing): VoicingChange {
       else guides.push({ finger, string: place.strings[0], fromFret: before.fret, toFret: place.fret });
     }
   } else {
-    // The same formation carried to other strings or frets (Am to E) moves as one block.
+    // The same formation carried to other strings or frets (Am to E) moves as one block: every finger
+    // the two chords share goes the same way. A finger that only one of them uses (Em to Am) does not break it.
     const offsets = new Set<string>();
+    let shared = 0;
     for (const [finger, place] of b) {
       const before = a.get(finger);
-      offsets.add(before && before.strings.length === place.strings.length ? `${place.strings[0] - before.strings[0]},${place.fret - before.fret}` : `new${finger}`);
+      if (!before) continue;
+      shared++;
+      offsets.add(before.strings.length === place.strings.length ? `${place.strings[0] - before.strings[0]},${place.fret - before.fret}` : `reshaped${finger}`);
     }
-    block = b.size >= 2 && a.size === b.size && offsets.size === 1 && !offsets.has('0,0');
+    block = shared >= 2 && offsets.size === 1 && !offsets.has('0,0') && ![...offsets][0].startsWith('reshaped');
     for (const [finger, place] of b) {
       const before = a.get(finger);
       const shared = before ? place.strings.filter((s) => before.strings.includes(s)) : [];
@@ -388,6 +393,67 @@ export function voicingTransition(from: Voicing, to: Voicing): VoicingChange {
     if (to.barres.some((bar) => bar.finger === 1) && !from.barres.some((bar) => bar.finger === 1)) tips.push('Place the barre first, then let the other fingers fall into place.');
   }
   return { difficulty, anchors, guides, moving: moving.sort((x, y) => x - y), shift, sameShape, block, tips };
+}
+
+/** Several pitches held at once, as `placeChord` lays them out. */
+export interface ChordPlacement {
+  /** Where each pitch goes, in the order the pitches were given. */
+  positions: FretPosition[];
+  /** Fret per string, low to high; null = not played. */
+  frets: Array<number | null>;
+  /** Finger per string, low to high; 0 = open, null = not played. */
+  fingers: Array<Finger | null>;
+  /** How hard the shape is to hold, 1–10: the same figure `simultaneousCost` gives for these positions. */
+  difficulty: number;
+}
+
+/**
+ * The easiest way to hold several pitches at once (a double stop, a melody note over a bass note,
+ * a chord fragment in an arrangement): one string per pitch, chosen so that a hand can hold the
+ * shape and holds it most comfortably. `near` (a fret) keeps the shape close to where the hand is.
+ * Null when it cannot be done: more pitches than strings, two pitches that only exist on one
+ * string, or no way to finger them.
+ */
+export function placeChord(midiNotes: readonly number[], opts: FretRangeOptions & { near?: number } = {}): ChordPlacement | null {
+  const t = tuning(opts.tuning);
+  if (!midiNotes.length || midiNotes.length > t.stringCount) return null;
+  const range: FretRangeOptions = { tuning: t, capo: opts.capo, minFret: opts.minFret, maxFret: opts.maxFret ?? DEFAULT_FRETS - (opts.capo ?? 0) };
+  const choices = midiNotes.map((midi) => positionsForMidi(midi, range));
+  if (choices.some((list) => !list.length)) return null;
+  let best: ChordPlacement | null = null;
+  let bestCost = Infinity;
+  const frets: Array<number | null> = new Array(t.stringCount).fill(null);
+  const chosen: FretPosition[] = [];
+  const place = (k: number, low: number, high: number) => {
+    if (k === choices.length) {
+      const fingering = assignFingers(frets);
+      if (!fingering) return;
+      const difficulty = voicingDifficulty(frets, fingering.fingers, { strummed: false });
+      const pressed = chosen.filter((pos) => pos.fret > 0).map((pos) => pos.fret);
+      const centre = pressed.length ? (Math.min(...pressed) + Math.max(...pressed)) / 2 : 0;
+      // Ease first; then the lower position, or the one nearest the hand.
+      const cost = difficulty + (opts.near === undefined ? 0.05 * centre : 0.25 * Math.abs(centre - opts.near));
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = { positions: chosen.map((pos) => ({ ...pos })), frets: [...frets], fingers: fingering.fingers, difficulty };
+      }
+      return;
+    }
+    for (const pos of choices[k]) {
+      const index = t.stringCount - pos.string;
+      if (frets[index] !== null) continue;
+      const lo = pos.fret > 0 ? Math.min(low, pos.fret) : low;
+      const hi = pos.fret > 0 ? Math.max(high, pos.fret) : high;
+      if (hi - lo > 4) continue;
+      frets[index] = pos.fret;
+      chosen.push(pos);
+      place(k + 1, lo, hi);
+      chosen.pop();
+      frets[index] = null;
+    }
+  };
+  place(0, Infinity, -Infinity);
+  return best;
 }
 
 /** Difficulty (1–10) of changing from one voicing to another; see `voicingTransition` for the details. */

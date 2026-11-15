@@ -1,0 +1,212 @@
+/*
+ * A slice of headstock in instrument materials (wood, bone, nickel-and-bronze strings). These
+ * tokens are the same in both themes: wood is wood.
+ */
+.strip {
+  --peg: 3rem;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: 6.25rem;
+  padding: var(--sp-2) var(--sp-2) 0;
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--fb-wood) 0%, var(--fb-wood-2) 100%);
+  box-shadow: var(--shadow-1), inset 0 1px 0 color-mix(in srgb, var(--fb-label) 10%, transparent);
+  overflow: hidden;
+}
+.flipped {
+  flex-direction: row-reverse;
+}
+
+/* The nut: the strings leave the headstock over it. */
+.nut {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--sp-2) + var(--peg) + 0.5rem);
+  height: 0.3125rem;
+  background: var(--fb-nut);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--fb-wood-2) 70%, transparent);
+}
+
+.column {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.peg {
+  --focus-radius: 50%;
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: grid;
+  place-items: center;
+  /* Never wider than its column: eight strings still fit a small phone. */
+  width: min(var(--peg), calc(100% - 0.375rem));
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid var(--fb-dot-edge);
+  border-radius: 50%;
+  background: var(--fb-nut);
+  color: var(--fb-dot-edge);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.peg:hover {
+  transform: translateY(-1px);
+  background: var(--fb-inlay);
+}
+.peg:active {
+  transform: scale(0.94);
+}
+.pegNote {
+  display: inline-flex;
+  align-items: flex-start;
+}
+.pegAccidental {
+  font-size: 0.62em;
+  margin-top: -0.05em;
+}
+
+/* Chosen (locked, guided or picked for playing by ear): the amber of selection. */
+.pegTarget {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.pegTarget:hover {
+  background: var(--accent-strong);
+}
+.pegGuide::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: beckon 1.4s var(--ease) infinite;
+}
+@keyframes beckon {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.22);
+    opacity: 0;
+  }
+}
+
+/* Being heard: a bright ring. */
+.pegHeard {
+  box-shadow: 0 0 0 3px var(--fb-label);
+}
+.pegTarget.pegHeard {
+  box-shadow: 0 0 0 3px var(--fb-label), 0 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.tick,
+.lock {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 2px solid var(--fb-wood);
+}
+.tick {
+  top: -0.3125rem;
+  right: -0.3125rem;
+  background: var(--ok);
+  color: var(--ok-fg);
+  animation: pop 320ms var(--ease);
+}
+.lock {
+  bottom: -0.3125rem;
+  right: -0.3125rem;
+  background: var(--fb-dot-edge);
+  color: var(--fb-label);
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.2);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The string itself: thickness follows its pitch, the low ones are wound. */
+.wire {
+  flex: 1 1 auto;
+  width: calc(1.5px + var(--gauge, 0.5) * 3.5px);
+  margin-top: -2px;
+  background: var(--fb-string);
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--fb-wood-2) 60%, transparent);
+}
+.wireWound {
+  background: repeating-linear-gradient(180deg, var(--fb-string-wound) 0 2px, color-mix(in srgb, var(--fb-string-wound) 70%, var(--fb-wood-2)) 2px 3px);
+}
+.wireLive {
+  animation: shimmer 70ms linear infinite alternate;
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--fb-label) 55%, transparent);
+}
+@keyframes shimmer {
+  from {
+    transform: translateX(-1.25px);
+  }
+  to {
+    transform: translateX(1.25px);
+  }
+}
+
+.number {
+  position: absolute;
+  bottom: 0.25rem;
+  left: calc(50% + 0.5rem);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--fb-label);
+  opacity: 0.8;
+}
+
+@media (min-width: 1160px) {
+  .strip {
+    --peg: 3.5rem;
+    height: 8.5rem;
+    padding: var(--sp-3) var(--sp-3) 0;
+  }
+  .nut {
+    top: calc(var(--sp-3) + var(--peg) + 0.625rem);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .strip {
+    --peg: 2.75rem;
+    height: 5.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wireLive,
+  .pegGuide::after,
+  .tick {
+    animation: none;
+  }
+}

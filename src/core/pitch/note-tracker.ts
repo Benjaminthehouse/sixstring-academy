@@ -347,9 +347,10 @@ export class NoteTracker {
         const agreed = this.agreement(this.stableFrames, dt);
         // With a hum about, a note needs a pluck: a tone that merely appears is the hum showing
         // through (and what decays under it is the tail of the last note, not a new string).
+        // (`humLike` is never true right after a pluck.)
         const plausible = remembered
-          ? levelDb >= this.humSeenDb + (this.onsetFresh && !humLike ? HUM_PLUCK_DB : HUM_CLEAR_DB) && (this.onsetFresh || !humLike)
-          : this.onsetFresh || !humLike || isString;
+          ? !humLike && levelDb >= this.humSeenDb + (this.onsetFresh ? HUM_PLUCK_DB : HUM_CLEAR_DB)
+          : !humLike || isString;
         if (agreed && plausible && this.labelSettled(agreed, time)) {
           this.beginNote(agreed, this.startTimeFor(frame, -1e9), frame, levelDb, false, out);
         }
@@ -447,7 +448,14 @@ export class NoteTracker {
 
   /** When the note that is about to be confirmed really began. */
   private startTimeFor(frame: TrackerFrame, notBefore: number): number {
-    const firstHeard = this.pendTimes.length ? this.pendTimes[Math.max(0, this.pendTimes.length - this.stableFrames)] : frame.time;
+    // The first of the readings that agree on this note (more than `stableFrames` of them when
+    // naming it had to wait for the attack to settle).
+    let first = Math.max(0, this.pend.length - this.stableFrames);
+    if (this.pend.length > 0) {
+      const med = medianOf(this.pend.slice(first));
+      while (first > 0 && Math.abs(this.pend[first - 1] - med) <= this.stableSemis) first--;
+    }
+    const firstHeard = this.pendTimes.length ? this.pendTimes[first] : frame.time;
     if (this.onsetFresh && this.onsetTime > notBefore && this.onsetTime <= firstHeard) return this.onsetTime;
     // No pluck was heard (legato, a slide): the pitch became readable about half a window after it began.
     const back = Math.min(0.06, (frame.window ?? 0.03) * 0.5);
@@ -516,7 +524,7 @@ export class NoteTracker {
     }
     if (time - note.humT0 < HUM_WATCH_S) return;
     const steady = Math.abs(levelDb - note.humDb0) < 1.5;
-    if (steady && isMainsPitch(midiToFreq(medianOf(note.buf), this.a4))) {
+    if (steady && isMainsPitch(midiToFreq(medianOf(note.buf), this.a4), HUM_WATCH_CENTS)) {
       this.endNote(time, out);
       this.gate.adopt(levelDb);
       this.humLevel = levelDb;

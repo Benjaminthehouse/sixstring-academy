@@ -5,7 +5,7 @@
  */
 import {
   buildChord, chord as parseChord, chordSlug, chordToneMap, chordTones, note as parseNote, noteSlug, toneAt, transposeChordBySemitones,
-  type Chord, type ChordToneRole,
+  type Chord, type ChordTone, type ChordToneRole,
 } from '@/core/theory';
 import { tuning, type Tuning, type TuningInput } from './tunings';
 import type { CagedShape, Finger, FretPosition } from './types';
@@ -30,6 +30,8 @@ export interface VoicingNote extends FretPosition {
   note: string;
   /** Degree against the chord root: `1`, `b3`, `b7`, `9`. */
   degree: string;
+  /** True for the chord's root, in any octave. */
+  isRoot: boolean;
   /** The same as an interval: `m3`. */
   interval: string;
   /** What the note does in the chord; `bass` for a slash bass that is not a chord tone. */
@@ -161,58 +163,148 @@ export interface FingerAssignment {
   barres: Barre[];
 }
 
+/** Frets two fingers can be apart: one fret more than one-finger-per-fret puts between them. */
+function fingerReach(lowFinger: number, highFinger: number): number {
+  return highFinger - lowFinger + 1;
+}
+
+interface FretGroup { fret: number; strings: number[] }
+interface FingerUnit { fret: number; strings: number[]; finger: Finger }
+
+const ASSIGN_CACHE = new Map<string, FingerAssignment | null>();
+const ASSIGN_CACHE_LIMIT = 20_000;
+
 /**
- * Work out a fingering for a shape with at most four fingers, or null when no hand can play it
- * (more than four fingers needed, or more than five frets between the lowest and highest fretted note).
- * The index finger takes the lowest fret and barres it when that helps (a full or partial barre
- * needs no open string under it); the other fingers follow in fret order, low strings first, and a
- * flattened ring or little finger may cover neighbouring strings at one fret when fingers run out.
+ * What a fingering costs the hand, or Infinity when it cannot be held. `units` are the fingers in
+ * ascending order with the strings (array indices, ascending) each one holds.
+ */
+function fingeringCost(frets: Frets, units: FingerUnit[], low: number): number {
+  let cost = 0;
+  for (let a = 0; a < units.length; a++) {
+    const u = units[a];
+    for (let b = a + 1; b < units.length; b++) {
+      if (units[b].fret - u.fret > fingerReach(u.finger, units[b].finger)) return Infinity;
+    }
+    // One finger per fret from the lowest fret is the comfortable place: reaching above it is a
+    // stretch, sitting below it (fingers crowding one fret) merely a little cramped.
+    const ideal = low + u.finger - 1;
+    cost += u.fret > ideal ? 2 * (u.fret - ideal) : ideal - u.fret;
+    // Two fingers on one fret with several higher-fretted strings between them reach around the
+    // other fingers: that is what a barre is for. (One string between is the open D triangle.)
+    const next = units[a + 1];
+    if (next && next.fret === u.fret) {
+      let between = 0;
+      for (let i = u.strings[u.strings.length - 1] + 1; i < next.strings[0]; i++) {
+        const fret = frets[i];
+        if (fret !== null && fret > u.fret) between++;
+      }
+      cost += 1.5 * Math.max(0, between - 1);
+    }
+    if (u.strings.length < 2) continue;
+    const first = u.strings[0];
+    const last = u.strings[u.strings.length - 1];
+    let bridged = 0;
+    let muted = 0;
+    for (let i = first + 1; i < last; i++) {
+      if (u.strings.includes(i)) continue;
+      const fret = frets[i];
+      if (fret === null) muted++;
+      else if (fret <= u.fret) return Infinity;
+      else bridged++;
+    }
+    // Strings beyond the fingertip side are free; strings past the far end must ring past the flat finger.
+    let ringsPast = false;
+    for (let i = last + 1; i < frets.length; i++) {
+      const fret = frets[i];
+      if (fret !== null && fret < u.fret) ringsPast = true;
+    }
+    if (u.finger === 1) {
+      // The index finger is built for barring; a muted string under it has to be damped by easing the pressure there.
+      cost += 1.5 + 0.25 * (last - first - 1) + (bridged ? 1 : 0) + 1.5 * muted + (ringsPast ? 3 : 0);
+    } else {
+      // Another finger can flatten across neighbouring strings, nothing more.
+      if (bridged || muted) return Infinity;
+      cost += 2.5 + 0.25 * (u.strings.length - 2) + (u.finger === 4 ? 0.5 : 0) + (ringsPast ? 1.5 : 0);
+    }
+  }
+  return cost;
+}
+
+function solveFingering(frets: Frets): FingerAssignment | null {
+  const fingers: Array<Finger | null> = frets.map((f) => (f === null ? null : 0));
+  const groups: FretGroup[] = [];
+  frets.forEach((fret, index) => {
+    if (fret === null || fret <= 0) return;
+    const group = groups.find((g) => g.fret === fret);
+    if (group) group.strings.push(index);
+    else groups.push({ fret, strings: [index] });
+  });
+  if (!groups.length) return { fingers, barres: [] };
+  groups.sort((a, b) => a.fret - b.fret);
+  const low = groups[0].fret;
+  // Five frets is as far as a hand opens, and four fingers hold four frets at most.
+  if (groups[groups.length - 1].fret - low > 4 || groups.length > 4) return null;
+
+  let best: FingerUnit[] | null = null;
+  let bestCost = Infinity;
+  let bestSum = Infinity;
+  const units: FingerUnit[] = [];
+  /** Give the strings of group `g` from `from` on to fingers above `lastFinger`: lower strings take the lower fingers. */
+  const place = (g: number, from: number, lastFinger: number) => {
+    if (g === groups.length) {
+      const cost = fingeringCost(frets, units, low);
+      if (cost === Infinity) return;
+      const sum = units.reduce((total, u) => total + u.finger, 0);
+      if (cost < bestCost - 1e-9 || (Math.abs(cost - bestCost) <= 1e-9 && sum < bestSum)) {
+        best = units.map((u) => ({ ...u, strings: [...u.strings] }));
+        bestCost = cost;
+        bestSum = sum;
+      }
+      return;
+    }
+    const group = groups[g];
+    if (from === group.strings.length) {
+      place(g + 1, 0, lastFinger);
+      return;
+    }
+    // Fingers still needed after this unit: at least one per later group.
+    const later = groups.length - 1 - g;
+    for (let finger = lastFinger + 1; finger <= 4 - later; finger++) {
+      for (let to = from + 1; to <= group.strings.length; to++) {
+        units.push({ fret: group.fret, strings: group.strings.slice(from, to), finger: finger as Finger });
+        place(g, to, finger);
+        units.pop();
+      }
+    }
+  };
+  place(0, 0, 0);
+  if (!best) return null;
+  for (const u of best as FingerUnit[]) for (const s of u.strings) fingers[s] = u.finger;
+  return { fingers, barres: findBarres(frets, fingers) };
+}
+
+/**
+ * Work out the most comfortable fingering for a shape, or null when no hand can play it: more
+ * than four fingers needed, more than five frets between the lowest and highest fretted note, or
+ * two fingers further apart than they reach (one fret more than one finger per fret).
+ * Every way of sharing the fretted strings among the four fingers is weighed: fingers follow the
+ * frets (a higher fret never takes a lower finger; on one fret the lower string takes the lower
+ * finger), the index finger may barre (also across higher-fretted or muted strings), the other
+ * fingers may flatten across neighbouring strings, and nothing lies across an open string.
  */
 export function assignFingers(frets: Frets): FingerAssignment | null {
-  const fingers: Array<Finger | null> = frets.map((f) => (f === null ? null : 0));
-  const fretted = frets.map((f, i) => ({ fret: f ?? 0, index: i })).filter((x) => x.fret > 0);
-  if (!fretted.length) return { fingers, barres: [] };
-  const low = Math.min(...fretted.map((x) => x.fret));
-  // Five frets is as far as a hand opens.
-  if (Math.max(...fretted.map((x) => x.fret)) - low > 4) return null;
-  const onLow = fretted.filter((x) => x.fret === low).map((x) => x.index);
-  const first = onLow[0];
-  const last = onLow[onLow.length - 1];
-  let barreFits = onLow.length >= 2;
-  for (let i = first; i <= last && barreFits; i++) if (frets[i] === 0) barreFits = false;
-  // An open string above the barre would have to ring past a flattened finger: avoid unless forced.
-  const openAbove = frets.some((f, i) => i > last && f === 0);
-  const neighbours = onLow.some((i, k) => k > 0 && i === onLow[k - 1] + 1);
-  const barre = barreFits && (fretted.length > 4 || (!openAbove && (neighbours || fretted.length >= 4)));
-
-  interface Unit { fret: number; strings: number[] }
-  const byFretThenString = (a: { fret: number; index: number }, b: { fret: number; index: number }) => a.fret - b.fret || a.index - b.index;
-  const rest = fretted.filter((x) => !(barre && x.fret === low)).sort(byFretThenString);
-  if (barre) for (const i of onLow) fingers[i] = 1;
-  else fingers[rest.shift()!.index] = 1;
-  let units: Unit[] = rest.map((x) => ({ fret: x.fret, strings: [x.index] }));
-  // Out of fingers: let one finger flatten across neighbouring strings at the same fret.
-  while (units.length > 3) {
-    let best: { from: number; length: number } | null = null;
-    for (let i = 0; i < units.length; i++) {
-      let j = i;
-      while (j + 1 < units.length && units[j + 1].fret === units[i].fret && units[j + 1].strings[0] === units[j].strings[units[j].strings.length - 1] + 1) j++;
-      const length = j - i + 1;
-      if (length >= 2 && (!best || length > best.length)) best = { from: i, length };
-    }
-    if (!best) return null;
-    const merged: Unit = { fret: units[best.from].fret, strings: units.slice(best.from, best.from + best.length).flatMap((u) => u.strings) };
-    units = [...units.slice(0, best.from), merged, ...units.slice(best.from + best.length)];
+  // The answer only depends on the shape, not on where it sits on the neck.
+  let low = Infinity;
+  for (const f of frets) if (f !== null && f > 0 && f < low) low = f;
+  const key = frets.map((f) => (f === null ? 'x' : f === 0 ? 'o' : String(f - low))).join(',');
+  let solved = ASSIGN_CACHE.get(key);
+  if (solved === undefined) {
+    solved = solveFingering(frets);
+    if (ASSIGN_CACHE.size >= ASSIGN_CACHE_LIMIT) ASSIGN_CACHE.clear();
+    ASSIGN_CACHE.set(key, solved);
   }
-  let previous = 1;
-  for (let i = 0; i < units.length; i++) {
-    const ideal = Math.min(4, Math.max(2, units[i].fret - low + 1));
-    // Leave enough higher fingers for the notes still to come.
-    const finger = Math.max(previous + 1, Math.min(ideal, 4 - (units.length - 1 - i)));
-    if (finger > 4) return null;
-    for (const s of units[i].strings) fingers[s] = finger as Finger;
-    previous = finger;
-  }
+  if (!solved) return null;
+  const fingers = [...solved.fingers];
   return { fingers, barres: findBarres(frets, fingers) };
 }
 
@@ -221,7 +313,8 @@ export function assignFingers(frets: Frets): FingerAssignment | null {
  *  - muted strings have no finger, open strings finger 0, fretted strings a finger 1–4;
  *  - one finger holds one fret; a lower-numbered finger never frets higher than a higher-numbered one;
  *  - a finger on several strings is a barre: nothing under it may be open or fretted lower;
- *  - the fretted notes span at most five frets.
+ *  - no two fingers are further apart than they reach: one fret more than one finger per fret
+ *    (index and middle two frets, index and little finger four), so at most five frets in all.
  */
 export function checkVoicingFingering(frets: Frets, fingers: ReadonlyArray<Finger | null>): string[] {
   const problems: string[] = [];
@@ -257,15 +350,23 @@ export function checkVoicingFingering(frets: Frets, fingers: ReadonlyArray<Finge
   }
   const pressed = frets.filter((f): f is number => f !== null && f > 0);
   if (pressed.length && Math.max(...pressed) - Math.min(...pressed) > 4) problems.push(`a span of ${Math.max(...pressed) - Math.min(...pressed) + 1} frets`);
+  for (let i = 0; i < used.length; i++) {
+    for (let j = i + 1; j < used.length; j++) {
+      const gap = fretOf.get(used[j])! - fretOf.get(used[i])!;
+      if (gap > fingerReach(used[i], used[j])) problems.push(`fingers ${used[i]} and ${used[j]} cannot reach ${gap} frets apart`);
+    }
+  }
   return problems;
 }
 
 /**
  * How hard a fingered shape is to hold, from 1 (two fingers in open position) to 10. Counts the
- * fingers, barres (a full barre most), the stretch, muted strings inside the chord, open strings
- * that have to ring past a barre, and very high positions.
+ * fingers, barres (a full barre most), the span, fingers that reach above their own fret, muted
+ * strings inside the chord, open strings that have to ring past a barre, and very high positions.
+ * `strummed: false` is for notes that are plucked one by one (an arrangement, a double stop):
+ * strings in between then need no damping and cost nothing.
  */
-export function voicingDifficulty(frets: Frets, fingers: ReadonlyArray<Finger | null>): number {
+export function voicingDifficulty(frets: Frets, fingers: ReadonlyArray<Finger | null>, opts: { strummed?: boolean } = {}): number {
   const pressed = frets.filter((f): f is number => f !== null && f > 0);
   if (!pressed.length) return 1;
   const used = new Set(fingers.filter((f): f is Finger => f !== null && f > 0));
@@ -282,8 +383,16 @@ export function voicingDifficulty(frets: Frets, fingers: ReadonlyArray<Finger | 
   score += span <= 2 ? 0 : span === 3 ? 0.4 : span === 4 ? 1.2 : 2.5;
   // Frets are wide near the nut: the same stretch costs more there.
   if (span >= 4 && Math.min(...pressed) <= 2) score += 0.5;
+  // A finger above its own fret (one finger per fret from the lowest) has to reach.
+  const low = Math.min(...pressed);
+  const reached = new Map<number, number>();
+  frets.forEach((fret, i) => {
+    const finger = fingers[i];
+    if (fret !== null && fret > 0 && finger) reached.set(finger, Math.max(0, fret - (low + finger - 1)));
+  });
+  for (const extra of reached.values()) score += 0.3 * extra;
   const sounding = frets.map((f, i) => (f === null ? -1 : i)).filter((i) => i >= 0);
-  if (sounding.length) {
+  if (sounding.length && opts.strummed !== false) {
     const inner = frets.slice(sounding[0], sounding[sounding.length - 1] + 1).filter((f) => f === null).length;
     score += 0.8 * inner;
   }
@@ -330,7 +439,7 @@ function analyse(c: Chord, frets: Frets, t: Tuning, capo: number): Analysis {
     const info = toneAt(map, midi);
     notes.push({
       string: t.stringCount - index, fret, midi,
-      note: info.note, degree: info.degree, interval: info.interval,
+      note: info.note, degree: info.degree, isRoot: info.pc === map.rootPc, interval: info.interval,
       role: roleByPc.get(info.pc) ?? 'bass',
     });
   });
@@ -352,6 +461,26 @@ function analyse(c: Chord, frets: Frets, t: Tuning, capo: number): Analysis {
   const sounding = new Set(notes.map((n) => ((n.midi % 12) + 12) % 12));
   const omitted = map.tones.filter((tone) => !sounding.has(tone.pc)).map((tone) => tone.degree);
   return { notes, lowest, omitted, rootless: !sounding.has(map.rootPc), strangers };
+}
+
+/**
+ * False for instruments whose lowest string is no bass: ukuleles (low G included) and re-entrant
+ * tunings. Chords there are named and looked up without regard to which note happens to be lowest.
+ */
+export function hasBassRegister(t: Tuning): boolean {
+  return !t.reentrant && t.instrument !== 'ukulele';
+}
+
+/**
+ * The tones a voicing of a chord has to contain to be that chord: everything the theory engine
+ * does not mark as omittable (so the fifth and the lesser tensions of big chords may go), plus the
+ * third of any chord without a seventh: C F G is Csus4, not C(add11).
+ * (`7alt` is a menu: its root, third and seventh are essential, and one alteration of the caller's choice.)
+ */
+export function essentialTones(chordInput: string | Chord): ChordTone[] {
+  const tones = chordTones(chordInput);
+  const hasSeventh = tones.some((tone) => tone.role === 'seventh');
+  return tones.filter((tone) => !tone.omittable || (tone.role === 'third' && !hasSeventh));
 }
 
 function autoLabel(frets: Frets, fingers: ReadonlyArray<Finger | null>, baseFret: number): string {
@@ -388,10 +517,9 @@ function build(chordInput: string | Chord, fretsInput: string | Frets, init: Voi
   if (!init.allowIncomplete) {
     // A chord without the tones that define it is another chord: C E G is not Cmaj7. Only the
     // root may go missing (the bass player has it); `rootless` then says so.
-    const tones = chordTones(requested);
-    const missing = tones.filter((tone) => !tone.omittable && tone.role !== 'root' && a.omitted.includes(tone.degree));
+    const missing = essentialTones(requested).filter((tone) => tone.role !== 'root' && a.omitted.includes(tone.degree));
     if (missing.length) return `lacks the ${missing.map((tone) => tone.degree).join(' and ')} of ${requested.symbol}`;
-    const tensions = tones.filter((tone) => !['root', 'third', 'seventh'].includes(tone.role));
+    const tensions = chordTones(requested).filter((tone) => !['root', 'third', 'seventh'].includes(tone.role));
     if (requested.type.id === '7alt' && tensions.every((tone) => a.omitted.includes(tone.degree))) return `has none of the altered notes of ${requested.symbol}`;
   }
 
@@ -402,15 +530,15 @@ function build(chordInput: string | Chord, fretsInput: string | Frets, init: Voi
     if (problems.length) return `fingering: ${problems.join('; ')}`;
   } else {
     const assigned = assignFingers(frets);
-    if (!assigned) return 'no hand can hold it (more than four fingers, or more than five frets)';
+    if (!assigned) return 'no hand can hold it (more than four fingers, more than five frets, or fingers too far apart)';
     fingers = assigned.fingers;
   }
 
   const bassNote = a.notes[a.lowest];
   const bassIsRoot = bassNote.role === 'root';
   // What sounds decides the name: the lowest note becomes the slash bass unless it is the root.
-  // Re-entrant tunings (ukulele) have no real bass register, so a plain symbol stays plain there.
-  const named = bassIsRoot || (t.reentrant && !requested.bass);
+  // Ukuleles and re-entrant tunings have no real bass register, so a plain symbol stays plain there.
+  const named = bassIsRoot || (!hasBassRegister(t) && !requested.bass);
   const sounding = named ? buildChord(requested.root, requested.type) : buildChord(requested.root, requested.type, bassNote.note);
   const inversion = bassNote.role === 'bass' ? null : chordToneMap(requested).tones.findIndex((tone) => tone.pc === ((bassNote.midi % 12) + 12) % 12);
   const pressed = frets.filter((f): f is number => f !== null && f > 0);
