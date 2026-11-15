@@ -5,6 +5,7 @@
 }
 
 .preview {
+  container: lesson / inline-size;
   --figure-bg: var(--surface);
   display: flex;
   flex-direction: column;
@@ -31,6 +32,7 @@
 }
 
 .frame {
+  container: lesson / inline-size;
   --figure-bg: var(--surface);
   display: flex;
   flex-direction: column;

@@ -209,6 +209,15 @@ describe('theory path: claims agree with the engines', () => {
     says('seventh-chords/sevenths-in-a-key', diatonicChords('C', { sevenths: true }).map((c) => c.roman).join(' '));
     says('minor-key-harmony/natural-minor-chords', joinAnd(list('A minor')));
     says('minor-key-harmony/natural-minor-chords', diatonicChords('A minor').map((c) => c.roman).join(' '));
+    // The seventh chords of a minor key, natural and with the raised 7th.
+    says('seventh-chords/sevenths-in-a-minor-key', joinAnd(list('A minor', { sevenths: true })));
+    says('seventh-chords/sevenths-in-a-minor-key', diatonicChords('A minor', { sevenths: true }).map((c) => c.roman).join(' '));
+    const harmonic = diatonicChords('A minor', { sevenths: true, minor: 'harmonic' });
+    expect(harmonic.find((c) => c.roman === 'V7')?.symbol).toBe('E7');
+    expect(harmonic.find((c) => c.roman === 'vii°7')?.symbol).toBe('G#dim7');
+    expect(harmonic[0].symbol).toBe('AmMaj7');
+    const eMinor = list('E minor', { sevenths: true });
+    says('seventh-chords/sevenths-in-a-minor-key', `${[...eMinor.slice(0, 4), '_', ...eMinor.slice(5)].join(', ')} (${eMinor[4]})`);
     says('chords-in-a-key/roman-numerals', diatonicChords('C').map((c) => c.roman).join(' '));
     const sec = secondaryDominants('C').map((s) => `${s.symbol} (${s.roman})`);
     says('secondary-dominants/the-five-in-c', `${sec.slice(0, -1).join(', ')} and ${sec[sec.length - 1]}`);
@@ -246,6 +255,10 @@ describe('theory path: claims agree with the engines', () => {
     // Harmonics of the low E: 2x, 3x, 4x the fundamental are E3, B3, E4 (MIDI 52, 59, 64).
     for (const [n, midi] of [[2, 52], [3, 59], [4, 64]]) expect(40 + 12 * Math.log2(n)).toBeCloseTo(midi, 1);
     expect(12 * Math.log2(3 / 2)).toBeCloseTo(7.02, 2); // the 1/3 node sits at fret 7.02
+    // Tuning string 5 by harmonics: string 6 at fret 5 (4 x E2) against string 5 at fret 7 (3 x A2).
+    const e2 = tuningFrequencies('standard')[0];
+    expect(Math.round(1200 * Math.log2(110 / ((4 * e2) / 3)))).toBe(2);
+    says('tuning-and-physics/equal-temperament', 'about 2 cents flat or sharp');
   });
 
   it('places notes on the neck as stated', () => {
@@ -295,6 +308,82 @@ describe('theory path: claims agree with the engines', () => {
     const fifth: Record<number, number[]> = {};
     for (const n of scalePositions('C', 'major', { minFret: 4, maxFret: 8 })) (fifth[n.string] ??= []).push(n.fret);
     expect(fifth).toEqual({ 6: [5, 7, 8], 5: [5, 7, 8], 4: [5, 7], 3: [4, 5, 7], 2: [5, 6, 8], 1: [5, 7, 8] });
+  });
+
+  it('gives the major-scale positions, keys in position and inlays as the engine does', () => {
+    const byString = (notes: Array<{ string: number; fret: number }>): Record<number, number[]> => {
+      const out: Record<number, number[]> = {};
+      for (const n of notes) (out[n.string] ??= []).push(n.fret);
+      return out;
+    };
+    const caged = [0, 1, 2, 3, 4].map((i) => scalePattern('G', 'major', 'caged', i));
+    const shape = (s: string) => caged.find((p) => p?.shape === s);
+    // The E-shape position, string by string, as written in the first fact.
+    const e = byString(shape('E')?.notes ?? []);
+    const written = [6, 5, 4, 3, 2, 1].map((s) => `string ${s} frets ${e[s].join(', ')}`).join('; ');
+    says('caged/major-scale-positions', `G major in the E-shape position (second position): ${written}.`);
+    expect(shape('E')?.position).toBe(2);
+    // Where each position sits.
+    const spans = (['G', 'E', 'D', 'C', 'A'] as const).map((s) => `${shape(s)?.minFret} to ${shape(s)?.maxFret} (${s} shape)`);
+    says('caged/major-scale-positions', `sit around frets ${spans.slice(0, -1).join(', ')} and ${spans[spans.length - 1]}`);
+    // Three notes per string from G on string 6 fret 3.
+    const nps = byString(scalePattern('G', 'major', '3nps', 0)?.notes ?? []);
+    expect(nps).toEqual({ 6: [3, 5, 7], 5: [3, 5, 7], 4: [4, 5, 7], 3: [4, 5, 7], 2: [5, 7, 8], 1: [5, 7, 8] });
+    says('caged/major-scale-positions', 'frets 3 5 7 on strings 6 and 5, 4 5 7 on strings 4 and 3, and 5 7 8 on strings 2 and 1');
+    // The Gs of the E-shape position.
+    expect((shape('E')?.notes ?? []).filter((n) => n.note === 'G').map((n) => `${n.string}:${n.fret}`)).toEqual(['6:3', '4:5', '1:3']);
+    // Keys that lie under the hand in one position: all seven notes, two octaves from the root.
+    const inPosition = (tonic: string, scale: string, minFret: number, maxFret: number) => scalePositions(tonic, scale, { minFret, maxFret });
+    for (const [tonic, scale, lo, hi] of [['G', 'major', 2, 5], ['A', 'major', 4, 7], ['A', 'minor', 4, 8]] as const) {
+      const notes = inPosition(tonic, scale, lo, hi);
+      expect(new Set(notes.map((n) => n.note)).size, `${tonic} ${scale}`).toBe(7);
+      const roots = notes.filter((n) => n.note === tonic).map((n) => n.midi);
+      expect(Math.max(...roots) - Math.min(...roots), `${tonic} ${scale} two octaves`).toBe(24);
+    }
+    says('reading-up-the-neck/choosing-a-position', 'G major lies well in second position (frets 2 to 5); A minor lies well in fifth position and A major in fourth position (frets 4 to 7).');
+    // Inlay dots.
+    const dots = inlayFrets(24);
+    expect(dots.map((d) => d.fret)).toEqual([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
+    expect(dots.filter((d) => d.double).map((d) => d.fret)).toEqual([12, 24]);
+    says('notes-on-the-neck/dots-as-landmarks', 'frets 3, 5, 7, 9 and 12 (a double dot at 12), repeating at 15, 17, 19 and 21');
+  });
+
+  it('places the tunes, pickups and non-chord tones on the frets stated', () => {
+    const names = (pos: Array<[number, number]>) => pos.map(([s, f]) => midiAt(s, f) % 12);
+    // "Hot Cross Buns" on string 1, frets 4 2 0: mi re do (degrees 3 2 1) in E major.
+    says('sound-and-pitch/frets-shorten-the-string', 'frets 4 2 0, 4 2 0, 0 0 0 0 2 2 2 2, 4 2 0');
+    const eMajor = scaleNotes('E', 'major').map((n) => chroma(n));
+    expect(names([[1, 4], [1, 2], [1, 0]])).toEqual([eMajor[2], eMajor[1], eMajor[0]]);
+    // "When the Saints" in C: pickup C E F, then G on beat 1; its first leap is a major third.
+    says('strumming-rhythm/pickup-notes', 'string 2 fret 1 (C), open string 1 (E), string 1 fret 1 (F), then string 1 fret 3 (G)');
+    expect(names([[2, 1], [1, 0], [1, 1], [1, 3]])).toEqual(['C', 'E', 'F', 'G'].map((n) => chroma(n)));
+    expect(midiAt(1, 0) - midiAt(2, 1)).toBe(semitones('M3'));
+    // Passing tone C D E on string 2, neighbour E F E on string 1, and the 4-3 suspension G to F# over D.
+    expect(names([[2, 1], [2, 3], [2, 5]])).toEqual(['C', 'D', 'E'].map((n) => chroma(n)));
+    expect(names([[1, 0], [1, 1], [1, 0]])).toEqual(['E', 'F', 'E'].map((n) => chroma(n)));
+    expect(names([[1, 3], [1, 2]])).toEqual(['G', 'F#'].map((n) => chroma(n)));
+    expect((chroma('G') - chroma('D') + 12) % 12).toBe(semitones('P4'));
+    expect((chroma('F#') - chroma('D') + 12) % 12).toBe(semitones('M3'));
+    // Fifth position: the written A in the second space sounds A3, string 4 fret 7.
+    expect(staffPosition('A3').position).toBe(3);
+    expect(midiAt(4, 7)).toBe(57);
+    says('reading-up-the-neck/fifth-position', 'Name the written note in the second space (A); in fifth position it is played at string 4 fret 7.');
+  });
+
+  it('builds drop-2 voicings as stated', () => {
+    // Drop the second-highest note of a close voicing an octave.
+    const drop2 = (close: number[]) => {
+      const s = [...close].sort((a, b) => a - b);
+      const dropped = s[s.length - 2] - 12;
+      return [dropped, ...s.filter((_, i) => i !== s.length - 2)].sort((a, b) => a - b);
+    };
+    const shapeMidi = (frets: string) => parseFrets(frets).flatMap((f, i) => (f === null ? [] : [OPEN[5 - i] + f]));
+    // G3 B3 C4 E4 -> C3 G3 B3 E4 = x3545x.
+    expect(drop2([55, 59, 60, 64])).toEqual(shapeMidi('x3545x'));
+    // C4 E4 G4 B4 -> G3 C4 E4 B4: the same notes in the same order as 3324xx, an octave higher.
+    expect(drop2([60, 64, 67, 71]).map((m) => m - 12)).toEqual(shapeMidi('3324xx'));
+    says('jazz-harmony/drop-2-voicings', 'x3545x (C G B E)');
+    says('jazz-harmony/drop-2-voicings', 'gives G C E B instead: Cmaj7/G (3324xx)');
   });
 
   it('names three-string triad shapes correctly', () => {
@@ -397,6 +486,12 @@ describe('theory path: claims agree with the engines', () => {
     expect(parseTimeSignature('12/8')?.beats).toBe(4);
     expect(parseTimeSignature('6/8')?.kind).toBe('compound');
     expect(parseTimeSignature('7/8')?.kind).toBe('odd');
+    // Time signatures, common time and cut time, and the dotted eighth plus sixteenth.
+    expect([parseTimeSignature('3/4')?.beats, parseTimeSignature('3/4')?.unitTicks]).toEqual([3, PPQ]);
+    expect(parseTimeSignature('C')?.text).toBe('4/4');
+    expect([parseTimeSignature('cut')?.text, parseTimeSignature('cut')?.beats]).toEqual(['2/2', 2]);
+    expect((noteValue(8)?.ticks ?? 0) * 1.5 + (noteValue(16)?.ticks ?? 0)).toBe(PPQ);
+    says('compound-and-odd-meters/simple-and-compound', 'cut time (a C with a vertical line through it) means 2/2');
     expect(SWING.triplet).toBeCloseTo(2 / 3, 6);
     const andante = TEMPO_MARKINGS.find((t) => t.name === 'Andante');
     expect([andante?.min, andante?.max]).toEqual([76, 108]);

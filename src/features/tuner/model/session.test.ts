@@ -67,6 +67,12 @@ describe('TunerSession: microphone', () => {
     expect(bass.tracker.starts[0].minFreq).toBeCloseTo(30.9, 1);
   });
 
+  it("hands the learner's microphone sensitivity to the pipeline", () => {
+    const quiet = rig({ onset: { minLevelDb: -70 } });
+    expect(quiet.tracker.created.onset).toEqual({ minLevelDb: -70 });
+    expect(rig().tracker.created.onset).toBeUndefined();
+  });
+
   it('reports a refused microphone and can try again', async () => {
     const r = rig();
     r.tracker.startResult = { ok: false, reason: 'denied', detail: 'nope' };

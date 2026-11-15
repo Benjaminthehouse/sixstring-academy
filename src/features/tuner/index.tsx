@@ -30,6 +30,7 @@ import { isArtifact, type MediaFailure } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs, type ActivityResult } from '@/core/progress';
 import { micOptions } from '@/core/settings';
 import {
+  ActionBar,
   Banner,
   Button,
   Celebration,
@@ -581,7 +582,8 @@ export default function TunerScreen(_props: RouteProps) {
               }
             />
           </div>
-          <div className={styles.actions}>
+          {/* The kit's bar, so toasts and other bottom layers know its height and sit above it. */}
+          <ActionBar className={styles.actions} stretchOnMobile={false}>
             {ear !== null ? (
               <>
                 {!hostBlocked &&
@@ -639,7 +641,7 @@ export default function TunerScreen(_props: RouteProps) {
                 </Tooltip>
               </>
             )}
-          </div>
+          </ActionBar>
         </div>
 
         <div className={styles.side}>

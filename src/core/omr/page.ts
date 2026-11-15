@@ -4,7 +4,9 @@
  *
  *   const analysis = analyzePage(gray);                    // geometry only, no symbols
  *   const input = extractStaff(analysis, 0);               // cleaned strip of the first staff
- *   const page = await recognizePage(gray, { tab, notation });
+ *   const page = assemblePage(analysis, readings);         // events placed, staves linked
+ *
+ * The full pipeline with recognizers, progress and cancellation is `recognizePage` in pipeline.ts.
  */
 import { removeSmallComponents } from './image/cc';
 import { type BinaryImage, type GrayImage, type Point, blur3, downscaleInt } from './image/gray';
@@ -14,11 +16,9 @@ import { type WarpMesh, meshFromFunction, meshMap, meshUnmap, warpGray } from '.
 import { type LayoutResult, detectLayout } from './staff/layout';
 import { type StaffGeom, type StaffLayout, lineYAt } from './staff/model';
 import { removeStaffLines } from './staff/removal';
-import type {
-  BBox, OmrBarline, OmrEvent, OmrMeasure, OmrNotationEvent, OmrPage, OmrPageQuality, OmrStaff, OmrSystem, OmrTabEvent, OmrWarning,
-  RecognizeOptions, StaffInput, StaffReading, StaffRecognizers,
-} from './types';
+import type { BBox, OmrBarline, OmrEvent, OmrMeasure, OmrPage, OmrPageQuality, OmrStaff, OmrSystem, OmrWarning, StaffInput, StaffReading } from './types';
 import { STANDARD_TUNING } from './types';
+import { linkSystem } from './reconcile';
 
 /** Result of {@link analyzePage}. */
 export interface PageAnalysis {
@@ -356,46 +356,6 @@ export function extractStaff(analysis: PageAnalysis, index: number, opts: Extrac
 }
 
 /**
- * Pair the events of a notation measure with those of the tab measure under it by horizontal
- * order and position, copy string / fret onto the note heads and the rhythm onto the tab events.
- */
-function linkMeasures(notation: OmrMeasure, tab: OmrMeasure, tolerance: number): void {
-  const ne = notation.events.filter((e): e is OmrNotationEvent => e.kind === 'chord');
-  const te = tab.events.filter((e): e is OmrTabEvent => e.kind === 'tab');
-  if (!ne.length || !te.length) return;
-  // Both staves are engraved against the same time axis, so relative x inside the measure lines up.
-  const rel = (x: number, m: OmrMeasure): number => (x - m.x0) / Math.max(1, m.x1 - m.x0);
-  const span = Math.max(1, notation.x1 - notation.x0);
-  let j = 0;
-  for (const n of ne) {
-    let best = -1;
-    let bestD = tolerance / span;
-    for (let k = j; k < te.length; k++) {
-      const d = Math.abs(rel(te[k].x, tab) - rel(n.x, notation));
-      if (d <= bestD) {
-        bestD = d;
-        best = k;
-      }
-    }
-    if (best < 0) continue;
-    j = best + 1;
-    const t = te[best];
-    n.linkedEventId = t.id;
-    t.linkedEventId = n.id;
-    if (!t.duration) t.duration = { ...n.duration, confidence: n.duration.confidence * 0.9 };
-    if (n.notes.length === t.notes.length) {
-      // Heads low to high against tab notes low to high.
-      const heads = n.notes.slice().sort((a, b) => a.pitch.midi - b.pitch.midi);
-      const frets = t.notes.slice().sort((a, b) => a.midi - b.midi);
-      heads.forEach((h, i) => {
-        h.string = frets[i].string;
-        h.fret = frets[i].fret;
-      });
-    }
-  }
-}
-
-/**
  * Put staff readings into the page skeleton: events go to their measures by position, clef / key /
  * time are attached to the staff, ids are completed, and notation and tab staves of one system
  * are linked event by event. `readings[i]` belongs to staff i of the layout (null = not read).
@@ -444,7 +404,7 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
       staff.measures.forEach((m, k) => { m.index = k; });
     }
   });
-  // Link notation and tab staves of each system.
+  // Link notation and tab staves of each system: pair events, compare the two readings.
   for (const sys of page.systems) {
     for (const staff of sys.staves) {
       if (staff.kind !== 'notation' || !staff.linkedStaffId) continue;
@@ -453,32 +413,8 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
       if (tab.measures.length !== staff.measures.length) {
         page.warnings.push({ code: 'measure-mismatch', message: 'The notation and tab staves of a system do not have the same number of measures.', staffId: staff.id });
       }
-      const count = Math.min(tab.measures.length, staff.measures.length);
-      for (let m = 0; m < count; m++) linkMeasures(staff.measures[m], tab.measures[m], 1.2 * staff.geometry.space);
+      linkSystem(staff, tab);
     }
   }
   return page;
-}
-
-/** Options for {@link recognizePage}. */
-export interface RecognizePageOptions extends AnalyzeOptions, RecognizeOptions {
-  /** Strip extraction settings per kind. */
-  strip?: { notation?: ExtractOptions; tab?: ExtractOptions };
-}
-
-/** Full pipeline: analyse the page, read every staff with the given recognizers, assemble the result. */
-export async function recognizePage(source: GrayImage, recognizers: StaffRecognizers, opts: RecognizePageOptions = {}): Promise<OmrPage> {
-  const analysis = analyzePage(source, opts);
-  const readings: (StaffReading | null)[] = [];
-  for (const st of analysis.layout.staves) {
-    if (opts.signal?.aborted) break;
-    const fn = st.kind === 'tab' ? recognizers.tab : recognizers.notation;
-    if (!fn) {
-      readings.push(null);
-      continue;
-    }
-    const input = extractStaff(analysis, st.index, opts.strip?.[st.kind]);
-    readings.push(await fn(input, opts));
-  }
-  return assemblePage(analysis, readings);
 }

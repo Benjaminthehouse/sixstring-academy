@@ -108,6 +108,7 @@
 /* ── Stage ───────────────────────────────────────────────────────────────────────────────────── */
 
 .stage {
+  container: lesson / inline-size;
   flex: 1 0 auto;
   width: 100%;
   max-width: var(--player-max);
@@ -138,7 +139,8 @@
 .layout-split {
   max-width: var(--player-max);
 }
-@media (min-width: 900px) {
+/* Split by the room the step really has (a container query), so a card in a narrow column stacks. */
+@container lesson (min-width: 50rem) {
   .exercise.layout-split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -231,7 +233,7 @@
   grid-area: tip;
   max-width: 62ch;
 }
-@media (min-width: 900px) {
+@container lesson (min-width: 50rem) {
   .card.layout-split {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
     grid-template-areas: 'head figure' 'main figure' 'tip figure';
@@ -547,4 +549,24 @@
 :global(html[data-motion='reduce']) .heartsLost,
 :global(html[data-motion='reduce']) .pop {
   animation: none;
+}
+
+/* A phone held sideways: every pixel of height counts, so the top row scrolls away with the step. */
+@media (max-height: 520px) {
+  .top {
+    position: static;
+    margin-top: 0;
+    padding: 0;
+  }
+  .stage {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-4);
+  }
+  .exercise,
+  .card {
+    gap: var(--sp-3);
+  }
+  .feedback {
+    max-height: 38vh;
+  }
 }
