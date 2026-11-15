@@ -153,11 +153,70 @@ new routes. Never use the names `settings`, `sidebar`, `customize`, `upgrade`, `
 
 ## Design and UX
 
+**The bar, set by the owner: super intuitive, easy and fun to use, and it has to look and feel
+good on both desktop and mobile.** A screen that works but feels clumsy, cramped, confusing or
+dull is not finished. Check every screen you build at phone size *and* desktop size
+(`node e2e/shot.cjs <route> --mobile` and without), in both themes, and use it the way a learner
+would before you call it done.
+
+### Intuitive and easy
+
+- **One obvious next step.** Each screen has one primary action, visually dominant and reachable
+  without scrolling. Everything else is secondary or tucked behind "More".
+- **Zero-instruction start.** A new user should succeed in the first 10 seconds without reading:
+  sensible defaults already selected, a real example already loaded, the main control labelled
+  with a verb ("Start tuning", "Play", "Check my answer"). No setup walls, no empty states.
+- **Progressive disclosure.** Show the simple version first; advanced options (alternate tunings,
+  exotic scales, tempo ramps) live one tap away, never in the way of a beginner.
+- **Immediate, kind feedback.** Every tap responds within 100 ms (state change, sound or motion).
+  Mistakes are explained and recoverable: say what was expected, show it, let them retry. Never
+  punish, never dead-end, never lose their work; destructive actions ask first and offer undo.
+- **Same pattern everywhere.** Picking a key, a scale, a tempo, a tuning, starting/stopping audio,
+  enabling the mic, going back: each works identically on every screen (use the shared
+  components, do not reinvent them). Learn it once, know it everywhere.
+- **Plain words.** Teach a term before using it; where a term is unavoidable, make it tappable for
+  a one-line explanation. Numbers come with units and meaning ("12 cents flat: tighten slightly").
+- **Always a way forward.** Finishing anything offers the next thing ("Next lesson", "Try it
+  faster", "Play it on your guitar"). No screen ends in a blank.
+
+### Fun
+
+- Progress is visible and celebrated: XP ticks up, rings fill, streaks flame, a short tasteful
+  celebration on completion (motion + sound, reduced-motion aware). Small wins come often.
+- Practice feels like play: short rounds (30–120 s), clear goal, instant scoring, "one more try"
+  is one tap. Difficulty adapts so the learner succeeds roughly 80% of the time.
+- The instrument is the star: fretboards, strings and notes animate and sound when touched.
+  Anything that shows a note can play it.
+- Personality without noise: warm teacher voices, a little humour, no nagging, no guilt, no fake
+  urgency, no dark patterns.
+
+### Feels good on a phone
+
 - **Mobile first.** Every screen works at 360 px wide with no horizontal page scroll and touch
   targets ≥ 44 px, and uses the space well at 1280 px. Phones get a bottom tab bar (Today, Learn,
   Play, Tools, Me); wide screens get a sidebar. Wide content (tab, fretboards) scrolls inside its
   own container.
+- Primary controls sit in the thumb zone (lower half); pickers and options open as bottom sheets;
+  nothing important hides behind hover. Fretboards and tab use the full width and work in
+  landscape; while practising, the screen stays awake and the chrome gets out of the way.
+- No layout jumps while audio or camera starts; reserve the space. Lists scroll smoothly; taps are
+  never swallowed by a scrolling container.
+
+### Feels good on a desktop
+
+- Use the width on purpose: two-pane layouts (controls beside the fretboard, lesson text beside
+  the interactive example), never a phone column stretched or stranded in the middle of a 1440 px
+  screen, never lines of text wider than about 70 characters.
+- Keyboard first-class: Space = play/pause, arrows = step/adjust, Enter = confirm/next, Esc =
+  close/back, number keys = pick an answer. Show the shortcut in the button's tooltip.
+- Hover and focus states on everything interactive; pointer cursor on clickable things.
+
+### Both
+
 - Both themes must look deliberate (tokens handle it). Respect `prefers-reduced-motion`.
+- Smooth: animations at 60 fps using transform/opacity, 150–300 ms, eased; never block input.
+- Fast: a screen is interactive in under a second on a mid-range phone; heavy modules load
+  lazily behind a skeleton, not a blank.
 - Visible keyboard focus, real `<button>`/`<a>`, labels on inputs, `aria-live` for feedback that
   appears (correct/incorrect, detected note). Colour is never the only signal.
 - A screen opens in a useful state — a selected key, a loaded example — never an empty shell.
