@@ -139,12 +139,16 @@ export class OnsetDetector {
     this.wTreble[at] = wt;
 
     // Slowly rising minimum = noise floor of each envelope; it stops silence from looking jumpy.
-    this.floorFull = b === 0 ? wf : Math.min(wf, this.floorFull * 1.004 + 1e-13);
-    this.floorTreble = b === 0 ? wt : Math.min(wt, this.floorTreble * 1.004 + 1e-13);
+    // It follows the level down at no more than 1 dB per block: a few milliseconds of dead input
+    // (a dropped buffer) must not erase what was learned about the room.
+    this.floorFull = b === 0 ? wf : Math.min(Math.max(wf, this.floorFull * 0.8), this.floorFull * 1.004 + 1e-13);
+    this.floorTreble = b === 0 ? wt : Math.min(Math.max(wt, this.floorTreble * 0.8), this.floorTreble * 1.004 + 1e-13);
 
     let riseF = 0;
     let riseT = 0;
-    if (b >= this.kFull) {
+    // Nothing is judged until the reference window is complete: a stream that opens in the middle
+    // of a sound (a hum, a ringing string) starts with a partial block, not with a pluck.
+    if (b >= 2 * this.kFull) {
       const refF = this.wFull[(b - this.kFull) % HISTORY];
       const epsF = 3 * this.floorFull + 1e-10;
       riseF = 10 * Math.log10((wf + epsF) / (refF + epsF));

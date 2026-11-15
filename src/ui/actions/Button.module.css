@@ -7,6 +7,8 @@
   gap: var(--sp-2);
   min-height: var(--btn-h);
   min-width: var(--btn-h);
+  /* A label longer than its container shortens with an ellipsis instead of pushing the page wide. */
+  max-width: 100%;
   margin: 0;
   padding: 0 var(--sp-4);
   border: 1px solid transparent;
@@ -47,7 +49,10 @@
   cursor: progress;
 }
 
-/* Sizes. Small buttons keep a 44 px touch target through the ::before hit area. */
+/*
+ * Sizes. Small buttons keep a 44 px touch target through the ::before hit area. Its inset is
+ * measured from the padding box, so the 1 px border counts: 36 - 2 + 2 * 5 = 44.
+ */
 .sm {
   --btn-h: 36px;
   min-width: var(--tap);
@@ -58,7 +63,7 @@
 .sm::before {
   content: '';
   position: absolute;
-  inset: -4px 0;
+  inset: -5px 0;
 }
 .lg {
   --btn-h: 52px;
@@ -162,7 +167,7 @@
   min-width: var(--btn-h);
 }
 .sm.iconOnly::before {
-  inset: -4px;
+  inset: -5px;
 }
 .round {
   border-radius: var(--r-pill);

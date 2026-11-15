@@ -7,10 +7,10 @@
  * on a string takes over from the one ringing there with a few milliseconds of fade, exactly what a
  * fretting finger does.
  */
-import { clamp } from './dsp';
-import { AudioEngine, chainFilters, getEngine, onAudioClosed, pannedInput, type BusName } from './engine';
+import { clamp, finiteOr } from './dsp';
+import { AudioEngine, audioSupported, chainFilters, getEngine, hasEngine, onAudioClosed, onAudioUnlocked, pannedInput, type BusName } from './engine';
 import { renderRawPluck, strumPlan, type PluckOptions, type StrumOptions } from './pluck';
-import { DRIVE_CURVE_RANGE, INSTRUMENTS, driveCurve, resolveTone, velocityGain, type StringInstrument, type ToneName } from './tones';
+import { DRIVE_CURVE_RANGE, INSTRUMENTS, driveCurve, normalizeTone, resolveTone, velocityGain, type StringInstrument, type ToneName } from './tones';
 
 /** Options for one live note. */
 export interface PlayOptions extends PluckOptions {
@@ -35,6 +35,11 @@ export interface PlayStrumOptions extends StrumOptions {
 export interface VoiceHandle {
   /** Audio-clock time the note is heard. */
   readonly startTime: number;
+  /**
+   * True when the note was requested while audio was not running (locked, or still waking up). Such
+   * a note is heard only if the context starts within a moment; otherwise it is dropped, not played late.
+   */
+  readonly queued: boolean;
   /** Stop the note at `when` (default now) with a release of `release` seconds. */
   stop(when?: number, release?: number): void;
 }
@@ -66,38 +71,73 @@ function nearestLayer(v: number): number {
   return best;
 }
 
+/** A handle for a note that could not be played (bad pitch): valid to hold, does nothing. */
+function inertVoice(startTime: number): VoiceHandle {
+  return { startTime, queued: false, stop: () => undefined };
+}
+
 class Voice implements VoiceHandle {
   stopAt = Infinity;
   done = false;
+  /** Called once when the voice is finished with, however that happens. */
+  onDone: (() => void) | null = null;
   constructor(
     private readonly engine: AudioEngine,
     readonly src: AudioBufferSourceNode,
     readonly gain: GainNode,
     readonly key: string,
     readonly startTime: number,
+    /** When the source node starts: a little before `startTime` (the master chain's look-ahead). */
+    private readonly nodeStart: number,
     readonly naturalEnd: number,
     private readonly defaultRelease: number,
+    readonly queued: boolean,
   ) {}
+
+  /** Free the voice: called when its source has ended, or when it is dropped unheard. */
+  finish(): void {
+    if (this.done) return;
+    this.done = true;
+    try {
+      this.gain.disconnect();
+    } catch {
+      // already disconnected
+    }
+    const fn = this.onDone;
+    this.onDone = null;
+    fn?.();
+  }
 
   /** Drop the note without a sound (it was requested before audio could start). */
   cancel(): void {
     if (this.done) return;
     this.stopAt = 0;
     try {
-      this.gain.disconnect();
+      this.src.onended = null;
       this.src.stop();
+      this.src.disconnect();
     } catch {
       // already gone
     }
+    this.finish();
   }
 
   stop(when?: number, release: number = this.defaultRelease): void {
     if (this.done) return;
-    const t = Math.max(when ?? this.engine.now(), this.engine.now());
+    const t = this.engine.startTime(when);
     if (t >= this.stopAt) return;
+    // Stopped before it starts: it must not make a sound at all (a fade would let its attack through).
+    if (t <= this.startTime) {
+      if (this.nodeStart > this.engine.now()) {
+        this.cancel();
+        return;
+      }
+      // Its first milliseconds are already inside the master chain: all that is left is to cut it short.
+      release = 0.006;
+    }
     this.stopAt = t;
     const node = this.engine.nodeTime(t);
-    const tau = Math.max(0.001, release / 3);
+    const tau = Math.max(0.001, finiteOr(release, this.defaultRelease) / 3);
     try {
       this.gain.gain.cancelScheduledValues(node);
       this.gain.gain.setTargetAtTime(0, node, tau);
@@ -123,16 +163,20 @@ export class GuitarSynth {
   private readonly maxVoices: number;
   private readonly pan: number;
   private readonly inputs = new Map<StringInstrument, GainNode>();
+  /** The last node of each instrument chain, so `dispose` can take the chain off the mixer. */
+  private readonly outputs: AudioNode[] = [];
   private readonly byKey = new Map<string, Voice[]>();
   private readonly all = new Set<Voice>();
+  /** The engine the chains in `inputs` were built on. */
+  private chainEngine: AudioEngine | null = null;
 
   constructor(opts: GuitarSynthOptions = {}) {
     this.fixedEngine = opts.engine;
     this.busName = opts.bus ?? 'guitar';
-    this.tone = opts.tone ?? 'steel';
+    this.tone = normalizeTone(opts.tone, 'steel');
     this.mono = opts.mono ?? false;
-    this.maxVoices = opts.maxVoices ?? 28;
-    this.pan = opts.pan ?? 0;
+    this.maxVoices = Math.max(1, Math.round(finiteOr(opts.maxVoices, 28)));
+    this.pan = clamp(finiteOr(opts.pan, 0), -1, 1);
     const base = resolveTone(this.tone).instrument;
     if (INSTRUMENTS[base]) this.baseTone = base;
   }
@@ -142,11 +186,25 @@ export class GuitarSynth {
     return this.fixedEngine ?? getEngine();
   }
 
+  /** False where there is no Web Audio at all: every method is then a silent no-op. */
+  private get available(): boolean {
+    return this.fixedEngine !== undefined || audioSupported();
+  }
+
   /** The bus input for an instrument, building its filter / drive chain on first use. */
   private input(instrument: StringInstrument): GainNode {
+    const engine = this.engine;
+    if (this.chainEngine !== engine) {
+      // The shared engine was closed and made again (hot reload, tests): the old chains belong to
+      // a context that is gone.
+      this.inputs.clear();
+      this.outputs.length = 0;
+      this.byKey.clear();
+      this.all.clear();
+      this.chainEngine = engine;
+    }
     const hit = this.inputs.get(instrument);
     if (hit) return hit;
-    const engine = this.engine;
     const ctx = engine.ctx;
     const fx = INSTRUMENTS[instrument].fx;
     const input = ctx.createGain();
@@ -164,21 +222,26 @@ export class GuitarSynth {
     const out = ctx.createGain();
     out.gain.value = fx.level;
     node.connect(out);
-    out.connect(pannedInput(ctx, engine.bus(this.busName), this.pan));
+    const placed = pannedInput(ctx, engine.bus(this.busName), this.pan);
+    out.connect(placed);
+    this.outputs.push(out);
+    // With panning, `placed` is this synth's own trim -> panner pair: take that off the bus too.
+    if (placed !== engine.bus(this.busName)) this.outputs.push(placed);
     this.inputs.set(instrument, input);
     return input;
   }
 
   private bufferFor(midi: number, velocity: number, opts: PluckOptions): { buffer: AudioBuffer; instrument: StringInstrument; release: number } {
     const engine = this.engine;
-    const tone = opts.tone ?? this.tone;
+    const tone = normalizeTone(opts.tone ?? this.tone, this.tone);
     const { instrument, articulation } = resolveTone(tone, opts.articulation, this.baseTone);
     const layer = nearestLayer(velocity);
-    const brightness = Math.round(clamp(opts.brightness ?? 0, -1, 1) * BRIGHTNESS_STEPS) / BRIGHTNESS_STEPS;
+    const brightness = Math.round(clamp(finiteOr(opts.brightness, 0), -1, 1) * BRIGHTNESS_STEPS) / BRIGHTNESS_STEPS;
     const note = Math.round(midi);
-    const key = `pluck:${instrument}:${articulation}:${note}:${opts.string ?? 0}:${layer}:${brightness}`;
+    const string = validString(opts.string, INSTRUMENTS[instrument].openStrings.length);
+    const key = `pluck:${instrument}:${articulation}:${note}:${string ?? 0}:${layer}:${brightness}`;
     const buffer = engine.buffers.get(key, () =>
-      renderRawPluck({ midi: note, sampleRate: engine.sampleRate, velocity: layer, tone: instrument, articulation, string: opts.string, brightness }).samples,
+      renderRawPluck({ midi: note, sampleRate: engine.sampleRate, velocity: layer, tone: instrument, articulation, string, brightness }).samples,
     );
     return { buffer, instrument, release: INSTRUMENTS[instrument].release };
   }
@@ -186,29 +249,35 @@ export class GuitarSynth {
   /**
    * Pluck one note. `when` is the audio-clock time it should be heard (default: now).
    * Fractional MIDI numbers and `opts.cents` bend the pitch; `a4` moves the whole instrument.
+   * Never throws: a pitch out of range gives a silent handle, and any other nonsense (NaN times,
+   * unknown tones, negative durations) is replaced by the default.
    */
   pluck(midi: number, when?: number, opts: PlayOptions = {}): VoiceHandle {
+    if (!this.available) return inertVoice(0);
     const engine = this.engine;
     const ctx = engine.ctx;
     // Garbage in, silence out: a bad pitch must not reach the string model.
-    if (!Number.isFinite(midi) || midi < 12 || midi > 115) return { startTime: when ?? engine.now(), stop: () => undefined };
-    const velocity = clamp(opts.velocity ?? 0.8, 0, 1);
+    if (!Number.isFinite(midi) || midi < 12 || midi > 115) return inertVoice(engine.startTime(when));
+    const velocity = clamp(finiteOr(opts.velocity, 0.8), 0, 1);
     const { buffer, instrument, release } = this.bufferFor(midi, velocity, opts);
-    const start = Math.max(when ?? engine.now(), engine.now());
+    // Taken after the buffer exists: rendering a note for the first time takes a few milliseconds.
+    const start = engine.startTime(when);
     const node = engine.nodeTime(start);
 
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     // Buffers are rendered at A4 = 440 on the equal-tempered grid; everything else is a rate change.
-    const cents = (opts.cents ?? 0) + (midi - Math.round(midi)) * 100 + 1200 * Math.log2((opts.a4 ?? this.a4) / 440);
+    const a4 = clamp(finiteOr(opts.a4, this.a4), 220, 880);
+    const cents = clamp(finiteOr(opts.cents, 0), -2400, 2400) + (midi - Math.round(midi)) * 100 + 1200 * Math.log2(a4 / 440);
     if (cents !== 0) src.playbackRate.value = Math.pow(2, cents / 1200);
     const gain = ctx.createGain();
-    gain.gain.value = velocityGain(velocity) * (opts.gain ?? 1) * (opts.direction === 'up' ? -1 : 1);
+    gain.gain.value = velocityGain(velocity) * clamp(finiteOr(opts.gain, 1), 0, 8) * (opts.direction === 'up' ? -1 : 1);
     src.connect(gain);
     gain.connect(this.input(instrument));
 
-    const key = this.mono ? 'mono' : opts.string !== undefined ? `s${opts.string}` : `m${Math.round(midi)}`;
-    const voice = new Voice(engine, src, gain, key, start, start + buffer.duration, release);
+    const string = validString(opts.string, INSTRUMENTS[instrument].openStrings.length);
+    const key = this.mono ? 'mono' : string !== undefined ? `s${string}` : `m${Math.round(midi)}`;
+    const voice = new Voice(engine, src, gain, key, start, node, start + buffer.duration, release, !engine.audible);
     // Start first: a source can only be given a stop time once it has a start time.
     src.start(node);
 
@@ -227,8 +296,7 @@ export class GuitarSynth {
       oldest?.stop(start, 0.02);
     }
 
-    src.onended = () => {
-      voice.done = true;
+    voice.onDone = () => {
       this.all.delete(voice);
       const list = this.byKey.get(key);
       if (list) {
@@ -236,13 +304,10 @@ export class GuitarSynth {
         if (i >= 0) list.splice(i, 1);
         if (!list.length) this.byKey.delete(key);
       }
-      try {
-        gain.disconnect();
-      } catch {
-        // already disconnected
-      }
     };
-    if (opts.duration !== undefined && !opts.letRing) voice.stop(start + Math.max(0.01, opts.duration), release);
+    src.onended = () => voice.finish();
+    const duration = finiteOr(opts.duration, NaN);
+    if (duration >= 0 && !opts.letRing) voice.stop(start + Math.max(0.01, duration), release);
     engine.guard(() => voice.cancel());
     engine.touch(Math.min(voice.naturalEnd, voice.stopAt + 0.5) + 1.5);
     return voice;
@@ -253,42 +318,55 @@ export class GuitarSynth {
    * which end is hit first. Returns one handle per note, in playing order.
    */
   strum(midis: readonly number[], when?: number, opts: PlayStrumOptions = {}): VoiceHandle[] {
+    const plan = strumPlan(midis, opts).filter((p) => Number.isFinite(p.midi) && Number.isFinite(p.offset));
+    if (!plan.length) return [];
+    if (!this.available) return plan.map(() => inertVoice(0));
     const engine = this.engine;
-    const plan = strumPlan(midis, opts);
-    const base = Math.max(when ?? engine.now(), engine.now());
-    const first = base + Math.min(0, ...plan.map((p) => p.offset));
+    const note = (p: (typeof plan)[number]): PlayOptions => ({
+      velocity: p.velocity,
+      string: p.string,
+      direction: p.direction,
+      tone: opts.tone,
+      articulation: opts.articulation,
+      brightness: opts.brightness,
+      cents: opts.cents,
+      a4: opts.a4,
+      duration: opts.duration,
+      letRing: opts.letRing,
+      gain: opts.gain,
+    });
+    // Render first, then look at the clock: the first time a chord is played its strings take a few
+    // milliseconds each to render, and that must not smear the strum or make its first string late.
+    for (const p of plan) {
+      if (p.midi >= 12 && p.midi <= 115) this.bufferFor(p.midi, clamp(finiteOr(p.velocity, 0.8), 0, 1), note(p));
+    }
+    const lead = -Math.min(0, ...plan.map((p) => p.offset));
+    // With `align`, the first string sounds before the given time; "now" cannot start in the past.
+    const base = Math.max(engine.startTime(when), engine.now() + lead);
+    const first = base - lead;
     if (opts.choke ?? true) {
-      const used = new Set(plan.map((p) => (p.string !== undefined ? `s${p.string}` : `m${Math.round(p.midi)}`)));
+      const used = new Set(plan.map((p) => (this.mono ? 'mono' : p.string !== undefined ? `s${p.string}` : `m${Math.round(p.midi)}`)));
       for (const [key, voices] of this.byKey) {
         if (used.has(key)) continue;
         for (const v of voices) if (v.startTime < first) v.stop(first, 0.07);
       }
     }
-    return plan.map((p) =>
-      this.pluck(p.midi, Math.max(engine.now(), base + p.offset), {
-        velocity: p.velocity,
-        string: p.string,
-        direction: p.direction,
-        tone: opts.tone,
-        articulation: opts.articulation,
-        brightness: opts.brightness,
-        cents: opts.cents,
-        a4: opts.a4,
-        duration: opts.duration,
-        letRing: opts.letRing,
-        gain: opts.gain,
-      }),
-    );
+    return plan.map((p) => this.pluck(p.midi, base + p.offset, note(p)));
   }
 
   /** Damp whatever is ringing on one string (1 = thinnest) at `when`. */
   stopString(string: number, when?: number, release = 0.05): void {
-    for (const v of this.byKey.get(`s${string}`) ?? []) v.stop(when, release);
+    for (const v of [...(this.byKey.get(`s${string}`) ?? [])]) v.stop(when, release);
   }
 
-  /** Damp everything, including notes scheduled but not yet sounding, at `when` (default now). */
+  /**
+   * Damp everything at `when` (default now). Notes that are scheduled but have not started by then
+   * are cancelled outright, so nothing new is heard after a stop.
+   */
   stopAll(when?: number, release = 0.06): void {
-    for (const v of [...this.all]) v.stop(when, release);
+    if (!this.all.size) return;
+    const t = this.engine.startTime(when);
+    for (const v of [...this.all]) v.stop(t, release);
   }
 
   /** Number of voices sounding or scheduled. */
@@ -301,6 +379,7 @@ export class GuitarSynth {
    * notes; resolves when everything is cached.
    */
   async preload(notes: ReadonlyArray<number | { midi: number; string?: number; velocity?: number; tone?: ToneName }>, opts: PluckOptions = {}): Promise<void> {
+    if (!this.available) return;
     let last = typeof performance !== 'undefined' ? performance.now() : 0;
     for (const n of notes) {
       const spec = typeof n === 'number' ? { midi: n } : n;
@@ -313,18 +392,26 @@ export class GuitarSynth {
     }
   }
 
-  /** Stop everything and disconnect the instrument buses. */
+  /** Stop everything and take the instrument chains off the mixer. The synth can be used again afterwards. */
   dispose(): void {
-    this.stopAll(undefined, 0.01);
-    for (const input of this.inputs.values()) {
+    for (const v of [...this.all]) v.cancel();
+    for (const node of [...this.inputs.values(), ...this.outputs]) {
       try {
-        input.disconnect();
+        node.disconnect();
       } catch {
         // ignore
       }
     }
     this.inputs.clear();
+    this.outputs.length = 0;
   }
+}
+
+/** A guitarist's string number that exists on the instrument, or undefined. */
+function validString(string: number | undefined, strings: number): number | undefined {
+  if (string === undefined || !Number.isFinite(string)) return undefined;
+  const n = Math.round(string);
+  return n >= 1 && n <= strings ? n : undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -367,4 +454,30 @@ export function playBass(midi: number, when?: number, opts?: PlayOptions): Voice
 onAudioClosed(() => {
   sharedGuitar = null;
   sharedBass = null;
+});
+
+/**
+ * The first notes of a session are the slowest to make: the string model has not been compiled by
+ * the browser yet (the very first render takes several times longer than later ones), and nothing
+ * is in the cache. So, once audio is unlocked, the open strings are rendered one by one in idle
+ * moments. By the time the learner plucks a string, the code is warm and the likeliest notes exist.
+ */
+onAudioUnlocked(() => {
+  const notes = [64, 59, 55, 50, 45, 40];
+  const idle = (fn: () => void): void => {
+    const ric = (globalThis as typeof globalThis & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof ric === 'function') ric(fn, { timeout: 2000 });
+    else setTimeout(fn, 250);
+  };
+  let i = 0;
+  const step = (): void => {
+    if (!hasEngine()) return;
+    try {
+      void getGuitar().preload([{ midi: notes[i], string: i + 1 }]);
+    } catch {
+      return;
+    }
+    if (++i < notes.length) idle(step);
+  };
+  idle(step);
 });

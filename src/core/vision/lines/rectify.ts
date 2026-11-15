@@ -22,6 +22,8 @@ export interface Rectified {
   xEnd: number;
   /** Image pixels (of the sampled image) between neighbouring columns on the centre line. */
   colStep: number;
+  /** Width of the board in image pixels at the middle of the strip. */
+  widthPx: number;
   /** Homography from plane mm to pixels of the sampled image. */
   H: Mat3;
   model: NeckModel;
@@ -94,7 +96,7 @@ export function visibleRange(H: Mat3, model: NeckModel, width: number, height: n
 
 /**
  * Resample the board under a pose. `H` maps plane mm to pixels of `img`. `xStart..xEnd` is the plane
- * interval to cover; `rowsAcross` is the number of rows across the board itself (the strip has
+ * interval to cover; at most `maxRowsAcross` rows are laid across the board itself (the strip has
  * margins of (etaMax - 1) half-widths on both sides). Pass `reuse` to recycle buffers.
  */
 export function rectify(img: Image32, H: Mat3, model: NeckModel, xStart: number, xEnd: number, etaMax: number, maxCols: number, maxRowsAcross: number, reuse?: Rectified): Rectified | null {
@@ -135,7 +137,7 @@ export function rectify(img: Image32, H: Mat3, model: NeckModel, xStart: number,
   const w0 = (H[7] * yc + H[8]) / wa;
   const wEnd = w0 + w1 * xEnd;
   const k = (length * wEnd) / (xEnd - xStart);
-  const out: Rectified = { strip, rows, cols, etaMax, xStart, xEnd, colStep, H, model, k, w0, w1 };
+  const out: Rectified = { strip, rows, cols, etaMax, xStart, xEnd, colStep, widthPx, H, model, k, w0, w1 };
 
   const src = img.data;
   const iw = img.width;

@@ -154,11 +154,18 @@ function tom(fs: number, rng: Rng, f0: number, tau: number): Float32Array {
   return saturate(x, 1.3);
 }
 
+/** True when `name` is a piece of the kit. */
+export function isDrumName(name: unknown): name is DrumName {
+  return typeof name === 'string' && (DRUM_NAMES as readonly string[]).includes(name);
+}
+
 /**
  * Render one drum hit. `variant` selects an alternative take of the noisy drums (see DRUM_VARIANTS).
+ * An unknown name renders a moment of silence.
  */
 export function renderDrum(name: DrumName, sampleRate: number, variant = 0): Float32Array {
   const fs = sampleRate;
+  if (!isDrumName(name)) return buffer(0.01, fs);
   const rng = new Rng(hashSeed('drum', name, variant));
   let x: Float32Array;
   switch (name) {
@@ -312,12 +319,35 @@ export const CLICK_SETS: readonly ClickSet[] = ['woodblock', 'beep', 'tick', 'hi
 
 const CLICK_GAIN: Record<ClickLevel, number> = { accent: 0.62, medium: 0.5, beat: 0.42, sub: 0.24 };
 
+/** Other words people (and stored settings) use for the click sets. */
+const CLICK_ALIASES: Record<string, ClickSet> = {
+  wood: 'woodblock', block: 'woodblock', 'wood-block': 'woodblock', classic: 'woodblock',
+  beeps: 'beep', digital: 'beep', electronic: 'beep', sine: 'beep',
+  click: 'tick', ticks: 'tick', mechanical: 'tick',
+  hat: 'hihat', 'hi-hat': 'hihat', hats: 'hihat',
+  rimshot: 'rim', stick: 'rim', sticks: 'rim', sidestick: 'rim',
+  bell: 'cowbell', claves: 'clave',
+};
+
+/**
+ * Turn any click id (a stored setting, an alias such as `wood`, a typo) into a click set that
+ * exists. Unknown names give `fallback` instead of an error.
+ */
+export function normalizeClickSet(name: unknown, fallback: ClickSet = 'woodblock'): ClickSet {
+  if (typeof name !== 'string') return fallback;
+  const key = name.trim().toLowerCase().replace(/[\s_]+/g, '-');
+  if ((CLICK_SETS as readonly string[]).includes(key)) return key as ClickSet;
+  return CLICK_ALIASES[key] ?? fallback;
+}
+
 /**
  * Render one metronome click. Within a set the accent is higher and louder, the subdivision
  * softer and shorter, so the bar is readable by ear without looking.
  */
 export function renderClick(set: ClickSet, level: ClickLevel, sampleRate: number): Float32Array {
   const fs = sampleRate;
+  set = normalizeClickSet(set);
+  if (CLICK_GAIN[level] === undefined) level = 'beat';
   const rng = new Rng(hashSeed('click', set, level));
   const short = level === 'sub';
   let x: Float32Array;

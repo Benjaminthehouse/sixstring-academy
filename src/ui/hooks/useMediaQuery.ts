@@ -28,9 +28,28 @@ export function useIsMobile(): boolean {
   return useMediaQuery(MOBILE_QUERY);
 }
 
-/** True when the person asked the system for reduced motion. Updates live. */
+/** The app's own motion setting, which it keeps on <html> as `data-motion` ("reduce" | "full"; absent = follow the device). */
+function rootMotion(): string | null {
+  return typeof document !== 'undefined' ? document.documentElement.getAttribute('data-motion') : null;
+}
+
+function subscribeRootMotion(onChange: () => void): () => void {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return () => {};
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
+  return () => observer.disconnect();
+}
+
+/**
+ * True when motion should be reduced: the learner's own setting in the app if there is one
+ * (`data-motion` on <html>), otherwise what they asked their device for. Updates live. Use it for
+ * motion driven from JavaScript (canvas, confetti, counting numbers); CSS animations are handled
+ * globally.
+ */
 export function usePrefersReducedMotion(): boolean {
-  return useMediaQuery('(prefers-reduced-motion: reduce)');
+  const device = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const own = useSyncExternalStore(subscribeRootMotion, rootMotion, () => null);
+  return own === 'reduce' ? true : own === 'full' ? false : device;
 }
 
 /** True when the primary pointer is coarse (a finger). */

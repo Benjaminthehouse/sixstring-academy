@@ -1,6 +1,6 @@
 /**
- * Image primitives of the line-structure detector: the working luminance image, a small pyramid,
- * bilinear sampling and gradients. Everything is a flat `Float32Array` in gray levels 0..255 and
+ * Image primitives of the line-structure detector: the working luminance image, its smoothing and
+ * its gradients. Everything is a flat `Float32Array` in gray levels 0..255 and
  * uses the shared pixel convention (the centre of pixel (c, r) is (c + 0.5, r + 0.5)).
  */
 import type { Frame } from '../types';
@@ -26,23 +26,47 @@ function reuse(out: Image32 | undefined, width: number, height: number): Image32
   return createImage(width, height);
 }
 
-/** Integer factor by which a frame is shrunk so its width does not exceed `maxWidth` by much (640 -> 1, 960 -> 2, 1280 -> 2). */
+/**
+ * Factor by which a frame is shrunk to the working width: 1 up to 20% above `maxWidth` (shrinking so
+ * little only blurs), otherwise `frameWidth / maxWidth` (1.5 for 960, 2 for 1280).
+ */
 export function workingFactor(frameWidth: number, maxWidth = 640): number {
-  return Math.max(1, Math.round(frameWidth / maxWidth - 0.01));
+  const f = frameWidth / maxWidth;
+  return f <= 1.2 ? 1 : f;
 }
 
 /**
- * Luminance (Rec. 601) of an RGBA frame, box-averaged over `factor` x `factor` pixels. The result is
- * `floor(width / factor)` wide; working pixel (c, r) covers frame pixels [c*factor, (c+1)*factor).
+ * Luminance (Rec. 601) of an RGBA frame shrunk by `factor`: a box average for whole factors, the
+ * mean of the 2 x 2 frame pixels around each working pixel's centre for fractional ones (enough
+ * anti-aliasing below a factor of 2, and the 3 x 3 blur follows). The result is
+ * `round(width / factor)` wide; working coordinates times `factor` are frame coordinates.
  */
 export function toWorkingGray(frame: Frame, factor: number, out?: Image32): Image32 {
-  const f = Math.max(1, Math.floor(factor));
-  const w = Math.floor(frame.width / f);
-  const h = Math.floor(frame.height / f);
-  const img = reuse(out, w, h);
   const src = frame.data;
-  const dst = img.data;
   const fw = frame.width;
+  const fh = frame.height;
+  if (!Number.isInteger(factor) && factor > 1) {
+    const w = Math.round(fw / factor);
+    const h = Math.round(fh / factor);
+    const img = reuse(out, w, h);
+    const dst = img.data;
+    for (let r = 0; r < h; r++) {
+      const y0 = Math.max(0, Math.min(fh - 2, Math.round((r + 0.5) * factor - 1)));
+      for (let c = 0; c < w; c++) {
+        const x0 = Math.max(0, Math.min(fw - 2, Math.round((c + 0.5) * factor - 1)));
+        const j = (y0 * fw + x0) * 4;
+        const k = j + fw * 4;
+        dst[r * w + c] =
+          (src[j] + src[j + 4] + src[k] + src[k + 4]) * 0.07475 + (src[j + 1] + src[j + 5] + src[k + 1] + src[k + 5]) * 0.14675 + (src[j + 2] + src[j + 6] + src[k + 2] + src[k + 6]) * 0.0285;
+      }
+    }
+    return img;
+  }
+  const f = Math.max(1, Math.floor(factor));
+  const w = Math.floor(fw / f);
+  const h = Math.floor(fh / f);
+  const img = reuse(out, w, h);
+  const dst = img.data;
   if (f === 1) {
     for (let i = 0, j = 0, n = w * h; i < n; i++, j += 4) dst[i] = src[j] * 0.299 + src[j + 1] * 0.587 + src[j + 2] * 0.114;
     return img;
@@ -82,43 +106,6 @@ export function smooth3(src: Image32, out?: Image32, scratch?: Float32Array): Im
     for (let c = 0; c < w; c++) d[o + c] = (tmp[up + c] + 2 * tmp[o + c] + tmp[dn + c]) * 0.25;
   }
   return img;
-}
-
-/** Half-resolution copy (2x2 box average). */
-export function halve(src: Image32, out?: Image32): Image32 {
-  const w = src.width >> 1;
-  const h = src.height >> 1;
-  const img = reuse(out, w, h);
-  const s = src.data;
-  const d = img.data;
-  const sw = src.width;
-  for (let r = 0; r < h; r++) {
-    let i = 2 * r * sw;
-    const o = r * w;
-    for (let c = 0; c < w; c++, i += 2) d[o + c] = (s[i] + s[i + 1] + s[i + sw] + s[i + sw + 1]) * 0.25;
-  }
-  return img;
-}
-
-/** Bilinear sample at continuous image coordinates; positions outside the image read the nearest border pixel. */
-export function sampleBilinear(img: Image32, x: number, y: number): number {
-  const w = img.width;
-  const h = img.height;
-  let fx = x - 0.5;
-  let fy = y - 0.5;
-  if (fx < 0) fx = 0;
-  else if (fx > w - 1.001) fx = w - 1.001;
-  if (fy < 0) fy = 0;
-  else if (fy > h - 1.001) fy = h - 1.001;
-  const x0 = fx | 0;
-  const y0 = fy | 0;
-  const ax = fx - x0;
-  const ay = fy - y0;
-  const i = y0 * w + x0;
-  const d = img.data;
-  const top = d[i] + (d[i + 1] - d[i]) * ax;
-  const bot = d[i + w] + (d[i + w + 1] - d[i + w]) * ax;
-  return top + (bot - top) * ay;
 }
 
 /** Sobel gradients (divided by 8, so they are gray levels per pixel) and their magnitude. */
@@ -161,17 +148,22 @@ export function sobel(img: Image32, out?: Gradients): Gradients {
   return g;
 }
 
-/** Median of a non-negative float array, estimated from a histogram with bins of `binWidth` (values above `max` are clamped). */
-export function approxMedian(values: Float32Array, count: number, binWidth = 0.125, max = 32): number {
+/**
+ * Median of a non-negative float array, estimated from a histogram with bins of `binWidth` (values
+ * above `max` are clamped). `stride` > 1 looks at every stride-th value only.
+ */
+export function approxMedian(values: Float32Array, count: number, binWidth = 0.125, max = 32, stride = 1): number {
   const bins = Math.ceil(max / binWidth) + 1;
   const hist = new Int32Array(bins);
   const inv = 1 / binWidth;
-  for (let i = 0; i < count; i++) {
+  let seen = 0;
+  for (let i = 0; i < count; i += stride) {
     const b = (values[i] * inv) | 0;
     hist[b < bins ? b : bins - 1]++;
+    seen++;
   }
   let acc = 0;
-  const half = count / 2;
+  const half = seen / 2;
   for (let b = 0; b < bins; b++) {
     acc += hist[b];
     if (acc >= half) return (b + 0.5) * binWidth;

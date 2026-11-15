@@ -4,6 +4,19 @@
  */
 
 /*
+ * Phones and tablets have a bar fixed to each end of the screen. When the browser scrolls
+ * something into view (keyboard focus moving down a list, a link to a heading), it has to stop
+ * short of them, or the focused control ends up underneath the tab bar (WCAG 2.4.11).
+ * 60 px covers the 52 px top bar; the bottom follows the tab bar's own height.
+ */
+@media (max-width: 899.98px) {
+  :root {
+    scroll-padding-top: calc(60px + env(safe-area-inset-top, 0px));
+    scroll-padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+  }
+}
+
+/*
  * The learner's own "reduce motion" setting. The progress store puts data-motion="reduce" on
  * <html>; this gives it the same effect as the device setting (global.css handles that one).
  */

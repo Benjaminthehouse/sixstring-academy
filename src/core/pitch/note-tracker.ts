@@ -4,12 +4,16 @@
  *
  * A pure state machine (no audio, no timers): feed it one {@link TrackerFrame} per analysis hop.
  *  - A note starts only after a few consecutive clear frames agree, so the pick transient and the
- *    unsettled first milliseconds never produce a note (or move a tuner needle).
+ *    unsettled first milliseconds never produce a note (or move a tuner needle). While the body of
+ *    the guitar and the room are still answering the pluck (the first 50 ms or so), those frames
+ *    can agree with each other and still be tens of cents off: a reading that falls between two
+ *    notes is therefore not named until it has had time to settle.
  *  - Within a note the reading is a short median, which drops single-frame outliers without lag.
  *  - Changing note needs the new pitch to persist (hysteresis); a jump of exactly an octave or a
  *    twelfth with no pluck needs longer still, because that is what a detector slip looks like.
  *  - A pluck heard while the same pitch is sounding restarts the note (repeated notes).
- *  - The gate follows the room noise, and a steady mains hum is recognised and ignored.
+ *  - The gate follows the room noise, and a steady mains hum is recognised and ignored: a sound
+ *    at a multiple of 50 or 60 Hz that nobody plucked is watched instead of being called a note.
  */
 import { DEFAULT_A4, freqToMidi, midiToFreq } from '@/core/math/pitch-math';
 import { NoiseGate, type NoiseGateOptions, toDb } from './level';
@@ -27,6 +31,14 @@ export interface NoteTrackerOptions extends NoiseGateOptions {
   stableFrames?: number;
   /** How closely those frames must agree, in cents (default 35). */
   stableCents?: number;
+  /**
+   * A note that starts within this many cents of a note centre is named at once (default 20).
+   * Further out it could be either neighbour while the attack settles, so naming it waits for
+   * `labelSettleMs`. A guitar that is in tune never waits.
+   */
+  centreCents?: number;
+  /** Longest wait for an off-centre attack to settle before the note is named anyway, in ms after the pluck (default 70). */
+  labelSettleMs?: number;
   /** Consecutive frames on a new pitch needed to change note without a pluck (default 3). */
   changeFrames?: number;
   /** Same, when the new pitch is an octave or twelfth away and no pluck was heard (default 7). */
@@ -77,6 +89,25 @@ interface ActiveNote {
 
 const HARMONIC_JUMPS = [12, 19, 24, 28, 31];
 
+/** A mains-pitched sound whose level holds this long (seconds) is hum. A string decays in that time. */
+const HUM_WATCH_S = 1;
+/** Level drop (dB) that shows a watched mains-pitched sound to be a decaying string after all. */
+const HUM_DECAY_DB = 2.5;
+/**
+ * How close to a mains multiple an unplucked tone must be to be watched as hum, in cents. Mains
+ * frequency itself wanders by 3 cents at most; an open B string in tune is 21 cents from 250 Hz
+ * and must not qualify.
+ */
+const HUM_WATCH_CENTS = 10;
+/** A hum that was watched for a moment this recently (seconds) is still assumed to be there under the notes that followed. */
+const HUM_MEMORY_S = 15;
+/** A sounding note is given up once the level is within this many dB of a hum that was seen: from there on its pitch is the hum's. */
+const HUM_HOLD_DB = 4;
+/** With nothing plucked, a tone has to be this many dB above a hum that was seen to count as a note. */
+const HUM_CLEAR_DB = 12;
+/** After a pluck it has to be this many dB above that hum (a hum beating against a fading note can look like a pluck). */
+const HUM_PLUCK_DB = 6;
+
 function isHarmonicJump(semitones: number): boolean {
   const d = Math.abs(semitones);
   for (const j of HARMONIC_JUMPS) if (Math.abs(d - j) <= 0.4) return true;
@@ -89,11 +120,11 @@ function medianOf(values: readonly number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-/** True when `freq` sits on a low multiple of the 50 or 60 Hz mains frequency. */
-export function isMainsPitch(freq: number): boolean {
+/** True when `freq` sits within `toleranceCents` (default 25) of a low multiple of the 50 or 60 Hz mains frequency. */
+export function isMainsPitch(freq: number, toleranceCents: number = 25): boolean {
   for (const base of [50, 60]) {
     const h = Math.round(freq / base);
-    if (h >= 1 && h <= 6 && Math.abs(1200 * Math.log2(freq / (base * h))) <= 25) return true;
+    if (h >= 1 && h <= 6 && Math.abs(1200 * Math.log2(freq / (base * h))) <= toleranceCents) return true;
   }
   return false;
 }
@@ -107,6 +138,8 @@ export class NoteTracker {
   private readonly clarityOff: number;
   private readonly stableFrames: number;
   private readonly stableSemis: number;
+  private readonly centreSemis: number;
+  private readonly labelSettle: number;
   private readonly changeFrames: number;
   private readonly harmonicChangeFrames: number;
   private readonly switchSemis: number;
@@ -117,7 +150,6 @@ export class NoteTracker {
   private readonly silenceAfter: number;
   private readonly retrigger: boolean;
   private readonly rejectHum: boolean;
-  private readonly maxGateDb: number;
 
   private note: ActiveNote | null = null;
   private pend: number[] = [];
@@ -125,10 +157,17 @@ export class NoteTracker {
   private pendGap = 0;
   private onsetTime = -1e9;
   private onsetFresh = false;
+  private repluckSeen = 0;
   private lastTime = Number.NaN;
   private quietSince = Number.NaN;
   private silenceSent = false;
   private humLevel = Number.NaN;
+  private humSince = Number.NaN;
+  private humDb0 = Number.NaN;
+  private humSeen = Number.NaN;
+  private humKnownAt = Number.NaN;
+  private humSeenDb = -120;
+  private humFreq = 0;
 
   constructor(opts: NoteTrackerOptions = {}) {
     this.gate = new NoiseGate(opts);
@@ -137,6 +176,8 @@ export class NoteTracker {
     this.clarityOff = opts.clarityOff ?? 0.5;
     this.stableFrames = Math.max(1, opts.stableFrames ?? 3);
     this.stableSemis = (opts.stableCents ?? 35) / 100;
+    this.centreSemis = (opts.centreCents ?? 20) / 100;
+    this.labelSettle = (opts.labelSettleMs ?? 70) / 1000;
     this.changeFrames = Math.max(1, opts.changeFrames ?? 3);
     this.harmonicChangeFrames = Math.max(1, opts.harmonicChangeFrames ?? 7);
     this.switchSemis = (opts.switchCents ?? 60) / 100;
@@ -147,7 +188,6 @@ export class NoteTracker {
     this.silenceAfter = (opts.silenceMs ?? 250) / 1000;
     this.retrigger = opts.retrigger ?? true;
     this.rejectHum = opts.rejectHum ?? true;
-    this.maxGateDb = opts.maxGateDb ?? -38;
   }
 
   /** Change the reference pitch; takes effect from the next frame. */
@@ -179,9 +219,11 @@ export class NoteTracker {
    * that pluck (0 otherwise). The detector uses it to prefer the new note over the old one's tail.
    */
   get staleFreq(): number {
-    return this.note && this.onsetFresh && this.onsetTime > this.note.start + 0.04
-      ? midiToFreq(medianOf(this.note.buf), this.a4)
-      : 0;
+    if (this.note) {
+      return this.onsetFresh && this.onsetTime > this.note.start + 0.04 ? midiToFreq(medianOf(this.note.buf), this.a4) : 0;
+    }
+    // A hum under watch plays the same part as a note ringing on: what is plucked over it is the new note.
+    return !Number.isNaN(this.humSeen) && this.lastTime - this.humSeen < 0.3 ? this.humFreq : 0;
   }
 
   /** Forget everything (new stream). If a note is sounding, its note-off is appended to `out`. */
@@ -197,6 +239,10 @@ export class NoteTracker {
     this.quietSince = Number.NaN;
     this.silenceSent = false;
     this.humLevel = Number.NaN;
+    this.humSince = Number.NaN;
+    this.humDb0 = Number.NaN;
+    this.humSeen = Number.NaN;
+    this.humKnownAt = Number.NaN;
     this.gate.reset();
   }
 
@@ -207,19 +253,34 @@ export class NoteTracker {
     this.lastTime = time;
     const levelDb = toDb(frame.rms);
     this.gate.update(levelDb, time, this.note !== null);
-    if (this.hum && levelDb < this.humLevel - 6) this.humLevel = Number.NaN;
+    if (this.hum && levelDb < this.humLevel - 6) {
+      this.humLevel = Number.NaN;
+      this.gate.forgetHum();
+    }
     const gateOn = this.gate.gateDb;
 
     if (frame.onsetTime !== undefined) {
       this.onsetTime = frame.onsetTime;
       this.onsetFresh = true;
+      this.repluckSeen = 0;
     }
     if (this.onsetFresh && time - this.onsetTime > 0.3) this.onsetFresh = false;
     const inAttack = this.onsetFresh && time - this.onsetTime < this.attackHold;
 
     const pitch = frame.freq > 0 ? freqToMidi(frame.freq, this.a4) : Number.NaN;
+    // A clear tone on a mains multiple with no pluck before it: hum until it proves otherwise.
+    const humLike =
+      this.rejectHum &&
+      !this.onsetFresh &&
+      !Number.isNaN(pitch) &&
+      frame.clarity >= this.clarityOn &&
+      isMainsPitch(frame.freq, HUM_WATCH_CENTS);
     const note = this.note;
-    const loud = levelDb >= (note ? gateOn - 6 : gateOn);
+    const remembered = this.humRemembered(time);
+    // Unplucked sound close to the level of a hum that was seen is that hum, whatever pitch the mix reads as.
+    const nearHum = remembered && !this.onsetFresh && levelDb < this.humSeenDb + HUM_CLEAR_DB;
+    const holdDb = remembered ? Math.max(gateOn - 6, this.humSeenDb + HUM_HOLD_DB) : gateOn - 6;
+    const loud = levelDb >= (note ? holdDb : gateOn);
     const valid = !Number.isNaN(pitch) && loud && frame.clarity >= (note ? this.clarityOff : this.clarityOn);
 
     if (note) {
@@ -232,7 +293,9 @@ export class NoteTracker {
           // Until the analysis window lies almost wholly after the pluck it still shows the old
           // note, whatever was plucked: wait before calling this "the same note again".
           const settled = time - this.onsetTime >= Math.max(this.attackHold, (frame.window ?? 0.03) * 0.9);
-          if (settled && frame.clarity >= this.clarityOn) {
+          // Two such frames in a row: one alone can be the last of the old note when the new one
+          // comes in softly (a hammer-on that happened to click).
+          if (settled && frame.clarity >= this.clarityOn && ++this.repluckSeen >= 2) {
             const at = this.onsetTime;
             this.endNote(at, out);
             this.beginNote([pitch], at, frame, levelDb, true, out);
@@ -243,12 +306,25 @@ export class NoteTracker {
           this.emitPitch(note, frame, levelDb, out);
           this.checkHum(note, time, levelDb, out);
         }
-      } else if (valid && !inAttack) {
+      } else if (
+        valid &&
+        !inAttack &&
+        levelDb >= gateOn &&
+        frame.clarity >= this.clarityOn &&
+        !nearHum &&
+        !(remembered && humLike)
+      ) {
+        // (A different pitch only counts when it is as loud and as clear as a note has to be to
+        // start from silence: what shows through a note that has almost faded is the room, not
+        // a new note. Least of all a hum that was there before the note.)
         note.quiet = 0;
+        this.repluckSeen = 0;
         this.addPending(pitch, time);
         const harmonic = !this.onsetFresh && isHarmonicJump(pitch - note.midi);
         const agreed = this.agreement(harmonic ? this.harmonicChangeFrames : this.changeFrames, dt);
-        if (agreed) {
+        // A change with no pluck is a slide, a bend or a hammer-on: nothing to wait for. After a
+        // pluck the new note's name has to settle like any other attack.
+        if (agreed && (!this.onsetFresh || this.labelSettled(agreed, time))) {
           const at = this.startTimeFor(frame, note.start);
           this.endNote(at, out);
           this.beginNote(agreed, at, frame, levelDb, false, out);
@@ -264,10 +340,19 @@ export class NoteTracker {
         }
       }
     } else {
+      const isString = humLike ? this.watchHum(time, levelDb, frame.freq) : false;
+      if (!humLike && !Number.isNaN(this.humSince) && time - this.humSeen > 0.3) this.humSince = Number.NaN;
       if (valid && !inAttack) {
         this.addPending(pitch, time);
         const agreed = this.agreement(this.stableFrames, dt);
-        if (agreed) this.beginNote(agreed, this.startTimeFor(frame, -1e9), frame, levelDb, false, out);
+        // With a hum about, a note needs a pluck: a tone that merely appears is the hum showing
+        // through (and what decays under it is the tail of the last note, not a new string).
+        const plausible = remembered
+          ? levelDb >= this.humSeenDb + (this.onsetFresh && !humLike ? HUM_PLUCK_DB : HUM_CLEAR_DB) && (this.onsetFresh || !humLike)
+          : this.onsetFresh || !humLike || isString;
+        if (agreed && plausible && this.labelSettled(agreed, time)) {
+          this.beginNote(agreed, this.startTimeFor(frame, -1e9), frame, levelDb, false, out);
+        }
       } else if (!valid) {
         this.missPending();
       }
@@ -320,6 +405,46 @@ export class NoteTracker {
     return last;
   }
 
+  /** True when a hum is known, or was being watched not long ago. */
+  private humRemembered(time: number): boolean {
+    return this.hum || (!Number.isNaN(this.humKnownAt) && time - this.humKnownAt < HUM_MEMORY_S);
+  }
+
+  /**
+   * Follow a mains-pitched sound that nobody plucked. If its level holds for {@link HUM_WATCH_S}
+   * it is adopted as background hum; returns true once it has decayed enough to be a string after
+   * all (a note whose pluck was missed, or that was already ringing when listening began).
+   */
+  private watchHum(time: number, levelDb: number, freq: number): boolean {
+    this.humSeen = time;
+    this.humFreq = freq;
+    this.humSeenDb = levelDb;
+    if (Number.isNaN(this.humSince) || levelDb > this.humDb0 + 2) {
+      this.humSince = time;
+      this.humDb0 = levelDb;
+      return false;
+    }
+    if (levelDb < this.humDb0 - HUM_DECAY_DB) return true;
+    // A few stray frames are not a hum; a steady 150 ms is worth remembering.
+    if (time - this.humSince >= 0.15) this.humKnownAt = time;
+    if (time - this.humSince >= HUM_WATCH_S && (!this.hum || Math.abs(levelDb - this.humLevel) > 1.5)) {
+      this.humLevel = levelDb;
+      this.gate.adopt(levelDb);
+    }
+    return false;
+  }
+
+  /**
+   * True when the agreed readings can be given a note name: they sit near a note centre, or the
+   * attack has had `labelSettleMs` to settle (see the option of that name).
+   */
+  private labelSettled(values: readonly number[], time: number): boolean {
+    const med = medianOf(values);
+    if (Math.abs(med - Math.round(med)) <= this.centreSemis) return true;
+    const since = this.onsetFresh ? this.onsetTime : this.pendTimes.length ? this.pendTimes[0] : time;
+    return time - since >= this.labelSettle;
+  }
+
   /** When the note that is about to be confirmed really began. */
   private startTimeFor(frame: TrackerFrame, notBefore: number): number {
     const firstHeard = this.pendTimes.length ? this.pendTimes[Math.max(0, this.pendTimes.length - this.stableFrames)] : frame.time;
@@ -345,6 +470,7 @@ export class NoteTracker {
     this.clearPending();
     this.silenceSent = false;
     this.quietSince = Number.NaN;
+    this.humSince = Number.NaN;
     out.push({
       type: 'noteon',
       time: start,
@@ -388,9 +514,9 @@ export class NoteTracker {
       note.humDb0 = levelDb;
       return;
     }
-    if (time - note.humT0 < 2) return;
+    if (time - note.humT0 < HUM_WATCH_S) return;
     const steady = Math.abs(levelDb - note.humDb0) < 1.5;
-    if (steady && levelDb < this.maxGateDb && isMainsPitch(midiToFreq(medianOf(note.buf), this.a4))) {
+    if (steady && isMainsPitch(midiToFreq(medianOf(note.buf), this.a4))) {
       this.endNote(time, out);
       this.gate.adopt(levelDb);
       this.humLevel = levelDb;

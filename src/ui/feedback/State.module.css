@@ -29,6 +29,11 @@
   .state:not(.center) {
     flex-direction: column;
   }
+  /* Take the column's width, not the width of the longest button: text wraps instead of pushing the page wide. */
+  .state:not(.center) > .text {
+    align-self: stretch;
+    flex: none;
+  }
 }
 .tile {
   display: flex;
@@ -68,6 +73,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
+  max-width: 100%;
   margin-top: var(--sp-3);
 }
 .details {

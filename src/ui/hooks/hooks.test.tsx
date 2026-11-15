@@ -13,7 +13,7 @@ import { useFocusTrap } from './useFocusTrap';
 import { useInterval, useTimeout } from './useInterval';
 import { useLatest } from './useLatest';
 import { useLocalState } from './useLocalState';
-import { useIsMobile, useMediaQuery } from './useMediaQuery';
+import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from './useMediaQuery';
 import { usePressHold } from './usePressHold';
 import { MAX_FRAME_MS, useRafLoop } from './useRafLoop';
 import { lockScroll, useScrollLock } from './useScrollLock';
@@ -642,5 +642,48 @@ describe('useDismiss', () => {
     view.el.querySelector('#outside')!.dispatchEvent(pointerDown());
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(onDismiss).not.toHaveBeenCalled();
+  });
+});
+
+describe('usePrefersReducedMotion', () => {
+  function Probe({ onValue }: { onValue: (reduced: boolean) => void }) {
+    onValue(usePrefersReducedMotion());
+    return null;
+  }
+
+  it("follows the learner's own setting on <html> over the device, and updates live", async () => {
+    const seen: boolean[] = [];
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const before = window.matchMedia;
+    // The device asks for reduced motion.
+    window.matchMedia = ((query: string) => ({ matches: query.includes('prefers-reduced-motion'), media: query, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+    try {
+      act(() => root.render(<Probe onValue={(v) => seen.push(v)} />));
+      expect(seen.at(-1)).toBe(true);
+      // "Full motion" chosen in the app wins over the device.
+      await act(async () => {
+        document.documentElement.setAttribute('data-motion', 'full');
+        await Promise.resolve();
+      });
+      expect(seen.at(-1)).toBe(false);
+      await act(async () => {
+        document.documentElement.setAttribute('data-motion', 'reduce');
+        await Promise.resolve();
+      });
+      expect(seen.at(-1)).toBe(true);
+      // Back to "follow the device".
+      await act(async () => {
+        document.documentElement.removeAttribute('data-motion');
+        await Promise.resolve();
+      });
+      expect(seen.at(-1)).toBe(true);
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      window.matchMedia = before;
+      document.documentElement.removeAttribute('data-motion');
+    }
   });
 });

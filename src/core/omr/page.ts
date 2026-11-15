@@ -6,10 +6,10 @@
  *   const input = extractStaff(analysis, 0);               // cleaned strip of the first staff
  *   const page = await recognizePage(gray, { tab, notation });
  */
-import { binarize } from './image/binarize';
+import { removeSmallComponents } from './image/cc';
 import { type BinaryImage, type GrayImage, type Point, blur3, downscaleInt } from './image/gray';
 import { flatten } from './image/illumination';
-import { type PreprocessOptions, type PreprocessResult, preprocess } from './image/preprocess';
+import { type PreprocessOptions, type PreprocessResult, binarizeLines, binarizeSymbols, preprocess } from './image/preprocess';
 import { type WarpMesh, meshFromFunction, meshMap, meshUnmap, warpGray } from './image/warp';
 import { type LayoutResult, detectLayout } from './staff/layout';
 import { type StaffGeom, type StaffLayout, lineYAt } from './staff/model';
@@ -140,7 +140,14 @@ export function staffId(st: { systemIndex: number; indexInSystem: number }): str
 export function analyzePage(source: GrayImage, opts: AnalyzeOptions = {}): PageAnalysis {
   const pre = preprocess(source, opts);
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const layout = detectLayout(pre.binary, { lineBinary: pre.lineBinary, strokeBinary: pre.strokeBinary, noise: pre.noise });
+  let layout = detectLayout(pre.binary, { lineBinary: pre.lineBinary, strokeBinary: pre.strokeBinary, noise: pre.noise });
+  if (layout.staves.length < pre.roughStaves.length && pre.lineBinary === pre.binary && pre.staffSpace > 0) {
+    // The first pass traced more staves on the raw capture than survive on the normalised page
+    // (typically faint lines chopped up by JPEG blocks): look again with the lines smoothed.
+    pre.lineBinary = binarizeLines(pre.gray, pre.staffSpace, 0, 1.0, pre.noise);
+    const again = detectLayout(pre.binary, { lineBinary: pre.lineBinary, strokeBinary: pre.strokeBinary, noise: pre.noise });
+    if (again.staves.length > layout.staves.length) layout = again;
+  }
   pre.timings.layout = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
   const warnings: OmrWarning[] = [];
   const systems: OmrSystem[] = layout.systems.map((sys) => {
@@ -197,6 +204,7 @@ function measureThickness(bin: BinaryImage, lineYs: number[], fallback: number):
   const hist = new Uint32Array(64);
   let n = 0;
   const step = Math.max(1, Math.floor(w / 400));
+  const cap = Math.max(4, Math.round((lineYs.length > 1 ? lineYs[1] - lineYs[0] : 16) * 0.6));
   for (const ly of lineYs) {
     const yc = Math.floor(ly);
     for (let x = 0; x < w; x += step) {
@@ -211,23 +219,30 @@ function measureThickness(bin: BinaryImage, lineYs: number[], fallback: number):
       while (a > 0 && data[(a - 1) * w + x]) a--;
       while (b < h - 1 && data[(b + 1) * w + x]) b++;
       const len = b - a + 1;
-      if (len < 64) {
+      if (len < 64 && len <= cap) {
         hist[len]++;
         n++;
       }
     }
   }
   if (n < 20) return fallback;
-  // The mode is the line; longer runs are symbols crossing it.
-  let best = 1;
-  for (let i = 1; i < 64; i++) if (hist[i] > hist[best]) best = i;
+  // The median run is the line (symbols crossing it are the long minority, broken bits the short one).
+  let acc = 0;
+  let med = 1;
+  for (let i = 1; i < 64; i++) {
+    acc += hist[i];
+    if (acc >= n / 2) {
+      med = i;
+      break;
+    }
+  }
   let a = 0;
   let m = 0;
-  for (let i = Math.max(1, best - 1); i <= Math.min(63, best + 1); i++) {
+  for (let i = Math.max(1, med - 1); i <= Math.min(63, med + 1); i++) {
     a += hist[i] * i;
     m += hist[i];
   }
-  return m ? a / m : best;
+  return m ? a / m : med;
 }
 
 /**
@@ -289,9 +304,13 @@ export function extractStaff(analysis: PageAnalysis, index: number, opts: Extrac
   } else if (scale < 0.8) {
     src = blur3(pre.source);
   }
-  const raw = warpGray(src, m, { edge: 'clamp' });
-  const flat = flatten(raw, { cell: Math.max(4, Math.round(space / 2)), radius: 3 });
-  const binary = binarize(flat.image, { window: Math.round(space * 2.5) | 1, k: 0.2, lightCeil: 255 - Math.max(20, 4 * flat.noise), block: 1 });
+  const outside = new Uint8Array(width * height);
+  const raw = warpGray(src, m, { edge: 'clamp', outside });
+  const flat = flatten(raw, { cell: Math.max(4, Math.round(space / 2)), radius: 3, noiseLag: Math.max(1, scale) });
+  for (let i = 0; i < outside.length; i++) if (outside[i]) flat.image.data[i] = 255;
+  // Same policy as for the page: noisy captures are low-passed a little and cleaned of specks.
+  const noise = Math.max(flat.noise, pre.noise);
+  const binary = binarizeSymbols(flat.image, space, noise);
   const stripGeom: StaffGeom = {
     lineCount: n,
     xs: Float32Array.from([pad, width - pad]),
@@ -304,7 +323,9 @@ export function extractStaff(analysis: PageAnalysis, index: number, opts: Extrac
     confidence: st.confidence,
   };
   stripGeom.thickness = measureThickness(binary, lineYs, Math.max(1, st.thickness * kappa));
-  const removal = removeStaffLines(binary, [stripGeom]);
+  // Ragged lines of a noisy capture need more slack than the crisp ones of a render.
+  const removal = removeStaffLines(binary, [stripGeom], noise >= 3 ? { maxThickness: Math.ceil(stripGeom.thickness * 1.4 + 1) } : {});
+  if (noise >= 3) removeSmallComponents(removal.image, Math.max(3, Math.round(0.03 * space * space)));
   const toStripX = (x: number): number => pad + (x - st.x0) * kappa;
   const toPage = (x: number, y: number): Point => meshMap(mesh, x, y);
   return {
@@ -334,17 +355,13 @@ export function extractStaff(analysis: PageAnalysis, index: number, opts: Extrac
   };
 }
 
-function isTab(e: OmrEvent): e is OmrTabEvent {
-  return e.kind === 'tab' || e.kind === 'tab-rest';
-}
-
 /**
  * Pair the events of a notation measure with those of the tab measure under it by horizontal
  * order and position, copy string / fret onto the note heads and the rhythm onto the tab events.
  */
 function linkMeasures(notation: OmrMeasure, tab: OmrMeasure, tolerance: number): void {
-  const ne = notation.events.filter((e): e is OmrNotationEvent => !isTab(e) && e.kind === 'chord');
-  const te = tab.events.filter((e): e is OmrTabEvent => isTab(e) && e.kind === 'tab');
+  const ne = notation.events.filter((e): e is OmrNotationEvent => e.kind === 'chord');
+  const te = tab.events.filter((e): e is OmrTabEvent => e.kind === 'tab');
   if (!ne.length || !te.length) return;
   // Both staves are engraved against the same time axis, so relative x inside the measure lines up.
   const rel = (x: number, m: OmrMeasure): number => (x - m.x0) / Math.max(1, m.x1 - m.x0);
@@ -413,13 +430,19 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
       if (!measure) continue;
       const k = counters.get(mi) ?? 0;
       counters.set(mi, k + 1);
-      const { measureIndex: _drop, ...clean } = ev;
-      void _drop;
       const id = `${measure.id}.e${k}`;
-      const withIds = { ...clean, id, notes: clean.notes.map((n, j) => ({ ...n, id: `${id}.n${j}` })) } as OmrEvent;
+      const withIds = { ...ev, id, notes: ev.notes.map((n, j) => ({ ...n, id: `${id}.n${j}` })) } as OmrEvent & { measureIndex?: number };
+      delete withIds.measureIndex;
       measure.events.push(withIds);
     }
     for (const m of staff.measures) m.events.sort((a, b) => a.x - b.x);
+    // A repeat sign straight after the clef and signatures closes a "measure" with no music in it.
+    const head = staff.measures[0];
+    const next = staff.measures[1];
+    if (head && next && head.events.length === 0 && staff.barlines.find((b) => b.id === head.endBarlineId)?.type === 'repeat-begin') {
+      staff.measures.shift();
+      staff.measures.forEach((m, k) => { m.index = k; });
+    }
   });
   // Link notation and tab staves of each system.
   for (const sys of page.systems) {

@@ -28,7 +28,7 @@ withApp({ mobile: flag('mobile'), theme: flag('light') ? 'light' : 'dark', fakeD
   if (wait) await page.waitForTimeout(wait);
   const file = path.join(outDir, `${outName}.png`);
   await page.screenshot({ path: file, fullPage: flag('full') });
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   console.log(`screenshot: ${file}`);
   if (overflow > 1) console.log(`WARNING: page scrolls horizontally by ${overflow}px`);
   console.log(errors.length ? `errors:\n  ${errors.join('\n  ')}` : 'no console errors');

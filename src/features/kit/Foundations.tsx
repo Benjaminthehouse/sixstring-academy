@@ -62,6 +62,7 @@ export function Foundations() {
             <Text tone="warn">warn</Text>
             <Text tone="bad">bad</Text>
           </Cluster>
+          <Text variant="caption">Each tone reaches 4.5:1 on the page, on a card and on a sunken panel, in both themes. Use a tone for small coloured text, not the raw colour token.</Text>
         </Demo>
         <Demo label="Scale">
           <div>
@@ -79,7 +80,7 @@ export function Foundations() {
         </Demo>
       </Specimen>
 
-      <Specimen name="Colour" note="Pearl-and-ink neutrals, one amber accent, semantic and game colours kept apart from it.">
+      <Specimen name="Colour" note="Pearl-and-ink neutrals, one amber accent, semantic and game colours kept apart from it. --fg-faint and --line-strong are for icons, large text and hairlines: small text is --fg-muted, and the edge of an input is darker than a divider.">
         <Demo label="Neutrals">
           <div className={styles.swatches}>
             <Swatch token="--bg" />

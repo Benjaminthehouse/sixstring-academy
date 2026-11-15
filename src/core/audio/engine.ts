@@ -14,7 +14,7 @@
  * An `AudioEngine` can also be built on an OfflineAudioContext (see `offline.ts`); every voice in
  * this folder takes the engine to play into, so tests can render the real graph.
  */
-import { Rng, biquadCoeffs, limiterCurve, type BiquadSpec } from './dsp';
+import { Rng, biquadCoeffs, finiteOr, limiterCurve, type BiquadSpec } from './dsp';
 import type { TransportClock } from './transport';
 import { VisualQueue } from './visual-sync';
 
@@ -52,8 +52,34 @@ export function pannedInput(ctx: BaseAudioContext, dest: AudioNode, pan: number)
 const COMPRESSOR_LOOKAHEAD = 0.006;
 /** Seconds of silence (with nothing holding the context) before it is suspended to save battery. */
 const IDLE_SECONDS = 6;
-/** A sound requested this long before the context finally starts is dropped instead of played late. */
+/**
+ * A sound requested while the context is not running waits this long for it to start, then is
+ * dropped instead of being played late. With no user gesture nothing can start the context, so the
+ * wait is short. A sound asked for inside a gesture, or on a context that has run before, is on its
+ * way (a slow output device, a Bluetooth headset waking up) and is worth waiting for a little longer.
+ */
 const STALE_REQUEST_MS = 400;
+const STALE_REQUEST_ACTIVE_MS = 1500;
+
+/** What the audio context is doing, as far as a caller needs to know. */
+export type AudioState =
+  /** This environment has no Web Audio. Play functions do nothing. */
+  | 'unsupported'
+  /** No user gesture yet: sounds requested now are dropped unless a tap or key press follows at once. */
+  | 'locked'
+  /** Unlocked but asleep (idle, or interrupted by the system). The next sound wakes it up. */
+  | 'suspended'
+  | 'running';
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+/** True while the browser regards the page as "in a user gesture" (transient activation). */
+function inUserGesture(): boolean {
+  const ua = typeof navigator !== 'undefined' ? (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation : undefined;
+  return !!ua && ua.isActive;
+}
 
 /** Construction options for {@link AudioEngine}. */
 export interface EngineOptions {
@@ -89,6 +115,73 @@ export function makeRoomImpulse(sampleRate: number, seconds = 1.25, seed = 20240
     for (let i = 0; i < len; i++) x[i] *= g;
   }
   return out;
+}
+
+/** Settings of the master compressor ("gentle glue"), shared by the engine and by the probe that measures its start-up. */
+function configureCompressor(comp: DynamicsCompressorNode): void {
+  comp.threshold.value = -14;
+  comp.knee.value = 12;
+  comp.ratio.value = 4;
+  comp.attack.value = 0.004;
+  comp.release.value = 0.18;
+}
+
+/** How long a DynamicsCompressorNode takes to settle after it starts processing. */
+const COMPRESSOR_SETTLE_SECONDS = 0.3;
+
+type OfflineCtor = typeof OfflineAudioContext;
+
+const startUpCurves = new Map<number, Promise<Float32Array | null>>();
+
+/**
+ * A DynamicsCompressorNode does not start at its resting gain: for the first fifth of a second of
+ * its life the gain climbs from a third of it (measured in Chromium: 0.38 after 10 ms, 0.92 after
+ * 50 ms, 1.53 from 200 ms on). The context starts with the first user gesture, and the first note
+ * usually comes from that same gesture, so the very first sound of a session would have its attack
+ * swallowed. This measures the climb in the browser that is running (a tiny offline render of the
+ * same compressor) and returns the gain that undoes it, sampled over COMPRESSOR_SETTLE_SECONDS;
+ * null where there is nothing to undo or no way to measure.
+ */
+function compressorStartUp(sampleRate: number): Promise<Float32Array | null> {
+  const cached = startUpCurves.get(sampleRate);
+  if (cached) return cached;
+  const g = globalThis as typeof globalThis & { OfflineAudioContext?: OfflineCtor; webkitOfflineAudioContext?: OfflineCtor };
+  const Ctor = g.OfflineAudioContext ?? g.webkitOfflineAudioContext;
+  const result = (async (): Promise<Float32Array | null> => {
+    if (!Ctor) return null;
+    try {
+      const frames = Math.ceil(COMPRESSOR_SETTLE_SECONDS * 2 * sampleRate);
+      const probe = new Ctor(1, frames, sampleRate);
+      const level = 0.001; // far below the threshold: only the start-up behaviour is seen
+      const dc = probe.createBuffer(1, frames, sampleRate);
+      dc.getChannelData(0).fill(level);
+      const src = probe.createBufferSource();
+      src.buffer = dc;
+      const comp = probe.createDynamicsCompressor();
+      configureCompressor(comp);
+      src.connect(comp);
+      comp.connect(probe.destination);
+      src.start(0);
+      const out = (await probe.startRendering()).getChannelData(0);
+      const settled = out[frames - 1];
+      if (!(settled > 0)) return null;
+      const points = 192;
+      const curve = new Float32Array(points);
+      let needed = false;
+      for (let i = points - 1; i >= 0; i--) {
+        const v = out[Math.min(frames - 1, Math.round(((i / (points - 1)) * COMPRESSOR_SETTLE_SECONDS) * sampleRate))];
+        // Before the look-ahead has filled there is no output at all: hold the first real value.
+        curve[i] = v > settled / 16 ? settled / v : i + 1 < points ? curve[i + 1] : 1;
+        if (Math.abs(curve[i] - 1) > 0.02) needed = true;
+      }
+      curve[points - 1] = 1;
+      return needed ? curve : null;
+    } catch {
+      return null;
+    }
+  })();
+  startUpCurves.set(sampleRate, result);
+  return result;
 }
 
 /** Curve for the master soft clipper (WaveShaper input range -2..+2). */
@@ -151,20 +244,31 @@ export class BufferCache {
   }
 }
 
-/** Create a filter node with exactly the coefficients the offline renderer uses. */
+/**
+ * Create a filter node with the response of `biquadCoeffs(spec)`, the filter the offline renderer
+ * uses. A BiquadFilterNode computes the same cookbook coefficients (its Q is in dB for low-pass and
+ * high-pass, and its shelves have the slope that q = 0.7071 gives here), so the live graph and the
+ * offline renderer agree to about -100 dB.
+ *
+ * An IIRFilterNode fed the coefficients directly would agree to the last bit, but creating one costs
+ * 25-60 ms of main-thread time in Chromium (it simulates the impulse response to find its tail), so
+ * an instrument chain of ten filters froze the page for a third of a second the first time each
+ * tone was played, and made that first note late.
+ */
 export function createFilterNode(ctx: BaseAudioContext, spec: BiquadSpec): AudioNode {
-  if (typeof ctx.createIIRFilter === 'function') {
-    const c = biquadCoeffs(spec, ctx.sampleRate);
-    return ctx.createIIRFilter([c.b0, c.b1, c.b2], [1, c.a1, c.a2]);
+  const q = Math.max(0.05, spec.q ?? Math.SQRT1_2);
+  const shelf = spec.type === 'lowshelf' || spec.type === 'highshelf';
+  if (typeof ctx.createBiquadFilter === 'function' && !(shelf && Math.abs(q - Math.SQRT1_2) > 1e-6)) {
+    const f = ctx.createBiquadFilter();
+    f.type = spec.type;
+    f.frequency.value = Math.max(1, Math.min(ctx.sampleRate * 0.49, spec.freq));
+    f.Q.value = spec.type === 'lowpass' || spec.type === 'highpass' ? 20 * Math.log10(q) : q;
+    f.gain.value = spec.gain ?? 0;
+    return f;
   }
-  // Very old browsers: the built-in biquad is the same cookbook filter with Q in dB for LP/HP.
-  const f = ctx.createBiquadFilter();
-  f.type = spec.type;
-  f.frequency.value = spec.freq;
-  const q = spec.q ?? Math.SQRT1_2;
-  f.Q.value = spec.type === 'lowpass' || spec.type === 'highpass' ? 20 * Math.log10(q) : q;
-  f.gain.value = spec.gain ?? 0;
-  return f;
+  // A shelf with a slope the built-in filter cannot do (none of the instruments has one).
+  const c = biquadCoeffs(spec, ctx.sampleRate);
+  return ctx.createIIRFilter([c.b0, c.b1, c.b2], [1, c.a1, c.a2]);
 }
 
 /** Connect a list of filters in series after `input`; returns the last node. */
@@ -197,6 +301,11 @@ export class AudioEngine {
   readonly visual: VisualQueue;
   /** Delay of the master chain in seconds; `nodeTime` compensates for it. */
   readonly chainLatency = COMPRESSOR_LOOKAHEAD;
+  /**
+   * Resolves when the master chain is fully set up (the compressor's start-up has been measured and
+   * compensated). Sound can be scheduled before that; offline renders wait for it before rendering.
+   */
+  readonly ready: Promise<void>;
 
   private readonly buses = new Map<BusName, GainNode>();
   private readonly busVolume = new Map<BusName, number>();
@@ -212,8 +321,13 @@ export class AudioEngine {
   private idleTimer: ReturnType<typeof setInterval> | null = null;
   private unlocked = false;
   private disposed = false;
-  private readonly pending: Array<{ at: number; cancel: () => void }> = [];
+  private pending: Array<{ at: number; expires: number; cancel: () => void }> = [];
+  private pendingTimer: ReturnType<typeof setTimeout> | null = null;
   private watching = false;
+  private suspending = false;
+  private activity = 0;
+  /** Called once, the first time the context is found running (set for the shared engine). */
+  onUnlocked: (() => void) | null = null;
 
   constructor(ctx: BaseAudioContext, opts: EngineOptions = {}) {
     this.ctx = ctx;
@@ -227,20 +341,32 @@ export class AudioEngine {
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = this.volume * this.volume;
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.knee.value = 12;
-    comp.ratio.value = 4;
-    comp.attack.value = 0.004;
-    comp.release.value = 0.18;
+    configureCompressor(comp);
+    // Makes up for the compressor's start-up dip, so the first note of a session keeps its attack.
+    const settle = ctx.createGain();
     const pre = ctx.createGain();
     pre.gain.value = 1 / CLIPPER_RANGE;
     const clip = ctx.createWaveShaper();
     clip.curve = clipperCurve() as Float32Array<ArrayBuffer>;
     this.masterGain.connect(comp);
-    comp.connect(pre);
+    comp.connect(settle);
+    settle.connect(pre);
     pre.connect(clip);
     clip.connect(ctx.destination);
     this.tap = clip;
+    this.ready = compressorStartUp(ctx.sampleRate).then((curve) => {
+      if (!curve || this.disposed) return;
+      try {
+        // The dip is over COMPRESSOR_SETTLE_SECONDS after the context starts; apply what is left of it.
+        const now = ctx.currentTime;
+        const from = Math.ceil((now / COMPRESSOR_SETTLE_SECONDS) * (curve.length - 1));
+        if (from >= curve.length - 2) return;
+        const start = Math.max(now, (from / (curve.length - 1)) * COMPRESSOR_SETTLE_SECONDS);
+        settle.gain.setValueCurveAtTime(curve.subarray(from) as Float32Array<ArrayBuffer>, start, COMPRESSOR_SETTLE_SECONDS - start);
+      } catch {
+        // Without it the first 0.2 s of the session are a little soft, nothing worse.
+      }
+    });
 
     // Buses and reverb.
     let reverbIn: GainNode | null = null;
@@ -312,9 +438,18 @@ export class AudioEngine {
    */
   nodeTime(time?: number): number {
     const now = this.ctx.currentTime;
-    if (time === undefined) return now;
+    if (time === undefined || !Number.isFinite(time)) return now;
     const t = time - this.chainLatency;
     return t > now ? t : now;
+  }
+
+  /**
+   * The audio-clock time a sound asked for at `when` will really be heard: `when` itself if that is
+   * a time in the future, otherwise now. NaN, Infinity and times in the past all mean "now".
+   */
+  startTime(when?: number): number {
+    const now = this.ctx.currentTime;
+    return when !== undefined && Number.isFinite(when) && when > now ? when : now;
   }
 
   /** A clock for a Transport running on this engine. */
@@ -324,19 +459,21 @@ export class AudioEngine {
 
   // --- mixer -----------------------------------------------------------------------------------
 
-  /** The input node of a bus. */
+  /** The input node of a bus (an unknown name gets the `ui` bus rather than an error). */
   bus(name: BusName): GainNode {
-    return this.buses.get(name)!;
+    return this.buses.get(name) ?? this.buses.get('ui')!;
   }
 
   private applyBus(name: BusName): void {
-    const g = this.buses.get(name)!;
+    const g = this.buses.get(name);
+    if (!g) return;
     const v = this.busMuted.get(name) ? 0 : BUS_GAIN[name] * (this.busVolume.get(name) ?? 1);
     g.gain.setTargetAtTime(v, this.ctx.currentTime, 0.015);
   }
 
-  /** Volume of one bus, 0..1.5 (1 = the default mix). */
+  /** Volume of one bus, 0..1.5 (1 = the default mix). Unknown buses and non-numbers are ignored. */
   setBusVolume(name: BusName, volume: number): void {
+    if (!this.buses.has(name) || !Number.isFinite(volume)) return;
     this.busVolume.set(name, Math.max(0, Math.min(1.5, volume)));
     this.applyBus(name);
   }
@@ -347,7 +484,8 @@ export class AudioEngine {
 
   /** Mute or unmute one bus. */
   setBusMuted(name: BusName, muted: boolean): void {
-    this.busMuted.set(name, muted);
+    if (!this.buses.has(name)) return;
+    this.busMuted.set(name, !!muted);
     this.applyBus(name);
   }
 
@@ -366,7 +504,7 @@ export class AudioEngine {
   }
 
   set masterVolume(v: number) {
-    this.volume = Math.max(0, Math.min(1, v));
+    this.volume = Math.max(0, Math.min(1, finiteOr(v, this.volume)));
     this.applyMaster();
   }
 
@@ -375,7 +513,7 @@ export class AudioEngine {
   }
 
   set muted(m: boolean) {
-    this.mutedFlag = m;
+    this.mutedFlag = !!m;
     this.applyMaster();
   }
 
@@ -415,8 +553,18 @@ export class AudioEngine {
 
   /** Called by `unlockAudio` once the context has been resumed inside a user gesture. */
   markUnlocked(): void {
-    this.unlocked = true;
+    this.noteUnlocked();
     this.wake();
+  }
+
+  private noteUnlocked(): void {
+    if (this.unlocked) return;
+    this.unlocked = true;
+    try {
+      this.onUnlocked?.();
+    } catch {
+      // A warm-up hook must never get in the way of sound.
+    }
   }
 
   /** True once the context has been unlocked by a user gesture. */
@@ -427,6 +575,7 @@ export class AudioEngine {
   /** Note that sound is scheduled until `until` (audio time), so the context must stay awake. */
   touch(until: number): void {
     if (until > this.busyUntil) this.busyUntil = until;
+    this.activity++;
     this.wake();
   }
 
@@ -436,6 +585,7 @@ export class AudioEngine {
    */
   hold(): () => void {
     this.holds++;
+    this.activity++;
     this.wake();
     let released = false;
     return () => {
@@ -446,11 +596,27 @@ export class AudioEngine {
     };
   }
 
+  /** What the context is doing: `locked` until a user gesture, then `running` or `suspended`. */
+  get state(): AudioState {
+    if (this.offline) return 'running';
+    const c = this.ctx as AudioContext;
+    if (c.state === 'running') return 'running';
+    return this.unlocked ? 'suspended' : 'locked';
+  }
+
+  /** True when a sound scheduled now is heard now (the context is running and staying that way). */
+  get audible(): boolean {
+    return this.offline || ((this.ctx as AudioContext).state === 'running' && !this.suspending);
+  }
+
   private wake(): void {
     if (this.offline || this.disposed) return;
     const c = this.ctx as AudioContext;
     if (c.state === 'closed') return;
-    if (c.state === 'running') this.unlocked = true; // autoplay was allowed, or someone else resumed it
+    // A suspend is in flight: asking to resume now could be overtaken by it. `checkIdle` looks at
+    // `activity` when the suspend has landed and starts the context again.
+    if (this.suspending) return;
+    if (c.state === 'running') this.noteUnlocked(); // autoplay was allowed, or someone else resumed it
     if (c.state !== 'running') {
       // Asking to resume is harmless outside a user gesture and is all it takes inside one, so a
       // Play button that calls pluck() directly works even if nobody called unlockAudio() first.
@@ -466,39 +632,85 @@ export class AudioEngine {
   /**
    * Register a sound that was requested while the context is not running. If the context does not
    * start within a moment (nobody has clicked yet), `cancel` is called so that old sounds do not
-   * all burst out when audio is finally unlocked.
+   * all burst out when audio is finally unlocked. The cancelling is done by a timer, while the
+   * context is still silent: waiting for the context's own `statechange` event would let every
+   * stale sound play for the tens of milliseconds that event takes to arrive.
    */
   guard(cancel: () => void): void {
     if (this.offline) return;
     const c = this.ctx as AudioContext;
-    if (c.state === 'running') return;
-    this.pending.push({ at: typeof performance !== 'undefined' ? performance.now() : 0, cancel });
-    if (this.pending.length > 256) this.pending.shift()?.cancel();
+    if (c.state === 'running' && !this.suspending) return;
+    const at = nowMs();
+    this.pending.push({ at, expires: at + (this.unlocked || inUserGesture() ? STALE_REQUEST_ACTIVE_MS : STALE_REQUEST_MS), cancel });
+    if (this.pending.length > 256) {
+      try {
+        this.pending.shift()?.cancel();
+      } catch {
+        // already gone
+      }
+    }
     if (!this.watching) {
       this.watching = true;
-      c.addEventListener('statechange', () => {
-        if (c.state !== 'running') return;
-        const now = typeof performance !== 'undefined' ? performance.now() : 0;
-        for (const p of this.pending.splice(0)) {
-          if (now - p.at > STALE_REQUEST_MS) {
-            try {
-              p.cancel();
-            } catch {
-              // already gone
-            }
-          }
-        }
-      });
+      c.addEventListener('statechange', () => this.settlePending());
     }
+    this.armPendingTimer();
+  }
+
+  /** Number of sounds waiting for the context to start (for tests and diagnostics). */
+  get pendingSounds(): number {
+    return this.pending.length;
+  }
+
+  private armPendingTimer(): void {
+    if (this.pendingTimer !== null || !this.pending.length) return;
+    const wait = Math.max(10, this.pending[0].expires - nowMs() + 15);
+    this.pendingTimer = setTimeout(() => {
+      this.pendingTimer = null;
+      this.settlePending();
+    }, wait);
+  }
+
+  /**
+   * Sort out the sounds that were requested while the context was not running: the ones that have
+   * waited too long are cancelled (normally by the timer, while the context is still silent), and
+   * once the context runs the rest are playing and need no more attention.
+   */
+  private settlePending(): void {
+    if (!this.pending.length) return;
+    const running = (this.ctx as AudioContext).state === 'running';
+    const now = nowMs();
+    const keep: typeof this.pending = [];
+    for (const p of this.pending) {
+      if (now < p.expires) {
+        if (!running) keep.push(p);
+        continue;
+      }
+      try {
+        p.cancel();
+      } catch {
+        // already gone
+      }
+    }
+    this.pending = keep;
+    this.armPendingTimer();
   }
 
   private checkIdle(): void {
     const c = this.ctx as AudioContext;
-    if (c.state !== 'running') return;
+    if (c.state !== 'running' || this.suspending) return;
     if (this.holds > 0 || c.currentTime < this.busyUntil + IDLE_SECONDS) return;
-    void c.suspend().catch(() => undefined);
     if (this.idleTimer !== null) clearInterval(this.idleTimer);
     this.idleTimer = null;
+    // suspend() takes a moment to land. A sound requested in that moment sees a running context,
+    // so remember what was going on and start again if anything was asked for meanwhile.
+    this.suspending = true;
+    const seen = this.activity;
+    const settle = (): void => {
+      this.suspending = false;
+      if (this.disposed) return;
+      if (this.activity !== seen || this.holds > 0) this.wake();
+    };
+    c.suspend().then(settle, settle);
   }
 
   /** Release timers. The caller closes the context. */
@@ -506,6 +718,9 @@ export class AudioEngine {
     this.disposed = true;
     if (this.idleTimer !== null) clearInterval(this.idleTimer);
     this.idleTimer = null;
+    if (this.pendingTimer !== null) clearTimeout(this.pendingTimer);
+    this.pendingTimer = null;
+    this.pending = [];
     this.visual.clear();
     this.buffers.clear();
   }
@@ -545,7 +760,18 @@ export function getEngine(): AudioEngine {
   const Ctor = contextCtor();
   if (!Ctor) throw new Error('Web Audio is not available in this environment');
   const ctx = new Ctor({ latencyHint: 'interactive' });
-  shared = new AudioEngine(ctx);
+  const engine = new AudioEngine(ctx);
+  shared = engine;
+  applyWanted(engine);
+  engine.onUnlocked = () => {
+    for (const fn of unlockHooks) {
+      try {
+        fn();
+      } catch {
+        // ignore
+      }
+    }
+  };
   const onState = () => {
     // iOS interrupts the context for calls and when the page is backgrounded; pick it up again.
     if (shared && shared.isUnlocked && (ctx.state as string) === 'interrupted') void ctx.resume().catch(() => undefined);
@@ -657,6 +883,16 @@ export function audioRunning(): boolean {
   return shared !== null && (shared.ctx as AudioContext).state === 'running';
 }
 
+/**
+ * What a sound requested right now would do: `running` plays it; `suspended` wakes the context
+ * and plays it; `locked` (no user gesture yet) drops it unless a tap or key press follows at once;
+ * `unsupported` means there is no Web Audio here. Never creates the context.
+ */
+export function audioState(): AudioState {
+  if (!audioSupported()) return 'unsupported';
+  return shared ? shared.state : 'locked';
+}
+
 /** Current time of the shared audio clock (0 before any sound has been requested). */
 export function audioNow(): number {
   return shared ? shared.now() : 0;
@@ -667,32 +903,52 @@ export function audioSoundingNow(): number {
   return shared ? shared.soundingNow() : 0;
 }
 
-/** Master volume 0..1 of the shared engine. */
+/** A volume or mute set before the engine exists is kept and applied when it is created. */
+const wanted: { volume?: number; muted?: boolean; busVolume: Map<BusName, number>; busMuted: Map<BusName, boolean> } = { busVolume: new Map(), busMuted: new Map() };
+
+function applyWanted(engine: AudioEngine): void {
+  if (wanted.volume !== undefined) engine.masterVolume = wanted.volume;
+  if (wanted.muted !== undefined) engine.muted = wanted.muted;
+  for (const [bus, v] of wanted.busVolume) engine.setBusVolume(bus, v);
+  for (const [bus, m] of wanted.busMuted) engine.setBusMuted(bus, m);
+}
+
+/**
+ * Master volume 0..1 of the shared engine. Does not create the audio context: called before any
+ * sound has been asked for (settings applied at start-up), the value is remembered for later.
+ */
 export function setMasterVolume(volume: number): void {
-  getEngine().masterVolume = volume;
+  if (!Number.isFinite(volume)) return;
+  wanted.volume = Math.max(0, Math.min(1, volume));
+  if (shared) shared.masterVolume = volume;
 }
 
 export function getMasterVolume(): number {
-  return shared ? shared.masterVolume : 0.85;
+  return shared ? shared.masterVolume : wanted.volume ?? 0.85;
 }
 
-/** Mute or unmute everything. */
+/** Mute or unmute everything. Like `setMasterVolume`, it does not create the audio context. */
 export function setMuted(muted: boolean): void {
-  getEngine().muted = muted;
+  wanted.muted = !!muted;
+  if (shared) shared.muted = !!muted;
 }
 
 export function isMuted(): boolean {
-  return shared ? shared.muted : false;
+  return shared ? shared.muted : wanted.muted ?? false;
 }
 
-/** Volume of one bus of the shared engine (1 = default mix). */
+/** Volume of one bus of the shared engine (1 = default mix). Remembered if the engine does not exist yet. */
 export function setBusVolume(bus: BusName, volume: number): void {
-  getEngine().setBusVolume(bus, volume);
+  if (!BUS_NAMES.includes(bus) || !Number.isFinite(volume)) return;
+  wanted.busVolume.set(bus, volume);
+  shared?.setBusVolume(bus, volume);
 }
 
-/** Mute one bus of the shared engine. */
+/** Mute one bus of the shared engine. Remembered if the engine does not exist yet. */
 export function setBusMuted(bus: BusName, muted: boolean): void {
-  getEngine().setBusMuted(bus, muted);
+  if (!BUS_NAMES.includes(bus)) return;
+  wanted.busMuted.set(bus, !!muted);
+  shared?.setBusMuted(bus, !!muted);
 }
 
 /** AnalyserNode on the shared master output, for visualisers. */
@@ -710,17 +966,41 @@ export function getOutputLevel(): OutputLevel {
  * visuals in step with scheduled notes.
  */
 export function scheduleVisual(time: number, fn: () => void): void {
+  if (typeof fn !== 'function') return;
+  if (!audioSupported()) {
+    // No audio clock to wait for: as soon as possible is as close as it gets.
+    setTimeout(fn, 0);
+    return;
+  }
   getEngine().visual.add(time, fn);
 }
 
-/** A transport clock on the shared engine that does not create the context until it is read. */
+/** Seconds on a plain wall clock, for environments without Web Audio. */
+function wallClock(): number {
+  return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+}
+
+/**
+ * A transport clock on the shared engine that does not create the context until it is read.
+ * Where there is no Web Audio at all it falls back to the wall clock, so a metronome or a song
+ * cursor still moves (silently) instead of throwing.
+ */
 export const engineClock: TransportClock = {
-  now: () => getEngine().now(),
-  soundingNow: () => getEngine().soundingNow(),
-  hold: () => getEngine().hold(),
+  now: () => (audioSupported() ? getEngine().now() : wallClock()),
+  soundingNow: () => (audioSupported() ? getEngine().soundingNow() : wallClock()),
+  hold: () => (audioSupported() ? getEngine().hold() : () => undefined),
 };
 
 const closeHooks: Array<() => void> = [];
+const unlockHooks: Array<() => void> = [];
+
+/**
+ * Run `fn` when the shared engine first has a running context (after the first user gesture).
+ * For work that is better done before the first note is asked for, such as warming caches.
+ */
+export function onAudioUnlocked(fn: () => void): void {
+  unlockHooks.push(fn);
+}
 
 /** Run `fn` whenever the shared engine is closed, so holders of its nodes can let go of them. */
 export function onAudioClosed(fn: () => void): void {

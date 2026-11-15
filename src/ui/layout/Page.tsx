@@ -51,7 +51,7 @@ export function Page({ title, subtitle, eyebrow, back, actions, width = 'content
     </>
   );
   return (
-    <div className={cx(styles.page, width === 'prose' && styles.prose, width === 'full' && styles.full, className)} style={style} {...rest}>
+    <div className={cx(styles.page, width === 'prose' && styles.prose, width === 'full' && styles.full, className)} style={style} data-ui-page="" {...rest}>
       {hideHeader ? (
         <h1 id={titleId} className="sr-only">
           {title}

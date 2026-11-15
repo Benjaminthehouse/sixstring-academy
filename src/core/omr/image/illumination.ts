@@ -194,6 +194,18 @@ export function flatten(img: GrayImage, opts: FlattenOptions = {}): FlattenResul
   const out = new Uint8Array(w * h);
   const rowGain = new Float32Array(cols + 1);
   const rowMask = new Uint8Array(cols + 1);
+  // Horizontal interpolation position of every column, computed once.
+  const colG = new Int32Array(w);
+  const colW = new Float32Array(w);
+  for (let x = 0; x < w; x++) {
+    const fx = (x + 0.5) / cell - 0.5;
+    let g0 = Math.floor(fx);
+    let wx = fx - g0;
+    if (g0 < 0) { g0 = 0; wx = 0; }
+    if (g0 > cols - 1) { g0 = cols - 1; wx = 0; }
+    colG[x] = g0;
+    colW[x] = wx;
+  }
   for (let y = 0; y < h; y++) {
     // Vertical interpolation of the block gains for this row.
     const fy = (y + 0.5) / cell - 0.5;
@@ -212,17 +224,13 @@ export function flatten(img: GrayImage, opts: FlattenOptions = {}): FlattenResul
     rowMask[cols] = rowMask[cols - 1];
     const o = y * w;
     for (let x = 0; x < w; x++) {
-      const fx = (x + 0.5) / cell - 0.5;
-      let gx0 = Math.floor(fx);
-      let wx = fx - gx0;
-      if (gx0 < 0) { gx0 = 0; wx = 0; }
-      if (gx0 > cols - 1) gx0 = cols - 1;
-      if (rowMask[gx0] || rowMask[gx0 + 1]) {
+      const gx0 = colG[x];
+      if (rowMask[gx0] | rowMask[gx0 + 1]) {
         out[o + x] = 255;
         continue;
       }
-      const g = rowGain[gx0] + (rowGain[gx0 + 1] - rowGain[gx0]) * wx;
-      const v = data[o + x] * g;
+      const a = rowGain[gx0];
+      const v = data[o + x] * (a + (rowGain[gx0 + 1] - a) * colW[x]);
       out[o + x] = v >= 255 ? 255 : v + 0.5;
     }
   }

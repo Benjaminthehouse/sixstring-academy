@@ -96,11 +96,24 @@ export interface TunerState {
   justTuned: number | null;
 }
 
-/** The fields of a pitch reading the tuner needs. */
-export type TunerReading = Pick<PitchReading, 'time' | 'freq'> & Partial<Pick<PitchReading, 'noteAge'>>;
+/** The fields of a pitch reading the tuner needs (`noteAge` and `clarity` are optional but make it steadier). */
+export type TunerReading = Pick<PitchReading, 'time' | 'freq'> & Partial<Pick<PitchReading, 'noteAge' | 'clarity'>>;
 
 /** Readings this soon after the pluck are still settling and do not start the in-tune hold, in seconds. */
 const SETTLE_S = 0.1;
+/**
+ * Readings at or below this clarity do not move the needle at all, readings at or above
+ * `CLARITY_FULL` move it normally, and it is linear in between. In a noisy room or over a hum a
+ * fading note still gives readings, but below a clarity of about 0.7 one in ten is more than
+ * 10 cents out (measured on the adversarial corpus); the needle waits for the clear ones.
+ */
+const CLARITY_NONE = 0.55;
+const CLARITY_FULL = 0.8;
+/** Once confirmed in tune, the verdict survives readings up to this many cents past the tolerance for `GRACE_S` seconds. */
+const GRACE_CENTS = 3;
+const GRACE_S = 0.15;
+/** A string is only un-ticked by a note at least this old, in seconds: a knock on the guitar reads as a short low note. */
+const UNTICK_AGE_S = 0.45;
 
 /** Tuner state machine. Feed it `pitch` readings with `update` and call `release` on note-off / silence. */
 export class Tuner {
@@ -120,6 +133,7 @@ export class Tuner {
   private lastTime = Number.NaN;
   private lastAge = -1;
   private withinSince = Number.NaN;
+  private outSince = Number.NaN;
   private wasInTune = false;
   private tunedFlags: boolean[];
   private listeners = new Set<(index: number, state: TunerState) => void>();
@@ -192,6 +206,7 @@ export class Tuner {
     this.lastTime = Number.NaN;
     this.lastAge = -1;
     this.withinSince = Number.NaN;
+    this.outSince = Number.NaN;
     this.wasInTune = false;
     const s = this.snapshot;
     this.snapshot = {
@@ -246,22 +261,33 @@ export class Tuner {
     const rawCents = centsBetween(freq, targetFreq);
     const dt = Number.isNaN(this.lastTime) ? 0 : Math.max(0, time - this.lastTime);
     this.lastTime = time;
+    const clarity = reading.clarity ?? 1;
+    const trust = clarity >= CLARITY_FULL ? 1 : clarity <= CLARITY_NONE ? 0 : (clarity - CLARITY_NONE) / (CLARITY_FULL - CLARITY_NONE);
     if (newNote || Number.isNaN(this.smoothed)) {
       this.smoothed = rawCents;
     } else {
       // Fast while far from the reading (the learner is turning the peg) and while the string is
       // still settling after the pluck (the pitch really is moving); slow when close (steady needle).
+      // An unclear reading pulls proportionally less.
       const diff = Math.abs(rawCents - this.smoothed);
       const tau = age < SETTLE_S * 3 || diff > 12 ? 0.025 : diff > 4 ? 0.05 : 0.1;
-      this.smoothed += (1 - Math.exp(-dt / tau)) * (rawCents - this.smoothed);
+      this.smoothed += trust * (1 - Math.exp(-dt / tau)) * (rawCents - this.smoothed);
     }
     const cents = this.smoothed;
     const abs = Math.abs(cents);
 
-    // In-tune decision with a little hysteresis so the light does not flicker at the edge.
-    const within = abs <= (Number.isNaN(this.withinSince) ? this.tolerance : this.tolerance + 1);
+    // In-tune decision with a little hysteresis so the light does not flicker at the edge, and
+    // a short grace once it is on: in a noisy room single readings stray further than the string does.
+    let within = abs <= (Number.isNaN(this.withinSince) ? this.tolerance : this.tolerance + 1);
+    if (within) {
+      this.outSince = Number.NaN;
+    } else if (this.wasInTune && abs <= this.tolerance + GRACE_CENTS) {
+      if (Number.isNaN(this.outSince)) this.outSince = time;
+      within = time - this.outSince < GRACE_S;
+    }
     if (!within) {
       this.withinSince = Number.NaN;
+      this.outSince = Number.NaN;
     } else if (Number.isNaN(this.withinSince) && age >= SETTLE_S) {
       this.withinSince = time;
     }
@@ -274,8 +300,9 @@ export class Tuner {
       if (string >= 0) this.tunedFlags[string] = true;
     }
     this.wasInTune = inTune;
-    // Heard clearly out of tune after settling: the earlier confirmation no longer stands.
-    if (string >= 0 && age >= SETTLE_S * 1.5 && abs > this.tolerance * 2 + 2) this.tunedFlags[string] = false;
+    // Heard clearly out of tune, and for long enough to be a string rather than a bump on the
+    // guitar: the earlier confirmation no longer stands.
+    if (string >= 0 && age >= UNTICK_AGE_S && trust > 0 && abs > this.tolerance * 2 + 2) this.tunedFlags[string] = false;
 
     const state: TunerState = {
       mode: this.mode,
@@ -304,6 +331,7 @@ export class Tuner {
   private resetSmoothing(): void {
     this.smoothed = Number.NaN;
     this.withinSince = Number.NaN;
+    this.outSince = Number.NaN;
     this.wasInTune = false;
   }
 

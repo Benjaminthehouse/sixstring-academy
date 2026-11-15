@@ -44,7 +44,7 @@ export interface BandOptions {
   halfWidth?: number;
   /** Row spacing of the search strip (default 2). */
   rowStep?: number;
-  /** Half-width of the ridge filter (default 2). */
+  /** Half-width of the ridge filter (default 2; twice that is tried as well, for close-up boards). */
   ridge?: number;
   /** Fewest frets that must agree on both edges (default 5). */
   minFrets?: number;
@@ -226,7 +226,7 @@ export function findBands(img: Image32, axis: AxisCandidate, options: BandOption
   const strip = WIDE;
   const d = options.ridge ?? 2;
   if (RIDGE.length < rows * cols) RIDGE = new Float32Array(rows * cols);
-  const ridge = ridgeAlongRows(strip, d, RIDGE);
+  const ridge = ridgeAlongRows(strip, d, RIDGE, 2 * d);
 
   // Row energy per polarity: how much thin-ridge evidence a row holds (capped so one glint cannot dominate).
   const CAP = 30;

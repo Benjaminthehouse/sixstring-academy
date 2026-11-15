@@ -10,6 +10,7 @@
  *   node src/core/omr/eval/cli.cjs --pages                # one line per page
  *   node src/core/omr/eval/cli.cjs --no-strips            # skip the staff-strip geometry check (faster)
  *   node src/core/omr/eval/cli.cjs --strips <fixture-id>  # write the staff strips of one page (tier via --tier)
+ *   node src/core/omr/eval/cli.cjs --bench [--tier photo-good] [--width 2480]   # time a full-page capture
  *   node src/core/omr/eval/cli.cjs --norm <fixture-id> [--view gray|binary|lines|strokes|noLines]
  *                                                         # write the normalised page with its layout
  *
@@ -34,7 +35,7 @@ const flag = (name) => args.includes(name);
     const runner = await load('/src/core/omr/eval/runner.ts');
     const fixtures = await load('/src/core/omr/eval/fixtures.ts');
     const tiers = (opt('--tier') || 'clean,scan,photo-good,photo-bad').split(',');
-    let list = flag('--sample') ? fixtures.selectFixtures({ every: 4 }) : fixtures.loadManifest();
+    let list = flag('--sample') ? fixtures.defaultSample() : fixtures.loadManifest();
     if (opt('--subset')) list = list.filter((m) => m.subset === opt('--subset'));
     if (opt('--match')) list = list.filter((m) => m.id.includes(opt('--match')));
 
@@ -44,6 +45,11 @@ const flag = (name) => args.includes(name);
       return;
     }
 
+    if (flag('--bench')) {
+      const tools = await load('/src/core/omr/eval/bench.ts');
+      for (const line of tools.benchmark(opt('--match') || 'page-linked-bravura-150', tiers.length === 4 ? 'clean' : tiers[0], Number(opt('--width') || 2480))) console.log(line);
+      return;
+    }
     if (opt('--norm')) {
       const tools = await load('/src/core/omr/eval/strips.ts');
       console.log(tools.dumpNormalized(opt('--norm'), tiers[0], opt('--view') || 'binary', Number(opt('--seed') || 1)));

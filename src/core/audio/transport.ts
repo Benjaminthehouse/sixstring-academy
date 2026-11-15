@@ -177,6 +177,8 @@ export class Transport {
   private endTick: number | null = null;
   private ending: number | null = null;
   private countInState: CountIn | null = null;
+  /** A glide started by `setTempo(bpm, { rampBeats })`: where it runs and the tempo it ends on. */
+  private ramp: { start: number; end: number; bpm: number } | null = null;
   private version = 0;
   private readonly sources = new Map<number, EventSource>();
   private nextId = 1;
@@ -291,6 +293,18 @@ export class Transport {
     return typeof at === 'number' ? at : this.tl.tickOf(at);
   }
 
+  /** The audio clock this transport runs on: the same clock every event time refers to. */
+  now(): number {
+    return this.clock.now();
+  }
+
+  /** A usable tick (finite, not before the start of the piece) for a position, or null for nonsense. */
+  private cleanTick(at: TickLike | undefined | null): number | null {
+    if (at === undefined || at === null) return null;
+    const tick = this.toTicks(at);
+    return Number.isFinite(tick) ? Math.max(0, tick) : null;
+  }
+
   private currentTick(): number {
     return this._state === 'playing' ? this.frontierTick : this.playhead;
   }
@@ -308,28 +322,51 @@ export class Transport {
   /**
    * Set a constant tempo in quarter notes per minute. While running it applies from the next
    * scheduled event (within the look-ahead), or exactly at the current event when called from a
-   * transport callback. With `rampBeats` the tempo glides there over that many quarter notes.
+   * transport callback. With `rampBeats` the tempo glides there over that many quarter notes and
+   * then stays there, wherever the playhead goes afterwards. Not-a-number is ignored.
    */
   setTempo(bpm: number, opts: { rampBeats?: number } = {}): void {
+    if (!Number.isFinite(bpm)) return;
     const target = Math.max(5, Math.min(1000, bpm));
     const at = this.currentTick();
-    if (opts.rampBeats && opts.rampBeats > 0) {
+    const beats = opts.rampBeats !== undefined && Number.isFinite(opts.rampBeats) ? opts.rampBeats : 0;
+    if (beats > 0) {
       const from = this.tl.bpmAt(at);
-      this.apply(this.tl.with({ tempo: [{ tick: at, bpm: from, ramp: true }, { tick: at + opts.rampBeats * PPQ, bpm: target }] }));
+      this.ramp = { start: at, end: at + beats * PPQ, bpm: target };
+      this.apply(this.tl.with({ tempo: [{ tick: at, bpm: from, ramp: true }, { tick: at + beats * PPQ, bpm: target }] }));
     } else {
+      this.ramp = null;
       this.apply(this.tl.with({ bpm: target }));
     }
     this.emit('tempo', { time: this._state === 'playing' ? this.frontierTime : this.clock.now(), bpm: target * this.rate });
   }
 
+  /**
+   * A tempo glide belongs to the moment it was asked for, not to a place in the piece. When the
+   * playhead leaves the stretch it runs over (a seek, a loop wrap, stop and start again), the glide
+   * is over: the tempo is its target from then on. Without this, going back before the glide would
+   * bring the old tempo back and replay the glide.
+   */
+  private settleRamp(tick: number): void {
+    const r = this.ramp;
+    if (!r || (tick >= r.start && tick < r.end)) return;
+    this.ramp = null;
+    this.tl = this.tl.with({ bpm: r.bpm });
+    this.version++;
+  }
+
   /** Install a full tempo map (a song's tempo changes). */
   setTempoMap(points: TempoPoint[]): void {
-    this.apply(this.tl.with({ tempo: points }));
+    const clean = points.filter((p) => p && Number.isFinite(p.tick) && Number.isFinite(p.bpm) && p.bpm > 0);
+    if (!clean.length) return;
+    this.ramp = null;
+    this.apply(this.tl.with({ tempo: clean }));
     this.emit('tempo', { time: this._state === 'playing' ? this.frontierTime : this.clock.now(), bpm: this.bpm });
   }
 
-  /** Play the tempo map faster or slower (0.5 = half speed) without changing it. */
+  /** Play the tempo map faster or slower (0.5 = half speed) without changing it. Not-a-number is ignored. */
   setTempoScale(scale: number): void {
+    if (!Number.isFinite(scale)) return;
     this.apply(this.tl, Math.max(0.05, Math.min(4, scale)));
     this.emit('tempo', { time: this._state === 'playing' ? this.frontierTime : this.clock.now(), bpm: this.bpm });
   }
@@ -346,15 +383,31 @@ export class Transport {
 
   /** Swing ratio 0.5 (straight) .. 0.75 for pairs of eighths (default) or sixteenths. */
   setSwing(ratio: number, unit: 'eighth' | 'sixteenth' = 'eighth'): void {
-    this.apply(this.tl.with({ swing: ratio > 0.5 ? { ratio, unitTicks: unit === 'eighth' ? PPQ / 2 : PPQ / 4 } : null }));
+    this.apply(this.tl.with({ swing: Number.isFinite(ratio) && ratio > 0.5 ? { ratio, unitTicks: unit === 'sixteenth' ? PPQ / 4 : PPQ / 2 } : null }));
   }
 
-  /** Repeat the region [start, end). */
+  /**
+   * Repeat the region [start, end). Set while playing with the playhead already past the end, the
+   * music goes to the start of the region at once (at the scheduling frontier, so nothing is cut
+   * off and nothing sounds twice): "loop these bars" means now, not the next time round.
+   */
   setLoop(start: TickLike, end: TickLike): void {
-    const s = this.toTicks(start);
-    const e = this.toTicks(end);
-    this.loopRegion = e > s ? { start: s, end: e } : null;
+    const s = this.cleanTick(start);
+    const e = this.cleanTick(end);
+    this.loopRegion = s !== null && e !== null && e > s ? { start: s, end: e } : null;
     this.version++;
+    const loop = this.loopRegion;
+    if (!loop || this._state !== 'playing') return;
+    const c = this.countInState;
+    if (c && !c.done) {
+      if (c.startTick >= loop.end) c.startTick = loop.start;
+      return;
+    }
+    if (this.frontierTick >= loop.end && this.anchors.length) {
+      this.settleRamp(loop.start);
+      this.anchors.push({ time: this.frontierTime, tick: loop.start, sec: this.tl.ticksToSeconds(loop.start), timeline: this.tl, rate: this.rate });
+      this.frontierTick = loop.start;
+    }
   }
 
   /** Stop looping (playback continues past the old loop end). */
@@ -365,7 +418,7 @@ export class Transport {
 
   /** Stop automatically when this position is reached (null = run for ever). */
   setEnd(at: TickLike | null): void {
-    this.endTick = at === null ? null : this.toTicks(at);
+    this.endTick = this.cleanTick(at);
     this.version++;
   }
 
@@ -390,9 +443,9 @@ export class Transport {
 
   /** Call `fn` every `every` ticks, starting at `from` (default 0) and before `until`. */
   scheduleRepeat(fn: ScheduledCallback, every: number, from: TickLike = 0, until?: TickLike): number {
-    const start = this.toTicks(from);
-    const stop = until === undefined ? Infinity : this.toTicks(until);
-    const step = Math.max(1, every);
+    const start = this.cleanTick(from) ?? 0;
+    const stop = until === undefined ? Infinity : this.cleanTick(until) ?? Infinity;
+    const step = Number.isFinite(every) ? Math.max(1, every) : PPQ;
     return this.addSource({
       collect: (a, b, add) => {
         let k = Math.max(0, Math.ceil((a - start) / step - 1e-9));
@@ -406,7 +459,8 @@ export class Transport {
    * The list is sorted once and searched by window, so a whole song is cheap.
    */
   addPart<T extends { tick: number }>(events: readonly T[], fn: (time: number, event: T) => void): number {
-    const sorted = events.slice().sort((x, y) => x.tick - y.tick);
+    // Events without a usable tick (NaN from a broken import) are left out rather than played at random.
+    const sorted = events.filter((e) => Number.isFinite(e.tick)).sort((x, y) => x.tick - y.tick);
     return this.addSource({
       collect: (from, to, add) => {
         let lo = 0, hi = sorted.length;
@@ -440,11 +494,14 @@ export class Transport {
    */
   start(opts: { at?: number; from?: TickLike; countIn?: number } = {}): void {
     if (this._state === 'playing') return;
-    if (opts.from !== undefined) this.playhead = this.toTicks(opts.from);
+    const from = this.cleanTick(opts.from);
+    if (from !== null) this.playhead = from;
     const tick = this.playhead;
+    this.settleRamp(tick);
     this.releaseClock = this.clock.hold?.() ?? null;
-    const time = opts.at ?? this.clock.now() + this.startDelay;
-    const bars = Math.max(0, Math.round(opts.countIn ?? this.countInBars));
+    const time = opts.at !== undefined && Number.isFinite(opts.at) ? opts.at : this.clock.now() + this.startDelay;
+    const countIn = opts.countIn ?? this.countInBars;
+    const bars = Number.isFinite(countIn) ? Math.max(0, Math.round(countIn)) : 0;
     this.lastStart = tick;
     this.loops = 0;
     this.ending = null;
@@ -487,6 +544,7 @@ export class Transport {
     const wasPlaying = this._state === 'playing';
     this.halt('stopped');
     this.playhead = this.lastStart;
+    this.settleRamp(this.playhead);
     this.emit('stop', { time: wasPlaying ? this.clock.now() : 0 });
   }
 
@@ -506,7 +564,9 @@ export class Transport {
 
   /** Jump to a position. While playing, playback continues from there almost immediately. */
   seek(to: TickLike): void {
-    const tick = this.toTicks(to);
+    const tick = this.cleanTick(to);
+    if (tick === null) return;
+    this.settleRamp(tick);
     if (this._state === 'playing') {
       const time = this.clock.now() + this.startDelay / 2;
       this.countInState = null;
@@ -628,7 +688,7 @@ export class Transport {
       const a = this.anchors[this.anchors.length - 1];
       const target = tickOf(a, horizon);
       let boundary = Infinity;
-      let kind: 'loop' | 'end' | null = null;
+      let kind: 'loop' | 'end' | 'ramp' | null = null;
       if (this.loopRegion && this.frontierTick < this.loopRegion.end) {
         boundary = this.loopRegion.end;
         kind = 'loop';
@@ -636,6 +696,10 @@ export class Transport {
       if (this.endTick !== null && this.endTick < boundary && this.frontierTick <= this.endTick) {
         boundary = this.endTick;
         kind = 'end';
+      }
+      if (this.ramp && this.ramp.end < boundary && this.frontierTick < this.ramp.end) {
+        boundary = this.ramp.end;
+        kind = 'ramp';
       }
       const limit = Math.min(target, boundary);
       // Rounding can leave the frontier a hair short of the horizon with no whole tick to gain.
@@ -668,9 +732,15 @@ export class Transport {
       if (limit >= boundary && kind === 'loop' && this.loopRegion) {
         this.loops++;
         const start = this.loopRegion.start;
+        this.settleRamp(start);
         this.anchors.push({ time: this.frontierTime, tick: start, sec: this.tl.ticksToSeconds(start), timeline: this.tl, rate: this.rate });
         this.frontierTick = start;
         this.emit('loop', { time: this.frontierTime, count: this.loops });
+      } else if (limit >= boundary && kind === 'ramp' && this.ramp) {
+        // The glide has arrived: from here on the tempo is simply its target.
+        const bpm = this.ramp.bpm;
+        this.ramp = null;
+        this.apply(this.tl.with({ bpm }));
       } else if (limit >= boundary && kind === 'end') {
         this.ending = this.frontierTime;
         this.emit('end', { time: this.frontierTime });

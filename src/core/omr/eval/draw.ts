@@ -4,6 +4,7 @@
  */
 import type { BinaryImage, GrayImage, Point } from '../image/gray';
 
+/** A colour as [red, green, blue], 0..255. */
 export type Rgb = [number, number, number];
 
 /** Distinct colours for overlays. */

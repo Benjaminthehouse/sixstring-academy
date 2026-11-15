@@ -553,8 +553,9 @@ export function detectKeyFromChords(input: Array<string | Chord>, opts: DetectKe
         fitSum += fit * c.weight;
       }
       let score = fitSum / totalWeight;
-      // The home chord is the one a song keeps coming back to.
-      score += 0.2 * (info.reduce((sum, c) => sum + (isTonic(c) ? c.weight : 0), 0) / totalWeight);
+      // The home chord is the one a song keeps coming back to. A dominant seventh does not count
+      // here: on its own it points a fifth down (a lone G7 says C), and the blues has its own rule below.
+      score += 0.3 * (info.reduce((sum, c) => sum + (isTonic(c) && !c.dominant ? c.weight : 0), 0) / totalWeight);
       if (info.some(isTonic)) score += 0.1;
       if (isTonic(info[0])) score += 0.12;
       if (isTonic(info[info.length - 1])) score += 0.16;

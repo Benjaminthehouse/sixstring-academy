@@ -47,6 +47,15 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--sp-4) var(--gutter-r) var(--sp-6) var(--gutter);
+  /*
+   * A soft shadow along the top or bottom edge while there is more of the step that way. The first
+   * two layers travel with the content and cover the shadows once an end is reached.
+   */
+  background:
+    linear-gradient(var(--bg) 40%, transparent) top / 100% 2rem no-repeat local,
+    linear-gradient(transparent, var(--bg) 60%) bottom / 100% 2rem no-repeat local,
+    linear-gradient(color-mix(in srgb, var(--fg) 16%, transparent), transparent) top / 100% 0.625rem no-repeat scroll,
+    linear-gradient(transparent, color-mix(in srgb, var(--fg) 16%, transparent)) bottom / 100% 0.625rem no-repeat scroll;
 }
 .step {
   display: flex;
@@ -81,6 +90,14 @@
   font-size: var(--text-lg);
 }
 
+/* What the step asks for: its choices, its picture, its field. */
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -91,9 +108,9 @@
   border-top: 1px solid var(--line);
   background: var(--bg);
 }
+/* Phones: the main button takes all the room Back leaves (the whole row on the first step). */
 .actions > :last-child {
   flex: 1 1 auto;
-  max-width: 20rem;
   margin-left: auto;
 }
 
@@ -102,11 +119,12 @@
     align-items: center;
     padding: var(--sp-6);
     background: var(--overlay);
-    backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
   }
   .panel {
-    max-height: min(100%, 46rem);
+    /* One frame for all six steps, so Continue and Skip never move under the pointer. */
+    height: min(100%, 44rem);
     border: 1px solid var(--line);
     border-radius: var(--r-xl);
     background: var(--bg);
@@ -136,6 +154,57 @@
   .actions > :last-child {
     flex: 0 0 auto;
     min-width: 12rem;
+  }
+}
+
+/*
+ * A phone held sideways (wide but very short): the card would leave one line of room for the
+ * answers. Use the whole screen instead, with the question on the left and the answers beside it.
+ */
+@media (min-width: 720px) and (max-height: 520px) {
+  .layer {
+    padding: 0;
+    background: var(--bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .panel {
+    height: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .top {
+    padding: calc(env(safe-area-inset-top, 0px) + var(--sp-2)) max(var(--sp-4), env(safe-area-inset-right, 0px)) var(--sp-1) max(var(--sp-8), env(safe-area-inset-left, 0px));
+  }
+  .body {
+    padding: var(--sp-3) max(var(--sp-8), env(safe-area-inset-right, 0px)) var(--sp-4) max(var(--sp-8), env(safe-area-inset-left, 0px));
+  }
+  .step {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: var(--sp-8);
+    align-items: start;
+  }
+  .count,
+  .title,
+  .lead {
+    grid-column: 1;
+  }
+  .answers {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+  }
+  .title {
+    font-size: var(--text-2xl);
+  }
+  .lead {
+    font-size: var(--text-md);
+  }
+  .actions {
+    padding: var(--sp-2) max(var(--sp-8), env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + var(--sp-2)) max(var(--sp-8), env(safe-area-inset-left, 0px));
   }
 }
 
@@ -202,11 +271,17 @@
   stroke: var(--fb-wood-2);
   stroke-width: 1.5;
 }
+/*
+ * Finger numbers. The light fretboard label is under 3.5:1 on the blue, green and orange finger
+ * colours, so the numerals are dark there (4.9:1 or better) and light only on the purple fourth finger.
+ */
 .neckDotText {
-  fill: var(--fb-label);
+  fill: var(--deg-2-fg);
   font-family: var(--font-mono);
-  font-size: 11px;
   font-weight: 700;
+}
+.neckDotTextLight {
+  fill: var(--deg-7-fg);
 }
 
 /* ---------- Level and teacher ---------- */
@@ -217,6 +292,8 @@
   padding: var(--sp-4);
   border-radius: var(--r-lg);
   background: var(--surface-2);
+  /* When it is scrolled into view it stops clear of the step's edge. */
+  scroll-margin-block: var(--sp-4);
 }
 .teacherText {
   min-width: 0;
@@ -251,23 +328,29 @@
 .handArt {
   max-width: 17rem;
 }
+/* Seven notes, always on one line: the cells share the width instead of wrapping one note off. */
 .noteRow {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 2.5rem));
   gap: var(--sp-1);
 }
 .noteCell {
-  display: inline-grid;
+  display: grid;
   place-items: center;
-  min-width: 2.25rem;
+  min-width: 0;
   height: 1.875rem;
-  padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
+}
+/* The narrowest phones: "Sol" still has to fit its cell. */
+@media (max-width: 359.98px) {
+  .noteCell {
+    font-size: var(--text-xs);
+  }
 }
 .goalLabel {
   gap: 2px;

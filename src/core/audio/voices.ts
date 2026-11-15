@@ -7,34 +7,78 @@
  * Every function takes the audio-clock time at which the sound should be heard (default: now) and,
  * last, an optional engine (default: the shared live engine).
  */
-import { clamp } from './dsp';
-import { AudioEngine, getEngine, onAudioClosed, pannedInput, type BusName } from './engine';
-import { DRONE_LOWPASS_HZ, DRONE_PARTIALS, VOICE_ENVELOPE, VOICE_PARTIALS, droneLayers, epianoParams, pitchLoudnessTrim, toneFrequency, type DroneOptions, type ToneVoice } from './keys';
-import { DRUM_NAMES, DRUM_VARIANTS, HIHAT_CHOKERS, renderClick, renderDrum, type ClickLevel, type ClickSet, type DrumName } from './percussion';
-import { renderUiSound, type UiSound } from './ui-sounds';
+import { clamp, finiteOr } from './dsp';
+import { AudioEngine, BUS_NAMES, audioSupported, getEngine, onAudioClosed, pannedInput, type BusName } from './engine';
+import { DRONE_LOWPASS_HZ, DRONE_PARTIALS, TONE_VOICES, VOICE_ENVELOPE, VOICE_PARTIALS, droneLayers, epianoParams, pitchLoudnessTrim, toneFrequency, type DroneOptions, type ToneVoice } from './keys';
+import { DRUM_NAMES, DRUM_VARIANTS, HIHAT_CHOKERS, isDrumName, normalizeClickSet, renderClick, renderDrum, type ClickLevel, type ClickSet, type DrumName } from './percussion';
+import { UI_SOUNDS, renderUiSound, type UiSound } from './ui-sounds';
 
+/** One playing (or scheduled) buffer. */
 interface Shot {
   src: AudioBufferSourceNode;
   gain: GainNode;
   start: number;
+  /** True once the shot has ended or been dropped. */
+  done: boolean;
+  /** Called once when the shot is finished with. */
+  onDone: (() => void) | null;
+  /** Drop the shot: silently if it has not started, with a very short fade if it is sounding. */
+  cancel(): void;
 }
 
 function fire(engine: AudioEngine, buffer: AudioBuffer, dest: BusName | AudioNode, when: number | undefined, gain: number): Shot {
   const ctx = engine.ctx;
-  const start = Math.max(when ?? engine.now(), engine.now());
+  const start = engine.startTime(when);
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   const g = ctx.createGain();
-  g.gain.value = gain;
+  g.gain.value = clamp(finiteOr(gain, 1), 0, 8);
   src.connect(g);
   g.connect(typeof dest === 'string' ? engine.bus(dest) : dest);
-  src.start(engine.nodeTime(start));
-  engine.guard(() => {
-    g.disconnect();
-    src.stop();
-  });
+  // The source starts a little before the sound is heard (the master chain's look-ahead).
+  const nodeStart = engine.nodeTime(start);
+  src.start(nodeStart);
+  const shot: Shot = {
+    src,
+    gain: g,
+    start,
+    done: false,
+    onDone: null,
+    cancel: () => {
+      if (shot.done) return;
+      const now = engine.now();
+      try {
+        if (nodeStart > now || !engine.audible) {
+          // Its source has not started: remove it outright.
+          src.onended = null;
+          src.stop();
+          src.disconnect();
+          finish();
+        } else {
+          g.gain.setTargetAtTime(0, now, 0.003);
+          src.stop(now + 0.03);
+        }
+      } catch {
+        finish();
+      }
+    },
+  };
+  const finish = (): void => {
+    if (shot.done) return;
+    shot.done = true;
+    try {
+      g.disconnect();
+    } catch {
+      // already disconnected
+    }
+    const fn = shot.onDone;
+    shot.onDone = null;
+    fn?.();
+  };
+  src.onended = finish;
+  engine.guard(shot.cancel);
   engine.touch(start + buffer.duration + 1);
-  return { src, gain: g, start };
+  return shot;
 }
 
 async function breathe(since: number): Promise<number> {
@@ -66,6 +110,7 @@ export class DrumKit {
   private readonly active = new Set<Shot>();
   private readonly openHats = new Set<Shot>();
   private readonly turn = new Map<DrumName, number>();
+  private placesEngine: AudioEngine | null = null;
 
   constructor(engine?: AudioEngine) {
     this.fixedEngine = engine;
@@ -75,28 +120,45 @@ export class DrumKit {
     return this.fixedEngine ?? getEngine();
   }
 
+  /** False where there is no Web Audio at all: every method is then a silent no-op. */
+  private get available(): boolean {
+    return this.fixedEngine !== undefined || audioSupported();
+  }
+
   private buffer(name: DrumName, variant: number): AudioBuffer {
     const engine = this.engine;
     return engine.buffers.get(`drum:${name}:${variant}`, () => renderDrum(name, engine.sampleRate, variant));
   }
 
   private place(name: DrumName): AudioNode {
+    const current = this.engine;
+    if (this.placesEngine !== current) {
+      // The shared engine was closed and made again: the old panners belong to a context that is gone.
+      this.places.clear();
+      this.active.clear();
+      this.openHats.clear();
+      this.placesEngine = current;
+    }
     let node = this.places.get(name);
     if (!node) {
-      const engine = this.engine;
+      const engine = current;
       node = pannedInput(engine.ctx, engine.bus('drums'), DRUM_PAN[name] ?? 0);
       this.places.set(name, node);
     }
     return node;
   }
 
-  /** Hit a drum at audio time `when` (default now) with velocity 0..1; `gain` scales the result. */
-  play(name: DrumName, when?: number, velocity = 0.8, gain = 1): void {
+  /**
+   * Hit a drum at audio time `when` (default now) with velocity 0..1; `gain` scales the result.
+   * Returns false when nothing will be heard for certain (an unknown drum), true otherwise.
+   */
+  play(name: DrumName, when?: number, velocity = 0.8, gain = 1): boolean {
+    if (!isDrumName(name) || !this.available) return false;
     const engine = this.engine;
     const variants = DRUM_VARIANTS[name] ?? 1;
     const n = this.turn.get(name) ?? 0;
     this.turn.set(name, n + 1);
-    const shot = fire(engine, this.buffer(name, n % variants), this.place(name), when, drumGain(velocity) * gain);
+    const shot = fire(engine, this.buffer(name, n % variants), this.place(name), when, drumGain(finiteOr(velocity, 0.8)) * finiteOr(gain, 1));
     this.active.add(shot);
     if (HIHAT_CHOKERS.includes(name)) {
       // Closing the hi-hat silences an open one, as the pedal does.
@@ -112,19 +174,16 @@ export class DrumKit {
       }
     }
     if (name === 'hihatOpen') this.openHats.add(shot);
-    shot.src.onended = () => {
+    shot.onDone = () => {
       this.active.delete(shot);
       this.openHats.delete(shot);
-      try {
-        shot.gain.disconnect();
-      } catch {
-        // ignore
-      }
     };
+    return true;
   }
 
   /** Render every drum now so the first bar has no hitch. */
   async preload(names: readonly DrumName[] = DRUM_NAMES): Promise<void> {
+    if (!this.available) return;
     let t = typeof performance !== 'undefined' ? performance.now() : 0;
     for (const name of names) {
       for (let v = 0; v < (DRUM_VARIANTS[name] ?? 1); v++) {
@@ -134,11 +193,31 @@ export class DrumKit {
     }
   }
 
-  /** Cut everything that is sounding or scheduled (used when the transport pauses). */
+  /**
+   * Cut everything at `when` (default now): hits that are sounding fade in a few milliseconds, hits
+   * scheduled for later are removed, so nothing new is heard after a stop or a pause.
+   */
   stopAll(when?: number): void {
+    if (!this.active.size) return;
     const engine = this.engine;
-    const t = engine.nodeTime(Math.max(when ?? engine.now(), engine.now()));
-    for (const s of this.active) {
+    const at = engine.startTime(when);
+    const t = engine.nodeTime(at);
+    for (const s of [...this.active]) {
+      if (s.start >= at) {
+        s.onDone = null;
+        this.active.delete(s);
+        this.openHats.delete(s);
+        try {
+          s.src.onended = null;
+          s.src.stop();
+          s.src.disconnect();
+          s.gain.disconnect();
+        } catch {
+          // ignore
+        }
+        s.done = true;
+        continue;
+      }
       s.gain.gain.cancelScheduledValues(t);
       s.gain.gain.setTargetAtTime(0, t, 0.01);
       try {
@@ -147,6 +226,27 @@ export class DrumKit {
         // ignore
       }
     }
+  }
+
+  /** Number of hits sounding or scheduled. */
+  get activeHits(): number {
+    return this.active.size;
+  }
+
+  /** Stop everything and take the kit off the mixer. The kit can be used again afterwards. */
+  dispose(): void {
+    this.stopAll();
+    if (!this.places.size) return;
+    for (const node of this.places.values()) {
+      // A centred drum's place is the bus itself, which is not ours to disconnect.
+      if (node === this.engine.bus('drums')) continue;
+      try {
+        node.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    this.places.clear();
   }
 }
 
@@ -157,26 +257,38 @@ export function getDrums(): DrumKit {
   return (sharedKit ??= new DrumKit());
 }
 
-/** Hit a drum on the shared kit. */
-export function playDrum(name: DrumName, when?: number, velocity?: number): void {
-  getDrums().play(name, when, velocity);
+/** Hit a drum on the shared kit. Never throws; false means the name is not a drum. */
+export function playDrum(name: DrumName, when?: number, velocity?: number): boolean {
+  return getDrums().play(name, when, velocity);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Clicks and interface sounds
 // ---------------------------------------------------------------------------------------------
 
-/** Play one metronome click at audio time `when` (default now). */
-export function playClick(set: ClickSet, level: ClickLevel, when?: number, gain = 1, engine: AudioEngine = getEngine()): void {
-  const buffer = engine.buffers.get(`click:${set}:${level}`, () => renderClick(set, level, engine.sampleRate));
-  const shot = fire(engine, buffer, 'click', when, gain);
-  shot.src.onended = () => shot.gain.disconnect();
+const CLICK_LEVELS: readonly ClickLevel[] = ['accent', 'medium', 'beat', 'sub'];
+
+/**
+ * Play one metronome click at audio time `when` (default now). Returns a function that takes the
+ * click back: called before the click is heard it removes it without a sound (a metronome stopped
+ * with clicks still scheduled), called while it sounds it cuts it short.
+ */
+export function playClick(set: ClickSet, level: ClickLevel, when?: number, gain = 1, engine?: AudioEngine): () => void {
+  if (!engine && !audioSupported()) return () => undefined;
+  engine ??= getEngine();
+  const sound = normalizeClickSet(set);
+  const strength = CLICK_LEVELS.includes(level) ? level : 'beat';
+  const buffer = engine.buffers.get(`click:${sound}:${strength}`, () => renderClick(sound, strength, engine.sampleRate));
+  return fire(engine, buffer, 'click', when, gain).cancel;
 }
 
 /** Render a click set ahead of time. */
-export function preloadClicks(set: ClickSet, engine: AudioEngine = getEngine()): void {
-  for (const level of ['accent', 'medium', 'beat', 'sub'] as const) {
-    engine.buffers.get(`click:${set}:${level}`, () => renderClick(set, level, engine.sampleRate));
+export function preloadClicks(set: ClickSet, engine?: AudioEngine): void {
+  if (!engine && !audioSupported()) return;
+  const target = engine ?? getEngine();
+  const sound = normalizeClickSet(set);
+  for (const level of CLICK_LEVELS) {
+    target.buffers.get(`click:${sound}:${level}`, () => renderClick(sound, level, target.sampleRate));
   }
 }
 
@@ -193,17 +305,19 @@ export interface UiSoundOptions {
 /**
  * Play an interface sound. Never throws, so UI code can call it unconditionally: without audio it
  * does nothing, and a sound requested before the first user gesture is dropped rather than played
- * late.
+ * late. Returns true when audio is running and the sound will be heard.
  */
-export function playUi(name: UiSound, opts: UiSoundOptions = {}, engine?: AudioEngine): void {
+export function playUi(name: UiSound, opts: UiSoundOptions = {}, engine?: AudioEngine): boolean {
   try {
+    if (!UI_SOUNDS.includes(name) || (!engine && !audioSupported())) return false;
     const e = engine ?? getEngine();
-    const step = name === 'combo' ? Math.max(0, Math.floor(opts.step ?? 0)) : 0;
+    const step = name === 'combo' ? Math.max(0, Math.min(24, Math.floor(finiteOr(opts.step, 0)))) : 0;
     const buffer = e.buffers.get(`ui:${name}:${step}`, () => renderUiSound(name, e.sampleRate, step));
-    const shot = fire(e, buffer, 'ui', opts.when, clamp(opts.volume ?? 1, 0, 1.5));
-    shot.src.onended = () => shot.gain.disconnect();
+    fire(e, buffer, 'ui', opts.when, clamp(finiteOr(opts.volume, 1), 0, 1.5));
+    return e.audible;
   } catch {
     // Feedback sounds are never worth an error.
+    return false;
   }
 }
 
@@ -231,8 +345,10 @@ export interface ToneOptions {
 /** A sounding tone. */
 export interface ToneHandle {
   readonly startTime: number;
-  /** Frequency in Hz. */
+  /** Frequency in Hz (0 for a tone that could not be played). */
   readonly freq: number;
+  /** True when the tone was requested while audio was not running; it is dropped if audio does not start at once. */
+  readonly queued: boolean;
   /** Release the note at audio time `when` (default now). */
   stop(when?: number): void;
 }
@@ -275,19 +391,28 @@ function holdParam(param: AudioParam, time: number): void {
  * Play a pitched tone: a MIDI note (fractions allowed) or `{ freq }` in Hz, at audio time `when`.
  * `reference` is the tuner's reference note, `epiano` and `organ` are for ear training and comping.
  */
-export function playTone(note: number | { freq: number }, when?: number, opts: ToneOptions = {}, engine: AudioEngine = getEngine()): ToneHandle {
+export function playTone(note: number | { freq: number }, when?: number, opts: ToneOptions = {}, engine?: AudioEngine): ToneHandle {
+  // No Web Audio here at all: a handle that does nothing, so callers need no special case.
+  if (!engine && !audioSupported()) return { startTime: 0, freq: 0, queued: false, stop: () => undefined };
+  engine ??= getEngine();
   const ctx = engine.ctx;
-  const voice = opts.voice ?? 'reference';
-  const freq = toneFrequency(typeof note === 'number' ? { midi: note, a4: opts.a4, cents: opts.cents } : { freq: note.freq, cents: opts.cents });
-  const velocity = clamp(opts.velocity ?? 0.7, 0, 1);
-  const start = Math.max(when ?? engine.now(), engine.now());
+  const voice: ToneVoice = TONE_VOICES.includes(opts.voice as ToneVoice) ? (opts.voice as ToneVoice) : 'reference';
+  const a4 = clamp(finiteOr(opts.a4, 440), 220, 880);
+  const cents = clamp(finiteOr(opts.cents, 0), -2400, 2400);
+  const freq = toneFrequency(typeof note === 'number' ? { midi: note, a4, cents } : { freq: finiteOr(note?.freq, NaN), cents });
+  const start = engine.startTime(when);
+  // Garbage in, silence out: nothing below 8 Hz or above what the context can carry is a note.
+  if (!(freq >= 8 && freq <= engine.sampleRate * 0.45)) return { startTime: start, freq: 0, queued: false, stop: () => undefined };
+  const velocity = clamp(finiteOr(opts.velocity, 0.7), 0, 1);
+  const level = clamp(finiteOr(opts.gain, 1), 0, 8);
   const t0 = engine.nodeTime(start);
   const env = VOICE_ENVELOPE[voice];
   const amp = ctx.createGain();
   amp.gain.setValueAtTime(0, t0);
-  amp.connect(engine.bus(opts.bus ?? 'tone'));
+  amp.connect(engine.bus(BUS_NAMES.includes(opts.bus as BusName) ? (opts.bus as BusName) : 'tone'));
   const oscillators: OscillatorNode[] = [];
   let autoEnd = Infinity;
+  let peakLevel: number;
 
   if (voice === 'epiano') {
     const p = epianoParams(freq, velocity, engine.sampleRate);
@@ -316,8 +441,8 @@ export function playTone(note: number | { freq: number }, when?: number, opts: T
       pair(p.tineRatio, p.tineIndex, 0, p.tineIndexTau).connect(tine);
       tine.connect(amp);
     }
-    const peak = p.gain * (opts.gain ?? 1);
-    amp.gain.linearRampToValueAtTime(peak, t0 + env.attack);
+    peakLevel = p.gain * level;
+    amp.gain.linearRampToValueAtTime(peakLevel, t0 + env.attack);
     amp.gain.setTargetAtTime(0, t0 + env.attack, p.ampTau);
     autoEnd = start + p.ampTau * 6;
   } else {
@@ -327,23 +452,55 @@ export function playTone(note: number | { freq: number }, when?: number, opts: T
     osc.frequency.value = freq;
     osc.connect(amp);
     oscillators.push(osc);
-    amp.gain.linearRampToValueAtTime((0.2 + 0.8 * velocity) * pitchLoudnessTrim(freq) * 0.42 * (opts.gain ?? 1), t0 + env.attack);
+    peakLevel = (0.2 + 0.8 * velocity) * pitchLoudnessTrim(freq) * 0.42 * level;
+    amp.gain.linearRampToValueAtTime(peakLevel, t0 + env.attack);
   }
   for (const o of oscillators) o.start(t0);
-  engine.guard(() => {
-    amp.disconnect();
-    for (const o of oscillators) o.stop();
-  });
+  const queued = !engine.audible;
 
   // A note without a scheduled end keeps the context awake until it is stopped.
   let endAt = Infinity;
   let release: (() => void) | null = null;
+  /** Remove the tone without a sound: it was never heard, or it is stopped before it starts. */
+  const drop = (): void => {
+    endAt = -Infinity;
+    release?.();
+    release = null;
+    try {
+      amp.disconnect();
+    } catch {
+      // ignore
+    }
+    for (const o of oscillators) {
+      try {
+        o.onended = null;
+        o.stop();
+        o.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+  };
+  engine.guard(drop);
   const stop = (at?: number): void => {
-    const t = Math.max(at ?? engine.now(), engine.now());
+    const t = engine.startTime(at);
     if (t >= endAt) return;
+    if (t <= start) {
+      drop();
+      return;
+    }
     endAt = t;
     const node = engine.nodeTime(t);
-    holdParam(amp.gain, node);
+    if (node < t0 + env.attack) {
+      // The release starts inside the attack ramp. Rebuild the ramp so that it ends there, at the
+      // level it had reached: this does not depend on cancelAndHoldAtTime, which not every browser
+      // has (without it, cancelling would remove the whole ramp and the note would stay silent).
+      amp.gain.cancelScheduledValues(t0);
+      amp.gain.setValueAtTime(0, t0);
+      amp.gain.linearRampToValueAtTime(peakLevel * Math.max(0, (node - t0) / env.attack), node);
+    } else {
+      holdParam(amp.gain, node);
+    }
     amp.gain.setTargetAtTime(0, node, env.release / 3);
     for (const o of oscillators) {
       try {
@@ -365,18 +522,22 @@ export function playTone(note: number | { freq: number }, when?: number, opts: T
       // ignore
     }
   };
-  if (opts.duration !== undefined) stop(start + Math.max(0.01, opts.duration));
+  const duration = finiteOr(opts.duration, NaN);
+  if (duration >= 0) stop(start + Math.max(0.01, duration));
   else if (autoEnd !== Infinity) stop(autoEnd);
   else release = engine.hold();
-  return { startTime: start, freq, stop };
+  return { startTime: start, freq, queued, stop };
 }
 
 /** Play several tones together (a chord for ear training or comping). `roll` staggers the notes. */
-export function playChord(midis: readonly number[], when?: number, opts: ToneOptions & { roll?: number } = {}, engine: AudioEngine = getEngine()): ToneHandle[] {
-  const start = Math.max(when ?? engine.now(), engine.now());
+export function playChord(midis: readonly number[], when?: number, opts: ToneOptions & { roll?: number } = {}, engine?: AudioEngine): ToneHandle[] {
+  if (!engine && !audioSupported()) return midis.map((m) => playTone(m, when, opts));
+  engine ??= getEngine();
+  const start = engine.startTime(when);
   // Keep a stack of notes from adding up louder than one note.
-  const gain = (opts.gain ?? 1) / Math.sqrt(Math.max(1, midis.length));
-  return midis.map((m, i) => playTone(m, start + i * (opts.roll ?? 0), { ...opts, gain }, engine));
+  const gain = finiteOr(opts.gain, 1) / Math.sqrt(Math.max(1, midis.length));
+  const roll = clamp(finiteOr(opts.roll, 0), 0, 1);
+  return midis.map((m, i) => playTone(m, start + i * roll, { ...opts, gain }, engine));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -407,10 +568,14 @@ export interface DroneHandle {
  * Start a sustained drone (root, or root + fifth) to practise scales and intonation against.
  * It keeps the audio context awake until stopped.
  */
-export function startDrone(opts: DroneStartOptions = {}, engine: AudioEngine = getEngine()): DroneHandle {
+export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): DroneHandle {
+  if (!engine && !audioSupported()) {
+    return { setRoot: () => undefined, setFifth: () => undefined, setVolume: () => undefined, stop: () => undefined, running: false };
+  }
+  engine ??= getEngine();
   const ctx = engine.ctx;
   const out = ctx.createGain();
-  out.gain.value = clamp(opts.volume ?? 0.8, 0, 1.5);
+  out.gain.value = clamp(finiteOr(opts.volume, 0.8), 0, 1.5);
   const lowpass = ctx.createBiquadFilter();
   lowpass.type = 'lowpass';
   lowpass.frequency.value = DRONE_LOWPASS_HZ;
@@ -418,7 +583,7 @@ export function startDrone(opts: DroneStartOptions = {}, engine: AudioEngine = g
   lowpass.connect(out);
   out.connect(engine.bus('drone'));
   const wave = periodicWave(engine, 'drone', DRONE_PARTIALS);
-  const state = { root: opts.root ?? 45, fifth: !!opts.fifth, octave: opts.octave ?? true, a4: opts.a4 };
+  const state = { root: clamp(finiteOr(opts.root, 45), 0, 127), fifth: !!opts.fifth, octave: opts.octave ?? true, a4: clamp(finiteOr(opts.a4, 440), 220, 880) };
   let release: (() => void) | null = engine.hold();
   let running = true;
 
@@ -461,37 +626,74 @@ export function startDrone(opts: DroneStartOptions = {}, engine: AudioEngine = g
     const t = engine.now();
     layer.group.gain.cancelScheduledValues(t);
     layer.group.gain.setTargetAtTime(0, t, fade / 3);
-    for (const n of layer.nodes) n.stop(t + fade * 2);
-    layer.nodes[0].onended = () => layer.group.disconnect();
+    for (const n of layer.nodes) {
+      try {
+        n.stop(t + fade * 2);
+      } catch {
+        // ignore
+      }
+    }
+    layer.nodes[0].onended = () => {
+      try {
+        layer.group.disconnect();
+      } catch {
+        // ignore
+      }
+    };
   };
 
-  current = build(opts.fadeIn ?? 0.8);
+  current = build(clamp(finiteOr(opts.fadeIn, 0.8), 0.005, 10));
 
+  // A root dragged across a slider asks for dozens of changes a second. Each change crossfades to a
+  // new set of oscillators, so changes are spaced out: the latest request always wins, and no more
+  // than a handful of layers are ever alive at once.
+  const MIN_GAP_MS = 70;
+  let lastBuild = -Infinity;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const clock = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const rebuild = (): void => {
     if (!running) return;
-    if (current) retire(current, 0.35);
-    current = build(0.35);
+    const since = clock() - lastBuild;
+    if (since < MIN_GAP_MS) {
+      if (timer === null) {
+        timer = setTimeout(() => {
+          timer = null;
+          rebuild();
+        }, MIN_GAP_MS - since);
+      }
+      return;
+    }
+    // Changes in quick succession get a quick crossfade, a single change a gentle one.
+    const fade = since < 400 ? 0.12 : 0.35;
+    lastBuild = clock();
+    if (current) retire(current, fade);
+    current = build(fade);
   };
 
   return {
     setRoot(midi: number) {
-      state.root = midi;
+      if (!Number.isFinite(midi) || midi === state.root) return;
+      state.root = clamp(midi, 0, 127);
       rebuild();
     },
     setFifth(on: boolean) {
-      if (state.fifth === on) return;
-      state.fifth = on;
+      if (state.fifth === !!on) return;
+      state.fifth = !!on;
       rebuild();
     },
     setVolume(volume: number) {
+      if (!Number.isFinite(volume)) return;
       out.gain.setTargetAtTime(clamp(volume, 0, 1.5), engine.now(), 0.05);
     },
     stop(fade = 0.6) {
       if (!running) return;
       running = false;
-      if (current) retire(current, fade);
+      const f = clamp(finiteOr(fade, 0.6), 0.01, 10);
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      if (current) retire(current, f);
       current = null;
-      engine.touch(engine.now() + fade * 2 + 1);
+      engine.touch(engine.now() + f * 2 + 1);
       release?.();
       release = null;
       setTimeout(() => {
@@ -501,7 +703,7 @@ export function startDrone(opts: DroneStartOptions = {}, engine: AudioEngine = g
         } catch {
           // ignore
         }
-      }, (fade * 2 + 0.5) * 1000);
+      }, (f * 2 + 0.5) * 1000);
     },
     get running() {
       return running;

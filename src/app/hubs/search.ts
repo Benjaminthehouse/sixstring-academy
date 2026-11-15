@@ -62,13 +62,29 @@ function tokenScore(token: string, title: string[], keywords: string[], blurb: s
   return 0;
 }
 
+/** Small words that say nothing about which screen is wanted ("how do I tune my guitar"). */
+const FILLER: ReadonlySet<string> = new Set(['a', 'an', 'the', 'my', 'me', 'i', 'to', 'of', 'for', 'in', 'on', 'with', 'and', 'or', 'how', 'do', 'does', 'can', 'want', 'need', 'please', 'is', 'it', 'this', 'that', 'some']);
+
+/** Words that fit every screen of a guitar school. They count when they help ("guitar pro") and are dropped when they are all that stands in the way. */
+const SOFT: ReadonlySet<string> = new Set(['guitar', 'guitars']);
+
 /**
- * Routes matching every word of the query, best first; ties keep registry order. An empty query
- * matches nothing (the caller shows its normal content instead).
+ * Routes matching every meaningful word of the query, best first; ties keep registry order. Filler
+ * words are ignored, so a question typed in full still finds its screen. An empty query matches
+ * nothing (the caller shows its normal content instead).
  */
 export function searchRoutes(query: string, routes: readonly RouteDef[]): SearchHit[] {
-  const tokens = searchTokens(query);
-  if (tokens.length === 0) return [];
+  const typed = searchTokens(query);
+  if (typed.length === 0) return [];
+  const meaningful = typed.filter((token) => !FILLER.has(token));
+  const tokens = meaningful.length > 0 ? meaningful : typed;
+  const hits = matchRoutes(tokens, routes);
+  if (hits.length > 0) return hits;
+  const narrowed = tokens.filter((token) => !SOFT.has(token));
+  return narrowed.length > 0 && narrowed.length < tokens.length ? matchRoutes(narrowed, routes) : hits;
+}
+
+function matchRoutes(tokens: readonly string[], routes: readonly RouteDef[]): SearchHit[] {
   const hits: Array<SearchHit & { order: number }> = [];
   routes.forEach((route, order) => {
     const title = wordsOf(`${route.title} ${route.name}`);

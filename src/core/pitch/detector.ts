@@ -50,6 +50,14 @@ export interface PitchDetectorOptions {
    * note; higher = more tolerant of notes whose odd partials are weak.
    */
   peakThreshold?: number;
+  /**
+   * The same fraction for frames analysed without a hint, i.e. the first frames of a note (default:
+   * `peakThreshold`). The live engine raises it to 0.9: it knows from the tracker which note was
+   * ringing before the pluck, so the tolerance for an unknown ringing string is not needed there,
+   * and the stricter rule keeps a note whose fundamental and odd partials are weak (a reflection
+   * off the desk cancelling them, an overdriven amp) from being read an octave or a twelfth high.
+   */
+  freshThreshold?: number;
   /** A short analysis window is trusted when its clarity reaches this (default 0.9); else a longer one is tried. */
   acceptClarity?: number;
   /** Frames quieter than this RMS (linear, full scale 1) are not analysed. Default 0.0004 (-68 dBFS). */
@@ -113,6 +121,9 @@ const HINT_KEEP_LOWER = 0.93;
 /** With a hint, the hinted (shorter) lag survives down to this fraction of the usual threshold. */
 const HINT_KEEP_UPPER = 0.875;
 
+/** A period shorter than the range allows, this periodic relative to the best lag inside it, voids the frame. */
+const ABOVE_RANGE = 0.9;
+
 /** A shorter lag this strong (relative to the best peak) is examined as "the louder of two notes". */
 const TWO_NOTE_MIN = 0.5;
 /** ...and accepted when this share of the remaining energy forms a second harmonic series of its own. */
@@ -166,6 +177,7 @@ export class PitchDetector {
   private readonly stages: Stage[] = [];
   private readonly tauMin: number;
   private readonly k: number;
+  private readonly kFresh: number;
   private readonly accept: number;
   private readonly gate: number;
   private readonly fineHarmonics: number;
@@ -192,6 +204,7 @@ export class PitchDetector {
     this.minFreq = opts.minFreq ?? 60;
     this.maxFreq = Math.min(opts.maxFreq ?? 1760, sr / 5);
     this.k = opts.peakThreshold ?? 0.8;
+    this.kFresh = opts.freshThreshold ?? this.k;
     this.accept = opts.acceptClarity ?? 0.9;
     this.gate = opts.gateRms ?? 0.0004;
     this.fineHarmonics = opts.fineHarmonics ?? 4.2;
@@ -350,6 +363,14 @@ export class PitchDetector {
     let t0 = 1;
     while (t0 <= tauMax && nsdf[t0] > 0) t0++;
     if (t0 > tauMax) return null;
+    // A sound that repeats faster than the highest note looked for (a finger squeaking along a
+    // wound string, a whistle) shows its true period before `tauMin`. Remember how periodic it
+    // is there: the lags inside the range would only be multiples of that period.
+    let above = 0;
+    for (let t = t0 + 1; t < this.tauMin; t++) {
+      const v = nsdf[t];
+      if (v > above && v > nsdf[t - 1] && v >= nsdf[t + 1]) above = v;
+    }
     if (t0 < this.tauMin) t0 = this.tauMin;
 
     const peaks = this.peakIdx;
@@ -363,8 +384,11 @@ export class PitchDetector {
       }
     }
     if (count === 0) return null;
+    // Nearly as periodic above the range as anywhere inside it: not a note this detector should name.
+    if (above >= ABOVE_RANGE * nmax) return null;
 
-    const thr = this.k * nmax;
+    // With a hint the held note has hysteresis of its own (below), so the tolerant threshold applies.
+    const thr = (tauHint > 0 ? this.k : this.kFresh) * nmax;
     let ci = 0;
     while (ci < count && nsdf[peaks[ci]] < thr) ci++;
     if (ci >= count) ci = count - 1;
@@ -716,7 +740,7 @@ export function detectPitch(
   opts: Omit<PitchDetectorOptions, 'sampleRate'> & { hintFreq?: number } = {},
 ): PitchEstimate {
   const { hintFreq, ...rest } = opts;
-  const key = [sampleRate, rest.minFreq, rest.maxFreq, rest.peakThreshold, rest.acceptClarity, rest.gateRms, rest.fineHarmonics, rest.finePeriods, rest.stiffness].join('|');
+  const key = [sampleRate, rest.minFreq, rest.maxFreq, rest.peakThreshold, rest.freshThreshold, rest.acceptClarity, rest.gateRms, rest.fineHarmonics, rest.finePeriods, rest.stiffness].join('|');
   let det = detectorCache.get(key);
   if (!det) {
     det = new PitchDetector({ sampleRate, ...rest });

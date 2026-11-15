@@ -79,7 +79,7 @@ export function ErrorState({ title = 'Something went wrong', children, actions, 
         {(onRetry || actions != null) && (
           <div className={styles.actions}>
             {onRetry && (
-              <Button variant="primary" iconLeft="RotateCw" onClick={onRetry}>
+              <Button variant="primary" iconLeft="RotateCw" wrap onClick={onRetry}>
                 {retryLabel}
               </Button>
             )}
@@ -143,12 +143,12 @@ export function MediaBlocked({ reason, device, onRetry, onContinueWithout, conti
         {(canRetry || onContinueWithout) && (
           <div className={styles.actions}>
             {canRetry && (
-              <Button variant="primary" iconLeft="RotateCw" onClick={onRetry}>
+              <Button variant="primary" iconLeft="RotateCw" wrap onClick={onRetry}>
                 Try again
               </Button>
             )}
             {onContinueWithout && (
-              <Button variant={canRetry ? 'secondary' : 'primary'} onClick={onContinueWithout}>
+              <Button variant={canRetry ? 'secondary' : 'primary'} wrap onClick={onContinueWithout}>
                 {continueLabel ?? `Continue without the ${device}`}
               </Button>
             )}

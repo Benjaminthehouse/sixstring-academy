@@ -326,7 +326,9 @@ export function detectStaves(bin: BinaryImage, opts: DetectStavesOptions = {}): 
           const o = lines[j];
           const gap = o.first - cur.last;
           if (gap < 1 || gap > mergeGap) continue;
-          const tol = Math.min(0.4 * s, 1.2 + 0.03 * gap * B);
+          // Chains usually break where a tie or a head pulled their last dots off the line, so the
+          // ends disagree by more than the line itself wanders.
+          const tol = Math.min(0.4 * s, Math.max(0.14 * s, 1.2 + 0.03 * gap * B));
           const e1 = Math.abs(lineAt(cur, o.first) - o.ys[0]);
           const e2 = Math.abs(lineAt(o, cur.last) - cur.ys[cur.ys.length - 1]);
           if (e1 > tol || e2 > tol) continue;
@@ -470,7 +472,7 @@ export function detectStaves(bin: BinaryImage, opts: DetectStavesOptions = {}): 
           break;
         }
       }
-      if (members.length >= 4) {
+      if (members.length >= 3) {
         const real = members.filter((m) => m >= 0);
         const cov = real.reduce((a, m) => a + lines[m].coverage, 0) / real.length;
         candidates.push({ members, d, score: real.length * 10 + cov - (members.length - real.length) * 4 });
@@ -489,7 +491,7 @@ export function detectStaves(bin: BinaryImage, opts: DetectStavesOptions = {}): 
     // Trim weak outer members: rows of ledger lines chain into short, sparse traces.
     for (;;) {
       const real = members.filter((m) => m >= 0);
-      if (real.length < 4) break;
+      if (real.length < 3) break;
       const spans = real.map((m) => lines[m].last - lines[m].first + 1);
       const covs = real.map((m) => lines[m].coverage);
       const medSpan = median(spans);
@@ -514,8 +516,9 @@ export function detectStaves(bin: BinaryImage, opts: DetectStavesOptions = {}): 
       }
       break;
     }
+    // Three found lines are enough to start from: the missing ones are looked for on the image below.
     const real = members.filter((m) => m >= 0);
-    if (real.length < 3 || members.length < 4) continue;
+    if (real.length < 3) continue;
     if (real.some((m) => used[m])) continue;
 
     // Common span and a model y(l, slice) for every staff line (found or predicted).

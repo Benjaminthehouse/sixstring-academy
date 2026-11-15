@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { useProgress } from '@/core/progress';
 import { redirect, useRoute } from '../router';
+// Imported here (not in the lazy flow) so it is already listening when the flow is opened by a key press.
+import '../shell/modality';
 import { useSignal } from '../shell/signal';
 import { loadOnboarding, shouldAutoOpen } from './model';
 import { onboardingOpen, openOnboarding } from './store';

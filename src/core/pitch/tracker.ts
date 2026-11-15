@@ -129,6 +129,7 @@ export class PitchTracker implements PitchSource {
   private engine: PitchEngine | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private trackEnded: (() => void) | null = null;
+  private unwake: (() => void) | null = null;
   private activeNote: { midi: number; start: number } | null = null;
   private lastEventTime = 0;
 
@@ -270,6 +271,23 @@ export class PitchTracker implements PitchSource {
         const onEnded = (): void => this.fail('device-lost');
         track.addEventListener('ended', onEnded);
         this.trackEnded = () => track.removeEventListener('ended', onEnded);
+      }
+      if (this.ownsContext && typeof document !== 'undefined') {
+        // A phone suspends the context when the page goes to the background or a call comes in
+        // ("interrupted" on iOS). Nothing restarts it by itself: without this the tracker would
+        // stay silent after the learner comes back. (A shared context is its owner's to manage.)
+        const wake = (): void => {
+          const state = ctx.state as string;
+          if (document.visibilityState !== 'hidden' && (state === 'suspended' || state === 'interrupted')) {
+            void ctx.resume().catch(() => undefined);
+          }
+        };
+        document.addEventListener('visibilitychange', wake);
+        ctx.addEventListener('statechange', wake);
+        this.unwake = () => {
+          document.removeEventListener('visibilitychange', wake);
+          ctx.removeEventListener('statechange', wake);
+        };
       }
       const settings = (track?.getSettings?.() ?? {}) as MediaTrackSettings & { latency?: number };
       this.currentInfo = {
@@ -470,6 +488,8 @@ export class PitchTracker implements PitchSource {
     }
     this.trackEnded?.();
     this.trackEnded = null;
+    this.unwake?.();
+    this.unwake = null;
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage({ type: 'stop' });

@@ -50,6 +50,21 @@ export type EngineConfigPatch = Partial<Pick<PitchEngineOptions, 'a4' | 'minFreq
 /** Sample count above which the input is considered to be clipping. */
 const CLIP_LEVEL = 0.985;
 
+/**
+ * A dropped buffer (an overloaded device, a Bluetooth hiccup) is a run of exactly-zero samples
+ * between these lengths (seconds) that cuts into sound at full level, with no fade...
+ */
+const GAP_MIN_S = 0.0015;
+const GAP_MAX_S = 0.08;
+/** ...the level just before the cut being at least this fraction of the level over the last 20 ms. */
+const GAP_CUT_RATIO = 0.25;
+/**
+ * The audio coming back after a dropped buffer is not a pluck: an onset up to this long after it
+ * (seconds) is ignored unless the sound returns this many times louder than it was cut off.
+ */
+const GAP_GUARD_S = 0.03;
+const GAP_LOUDER = 2.5;
+
 /** The streaming analysis engine. Feed it consecutive chunks of mono audio of any size. */
 export class PitchEngine {
   /** Sample rate in Hz. */
@@ -82,6 +97,16 @@ export class PitchEngine {
   private clipCount = 0;
   private clipUntil = -1;
   private pendingOnset: number | undefined;
+  // Dropped-buffer detection (see GAP_MIN_S): fast (1 ms) and slow (20 ms) level followers, the
+  // current run of zeros with the levels where it began, and the latest gap found.
+  private envFast = 0;
+  private envSlow = 0;
+  private zeroRun = 0;
+  private cutFast = 0;
+  private cutSlow = 0;
+  private gapStart = -1;
+  private gapEnd = -1;
+  private gapLevel = 0;
 
   constructor(opts: PitchEngineOptions) {
     if (!(opts.sampleRate > 0)) throw new Error('PitchEngine needs a sample rate');
@@ -96,6 +121,9 @@ export class PitchEngine {
     this.detector = new PitchDetector({
       // The tracker's adaptive gate decides what is a note; the detector only skips true silence.
       gateRms: 0.00015,
+      // The tracker tells the detector which note was ringing before a pluck, so the first frames
+      // of a note can use the stricter octave rule (see PitchDetectorOptions.freshThreshold).
+      freshThreshold: 0.9,
       ...o.detector,
       sampleRate: sr,
       minFreq: o.minFreq,
@@ -128,6 +156,11 @@ export class PitchEngine {
     this.clipCount = 0;
     this.clipUntil = -1;
     this.pendingOnset = undefined;
+    this.envFast = 0;
+    this.envSlow = 0;
+    this.zeroRun = 0;
+    this.gapStart = -1;
+    this.gapEnd = -1;
     this.hpS1 = 0;
     this.hpS2 = 0;
     this.onsets.reset(origin);
@@ -203,6 +236,13 @@ export class PitchEngine {
     const { b0, b1, b2, a1, a2 } = this.hp;
     let s1 = this.hpS1;
     let s2 = this.hpS2;
+    const gapMin = Math.ceil(GAP_MIN_S * this.sampleRate);
+    const gapMax = Math.floor(GAP_MAX_S * this.sampleRate);
+    const kFast = 1 - Math.exp(-1 / (0.001 * this.sampleRate));
+    const kSlow = 1 - Math.exp(-1 / (0.02 * this.sampleRate));
+    let zeroRun = this.zeroRun;
+    let envFast = this.envFast;
+    let envSlow = this.envSlow;
     let i = 0;
     while (i < n) {
       const take = Math.min(n - i, this.hop - this.sinceHop);
@@ -217,6 +257,24 @@ export class PitchEngine {
       for (let j = 0; j < take; j++) {
         const x = chunk[i + j];
         const ax = x < 0 ? -x : x;
+        if (ax === 0) {
+          if (zeroRun === 0) {
+            this.cutFast = envFast;
+            this.cutSlow = envSlow;
+          }
+          zeroRun++;
+        } else if (zeroRun > 0) {
+          // A microphone never delivers a stretch of exact zeros in the middle of a sound; a device
+          // that skipped a buffer does. (A note that was damped or gated fades out first.)
+          if (zeroRun >= gapMin && zeroRun <= gapMax && this.cutSlow > 1e-4 && this.cutFast > GAP_CUT_RATIO * this.cutSlow) {
+            this.gapEnd = this.samples + j;
+            this.gapStart = this.gapEnd - zeroRun;
+            this.gapLevel = this.cutSlow;
+          }
+          zeroRun = 0;
+        }
+        envFast += kFast * (ax - envFast);
+        envSlow += kSlow * (ax - envSlow);
         if (ax > this.peak) this.peak = ax;
         if (ax >= CLIP_LEVEL) this.clipCount++;
         const y = b0 * x + s1;
@@ -233,6 +291,11 @@ export class PitchEngine {
       this.onsetOut.length = 0;
       this.onsets.process(take === seg.length ? seg : seg.subarray(0, take), this.onsetOut);
       for (const o of this.onsetOut) {
+        if (this.gapEnd >= 0) {
+          const at = (o.time - this.origin) * this.sampleRate;
+          const inGap = at >= this.gapStart - 0.005 * this.sampleRate && at <= this.gapEnd + GAP_GUARD_S * this.sampleRate;
+          if (inGap && envFast < GAP_LOUDER * this.gapLevel) continue;
+        }
         out.push({ type: 'onset', time: o.time, strength: o.strength, levelDb: o.levelDb });
         this.pendingOnset = o.time;
       }
@@ -241,6 +304,9 @@ export class PitchEngine {
         this.frame(out);
       }
     }
+    this.zeroRun = zeroRun;
+    this.envFast = envFast;
+    this.envSlow = envSlow;
     this.hpS1 = s1;
     this.hpS2 = s2;
     // Denormals would slow the filter to a crawl in long silences.

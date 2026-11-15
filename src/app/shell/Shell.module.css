@@ -39,6 +39,24 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/*
+ * Safety net. Screens get their gutters from <Page>; a bare element with no class of its own (a
+ * placeholder, a screen still being written) would otherwise sit flush against the edge of the
+ * window. It gets the same column as a Page, through margins so its own padding is left alone.
+ * Anything styled (it has a class) or built on Page is untouched, so full-bleed tools still
+ * reach the edges.
+ */
+.main > :not([class]):not(:has([data-ui-page])) {
+  --_safe: var(--sp-4);
+  margin-inline: max(var(--_safe), env(safe-area-inset-left, 0px), calc((100% - var(--content-max)) / 2))
+    max(var(--_safe), env(safe-area-inset-right, 0px), calc((100% - var(--content-max)) / 2));
+  overflow-wrap: anywhere;
+}
+@media (min-width: 720px) {
+  .main > :not([class]):not(:has([data-ui-page])) {
+    --_safe: var(--sp-8);
+  }
+}
 /* <main> only takes focus from the skip link; a ring around the whole screen would be noise. */
 .main:focus,
 .main:focus-visible {
@@ -76,8 +94,15 @@
   padding: env(safe-area-inset-top, 0px) max(var(--sp-2), env(safe-area-inset-right, 0px)) 0 var(--gutter);
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 84%, transparent);
-  backdrop-filter: saturate(1.5) blur(14px);
   -webkit-backdrop-filter: saturate(1.5) blur(14px);
+  backdrop-filter: saturate(1.5) blur(14px);
+  /*
+   * The bar measures itself (see the @container rules here and in Brand.module.css): on a 320 px
+   * phone, or at a large text size, the brand gives way to the progress chips. Should a row still
+   * not fit, it is clipped rather than widening the page and dragging the tab bar off screen.
+   */
+  container-type: inline-size;
+  overflow-x: clip;
 }
 .topbarFocus {
   padding-left: max(var(--sp-1), env(safe-area-inset-left, 0px));
@@ -86,7 +111,9 @@
 .topbarBrand {
   display: inline-flex;
   align-items: center;
-  flex: none;
+  flex: 0 1 auto;
+  /* The mark alone is 28 px: keep the link a full touch target, with the mark on the gutter line. */
+  min-width: var(--tap);
   min-height: var(--tap);
   border-radius: var(--r-md);
   color: var(--fg);
@@ -96,6 +123,12 @@
 .topbarBrand:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+/* Text so large that even the mark and the four chips do not share the row: the chips win (Today is also the first tab). */
+@container (max-width: 11rem) {
+  .topbarBrand {
+    display: none;
+  }
 }
 .topbarBack {
   flex: none;
@@ -141,8 +174,8 @@
   padding: 0 max(var(--sp-1), env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(var(--sp-1), env(safe-area-inset-left, 0px));
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: saturate(1.5) blur(16px);
   -webkit-backdrop-filter: saturate(1.5) blur(16px);
+  backdrop-filter: saturate(1.5) blur(16px);
 }
 .tabbarEntering {
   animation: tabbarIn var(--dur-2) var(--ease);
@@ -266,6 +299,12 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  border-radius: var(--r-md);
+  transition: background var(--dur-1) var(--ease);
+}
+/* The current destination is one pill across the whole row, fold button included, like Today and Me. */
+.destRowCurrent {
+  background: var(--accent-soft);
 }
 .dest {
   display: flex;
@@ -301,6 +340,12 @@
 .dest[aria-current='page'] {
   font-weight: 700;
 }
+.destRowCurrent .dest {
+  background: none;
+}
+.destRowCurrent .destToggle {
+  color: var(--accent-text);
+}
 .destToggle {
   display: grid;
   place-items: center;
@@ -311,7 +356,7 @@
   border: 0;
   border-radius: var(--r-md);
   background: none;
-  color: var(--fg-faint);
+  color: var(--fg-muted);
   transition:
     background var(--dur-1) var(--ease),
     color var(--dur-1) var(--ease);
@@ -358,6 +403,11 @@
   .levelLink:hover {
     background: var(--surface-2);
     color: var(--fg);
+  }
+  /* On the amber pill a grey hover patch would look like a hole: tint it instead. */
+  .destRowCurrent .destToggle:hover {
+    background: color-mix(in srgb, var(--accent-text) 14%, transparent);
+    color: var(--accent-text);
   }
 }
 .dest:focus-visible,
@@ -419,7 +469,8 @@
 .levelNote {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--fg-faint);
+  /* Small text: --fg-faint is below 4.5:1 on the sidebar surface in both themes. */
+  color: var(--fg-muted);
   line-height: 1;
 }
 

@@ -105,6 +105,39 @@ function ToastCard({ item }: { item: ToastItem }) {
 export function ToastViewport() {
   const items = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const listRef = useRef<HTMLOListElement | null>(null);
+  /** Where focus was before the keyboard shortcut moved it into a toast. */
+  const returnTo = useRef<HTMLElement | null>(null);
+
+  // A toast leaves after a few seconds and sits at the very end of the tab order, so its action
+  // ("Undo") would be out of reach of the keyboard. Alt+T moves focus to the newest toast, which
+  // also stops the countdowns; Escape there dismisses it; focus then goes back where it was.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const list = listRef.current;
+      if (!list) return;
+      const inside = list.contains(document.activeElement);
+      // `code`, not `key`: Alt+T types a dagger on a Mac keyboard.
+      if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyT') {
+        const newest = list.lastElementChild;
+        const target = newest?.querySelector<HTMLElement>('button');
+        if (!target) return;
+        event.preventDefault();
+        if (!inside && document.activeElement instanceof HTMLElement) returnTo.current = document.activeElement;
+        target.focus();
+        return;
+      }
+      if (event.key === 'Escape' && inside) {
+        const id = (document.activeElement as HTMLElement).closest('[data-toast]')?.getAttribute('data-toast');
+        if (!id) return;
+        // Handled here: a dialog underneath must not close on the same key press.
+        event.preventDefault();
+        event.stopPropagation();
+        store.dismiss(id);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, []);
 
   // A toast removed from under the pointer (or while its button has focus) fires no pointerleave or
   // blur, which would leave the countdowns paused for good. Re-check whenever the stack changes.
@@ -117,7 +150,14 @@ export function ToastViewport() {
     } catch {
       /* no :hover support in this environment */
     }
-    if (!hovered && !el.contains(document.activeElement)) store.resume();
+    const focusInside = el.contains(document.activeElement);
+    if (!hovered && !focusInside) store.resume();
+    // The toast that held focus is gone (dismissed, acted on): hand focus back rather than drop it on <body>.
+    const back = returnTo.current;
+    if (back && !focusInside) {
+      returnTo.current = null;
+      if ((document.activeElement === document.body || document.activeElement === null) && back.isConnected) back.focus({ preventScroll: true });
+    }
   }, [items]);
 
   return (
@@ -126,6 +166,7 @@ export function ToastViewport() {
         ref={listRef}
         className={styles.viewport}
         aria-label="Notifications"
+        aria-keyshortcuts="Alt+T"
         aria-live="polite"
         aria-relevant="additions text"
         onPointerEnter={() => store.pause()}

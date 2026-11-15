@@ -34,6 +34,9 @@ vi.mock('./routes', async () => {
         throw new Error('kaboom');
       },
     })),
+    def('gone', 'Gone', 'tools', true, async () => {
+      throw new TypeError('Failed to fetch dynamically imported module: http://localhost/assets/gone-abc123.js');
+    }),
     def('titled', 'Songs', 'play', true, screen('titled', () => useScreenTitle('Greensleeves'))),
     def('deep', 'Deep', 'play', true, screen('deep', () => useImmersive())),
     def('bare', 'Bare', 'play', true, screen('bare', () => useImmersive(true, 'bare'))),
@@ -162,11 +165,44 @@ describe('the screen outlet', () => {
     const alert = main().querySelector('[role="alert"]');
     expect(alert?.textContent).toContain('Boom hit a problem');
     expect(alert?.textContent).toContain('Try again');
-    expect(alert?.textContent).toContain('Reload the app');
+    expect(alert?.textContent).toContain('Go back');
+    // One main button at a time: a reload is only offered once a retry has failed too.
+    expect(alert?.textContent).not.toContain('Reload the app');
     expect(tabBar()).not.toBeNull();
     expect(errors).toHaveBeenCalled();
     await go('#tuner');
     expect(main().querySelector('[role="alert"]')).toBeNull();
+    expect(main().querySelector('[data-screen="tuner"]')).not.toBeNull();
+  });
+
+  it('offers a reload once trying again has failed too, and starts over on the next screen', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await mount('#boom');
+    const button = (label: string) => Array.from(main().querySelectorAll('button')).find((b) => b.textContent?.includes(label));
+    await act(async () => {
+      button('Try again')?.click();
+    });
+    await settle();
+    const alert = main().querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('It failed again');
+    expect(button('Reload the app')).toBeDefined();
+    expect(button('Try again')).toBeUndefined();
+    // The count belongs to the screen that failed: after leaving and coming back it is a first failure again.
+    await go('#tuner');
+    await go('#boom');
+    expect(button('Try again')).toBeDefined();
+    expect(button('Reload the app')).toBeUndefined();
+  });
+
+  it('says so when a screen never arrived, and leads with the reload that can fetch it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await mount('#gone');
+    const alert = main().querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Gone did not load');
+    expect(alert?.textContent).toContain('Reload the app');
+    expect(alert?.textContent).not.toContain('Try again');
+    expect(tabBar()).not.toBeNull();
+    await go('#tuner');
     expect(main().querySelector('[data-screen="tuner"]')).not.toBeNull();
   });
 });
@@ -236,7 +272,7 @@ describe('accessibility hooks', () => {
   it('offers a skip link that moves focus to main without changing the route', async () => {
     await mount('#tuner');
     const skip = document.querySelector('a[href="#main"]') as HTMLAnchorElement;
-    expect(skip.textContent).toBe('Skip to content');
+    expect(skip.textContent).toBe('Jump to content');
     await act(async () => {
       skip.click();
     });

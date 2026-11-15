@@ -255,7 +255,55 @@ They are fictional. Their lessons are authored content, so they work offline.
 
 ## Gamification vocabulary
 
-XP (experience), level, daily goal, streak (consecutive days with XP), hearts (mistake budget
+XP (experience), level, daily goal, streak (consecutive local days with the daily goal met), hearts (mistake budget
 inside theory lessons), gems (earned currency), crowns/stars (mastery per skill), achievements.
 All state lives in `core/progress`; screens report activity through it and never keep their own
 persistent counters.
+
+## What already exists (read the digests, do not re-invent)
+
+Every finished module has an `API.md` digest. Read the ones you depend on **before** writing code,
+and use what is there instead of building a private copy.
+
+| Digest | What it gives you |
+| --- | --- |
+| `src/ui/API.md` | Every UI component and hook (Page, Card, Button, Sheet, Modal, toasts, Tabs, Slider, Stepper, ProgressRing, Celebration, EmptyState, MediaBlocked, ...). Gallery at `#kit`. |
+| `src/app/API.md` | What the shell offers a screen: `useImmersive`, `useScreenTitle`, `--sticky-top/--sticky-bottom`, the e2e storage seed that skips the first-run flow. |
+| `src/core/progress/API.md` | XP, streak, hearts, gems, skills and crowns, spaced repetition, quests, achievements, `recordActivity`, skill-id conventions. |
+| `src/core/platform/API.md` | AI (`ask`, `askJson`, images), saving files, picking/pasting/dropping files, cloud sync, speech, wake lock. |
+| `src/core/theory/API.md` | Notes, intervals, scales, chords, keys, harmony, progressions analysis. |
+| `src/core/audio/API.md` | Audio engine: guitar voice, metronome, transport, backing band, UI sounds. |
+| `src/core/pitch/API.md` | Microphone pitch detection, tuner logic, note/chord listening. |
+| `src/core/guitar/API.md`, `src/ui/music/API.md`, `src/core/song/API.md`, `src/core/vision/API.md`, `src/core/omr/API.md` | Present once those modules land. If a digest is missing, the module is not ready: do not depend on it. |
+
+### Rules every screen follows
+
+- A screen's root is `<Page>` from `@/ui` (it owns gutters and max width). Type and colour come
+  from `<Text>` / `<Heading>` and tokens, never inline styles or literal colours.
+- Coloured **text** uses `<Text tone>` or the `--*-text` tokens (`--ok-text`, `--bad-text`,
+  `--warn-text`, `--streak-text`, `--gem-text`, `--heart-text`, `--xp-text`, `--info-text`). The
+  plain `--ok`, `--streak`, `--gem` ... are fills and icon colours and fail contrast as small text.
+- Note dots use `--deg-N` with `--deg-N-fg` labels, finger dots `--finger-N` with `--finger-N-fg`.
+- Report what the learner did with `recordActivity` (one call per finished round or session) so
+  XP, streak, quests and achievements move. Follow the skill-id conventions in the progress digest.
+- Microphone and camera go through `@/core/platform` (`requestMic`, `requestCamera`) and failures
+  render `<MediaBlocked>`; a screen never dead-ends when a device is missing: offer the no-device
+  way to do the same thing (tap, play by ear, reference tone).
+- Full-screen activities (a lesson, a game round, the player, the camera) call
+  `useImmersive(true, 'focus')`.
+- Phone is below 720 px for components (`useIsMobile()`); the shell keeps the bottom tab bar up to
+  900 px. Fixed bars: respect `--sticky-top` / `--sticky-bottom`.
+- A fresh browser profile opens the first-run flow on `#home`. Browser checks either start on your
+  own route or seed storage as described in `src/app/API.md`.
+- `e2e/shot.cjs` is your eyes: look at your screen on phone and desktop, light and dark, before you
+  call it done. Put lasting browser checks in `e2e/<your-feature>.cjs` (use `e2e/lib/harness.cjs`),
+  not in a scratch directory.
+
+### The build machine is shared
+
+Up to a dozen agents use this 4-core machine at once. A timing-sensitive check (audio scheduling,
+frame rate, a Playwright wait) that fails once is probably load: re-run it before believing it, use
+generous timeouts, and never weaken product code to satisfy a check that only fails under load.
+Run scoped commands (`npx vitest run src/features/<yours>`, `npx tsc --noEmit`) rather than the
+whole suite in a loop. If `tsc` shows errors only in files that are not yours, another agent is
+mid-edit: say so in your report and carry on.

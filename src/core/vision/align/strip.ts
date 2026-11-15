@@ -9,8 +9,8 @@ import { boardEdgePlaneLine, boardWidthAt, fretPlaneLine, fretX, homographyFromP
 import type { Mat3, NeckModel } from '../types';
 import { angleDiffDeg, type RidgeField } from './axis';
 import { combPosition, type Comb, type LineProfile, type NormalModel } from './comb';
-import { ridgeAt } from './features';
 import type { GrayImage } from './image';
+import { wireResponse } from './refine';
 
 /** A fret wire followed across the board. */
 export interface FretTrace {
@@ -55,12 +55,10 @@ export interface Strip {
 const LAT_STEP = 1.5;
 const LAT_REACH = 76; // samples to either side: 114 pixels
 const LAT_N = 2 * LAT_REACH + 1;
+/** After this many consecutive samples without wire (30 pixels) a fret is not followed any further. */
+const GONE_FOR_GOOD = 20;
 
-function response(fine: GrayImage, coarse: GrayImage, x: number, y: number, nx: number, ny: number, polarity: number): number {
-  const a = polarity * ridgeAt(fine, x, y, nx, ny, 2);
-  const b = polarity * ridgeAt(coarse, x, y, nx, ny, 4) * 0.8;
-  return a > b ? a : b;
-}
+const response = wireResponse;
 
 /** Best response within a small tube around a point (the fret may be a pixel off the straight line we assume). */
 function tube(fine: GrayImage, coarse: GrayImage, x: number, y: number, nx: number, ny: number, polarity: number): number {
@@ -220,14 +218,27 @@ export function measureStrip(fine: GrayImage, coarse: GrayImage, profile: LinePr
     strengths.push(ref);
     const thr = Math.max(0.3, 0.35 * ref);
     const row = i * LAT_N;
-    for (let k = -LAT_REACH; k <= LAT_REACH; k++) {
-      const x = px[i] + dx * k * LAT_STEP;
-      const y = py[i] + dy * k * LAT_STEP;
-      if (x < 3 || y < 3 || x > W - 3 || y > Hh - 3) {
-        PRESENT[row + k + LAT_REACH] = 2; // outside the image: says nothing
-        continue;
+    PRESENT[row + LAT_REACH] = 1;
+    // Walk outward on each side; once the wire has been gone for a good stretch there is no need to look further.
+    for (let sign = -1; sign <= 1; sign += 2) {
+      let gone = 0;
+      for (let k = 1; k <= LAT_REACH; k++) {
+        const slot = row + LAT_REACH + sign * k;
+        if (gone >= GONE_FOR_GOOD) {
+          PRESENT[slot] = 0;
+          continue;
+        }
+        const x = px[i] + dx * sign * k * LAT_STEP;
+        const y = py[i] + dy * sign * k * LAT_STEP;
+        if (x < 3 || y < 3 || x > W - 3 || y > Hh - 3) {
+          PRESENT[slot] = 2; // outside the image: says nothing
+          continue;
+        }
+        // The centre of the tube first; its sides only if that misses.
+        const present = response(fine, coarse, x, y, nx, ny, polarity) >= thr || tube(fine, coarse, x, y, nx, ny, polarity) >= thr;
+        PRESENT[slot] = present ? 1 : 0;
+        gone = present ? 0 : gone + 1;
       }
-      PRESENT[row + k + LAT_REACH] = tube(fine, coarse, x, y, nx, ny, polarity) >= thr ? 1 : 0;
     }
   }
   // 4. Edges by exhaustive search. On the plus side an edge at offset e (in samples) scores, per fret,

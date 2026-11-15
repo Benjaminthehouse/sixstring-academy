@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { selectDailyGoal, shouldReduceMotion, useProgressStore, xpBoostOf, type ProgressEvent } from '@/core/progress';
+import { selectDailyGoal, shouldReduceMotion, useProgress, useProgressStore, xpBoostOf, type ProgressEvent } from '@/core/progress';
 import { Button, Celebration, Icon, LevelBadge, Modal, toast } from '@/ui';
 import { openStats } from '../shell/stats';
 import { XpTally, digest, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast } from './digest';
-import { playShellSound, prepareShellSounds } from './sounds';
+import { applySoundSettings, applySoundSettingsWhenReady, playShellSound, prepareShellSounds } from './sounds';
 import { noteShellToast } from './toasts';
 import styles from './Feedback.module.css';
 
@@ -194,11 +194,19 @@ export function GlobalFeedback() {
     prepareShellSounds();
   }, []);
 
+  // Volume and "interface sounds" are settings in the progress store; the engine has to be told.
+  const volume = useProgress((s) => s.prefs.sound.volume);
+  const uiSounds = useProgress((s) => s.prefs.sound.uiSounds);
+  useEffect(() => {
+    applySoundSettings({ volume, uiSounds });
+  }, [volume, uiSounds]);
+  useEffect(() => applySoundSettingsWhenReady(() => store.getState().prefs.sound), [store]);
+
   return (
     <>
       <Celebration fire={confetti.shot} intensity={confetti.intensity} />
       {heartFlash && (
-        <div key={heartFlash.shot} className={styles.heartFlash} role="status">
+        <div key={heartFlash.shot} className={styles.heartFlash} role="status" onAnimationEnd={() => setHeartFlash(null)}>
           <Icon name={heartFlash.left > 0 ? 'Heart' : 'HeartCrack'} size={18} strokeWidth={2} />
           <span>{heartFlash.left > 0 ? `${heartFlash.left} ${heartFlash.left === 1 ? 'heart' : 'hearts'} left` : 'No hearts left'}</span>
         </div>

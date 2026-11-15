@@ -177,7 +177,12 @@ export interface MetronomeBeat {
 
 /** Where the metronome's clicks go; replaceable for tests or a custom sound. */
 export interface MetronomeOutput {
-  click(set: ClickSet, level: ClickLevel, time: number, gain: number): void;
+  /**
+   * Play one click at audio time `time`. May return a function that takes the click back; the
+   * metronome calls it for clicks that are scheduled but not yet heard when it stops, pauses or jumps.
+   * Any other return value is ignored.
+   */
+  click(set: ClickSet, level: ClickLevel, time: number, gain: number): unknown;
 }
 
 /** Construction options for {@link Metronome}. */
@@ -222,6 +227,10 @@ export class Metronome {
   private readonly unsubscribe: Array<() => void> = [];
   private sourceId = 0;
   private active = false;
+  /** Clicks handed to the output that may not have sounded yet, oldest first. */
+  private scheduled: Array<{ time: number; cancel: () => void }> = [];
+  /** The subdivision of the beat being scheduled: a change waits for the next beat. */
+  private beatFeel: { tick: number; division: Subdivision; swing: number } | null = null;
 
   constructor(opts: MetronomeOptions = {}) {
     this.owns = !opts.transport;
@@ -248,8 +257,9 @@ export class Metronome {
     return this.owns ? this.tempoBpm : (this.transport.bpm * PPQ) / this.transport.meter.tempoBeatTicks;
   }
 
-  /** Set the tempo (20..400). Applies immediately, also while running. */
+  /** Set the tempo (20..400). Applies immediately, also while running. Not-a-number is ignored. */
   setTempo(bpm: number): void {
+    if (!Number.isFinite(bpm)) return;
     this.tempoBpm = clampTempo(bpm);
     if (this.owns) this.transport.setTempo(this.quarterBpm());
   }
@@ -356,12 +366,43 @@ export class Metronome {
     this.transport.start({ from: 0, countIn: opts.countIn });
   }
 
-  /** Stop clicking (and stop the transport when the metronome owns it). */
+  /** Stop clicking (and stop the transport when the metronome owns it). Clicks not yet heard are taken back. */
   stop(): void {
     if (!this.active) return;
     this.active = false;
     this.detach();
     if (this.owns) this.transport.stop();
+    this.takeBack(this.transport.now());
+  }
+
+  /** Send one click to the output and remember how to take it back. */
+  private click(level: ClickLevel, time: number): void {
+    const volume = Number.isFinite(this.volume) ? Math.max(0, Math.min(1.5, this.volume)) : 1;
+    const result = this.output.click(this.sound, level, time, volume);
+    if (typeof result !== 'function') return;
+    const list = this.scheduled;
+    list.push({ time, cancel: result as () => void });
+    // Forget clicks that have certainly sounded.
+    if (list.length > 64) {
+      const now = this.transport.now();
+      let drop = 0;
+      while (drop < list.length && list[drop].time < now) drop++;
+      if (drop) list.splice(0, drop);
+    }
+  }
+
+  /** Take back every click scheduled to sound after `time`: nothing may click once the music has stopped or moved. */
+  private takeBack(time: number): void {
+    const list = this.scheduled;
+    this.scheduled = [];
+    for (const c of list) {
+      if (c.time <= time) continue;
+      try {
+        c.cancel();
+      } catch {
+        // already gone
+      }
+    }
   }
 
   /** Start if stopped, stop if running. Returns the new running state. */
@@ -423,11 +464,17 @@ export class Metronome {
       tr.on('beat', (e) => {
         if (!e.countIn) return;
         const level: ClickLevel = e.downbeat ? 'accent' : 'beat';
-        this.output.click(this.sound, level, e.time, this.volume);
+        this.click(level, e.time);
         this.report({ time: e.time, bar: e.bar, beat: e.beat, beatsInBar: e.beatsInBar, accent: e.accent, level, silent: false, countIn: true, tempo: this.tempo });
       }),
+      // The transport cannot unschedule what it has already handed out (up to the look-ahead):
+      // whoever made the sound has to. Clicks before the new position's first sound still belong.
+      tr.on('pause', (e) => this.takeBack(e.time)),
+      tr.on('seek', (e) => this.takeBack(e.time - 1e-9)),
+      tr.on('stop', () => this.takeBack(tr.now())),
     );
     this.startBar = tr.position().bar;
+    this.beatFeel = null;
     this.sourceId = tr.addSource({
       collect: (from, to, add) => {
         const tl = tr.timeline;
@@ -437,19 +484,31 @@ export class Metronome {
           const meter = this.owns ? this.meterInfo : tl.meterOfBar(bar);
           const accents = this.accentLevels.length === meter.beats.length ? this.accentLevels : undefined;
           const barIndex = bar - this.startBar;
-          for (const c of clickPattern(meter, accents, this.division, this.swingRatio)) {
-            const tick = start + c.tick;
-            if (tick < from || tick >= to) continue;
-            add(tick, (time) => {
-              const silent = isSilentBar(this.silentBars, barIndex);
-              const level = silent ? null : c.level;
-              if (level) this.output.click(this.sound, level, time, this.volume);
-              if (c.sub === 0) {
-                const accent = (accents ? accents[c.beat] : meter.beats[c.beat].accent) ?? 1;
-                this.report({ time, bar: barIndex, beat: c.beat, beatsInBar: meter.beats.length, accent, level, silent, countIn: false, tempo: this.tempo });
-              }
+          meter.beats.forEach((b, beat) => {
+            const beatTick = start + b.tick;
+            if (beatTick + b.length <= from || beatTick >= to) return;
+            // A beat keeps the subdivision it started with: changing from sixteenths to triplets in
+            // the middle of a beat would otherwise squeeze clicks of both into what is left of it.
+            let feel = this.beatFeel;
+            if (beatTick >= from || !feel || feel.tick !== beatTick) {
+              feel = { tick: beatTick, division: this.division, swing: this.swingRatio };
+              if (beatTick >= from) this.beatFeel = feel;
+            }
+            const accent = (accents ? accents[beat] : b.accent) ?? b.accent;
+            const offsets = [0, ...subdivisionOffsets(b.length, feel.division, feel.swing)];
+            offsets.forEach((offset, sub) => {
+              const tick = beatTick + offset;
+              if (tick < from || tick >= to) return;
+              add(tick, (time) => {
+                const silent = isSilentBar(this.silentBars, barIndex);
+                const level = silent ? null : sub === 0 ? LEVEL_OF[accent] : 'sub';
+                if (level) this.click(level, time);
+                if (sub === 0) {
+                  this.report({ time, bar: barIndex, beat, beatsInBar: meter.beats.length, accent, level, silent, countIn: false, tempo: this.tempo });
+                }
+              });
             });
-          }
+          });
         }
       },
     });

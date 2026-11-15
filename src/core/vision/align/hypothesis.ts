@@ -10,7 +10,7 @@
 import { expectedOrientation } from '../geometry';
 import type { Mat3, NeckModel } from '../types';
 import type { AxisCandidate, RidgeField } from './axis';
-import { findCombs, findPeaks, sampleLineProfile, type Comb, type LineProfile, type NormalModel } from './comb';
+import { clipLine, findCombs, findPeaks, sampleLineProfile, type Comb, type LineProfile, type NormalModel } from './comb';
 import type { GrayImage } from './image';
 import { estimateNormalModel, guessNumberingOffset, homographyFromStrip, measureStrip, normalModelFromTraces, stripMidline, type Strip } from './strip';
 
@@ -67,24 +67,27 @@ function runPass(
   py: number,
   ux: number,
   uy: number,
-  normalOf: (profile: LineProfile) => NormalModel,
+  normalOf: (x0: number, y0: number, length: number) => NormalModel,
   polarity: 1 | -1,
   halfBand: number,
   hints: OrientationHints,
   minFrets: number,
 ): { profile: LineProfile; comb: Comb; strip: Strip; normal: NormalModel }[] {
-  // Provisional profile just to learn the line's extent; the normal model needs the origin.
-  const probe = sampleLineProfile(fine, coarse, px, py, ux, uy, { deg0: 0, slope: 0 }, polarity, 0);
-  if (!probe) return [];
-  const normal = normalOf(probe);
+  // The normal model is expressed along the clipped line, so clip first.
+  const clip = clipLine(fine.width, fine.height, px, py, ux, uy, 4);
+  if (!clip) return [];
+  const normal = normalOf(px + clip.t0 * ux, py + clip.t0 * uy, Math.floor(clip.t1 - clip.t0) + 1);
   const profile = sampleLineProfile(fine, coarse, px, py, ux, uy, normal, polarity, halfBand);
   if (!profile) return [];
   const peaks = findPeaks(profile);
   if (peaks.length < minFrets) return [];
   const dir = bridgeDirection(ux, uy, hints);
-  const combs = findCombs(peaks, profile.count, { directions: dir === 0 ? [1, -1] : [dir], minFrets, maxCombs: 2 });
+  const combs = findCombs(peaks, profile.count, { directions: dir === 0 ? [1, -1] : [dir], minFrets, maxCombs: 3 });
   const out: { profile: LineProfile; comb: Comb; strip: Strip; normal: NormalModel }[] = [];
   for (const comb of combs) {
+    // A runner-up is only worth measuring when it is nearly as good as the best comb, or fits much more tightly.
+    if (out.length > 0 && comb.score < 0.8 * combs[0].score && !(comb.rms < 0.6 * combs[0].rms && comb.score > 0.5 * combs[0].score)) continue;
+    if (out.length >= 2) break;
     const strip = measureStrip(fine, coarse, profile, comb, normal, polarity);
     if (!strip) continue;
     out.push({ profile, comb, strip, normal });
@@ -105,7 +108,7 @@ export function measureBoard(fine: GrayImage, coarse: GrayImage, field: RidgeFie
     candidate.cy,
     ux,
     uy,
-    (p) => estimateNormalModel(field, p.x0, p.y0, p.ux, p.uy, p.count, candidate.polarity, candidate.ridgeNormalDeg),
+    (x0, y0, length) => estimateNormalModel(field, x0, y0, ux, uy, length, candidate.polarity, candidate.ridgeNormalDeg),
     candidate.polarity,
     4,
     hints,
@@ -127,7 +130,7 @@ export function measureBoard(fine: GrayImage, coarse: GrayImage, field: RidgeFie
       mid.py,
       mid.dx,
       mid.dy,
-      (p) => normalModelFromTraces(pass1.strip.frets, p.x0, p.y0, p.ux, p.uy, fallback),
+      (x0, y0) => normalModelFromTraces(pass1.strip.frets, x0, y0, mid.dx, mid.dy, fallback),
       candidate.polarity,
       Math.max(4, Math.min(16, 0.22 * meanLen)),
       hints,

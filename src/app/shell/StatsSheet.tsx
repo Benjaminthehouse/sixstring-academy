@@ -19,6 +19,7 @@ import { dismissShellToasts } from '../feedback/toasts';
 import { GOAL_CHOICES } from '../onboarding/model';
 import { useSignal } from './signal';
 import { closeStats, openStats, statsSheet, type StatTab } from './stats';
+import { minutesText } from './week';
 import { WeekStrip } from './WeekStrip';
 import styles from './Stats.module.css';
 
@@ -30,13 +31,6 @@ const TABS: ReadonlyArray<{ value: StatTab; label: string; icon: string }> = [
 ];
 
 const TITLES: Record<StatTab, string> = { goal: 'Daily goal', streak: 'Streak', hearts: 'Hearts', gems: 'Gems' };
-
-/** "12 min", "1 min", "under a minute". */
-export function minutesText(ms: number): string {
-  const minutes = Math.ceil(ms / 60_000);
-  if (minutes <= 0) return 'under a minute';
-  return `${minutes} min`;
-}
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -74,9 +68,7 @@ function GoalPanel() {
       </div>
 
       <div className={styles.setting}>
-        <p className={styles.settingLabel} id="stats-goal-size">
-          Goal size
-        </p>
+        <p className={styles.settingLabel}>Goal size</p>
         <SegmentedControl
           aria-label="Daily goal in XP"
           fullWidth

@@ -89,12 +89,17 @@
   letter-spacing: -0.01em;
   line-height: var(--leading-tight);
   text-wrap: balance;
+  /* Titles come from the learner's own songs and lessons: one endless word must not widen the page. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .featuredDetail {
   grid-area: detail;
   align-self: start;
+  min-width: 0;
   color: var(--fg-muted);
   font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 .featuredProgress {
   margin-top: var(--sp-3);
@@ -198,10 +203,12 @@
 }
 .routeTitle {
   font-weight: 650;
+  overflow-wrap: anywhere;
 }
 .routeBlurb {
   color: var(--fg-muted);
   font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 .badges {
   display: flex;

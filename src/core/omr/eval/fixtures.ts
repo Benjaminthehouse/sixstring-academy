@@ -78,5 +78,5 @@ export function selectFixtures(filter: FixtureFilter = {}): FixtureMeta[] {
  */
 export function defaultSample(): FixtureMeta[] {
   if (process.env.OMR_FULL === '1') return loadManifest();
-  return selectFixtures({ every: 4 });
+  return selectFixtures({ every: 5 });
 }

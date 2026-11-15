@@ -1,0 +1,5 @@
+/*
+ * Accent cosmetics. The progress store sets data-accent on <html> when the learner equips one
+ * (cherry, ocean, forest, violet, silverburst); with no attribute the sunburst amber in tokens.css
+ * applies. Each block redefines only the --accent* tokens, for light and for dark.
+ */

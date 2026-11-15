@@ -47,6 +47,7 @@ export async function renderOffline(opts: OfflineRenderOptions, build: (engine: 
   const sampleRate = opts.sampleRate ?? 48000;
   const ctx = new Ctor(2, Math.max(1, Math.ceil(opts.seconds * sampleRate)), sampleRate);
   const engine = new AudioEngine(ctx, { reverb: opts.reverb });
+  await engine.ready;
   await build(engine);
   const rendered = await ctx.startRendering();
   engine.dispose();

@@ -16,6 +16,14 @@ Conventions that hold for the whole kit:
 - **Link props**: anything clickable that navigates takes `to` + `params` (route name and slug
   params, built with the router's `href()`) or a ready `href`. It then renders a real `<a>`.
 - **Touch targets are 44 px** even where the visual is smaller (invisible hit areas). Do not shrink.
+- **Contrast is part of the kit.** Text is 4.5:1, large text and anything you must see to use a control
+  is 3:1, in both themes. Three tokens do not get there by themselves, so use them like this:
+  `--fg-faint` for icons, hairline details and large text only (small text is `--fg-muted`, or
+  `<Text tone="faint">`, which is adjusted to pass); `--line-strong` for dividers and labelled buttons,
+  not for the edge of an input, checkbox or switch (those use the darker edge already built into
+  `TextField`, `Select`, `Checkbox`, `Switch`, `Stepper`); `--accent` / `--accent-strong` as fills
+  under `--accent-fg`, never as text or a thin icon on a light surface (that is `--accent-text`).
+  Coloured status text goes through `<Text tone="ok | warn | bad | info">`, not the raw token.
 - Every component accepts `className`; most spread the remaining DOM props onto their root element.
 - `?` marks an optional prop. Defaults are in brackets.
 
@@ -53,6 +61,9 @@ Conventions that hold for the whole kit:
 - No `window.alert` / `confirm` / `prompt`, no `title=""` tooltips, no `<div onClick>`.
 - No literal colours, no inline `style` for colour or type, no new font sizes. Inline `style` is for
   computed geometry only.
+- No fixed pixel boxes around text. Sizes that hold words or numbers are in `rem` (or left to the
+  content), so they grow with the learner's text size: `ProgressRing` and `CountdownRing` already do.
+  A row that cannot fit at 320 px or at 200 % text must wrap (`Row wrap`, `Cluster`), not push the page wide.
 - Do not wrap every block in a card, centre everything, or add gradient heroes. The page is a calm
   desk: left-aligned, hairlines between groups, cards only where there is an object.
 - No emoji as icons or decoration. Icons come from `<Icon>`.
@@ -64,6 +75,9 @@ Conventions that hold for the whole kit:
 - Do not drive per-frame visuals through React state (use `useRafLoop` + refs / canvas).
 - Do not `import { icons } from 'lucide-react'` or `import * as …`: that pulls 1 MB of icons into
   your chunk. Named imports of single icons are fine.
+- Frosted bars: write `-webkit-backdrop-filter` first and `backdrop-filter` after it (or only the
+  standard one). In the other order the production build keeps just the prefixed line, which
+  Chrome and Firefox ignore, and the blur silently disappears outside the dev server.
 
 **For the app shell**
 
@@ -72,7 +86,8 @@ Conventions that hold for the whole kit:
   (Its two halves are also exported: `ToastProvider` / `ToastViewport` and `ConfirmHost`.)
 - `Page` owns horizontal gutters (16 px on phones, 32 px from 720 px) and `--content-max`. The
   shell's `<main>` must not add horizontal padding; if it does, set `--page-gutter: 0px` on it.
-  `--page-max` overrides the width.
+  `--page-max` overrides the width. Its root carries `data-ui-page`, which the shell uses to tell a
+  screen built on `Page` from a bare element.
 - `ActionBar` is `position: sticky; bottom: var(--sticky-bottom, 0px)`. If the phone tab bar is
   `position: fixed`, set `--sticky-bottom` on `<main>` to its height so the bar sits above it.
 - Breakpoints: `useIsMobile()` is `< 720 px` (`BREAKPOINTS.mobile`); `BREAKPOINTS.wide` is 1080.
@@ -127,7 +142,7 @@ baseline`. `justify`: `start center end between around evenly`. `size`: `xs sm m
 
 | Component | Props | Notes |
 |---|---|---|
-| `Button` | `variant?: 'primary' \| 'secondary' \| 'ghost' \| 'danger'` [secondary], `size?: 'sm' \| 'md' \| 'lg'`, `iconLeft?`, `iconRight?`, `fullWidth?`, `wrap?`, `loading?`, `pressed?`, `disabled?` + button props | `loading` shows a spinner and ignores presses. `pressed` makes it a toggle (`aria-pressed`). |
+| `Button` | `variant?: 'primary' \| 'secondary' \| 'ghost' \| 'danger'` [secondary], `size?: 'sm' \| 'md' \| 'lg'`, `iconLeft?`, `iconRight?`, `fullWidth?`, `wrap?`, `loading?`, `pressed?`, `disabled?` + button props | `loading` shows a spinner and ignores presses. `pressed` makes it a toggle (`aria-pressed`). A label wider than its container ends in an ellipsis; pass `wrap` when the label is a phrase that must stay whole. |
 | `LinkButton` | Button's look props + `to?`, `params?`, `href?`, `disabled?` | An `<a>`. External URLs open in a new tab. |
 | `IconButton` | `icon`, `label` (required), `variant?` [ghost], `size?`, `round?`, `pressed?`, `loading?`, `noTooltip?` | `label` is the accessible name and the tooltip. |
 | `ButtonGroup` | `attached?`, `fullWidth?`, `align?: 'start' \| 'end'`, `stackOnMobile?` | `stackOnMobile` puts the last (primary) button on top. |
@@ -189,6 +204,10 @@ toast({ title: 'Removed from your library', action: { label: 'Undo', onClick: re
 `icon?`, `duration?` (ms; 0 = sticky; default 4 s, 6 s for warn/error, 8 s with an action),
 `action?: { label, onClick }`, `id?` (reuse to replace in place).
 
+Toasts are announced (a polite live region; `warn` / `error` as alerts). From the keyboard, **Alt+T**
+moves focus to the newest toast (its action first), which also pauses the countdowns; Escape there
+dismisses it and focus returns to where it was. Never make a toast the only way to do something.
+
 **Dialogs**
 
 | Component | Props | Notes |
@@ -221,7 +240,7 @@ if (await confirmDialog({ title: 'Delete this song?', description: 'This cannot 
 | `Banner` | `tone?: 'info' \| 'ok' \| 'warn' \| 'bad' \| 'tip' \| 'neutral'` [info], `title?`, `icon?` (`null` = none), `actions?`, `onDismiss?`, `live?` | A message that belongs to the screen. `live` announces it when it appears. |
 | `Callout` | `tone?` [tip], `label?` (kicker: "Tip", "Common mistake"), `title?`, `icon?` | An aside inside lesson or reference text. |
 | `ProgressBar` | `value?`, `max?` [100], `label?` or `aria-label`, `valueText?: 'percent' \| 'fraction' \| string \| false`, `tone?`, `size?`, `segmented?`, `indeterminate?` | `segmented` draws `max` steps. |
-| `ProgressRing` | `value`, `max?`, `size?` [64], `thickness?`, `tone?`, `label`, children (centre; `null` = empty) | |
+| `ProgressRing` | `value`, `max?`, `size?` [64], `thickness?`, `tone?`, `label`, children (centre; `null` = empty) | `size` is px at the default text size; the ring grows with the text. |
 | `Meter` | `value`, `min?` [0], `max?` [1], `low?`, `high?`, `label`, `showLabel?`, `valueText?`, `segments?` [16; 0 = smooth], `tone?`, `orientation?` | A live reading (mic level), not task progress. |
 | `Spinner` | `size?` [20], `tone?: 'current' \| 'accent' \| 'muted'`, `label?`, children (visible text) | |
 | `Skeleton` | `variant?: 'text' \| 'block' \| 'circle'`, `width?`, `height?`, `lines?` | Put `aria-busy` on the loading region. |
@@ -277,7 +296,7 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 
 | Export | Use |
 |---|---|
-| `useMediaQuery(query)`, `useIsMobile()`, `usePrefersReducedMotion()`, `useIsTouch()` | Live media queries. `BREAKPOINTS`, `MOBILE_QUERY`, `WIDE_QUERY`. |
+| `useMediaQuery(query)`, `useIsMobile()`, `usePrefersReducedMotion()`, `useIsTouch()` | Live media queries. `BREAKPOINTS`, `MOBILE_QUERY`, `WIDE_QUERY`. `usePrefersReducedMotion()` is the learner's own motion setting in the app when they chose one (`data-motion` on `<html>`), otherwise the device's: use it for anything animated from JavaScript. |
 | `useElementSize<T>()` → `[ref, { width, height }]` | ResizeObserver on a callback ref (size a canvas or fretboard to its container). |
 | `useLocalState(key, initial)` → `[value, set, reset]` | `useState` persisted through the platform storage layer. For small screen preferences only; progress lives in `core/progress`. |
 | `useInterval(fn, ms \| null)`, `useTimeout(fn, ms \| null)` | `null` pauses. Not for musical timing. |

@@ -306,14 +306,45 @@ export interface ResolvedTone {
   articulation: Articulation;
 }
 
+/** Every tone name the synth accepts. */
+export const TONE_NAMES: readonly ToneName[] = ['steel', 'nylon', 'clean', 'driven', 'muted', 'harmonic', 'bass-finger', 'bass-pick', 'bass-upright'];
+
+/** Other words people (and stored settings) use for the tones. */
+const TONE_ALIASES: Record<string, ToneName> = {
+  acoustic: 'steel', 'steel-string': 'steel', folk: 'steel', western: 'steel',
+  classical: 'nylon', spanish: 'nylon', 'nylon-string': 'nylon',
+  electric: 'clean', 'clean-electric': 'clean', jazz: 'clean',
+  overdrive: 'driven', overdriven: 'driven', distortion: 'driven', distorted: 'driven', drive: 'driven', rock: 'driven', lead: 'driven',
+  mute: 'muted', 'palm-mute': 'muted', 'palm-muted': 'muted',
+  harmonics: 'harmonic',
+  bass: 'bass-finger', 'electric-bass': 'bass-finger', 'picked-bass': 'bass-pick', upright: 'bass-upright', 'double-bass': 'bass-upright',
+};
+
+const ARTICULATIONS: readonly Articulation[] = ['normal', 'palm-mute', 'dead', 'harmonic'];
+
+/**
+ * Turn any tone id (a stored setting, an alias such as `acoustic` or `classical`, a typo) into a tone
+ * the synth knows. Unknown names give `fallback` instead of an error.
+ */
+export function normalizeTone(name: unknown, fallback: ToneName = 'steel'): ToneName {
+  if (typeof name !== 'string') return fallback;
+  const key = name.trim().toLowerCase().replace(/[\s_]+/g, '-');
+  if ((TONE_NAMES as readonly string[]).includes(key)) return key as ToneName;
+  return TONE_ALIASES[key] ?? fallback;
+}
+
 /**
  * `muted` and `harmonic` are not separate guitars: they are the base guitar played differently.
- * An explicit `articulation` wins over the one implied by the tone name.
+ * An explicit `articulation` wins over the one implied by the tone name. Unknown tone names fall
+ * back to the base instrument rather than failing.
  */
 export function resolveTone(tone: ToneName = 'steel', articulation?: Articulation, base: StringInstrument = 'steel'): ResolvedTone {
-  if (tone === 'muted') return { instrument: base, articulation: articulation ?? 'palm-mute' };
-  if (tone === 'harmonic') return { instrument: base, articulation: articulation ?? 'harmonic' };
-  return { instrument: tone, articulation: articulation ?? 'normal' };
+  const home: StringInstrument = INSTRUMENTS[base] ? base : 'steel';
+  const art = articulation !== undefined && ARTICULATIONS.includes(articulation) ? articulation : undefined;
+  const known = normalizeTone(tone, home);
+  if (known === 'muted') return { instrument: home, articulation: art ?? 'palm-mute' };
+  if (known === 'harmonic') return { instrument: home, articulation: art ?? 'harmonic' };
+  return { instrument: known, articulation: art ?? 'normal' };
 }
 
 /** Where a pitch sits on an instrument's neck. */
@@ -331,7 +362,7 @@ export interface NeckPosition {
 export function locateOnNeck(def: InstrumentDef, midi: number, string?: number): NeckPosition {
   const n = def.openStrings.length;
   let idx = -1;
-  if (string !== undefined && string >= 1 && string <= n) {
+  if (string !== undefined && Number.isFinite(string) && Math.round(string) >= 1 && Math.round(string) <= n) {
     idx = n - Math.round(string);
   } else {
     for (let i = n - 1; i >= 0; i--) {

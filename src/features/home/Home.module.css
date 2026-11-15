@@ -30,8 +30,9 @@
 }
 .heroTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-5);
+  gap: var(--sp-4) var(--sp-5);
 }
 .ringButton {
   flex: none;
@@ -67,10 +68,12 @@
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
+/* Beside the ring while six rem of width are left for it; under the ring at very large text sizes. */
 .heroText {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  flex: 1 1 6rem;
   min-width: 0;
 }
 .heroKicker {
@@ -129,6 +132,20 @@
 }
 .flameIdle svg {
   fill: none;
+}
+
+/* The narrowest phones: a little less padding and a smaller headline keep the Start button on the first screen. */
+@media (max-width: 359.98px) {
+  .hero {
+    padding: var(--sp-4);
+    gap: var(--sp-4);
+  }
+  .heroTop {
+    gap: var(--sp-3) var(--sp-4);
+  }
+  .heroTitle {
+    font-size: var(--text-xl);
+  }
 }
 
 /* ---------- Plan ---------- */
@@ -306,4 +323,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2);
+}
+/* A ghost button has no edge: when it leads the row, pull it out so its label lines up with the tip. */
+.tipMore:first-child {
+  margin-left: calc(var(--sp-3) * -1);
 }

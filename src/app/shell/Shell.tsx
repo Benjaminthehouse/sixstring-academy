@@ -3,6 +3,7 @@ import { cx, useMediaQuery } from '@/ui';
 import { redirect, useRoute } from '../router';
 import { routeDef } from '../routes';
 import { useImmersion } from './immersive';
+import { WIDE_LAYOUT_QUERY } from './layout';
 import { documentTitleFor, isKnownRoute } from './nav';
 import { Outlet } from './Outlet';
 import { useResolvedScreenTitle } from './screenTitle';
@@ -12,23 +13,16 @@ import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
 import styles from './Shell.module.css';
 
-/** From this width up the shell shows the sidebar instead of the phone bars. */
-export const WIDE_LAYOUT_PX = 900;
-/** Media query for the sidebar layout. */
-export const WIDE_LAYOUT_QUERY = `(min-width: ${WIDE_LAYOUT_PX}px)`;
-
 const NO_PARAMS: string[] = [];
 
 /** Tells screen readers which screen a navigation landed on (focus stays where the learner left it). */
 function RouteAnnouncer({ title }: { title: string }) {
-  const first = useRef(true);
+  // Nothing to announce on first load: the browser reads the document title itself.
+  const announced = useRef(title);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    // Nothing to announce on first load: the browser reads the document title itself.
-    if (first.current) {
-      first.current = false;
-      return;
-    }
+    if (announced.current === title) return;
+    announced.current = title;
     if (ref.current) ref.current.textContent = title;
   }, [title]);
   return <div ref={ref} className="sr-only" role="status" aria-live="polite" aria-atomic="true" />;
@@ -75,8 +69,9 @@ export function Shell() {
 
   return (
     <div className={cx(styles.shell, wide ? styles.wide : styles.phone)} data-layout={wide ? 'wide' : 'phone'} data-immersive={immersion}>
+      {/* Worded "Jump", not "Skip": the first-run flow has a "Skip for now" button, and scripts that click by text should find that one. */}
       <a className={styles.skip} href="#main" onClick={skipToContent}>
-        Skip to content
+        Jump to content
       </a>
       {wide ? <Sidebar def={def} rail={immersion !== 'none'} /> : immersion !== 'bare' && <TopBar def={def} params={params} title={title} immersion={immersion} />}
       <main id="main" data-route={def.name} tabIndex={-1} className={styles.main}>

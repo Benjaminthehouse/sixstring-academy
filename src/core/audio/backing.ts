@@ -80,6 +80,8 @@ export interface BassEvent {
   /** Length in ticks. */
   duration: number;
   velocity: number;
+  /** Mix gain of this style's bass part. */
+  level: number;
   role: BassRole;
   tone: BassTone;
 }
@@ -209,23 +211,34 @@ export function bassHome(chord: BackingChord): number {
   return BASS_LOW + ((pc - 4 + 12) % 12);
 }
 
+/**
+ * The notes a comping hand plays for a chord, as intervals above the root.
+ *
+ * The bass player has the root, so the right hand leaves it out whenever keeping it would hurt:
+ * next to a major seventh or a flat ninth it makes a semitone cluster, and a chord with five or
+ * more notes is too thick to comp with. What must stay is the third and the seventh (they are the
+ * chord); colours (9, 11, 13 and their alterations) come next, and the fifth is the first to go.
+ */
+function compingIntervals(shape: Shape, rootless: boolean): number[] {
+  let iv = shape.intervals.slice();
+  const rub = iv.includes(11) || iv.includes(1);
+  if (iv.length >= 4 && (rootless || rub || iv.length > 4)) iv = iv.filter((i) => i !== 0);
+  if (iv.length > 4) {
+    const keep = new Set<number>();
+    if (shape.third !== null) keep.add(shape.third);
+    if (shape.seventh !== null) keep.add(shape.seventh);
+    const colours = iv.filter((i) => !keep.has(i) && i !== shape.fifth).sort((a, b) => b - a);
+    for (const c of colours) if (keep.size < 4) keep.add(c);
+    if (keep.size < 4) keep.add(shape.fifth);
+    iv = iv.filter((i) => keep.has(i));
+  }
+  return iv;
+}
+
 /** A close voicing of the chord near middle C, moving as little as possible from `prev`. */
 export function keysVoicing(chord: BackingChord, kind: BackingStyle['keysVoicing'], prev?: readonly number[]): number[] {
   const shape = shapeOf(chord);
-  let iv: number[];
-  if (kind === 'power') {
-    iv = [0, shape.fifth];
-  } else if (kind === 'rootless' && shape.intervals.length >= 4) {
-    // The bass has the root: play the third, the seventh and whatever colours are left.
-    iv = shape.intervals.filter((i) => i !== 0).slice(0, 4);
-  } else {
-    iv = shape.intervals.slice();
-    if (iv.length > 4) {
-      // Too many notes for a comping hand: keep root, third, seventh and the top colour.
-      const keep = new Set<number>([0, shape.third ?? shape.fifth, shape.seventh ?? shape.fifth, iv[iv.length - 1]]);
-      iv = iv.filter((i) => keep.has(i));
-    }
-  }
+  const iv = kind === 'power' ? [0, shape.fifth] : compingIntervals(shape, kind === 'rootless');
   const pcs = iv.map((i) => mod12(chord.root + i));
   const centre = prev && prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : kind === 'power' ? 52 : 62;
   let best: number[] = [];
@@ -242,7 +255,10 @@ export function keysVoicing(chord: BackingChord, kind: BackingStyle['keysVoicing
         notes.push(n);
       }
       const mean = notes.reduce((a, b) => a + b, 0) / notes.length;
-      const cost = Math.abs(mean - centre) + (notes[notes.length - 1] > 76 ? 6 : 0) + (notes[0] < 48 && kind !== 'power' ? 6 : 0);
+      // Two voices a semitone apart are a cluster: another inversion puts the same notes a seventh apart.
+      let clusters = 0;
+      for (let k = 1; k < notes.length; k++) if (notes[k] - notes[k - 1] === 1) clusters++;
+      const cost = Math.abs(mean - centre) + 14 * clusters + (notes[notes.length - 1] > 76 ? 6 : 0) + (notes[0] < 48 && kind !== 'power' ? 6 : 0);
       if (cost < bestCost) {
         bestCost = cost;
         best = notes;
@@ -420,15 +436,36 @@ function barChordChangesNext(ctx: Ctx, bar: number): boolean {
   return !!here && !!next && !sameChord(here.chord, next.chord);
 }
 
+/**
+ * A note that leads into `target` by a semitone (usually) or a whole tone. It comes from the side
+ * the line is on, so the line keeps its direction; if that would repeat the note just played, or
+ * the line is already next to the target, it goes round the other side instead (an enclosure).
+ */
 function approachTo(rng: Rng, target: number, from: number | null): number {
-  // Lead into the target by a semitone (usually) or a whole tone, from the side we are coming from.
   let side = from === null || from === target ? (rng.chance(0.6) ? -1 : 1) : from < target ? -1 : 1;
-  if (rng.chance(0.2)) side = -side;
-  const step = rng.chance(0.78) ? 1 : 2;
+  let step = rng.chance(0.78) ? 1 : 2;
+  // Right next to the target already: sometimes go round it rather than straight in.
+  if (from !== null && Math.abs(from - target) <= 2 && rng.chance(0.2)) side = -side;
   let note = target + side * step;
+  if (from !== null && note === from) {
+    // Never the same note twice: try the other step size, then the other side.
+    step = step === 1 ? 2 : 1;
+    note = target + side * step;
+    if (note === from || Math.abs(from - target) < step) note = target - side * 1;
+  }
   if (note < BASS_LOW) note = target + step;
   if (note > BASS_HIGH + 4) note = target - step;
   return note;
+}
+
+/** Top of the range in which a walking line looks for a root (D3); above it the bass sounds thin. */
+const WALK_ROOT_HIGH = 50;
+
+/** The octave of pitch class `pc` (given as any note with that class) nearest to `from`, within the bass's walking range. */
+function nearestOctave(note: number, from: number): number {
+  let best = BASS_LOW + ((mod12(note) - 4 + 12) % 12);
+  for (let m = best + 12; m <= WALK_ROOT_HIGH; m += 12) if (Math.abs(m - from) < Math.abs(best - from)) best = m;
+  return best;
 }
 
 function arrangeBass(ctx: Ctx, out: BackingEvent[]): void {
@@ -447,7 +484,7 @@ function arrangeBass(ctx: Ctx, out: BackingEvent[]): void {
     return home;
   };
   const push = (tick: number, bar: number, midi: number, duration: number, velocity: number, role: BassRole): void => {
-    out.push({ type: 'bass', tick, bar, midi, duration: Math.max(40, Math.round(duration)), velocity: jitter(rng, velocity), role, tone: style.bassTone });
+    out.push({ type: 'bass', tick, bar, midi, duration: Math.max(40, Math.round(duration)), velocity: jitter(rng, velocity), level: style.bassLevel ?? 1, role, tone: style.bassTone });
     prev = midi;
   };
 
@@ -559,18 +596,14 @@ function arrangeBass(ctx: Ctx, out: BackingEvent[]): void {
           const leaves = !nextSeg || nextSeg !== seg || nextTick % ctx.barTicks === 0;
           const accent = Math.round(step * ctx.stepTicks / style.beatTicks) % 2 === 1 ? 0.84 : 0.74;
           if (arrives) {
-            let midi = root;
-            if (pendingRoot === null && prev !== null) {
-              // Pick the octave of the root nearest to where the line is.
-              while (midi + 12 <= 45 && Math.abs(midi + 12 - prev) < Math.abs(midi - prev)) midi += 12;
-            }
+            // The root, in the octave the approach note led to, or else nearest to where the line is.
+            const midi = pendingRoot === null && prev !== null ? nearestOctave(root, prev) : root;
             pendingRoot = null;
             forced = null;
             push(tick, bar, midi, duration, accent, 'root');
           } else if (leaves && nextSeg) {
-            let target = bassHome(nextSeg.chord);
-            const from: number = prev ?? target;
-            while (target + 12 <= 45 && Math.abs(target + 12 - from) < Math.abs(target - from)) target += 12;
+            const home = bassHome(nextSeg.chord);
+            const target = prev === null ? home : nearestOctave(home, prev);
             pendingRoot = target;
             forced = null;
             push(tick, bar, approachTo(rng, target, prev), duration, accent, 'approach');
@@ -750,7 +783,11 @@ function arrangeDrums(ctx: Ctx, out: BackingEvent[], fills: boolean): void {
     if (fill) play(fill, fillFrom, style.grid, true);
     if (crashNext) {
       out.push({ type: 'drum', tick: barStart, bar, drum: 'crash', velocity: 0.8 * style.drumLevel, fill: false });
-      if (!(main.kick && main.kick[0] !== '.')) out.push({ type: 'drum', tick: barStart, bar, drum: 'kick', velocity: 0.85 * style.drumLevel, fill: false });
+      // A crash is normally hit together with the bass drum. Not in a one-drop: there the first
+      // beat stays empty, and that is the whole point of the groove.
+      if ((style.kickWithCrash ?? true) && !(main.kick && main.kick[0] !== '.')) {
+        out.push({ type: 'drum', tick: barStart, bar, drum: 'kick', velocity: 0.85 * style.drumLevel, fill: false });
+      }
     }
     crashNext = kind === 'full';
   }

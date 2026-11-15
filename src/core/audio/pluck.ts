@@ -7,7 +7,7 @@
  * arguments always give the same samples.
  */
 import { midiToFreq } from '@/core/math/pitch-math';
-import { Rng, biquadCoeffs, biquadFilter, clamp, fadeOut, filterChain, hashSeed, limiterCurve, sanitize, type BiquadSpec } from './dsp';
+import { Rng, biquadCoeffs, biquadFilter, clamp, fadeOut, filterChain, finiteOr, hashSeed, limiterCurve, sanitize, type BiquadSpec } from './dsp';
 import { designLoop, harmonicExcitation, runString, type LoopDesign } from './string-model';
 import {
   INSTRUMENTS,
@@ -143,14 +143,16 @@ function attackRms(x: Float32Array, sampleRate: number): number {
  * velocity; velocity only shapes its brightness.
  */
 export function renderRawPluck(spec: PluckSpec): RawPluck {
-  const fs = spec.sampleRate;
+  // Nonsense in (NaN from a broken import, a pitch off the instrument) must give a note, not a crash.
+  const fs = clamp(finiteOr(spec.sampleRate, 44100), 3000, 768000);
   const { instrument, articulation } = resolveTone(spec.tone, spec.articulation, spec.baseTone);
   const def = INSTRUMENTS[instrument];
-  const velocity = clamp(spec.velocity ?? 0.8, 0, 1);
-  const bright = clamp(spec.brightness ?? 0, -1, 1);
-  const freq = midiToFreq(spec.midi, spec.a4 ?? 440) * Math.pow(2, (spec.cents ?? 0) / 1200);
-  const neck = locateOnNeck(def, spec.midi, spec.string);
-  const style = playingStyle(def, articulation, spec.midi, neck);
+  const midi = clamp(finiteOr(spec.midi, 45), 0, 127);
+  const velocity = clamp(finiteOr(spec.velocity, 0.8), 0, 1);
+  const bright = clamp(finiteOr(spec.brightness, 0), -1, 1);
+  const freq = midiToFreq(midi, clamp(finiteOr(spec.a4, 440), 220, 880)) * Math.pow(2, clamp(finiteOr(spec.cents, 0), -2400, 2400) / 1200);
+  const neck = locateOnNeck(def, midi, spec.string);
+  const style = playingStyle(def, articulation, midi, neck);
 
   const design = designLoop({ freq, sampleRate: fs, t60: style.t60, t60High: style.t60High });
   const period = design.period;
@@ -159,7 +161,7 @@ export function renderRawPluck(spec: PluckSpec): RawPluck {
   // An ideal pluck at fraction p of the string gives harmonics sin(k pi p) / k (a rectangular wave
   // with duty p); a real pick or fingertip rounds it off above a cut-off that rises with velocity.
   // Seeded by the note's place on the neck only, so a pitch keeps its character at every dynamic.
-  const rng = new Rng(hashSeed(instrument, spec.midi, neck.stringIndex));
+  const rng = new Rng(hashSeed(instrument, midi, neck.stringIndex));
   const pick = clamp(style.pick * (1 - 0.35 * bright), 0.03, 0.45);
   const [lo, hi] = def.brightness;
   const cutoff = lo * Math.pow(hi / lo, velocity) * style.brightness * Math.pow(2, bright * 0.9);
@@ -182,7 +184,7 @@ export function renderRawPluck(spec: PluckSpec): RawPluck {
 
   // --- String ----------------------------------------------------------------------------------
   const wanted = Math.max(0.12, Math.min(style.maxSeconds, style.t60 * 0.72 + 0.15));
-  const seconds = Math.min(wanted, spec.seconds ?? wanted);
+  const seconds = Math.min(wanted, Math.max(0.005, finiteOr(spec.seconds, wanted)));
   const length = Math.max(64, Math.round(seconds * fs));
   const samples = runString(excitation, design, length);
 
@@ -271,14 +273,15 @@ function dampFrom(x: Float32Array, from: number, tau: number): void {
  */
 export function renderPluck(spec: PluckSpec): Float32Array {
   const raw = renderRawPluck(spec);
-  const fs = spec.sampleRate;
+  const fs = clamp(finiteOr(spec.sampleRate, 44100), 3000, 768000);
   const def = INSTRUMENTS[raw.instrument];
-  const g = velocityGain(clamp(spec.velocity ?? 0.8, 0, 1)) * (spec.direction === 'up' ? -1 : 1);
+  const g = velocityGain(clamp(finiteOr(spec.velocity, 0.8), 0, 1)) * (spec.direction === 'up' ? -1 : 1);
   let x = raw.samples;
   for (let i = 0; i < x.length; i++) x[i] *= g;
-  if (spec.duration !== undefined) {
-    dampFrom(x, spec.duration * fs, (def.release / 3) * fs);
-    const end = Math.min(x.length, Math.round((spec.duration + def.release * 4) * fs));
+  const duration = finiteOr(spec.duration, NaN);
+  if (duration >= 0) {
+    dampFrom(x, duration * fs, (def.release / 3) * fs);
+    const end = Math.min(x.length, Math.round((duration + def.release * 4) * fs));
     x = x.slice(0, Math.max(64, end));
   }
   return applyFx(x, def.fx, fs);
@@ -316,9 +319,9 @@ export interface StrumNote {
  */
 export function strumPlan(midis: readonly number[], opts: StrumOptions = {}): StrumNote[] {
   const n = midis.length;
-  const direction = opts.direction ?? 'down';
-  const spread = Math.max(0, opts.spread ?? 0.028);
-  const velocity = opts.velocity ?? 0.8;
+  const direction = opts.direction === 'up' ? 'up' : 'down';
+  const spread = clamp(finiteOr(opts.spread, 0.028), 0, 2);
+  const velocity = finiteOr(opts.velocity, 0.8);
   const shift = opts.align === 'center' ? -spread / 2 : opts.align === 'end' ? -spread : 0;
   const notes: StrumNote[] = [];
   for (let order = 0; order < n; order++) {

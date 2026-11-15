@@ -4,6 +4,7 @@
  */
 import { arrangeBacking, styleQuarterBpm, type ArrangeOptions, type BackingArrangement, type BackingBar, type BackingEvent, type BackingInstrument, type ChordSegment, type GuitarEvent } from './backing';
 import { BACKING_STYLES, type BackingStyle, type BackingStyleId } from './backing-styles';
+import { finiteOr } from './dsp';
 import { engineClock, type AudioEngine } from './engine';
 import { GuitarSynth, getBass } from './guitar';
 import type { DrumName } from './percussion';
@@ -22,6 +23,8 @@ export interface BandOutput {
   stopAll(): void;
   /** Render the sounds an arrangement needs before it starts. */
   prepare?(arrangement: BackingArrangement, include: ReadonlySet<BackingInstrument>): Promise<void>;
+  /** Let go of whatever the output built on the audio graph. Called when the band is disposed. */
+  dispose?(): void;
 }
 
 /** Output that plays through the audio engine (the shared live one unless an engine is given). */
@@ -60,6 +63,23 @@ export function liveBandOutput(engine?: AudioEngine): BandOutput {
       guitar?.stopAll();
       for (const h of tones) h.stop();
       tones.clear();
+    },
+    dispose: () => {
+      for (const h of tones) h.stop();
+      tones.clear();
+      // The band's guitarist is always its own synth. The kit and the bass are the shared ones on the
+      // live engine (other screens use them too), and only the band's own on a private engine.
+      guitar?.dispose();
+      guitar = null;
+      if (engine) {
+        kit?.dispose();
+        bass?.dispose();
+      } else {
+        kit?.stopAll();
+        bass?.stopAll();
+      }
+      kit = null;
+      bass = null;
     },
     prepare: async (arrangement, include) => {
       const drumNames = new Set<DrumName>();
@@ -165,12 +185,12 @@ export class BackingBand {
     const loop = opts.loop ?? false;
     const arrangement = arrangeBacking(bars, { ...opts, ending: loop ? false : opts.ending });
     this.current = arrangement;
-    this.beatsPerMinute = Math.max(20, Math.min(400, opts.tempo ?? style.tempo.default));
+    this.beatsPerMinute = Math.max(20, Math.min(400, finiteOr(opts.tempo, style.tempo.default)));
     const tr = this.transport;
     tr.setTimeSignature(style.timeSignature);
     tr.setSwing(0.5);
     tr.setTempo(styleQuarterBpm(style.id, this.beatsPerMinute));
-    tr.countInBars = opts.countInBars ?? 1;
+    tr.countInBars = Math.max(0, Math.round(finiteOr(opts.countInBars, 1)));
     if (loop) {
       tr.setLoop(0, arrangement.bodyTicks);
       tr.setEnd(null);
@@ -202,7 +222,7 @@ export class BackingBand {
         if (!this.muted.drums) this.output.drum(ev.drum, time, ev.velocity, this.volume.drums);
         break;
       case 'bass':
-        if (!this.muted.bass) this.output.bass(ev.midi, time, ev.duration * secondsPerTick, ev.velocity, this.volume.bass, ev.tone);
+        if (!this.muted.bass) this.output.bass(ev.midi, time, ev.duration * secondsPerTick, ev.velocity, this.volume.bass * ev.level, ev.tone);
         break;
       case 'keys':
         if (!this.muted.keys) this.output.keys(ev.midis, time, ev.duration * secondsPerTick, ev.velocity, this.volume.keys * ev.level, ev.voice);
@@ -223,7 +243,11 @@ export class BackingBand {
   /** Start from the top (after the count-in). Call `load` first. */
   start(opts: { countIn?: number } = {}): void {
     if (!this.current) return;
-    this.transport.stop();
+    if (this.transport.state !== 'stopped') {
+      // Restarted while it plays: what the old run had already scheduled must not overlap the new one.
+      this.transport.stop();
+      this.output.stopAll();
+    }
     this.transport.start({ from: 0, countIn: opts.countIn });
   }
 
@@ -253,12 +277,14 @@ export class BackingBand {
 
   /** Change the tempo, also while playing. */
   setTempo(beatsPerMinute: number): void {
+    if (!Number.isFinite(beatsPerMinute)) return;
     this.beatsPerMinute = Math.max(20, Math.min(400, beatsPerMinute));
     this.transport.setTempo(styleQuarterBpm(this.styleDef.id, this.beatsPerMinute));
   }
 
   /** Volume of one band member, 0..1.5. */
   setVolume(instrument: BackingInstrument, volume: number): void {
+    if (!(instrument in this.volume) || !Number.isFinite(volume)) return;
     this.volume[instrument] = Math.max(0, Math.min(1.5, volume));
   }
 
@@ -268,7 +294,7 @@ export class BackingBand {
 
   /** Mute or unmute one band member. The rhythm guitar starts muted. */
   setMuted(instrument: BackingInstrument, muted: boolean): void {
-    this.muted[instrument] = muted;
+    if (instrument in this.muted) this.muted[instrument] = !!muted;
   }
 
   isMuted(instrument: BackingInstrument): boolean {
@@ -303,5 +329,6 @@ export class BackingBand {
     for (const off of this.offs.splice(0)) off();
     this.chordListeners.clear();
     if (this.owns) this.transport.dispose();
+    this.output.dispose?.();
   }
 }

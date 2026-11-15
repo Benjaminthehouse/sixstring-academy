@@ -68,12 +68,20 @@ export function ProgressBar({ value = 0, max = 100, label, valueText, tone = 'ac
   );
 }
 
+/**
+ * The box of a ring. In rem, so the ring grows with the text inside it when the learner has a
+ * larger text size set: a fixed-pixel ring would be overflowed by its own number.
+ */
+export function ringBox(size: number): CSSProperties {
+  return { width: `${size / 16}rem`, height: `${size / 16}rem` };
+}
+
 /** Props for `<ProgressRing>`. */
 export interface ProgressRingProps {
   value: number;
   /** Default 100. */
   max?: number;
-  /** Outer diameter in px. Default 64. */
+  /** Outer diameter in px at the default text size (it grows with the learner's text size). Default 64. */
   size?: number;
   /** Stroke width in px. Default scales with size. */
   thickness?: number;
@@ -95,15 +103,15 @@ export function ProgressRing({ value, max = 100, size = 64, thickness, tone = 'a
   const c = 2 * Math.PI * r;
   const frac = fraction(value, 0, max);
   return (
-    <div className={cx(styles.ring, styles[`tone-${tone}`], className)} style={{ width: size, height: size }} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={Math.min(max, Math.max(0, value))}>
-      <svg className={styles.ringSvg} width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+    <div className={cx(styles.ring, styles[`tone-${tone}`], className)} style={ringBox(size)} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={Math.min(max, Math.max(0, value))}>
+      <svg className={styles.ringSvg} width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle className={styles.ringTrack} cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} />
         <circle className={styles.ringFill} cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={c * (1 - frac)} />
       </svg>
       {children !== null && (
         <div className={styles.ringCenter}>
           {children ?? (
-            <span className={styles.ringValue} style={{ fontSize: Math.max(11, size * 0.23) }}>
+            <span className={styles.ringValue} style={{ fontSize: `${Math.max(11, size * 0.23) / 16}rem` }}>
               {Math.round(frac * 100)}%
             </span>
           )}

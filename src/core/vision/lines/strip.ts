@@ -115,9 +115,10 @@ export function sampleStrip(img: Image32, geom: StripGeometry, out?: Strip): Str
  * Signed ridge strength along the columns of every row: positive where a pixel is brighter than
  * both neighbours `d` columns away (by the smaller of the two differences), negative where it is
  * darker than both, zero on slopes and steps. A fret wire crossing the rows is a ridge; the edge of
- * a finger or a book is a step and gives nothing.
+ * a finger or a book is a step and gives nothing. With `d2` the stronger response of the two scales
+ * is kept, for when the width of the wires is not known yet.
  */
-export function ridgeAlongRows(strip: Strip, d: number, out?: Float32Array): Float32Array {
+export function ridgeAlongRows(strip: Strip, d: number, out?: Float32Array, d2 = 0): Float32Array {
   const { rows, cols, data, valid } = strip;
   const n = rows * cols;
   const r = out && out.length >= n ? out : new Float32Array(n);
@@ -137,29 +138,26 @@ export function ridgeAlongRows(strip: Strip, d: number, out?: Float32Array): Flo
       else if (a < 0 && b < 0) r[k] = a > b ? a : b;
       else r[k] = 0;
     }
+    if (d2 > d) {
+      // Second, wider scale: a wire several pixels wide has a flat top the narrow filter cannot see.
+      for (let j = d2; j < cols - d2; j++) {
+        const k = o + j;
+        if (!(valid[k - d2] && valid[k + d2])) continue;
+        const a = data[k] - data[k - d2];
+        const b = data[k] - data[k + d2];
+        let v = 0;
+        if (a > 0 && b > 0) v = a < b ? a : b;
+        else if (a < 0 && b < 0) v = a > b ? a : b;
+        if ((v > 0 && v > r[k]) || (v < 0 && v < r[k])) r[k] = v;
+      }
+    }
   }
   return r;
 }
 
-/** Same filter across the rows (per column): strings and board edges running along the strip. */
-export function ridgeAcrossRows(strip: Strip, d: number, out?: Float32Array): Float32Array {
-  const { rows, cols, data, valid } = strip;
-  const n = rows * cols;
-  const r = out && out.length >= n ? out : new Float32Array(n);
-  r.fill(0, 0, n);
-  const off = d * cols;
-  for (let i = d; i < rows - d; i++) {
-    const o = i * cols;
-    for (let j = 0; j < cols; j++) {
-      const k = o + j;
-      if (!(valid[k] && valid[k - off] && valid[k + off])) continue;
-      const a = data[k] - data[k - off];
-      const b = data[k] - data[k + off];
-      if (a > 0 && b > 0) r[k] = a < b ? a : b;
-      else if (a < 0 && b < 0) r[k] = a > b ? a : b;
-    }
-  }
-  return r;
+/** Half-width of the ridge filter that suits fret wires on a board `widthPx` pixels wide. */
+export function ridgeScale(widthPx: number): number {
+  return Math.max(2, Math.min(6, Math.round(0.03 * widthPx + 1.3)));
 }
 
 /** Linear interpolation into one row of a strip-shaped array (0 outside). */

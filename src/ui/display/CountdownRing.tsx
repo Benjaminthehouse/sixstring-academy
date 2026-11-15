@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLatest } from '../hooks/useLatest';
 import { cx } from '../util/cx';
 import { formatClock } from '../util/format';
-import type { ProgressTone } from '../feedback/Progress';
+import { ringBox, type ProgressTone } from '../feedback/Progress';
 import styles from '../feedback/Progress.module.css';
 
 /** Whole seconds to display for a remaining time: counts 3, 2, 1 and shows 0 only at the end. */
@@ -100,8 +100,8 @@ export function CountdownRing({ seconds, running = true, resetKey, onDone, onSec
 
   const urgent = urgentBelow > 0 && shown <= urgentBelow && shown > 0 && totalMs > urgentBelow * 1000;
   return (
-    <div className={cx(styles.ring, styles[`tone-${tone}`], urgent && styles.countdownUrgent, className)} style={{ width: size, height: size }} role="timer" aria-label={`${label}: ${shown} seconds`}>
-      <svg className={styles.ringSvg} width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+    <div className={cx(styles.ring, styles[`tone-${tone}`], urgent && styles.countdownUrgent, className)} style={ringBox(size)} role="timer" aria-label={`${label}: ${shown} seconds`}>
+      <svg className={styles.ringSvg} width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle className={styles.ringTrack} cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} />
         <circle ref={arc} className={cx(styles.ringFill, styles.ringNoAnim)} cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={0} />
       </svg>
@@ -109,7 +109,7 @@ export function CountdownRing({ seconds, running = true, resetKey, onDone, onSec
         {children ? (
           children(shown)
         ) : (
-          <span className={styles.ringValue} style={{ fontSize: Math.max(12, size * (shown >= 60 ? 0.24 : 0.36)) }}>
+          <span className={styles.ringValue} style={{ fontSize: `${Math.max(12, size * (shown >= 60 ? 0.24 : 0.36)) / 16}rem` }}>
             {shown >= 60 ? formatClock(shown) : shown}
           </span>
         )}

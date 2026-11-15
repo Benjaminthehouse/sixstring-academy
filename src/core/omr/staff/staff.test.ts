@@ -18,7 +18,7 @@ function clean(id: string): { fx: Fixture; bin: BinaryImage } {
   let c = cache.get(id);
   if (!c) {
     const fx = loadFixture(id);
-    c = { fx, bin: binarizeSymbols(flatten(fx.gray), 0) };
+    c = { fx, bin: binarizeSymbols(flatten(fx.gray).image, 0) };
     cache.set(id, c);
   }
   return c;
@@ -155,18 +155,30 @@ describe('page layout', () => {
   it('tells stems from bar lines, and double from single bars', () => {
     // Half notes on the top space, ties across bar lines, a double bar inside the piece.
     for (const id of ['scarborough-bravura-150', 'page-notation-bravura-150', 'rhythm-bravura-150', 'chords-bravura-150']) {
-      const { fx, bin } = clean(id);
-      const layout = detectLayout(bin);
+      const fx = loadFixture(id);
+      const staves = analyzePage(fx.gray).page.systems.flatMap((s) => s.staves);
       const truth = fx.truth.systems.flatMap((s) => s.staves);
-      expect(layout.staves.length).toBe(truth.length);
-      layout.staves.forEach((st, i) => {
-        expect(st.barlines.map((b) => Math.round(b.x / 3))).toEqual(truth[i].barlines.map((b) => Math.round(b.x / 3)));
+      expect(staves.length).toBe(truth.length);
+      staves.forEach((st, i) => {
+        expect(st.barlines.length).toBe(truth[i].barlines.length);
+        st.barlines.forEach((b, k) => expect(Math.abs(b.x - truth[i].barlines[k].x)).toBeLessThan(2));
+        expect(st.measures.length).toBe(truth[i].measures.length);
       });
+      if (id === 'page-notation-bravura-150') {
+        const types = staves.flatMap((s) => s.barlines.map((b) => b.type));
+        expect(types.filter((t) => t === 'double').length).toBe(2);
+        expect(types.filter((t) => t === 'end').length).toBe(1);
+      }
     }
-    const page = clean('page-notation-bravura-150');
-    const types = detectLayout(page.bin).staves.flatMap((s) => s.barlines.map((b) => b.type));
-    expect(types.filter((t) => t === 'double').length).toBe(2);
-    expect(types.filter((t) => t === 'end').length).toBe(1);
+  });
+
+  it('reads repeat signs with their dots', () => {
+    for (const id of ['repeats-bravura-150', 'tab-repeats-ls-150']) {
+      const fx = loadFixture(id);
+      const st = analyzePage(fx.gray).page.systems[0].staves[0];
+      expect(st.barlines.map((b) => b.type)).toEqual(fx.truth.systems[0].staves[0].barlines.map((b) => b.type));
+      expect(st.barlines.map((b) => b.type)).toEqual(['single', 'repeat-begin', 'single', 'repeat-end', 'repeat-begin', 'single', 'repeat-end']);
+    }
   });
 
   it('keeps single staves in systems of their own and finds content boxes', () => {

@@ -12,7 +12,7 @@
  * predicting across gaps (a hand hides a few frets in a row), and returns the best ones.
  */
 import { straightRidgeAt } from './features';
-import type { GrayImage } from './image';
+import { COARSE_SCALE, type GrayImage } from './image';
 
 /** 2^(-1/12): ratio between consecutive fret spacings. */
 export const FRET_RATIO = Math.pow(2, -1 / 12);
@@ -98,7 +98,7 @@ export function sampleLineProfile(
       const qx = cx - ny * 2 * k;
       const qy = cy + nx * 2 * k;
       const r1 = polarity * straightRidgeAt(fine, qx, qy, nx, ny, 2);
-      const r2 = polarity * straightRidgeAt(coarse, qx, qy, nx, ny, 4) * 0.8;
+      const r2 = polarity * straightRidgeAt(coarse, qx * COARSE_SCALE, qy * COARSE_SCALE, nx, ny, 2) * 0.8;
       const r = r1 > r2 ? r1 : r2;
       if (r > 0) sum += r;
     }
@@ -265,6 +265,9 @@ export interface CombOptions {
   maxCombs?: number;
 }
 
+/** Most peaks of one profile that take part in the comb search. */
+const MAX_PEAKS = 56;
+
 /** Perspective values a seed pair is grown with (in the seed's own coordinates); see README. */
 const SEED_PERSPECTIVE = [0, 0.45, -0.45, 0.95];
 
@@ -274,8 +277,16 @@ interface Member {
 }
 
 /** Build a scored comb from members (peak index + relative fret index) and a model in the members' indexing. */
-function buildComb(peaks: readonly ProfilePeak[], members: Member[], dir: 1 | -1, model: Model): Comb {
+function buildComb(peaks: readonly ProfilePeak[], members: Member[], dir: 1 | -1, grown: Model): Comb {
   members.sort((p, q) => p.j - q.j);
+  // With enough frets the perspective needs no prior: refit freely (the growth held it near its seed value).
+  let model = grown;
+  if (members.length >= 7) {
+    const xs = members.map((m) => combX(m.j));
+    const ss = members.map((m) => dir * peaks[m.peak].pos);
+    const free: Model = { A: 0, B: 0, C: 0 };
+    if (fitModel(xs, ss, members.length, 1e-3, grown.C, free) && free.B - free.C * free.A > 0 && Math.abs(free.C) < 3) model = free;
+  }
   const strengths = members.map((m) => peaks[m.peak].strength).sort((p, q) => p - q);
   const median = strengths[strengths.length >> 1];
   const sFirst = dir * peaks[members[0].peak].pos;
@@ -328,7 +339,14 @@ function buildComb(peaks: readonly ProfilePeak[], members: Member[], dir: 1 | -1
  * fewest unexplained peaks), best first. Combs separated by a run of hidden frets are merged when
  * one model explains both.
  */
-export function findCombs(peaks: readonly ProfilePeak[], length: number, options: CombOptions = {}): Comb[] {
+export function findCombs(allPeaks: readonly ProfilePeak[], length: number, options: CombOptions = {}): Comb[] {
+  // A neck shows at most a couple of dozen wires; along a bookshelf a profile can have a hundred
+  // peaks. Keep the strongest (in position order) so that clutter cannot make this stage slow.
+  let peaks = allPeaks;
+  if (allPeaks.length > MAX_PEAKS) {
+    const cut = allPeaks.map((p) => p.strength).sort((a, b) => b - a)[MAX_PEAKS - 1];
+    peaks = allPeaks.filter((p) => p.strength >= cut).slice(0, MAX_PEAKS);
+  }
   const dirs = options.directions ?? [1, -1];
   const minSpacing = options.minSpacing ?? 4.5;
   const maxSpacing = options.maxSpacing ?? 120;
@@ -406,11 +424,28 @@ export function findCombs(peaks: readonly ProfilePeak[], length: number, options
             if (!Number.isFinite(sp) || spacing < minSpacing * 0.8 || spacing > maxSpacing * 1.3) return null;
             if (sp < sLo - 0.5 || sp > sHi + 0.5) return null;
             const tol = (count < 5 ? 0.22 : 0.16) * spacing + 0.6;
+            // Nearest free peak within the tolerance: the peaks are sorted by position, so bisect and look around.
+            const target = dir * sp;
+            let lo2 = 0;
+            let hi2 = n - 1;
+            while (lo2 < hi2) {
+              const mid = (lo2 + hi2) >> 1;
+              if (peaks[mid].pos < target) lo2 = mid + 1;
+              else hi2 = mid;
+            }
             let best = -1;
             let bestD = tol;
-            for (let i = 0; i < n; i++) {
+            for (let i = lo2; i < n && peaks[i].pos - target < bestD; i++) {
               if (assignedJ[i] !== NONE) continue;
-              const dd = Math.abs(sOf(i) - sp);
+              const dd = Math.abs(peaks[i].pos - target);
+              if (dd < bestD) {
+                bestD = dd;
+                best = i;
+              }
+            }
+            for (let i = lo2 - 1; i >= 0 && target - peaks[i].pos < bestD; i--) {
+              if (assignedJ[i] !== NONE) continue;
+              const dd = Math.abs(peaks[i].pos - target);
               if (dd < bestD) {
                 bestD = dd;
                 best = i;
@@ -491,17 +526,22 @@ export function findCombs(peaks: readonly ProfilePeak[], length: number, options
             }
             const merged: Model = { A: 0, B: 0, C: 0 };
             if (!fitModel(xs, ss, members.length, 0.03, P.comb.C, merged) || !(merged.B - merged.C * merged.A > 0)) continue;
-            // Worst residual relative to the local spacing.
+            // Residuals relative to the local spacing. One member may be off (the nut reads as a fat
+            // line centred a few millimetres behind where a fret would be): judge by the second worst.
             let worst = 0;
+            let second = 0;
             for (const m of members) {
               const x = combX(m.j);
               const xn = combX(m.j + 1);
               const sp = (merged.A + merged.B * x) / (1 + merged.C * x);
               const sn = (merged.A + merged.B * xn) / (1 + merged.C * xn);
               const rel = Math.abs(sOf(m.peak) - sp) / (Math.abs(sn - sp) + 3);
-              if (rel > worst) worst = rel;
+              if (rel > worst) {
+                second = worst;
+                worst = rel;
+              } else if (rel > second) second = rel;
             }
-            if (worst < 0.12 && (!bestMerge || worst < bestMerge.rel)) bestMerge = { members, model: merged, rel: worst };
+            if (second < 0.1 && worst < 0.3 && (!bestMerge || second < bestMerge.rel)) bestMerge = { members, model: merged, rel: second };
           }
           if (bestMerge) added.push({ comb: buildComb(peaks, bestMerge.members, dir, bestMerge.model), members: bestMerge.members, model: bestMerge.model });
         }
@@ -513,7 +553,10 @@ export function findCombs(peaks: readonly ProfilePeak[], length: number, options
   }
   const combs = all.map((g) => g.comb).filter((c) => c.frets.length >= minFrets);
   combs.sort((a, b) => b.score - a.score);
-  // Drop combs that share most of their peaks with a better one in the same direction.
+  // Drop combs that share most of their peaks with a better one in the same direction, unless
+  // they fit their peaks much more tightly: a long comb that swallowed a stretch of non-frets
+  // (block inlays read as fat bright lines) scores higher than the clean shorter comb inside it,
+  // and only the pose score can tell which is the board.
   const kept: Comb[] = [];
   for (const c of combs) {
     let duplicate = false;
@@ -521,7 +564,10 @@ export function findCombs(peaks: readonly ProfilePeak[], length: number, options
       if (k.dir !== c.dir) continue;
       let shared = 0;
       for (const f of c.frets) if (k.frets.some((g) => g.pos === f.pos)) shared++;
-      if (shared >= 0.6 * c.frets.length) {
+      if (shared < 0.6 * c.frets.length) continue;
+      const cleaner = c.rms < 0.6 * k.rms && c.misses + c.extras <= k.misses + k.extras && shared < c.frets.length;
+      const alreadyHaveCleaner = kept.some((o) => o !== k && o.dir === c.dir && o.rms < 0.6 * k.rms);
+      if (!cleaner || alreadyHaveCleaner) {
         duplicate = true;
         break;
       }

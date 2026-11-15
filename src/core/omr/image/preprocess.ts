@@ -80,17 +80,16 @@ function medianOf(values: number[]): number {
 }
 
 /** True when a flattened page is noisy or faint enough that staff lines need the directional smoothing. */
-export function isNoisy(flat: FlattenResult, noise = flat.noise): boolean {
-  return noise >= 2.5 || flat.contrast < 0.45;
+export function isNoisy(noise: number, contrast: number): boolean {
+  return noise >= 2.5 || contrast < 0.45;
 }
 
 /**
- * Binarise a flattened page for symbols. Noisy pages are low-passed a little first and cleaned of
- * specks afterwards. `noise` overrides the estimate of the flattened image (pass the noise of the
- * capture when the image was enlarged, which hides it from a neighbour-difference estimate).
+ * Binarise a flattened page for symbols. Noisy pages (`noise` = pixel noise in grey levels) are
+ * low-passed a little first and cleaned of specks afterwards.
  */
-export function binarizeSymbols(flat: FlattenResult, staffSpace: number, noise = flat.noise): BinaryImage {
-  let img = flat.image;
+export function binarizeSymbols(gray: GrayImage, staffSpace: number, noise = 0): BinaryImage {
+  let img = gray;
   const space = staffSpace > 0 ? staffSpace : img.width / 120;
   const win = Math.max(15, Math.round(space * 2.5) | 1);
   let sigma = noise;
@@ -110,12 +109,11 @@ export function binarizeSymbols(flat: FlattenResult, staffSpace: number, noise =
  * line direction (`slope` = dy/dx of the staff lines, `radius` in staff spaces), which lifts faint,
  * noisy or JPEG-broken lines well above the noise. Symbols smear, so use it only to trace lines.
  */
-export function binarizeLines(flat: FlattenResult, staffSpace: number, slope = 0, radius = 0.75, noise = flat.noise): BinaryImage {
-  const img = flat.image;
-  const space = staffSpace > 0 ? staffSpace : img.width / 120;
+export function binarizeLines(gray: GrayImage, staffSpace: number, slope = 0, radius = 0.75, noise = 0): BinaryImage {
+  const space = staffSpace > 0 ? staffSpace : gray.width / 120;
   const win = Math.max(15, Math.round(space * 2.5) | 1);
   const r = Math.max(1, Math.round(radius * space));
-  const smooth = boxBlurSheared(img, r, slope);
+  const smooth = boxBlurSheared(gray, r, slope);
   const eff = noise / Math.sqrt(2 * r + 1);
   return binarize(smooth, { window: win, k: 0.12, lightCeil: 255 - Math.max(10, 4 * eff) });
 }
@@ -125,12 +123,11 @@ export function binarizeLines(flat: FlattenResult, staffSpace: number, slope = 0
  * are averaged vertically over `radius` staff spaces, which keeps the strokes, lifts them above the
  * noise and washes the staff lines out.
  */
-export function binarizeStrokes(flat: FlattenResult, staffSpace: number, radius = 0.5, noise = flat.noise): BinaryImage {
-  const img = flat.image;
-  const space = staffSpace > 0 ? staffSpace : img.width / 120;
+export function binarizeStrokes(gray: GrayImage, staffSpace: number, radius = 0.5, noise = 0): BinaryImage {
+  const space = staffSpace > 0 ? staffSpace : gray.width / 120;
   const win = Math.max(15, Math.round(space * 2.5) | 1);
   const r = Math.max(1, Math.round(radius * space));
-  const smooth = boxBlurVertical(img, r);
+  const smooth = boxBlurVertical(gray, r);
   const eff = noise / Math.sqrt(2 * r + 1);
   return binarize(smooth, { window: win, k: 0.14, lightCeil: 255 - Math.max(12, 4 * eff) });
 }
@@ -166,14 +163,14 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
   let f = Math.max(1, Math.ceil(Math.max(w, h) / maxRough));
   const trace = (img: GrayImage): { det: StaffDetection; flat: FlattenResult; binary: BinaryImage } => {
     const flat = flatten(img);
-    const binary = binarizeSymbols(flat, 0);
+    const binary = binarizeSymbols(flat.image, 0, flat.noise);
     let det = detectStaves(binary);
-    if (!det.staves.length || isNoisy(flat)) {
+    if (!det.staves.length || isNoisy(flat.noise, flat.contrast)) {
       // Second look with the grey levels averaged along the lines. Their direction comes from the
       // staves already found, or else from the projection profile of the page.
       const slope = det.staves.length ? medianOf(det.staves.map(staffSlope)) : Math.tan(estimateSkew(binary).angle);
       const space = det.scale.staffSpace >= 5 ? det.scale.staffSpace : img.width / 120;
-      const det2 = detectStaves(binarizeLines(flat, space, slope, 0.75));
+      const det2 = detectStaves(binarizeLines(flat.image, space, slope, 0.75, flat.noise));
       if (detectionScore(det2.staves) > detectionScore(det.staves) * 1.02) det = det2;
     }
     return { det, flat, binary };
@@ -185,7 +182,6 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
     rough = trace(source);
   }
   const det = rough.det;
-  const binR = { binary: rough.binary };
   const sourceNoise = rough.flat.noise * f;
   const roughStaves = f > 1 ? det.staves.map((s) => scaleStaff(s, f)) : det.staves;
   timings.rough = now() - t0;
@@ -211,7 +207,7 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
     distortion.spaceSpread = dw.spaceSpread;
   } else {
     // No staves (a chord sheet, a lyric page): still level the text lines for the OCR path.
-    const sk = estimateSkew(binR.binary);
+    const sk = estimateSkew(rough.binary);
     const angle = sk.confidence > 0.25 && Math.abs(sk.angle) > 0.0015 ? sk.angle : 0;
     const c = Math.cos(angle);
     const s = Math.sin(angle);
@@ -225,6 +221,7 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
 
   // ---- resample once ----------------------------------------------------------------------------
   let gray: GrayImage;
+  let outside: Uint8Array | null = null;
   if (correction === 'none') {
     gray = source;
   } else {
@@ -237,7 +234,10 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
     } else if (scale < 0.8) {
       src = blur3(source);
     }
-    gray = warpGray(src, m, { edge: 'clamp' });
+    // Beyond the capture the edge pixels are repeated (so the paper level is estimated sensibly
+    // right up to the border) and blanked again after flattening.
+    outside = new Uint8Array(m.width * m.height);
+    gray = warpGray(src, m, { edge: 'clamp', outside });
   }
   timings.resample = now() - t0;
   t0 = now();
@@ -245,17 +245,21 @@ export function preprocess(source: GrayImage, opts: PreprocessOptions = {}): Pre
   // ---- photometry on the normalised page ----------------------------------------------------------
   const staffSpace = roughStaves.length ? targetSpace : 0;
   const flat = flatten(gray, { ...(staffSpace ? { cell: Math.max(4, Math.round(staffSpace / 2)), radius: 3 } : {}), noiseLag: Math.max(1, scale) });
+  if (outside) {
+    const d = flat.image.data;
+    for (let i = 0; i < d.length; i++) if (outside[i]) d[i] = 255;
+  }
   timings.flatten = now() - t0;
   t0 = now();
   // Enlarging hides noise from the estimate on the normalised page; the capture's own noise counts too.
   const noise = Math.max(flat.noise, scale > 1 ? sourceNoise / Math.sqrt(scale) : sourceNoise * Math.min(1, scale));
-  const binary = binarizeSymbols(flat, staffSpace, noise);
+  const binary = binarizeSymbols(flat.image, staffSpace, noise);
   // In the normalised page the staff lines are level, so they can be averaged over a long stretch.
-  const noisy = isNoisy(flat, noise);
-  const lineBinary = noisy ? binarizeLines(flat, staffSpace, 0, 1.0, noise) : binary;
+  const noisy = isNoisy(noise, flat.contrast);
+  const lineBinary = noisy ? binarizeLines(flat.image, staffSpace, 0, 1.0, noise) : binary;
   // Only on really rough captures: the smoothing costs precision in the stroke widths.
   const rough2 = noise >= 5 || flat.contrast < 0.4;
-  const strokeBinary = rough2 && staffSpace > 0 ? binarizeStrokes(flat, staffSpace, 0.5, noise) : binary;
+  const strokeBinary = rough2 && staffSpace > 0 ? binarizeStrokes(flat.image, staffSpace, 0.5, noise) : binary;
   timings.binarize = now() - t0;
 
   return {

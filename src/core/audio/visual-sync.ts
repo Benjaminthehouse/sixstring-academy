@@ -29,6 +29,10 @@ export class VisualQueue {
 
   /** Queue `fn` to run when the output reaches audio time `time`. */
   add(time: number, fn: () => void): void {
+    // A time that is not a number would sit at the head of the queue for ever and hold up everything
+    // behind it: treat it as "now".
+    if (!Number.isFinite(time)) time = this.soundingNow();
+    if (typeof fn !== 'function') return;
     const e = this.entries;
     let i = e.length;
     while (i > 0 && e[i - 1].time > time) i--;

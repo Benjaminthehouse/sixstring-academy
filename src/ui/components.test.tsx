@@ -355,6 +355,30 @@ describe('feedback', () => {
     expect(document.querySelectorAll('[aria-label="Notifications"]')).toHaveLength(1);
   });
 
+  it('Alt+T reaches the newest toast from the keyboard, Escape dismisses it and focus goes back', async () => {
+    const undo = vi.fn();
+    const { el } = mount(<Button>Delete song</Button>);
+    const opener = q<HTMLButtonElement>(el, 'button');
+    opener.focus();
+    act(() => void toast.ok('Tuning saved'));
+    act(() => void toast({ title: 'Removed from your library', action: { label: 'Undo', onClick: undo } }));
+    const region = document.querySelector('[aria-label="Notifications"]')!;
+    expect(region.getAttribute('aria-keyshortcuts')).toBe('Alt+T');
+    const press = (init: KeyboardEventInit) => act(() => void (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })));
+    press({ code: 'KeyT', key: 't', altKey: true });
+    // The newest toast, and its action rather than its close button.
+    expect(document.activeElement?.textContent).toBe('Undo');
+    press({ key: 'Escape' });
+    expect(undo).not.toHaveBeenCalled();
+    // The dismissed toast stays for its exit animation, then focus returns to where it was.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(region.textContent).not.toContain('Removed from your library');
+    expect(region.textContent).toContain('Tuning saved');
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('confirmDialog() resolves with the answer', async () => {
     let answer: boolean | null = null;
     await act(async () => {

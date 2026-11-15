@@ -264,7 +264,7 @@ function TipCard({ today }: { today: string }) {
             {tip.action}
           </LinkButton>
         )}
-        <Button size="sm" variant="ghost" iconLeft="RefreshCw" onClick={() => setOffset((n) => n + 1)}>
+        <Button size="sm" variant="ghost" iconLeft="RefreshCw" className={styles.tipMore} onClick={() => setOffset((n) => n + 1)}>
           Another tip
         </Button>
       </div>

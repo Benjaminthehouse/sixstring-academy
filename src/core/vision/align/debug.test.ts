@@ -6,10 +6,12 @@
  * PNGs land in e2e/out/vision/align/. Node only.
  */
 import { describe, expect, it } from 'vitest';
-import type { DiagnosticFeature, Frame } from '../types';
+import type { DetectionResult, DiagnosticFeature, Frame } from '../types';
+import { measureCalibration } from '../testing/benchmark';
 import { writeFramePng } from '../testing/debug';
 import { createRenderCache, renderScene } from '../testing/render';
 import { sampleNegativeScene, sampleScene, type Tier } from '../testing/scene';
+import { buildSequence, type SequenceName } from '../testing/sequence';
 import { diskFrameStore } from '../testing/store';
 import { computeRidgeField, findAxisCandidates, type RidgeField } from './axis';
 import { comparePoses, makePose, neckModel } from '../geometry';
@@ -17,12 +19,13 @@ import type { FretboardPose } from '../types';
 import { AxisSearch } from './axis';
 import { measureBoard, measurementHomography } from './hypothesis';
 import { createAlignDetector } from './detector';
-import { gaussianBlur, toWorkingGray } from './image';
+import { SIGMA_FINE, buildPyramid, gaussianBlur, toWorkingGray } from './image';
 
 const mode = process.env.ALIGN_DEBUG ?? '';
 const OUT = 'e2e/out/vision/align';
 const tier = (process.env.ALIGN_TIER ?? 'medium') as Tier | 'negative';
-const seeds = (process.env.ALIGN_SEEDS ?? '0').split(',').map(Number);
+const seedOffset = Number(process.env.ALIGN_OFFSET ?? 0);
+const seeds = (process.env.ALIGN_SEEDS ?? '0').split(',').map((v) => Number(v) + seedOffset);
 
 function ridgeFrame(field: RidgeField): Frame {
   const data = new Uint8ClampedArray(field.width * field.height * 4);
@@ -51,7 +54,7 @@ describe.skipIf(mode === '')('align debug dumps', () => {
       const t0 = performance.now();
       const { gray, scaleX } = toWorkingGray(scene.frame);
       const t1 = performance.now();
-      const smooth = gaussianBlur(gray, 1.2);
+      const smooth = gaussianBlur(gray, SIGMA_FINE);
       const t2 = performance.now();
       const field = computeRidgeField(smooth);
       const t3 = performance.now();
@@ -87,8 +90,7 @@ describe.skipIf(mode === '')('align debug dumps', () => {
     for (const seed of seeds) {
       const scene = renderScene(tier === 'negative' ? sampleNegativeScene(seed) : sampleScene(tier, seed), cache);
       const { gray, scaleX } = toWorkingGray(scene.frame);
-      const fine = gaussianBlur(gray, 1.2);
-      const coarse = gaussianBlur(fine, 2.1, null);
+      const { fine, coarse } = buildPyramid(gray);
       const field = computeRidgeField(fine);
       const search = new AxisSearch(field);
       const hints = { bassSideUp: scene.truth.hints.bassSideUp ?? true, mirrored: scene.truth.hints.mirrored ?? false, leftHanded: scene.truth.hints.leftHanded ?? false };
@@ -150,13 +152,101 @@ describe.skipIf(mode === '')('align debug dumps', () => {
       if (cells >= 0.9 && (scene.truth.numberingObservable || isLocked)) correct++;
       const f = (v: number | undefined, d = 2): string => (v === undefined ? '-' : v.toFixed(d));
       process.stdout.write(
-        `${scene.truth.description.padEnd(86).slice(0, 86)} | ${out.pose ? (isLocked ? 'LOCK' : 'miss') : 'null'} q ${f(st.quality)} seen ${f(st.seen, 0)} cov ${f(st.coverage)} clean ${f(st.cleanliness)} fill ${f(st.fill)} con ${f(st.contrast, 1)} ` +
+        `${scene.truth.description.slice(0, 44).padEnd(44)} | ${out.pose ? (isLocked ? 'LOCK' : 'miss') : 'null'} q ${f(st.quality)} seen ${f(st.seen, 0)} cov ${f(st.coverage)} cl ${f(st.cleanliness)} fill ${f(st.fill)} con ${f(st.contrast, 0)} ovr ${f(st.overrun)} rig ${f(st.rigid)} thick ${f(st.thickness)} str ${f(st.strings)} trend ${f(st.lengthTrend)} ` +
           (err ? `| al ${(err.cellAccuracyAligned * 100).toFixed(0)}% abs ${(err.cellAccuracy * 100).toFixed(0)}% fret ${err.fretErrorAligned.median.toFixed(3)} str ${err.stringError.median.toFixed(2)} k ${err.numberingOffset} ${scene.truth.numberingObservable ? (scene.truth.nutVisible ? 'NUT' : 'INL') : 'n/a'} num ${out.pose?.numbering}/${out.pose?.numberingConfidence.toFixed(2)}` : `| ${out.diagnostics.reason ?? ''}`) +
-          ` | ${out.diagnostics.timings.total.toFixed(0)} ms\n`,
+          ` | ${out.diagnostics.timings.total.toFixed(0)} ms\n` +
+          (process.env.ALIGN_NUM === '1' ? `      ${out.diagnostics.features?.find((x) => x.kind === 'numbering')?.label ?? ''}\n` : ''),
       );
       if (dump) writeFramePng(`${OUT}/eval-${tier}-${seed}.png`, scene.frame, { truth: scene.truth.pose, pose: out.pose, features: out.diagnostics.features, scale: scene.frame.width <= 640 ? 2 : 1, label: scene.truth.description });
     }
     process.stdout.write(`${tier}: locked ${locked}/${seeds.length} correct ${correct}/${seeds.length}\n`);
     expect(seeds.length).toBeGreaterThan(0);
   }, 300_000);
+
+  it.skipIf(mode !== 'seq')('one line per frame of a tracking sequence', () => {
+    const name = (process.env.ALIGN_SEQ ?? 'jerk') as SequenceName;
+    const seq = buildSequence(name, { seedOffset });
+    const cache = createRenderCache(diskFrameStore());
+    const detector = createAlignDetector();
+    const dumpAt = (process.env.ALIGN_FRAMES ?? '').split(',').filter((x) => x !== '').map(Number);
+    let pose: FretboardPose | null = null;
+    let last: FretboardPose | null = null;
+    for (let i = 0; i < seq.frames.length; i++) {
+      const scene = renderScene(seq.frames[i], cache);
+      const hints = { ...scene.truth.hints, timeMs: (i * 1000) / seq.fps };
+      // ALIGN_INIT=detect starts cold, as the benchmark does with VISION_TRACK_INIT=detect.
+      if (i === 0 && scene.truth.pose && process.env.ALIGN_INIT !== 'detect') {
+        pose = { ...scene.truth.pose, numbering: 'user' };
+        last = pose;
+        continue;
+      }
+      let how = 'track';
+      let out: DetectionResult = pose ? detector.track(scene.frame, pose, hints) : detector.detect(scene.frame, last ? { ...hints, previousPose: last } : hints);
+      if (!pose) how = 'detect';
+      const trackStats = out.diagnostics.stats ?? {};
+      const trackReason = out.diagnostics.reason;
+      if (pose && !out.pose) {
+        out = detector.detect(scene.frame, { ...hints, previousPose: pose });
+        how = 'track>detect';
+      }
+      pose = out.pose;
+      if (pose) last = pose;
+      const err = pose && scene.truth.pose ? comparePoses(pose, scene.truth.pose) : null;
+      const f = (v: number | undefined, d = 2): string => (v === undefined ? '-' : v.toFixed(d));
+      process.stdout.write(
+        `${name} ${String(i).padStart(2)} ${scene.truth.occluded ? 'OCC' : '   '} ${how.padEnd(12)} track(q ${f(trackStats.quality)} seen ${f(trackStats.seen, 0)} moved ${f(trackStats.moved, 1)} pred ${f(trackStats.predicted, 0)} ${trackReason ?? ''}) -> ${pose ? 'pose' : 'null'} ${out.diagnostics.reason ?? ''} ` +
+          (err ? `cells ${(err.cellAccuracy * 100).toFixed(0)}% al ${(err.cellAccuracyAligned * 100).toFixed(0)}% fret ${err.fretErrorAligned.median.toFixed(3)} str ${err.stringError.median.toFixed(2)} k ${err.numberingOffset}` : '') +
+          ` | ${out.diagnostics.timings.total.toFixed(0)} ms\n` +
+          (process.env.ALIGN_NUM === '1' && how !== 'track' ? `      ${out.pose?.numbering}/${out.pose?.numberingConfidence.toFixed(2)} ${out.diagnostics.features?.find((x) => x.kind === 'numbering')?.label ?? ''}\n` : ''),
+      );
+      if (dumpAt.includes(i)) writeFramePng(`${OUT}/seq-${name}-${i}.png`, scene.frame, { truth: scene.truth.pose, pose, scale: 2, label: `${name} ${i}` });
+    }
+    expect(seq.frames.length).toBeGreaterThan(0);
+  }, 300_000);
+
+  it.skipIf(mode !== 'time')('time per frame, best of 5 (factors out a busy machine)', () => {
+    const cache = createRenderCache(diskFrameStore());
+    const detector = createAlignDetector({ debugFeatures: false });
+    const median = (v: number[]): number => v.slice().sort((a, b) => a - b)[v.length >> 1];
+    const p95 = (v: number[]): number => v.slice().sort((a, b) => a - b)[Math.min(v.length - 1, Math.floor(v.length * 0.95))];
+    const lines: string[] = [];
+    for (const which of ['easy', 'medium', 'hard', 'extreme', 'negative'] as const) {
+      const times: number[] = [];
+      for (let seed = seedOffset; seed < seedOffset + 24; seed++) {
+        const scene = renderScene(which === 'negative' ? sampleNegativeScene(seed) : sampleScene(which, seed), cache);
+        if (scene.frame.width !== 640) continue;
+        let best = Infinity;
+        for (let rep = 0; rep < 5; rep++) {
+          detector.reset?.();
+          const t0 = performance.now();
+          detector.detect(scene.frame, scene.truth.hints);
+          best = Math.min(best, performance.now() - t0);
+        }
+        times.push(best);
+      }
+      lines.push(`detect ${which}: n ${times.length} median ${median(times).toFixed(1)} ms p95 ${p95(times).toFixed(1)} ms max ${Math.max(...times).toFixed(1)} ms`);
+    }
+    for (const name of ['sway', 'hand-slide', 'jerk'] as const) {
+      const seq = buildSequence(name, { seedOffset });
+      const frames = seq.frames.map((f) => renderScene(f, cache));
+      const per: number[][] = frames.map(() => []);
+      for (let rep = 0; rep < 5; rep++) {
+        detector.reset?.();
+        let pose: FretboardPose | null = { ...(frames[0].truth.pose as FretboardPose), numbering: 'user' };
+        for (let i = 1; i < frames.length && pose; i++) {
+          const t0 = performance.now();
+          const out: DetectionResult = detector.track(frames[i].frame, pose, { ...frames[i].truth.hints, timeMs: (i * 1000) / seq.fps });
+          per[i].push(performance.now() - t0);
+          pose = out.pose ?? pose;
+        }
+      }
+      const best = per.filter((p) => p.length > 0).map((p) => Math.min(...p));
+      lines.push(`track ${name}: n ${best.length} median ${median(best).toFixed(1)} ms p95 ${p95(best).toFixed(1)} ms max ${Math.max(...best).toFixed(1)} ms`);
+    }
+    const calibration: number[] = [];
+    for (let k = 0; k < 5; k++) calibration.push(measureCalibration());
+    lines.push(`calibration (best of 5): ${Math.min(...calibration).toFixed(2)} ms`);
+    process.stdout.write(`${lines.join('\n')}\n`);
+    expect(lines.length).toBeGreaterThan(0);
+  }, 600_000);
 });

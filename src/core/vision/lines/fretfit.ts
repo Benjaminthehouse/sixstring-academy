@@ -34,7 +34,7 @@ export interface FretFitOptions {
   minTolerancePx?: number;
   /**
    * Allowed range of the depth ratio w(u_max) / w(u_min): the camera depth (projective weight) at the
-   * candidate with the largest u over that at the smallest u. Default [1 / 1.7, 1.7]; pass a narrow
+   * candidate with the largest u over that at the smallest u. Default [1 / 2.2, 2.2]; pass a narrow
    * range when the convergence of the board edges tells how the neck recedes.
    */
   depthRatio?: [number, number];
@@ -106,6 +106,9 @@ interface Match {
 }
 
 const MAX_INDEX = 40;
+/** r^m for m = -MAX_INDEX - 1 .. MAX_INDEX + 1. */
+const POW = new Float64Array(2 * MAX_INDEX + 3);
+for (let m = -MAX_INDEX - 1; m <= MAX_INDEX + 1; m++) POW[m + MAX_INDEX + 1] = Math.pow(FRET_RATIO, m);
 
 /**
  * Match sorted candidates to the predicted frets of a model. `assign[i]` receives the fret index of
@@ -126,11 +129,11 @@ function matchModel(us: Float64Array, ws: Float64Array, n: number, p: Params, to
     let ptr = dir > 0 ? 0 : n - 1;
     let prev = NaN;
     for (let m = dir > 0 ? 0 : -1; m <= MAX_INDEX && m >= -MAX_INDEX; m += dir) {
-      const x = 1 - Math.pow(FRET_RATIO, m);
+      const x = 1 - POW[m + MAX_INDEX + 1];
       const wgt = p.C * x + 1;
       if (!(wgt > 1e-6)) break;
       const u = (p.A * x + p.B) / wgt;
-      const xn = 1 - Math.pow(FRET_RATIO, m + 1);
+      const xn = 1 - POW[m + MAX_INDEX + 2];
       const wn = p.C * xn + 1;
       if (!(wn > 1e-6)) break;
       const spacing = (p.A * xn + p.B) / wn - u;
@@ -245,6 +248,13 @@ function depthRatio(p: Params, uA: number, uB: number): number {
   return wa > wb ? wa / wb : wb / wa;
 }
 
+/** The weight of the `keep`-th strongest candidate (at least 0.45): candidates below it do not start a seed. */
+function seedWeightFloor(ws: Float64Array, n: number, keep: number): number {
+  if (n <= keep) return 0.45;
+  const sorted = Array.from(ws.subarray(0, n)).sort((a, b) => b - a);
+  return Math.max(0.45, sorted[keep - 1]);
+}
+
 /** Convert a comb u~ = alpha + beta r^m in depth-rectified coordinates (see below) to the (A, B, C) form. */
 function fromRectified(alpha: number, beta: number, kappa: number, uRef: number): Params {
   const d0 = 1 + kappa * alpha;
@@ -286,7 +296,10 @@ function fitOneDirection(us: Float64Array, ws: Float64Array, n: number, o: Requi
   };
   const better = (m: Match, than: Match | null): boolean => !than || m.score > than.score + 1e-9 || (Math.abs(m.score - than.score) <= 1e-9 && m.rms < than.rms);
 
-  const steps = Math.max(1, Math.ceil(Math.log(rhoMax / rhoMin) / Math.log(1.05)));
+  const steps = Math.max(1, Math.ceil(Math.log(rhoMax / rhoMin) / Math.log(1.12)));
+  // Seeds start at the strongest candidates only: one true pair of neighbouring wires is enough,
+  // and the strong ridges are the wires.
+  const seedFloor = seedWeightFloor(ws, n, 12);
   for (let s = 0; s <= steps; s++) {
     const rho = steps > 0 ? rhoMin * Math.pow(rhoMax / rhoMin, s / steps) : rhoMin;
     const kappa = (1 - 1 / rho) / span;
@@ -295,7 +308,10 @@ function fitOneDirection(us: Float64Array, ws: Float64Array, n: number, o: Requi
       rect[i] = v / (1 - kappa * v);
     }
     for (let i = 0; i < n - 1; i++) {
+      // Faint candidates (dots, finger edges) do not seed a comb; they can still join one.
+      if (ws[i] < seedFloor) continue;
       for (let j = i + 1; j <= i + 2 && j < n; j++) {
+        if (ws[j] < 0.45) continue;
         const gap = us[j] - us[i];
         for (let d = 1; d <= 3; d++) {
           const spacing = gap / d;
@@ -308,7 +324,8 @@ function fitOneDirection(us: Float64Array, ws: Float64Array, n: number, o: Requi
           for (let it = 0; it < 4; it++) {
             const p = fromRectified(alpha, beta, kappa, uLo);
             const m = matchModel(us, ws, n, p, o.tolerance * (it === 0 ? 1.6 : 1), o.minTolerancePx, o.minSpacing, o.maxSpacing, scratch);
-            if (!m || m.inliers < 2) break;
+            // A seed that does not even find two more wires nearby is not worth growing.
+            if (!m || m.inliers < 4) break;
             if (it > 0 && grown && !better(m, grown)) break;
             if (it > 0) {
               grown = m;
@@ -319,7 +336,7 @@ function fitOneDirection(us: Float64Array, ws: Float64Array, n: number, o: Requi
             let sw = 0, sz = 0, su = 0, szz = 0, szu = 0;
             for (let k = 0; k < n; k++) {
               if (scratch[k] === NO_INDEX) continue;
-              const z = Math.pow(FRET_RATIO, scratch[k]);
+              const z = POW[scratch[k] + MAX_INDEX + 1];
               const w = Math.max(0.2, Math.min(1.5, ws[k]));
               sw += w;
               sz += w * z;
@@ -370,7 +387,7 @@ export function fitFretPattern(candidates: readonly FretCandidate[], options: Fr
     direction: options.direction ?? 0,
     tolerance: options.tolerance ?? 0.16,
     minTolerancePx: options.minTolerancePx ?? 1.2,
-    depthRatio: options.depthRatio ?? [1 / 1.7, 1.7],
+    depthRatio: options.depthRatio ?? [1 / 2.2, 2.2],
     minSpacing: options.minSpacing ?? 3,
     maxSpacing: options.maxSpacing ?? 120,
     minInliers: options.minInliers ?? 5,

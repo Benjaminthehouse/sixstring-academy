@@ -8,7 +8,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
+  min-width: var(--tap);
   min-height: var(--tap);
   padding: 0 var(--sp-2);
   border: 0;
@@ -39,8 +39,16 @@
   width: 100%;
 }
 .chipsSide .chip {
+  min-width: 40px;
   min-height: 40px;
   padding: 0 var(--sp-2);
+}
+/* A tablet in landscape gets the sidebar too: full-size targets for fingers. */
+@media (pointer: coarse) {
+  .chipsSide .chip {
+    min-width: var(--tap);
+    min-height: var(--tap);
+  }
 }
 .goalChip {
   display: inline-flex;
@@ -49,7 +57,7 @@
   color: var(--ok);
 }
 .goalZap {
-  color: var(--fg-faint);
+  color: var(--fg-muted);
 }
 .goalText {
   font-family: var(--font-mono);
@@ -60,7 +68,7 @@
   color: var(--fg);
 }
 .goalOf {
-  color: var(--fg-faint);
+  color: var(--fg-muted);
   font-weight: 600;
 }
 .unlimited {
@@ -102,7 +110,8 @@
 .dayLabel {
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--fg-faint);
+  /* Today is --fg and bold; the other days stay readable (4.5:1) rather than faint. */
+  color: var(--fg-muted);
 }
 .dayToday .dayLabel {
   color: var(--fg);
@@ -142,6 +151,13 @@
   flex-direction: column;
   gap: var(--sp-5);
   outline: none;
+  container-type: inline-size;
+}
+/* Four tabs on a 320 or 360 px phone: the words stay whole, the icons give way. */
+@container (max-width: 20.5rem) {
+  .sheet > [role='radiogroup'] svg {
+    display: none;
+  }
 }
 .sheet:focus-visible {
   box-shadow: none;

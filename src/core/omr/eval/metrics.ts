@@ -88,13 +88,17 @@ export function addScore(a: PageScore, b: PageScore): PageScore {
   return a;
 }
 
+/** Share of the detections that are right (1 when nothing was detected). */
 export const precision = (t: Tally): number => (t.tp + t.fp ? t.tp / (t.tp + t.fp) : 1);
+/** Share of the true elements that were found (1 when there was nothing to find). */
 export const recall = (t: Tally): number => (t.tp + t.fn ? t.tp / (t.tp + t.fn) : 1);
+/** Harmonic mean of precision and recall. */
 export const f1 = (t: Tally): number => {
   const p = precision(t);
   const r = recall(t);
   return p + r ? (2 * p * r) / (p + r) : 0;
 };
+/** Accuracy of a ratio tally (1 when nothing was compared). */
 export const rate = (r: Ratio): number => (r.total ? r.correct / r.total : 1);
 
 /** A ground-truth staff paired with the detected staff that covers it (or null). */
@@ -362,8 +366,11 @@ export function scorePage(page: OmrPage, truth: GroundTruth): PageScore {
       score.barlineType.total++;
       if (g.barlines[gi].type === d.barlines[di].type) score.barlineType.correct++;
     }
+    // A repeat sign right after the clef closes a "measure" that holds only the clef, key and time
+    // signature. The ground truth does not count it; the assembler drops it once it is known to be empty.
+    const header = g.barlines.length > 1 && g.barlines[1].type === 'repeat-begin' && g.barlines[1].x < g.measures[0].x0 + 0.6 * (g.measures[0].x1 - g.measures[0].x0) ? 1 : 0;
     score.measureCount.total++;
-    if (d.measures.length === g.measures.length) score.measureCount.correct++;
+    if (d.measures.length === g.measures.length || d.measures.length === g.measures.length + header) score.measureCount.correct++;
     if (g.kind === 'notation') scoreNotation(score, g, d);
     else scoreTab(score, g, d);
     // System grouping with the next ground-truth staff.

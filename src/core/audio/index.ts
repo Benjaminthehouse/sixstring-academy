@@ -7,11 +7,11 @@
 // Context, mixer, unlock, analysis tap
 export {
   AudioEngine, BUS_NAMES, BufferCache,
-  audioNow, audioRunning, audioSoundingNow, audioSupported, closeAudio, engineClock, getAnalyser, getAudioContext, getEngine,
-  getMasterVolume, getOutputLevel, hasEngine, installAudioUnlock, isMuted, makeRoomImpulse, scheduleVisual, setBusMuted, setBusVolume,
+  audioNow, audioRunning, audioSoundingNow, audioState, audioSupported, closeAudio, engineClock, getAnalyser, getAudioContext, getEngine,
+  getMasterVolume, getOutputLevel, hasEngine, installAudioUnlock, isMuted, makeRoomImpulse, onAudioClosed, onAudioUnlocked, scheduleVisual, setBusMuted, setBusVolume,
   setMasterVolume, setMuted, unlockAudio,
 } from './engine';
-export type { BusName, EngineOptions, OutputLevel } from './engine';
+export type { AudioState, BusName, EngineOptions, OutputLevel } from './engine';
 export { offlineSupported, renderOffline } from './offline';
 export type { OfflineRender, OfflineRenderOptions } from './offline';
 
@@ -20,7 +20,7 @@ export { GuitarSynth, getBass, getGuitar, playBass, pluck, stopAll, strum } from
 export type { GuitarSynthOptions, PlayOptions, PlayStrumOptions, VoiceHandle } from './guitar';
 export { applyFx, renderPluck, renderRawPluck, renderSequence, renderStrum, strumPlan } from './pluck';
 export type { PluckOptions, PluckSpec, RawPluck, SequenceNote, SequenceOptions, StrumNote, StrumOptions, StrumRenderOptions } from './pluck';
-export { INSTRUMENTS, locateOnNeck, resolveTone, velocityGain } from './tones';
+export { INSTRUMENTS, TONE_NAMES, locateOnNeck, normalizeTone, resolveTone, velocityGain } from './tones';
 export type { Articulation, BassTone, GuitarTone, InstrumentDef, StringInstrument, ToneName } from './tones';
 export { designLoop, loopT60 } from './string-model';
 export type { LoopDesign, LoopTargets } from './string-model';
@@ -28,7 +28,7 @@ export type { LoopDesign, LoopTargets } from './string-model';
 // Drums, clicks, tones, drone, interface sounds
 export { DrumKit, drumGain, getDrums, playChord, playClick, playDrum, playTone, playUi, preloadClicks, startDrone } from './voices';
 export type { DroneHandle, DroneStartOptions, ToneHandle, ToneOptions, UiSoundOptions } from './voices';
-export { CLICK_SETS, DRUM_NAMES, renderClick, renderDrum } from './percussion';
+export { CLICK_SETS, DRUM_NAMES, isDrumName, normalizeClickSet, renderClick, renderDrum } from './percussion';
 export type { ClickLevel, ClickSet, DrumName } from './percussion';
 export { TONE_VOICES, droneLayers, renderDrone, renderTone } from './keys';
 export type { DroneLayer, DroneOptions, ToneSpec, ToneVoice } from './keys';
@@ -57,5 +57,5 @@ export { decodeWav, encodeWav } from './wav';
 export type { DecodedWav, WavOptions } from './wav';
 export { attackTime, centsFromMidi, decaySlopeDb, decayTime, envelope, estimatePitch, findOnsets, harmonicAmplitudes, hasBadSamples, measureFundamental, spectralCentroid } from './analysis';
 export type { PitchEstimate } from './analysis';
-export { Rng, biquadCoeffs, biquadFilter, dbToGain, fft, gainToDb, hashSeed, magnitudeSpectrum, peakOf, rmsOf } from './dsp';
+export { Rng, biquadCoeffs, biquadFilter, dbToGain, fft, finiteOr, gainToDb, hashSeed, magnitudeSpectrum, peakOf, rmsOf } from './dsp';
 export type { BiquadCoeffs, BiquadSpec, BiquadType } from './dsp';

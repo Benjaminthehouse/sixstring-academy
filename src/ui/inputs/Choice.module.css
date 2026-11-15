@@ -39,14 +39,16 @@
     color var(--dur-1) var(--ease),
     box-shadow var(--dur-1) var(--ease);
 }
-/* The strip is 44 px tall; extend each segment's hit area to that height. */
+/* The strip is 44 px tall; extend each segment's hit area to that height (the inset starts inside the 1 px border). */
 .segment::before {
   content: '';
   position: absolute;
-  inset: -4px -1px;
+  inset: -5px -1px;
 }
+/* A fitted strip shares its width; slimmer side padding leaves the labels more of it on a narrow phone. */
 .segmentedFull .segment {
   flex: 1 1 0;
+  padding: 0 var(--sp-2);
 }
 .segmentLabel {
   overflow: hidden;
@@ -84,12 +86,16 @@
   font-size: var(--text-xs);
 }
 .segmentedSm .segment::before {
-  inset: -8px -2px;
+  inset: -9px -2px;
 }
 .segmentedLg .segment {
   min-height: 44px;
   padding: 0 var(--sp-4);
   font-size: var(--text-md);
+}
+/* Fitted and large: three two-word labels have to fit a 360 px phone without losing their last letters. */
+.segmentedFull.segmentedLg .segment {
+  padding: 0 var(--sp-3);
 }
 
 /* ---------- Tabs ---------- */
@@ -201,7 +207,7 @@
 .pills .tab::before {
   content: '';
   position: absolute;
-  inset: -4px -1px;
+  inset: -5px -1px;
 }
 .pills .tabSelected {
   background: var(--surface);
@@ -277,7 +283,8 @@
   height: 100%;
   margin: 0;
   appearance: none;
-  border: 1.5px solid var(--line-strong);
+  /* The edge of an unchecked control carries its shape: 3:1 against the page. */
+  border: 1.5px solid color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));
   border-radius: var(--r-pill);
   background: var(--surface-2);
   cursor: inherit;
@@ -336,7 +343,7 @@
   height: 100%;
   margin: 0;
   appearance: none;
-  border: 1.5px solid var(--line-strong);
+  border: 1.5px solid color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));
   border-radius: var(--r-sm);
   background: var(--surface);
   cursor: inherit;
@@ -351,7 +358,7 @@
 }
 @media (hover: hover) {
   .boxInput:hover:not(:disabled) {
-    border-color: var(--fg-faint);
+    border-color: var(--fg-muted);
   }
 }
 .boxInput:focus-visible {

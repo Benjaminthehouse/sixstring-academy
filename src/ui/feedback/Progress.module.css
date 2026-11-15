@@ -33,9 +33,10 @@
 }
 .barHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--sp-3);
+  gap: 0 var(--sp-3);
   font-size: var(--text-sm);
 }
 .barLabel {
@@ -81,12 +82,18 @@
     transform: translateX(290%);
   }
 }
+/* Reduced motion (the device's setting, or the learner's own in the app): a still, half-strength bar rather than a frozen 38 %. */
 @media (prefers-reduced-motion: reduce) {
   .indeterminate .fill {
     width: 100% !important;
     opacity: 0.5;
     animation: none;
   }
+}
+:global(:root[data-motion='reduce']) .indeterminate .fill {
+  width: 100% !important;
+  opacity: 0.5;
+  animation: none;
 }
 .segments {
   display: flex;
@@ -237,6 +244,9 @@
   .skeleton::after {
     display: none;
   }
+}
+:global(:root[data-motion='reduce']) .skeleton::after {
+  display: none;
 }
 .skText {
   height: 0.8em;

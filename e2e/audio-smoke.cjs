@@ -11,10 +11,15 @@
  *                 of their scheduled audio-clock time · the context suspends when idle and wakes up
  *  offline graph  the same engine graph rendered with OfflineAudioContext: pitch of A2 and E4,
  *                 event timing to the sample, every style, a deliberately overloaded mix
+ *  locked start   a second browser that blocks autoplay: sounds requested before the first click
+ *                 never throw and are never heard, the click itself plays its note in tune and with
+ *                 its full attack
  *
- * Exits non-zero if any check fails.
+ * Companions: audio-timing.cjs (clock accuracy), audio-stress.cjs (robustness, leaks),
+ * audio-mix.cjs (clicks, limiter, mix levels). Exits non-zero if any check fails.
  */
 const { withApp } = require('./lib/harness.cjs');
+const { installPageTools, pageTools, printChecks } = require('./audio-lib.cjs');
 
 const quick = process.argv.includes('--quick'); // skip the idle-suspend wait and play one bar per style
 
@@ -44,43 +49,9 @@ function inPage({ quick }) {
     // ---------------------------------------------------------------------------------------
     // Capture every output sample with an AudioWorklet (frame-exact, unlike an analyser)
     // ---------------------------------------------------------------------------------------
-    const workletSrc = `
-      class Rec extends AudioWorkletProcessor {
-        process(inputs) {
-          const ch = inputs[0] && inputs[0][0];
-          if (ch) this.port.postMessage({ frame: currentFrame, data: ch.slice() });
-          return true;
-        }
-      }
-      registerProcessor('smoke-rec', Rec);`;
-    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletSrc], { type: 'application/javascript' })));
-    const rec = new AudioWorkletNode(ctx, 'smoke-rec', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
-    const sink = ctx.createGain();
-    sink.gain.value = 0;
-    engine.output.connect(rec);
-    rec.connect(sink);
-    sink.connect(ctx.destination);
-    let chunks = [];
-    rec.port.onmessage = (e) => chunks.push(e.data);
-    /** Start a capture; returns a function that stops it and returns { start (frame), samples }. */
-    const capture = () => {
-      chunks = [];
-      return () => {
-        const list = chunks;
-        chunks = [];
-        if (!list.length) return { start: 0, samples: new Float32Array(0), gaps: 0 };
-        const start = list[0].frame;
-        const end = list[list.length - 1].frame + list[list.length - 1].data.length;
-        const samples = new Float32Array(end - start);
-        let gaps = 0, expect = start;
-        for (const c of list) {
-          if (c.frame !== expect) gaps++;
-          samples.set(c.data, c.frame - start);
-          expect = c.frame + c.data.length;
-        }
-        return { start, samples, gaps };
-      };
-    };
+    // (The recorder puts blocks together by counting them: see audio-lib.cjs for why.)
+    const recorder = await window.__audioTools.recorder(ctx, engine.output);
+    const capture = () => recorder.capture();
     const stats = (x) => {
       let peak = 0, sum = 0, bad = 0;
       for (let i = 0; i < x.length; i++) {
@@ -446,49 +417,76 @@ function lockedScript() {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     try {
       const audio = await import('/src/core/audio/index.ts');
+      check('before anything is asked for, the state is "locked" and no context exists', audio.audioState() === 'locked' && audio.hasEngine() === false, audio.audioState());
       const ctx = audio.getAudioContext();
+      const engine = audio.getEngine();
       out.initialState = ctx.state;
       out.activeAtStart = !!(navigator.userActivation && navigator.userActivation.hasBeenActive);
       if (ctx.state !== 'running') {
-        // Requested with no user gesture: must never be heard.
-        audio.pluck(60, undefined, { velocity: 1 });
-        audio.playUi('levelUp');
-        audio.playDrum('crash');
-        const workletSrc = "class Rec extends AudioWorkletProcessor { process(inputs) { const ch = inputs[0] && inputs[0][0]; if (ch) this.port.postMessage({ frame: currentFrame, data: ch.slice() }); return true; } } registerProcessor('smoke-rec', Rec);";
-        await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([workletSrc], { type: 'application/javascript' })));
-        const rec = new AudioWorkletNode(ctx, 'smoke-rec', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
-        const sink = ctx.createGain();
-        sink.gain.value = 0;
-        audio.getEngine().output.connect(rec);
-        rec.connect(sink);
-        sink.connect(ctx.destination);
-        const chunks = [];
-        rec.port.onmessage = (e) => chunks.push(e.data);
+        // Requested with no user gesture: must never be heard, and must not throw.
+        let threw = '';
+        let handle = null, ui = null, tone = null;
+        try {
+          handle = audio.pluck(60, undefined, { velocity: 1 });
+          ui = audio.playUi('levelUp');
+          audio.playDrum('crash');
+          audio.strum([48, 55, 60, 64], undefined, { velocity: 1 });
+          audio.playClick('cowbell', 'accent');
+          tone = audio.playTone(72, undefined, { duration: 2, velocity: 1 });
+          const m = new audio.Metronome({ tempo: 240 });
+          m.start();
+          await sleep(60);
+          m.stop();
+          m.dispose();
+        } catch (e) {
+          threw = String(e);
+        }
+        check('playing before unlock does not throw, and says the sound is only queued', threw === '' && handle && handle.queued === true && ui === false && tone && tone.queued === true && audio.audioState() === 'locked', threw || `pluck().queued ${handle && handle.queued}, playUi() ${ui}, state ${audio.audioState()}`);
+        const queuedNow = engine.pendingSounds;
+        const recorder = await window.__audioTools.recorder(ctx, engine.output);
+        const stop = recorder.capture();
         await sleep(900);
         check('audio stays locked until a user gesture', ctx.state === 'suspended', ctx.state);
+        check('queued sounds are given up after a moment, while the context is still silent', queuedNow >= 5 && engine.pendingSounds === 0 && audio.getGuitar().activeVoices === 0, `${queuedNow} queued, ${engine.pendingSounds} still waiting after 0.9 s, ${audio.getGuitar().activeVoices} guitar voices`);
         // The "Play" button: calls pluck() directly, without unlockAudio().
         const clicked = new Promise((resolve) => {
-          document.addEventListener('pointerdown', () => { audio.pluck(64, undefined, { velocity: 1 }); resolve(); }, { once: true });
+          document.addEventListener('pointerdown', () => { const h = audio.pluck(64, undefined, { velocity: 1 }); resolve(h); }, { once: true });
         });
         console.log('__locked:ready');
-        await clicked;
-        await sleep(1000);
-        check('pluck() inside a click handler starts audio by itself', ctx.state === 'running', ctx.state);
+        const played = await clicked;
+        await sleep(1200);
+        check('pluck() inside a click handler starts audio by itself', ctx.state === 'running' && audio.audioState() === 'running', ctx.state);
         const fs = ctx.sampleRate;
-        const start = chunks.length ? chunks[0].frame : 0;
-        const end = chunks.length ? chunks[chunks.length - 1].frame + 128 : 0;
-        const x = new Float32Array(Math.max(0, end - start));
-        for (const c of chunks) x.set(c.data, c.frame - start);
+        const cap = stop();
+        const x = cap.samples;
         const first = audio.findOnsets(x, fs, 0.01)[0] ?? 0;
-        const est = x.length > 9000 ? audio.estimatePitch(x, fs, { start: first + Math.round(0.05 * fs), length: 8192 }) : null;
+        const est = x.length > 9000 ? audio.estimatePitch(x, fs, { start: first + Math.round(0.05 * fs), length: 8192, minHz: 150 }) : null;
         const cents = est ? audio.centsFromMidi(est.hz, 64) : NaN;
-        check('the note played from the click is heard, in tune', Math.abs(cents) < 3, `${cents.toFixed(3)} cents from E4`);
-        const amp = (f) => audio.harmonicAmplitudes(x, fs, f, 1, first / fs + 0.05, 0.25)[0];
-        // The stale requests were a C4 pluck and a fanfare starting on C5; the click played E4.
-        // (With the guard switched off, C4 comes out at about two thirds of E4's level.)
-        const c4 = amp(261.63), c5 = amp(523.25), e4 = amp(329.63);
-        check('sounds requested before the gesture were dropped, not played late', c4 < e4 * 0.2 && c5 < e4 * 0.2,
-          `C4 ${c4.toExponential(2)}, C5 ${c5.toExponential(2)} vs E4 ${e4.toExponential(2)}`);
+        check('the note played from the click is heard, in tune, from its first 50 ms on', Math.abs(cents) < 2, `${cents.toFixed(3)} cents from E4`);
+        // The stale requests were C4 and a C major chord on the guitar, a fanfare starting on C5, a C5
+        // tone, a crash, a cowbell and a burst of metronome clicks; the click played E4. None of the
+        // stale ones may be in the output, not even for the few milliseconds a late cancel would leave.
+        const amp = (f, at, len) => audio.harmonicAmplitudes(x, fs, f, 1, first / fs + at, len)[0];
+        const e4 = amp(329.63, 0.01, 0.08);
+        const strays = [['C4', 261.63], ['C3', 130.81], ['G3', 196], ['C5', 523.25], ['cowbell', 815]].map(([name, f]) => [name, amp(f, 0.0, 0.08) / e4]);
+        const worst = strays.reduce((a, b) => (b[1] > a[1] ? b : a));
+        // What a clean E4 has at those frequencies in its first 80 ms (window leakage of its own
+        // partials), measured on the same note rendered alone, is the yardstick.
+        const alone = audio.renderPluck({ midi: 64, sampleRate: fs, velocity: 1 });
+        const own = (f) => audio.harmonicAmplitudes(alone, fs, f, 1, 0, 0.08)[0] / audio.harmonicAmplitudes(alone, fs, 329.63, 1, 0.01, 0.08)[0];
+        const allowed = Math.max(...[261.63, 130.81, 196, 523.25, 815].map(own)) * 2 + 0.02;
+        // Cymbal and clicks: energy above 7 kHz, of which a plucked E4 has next to none.
+        const hi = Float32Array.from(x.subarray(first, first + Math.round(0.1 * fs)));
+        audio.biquadFilter(hi, audio.biquadCoeffs({ type: 'highpass', freq: 7000, q: 0.7 }, fs));
+        audio.biquadFilter(hi, audio.biquadCoeffs({ type: 'highpass', freq: 7000, q: 0.7 }, fs));
+        const hiShare = audio.rmsOf(hi) / (audio.rmsOf(x, first, first + Math.round(0.1 * fs)) || 1);
+        check('sounds requested before the gesture are never heard, not even for an instant', worst[1] < allowed && hiShare < 0.05,
+          `largest stray partial ${worst[0]} at ${(worst[1] * 100).toFixed(2)} % of E4 (a clean E4 alone shows up to ${(allowed * 100).toFixed(2)} % there), highs above 7 kHz ${(hiShare * 100).toFixed(2)} % of the level`);
+        // The first note of a session keeps its attack (the master compressor's start-up dip is undone).
+        const early = audio.rmsOf(x, first, first + Math.round(0.04 * fs));
+        const later = audio.rmsOf(x, first + Math.round(0.1 * fs), first + Math.round(0.14 * fs));
+        const ref = audio.rmsOf(alone, 0, Math.round(0.04 * fs)) / audio.rmsOf(alone, Math.round(0.1 * fs), Math.round(0.14 * fs));
+        check('the very first note of the session has its full attack', early / later > ref * 0.8, `first 40 ms are ${(early / later).toFixed(2)} x the level at 100 ms (the note alone: ${ref.toFixed(2)} x); context time at its start ${(first / fs).toFixed(3)} s; handle.queued ${played.queued}`);
       }
     } catch (e) {
       out.error = String(e && e.stack ? e.stack : e);
@@ -504,6 +502,7 @@ async function lockedPhase() {
   const browser = await chromium.launch({ args: ['--autoplay-policy=document-user-activation-required'] });
   try {
     const context = await browser.newContext();
+    await context.addInitScript(pageTools);
     await context.addInitScript(lockedScript);
     const page = await context.newPage();
     const waitFor = (text, ms) => new Promise((resolve) => {
@@ -530,16 +529,13 @@ async function lockedPhase() {
 }
 
 withApp({}, async ({ page, goto, errors }) => {
+  await installPageTools(page);
   await goto('home');
   const run = page.evaluate(inPage, { quick });
   await page.waitForFunction(() => window.__readyForClick === true, null, { timeout: 30000 });
   await page.mouse.click(8, 8); // the user gesture that unlocks audio
   const report = await run;
-  let failed = 0;
-  for (const c of report.checks) {
-    if (!c.pass) failed++;
-    console.log(`${c.pass ? 'ok  ' : 'FAIL'} ${c.name}${c.detail ? `  [${c.detail}]` : ''}`);
-  }
+  const failed = printChecks(report.checks);
   console.log('\ninfo:', JSON.stringify(report.info, null, 1));
   const audioErrors = errors.filter((e) => /audio|AudioContext|worklet/i.test(e));
   if (audioErrors.length) console.log(`page errors mentioning audio:\n  ${audioErrors.join('\n  ')}`);
@@ -552,11 +548,8 @@ withApp({}, async ({ page, goto, errors }) => {
     console.log(`FAIL locked-start phase crashed: ${locked.error}`);
     process.exitCode = 1;
   } else if (!locked.checks.length) console.log('  this browser does not block autoplay; locked-start checks skipped');
-  let failed = 0;
-  for (const c of locked.checks) {
-    if (!c.pass) failed++;
-    console.log(`${c.pass ? 'ok  ' : 'FAIL'} ${c.name}${c.detail ? `  [${c.detail}]` : ''}`);
-  }
+  const failed = printChecks(locked.checks);
+  console.log(`\n${locked.checks.length - failed}/${locked.checks.length} locked-start checks passed`);
   if (failed) process.exitCode = 1;
 }).catch((e) => {
   console.error(e);

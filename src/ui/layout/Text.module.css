@@ -48,12 +48,18 @@
 /* tones */
 .tone-default { color: var(--fg); }
 .tone-muted { color: var(--fg-muted); }
-.tone-faint { color: var(--fg-faint); }
+/*
+ * Tones are for text, so each must reach 4.5:1 on --bg, --surface and --surface-2 in both themes.
+ * The raw tokens do not all get there (--fg-faint 3.3-3.9:1 and --warn 4.0-4.3:1 in light mode),
+ * so text takes the token leaned a little towards the ink colour. Fills, icons and borders keep
+ * using the tokens themselves.
+ */
+.tone-faint { color: color-mix(in srgb, var(--fg-faint) 40%, var(--fg-muted)); }
 .tone-accent { color: var(--accent-text); }
-.tone-ok { color: var(--ok); }
-.tone-bad { color: var(--bad); }
-.tone-warn { color: var(--warn); }
-.tone-info { color: var(--info); }
+.tone-ok { color: color-mix(in srgb, var(--ok) 85%, var(--fg)); }
+.tone-bad { color: color-mix(in srgb, var(--bad) 85%, var(--fg)); }
+.tone-warn { color: color-mix(in srgb, var(--warn) 85%, var(--fg)); }
+.tone-info { color: color-mix(in srgb, var(--info) 85%, var(--fg)); }
 
 /* weights */
 .weight-regular { font-weight: 400; }

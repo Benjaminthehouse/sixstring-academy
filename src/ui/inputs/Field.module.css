@@ -40,15 +40,19 @@
   margin-top: 2px;
 }
 
-/* The box around a text-like control. */
+/*
+ * The box around a text-like control. Its edge is the only thing that says "you can type here",
+ * so it is drawn at 3:1 against the page (WCAG 1.4.11); --line-strong alone is about 2.4:1.
+ */
 .control {
+  --control-edge: color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   min-height: var(--tap);
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--control-edge);
   border-radius: var(--r-md);
   background: var(--surface);
   color: var(--fg);
@@ -58,7 +62,7 @@
 }
 @media (hover: hover) {
   .control:hover {
-    border-color: var(--fg-faint);
+    border-color: var(--fg-muted);
   }
 }
 .control:focus-within {
@@ -80,7 +84,7 @@
 }
 @media (hover: hover) {
   .disabled:hover {
-    border-color: var(--line-strong);
+    border-color: var(--control-edge);
   }
 }
 .sm {
@@ -119,8 +123,9 @@
   box-shadow: none;
   border-radius: 0;
 }
+/* Placeholder text is still text: 4.5:1, which --fg-faint alone does not reach. */
 .input::placeholder {
-  color: var(--fg-faint);
+  color: color-mix(in srgb, var(--fg-faint) 40%, var(--fg-muted));
   opacity: 1;
 }
 .input:disabled {

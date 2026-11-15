@@ -48,7 +48,7 @@ export function Sidebar({ def, rail = false }: SidebarProps) {
 
   if (rail) {
     return (
-      <aside className={cx(styles.sidebar, styles.rail)}>
+      <aside className={cx(styles.sidebar, styles.rail)} aria-label={APP_NAME}>
         <a className={styles.railBrand} href={href('home')} aria-label={`${APP_NAME}: go to Today`}>
           <BrandMark size={32} />
         </a>
@@ -69,7 +69,7 @@ export function Sidebar({ def, rail = false }: SidebarProps) {
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} aria-label={APP_NAME}>
       <a className={styles.sideBrand} href={href('home')} aria-label={`${APP_NAME}: go to Today`}>
         <Brand size={32} />
       </a>
@@ -82,7 +82,7 @@ export function Sidebar({ def, rail = false }: SidebarProps) {
             const listId = `${baseId}-${d.section}`;
             return (
               <li key={d.route}>
-                <div className={styles.destRow}>
+                <div className={cx(styles.destRow, def.name === d.route && styles.destRowCurrent)}>
                   <a className={styles.dest} href={href(d.route)} aria-current={def.name === d.route ? 'page' : inSection ? 'true' : undefined}>
                     <Icon name={d.icon} size={20} strokeWidth={inSection ? 2.1 : 1.75} />
                     <span className={styles.destLabel}>{d.label}</span>

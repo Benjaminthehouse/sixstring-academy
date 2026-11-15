@@ -229,9 +229,12 @@ describe('arrangements in every style', () => {
             if (n.role === 'approach') expect(pc(next.midi), label).toBe(pc(target.chord.bass ?? target.chord.root));
           }
         });
-        // The line never sits still on non-chord tones: at least two thirds of it is chord tones.
-        const inChord = bass.filter((n) => isChordTone(segAt(a, n.tick)!.chord, n.midi)).length;
-        expect(inChord / bass.length).toBeGreaterThan(0.66);
+        // The line never sits on non-chord tones: they come one at a time, between chord tones,
+        // and chord tones are the larger part of it.
+        const offChord = bass.map((n) => !isChordTone(segAt(a, n.tick)!.chord, n.midi));
+        for (let i = 1; i < offChord.length; i++) expect(offChord[i] && offChord[i - 1], `two non-chord tones in a row at bass note ${i}`).toBe(false);
+        expect(offChord.filter((o) => !o).length / bass.length).toBeGreaterThan(0.55);
+        for (const n of bass) expect(n.level).toBe(style.bassLevel ?? 1);
         // The ending is one long root.
         const last = bass[bass.length - 1];
         expect(last.tick).toBe(a.bodyTicks);
@@ -304,6 +307,10 @@ describe('arrangements in every style', () => {
     const reggae = arrangeBacking([C, G, Am, F], { style: 'reggae' });
     expect(drumsAt(reggae, 2, 'kick')).toEqual([8]);
     expect(drumsAt(reggae, 2, 'sidestick')).toEqual([8]);
+    // Not even in the first bar or after a fill, where the other styles put a kick under the crash.
+    for (let bar = 0; bar < reggae.bars - 1; bar++) expect(drumsAt(reggae, bar, 'kick').includes(0), `reggae kick on beat one of bar ${bar}`).toBe(false);
+    expect(drumsAt(reggae, 0, 'crash')).toEqual([0]);
+    expect(drumsAt(arrangeBacking([C, G, Am, F], { style: 'latin' }), 0, 'kick').includes(0)).toBe(true);
     // Shuffle: the hi-hat plays the first and third triplet of every beat.
     expect(drumsAt(arrangeBacking(blues, { style: 'blues-shuffle' }), 1, 'hihatClosed')).toEqual([0, 2, 3, 5, 6, 8, 9, 11]);
     // Swing: ride "ding, ding-a-ding", hi-hat foot on 2 and 4, a bass note on every beat.
@@ -346,6 +353,265 @@ describe('arrangements in every style', () => {
 
   it('rejects an unknown style', () => {
     expect(() => arrangeBacking([C], { style: 'polka' as never })).toThrow();
+  });
+});
+
+describe('musicality, by inspection of the generated events', () => {
+  const m7b5 = (root: number, symbol: string) => chordFromIntervals(root, [3, 6, 10], symbol);
+  const dim7 = (root: number, symbol: string) => chordFromIntervals(root, [3, 6, 9], symbol);
+  const JAZZ: Record<string, BackingBar[]> = {
+    'ii-V-I': [Dm7, G7, Cmaj7, Cmaj7],
+    'jazz blues in F': [dom7(5, 'F7'), dom7(10, 'Bb7'), dom7(5, 'F7'), [min7(0, 'Cm7'), dom7(5, 'F7')], dom7(10, 'Bb7'), dim7(11, 'Bdim7'), dom7(5, 'F7'), [Am7, D7], min7(7, 'Gm7'), dom7(0, 'C7'), [dom7(5, 'F7'), D7], [min7(7, 'Gm7'), dom7(0, 'C7')]],
+    'rhythm changes': [[maj7(10, 'Bbmaj7'), min7(7, 'Gm7')], [min7(0, 'Cm7'), dom7(5, 'F7')], [Dm7, G7], [min7(0, 'Cm7'), dom7(5, 'F7')], [dom7(10, 'Bb7'), dom7(10, 'Bb7')], [dom7(3, 'Eb7'), dim7(4, 'Edim7')], [maj7(10, 'Bbmaj7'), dom7(5, 'F7')], maj7(10, 'Bbmaj7')],
+    'minor ii-V': [Am7, m7b5(11, 'Bm7b5'), E7, Am7, Dm7, G7, Cmaj7, E7],
+    'one chord for four bars': [Dm7, null, null, null, min7(3, 'Ebm7'), null, null, null],
+  };
+  const stepOf = (a: BackingArrangement): number => a.barTicks / BACKING_STYLES[a.style].grid;
+  const hits = (a: BackingArrangement, bar: number, drum: string): number[] =>
+    a.events.filter((e) => e.type === 'drum' && e.bar === bar && e.drum === drum).map((e) => Math.round((e.tick - bar * a.barTicks) / stepOf(a)));
+
+  it('walking bass: a root on every arrival, chord tones on the strong beats, the next root approached by step, a line that moves', () => {
+    let notes = 0, repeats = 0, bigLeaps = 0, leapsIntoApproach = 0, approaches = 0, steps = 0;
+    let low = 99, high = 0;
+    for (const [name, bars] of Object.entries(JAZZ)) {
+      for (let seed = 1; seed <= 25; seed++) {
+        const a = arrangeBacking(bars, { style: 'jazz-swing', choruses: 2, seed });
+        const bass = a.events.filter((e): e is BassEvent => e.type === 'bass');
+        // Four to the bar, on the beat, nothing between.
+        expect(bass.filter((n) => n.bar < a.bars - 1).length, name).toBe((a.bars - 1) * 4);
+        for (let i = 0; i < bass.length; i++) {
+          const n = bass[i], next = bass[i + 1];
+          const seg = segAt(a, n.tick)!;
+          const label = `${name} seed ${seed} bar ${n.bar} tick ${n.tick}`;
+          notes++;
+          low = Math.min(low, n.midi);
+          high = Math.max(high, n.midi);
+          if (n.bar < a.bars - 1) expect(n.tick % 960, label).toBe(0);
+          // The chord arrives: its root.
+          if (n.tick === seg.startTick) expect(pc(n.midi), label).toBe(pc(seg.chord.root));
+          // Beats one and three: a chord tone.
+          if (n.tick % 1920 === 0) expect(isChordTone(seg.chord, n.midi), label).toBe(true);
+          if (!next) continue;
+          const leap = Math.abs(next.midi - n.midi);
+          if (leap === 0) repeats++;
+          if (leap > 9) bigLeaps++;
+          if (leap <= 2) steps++;
+          if (n.role === 'approach') {
+            approaches++;
+            // By a half step or a whole step into the root of the chord that follows.
+            expect(leap, label).toBeGreaterThanOrEqual(1);
+            expect(leap, label).toBeLessThanOrEqual(2);
+            expect(pc(next.midi), label).toBe(pc(segAt(a, next.tick)!.chord.root));
+            expect(next.tick, label).toBe(n.tick + 960);
+          }
+          if (next.role === 'approach' && leap >= 7) leapsIntoApproach++;
+          // The beat before a new chord (or a new bar) is always an approach note.
+          const nextSeg = segAt(a, next.tick)!;
+          if (next.bar < a.bars - 1 || n.bar < a.bars - 1) {
+            if (nextSeg !== seg) expect(n.role, label).toBe('approach');
+          }
+        }
+      }
+    }
+    expect(notes).toBeGreaterThan(8000);
+    expect(approaches).toBeGreaterThan(2000);
+    // E1 up to E3: the range of a bass line, never above it.
+    expect(low).toBeGreaterThanOrEqual(28);
+    expect(high).toBeLessThanOrEqual(52);
+    // It walks: mostly steps, hardly ever the same note twice, no jumps of more than a sixth,
+    // and it does not leap to the approach note from far away.
+    expect(steps / notes).toBeGreaterThan(0.5);
+    expect(repeats / notes).toBeLessThan(0.002);
+    expect(bigLeaps).toBe(0);
+    expect(leapsIntoApproach / approaches).toBeLessThan(0.01);
+  });
+
+  it('every other bass style: approach notes resolve by step, the rest of the line is chord tones', () => {
+    for (const id of BACKING_STYLE_IDS) {
+      const style = BACKING_STYLES[id];
+      for (const [name, bars] of Object.entries(JAZZ)) {
+        if (style.beatsPerBar !== 4 && bars.some((b) => Array.isArray(b))) continue;
+        for (const seed of [1, 2, 3]) {
+          const a = arrangeBacking(bars, { style: id, seed });
+          const bass = a.events.filter((e): e is BassEvent => e.type === 'bass');
+          bass.forEach((n, i) => {
+            const seg = segAt(a, n.tick)!;
+            const next = bass[i + 1];
+            const label = `${id} / ${name} seed ${seed} bar ${n.bar}`;
+            expect(n.midi, label).toBeGreaterThanOrEqual(28);
+            expect(n.midi, label).toBeLessThanOrEqual(52);
+            if (n.role === 'root' || n.role === 'chord') expect(isChordTone(seg.chord, n.midi), label).toBe(true);
+            if (n.role === 'approach' && next) {
+              expect(Math.abs(next.midi - n.midi), label).toBeGreaterThanOrEqual(1);
+              expect(Math.abs(next.midi - n.midi), label).toBeLessThanOrEqual(2);
+            }
+          });
+        }
+      }
+    }
+  });
+
+  it('swing and shuffle: the off-beat is the last triplet of the beat, two to one, never a straight eighth', () => {
+    for (const id of ['jazz-swing', 'blues-shuffle'] as const) {
+      const style = BACKING_STYLES[id];
+      expect(style.grid).toBe(12); // three steps to the beat
+      const a = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: id, choruses: 2 });
+      for (const e of a.events) {
+        const inBeat = (e.tick % 960) / 960;
+        // On the beat, or two thirds of the way through it (a 2:1 swing ratio), or the middle triplet in a fill.
+        const onTriplet = [0, 1 / 3, 2 / 3].some((f) => Math.abs(inBeat - f) < 1e-9);
+        expect(onTriplet, `${id} ${e.type} at ${e.tick}`).toBe(true);
+        expect(Math.abs(inBeat - 0.5) < 1e-9, `${id}: a straight eighth at ${e.tick}`).toBe(false);
+        if (!(e.type === 'drum' && e.fill) && e.type !== 'keys') expect(Math.abs(inBeat - 1 / 3) < 1e-9, `${id} ${e.type}: middle triplet outside a fill at ${e.tick}`).toBe(false);
+      }
+    }
+    // The ride pattern of a plain bar: beats 1 2 3 4 plus the skip notes before 3 and before 1.
+    const jazz = arrangeBacking([Dm7, G7, Cmaj7, Am7, Dm7, G7, Cmaj7, Cmaj7], { style: 'jazz-swing' });
+    expect(hits(jazz, 1, 'ride')).toEqual([0, 3, 5, 6, 9, 11]);
+    expect(hits(jazz, 1, 'hihatPedal')).toEqual([3, 9]);
+    // Shuffle: hi-hat on the beat and on its last triplet; backbeat on two and four; kick on one.
+    const shuffle = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: 'blues-shuffle' });
+    expect(hits(shuffle, 1, 'hihatClosed')).toEqual([0, 2, 3, 5, 6, 8, 9, 11]);
+    expect(hits(shuffle, 1, 'snare')).toEqual([3, 9]);
+    expect(hits(shuffle, 1, 'kick')[0]).toBe(0);
+    // The slow blues is in 12/8: three eighths to the beat, backbeat on the second and fourth beat.
+    const slow = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: 'slow-blues' });
+    expect(hits(slow, 1, 'hihatClosed')).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(hits(slow, 1, 'snare')).toEqual([3, 9]);
+  });
+
+  it('reggae: the one is dropped, the chords chop the off-beats, the bass waits for beat two', () => {
+    const a = arrangeBacking([Am, Am, Dm7, E7], { style: 'reggae', choruses: 2 });
+    for (let bar = 0; bar < a.bars - 1; bar++) {
+      const fill = a.events.some((e) => e.type === 'drum' && e.bar === bar && e.fill);
+      expect(hits(a, bar, 'kick'), `bar ${bar}`).toEqual([8]);
+      expect(hits(a, bar, 'sidestick').includes(8), `bar ${bar}`).toBe(true);
+      // Kick and rim are the accent of the bar: nothing else in the kit is hit as hard on beat three.
+      const three = a.events.filter((e) => e.type === 'drum' && e.bar === bar && e.tick === bar * a.barTicks + 8 * 240 && (e.drum === 'kick' || e.drum === 'sidestick'));
+      expect(three.length).toBe(2);
+      for (const e of three) expect(e.velocity).toBeGreaterThan(0.85);
+      // The skank: keys and guitar only on the "and" of each beat, and short.
+      for (const type of ['keys', 'guitar'] as const) {
+        const comp = a.events.filter((e) => e.type === type && e.bar === bar);
+        expect(comp.map((e) => (e.tick - bar * a.barTicks) / 240), `${type} bar ${bar}`).toEqual([2, 6, 10, 14]);
+        for (const e of comp) if (e.type === 'keys' || e.type === 'guitar') expect(e.duration).toBeLessThan(240);
+      }
+      // The bass leaves beat one empty.
+      const bass = a.events.filter((e) => e.type === 'bass' && e.bar === bar);
+      expect(Math.min(...bass.map((e) => e.tick - bar * a.barTicks)), `bass bar ${bar}`).toBe(4 * 240);
+      if (!fill) expect(hits(a, bar, 'hihatClosed').length).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it('bossa nova: the two-bar rim clave, straight eighths, root and fifth with the next root anticipated', () => {
+    const a = arrangeBacking([Dm7, G7, Cmaj7, Am7, Dm7, G7, Cmaj7, Cmaj7], { style: 'bossa', choruses: 1 });
+    // 3-2 clave across two bars: 1, the and of 2, 4 | 2, the and of 3.
+    expect(hits(a, 0, 'sidestick')).toEqual([0, 6, 12]);
+    expect(hits(a, 1, 'sidestick')).toEqual([4, 10]);
+    expect(hits(a, 2, 'sidestick')).toEqual([0, 6, 12]);
+    expect(hits(a, 1, 'hihatClosed')).toEqual([0, 2, 4, 6, 8, 10, 12, 14]);
+    expect(hits(a, 1, 'kick')).toEqual([0, 6, 8, 14]);
+    // Nothing on a sixteenth: bossa eighths are even.
+    for (const e of a.events) expect((e.tick / 240) % 2, `${e.type} at ${e.tick}`).toBe(0);
+    const bass = a.events.filter((e): e is BassEvent => e.type === 'bass' && e.bar === 0);
+    expect(bass.map((n) => (n.tick / 240))).toEqual([0, 6, 8, 14]);
+    expect(bass.map((n) => pc(n.midi))).toEqual([2, 9, 9, 7]); // D, A, A, then G: the next bar's root, early
+    expect(bass[3].role).toBe('anticipation');
+    // The guitar: thumb on one and three, plucked chords in between.
+    const gtr = a.events.filter((e): e is GuitarEvent => e.type === 'guitar' && e.bar === 0);
+    expect(gtr.filter((g) => g.midis.length === 1).map((g) => g.tick / 240)).toEqual([0, 8]);
+    expect(gtr.every((g) => g.tone === 'nylon')).toBe(true);
+  });
+
+  it('fills sit at the ends of sections, replace the groove there, and lead into a crash', () => {
+    for (const id of BACKING_STYLE_IDS) {
+      const style = BACKING_STYLES[id];
+      const a = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: id, choruses: 2, seed: 5 });
+      const drums = a.events.filter((e) => e.type === 'drum');
+      const step = stepOf(a);
+      for (const bar of [3, 7, 11, 15, 19, 23]) {
+        const full = bar % 12 === 11;
+        const from = full ? 0 : Math.floor((style.grid * 3) / 4);
+        const inBar = drums.filter((e) => e.bar === bar);
+        // From where the fill begins, every hit belongs to it; before that, none does.
+        for (const e of inBar) {
+          const s = Math.round((e.tick - bar * a.barTicks) / step);
+          if (e.type === 'drum') expect(e.fill, `${id} bar ${bar} step ${s} ${e.drum}`).toBe(s >= from);
+        }
+        expect(inBar.some((e) => e.type === 'drum' && e.fill), `${id} bar ${bar}`).toBe(true);
+        // A full fill is answered by a crash on the next downbeat.
+        if (full) expect(drums.some((e) => e.type === 'drum' && e.drum === 'crash' && e.tick === (bar + 1) * a.barTicks), `${id} crash after bar ${bar}`).toBe(true);
+      }
+      // No fill anywhere else.
+      const fillBars = new Set(drums.filter((e) => e.type === 'drum' && e.fill).map((e) => e.bar));
+      expect([...fillBars].sort((x, y) => x - y)).toEqual([3, 7, 11, 15, 19, 23]);
+    }
+  });
+
+  it('comping voicings: third and seventh always, no semitone clusters, the root left to the bass when it would rub', () => {
+    const chords: Array<[string, number[]]> = [
+      ['Cmaj7', [4, 7, 11]], ['Cmaj9', [4, 7, 11, 14]], ['C6/9', [4, 7, 9, 14]], ['C7', [4, 7, 10]], ['C9', [4, 7, 10, 14]], ['C13', [4, 7, 10, 14, 21]],
+      ['C7b9', [4, 7, 10, 13]], ['C7#9', [4, 7, 10, 15]], ['C7#11', [4, 7, 10, 18]], ['Cm7', [3, 7, 10]], ['Cm9', [3, 7, 10, 14]], ['Cm11', [3, 7, 10, 14, 17]],
+      ['Cm(maj7)', [3, 7, 11]], ['Cm7b5', [3, 6, 10]], ['Cdim7', [3, 6, 9]], ['Cmaj7#11', [4, 7, 11, 18]], ['C7sus4', [5, 7, 10]],
+    ];
+    for (let root = 0; root < 12; root++) {
+      for (const [name, iv] of chords) {
+        const chord = chordFromIntervals(root, iv, name);
+        const tones = chordIntervals(chord);
+        for (const kind of ['close', 'rootless'] as const) {
+          let prev: number[] | undefined;
+          for (let pass = 0; pass < 3; pass++) {
+            const v = keysVoicing(chord, kind, prev);
+            const label = `${name} on ${root} (${kind}): ${v.join(' ')}`;
+            const ivs = v.map((m) => pc(m - root));
+            expect(v.length, label).toBeGreaterThanOrEqual(3);
+            expect(v.length, label).toBeLessThanOrEqual(4);
+            for (const m of v) expect(isChordTone(chord, m), label).toBe(true);
+            // The third (or the suspended fourth) and the seventh are the chord.
+            const third = [4, 3, 5].find((t) => tones.includes(t))!;
+            const seventh = [10, 11, 9].find((t) => tones.includes(t))!;
+            expect(ivs.includes(third), `${label}: third`).toBe(true);
+            expect(ivs.includes(seventh), `${label}: seventh`).toBe(true);
+            // Never two voices a semitone apart.
+            for (let i = 1; i < v.length; i++) expect(v[i] - v[i - 1], label).toBeGreaterThan(1);
+            // The root goes when it would sit a semitone from the major seventh or the flat ninth,
+            // when the chord has five notes or more, and always in a rootless voicing.
+            if (tones.includes(11) || tones.includes(1) || tones.length > 4 || kind === 'rootless') expect(ivs.includes(0), `${label}: root`).toBe(false);
+            expect(Math.min(...v), label).toBeGreaterThanOrEqual(43);
+            expect(Math.max(...v), label).toBeLessThanOrEqual(81);
+            prev = v;
+          }
+        }
+      }
+    }
+    // Triads keep all three notes, root included; power voicings are root and fifth.
+    expect(keysVoicing(C, 'close').map(pc).sort((a, b) => a - b)).toEqual([0, 4, 7]);
+    expect(keysVoicing(Am, 'rootless').map(pc).sort((a, b) => a - b)).toEqual([0, 4, 9]);
+    expect(keysVoicing(Cmaj7, 'power').map(pc).sort((a, b) => a - b)).toEqual([0, 7]);
+    // And the hand moves little from chord to chord.
+    let prev = keysVoicing(Dm7, 'rootless');
+    for (const chord of [G7, Cmaj7, Am7, Dm7, G7, Cmaj7]) {
+      const v = keysVoicing(chord, 'rootless', prev);
+      const mean = (x: number[]): number => x.reduce((p, c) => p + c, 0) / x.length;
+      expect(Math.abs(mean(v) - mean(prev))).toBeLessThan(4);
+      prev = v;
+    }
+  });
+
+  it('the mix: every style gives each player a level, and none is far from the others', () => {
+    for (const id of BACKING_STYLE_IDS) {
+      const s = BACKING_STYLES[id];
+      for (const level of [s.drumLevel, s.bassLevel ?? 1, s.keysLevel, s.guitarLevel ?? 1]) {
+        expect(level, id).toBeGreaterThan(0.3);
+        expect(level, id).toBeLessThanOrEqual(2.5);
+      }
+      const a = arrangeBacking([C, G, Am, F], { style: id });
+      for (const e of a.events) {
+        if (e.type === 'bass') expect(e.level).toBe(s.bassLevel ?? 1);
+        if (e.type === 'keys') expect(e.level).toBe(s.keysLevel);
+        if (e.type === 'guitar') expect(e.level).toBe(s.guitarLevel ?? 1);
+      }
+    }
   });
 });
 
@@ -430,7 +696,8 @@ describe('the band on the transport', () => {
     run(3);
     expect(log.some((l) => l.what === 'guitar')).toBe(true);
     expect(log.some((l) => l.what === 'drum')).toBe(false);
-    expect(log.filter((l) => l.what === 'bass').every((l) => l.gain === 0.5)).toBe(true);
+    // The player's volume times the level the style mixes its bass at.
+    expect(log.filter((l) => l.what === 'bass').every((l) => Math.abs(l.gain - 0.5 * (BACKING_STYLES.folk.bassLevel ?? 1)) < 1e-12)).toBe(true);
     band.setMuted('drums', false);
     const before = log.length;
     run(clock.t + 3);

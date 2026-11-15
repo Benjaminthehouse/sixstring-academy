@@ -70,6 +70,14 @@ export function clamp(x: number, lo: number, hi: number): number {
   return x < lo ? lo : x > hi ? hi : x;
 }
 
+/**
+ * `x` when it is a finite number, else `fallback`. Everything that reaches an AudioParam or a start
+ * time goes through this: Web Audio throws on NaN, and one bad note must never stop a song.
+ */
+export function finiteOr(x: unknown, fallback: number): number {
+  return typeof x === 'number' && Number.isFinite(x) ? x : fallback;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Biquads (RBJ cookbook). The same coefficients drive IIRFilterNode in the live graph, so the
 // offline renderer and the browser produce the same sound.

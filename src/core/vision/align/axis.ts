@@ -36,6 +36,7 @@ export interface RidgeFieldOptions {
 }
 
 const HIST = new Uint32Array(512);
+let FLANK = new Uint8Array(0);
 
 /**
  * Ridge field of a smoothed image (blur it with sigma about 1.2 first). The strength is the
@@ -94,6 +95,7 @@ export function computeRidgeField(img: GrayImage, options: RidgeFieldOptions = {
   field.threshold = thr;
   let count = 0;
   const index = field.index;
+  if (FLANK.length < (index.length >> 3) + 1) FLANK = new Uint8Array((index.length >> 3) + 1);
   for (let y = 1; y < Hh - 1; y++) {
     for (let x = 1, i = y * W + 1; x < W - 1; x++, i++) {
       const v = s[i];
@@ -114,7 +116,36 @@ export function computeRidgeField(img: GrayImage, options: RidgeFieldOptions = {
       index[count++] = i;
     }
   }
-  field.count = count;
+  // A strong line has weak "lines" of the opposite polarity along both flanks (the image dips
+  // beside a bright wire). Drop those: they would vote as a second, phantom ladder.
+  let kept = 0;
+  for (let p = 0; p < count; p++) {
+    const i = index[p];
+    const v = s[i];
+    const a = (ang[i] * Math.PI) / 180;
+    const cx = Math.cos(a);
+    const cy = Math.sin(a);
+    const x = i % W;
+    const y = (i - x) / W;
+    let flank = false;
+    for (let step = 2; step <= 5 && !flank; step++) {
+      for (let sign = -1; sign <= 1; sign += 2) {
+        const xx = x + Math.round(sign * step * cx);
+        const yy = y + Math.round(sign * step * cy);
+        if (xx < 1 || yy < 1 || xx >= W - 1 || yy >= Hh - 1) continue;
+        const o = s[yy * W + xx];
+        if (o * v < 0 && (o < 0 ? -o : o) > 3 * (v < 0 ? -v : v)) flank = true;
+      }
+    }
+    if (flank) FLANK[p >> 3] |= 1 << (p & 7);
+    else FLANK[p >> 3] &= ~(1 << (p & 7));
+  }
+  for (let p = 0; p < count; p++) {
+    const i = index[p];
+    if (FLANK[p >> 3] & (1 << (p & 7))) s[i] = 0;
+    else index[kept++] = i;
+  }
+  field.count = kept;
   return field;
 }
 
@@ -149,6 +180,10 @@ for (let a = 0; a < 360; a++) {
   SIN[a] = Math.sin((a * Math.PI) / 180);
 }
 
+let ACC_SCRATCH = new Float32Array(0);
+let SMOOTH_SCRATCH = new Float32Array(0);
+let USED_SCRATCH = new Uint8Array(0);
+
 /** Smallest absolute difference between two undirected angles in degrees (0..90). */
 export function angleDiffDeg(a: number, b: number): number {
   let d = Math.abs(a - b) % 180;
@@ -161,7 +196,8 @@ export function angleDiffDeg(a: number, b: number): number {
  * (12 classes of 15 degrees, overlapping), so one accumulator slice only ever sees lines that could
  * be the frets of one neck. `next()` returns the strongest remaining candidate and then removes the
  * votes of every ridge pixel near it ("explaining away"), so the following candidates are different
- * structures rather than near-copies of the same one.
+ * structures rather than near-copies of the same one. Only one search may be in use at a time: the
+ * accumulators are shared scratch buffers.
  */
 export class AxisSearch {
   private readonly field: RidgeField;
@@ -184,9 +220,18 @@ export class AxisSearch {
     this.rhoBins = Math.ceil((2 * this.rhoMax) / RHO_STEP) + 1;
     this.sliceSize = THETA_COUNT * this.rhoBins;
     const total = 2 * CLASS_COUNT * this.sliceSize;
-    this.acc = new Float32Array(total);
-    this.smooth = new Float32Array(total);
-    this.used = new Uint8Array(field.count);
+    // One search is alive at a time (per frame): reuse the big buffers instead of feeding the garbage collector.
+    if (ACC_SCRATCH.length !== total) {
+      ACC_SCRATCH = new Float32Array(total);
+      SMOOTH_SCRATCH = new Float32Array(total);
+    } else {
+      ACC_SCRATCH.fill(0);
+    }
+    if (USED_SCRATCH.length < field.count) USED_SCRATCH = new Uint8Array(field.index.length);
+    else USED_SCRATCH.fill(0, 0, field.count);
+    this.acc = ACC_SCRATCH;
+    this.smooth = SMOOTH_SCRATCH;
+    this.used = USED_SCRATCH;
     this.cap = field.threshold * 4;
     const index = field.index;
     for (let p = 0; p < field.count; p++) {

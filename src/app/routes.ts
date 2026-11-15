@@ -64,6 +64,7 @@ export const ROUTES: RouteDef[] = [
   // Me
   { name: 'kit', title: 'UI Kit', blurb: 'Component gallery for visual checks.', section: 'me', icon: 'Shapes', inHub: false, load: () => import('@/features/kit') },
   { name: 'kit-music', title: 'Music UI Kit', blurb: 'Fretboard, chord diagram and notation gallery for visual checks.', section: 'me', icon: 'Shapes', inHub: false, load: () => import('@/features/kit-music') },
+  { name: 'kit-lessons', title: 'Lesson Kit', blurb: 'Every lesson exercise type and a demo lesson, for visual checks.', section: 'me', icon: 'Shapes', inHub: false, load: () => import('@/features/kit-lessons') },
   { name: 'profile', title: 'Me', blurb: 'Progress, achievements and preferences.', section: 'me', icon: 'CircleUser', inHub: false, load: () => import('@/features/profile') },
 ];
 

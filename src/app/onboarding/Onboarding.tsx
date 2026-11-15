@@ -2,10 +2,11 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type Keyboard
 import { isArtifact } from '@/core/platform/env';
 import { completeOnboarding, getProgress, setPrefs, type DailyGoalXp, type ExperienceLevel, type Handedness, type NoteNaming } from '@/core/progress';
 import { formatNote } from '@/core/theory';
-import { Avatar, Badge, Button, Icon, Portal, ProgressBar, RadioGroup, TextField, toast, useFocusTrap, useScrollLock } from '@/ui';
+import { Avatar, Badge, Button, Icon, Portal, ProgressBar, RadioGroup, TextField, toast, useFocusTrap, usePrefersReducedMotion, useScrollLock } from '@/ui';
 import { BrandMark } from '../brand/Brand';
 import { navigate } from '../router';
 import { routeDef } from '../routes';
+import { lastInputWasKeyboard } from '../shell/modality';
 import { teacherForLevel } from '../teachers';
 import {
   GOAL_CHOICES,
@@ -102,12 +103,15 @@ export default function Onboarding() {
   const [draft, setDraft] = useState<OnboardingDraft>(initialDraft);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const teacherRef = useRef<HTMLDivElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
   const titleId = useId();
   const leadId = useId();
   const blocked = useMemo(() => isArtifact(), []);
 
   useScrollLock(true);
-  useFocusTrap(panelRef, true);
+  // Focus is placed by the step effect below.
+  useFocusTrap(panelRef, true, { autoFocus: false });
 
   const update = useCallback((patch: Partial<OnboardingDraft>) => {
     setDraft((previous) => {
@@ -125,10 +129,27 @@ export default function Onboarding() {
   const teacher = teacherForLevel(draft.experience);
 
   // A new step starts at its top, with the main button ready under the thumb / Enter key.
+  const focusedStep = useRef<OnboardingStep | null>(null);
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
-    panelRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus({ preventScroll: true });
+    const panel = panelRef.current;
+    if (!panel) return;
+    // When the flow opens by itself or after a tap, focus the dialog (it is announced with its title
+    // and lead, and Enter still continues) instead of ringing the main button before anyone pressed a key.
+    const opening = focusedStep.current === null || focusedStep.current === step;
+    focusedStep.current = step;
+    const main = panel.querySelector<HTMLElement>('[data-autofocus]');
+    (opening && !lastInputWasKeyboard() ? panel : main ?? panel).focus({ preventScroll: true });
   }, [step]);
+
+  // Picking a level answers with a teacher. On a short screen that card sits below the fold of the
+  // step, so bring it into view when it changes: the answer to a tap has to be seen.
+  const shownLevel = useRef(draft.experience);
+  useEffect(() => {
+    if (shownLevel.current === draft.experience) return;
+    shownLevel.current = draft.experience;
+    if (step === 'experience') teacherRef.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+  }, [draft.experience, step, reducedMotion]);
 
   const skip = useCallback(() => {
     if (!getProgress().profile.onboarded) saveOnboarding({ skipped: true, draft });
@@ -189,7 +210,7 @@ export default function Onboarding() {
     content = (
       <>
         <RadioGroup label="Your level" hideLabel variant="cards" minCardWidth="100%" value={draft.experience} onChange={(experience) => update({ experience })} options={EXPERIENCE_CHOICES.map((c) => ({ value: c.value, label: c.label, description: c.description }))} />
-        <div className={styles.teacher} aria-live="polite">
+        <div ref={teacherRef} className={styles.teacher} aria-live="polite">
           <Avatar name={teacher.name} size="lg" tone={teacher.tone} ring decorative />
           <div className={styles.teacherText}>
             <p className={styles.teacherKicker}>Your teacher · {teacher.level}</p>
@@ -317,17 +338,15 @@ export default function Onboarding() {
               <p id={leadId} className={styles.lead}>
                 {STEP_LEADS[step]}
               </p>
-              {content}
+              <div className={styles.answers}>{content}</div>
             </div>
           </div>
 
           <footer className={styles.actions}>
-            {before ? (
+            {before && (
               <Button variant="ghost" size="lg" iconLeft="ArrowLeft" onClick={() => update({ step: before })}>
                 Back
               </Button>
-            ) : (
-              <span />
             )}
             <Button variant="primary" size="lg" iconRight={after ? 'ArrowRight' : undefined} data-autofocus onClick={goNext}>
               {step === 'welcome' ? 'Get started' : after ? 'Continue' : 'Start playing'}

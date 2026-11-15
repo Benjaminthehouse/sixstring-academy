@@ -4,6 +4,7 @@ import { Brand, BrandMark } from '../brand/Brand';
 import { href, navigate } from '../router';
 import type { RouteDef } from '../routes';
 import type { ImmersiveLevel } from './immersive';
+import { TOPBAR_HEIGHT } from './layout';
 import { APP_NAME, upTarget } from './nav';
 import { hasAppHistory } from './scroll';
 import { StatChips } from './StatChips';
@@ -56,9 +57,6 @@ export interface TopBarProps {
   title: string;
   immersion: ImmersiveLevel;
 }
-
-/** Height of the bar's content row in px (the CSS uses the same number). */
-export const TOPBAR_HEIGHT = 52;
 
 /**
  * The slim bar at the top of phone screens. Normally: the brand (the name on Today, the screen

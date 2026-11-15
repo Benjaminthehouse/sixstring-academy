@@ -43,6 +43,12 @@
     animation-iteration-count: infinite !important;
   }
 }
+/* The same for the learner's own "reduce motion" setting in the app (data-motion on <html>). */
+:global(:root[data-motion='reduce']) .svg {
+  animation: pulse 1.6s ease-in-out infinite !important;
+  animation-duration: 1.6s !important;
+  animation-iteration-count: infinite !important;
+}
 @keyframes pulse {
   50% {
     opacity: 0.45;

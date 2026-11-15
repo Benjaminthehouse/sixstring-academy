@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, memo, useCallback, useState, type ComponentT
 import { Button, ErrorState, LinkButton, Page, Skeleton } from '@/ui';
 import { back } from '../router';
 import { routeDef, type RouteDef, type RouteProps } from '../routes';
+import { isLoadFailure, recoveryFor } from './failure';
 import { upTarget } from './nav';
 import styles from './Shell.module.css';
 
@@ -27,14 +28,15 @@ function forgetFeature(name: string): void {
 interface BoundaryProps {
   /** Changes on every navigation; a change clears the error. */
   resetKey: string;
-  fallback: (error: Error, retry: () => void) => ReactNode;
+  /** `retries` counts the times "Try again" was already pressed on this screen. */
+  fallback: (error: Error, retry: () => void, retries: number) => ReactNode;
   onRetry: () => void;
   children: ReactNode;
 }
 
 /** Catches a screen that throws while rendering or loading, so one broken screen never takes the app down. */
-class ScreenBoundary extends Component<BoundaryProps, { error: Error | null }> {
-  state = { error: null as Error | null };
+class ScreenBoundary extends Component<BoundaryProps, { error: Error | null; retries: number }> {
+  state = { error: null as Error | null, retries: 0 };
 
   static getDerivedStateFromError(error: unknown): { error: Error } {
     return { error: error instanceof Error ? error : new Error(String(error)) };
@@ -46,16 +48,16 @@ class ScreenBoundary extends Component<BoundaryProps, { error: Error | null }> {
   }
 
   componentDidUpdate(previous: BoundaryProps): void {
-    if (previous.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
+    if (previous.resetKey !== this.props.resetKey && (this.state.error || this.state.retries > 0)) this.setState({ error: null, retries: 0 });
   }
 
   retry = (): void => {
     this.props.onRetry();
-    this.setState({ error: null });
+    this.setState((state) => ({ error: null, retries: state.retries + 1 }));
   };
 
   render(): ReactNode {
-    if (this.state.error) return this.props.fallback(this.state.error, this.retry);
+    if (this.state.error) return this.props.fallback(this.state.error, this.retry, this.state.retries);
     return this.props.children;
   }
 }
@@ -63,7 +65,7 @@ class ScreenBoundary extends Component<BoundaryProps, { error: Error | null }> {
 /** The placeholder shown while a screen's code is on its way: the outline of a page, not a blank. */
 export function ScreenFallback({ title }: { title: string }) {
   return (
-    <Page title={title} hideHeader aria-busy="true">
+    <Page title={title} hideHeader aria-busy="true" data-shell-fallback="">
       <div className={styles.fallback}>
         <span className="sr-only" role="status">
           Loading {title}
@@ -81,33 +83,37 @@ export function ScreenFallback({ title }: { title: string }) {
   );
 }
 
-function ScreenError({ def, params, error, retry }: { def: RouteDef; params: readonly string[]; error: Error; retry: () => void }) {
+function ScreenError({ def, params, error, retry, retries }: { def: RouteDef; params: readonly string[]; error: Error; retry: () => void; retries: number }) {
   const up = upTarget(def.name, params);
+  const neverArrived = isLoadFailure(error);
+  // One main button, and it is always one that can work: see `failure.ts`.
+  const reload = recoveryFor(error, retries) === 'reload';
   return (
     <Page title={`${def.title} could not open`} hideHeader width="prose">
       <ErrorState
-        title={`${def.title} hit a problem`}
+        title={neverArrived ? `${def.title} did not load` : `${def.title} hit a problem`}
         level={2}
+        icon={neverArrived ? 'WifiOff' : undefined}
         error={error}
-        onRetry={retry}
+        onRetry={reload ? () => window.location.reload() : retry}
+        retryLabel={reload ? 'Reload the app' : 'Try again'}
         actions={
-          <>
-            <Button iconLeft="RefreshCw" onClick={() => window.location.reload()}>
-              Reload the app
+          up === def.name ? (
+            <LinkButton iconLeft="ArrowLeft" to={up}>
+              Start this screen over
+            </LinkButton>
+          ) : (
+            <Button iconLeft="ArrowLeft" onClick={() => back(up)}>
+              Go back
             </Button>
-            {up === def.name ? (
-              <LinkButton variant="ghost" iconLeft="ArrowLeft" to={up}>
-                Start this screen over
-              </LinkButton>
-            ) : (
-              <Button variant="ghost" iconLeft="ArrowLeft" onClick={() => back(up)}>
-                Go back
-              </Button>
-            )}
-          </>
+          )
         }
       >
-        Something went wrong on this screen. Your progress is saved and the rest of the app still works. Try again, or go back and carry on from there.
+        {neverArrived
+          ? 'The app could not fetch this screen. The connection may have dropped, or the app was updated while it was open. Reload to fetch it again. Your progress is saved.'
+          : reload
+            ? 'It failed again. Reloading the app usually clears this. Your progress is saved, and the rest of the app still works in the meantime.'
+            : 'Something went wrong on this screen. Your progress is saved and the rest of the app still works. Try again, or go back and carry on from there.'}
       </ErrorState>
     </Page>
   );
@@ -134,7 +140,7 @@ export const Outlet = memo(function Outlet({ def, params }: OutletProps) {
     setAttempt((n) => n + 1);
   }, [def.name]);
   return (
-    <ScreenBoundary resetKey={`${def.name}/${params.join('/')}`} onRetry={onRetry} fallback={(error, retry) => <ScreenError def={def} params={params} error={error} retry={retry} />}>
+    <ScreenBoundary resetKey={`${def.name}/${params.join('/')}`} onRetry={onRetry} fallback={(error, retry, retries) => <ScreenError def={def} params={params} error={error} retry={retry} retries={retries} />}>
       <Suspense fallback={<ScreenFallback title={def.title} />}>
         <Feature key={`${def.name}:${attempt}`} params={params} />
       </Suspense>

@@ -354,6 +354,9 @@ function randomTab(seed, bars) {
   return toks.join(' ');
 }
 
+/** Repeat signs: a repeated two-bar phrase, a plain bar, another repeated phrase (written for this corpus). */
+const REPEATS = `|: G4:q B4:q D5:q B4:q | A4:q C5:q E5:h :| D5:q C5:q B4:q A4:q |: G4:8 A4:8 B4:8 C5:8 D5:h | B4:q A4:q G4:h :|`;
+
 const TAB_TUNES = {
   // Open chords as strums (string/fret stacks) with chord symbols.
   openChords: `"C" 5/3,4/2,3/0,2/1,1/0:h "G" 6/3,5/2,4/0,3/0,2/0,1/3:h |
@@ -435,6 +438,8 @@ const SCORES = [
     variants: [[220, 'Petaluma', 0.85]] },
   { name: 'random-d', subset: 'notation', src: randomLine(41, 'D', 4, 6, 'A3', 19), key: 'D', time: '4/4',
     variants: [[100, 'Leland', 1.2]] },
+  { name: 'repeats', subset: 'notation', src: REPEATS, key: 'G', time: '4/4',
+    variants: [[150, 'Bravura', 1]] },
   { name: 'page-notation', subset: 'notation', title: 'Three Traditional Tunes', composer: 'Trad.',
     src: [TUNES.greenAm, TUNES.minuet.replace(/F#/g, 'F'), randomLine(5, 'Am', 3, 8, 'A3', 14)].join(' ').replace(/\|\]\s+(?=\S)/g, '|| '),
     key: 'Am', time: '3/4', pickup: true, fullPage: true, tempo: 'Moderato',
@@ -457,6 +462,8 @@ const SCORES = [
     variants: [[100, 'Bravura', 1.2, 'ls']] },
   { name: 'tab-rhythm', subset: 'tab', src: TAB_TUNES.rhythm, time: '4/4', tabStems: true, timeSig: true,
     variants: [[150, 'Bravura', 1, 'lsb']] },
+  { name: 'tab-repeats', subset: 'tab', src: REPEATS, time: '4/4',
+    variants: [[150, 'Bravura', 1, 'ls']] },
   { name: 'page-tab', subset: 'tab', title: 'Position Studies', composer: 'Exercise',
     src: [pentatonic12(), randomTab(3, 8), TAB_TUNES.highChords, randomTab(29, 6)].join(' ').replace(/\|\]\s+(?=\S)/g, '|| '),
     time: '4/4', fullPage: true, variants: [[150, 'Bravura', 1, 'ls']] },
@@ -655,6 +662,7 @@ function renderInPage(spec) {
   }
   const domOf = (el) => document.getElementById(`vf-${el.getAttribute('id')}`);
   const r2 = (v) => Math.round(v * S * 100) / 100;
+  const r2raw = (v) => Math.round(v * 100) / 100;
   const px = (b) => (b ? [r2(b.x), r2(b.y), r2(b.w), r2(b.h)] : null);
 
   const texts = [];
@@ -965,15 +973,27 @@ function renderInPage(spec) {
             if (!box) continue;
             const name = { [BT.SINGLE]: 'single', [BT.DOUBLE]: 'double', [BT.END]: 'end', [BT.REPEAT_BEGIN]: 'repeat-begin', [BT.REPEAT_END]: 'repeat-end', [BT.REPEAT_BOTH]: 'repeat-both' }[type] || 'single';
             // Shapes inside the group: vertical bars are rects, repeat dots are small paths.
-            const strokes = [];
+            // A repeat sign that follows the clef also draws a plain line at the very start of
+            // the staff: that one is a bar line of its own.
+            const shapes = [];
             for (const ch of dom.children) {
               const b = leafInk(ch);
-              if (!b) continue;
-              if (b.h > 2.5 * b.w && b.h > 20) strokes.push([r2(b.x), r2(b.w)]);
+              if (b) shapes.push({ b, stroke: b.h > 2.5 * b.w && b.h > 20 });
             }
-            const bx = px(box);
-            const lineBox = strokes.length ? [Math.min(...strokes.map((s) => s[0])), Math.max(...strokes.map((s) => s[0] + s[1]))] : [bx[0], bx[0] + bx[2]];
-            seen.push({ type: name, x: Math.round(((lineBox[0] + lineBox[1]) / 2) * 100) / 100, bbox: bx, strokes });
+            const strokeXs = shapes.filter((sh) => sh.stroke).map((sh) => sh.b.x);
+            const mainX = strokeXs.length ? Math.max(...strokeXs) : box.x;
+            const push = (list, type) => {
+              let bb = null;
+              for (const sh of list) bb = union(bb, sh.b);
+              const strokes = list.filter((sh) => sh.stroke).map((sh) => [r2(sh.b.x), r2(sh.b.w)]).sort((p, q) => p[0] - q[0]);
+              const bx = px(bb);
+              const lineBox = strokes.length ? [strokes[0][0], strokes[strokes.length - 1][0] + strokes[strokes.length - 1][1]] : [bx[0], bx[0] + bx[2]];
+              seen.push({ type, x: Math.round(((lineBox[0] + lineBox[1]) / 2) * 100) / 100, bbox: bx, strokes });
+            };
+            const far = shapes.filter((sh) => sh.stroke && mainX - sh.b.x > 30);
+            const near = shapes.filter((sh) => !far.includes(sh));
+            if (far.length) push(far, 'single');
+            push(near, name);
           } else if (cat === 'Clef') {
             kindOut.clef = { type: kindOut.kind === 'tab' ? 'tab' : 'treble', bbox: px(inkOf(dom)) };
           } else if (cat === 'KeySignature') {
@@ -984,7 +1004,26 @@ function renderInPage(spec) {
         }
       }
       seen.sort((a, b) => a.x - b.x);
-      kindOut.barlines = seen;
+      // The end bar of one measure and a repeat sign opening the next are drawn on top of each
+      // other: one bar line on the page, so one entry here.
+      const rank = { single: 0, double: 1, end: 2, 'repeat-begin': 3, 'repeat-end': 3, 'repeat-both': 4 };
+      const merged = [];
+      for (const b of seen) {
+        const prev = merged[merged.length - 1];
+        if (prev && b.x - prev.x < 8 * S) {
+          const both = (prev.type === 'repeat-end' && b.type === 'repeat-begin') || (prev.type === 'repeat-begin' && b.type === 'repeat-end');
+          const keep = rank[b.type] > rank[prev.type] ? b : prev;
+          const x0 = Math.min(prev.bbox[0], b.bbox[0]);
+          const y0 = Math.min(prev.bbox[1], b.bbox[1]);
+          const x1 = Math.max(prev.bbox[0] + prev.bbox[2], b.bbox[0] + b.bbox[2]);
+          const y1 = Math.max(prev.bbox[1] + prev.bbox[3], b.bbox[1] + b.bbox[3]);
+          const strokes = keep.strokes.length >= Math.max(prev.strokes.length, b.strokes.length) ? keep.strokes : prev.strokes.concat(b.strokes).sort((p, q) => p[0] - q[0]);
+          merged[merged.length - 1] = { type: both ? 'repeat-both' : keep.type, x: both ? Math.round(((prev.x + b.x) / 2) * 100) / 100 : keep.x, bbox: [r2raw(x0), r2raw(y0), r2raw(x1 - x0), r2raw(y1 - y0)], strokes };
+        } else {
+          merged.push(b);
+        }
+      }
+      kindOut.barlines = merged;
     };
 
     if (nStaffOut) {

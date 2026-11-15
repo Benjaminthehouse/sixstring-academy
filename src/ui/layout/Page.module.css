@@ -151,6 +151,8 @@
 }
 .sectionTitle {
   font-size: var(--text-xl);
+  /* One long word (a scale name, a song title) breaks rather than widening the page. */
+  overflow-wrap: break-word;
 }
 .sectionTitle3 {
   font-size: var(--text-lg);
@@ -196,8 +198,8 @@
   padding: var(--sp-3) var(--_gr, 0px) max(var(--sp-3), env(safe-area-inset-bottom, 0px)) var(--_gl, 0px);
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 .actionBarStart {
   flex: 1 1 auto;

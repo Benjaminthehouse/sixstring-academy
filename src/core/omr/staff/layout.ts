@@ -68,7 +68,14 @@ export function detectLayout(binary: BinaryImage, opts: LayoutOptions = {}): Lay
     const found = detectBarlines(binary, geoms[i], { ...neighbours(i), ...extra });
     if (strokes) {
       for (const b of detectBarlines(strokes, geoms[i], { ...neighbours(i), ...extra })) {
-        if (!matchAt(found, b.x)) found.push({ ...b, confidence: b.confidence * 0.85 });
+        if (matchAt(found, b.x)) continue;
+        // Vertical smoothing also fuses the stacked letters of a TAB clef, a clef or a column of
+        // fret digits into an upright blob: such blobs are fat, or sit where the clef is.
+        const fat = b.strokes.some((st) => st.width >= 0.45 * pageSpace);
+        const fromStart = b.x - geoms[i].x0;
+        const inClef = fromStart > 0.6 * geoms[i].space && fromStart < 2.5 * geoms[i].space;
+        if (fat || inClef) continue;
+        found.push({ ...b, confidence: b.confidence * 0.85 });
       }
       found.sort((a, b) => a.x - b.x);
     }

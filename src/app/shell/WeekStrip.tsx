@@ -1,28 +1,9 @@
 import type { WeekDayView } from '@/core/progress';
 import { Icon, cx } from '@/ui';
+import { WEEK_DAY_TEXT, weekDayState } from './week';
 import styles from './Stats.module.css';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
-
-type DayState = 'met' | 'frozen' | 'partial' | 'today' | 'missed' | 'future';
-
-/** How one day of the week reads. Exported for tests. */
-export function weekDayState(day: Pick<WeekDayView, 'met' | 'frozen' | 'active' | 'xp' | 'isToday' | 'isFuture'>): DayState {
-  if (day.met) return 'met';
-  if (day.frozen) return 'frozen';
-  if (day.isFuture) return 'future';
-  if (day.active || day.xp > 0) return 'partial';
-  return day.isToday ? 'today' : 'missed';
-}
-
-const STATE_TEXT: Record<DayState, string> = {
-  met: 'goal met',
-  frozen: 'covered by a streak freeze',
-  partial: 'some practice',
-  today: 'today, nothing yet',
-  missed: 'no practice',
-  future: 'still to come',
-};
 
 /** Props for `<WeekStrip>`. */
 export interface WeekStripProps {
@@ -53,7 +34,7 @@ export function WeekStrip({ days, size = 'md', className }: WeekStripProps) {
               {day.label.slice(0, 2)}
             </span>
             <span className="sr-only">
-              {DAY_NAMES[day.weekday] ?? day.label}: {STATE_TEXT[state]}
+              {DAY_NAMES[day.weekday] ?? day.label}: {WEEK_DAY_TEXT[state]}
               {day.xp > 0 ? `, ${day.xp} XP` : ''}
             </span>
           </li>

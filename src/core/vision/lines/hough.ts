@@ -53,7 +53,7 @@ export interface LineOptions {
   minSupport?: number;
   /** Gaps up to this many pixels do not end a run (default 6). */
   maxGap?: number;
-  /** Keep at most this many lines, strongest first (default 120). */
+  /** Keep at most this many lines, strongest first (default 70). */
   maxLines?: number;
 }
 
@@ -92,7 +92,8 @@ export function extractEdges(g: Gradients, options: LineOptions = {}): EdgeSet {
   const n = w * h;
   const b = buffers(n);
   const { gx, gy, mag } = g;
-  const median = approxMedian(mag, n);
+  // Every third pixel is plenty for a noise estimate (3 is coprime to common widths, so no column bias).
+  const median = approxMedian(mag, n, 0.125, 32, 3);
   const lo = options.minGradient ?? 2;
   const hi = options.maxGradient ?? 10;
   const threshold = Math.min(hi, Math.max(lo, (options.noiseFactor ?? 3) * median));
@@ -285,17 +286,15 @@ export function detectLines(g: Gradients, options: LineOptions = {}): { lines: H
   used.fill(0, 0, edges.count);
   const minSupport = Math.max(6, Math.round(options.minSupport ?? minVotes));
   const maxGap = options.maxGap ?? 6;
-  const maxLines = options.maxLines ?? 120;
+  const maxLines = options.maxLines ?? 70;
   const lines: HoughLine[] = [];
-  const limit = Math.min(peaks.length, maxLines * 4);
+  const limit = Math.min(peaks.length, maxLines * 3);
   for (let p = 0; p < limit && lines.length < maxLines; p++) {
     const th = Math.floor(peaks[p] / NR);
     const rho = (peaks[p] % NR) - R;
     const first = collect(edges, used, COS[th], SIN[th], rho, 2, maxGap, false);
     if (!first || first.support < minSupport) continue;
-    const second = collect(edges, used, first.nx, first.ny, first.rho, 1.5, maxGap, false);
-    if (!second || second.support < minSupport) continue;
-    const final = collect(edges, used, second.nx, second.ny, second.rho, 1.5, maxGap, true);
+    const final = collect(edges, used, first.nx, first.ny, first.rho, 1.5, maxGap, true);
     if (!final || final.support < minSupport) continue;
     lines.push({ nx: final.nx, ny: final.ny, rho: final.rho, support: final.support, t0: final.t0, t1: final.t1, longestRun: final.longestRun });
   }

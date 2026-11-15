@@ -42,7 +42,8 @@
   --tone-fg: var(--bg);
 }
 .t-accent {
-  --tone: var(--accent-strong);
+  /* The icon or dot sits on the amber tint: the text amber keeps it at 3:1 or better in light mode. */
+  --tone: var(--accent-text);
   --tone-soft: var(--accent-soft);
   --tone-fg: var(--accent-fg);
   --tone-solid: var(--accent);
@@ -278,7 +279,8 @@
 }
 .star {
   display: inline-flex;
-  color: var(--line-strong);
+  /* An empty star still has to be seen (3:1): it shows how many there are to earn. */
+  color: color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));
 }
 .starOn {
   color: var(--accent);
@@ -382,7 +384,7 @@
   fill: currentColor;
 }
 .pipEmpty {
-  color: var(--line-strong);
+  color: color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));
 }
 .pipEmpty svg {
   fill: none;

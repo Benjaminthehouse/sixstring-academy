@@ -14,6 +14,7 @@ import type { StaffGeom } from '../staff/model';
 import type { Point } from './gray';
 import { type Affine, type WarpMesh, meshFromAffine, meshFromFunction } from './warp';
 
+/** How much geometric correction a capture needs (see the file comment). */
 export type CorrectionMode = 'none' | 'scale' | 'similarity' | 'mesh';
 
 /** Options for {@link buildDewarp}. */

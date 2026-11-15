@@ -53,6 +53,7 @@ export interface OmrElement {
 /** 'notation' = five-line staff; 'tab' = tablature (six lines for guitar, four for bass). */
 export type StaffKind = 'notation' | 'tab';
 
+/** Undotted note / rest values. */
 export type DurationValue = 'whole' | 'half' | 'quarter' | 'eighth' | '16th' | '32nd';
 
 /** Ticks of each undotted value (960 per quarter). */
@@ -60,14 +61,19 @@ export const DURATION_TICKS: Record<DurationValue, number> = {
   whole: 3840, half: 1920, quarter: 960, eighth: 480, '16th': 240, '32nd': 120,
 };
 
+/** What a bar line (or group of strokes and dots) means. */
 export type BarlineType = 'single' | 'double' | 'end' | 'repeat-begin' | 'repeat-end' | 'repeat-both';
 
+/** Clefs the reader distinguishes; guitar notation is 'treble-8vb' whether or not the 8 is printed. */
 export type ClefType = 'treble' | 'treble-8vb' | 'bass' | 'percussion' | 'tab';
 
+/** Printed accidental signs. */
 export type AccidentalType = 'sharp' | 'flat' | 'natural' | 'double-sharp' | 'double-flat';
 
+/** Note-head shapes. */
 export type NoteHeadType = 'filled' | 'open' | 'whole' | 'x' | 'diamond';
 
+/** Letter name of a pitch. */
 export type StepName = 'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'B';
 
 // ------------------------------------------------------------------------------------------
@@ -175,6 +181,7 @@ export interface OmrTabEvent extends OmrElement {
   linkedEventId?: string;
 }
 
+/** Anything that takes time on a staff. */
 export type OmrEvent = OmrNotationEvent | OmrTabEvent;
 
 /** True for an event of a notation staff. */
@@ -273,6 +280,7 @@ export interface OmrStaff extends OmrElement {
   linkedStaffId?: string;
 }
 
+/** What a piece of text on the page is. */
 export type OmrTextKind = 'chord-symbol' | 'tempo' | 'section' | 'title' | 'composer' | 'lyric' | 'fingering' | 'other';
 
 /** Text read from the page. */

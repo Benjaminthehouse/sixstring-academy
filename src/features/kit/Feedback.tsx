@@ -49,7 +49,7 @@ export function FeedbackGroup() {
 
   return (
     <Group id="feedback" index="05" title="Feedback" blurb="How the app answers back: passing toasts, standing banners, dialogs that ask, and honest states for loading, empty, failed and blocked.">
-      <Specimen name="Toast" note="toast() from anywhere. Stacks, pauses under the pointer, announced through aria-live.">
+      <Specimen name="Toast" note="toast() from anywhere. Stacks, pauses under the pointer or focus, announced through aria-live. Alt+T moves keyboard focus to the newest one; Escape dismisses it.">
         <Cluster gap={3}>
           <Button onClick={() => toast.ok('Tuning saved')}>Show success toast</Button>
           <Button onClick={() => toast.info('Slowed to 75%', { description: 'The pitch stays the same.' })}>Show info toast</Button>

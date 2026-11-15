@@ -120,6 +120,10 @@ export interface StiffStringOptions {
   pluck?: number;
   /** T60 of the first partial in seconds (default 4); partial k decays (1 + 0.012 k^2) times faster. */
   t60?: number;
+  /** T60 of the first partial alone, when it couples to the body and dies early (a "wolf" note). Default: `t60`. */
+  fundamentalT60?: number;
+  /** Extra decay factor for the odd partials 3, 5, 7 ... (default 1 = like the even ones). */
+  oddDecay?: number;
   /** Peak amplitude (default 0.4). */
   amplitude?: number;
   seed?: number;
@@ -147,13 +151,16 @@ export function stiffString(o: StiffStringOptions): Float32Array {
     p += ((2 * Math.PI * o.freq) / sr) * (glide === 0 ? 1 : Math.pow(2, (glide * Math.exp(-i / glideTau)) / 1200));
   }
   const norm = Math.sqrt(1 + o.B);
-  for (let k = 1; k < 80; k++) {
+  for (let k = 1; k <= 32; k++) {
     const ratio = (k * Math.sqrt(1 + o.B * k * k)) / norm;
-    if (o.freq * ratio > Math.min(sr * 0.45, 10000)) break;
+    if (o.freq * ratio > Math.min(sr * 0.45, 6000)) break;
     const amp = (Math.sin(Math.PI * k * pluck) / k) * (1 + 0.2 * rng.bipolar());
     if (Math.abs(amp) < 1e-6) continue;
     const ph = rng.range(0, 2 * Math.PI);
-    const perSample = Math.exp((-6.908 * (1 + 0.012 * k * k)) / (t60 * sr));
+    let rate = (1 + 0.012 * k * k) / t60;
+    if (k === 1 && o.fundamentalT60 !== undefined) rate = 1 / o.fundamentalT60;
+    else if (k % 2 === 1 && k > 1) rate *= o.oddDecay ?? 1;
+    const perSample = Math.exp((-6.908 * rate) / sr);
     let env = amp;
     for (let i = 0; i < n; i++) {
       out[i] += env * Math.sin(ratio * ramp[i] + ph);
@@ -241,6 +248,34 @@ export function mainsHum(length: number, sampleRate: number, base: 50 | 60, seed
   const g = 1 / Math.sqrt(sum / length || 1);
   for (let i = 0; i < length; i++) out[i] *= g;
   return out;
+}
+
+/** Background sounds {@link background} can supply. */
+export type BackgroundKind = 'white' | 'pink' | 'hum50' | 'hum60';
+
+const backgroundCache = new Map<string, Float32Array>();
+
+/**
+ * `length` samples of unit-RMS background of the given kind. One long buffer per kind and sample
+ * rate is generated and a seed-dependent stretch of it returned, so thousands of scenes do not
+ * each pay for their own noise (the returned array is a view: do not write to it).
+ */
+export function background(kind: BackgroundKind, sampleRate: number, length: number, seed: number): Float32Array {
+  const key = `${kind}|${sampleRate}`;
+  const total = Math.max(length * 2, Math.round(sampleRate * 6));
+  let buf = backgroundCache.get(key);
+  if (!buf || buf.length < length + 1) {
+    buf =
+      kind === 'white'
+        ? whiteNoise(total, 4711)
+        : kind === 'pink'
+          ? pinkNoise(total, 4712)
+          : mainsHum(total, sampleRate, kind === 'hum50' ? 50 : 60, 4713);
+    backgroundCache.set(key, buf);
+  }
+  const room = buf.length - length;
+  const start = room > 0 ? (hashSeed('bg', seed) % room) : 0;
+  return buf.subarray(start, start + length);
 }
 
 /** `a + gain * b` (b starting at sample `offset`); the result has the length of `a`. */
@@ -357,27 +392,55 @@ export function legatoJoin(a: Float32Array, b: Float32Array, sampleRate: number,
   return out;
 }
 
-/** Sounds a hand makes on a guitar that are not notes: body knocks, string scrapes, cable thumps. */
-export function handlingNoise(sampleRate: number, seconds: number, seed: number, level: number = 0.1): Float32Array {
+/** The kinds of non-note sound {@link handlingNoise} makes. */
+export type HandlingKind = 'knock' | 'squeak' | 'thump' | 'scrape';
+
+/**
+ * Sounds a hand makes on a guitar that are not notes:
+ *  - `knock`: knuckles or a forearm on the top. The body answers with its own modes (air resonance
+ *    near 100 Hz, top plate near 200 Hz, a few more above), each ringing for some tens of ms;
+ *  - `squeak`: a fingertip sliding along a wound string, a narrow band of noise sweeping upward;
+ *  - `thump`: the palm landing on the strings or a bumped cable, a burst of low noise;
+ *  - `scrape`: a pick or nail dragged along a wound string, broadband grit.
+ * `kinds` limits the mix; events are about 0.4 s apart.
+ */
+export function handlingNoise(
+  sampleRate: number,
+  seconds: number,
+  seed: number,
+  level: number = 0.1,
+  kinds: readonly HandlingKind[] = ['knock', 'squeak', 'thump', 'scrape'],
+): Float32Array {
   const n = Math.round(seconds * sampleRate);
   const out = new Float32Array(n);
   const rng = new Rng(seed);
   const events = Math.max(1, Math.round(seconds * 2.5));
   for (let e = 0; e < events; e++) {
     const at = Math.round(((e + rng.range(0.15, 0.85)) / events) * n);
-    const kind = rng.int(3);
-    if (kind === 0) {
-      // Knock on the top: the two lowest body modes ring for a few tens of milliseconds.
-      const f1 = rng.range(92, 112);
-      const f2 = rng.range(180, 215);
-      const tau = rng.range(0.012, 0.03) * sampleRate;
-      const g = level * rng.range(0.6, 1.4);
-      for (let i = 0; i < 6 * tau && at + i < n; i++) {
-        const env = Math.exp(-i / tau) * (1 - Math.exp(-i / (0.0006 * sampleRate)));
-        out[at + i] += g * env * (Math.sin((2 * Math.PI * f1 * i) / sampleRate) + 0.6 * Math.sin((2 * Math.PI * f2 * i) / sampleRate + 1));
+    const kind = kinds[rng.int(kinds.length)];
+    const g = level * rng.range(0.5, 1.5);
+    if (kind === 'knock') {
+      // Mode frequencies of real guitars scatter by several percent; they are not harmonics of each other.
+      const modes: Array<[number, number, number]> = [
+        [rng.range(92, 112), 1, rng.range(0.03, 0.07)],
+        [rng.range(180, 215), rng.range(0.5, 1.1), rng.range(0.02, 0.04)],
+        [rng.range(265, 300), rng.range(0.2, 0.6), 0.02],
+        [rng.range(380, 430), rng.range(0.2, 0.6), 0.015],
+        [rng.range(520, 600), rng.range(0.1, 0.4), 0.012],
+      ];
+      const len = Math.round(0.35 * sampleRate);
+      const rise = 0.0006 * sampleRate;
+      for (const [f, a, tau] of modes) {
+        const ph = rng.range(0, 2 * Math.PI);
+        const ts = tau * sampleRate;
+        for (let i = 0; i < len && at + i < n; i++) {
+          out[at + i] += g * a * Math.exp(-i / ts) * (1 - Math.exp(-i / rise)) * Math.sin((2 * Math.PI * f * i) / sampleRate + ph);
+        }
       }
-    } else if (kind === 1) {
-      // Finger squeak along a wound string: a band of noise sweeping up for 80-200 ms.
+      // The click of the knuckle itself.
+      const click = whiteNoise(Math.round(0.004 * sampleRate), hashSeed('click', seed, e));
+      for (let i = 0; i < click.length && at + i < n; i++) out[at + i] += g * 0.5 * click[i] * Math.exp(-i / (0.001 * sampleRate));
+    } else if (kind === 'squeak') {
       const len = Math.round(rng.range(0.08, 0.2) * sampleRate);
       const f0 = rng.range(1800, 2600);
       const f1 = f0 * rng.range(1.2, 1.9);
@@ -391,18 +454,28 @@ export function handlingNoise(sampleRate: number, seconds: number, seed: number,
         const hp = burst[i] - lp - bp / 12;
         bp += w * hp;
         lp += w * bp;
-        const env = Math.sin((Math.PI * i) / len);
-        out[at + i] += level * 0.5 * env * bp;
+        out[at + i] += g * 0.5 * Math.sin((Math.PI * i) / len) * bp;
       }
-    } else {
-      // Thump of a hand on the strings or a bumped cable: a damped burst of low noise.
+    } else if (kind === 'thump') {
       const len = Math.round(rng.range(0.03, 0.08) * sampleRate);
       const burst = whiteNoise(len, hashSeed('thump', seed, e));
       let lp = 0;
       const a = Math.exp((-2 * Math.PI * rng.range(120, 350)) / sampleRate);
       for (let i = 0; i < len && at + i < n; i++) {
         lp = a * lp + (1 - a) * burst[i];
-        out[at + i] += level * 4 * lp * Math.exp((-4 * i) / len);
+        out[at + i] += g * 4 * lp * Math.exp((-4 * i) / len);
+      }
+    } else {
+      // The windings pass under the pick at a few hundred per second: a train of clicks, not a tone.
+      const len = Math.round(rng.range(0.1, 0.3) * sampleRate);
+      const burst = whiteNoise(len, hashSeed('scrape', seed, e));
+      let gap = 0;
+      let lp = 0;
+      for (let i = 0; i < len && at + i < n; i++) {
+        if (--gap <= 0) gap = Math.round(sampleRate / rng.range(250, 900));
+        const pulse = gap < 0.0004 * sampleRate ? 1 : 0.15;
+        lp += 0.5 * (burst[i] - lp);
+        out[at + i] += g * 0.8 * pulse * (burst[i] - lp) * Math.sin((Math.PI * i) / len);
       }
     }
   }
@@ -433,7 +506,7 @@ export interface Scene {
 }
 
 /** Lead-in before the first note of a scene: the tuner has been listening to the room for a while. */
-export const LEAD_S = 0.3;
+export const LEAD_S = 0.25;
 
 /** A scene with one note placed after the lead-in. `background` (same length as the result) is added underneath. */
 export function singleNoteScene(note: Float32Array, sampleRate: number, midi: number, freq: number, seconds: number): Scene {
@@ -449,6 +522,32 @@ export function noteLevel(scene: Scene): number {
   const t = scene.notes[0];
   const sr = scene.sampleRate;
   return rms(scene.samples, t.start * sr, Math.min(t.end, t.start + 0.3) * sr);
+}
+
+/**
+ * Seconds (scene time) until which `target` stays at least `marginDb` louder than `other`, both
+ * measured as RMS over 40 ms. A monophonic tracker follows the loudest sound, so a note is only
+ * scored while it is the loudest one; this is where "the loudest" ends.
+ */
+export function dominantUntil(target: ArrayLike<number>, other: ArrayLike<number>, sampleRate: number, from: number, to: number, marginDb: number): number {
+  const win = Math.round(0.04 * sampleRate);
+  const hop = Math.round(0.01 * sampleRate);
+  const need = Math.pow(10, marginDb / 20);
+  // The first 60 ms are the attack; the note has to dominate from there on.
+  for (let a = Math.round((from + 0.06) * sampleRate); a + win <= Math.min(target.length, Math.round(to * sampleRate)); a += hop) {
+    if (rms(target, a, a + win) < need * rms(other, a, a + win)) return a / sampleRate;
+  }
+  return to;
+}
+
+/**
+ * Add `interference` (already scaled, same length) under a one-note scene and end the scored span
+ * where the note stops being `marginDb` louder than it.
+ */
+export function withInterference(scene: Scene, interference: Float32Array, marginDb: number): Scene {
+  const t = scene.notes[0];
+  const end = dominantUntil(scene.samples, interference, scene.sampleRate, t.start, t.end, marginDb);
+  return { ...scene, samples: mixInto(scene.samples, interference, 1), notes: [{ ...t, end }, ...scene.notes.slice(1)] };
 }
 
 /** Apply a per-sample transformation to a scene's audio, keeping its truth. */
@@ -482,6 +581,8 @@ export interface NoteScore {
   errors: number[];
   /** Fraction of the scored span covered by pitch readings. */
   coverage: number;
+  /** Seconds of the note that were scored (0 when the note never dominated). */
+  span: number;
 }
 
 /** Options for {@link scoreScene}. */
@@ -505,8 +606,18 @@ function isOctaveOff(cents: number): boolean {
   return false;
 }
 
+/** Result of {@link scoreScene}. */
+export interface SceneScore {
+  /** One score per truth note, in order. */
+  scores: NoteScore[];
+  /** Everything the engine emitted. */
+  events: PitchEvent[];
+  /** Note-ons that belong to no truth note (before the first, after the scored span of the last, or in a gap). */
+  strays: NoteOnEvent[];
+}
+
 /** Run the real engine over a scene and score every truth note. Also returns the raw events. */
-export function scoreScene(scene: Scene, opts: ScoreOptions = {}): { scores: NoteScore[]; events: PitchEvent[] } {
+export function scoreScene(scene: Scene, opts: ScoreOptions = {}): SceneScore {
   const { settleMs = 150, untilMs, earlyMs = 30, ...engine } = opts;
   const events = analyze(scene.samples, scene.sampleRate, engine);
   const noteOns: NoteOnEvent[] = [];
@@ -552,9 +663,11 @@ export function scoreScene(scene: Scene, opts: ScoreOptions = {}): { scores: Not
       octaveFrames: oct,
       errors,
       coverage: b > a ? Math.min(1, (frames * hop) / (b - a)) : 0,
+      span: Math.max(0, t.end - t.start),
     };
   });
-  return { scores, events };
+  const strays = noteOns.filter((n) => !scene.notes.some((t) => n.time >= t.start - earlyMs / 1000 && n.time < t.end));
+  return { scores, events, strays };
 }
 
 /** Totals over many scored notes: one row of the report. */

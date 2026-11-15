@@ -58,12 +58,16 @@ export interface BackingStyle {
   fills: DrumBar[];
   /** Overall drum loudness (ballads and folk are played softer). */
   drumLevel: number;
+  /** Hit the bass drum together with the crash that opens a section (default true; false keeps beat one empty). */
+  kickWithCrash?: boolean;
   bass: string[];
   /** Bass bar used instead when the next bar starts on a different chord. */
   bassTurn?: string;
   /** How often the turn bar is taken when it applies (default 1 = always). */
   bassTurnChance?: number;
   bassTone: BassTone;
+  /** Mix level of the bass in this style (a gain, default 1). */
+  bassLevel?: number;
   /** Note length as a fraction of the written length (0.5 = staccato). */
   bassGate: number;
   /** Start the very first bar on the root even if the pattern rests there. */
@@ -119,7 +123,7 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     ],
     drumLevel: 0.88,
     bass: ['R-----R-5-----a-'], bassTone: 'bass-finger', bassGate: 0.95,
-    keys: ['1-3-4-3-2-3-4-3-'], keysVoice: 'epiano', keysGate: 3, keysVoicing: 'close', keysLevel: 0.45,
+    keys: ['1-3-4-3-2-3-4-3-'], keysVoice: 'epiano', keysGate: 3, keysVoicing: 'close', keysLevel: 0.38,
     guitar: ['D...d.u.D...d.u.'], guitarTone: 'steel', guitarGate: 1,
     countIn: 'sidestick',
   },
@@ -137,7 +141,7 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     drumLevel: 0.82,
     bass: ['R-----5---a-'], bassTone: 'bass-finger', bassGate: 0.95,
     keys: ['1-2-3-4-3-2-'], keysVoice: 'epiano', keysGate: 3, keysVoicing: 'close', keysLevel: 0.42,
-    guitar: ['D...d.D.u.d.'], guitarTone: 'steel', guitarGate: 1,
+    guitar: ['D...d.D.u.d.'], guitarTone: 'steel', guitarGate: 1, guitarLevel: 0.9,
     countIn: 'sidestick',
   },
   'blues-shuffle': {
@@ -155,7 +159,7 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     drumLevel: 0.95,
     bass: ['R.R3.35.56.5'], bassTurn: 'R.R3.35.53.A', bassTone: 'bass-finger', bassGate: 0.9,
     keys: ['C----c------'], keysVoice: 'organ', keysGate: 0.85, keysVoicing: 'close', keysLevel: 1.3,
-    guitar: ['D.uD.uD.uD.u'], guitarTone: 'clean', guitarGate: 0.8,
+    guitar: ['D.uD.uD.uD.u'], guitarTone: 'clean', guitarGate: 0.8, guitarLevel: 0.56,
     countIn: 'sidestick',
   },
   'slow-blues': {
@@ -172,7 +176,7 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     drumLevel: 0.85,
     bass: ['R--R-R5--3-a'], bassTone: 'bass-finger', bassGate: 0.92,
     keys: ['C--ccc---ccc'], keysVoice: 'epiano', keysGate: 0.8, keysVoicing: 'close', keysLevel: 0.65,
-    guitar: ['D..d.uD..d.u'], guitarTone: 'clean', guitarGate: 0.9,
+    guitar: ['D..d.uD..d.u'], guitarTone: 'clean', guitarGate: 0.9, guitarLevel: 0.63,
     countIn: 'sidestick',
   },
   funk: {
@@ -187,9 +191,9 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
       { hihatClosed: 'x.x.x.x.x.x.....', snare: '....X..o.o..x.xx', tomHigh: '.............x..', kick: 'X..x......x.....' },
     ],
     drumLevel: 1,
-    bass: ['R..R..r.....R.ra'], bassTone: 'bass-finger', bassGate: 0.55,
-    keys: ['..s...s..s....s.'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 1.0,
-    guitar: ['D.xU.xD.xUxU.xUx'], guitarTone: 'clean', guitarGate: 0.35, guitarLevel: 1.2,
+    bass: ['R..R..r.....R.ra'], bassTone: 'bass-finger', bassLevel: 1.4, bassGate: 0.55,
+    keys: ['..s...s..s....s.'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 1.2,
+    guitar: ['D.xU.xD.xUxU.xUx'], guitarTone: 'clean', guitarGate: 0.35, guitarLevel: 1.0,
     countIn: 'sidestick',
   },
   reggae: {
@@ -203,10 +207,10 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     fills: [
       { hihatClosed: 'x.X.x.X.x.X.....', kick: '........X.......', sidestick: '........X.......', tomHigh: '............x...', snare: '.............x.x', tomMid: '..............x.' },
     ],
-    drumLevel: 0.9,
-    bass: ['....R.R.5...3...'], bassTurn: '....R.R.5...A...', bassTone: 'bass-finger', bassGate: 0.8,
-    keys: ['..s...s...s...s.'], keysVoice: 'organ', keysGate: 0.45, keysVoicing: 'close', keysLevel: 2.2,
-    guitar: ['..U...U...U...U.'], guitarTone: 'clean', guitarGate: 0.25, guitarLevel: 1.6,
+    drumLevel: 1, kickWithCrash: false,
+    bass: ['....R.R.5...3...'], bassTurn: '....R.R.5...A...', bassTone: 'bass-finger', bassLevel: 1.5, bassGate: 0.8,
+    keys: ['..s...s...s...s.'], keysVoice: 'organ', keysGate: 0.45, keysVoicing: 'close', keysLevel: 2.4,
+    guitar: ['..U...U...U...U.'], guitarTone: 'clean', guitarGate: 0.25, guitarLevel: 1.1,
     countIn: 'sidestick',
   },
   bossa: {
@@ -222,8 +226,8 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     ],
     drumLevel: 0.72,
     bass: ['R-----5-5-----N-'], bassTone: 'bass-upright', bassGate: 0.9,
-    keys: ['s.....s...s.....', '..s...s.....s...'], keysVoice: 'epiano', keysGate: 0.6, keysVoicing: 'rootless', keysLevel: 0.9,
-    guitar: ['B.P...P.B...P.P.', 'B...P.P.B.P...P.'], guitarTone: 'nylon', guitarGate: 0.7,
+    keys: ['s.....s...s.....', '..s...s.....s...'], keysVoice: 'epiano', keysGate: 0.6, keysVoicing: 'rootless', keysLevel: 1.15,
+    guitar: ['B.P...P.B...P.P.', 'B...P.P.B.P...P.'], guitarTone: 'nylon', guitarGate: 0.7, guitarLevel: 0.85,
     countIn: 'sidestick',
   },
   'jazz-swing': {
@@ -240,7 +244,7 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     drumLevel: 0.95,
     bass: ['W..W..W..W..'], bassTone: 'bass-upright', bassGate: 0.92,
     keys: ['s....C------', '..s......c--'], keysVoice: 'epiano', keysGate: 0.7, keysVoicing: 'rootless', keysLevel: 0.8,
-    guitar: ['d..D..d..D..'], guitarTone: 'clean', guitarGate: 0.45,
+    guitar: ['d..D..d..D..'], guitarTone: 'clean', guitarGate: 0.45, guitarLevel: 0.6,
     countIn: 'hihatPedal',
   },
   country: {
@@ -253,10 +257,10 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     fills: [
       { snare: 'o.ooX.ooo.ooXxXx', kick: 'X.......X.....x.', hihatPedal: '....x...........' },
     ],
-    drumLevel: 0.9,
-    bass: ['R.......v.......'], bassTurn: 'R.......v...A...', bassTurnChance: 0.7, bassTone: 'bass-finger', bassGate: 0.7,
-    keys: ['....s.......s...'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 1.2,
-    guitar: ['B...D.U.B...D.U.'], guitarTone: 'steel', guitarGate: 0.9,
+    drumLevel: 0.82,
+    bass: ['R.......v.......'], bassTurn: 'R.......v...A...', bassTurnChance: 0.7, bassTone: 'bass-finger', bassLevel: 1.6, bassGate: 0.7,
+    keys: ['....s.......s...'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 1.5,
+    guitar: ['B...D.U.B...D.U.'], guitarTone: 'steel', guitarGate: 0.9, guitarLevel: 0.85,
     countIn: 'sidestick',
   },
   folk: {
@@ -270,10 +274,10 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     fills: [
       { shaker: 'x.o.x.o.x.o.x.o.', kick: 'X.......x.......', sidestick: '....x.......x.x.', tambourine: '............x.x.' },
     ],
-    drumLevel: 0.75,
-    bass: ['R-------5-------'], bassTurn: 'R-------5---A---', bassTurnChance: 0.6, bassTone: 'bass-upright', bassGate: 0.9,
+    drumLevel: 0.85,
+    bass: ['R-------5-------'], bassTurn: 'R-------5---A---', bassTurnChance: 0.6, bassTone: 'bass-upright', bassLevel: 1.25, bassGate: 0.9,
     keys: ['c---------------'], keysVoice: 'organ', keysGate: 1, keysVoicing: 'close', keysLevel: 1.0,
-    guitar: ['D...D.U.d.U.D.U.'], guitarTone: 'steel', guitarGate: 1,
+    guitar: ['D...D.U.d.U.D.U.'], guitarTone: 'steel', guitarGate: 1, guitarLevel: 0.63,
     countIn: 'sidestick',
   },
   metal: {
@@ -287,10 +291,10 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     fills: [
       { hihatClosed: 'X...X...........', snare: '....X...XxXx....', tomHigh: '............Xx..', tomLow: '..............Xx', kick: 'X.x.X.x.x.x.x.x.' },
     ],
-    drumLevel: 0.82,
-    bass: ['R.R.R.R.R.R.R.R.'], bassTurn: 'R.R.R.R.R.R.R.A.', bassTone: 'bass-pick', bassGate: 0.8,
-    keys: ['c---------------'], keysVoice: 'organ', keysGate: 1, keysVoicing: 'power', keysLevel: 0.5,
-    guitar: ['A.M.M.A.M.M.A.M.'], guitarTone: 'driven', guitarGate: 0.9,
+    drumLevel: 0.76,
+    bass: ['R.R.R.R.R.R.R.R.'], bassTurn: 'R.R.R.R.R.R.R.A.', bassTone: 'bass-pick', bassLevel: 1.4, bassGate: 0.8,
+    keys: ['c---------------'], keysVoice: 'organ', keysGate: 1, keysVoicing: 'power', keysLevel: 0.65,
+    guitar: ['A.M.M.A.M.M.A.M.'], guitarTone: 'driven', guitarGate: 0.9, guitarLevel: 1.25,
     countIn: 'hihatClosed',
   },
   latin: {
@@ -305,9 +309,9 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
       { cowbell: 'x...x...........', kick: '......x.........', snare: '......x......x..', tomHigh: '........x.x.....', tomMid: '............x...', tomLow: '..............x.' },
     ],
     drumLevel: 0.9,
-    bass: ['......5.....N---'], bassTone: 'bass-finger', bassGate: 0.9, bassRootFirst: true,
+    bass: ['......5.....N---'], bassTone: 'bass-finger', bassLevel: 1.2, bassGate: 0.9, bassRootFirst: true,
     keys: ['s..s..s...s.s...', '..s..s..s...s.s.'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 0.9,
-    guitar: ['..P...P...P...P.'], guitarTone: 'nylon', guitarGate: 0.5, guitarLevel: 1.3,
+    guitar: ['..P...P...P...P.'], guitarTone: 'nylon', guitarGate: 0.5, guitarLevel: 1.15,
     countIn: 'sidestick',
   },
   waltz: {
@@ -321,10 +325,10 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     fills: [
       { kick: 'X...........', hihatClosed: '....x.......', snare: '........x.xx' },
     ],
-    drumLevel: 0.75,
-    bass: ['Q-------....'], bassTurn: 'Q-----..A---', bassTurnChance: 0.5, bassTone: 'bass-upright', bassGate: 0.9,
-    keys: ['....s...s...'], keysVoice: 'epiano', keysGate: 0.6, keysVoicing: 'close', keysLevel: 1.0,
-    guitar: ['B...d...d...'], guitarTone: 'steel', guitarGate: 0.9,
+    drumLevel: 0.92,
+    bass: ['Q-------....'], bassTurn: 'Q-----..A---', bassTurnChance: 0.4, bassTone: 'bass-upright', bassLevel: 1.5, bassGate: 0.9,
+    keys: ['....s...s...'], keysVoice: 'epiano', keysGate: 0.6, keysVoicing: 'close', keysLevel: 1.3,
+    guitar: ['B...d...d...'], guitarTone: 'steel', guitarGate: 0.9, guitarLevel: 0.8,
     countIn: 'sidestick',
   },
 };

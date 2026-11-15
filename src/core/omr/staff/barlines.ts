@@ -38,6 +38,8 @@ interface Stroke {
   extDown: number;
   up: boolean;
   down: boolean;
+  /** The stroke has the same width on (nearly) every row between the lines: a solid bar, not a glyph. */
+  solid: boolean;
 }
 
 /** Find the bar lines of a staff. */
@@ -105,7 +107,7 @@ export function detectBarlines(bin: BinaryImage, staff: StaffGeom, opts: Barline
           x++;
         }
         const s1 = x - 1;
-        if (peak >= minFill) strokes.push({ x: (s0 + s1 + 1) / 2, width: s1 - s0 + 1, shear: bestShear, fill: peak, extUp: 0, extDown: 0, up: false, down: false });
+        if (peak >= minFill) strokes.push({ x: (s0 + s1 + 1) / 2, width: s1 - s0 + 1, shear: bestShear, fill: peak, extUp: 0, extDown: 0, up: false, down: false, solid: false });
       }
     }
     i = j + 1;
@@ -215,9 +217,13 @@ export function detectBarlines(bin: BinaryImage, staff: StaffGeom, opts: Barline
       cs.push((r[0] + r[1] + 1) / 2);
       ws.push(r[1] - r[0] + 1);
     }
+    const wanted = bandRows(st.x, false).length;
     if (ws.length < 6) return;
     const sorted = ws.slice().sort((p2, q) => p2 - q);
     const width = sorted[sorted.length >> 1];
+    let even = 0;
+    for (const v of ws) if (Math.abs(v - width) <= Math.max(1.5, 0.2 * width)) even++;
+    st.solid = ws.length >= 0.95 * wanted && even >= 0.92 * ws.length;
     let n3 = 0, sy = 0, sc = 0, syy = 0, syc = 0;
     for (let i = 0; i < ys.length; i++) {
       if (ws[i] > width + 1) continue;
@@ -359,14 +365,21 @@ export function detectBarlines(bin: BinaryImage, staff: StaffGeom, opts: Barline
       bars.push(st);
       continue;
     }
+    // The thin stroke right next to a thick one is half of a final bar or repeat sign (whose dots
+    // may touch it); no stem has such a partner.
+    if (good.some((o) => o !== st && Math.abs(o.x - st.x) <= 0.65 * S && o.width >= Math.max(1.5 * st.width, 0.22 * S))) {
+      bars.push(st);
+      continue;
+    }
     const hg = hanging(st);
     const stemL = hg.touchL >= minTouch && hg.wideL >= 0.4 * S;
     const stemR = !atEnd && hg.touchR >= minTouch && hg.wideR >= 0.4 * S;
     // A lone fat stroke inside the staff is the upright of a time-signature digit or a letter:
     // bar lines are about as thin as staff lines, and thick ones only come paired with a thin one.
     const fat = st.width >= 0.45 * S || (st.width > 2 * staff.thickness + 1 && st.width >= 0.33 * S);
-    const lonely = !good.some((o) => o !== st && Math.abs(o.x - st.x) <= 0.8 * S);
-    const ok = !stemL && !stemR && !(fat && lonely && !atEnd);
+    const lonely = !good.some((o) => o !== st && Math.abs(o.x - st.x) <= 0.8 * S && o.width < 0.33 * S && o.width <= 0.7 * st.width);
+    // (A final bar or repeat sign whose strokes fused in a blurred capture is fat too, but solid.)
+    const ok = !stemL && !stemR && !(fat && lonely && !atEnd && !st.solid);
     opts.trace?.(`stroke x=${st.x.toFixed(1)} w ${st.width} fill ${st.fill.toFixed(2)} ext ${st.extUp}^${st.extDown}v hanging ${hg.wideL}(${hg.touchL})/${hg.wideR}(${hg.touchR}) -> ${ok ? 'bar' : 'stem'}`);
     if (ok) bars.push(st);
   }
@@ -386,7 +399,7 @@ export function detectBarlines(bin: BinaryImage, staff: StaffGeom, opts: Barline
     const isThick = (s: Stroke): boolean => s.width >= 0.22 * S && s.width >= 1.5 * thin && s.width >= thin + 2;
     // Repeat signs are always a thick + thin pair with two dots; without the pair, blobs beside a
     // bar line are notes or fret digits.
-    const pair = g.length >= 2 && g.some(isThick);
+    const pair = (g.length >= 2 && g.some(isThick)) || (g.length === 1 && first.solid && first.width >= 0.45 * S);
     const dotsL = pair && hasDots(first, -1);
     const dotsR = pair && hasDots(last, 1);
     let type: BarlineType = 'single';
@@ -395,7 +408,8 @@ export function detectBarlines(bin: BinaryImage, staff: StaffGeom, opts: Barline
     else if (dotsL) type = 'repeat-end';
     else if (g.length === 1) {
       // Low-resolution sources can fuse the strokes of a double or final bar into one wide stroke.
-      const rel = first.width / S;
+      // Blur fattens every stroke; the staff lines show by how much (they are ~0.13 space on paper).
+      const rel = (first.width - Math.max(0, staff.thickness - 0.13 * S)) / S;
       type = rel >= 0.5 ? 'end' : rel >= 0.34 ? 'double' : 'single';
     }
     else if (isThick(last) && !isThick(first)) type = 'end';

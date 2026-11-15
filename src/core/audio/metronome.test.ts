@@ -266,3 +266,100 @@ describe('metronome on the transport', () => {
     m.dispose();
   });
 });
+
+describe('metronome: nothing clicks after it has been told to stop', () => {
+  /** An output whose clicks can be taken back, like the real one. */
+  function rigWithCancel(tempo: number, ts = '4/4') {
+    const clock = new FakeClock();
+    const clicks: Array<{ time: number; level: ClickLevel; cancelled: boolean }> = [];
+    const m = new Metronome({
+      clock, timer: 'manual', tempo, timeSignature: ts,
+      output: {
+        click: (_set, level, time) => {
+          const c = { time, level, cancelled: false };
+          clicks.push(c);
+          return () => { c.cancelled = true; };
+        },
+      },
+    });
+    const run = (until: number): void => {
+      while (clock.t < until - 1e-9) {
+        clock.t = Math.min(until, clock.t + 0.02);
+        m.transport.process();
+      }
+    };
+    return { m, clock, clicks, run };
+  }
+
+  it('stop takes back every click that was scheduled but not yet heard, and only those', () => {
+    const { m, clock, clicks, run } = rigWithCancel(240);
+    m.subdivision = 'sixteenth';
+    m.start();
+    run(1.013);
+    m.stop();
+    const heard = clicks.filter((c) => c.time <= clock.t), ahead = clicks.filter((c) => c.time > clock.t);
+    expect(ahead.length).toBeGreaterThan(0); // the look-ahead had scheduled some
+    expect(ahead.every((c) => c.cancelled)).toBe(true);
+    expect(heard.length).toBeGreaterThan(10);
+    expect(heard.some((c) => c.cancelled)).toBe(false);
+  });
+
+  it('pause, seek and a change of time signature do the same', () => {
+    const a = rigWithCancel(200);
+    a.m.start();
+    a.run(1);
+    a.m.transport.pause();
+    expect(a.clicks.filter((c) => c.time > a.clock.t).every((c) => c.cancelled)).toBe(true);
+    expect(a.clicks.filter((c) => c.time <= a.clock.t).some((c) => c.cancelled)).toBe(false);
+
+    const b = rigWithCancel(200);
+    b.m.start();
+    b.run(1);
+    let seekTime = 0;
+    b.m.transport.on('seek', (e) => { seekTime = e.time; });
+    b.m.transport.seek({ bar: 8 });
+    // Clicks before the new position's first sound still belong to the music; later ones would double.
+    expect(b.clicks.filter((c) => c.time >= seekTime).every((c) => c.cancelled)).toBe(true);
+    expect(b.clicks.filter((c) => c.time < seekTime).some((c) => c.cancelled)).toBe(false);
+
+    const c = rigWithCancel(180);
+    c.m.subdivision = 'eighth';
+    c.m.start();
+    c.run(1.5);
+    const before = c.clicks.length;
+    c.m.setTimeSignature('7/8');
+    c.run(4);
+    const heard = c.clicks.filter((k) => !k.cancelled).map((k) => k.time);
+    // No two clicks closer than the fastest subdivision either side of the change: no flam.
+    for (let i = 1; i < heard.length; i++) expect(heard[i] - heard[i - 1]).toBeGreaterThan(0.079);
+    expect(c.clicks.length).toBeGreaterThan(before);
+    expect(c.m.running).toBe(true);
+  });
+
+  it('a new subdivision starts on the next beat, never in the middle of one', () => {
+    const { m, clicks, run } = rigWithCancel(60);
+    m.subdivision = 'sixteenth';
+    m.start();
+    run(2.3); // inside the third beat: clicks at 2.08, 2.33 ... are scheduled or about to be
+    m.subdivision = 'triplet';
+    run(6);
+    const times = clicks.map((c) => +(c.time - 0.08).toFixed(6));
+    // Beat 3 (2.0 .. 3.0) is finished in sixteenths; beat 4 onwards is in triplets.
+    expect(times.filter((t) => t >= 2 && t < 3)).toEqual([2, 2.25, 2.5, 2.75]);
+    expect(times.filter((t) => t >= 3 && t < 4)).toEqual([3, 3.333333, 3.666667]);
+    for (let i = 1; i < times.length; i++) expect(times[i] - times[i - 1]).toBeGreaterThan(0.24);
+  });
+
+  it('ignores a tempo that is not a number and survives a volume that is not one', () => {
+    const { m, clock, played, run } = rig({ tempo: 120 });
+    m.setTempo(NaN);
+    m.setTempo(Infinity);
+    expect(m.tempo).toBe(120);
+    m.volume = NaN;
+    m.start();
+    run(1.2);
+    expect(played.length).toBeGreaterThan(1);
+    expect(played.every((p) => Number.isFinite(p.gain) && Number.isFinite(p.time))).toBe(true);
+    expect(clock.t).toBeGreaterThan(1);
+  });
+});

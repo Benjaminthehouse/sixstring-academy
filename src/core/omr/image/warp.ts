@@ -134,12 +134,15 @@ export interface WarpOptions {
    * avoids a false edge between grey paper and a white fill when a page is rotated inside its frame.
    */
   edge?: 'fill' | 'clamp';
+  /** When given (one byte per output pixel), set to 1 wherever the output pixel lies outside the source. */
+  outside?: Uint8Array;
 }
 
 /** Resample `src` through a mesh with bilinear interpolation. */
 export function warpGray(src: GrayImage, mesh: WarpMesh, opts: WarpOptions = {}): GrayImage {
   const fill = opts.fill ?? 255;
   const clamp = opts.edge === 'clamp';
+  const outside = opts.outside;
   const { width: W, height: H, cell, cols } = mesh;
   const out = createGray(W, H, fill);
   const o = out.data;
@@ -172,7 +175,10 @@ export function warpGray(src: GrayImage, mesh: WarpMesh, opts: WarpOptions = {})
       let px = lx + dx * 0.5 - 0.5;
       let py = ly + dy * 0.5 - 0.5;
       for (let x = xStart; x < xEnd; x++, px += dx, py += dy) {
-        if (!clamp && (px < -0.5 || py < -0.5 || px > maxX + 0.5 || py > maxY + 0.5)) continue;
+        if (px < -0.5 || py < -0.5 || px > maxX + 0.5 || py > maxY + 0.5) {
+          if (outside) outside[row + x] = 1;
+          if (!clamp) continue;
+        }
         let x0 = px | 0;
         let y0 = py | 0;
         let wx = px - x0;

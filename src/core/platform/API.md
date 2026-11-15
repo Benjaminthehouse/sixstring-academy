@@ -16,7 +16,7 @@ because something is missing: each returns a typed "not available" result with a
 | `speak` | `tts: {}` | the browser's own voice if the frame has one, else unavailable |
 
 All of it: `capabilities: { sample: { images: true }, downloads: true, db: {}, user: {}, tts: {} }`.
-The standalone app needs none of this. Microphone, camera, print and the wake lock stay refused in the viewer.
+The standalone app needs none of this. Microphone, camera and print stay refused in the viewer whatever is declared.
 
 ## Already here: `env`, `storage`, `media`
 

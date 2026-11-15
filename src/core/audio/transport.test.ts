@@ -371,3 +371,329 @@ describe('transport: loop, count-in, seek, pause, end', () => {
     expect(beats.find((b) => b.bar === 1 && b.beat === 1)!.time).toBeCloseTo(0.05 + 1 + 0.375, 9);
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Hardening: a reference model worked out here, independently of timeline.ts, and a scheduler
+// that wakes up as irregularly as a busy main thread does.
+// ---------------------------------------------------------------------------------------------
+
+/** Seconds from tick 0 to `tick` through tempo points, by Simpson's rule (no closed forms). */
+function refSeconds(points: ReadonlyArray<{ tick: number; bpm: number; ramp?: boolean }>, tick: number): number {
+  const bpmAt = (u: number): number => {
+    let i = 0;
+    while (i + 1 < points.length && points[i + 1].tick <= u) i++;
+    const a = points[i], b = points[i + 1];
+    if (a.ramp && b && u >= a.tick) return a.bpm + ((b.bpm - a.bpm) * (u - a.tick)) / (b.tick - a.tick);
+    return a.bpm;
+  };
+  let total = 0;
+  const edges = [0, ...points.map((p) => p.tick).filter((t) => t > 0 && t < tick), tick];
+  for (let s = 0; s + 1 < edges.length; s++) {
+    const a = edges[s], b = edges[s + 1];
+    if (b <= a) continue;
+    const steps = Math.max(2, 2 * Math.ceil((b - a) / 16));
+    const h = (b - a) / steps;
+    let acc = 0;
+    for (let k = 0; k <= steps; k++) {
+      // Just inside the segment at its ends, so a step change is not straddled.
+      const u = k === 0 ? a + 1e-9 : k === steps ? b - 1e-9 : a + k * h;
+      acc += (k === 0 || k === steps ? 1 : k % 2 ? 4 : 2) * (60 / (PPQ * bpmAt(u)));
+    }
+    total += (acc * h) / 3;
+  }
+  return total;
+}
+
+/** Deterministic pseudo-random numbers for wake-up jitter. */
+function lcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+describe('transport: three minutes against an independent reference', () => {
+  it('tempo ramps, steps, meter changes, swing and a loop: every event where the reference puts it, with a scheduler that wakes irregularly', () => {
+    const clock = new FakeClock();
+    const tr = new Transport({ clock, timer: 'manual' });
+    const meters = [{ bar: 0, timeSignature: '4/4' }, { bar: 12, timeSignature: '7/8' }, { bar: 28, timeSignature: '5/4' }, { bar: 40, timeSignature: '6/8' }, { bar: 60, timeSignature: '4/4' }];
+    tr.setMeters(meters);
+    const B = (bar: number): number => tr.timeline.barStart(bar);
+    const tempo = [
+      { tick: 0, bpm: 100 },
+      { tick: B(4), bpm: 100, ramp: true }, { tick: B(10), bpm: 176 },
+      { tick: B(12), bpm: 176, ramp: true }, { tick: B(24), bpm: 58 },
+      { tick: B(28), bpm: 138 },
+      { tick: B(40), bpm: 84, ramp: true }, { tick: B(52), bpm: 160 },
+      { tick: B(60), bpm: 126 },
+    ];
+    tr.setTempoMap(tempo);
+    const log: Array<{ time: number; tick: number }> = [];
+    tr.scheduleRepeat((time, tick) => log.push({ time, tick }), 240);
+    let swingFrom = Infinity, swingTo = Infinity, loops = 0, lates = 0, minLead = Infinity;
+    tr.on('bar', (e) => {
+      if (e.bar === 60 && swingFrom === Infinity) { tr.setSwing(0.61); swingFrom = e.tick; }
+      if (e.bar === 68 && swingTo === Infinity) { tr.setSwing(0.5); swingTo = e.tick; }
+      if (e.bar === 70 && loops === 0) tr.setLoop({ bar: 70 }, { bar: 74 });
+    });
+    tr.on('loop', (e) => { loops = e.count; if (e.count === 6) tr.clearLoop(); });
+    tr.on('beat', (e) => { const lead = e.time - clock.now(); minLead = Math.min(minLead, lead); if (lead < 0) lates++; });
+    tr.start({ at: 0.0371 });
+    tr.process(); // a transport on a timer does this itself when it starts
+    const rand = lcg(12345);
+    while (clock.t < 185) {
+      // Wake-ups 4..60 ms apart, with a stall of up to 0.12 s now and then (inside the look-ahead).
+      clock.t += 0.004 + rand() * 0.056 + (rand() < 0.02 ? rand() * 0.06 : 0);
+      tr.process();
+    }
+    expect(log.length).toBeGreaterThan(1400);
+    expect(loops).toBe(6);
+    expect(lates).toBe(0);
+    expect(minLead).toBeGreaterThan(0.02);
+
+    const sec = (tick: number): number => refSeconds(tempo, tick);
+    const swung = (tick: number): number => {
+      if (tick < swingFrom || tick >= swingTo) return tick;
+      const base = Math.floor(tick / 960) * 960, pos = tick - base;
+      return pos <= 480 ? base + pos * 2 * 0.61 : base + 960 * 0.61 + (pos - 480) * 2 * (1 - 0.61);
+    };
+    const loopStart = B(70), loopEnd = B(74);
+    let worst = 0, sum = 0, wraps = 0;
+    for (let i = 1; i < log.length; i++) {
+      const a = log[i - 1], b = log[i];
+      let expected: number;
+      if (b.tick > a.tick) expected = sec(swung(b.tick)) - sec(swung(a.tick));
+      else { wraps++; expected = sec(loopEnd) - sec(a.tick) + sec(b.tick) - sec(loopStart); }
+      sum += expected;
+      worst = Math.max(worst, Math.abs(b.time - a.time - expected));
+      // Every grid step fires exactly once, in order.
+      if (b.tick > a.tick) expect(b.tick - a.tick).toBe(240);
+    }
+    expect(wraps).toBe(6);
+    // Each gap to a fraction of a microsecond (the reference is a numerical integral), and no
+    // drift at all over three minutes.
+    expect(worst).toBeLessThan(2e-7);
+    expect(Math.abs(log[log.length - 1].time - log[0].time - sum)).toBeLessThan(2e-6);
+    expect(log[log.length - 1].time).toBeGreaterThan(180);
+    expect(log[0].time).toBeCloseTo(0.0371, 12);
+  });
+
+  it('timing is identical whether the scheduler wakes every 5 ms or stalls for 150 ms', () => {
+    const play = (seed: number, maxGap: number): number[] => {
+      const clock = new FakeClock();
+      const tr = new Transport({ clock, timer: 'manual', bpm: 173, timeSignature: '7/8' });
+      const times: number[] = [];
+      tr.setSwing(0.58, 'sixteenth');
+      tr.scheduleRepeat((time) => times.push(time), 120);
+      tr.on('bar', (e) => { if (e.bar === 6) tr.setTempo(91, { rampBeats: 9 }); });
+      tr.start({ at: 0.05 });
+      const rand = lcg(seed);
+      while (clock.t < 30) {
+        clock.t += 0.005 + rand() * maxGap;
+        tr.process();
+      }
+      return times.filter((t) => t < 29.5);
+    };
+    const smooth = play(1, 0.001), rough = play(2, 0.145);
+    expect(rough.length).toBe(smooth.length);
+    let worst = 0;
+    for (let i = 0; i < smooth.length; i++) worst = Math.max(worst, Math.abs(smooth[i] - rough[i]));
+    expect(worst).toBeLessThan(1e-9);
+  });
+});
+
+describe('transport: a tempo glide belongs to the moment, not to the place', () => {
+  it('glides exactly, arrives, and stays at the target', () => {
+    const { tr, run } = make({ bpm: 60 });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    tr.on('bar', (e) => { if (e.bar === 1) tr.setTempo(120, { rampBeats: 4 }); });
+    tr.start({ at: 0.1 });
+    run(20);
+    // Bar 0 at 60: beats one second apart. Bar 1 glides 60 -> 120 over four beats: beat k of it
+    // starts where the integral of 60 / bpm puts it. Bar 2 onwards: half a second apart, exactly.
+    const t = (bar: number, beat: number): number => beats.find((b) => b.bar === bar && b.beat === beat)!.time;
+    expect(t(1, 0) - t(0, 0)).toBeCloseTo(4, 9);
+    const ramp = [{ tick: 0, bpm: 60 }, { tick: 3840, bpm: 60, ramp: true }, { tick: 7680, bpm: 120 }];
+    for (let k = 1; k <= 4; k++) {
+      const got = (k < 4 ? t(1, k) : t(2, 0)) - t(1, 0);
+      expect(Math.abs(got - (refSeconds(ramp, 3840 + k * 960) - refSeconds(ramp, 3840)))).toBeLessThan(1e-7);
+    }
+    for (let bar = 2; bar < 6; bar++) for (let beat = 0; beat < 3; beat++) expect(t(bar, beat + 1) - t(bar, beat)).toBeCloseTo(0.5, 9);
+    expect(tr.bpm).toBeCloseTo(120, 9);
+  });
+
+  it('does not come back when the music goes back before it: loop, seek, stop and start again', () => {
+    const { tr, clock, run } = make({ bpm: 60 });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    tr.setLoop({ bar: 0 }, { bar: 2 });
+    tr.start({ at: 0.1 });
+    run(5);
+    tr.setTempo(120, { rampBeats: 2 }); // somewhere in bar 1
+    run(14);
+    // After the wrap the tempo is 120 everywhere, including the bars before the glide started.
+    const late = beats.filter((b) => b.time > 10);
+    expect(late.length).toBeGreaterThan(5);
+    for (let i = 1; i < late.length; i++) expect(late[i].time - late[i - 1].time).toBeCloseTo(0.5, 9);
+    expect(late.every((b) => Math.abs(b.bpm - 120) < 1e-9)).toBe(true);
+
+    // The same with a seek back to the start in the middle of a glide.
+    tr.clearLoop();
+    tr.setTempo(90, { rampBeats: 8 });
+    run(clock.t + 0.5);
+    tr.seek(0);
+    const mark = beats.length;
+    run(clock.t + 4);
+    const after = beats.slice(mark).filter((b) => b.tick < 960 * 8 && b.time > clock.t - 3.9);
+    for (let i = 1; i < after.length; i++) if (after[i].tick > after[i - 1].tick) expect(after[i].time - after[i - 1].time).toBeCloseTo(60 / 90, 9);
+    expect(tr.bpm).toBeCloseTo(90, 9);
+
+    // And with stop / start: the playhead returns to where it began, at the new tempo.
+    tr.setTempo(150, { rampBeats: 16 });
+    run(clock.t + 0.3);
+    tr.stop();
+    expect(tr.bpm).toBeCloseTo(150, 9);
+    const mark2 = beats.length;
+    tr.start();
+    run(clock.t + 2);
+    const again = beats.slice(mark2);
+    expect(again.length).toBeGreaterThan(3);
+    for (let i = 1; i < again.length; i++) expect(again[i].time - again[i - 1].time).toBeCloseTo(0.4, 9);
+  });
+
+  it('a pause in the middle of a glide resumes the glide where it was', () => {
+    const { tr, clock, run } = make({ bpm: 60 });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    tr.start({ at: 0.1 });
+    run(1.5);
+    tr.setTempo(180, { rampBeats: 8 });
+    run(3);
+    const bpmAtPause = tr.bpm;
+    tr.pause();
+    expect(bpmAtPause).toBeGreaterThan(61);
+    expect(bpmAtPause).toBeLessThan(180);
+    clock.t += 3;
+    tr.start();
+    run(clock.t + 8);
+    expect(tr.bpm).toBeCloseTo(180, 9);
+    // Tempo only ever rises through the glide: beat lengths shrink, then settle at a third of a second.
+    const lengths = beats.map((b) => b.seconds);
+    for (let i = 1; i < lengths.length; i++) expect(lengths[i]).toBeLessThanOrEqual(lengths[i - 1] + 1e-9);
+    expect(lengths[lengths.length - 1]).toBeCloseTo(1 / 3, 9);
+  });
+});
+
+describe('transport: loop, seek and pause under hands that are not gentle', () => {
+  it('looping bars the playhead has already passed goes there at once, on the grid', () => {
+    const { tr, run } = make({ bpm: 120 });
+    const log: Array<{ time: number; tick: number }> = [];
+    tr.scheduleRepeat((time, tick) => log.push({ time, tick }), 480);
+    tr.start({ at: 0.1 });
+    run(9); // well into bar 4
+    tr.setLoop({ bar: 1 }, { bar: 2 });
+    run(14);
+    const jump = log.findIndex((e, i) => i > 0 && e.tick < log[i - 1].tick);
+    expect(jump).toBeGreaterThan(0);
+    // The jump lands on the loop start, one grid step after the last event before it, and from
+    // then on only the looped bar is heard.
+    expect(log[jump].tick).toBe(3840);
+    for (let i = 1; i < log.length; i++) expect(log[i].time - log[i - 1].time).toBeCloseTo(0.25, 9);
+    expect(log.slice(jump).every((e) => e.tick >= 3840 && e.tick < 7680)).toBe(true);
+    expect(tr.loopCount).toBeGreaterThanOrEqual(1);
+    // A loop that lies ahead is simply entered when the music gets there.
+    const b = make({ bpm: 120 });
+    const ticks: number[] = [];
+    b.tr.scheduleRepeat((_t, tick) => ticks.push(tick), 960);
+    b.tr.start({ at: 0.1 });
+    b.run(0.5);
+    b.tr.setLoop({ bar: 2 }, { bar: 3 });
+    b.run(10);
+    expect(ticks.slice(0, 12)).toEqual([0, 960, 1920, 2880, 3840, 4800, 5760, 6720, 7680, 8640, 9600, 10560]);
+    expect(ticks[12]).toBe(7680);
+  });
+
+  it('seek and pause/resume keep the grid and the place to the tick', () => {
+    const { tr, clock, run } = make({ bpm: 96, ts: '6/8' });
+    const log: Array<{ time: number; tick: number }> = [];
+    tr.scheduleRepeat((time, tick) => log.push({ time, tick }), 240);
+    let seekAt = 0;
+    tr.on('seek', (e) => { seekAt = e.time; });
+    tr.start({ at: 0.1 });
+    run(3.21);
+    tr.seek({ bar: 7, beat: 1 });
+    const mark = log.length;
+    run(5.07);
+    const fresh = log.slice(mark).filter((e) => e.time >= seekAt - 1e-12 && e.tick >= tr.toTicks({ bar: 7, beat: 1 }));
+    expect(fresh[0].tick).toBe(tr.toTicks({ bar: 7, beat: 1 }));
+    expect(fresh[0].time).toBeCloseTo(seekAt, 12);
+    for (let i = 1; i < fresh.length; i++) expect(fresh[i].time - fresh[i - 1].time).toBeCloseTo(240 * (60 / (96 * PPQ)), 12);
+    tr.pause();
+    const paused = tr.position().absTick;
+    expect(tr.state).toBe('paused');
+    clock.t += 7.3;
+    expect(tr.position().absTick).toBe(paused);
+    let resumedAt = 0;
+    tr.on('start', (e) => { resumedAt = e.time; expect(e.tick).toBe(paused); });
+    const mark2 = log.length;
+    tr.start();
+    run(clock.t + 1);
+    const next = log.slice(mark2).filter((e) => e.time >= resumedAt)[0];
+    expect(next.tick).toBe(Math.ceil(paused / 240) * 240);
+    expect(next.time).toBeCloseTo(resumedAt + (next.tick - paused) * (60 / (96 * PPQ)), 12);
+  });
+
+  it('started, stopped, paused and sought two hundred times in a row, it still keeps time', () => {
+    const { tr, clock } = make({ bpm: 200 });
+    const rand = lcg(77);
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    for (let i = 0; i < 200; i++) {
+      const r = rand();
+      if (r < 0.3) tr.start(); else if (r < 0.5) tr.stop(); else if (r < 0.65) tr.pause(); else if (r < 0.8) tr.seek(Math.floor(rand() * 20000)); else if (r < 0.9) tr.setTempo(60 + rand() * 300); else tr.setLoop(rand() * 4000, 4000 + rand() * 4000);
+      clock.t += rand() * 0.07;
+      tr.process();
+      const p = tr.position();
+      expect(Number.isFinite(p.absTick) && Number.isFinite(p.bpm)).toBe(true);
+      expect(p.absTick).toBeGreaterThanOrEqual(0);
+    }
+    tr.stop();
+    tr.clearLoop();
+    tr.setTempo(120);
+    beats.length = 0;
+    tr.start({ from: 0 });
+    while (clock.t < 500 && beats.length < 9) { clock.t += 0.02; tr.process(); }
+    for (let i = 1; i < beats.length; i++) expect(beats[i].time - beats[i - 1].time).toBeCloseTo(0.5, 9);
+    expect(beats.map((b) => b.beat)).toEqual([0, 1, 2, 3, 0, 1, 2, 3, 0]);
+  });
+
+  it('nonsense is ignored: NaN tempo, scale, swing, seek, loop, end, start time', () => {
+    const { tr, run } = make({ bpm: 120 });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    tr.setTempo(NaN);
+    tr.setTempo(Infinity);
+    tr.setTempo(100, { rampBeats: NaN });
+    tr.setTempoScale(NaN);
+    tr.setSwing(NaN);
+    tr.seek(NaN);
+    tr.seek(-5000);
+    tr.setLoop(NaN, 1000);
+    tr.setEnd(NaN);
+    tr.setTempoMap([]);
+    tr.setTempoMap([{ tick: NaN, bpm: 80 }, { tick: 0, bpm: NaN }]);
+    tr.addPart([{ tick: NaN }, { tick: 480 }], () => undefined);
+    tr.scheduleRepeat(() => undefined, NaN, NaN, NaN);
+    expect(tr.bpm).toBeCloseTo(100, 9);
+    expect(tr.loop).toBeNull();
+    expect(tr.position().absTick).toBe(0);
+    tr.start({ at: NaN, from: NaN, countIn: NaN });
+    run(3);
+    expect(beats.length).toBeGreaterThan(3);
+    for (const b of beats) expect(Number.isFinite(b.time)).toBe(true);
+    for (let i = 1; i < beats.length; i++) expect(beats[i].time - beats[i - 1].time).toBeCloseTo(0.6, 9);
+    expect(tr.now()).toBeCloseTo(3, 9);
+  });
+});

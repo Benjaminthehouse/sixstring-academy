@@ -15,7 +15,10 @@ export function fromDb(db: number): number {
 
 /** Options for {@link NoiseGate}. */
 export interface NoiseGateOptions {
-  /** The gate never drops below this level in dBFS (default -62). */
+  /**
+   * The gate never drops below this level in dBFS (default -68: a quiet input, with the loudest
+   * pluck around -45 dBFS, is still followed for most of the note's decay).
+   */
   minGateDb?: number;
   /** The gate never rises above this level in dBFS, however noisy the room (default -38). */
   maxGateDb?: number;
@@ -37,9 +40,10 @@ export class NoiseGate {
   private readonly rise: number;
   private floor = Number.NaN;
   private lastTime = Number.NaN;
+  private humFloor = Number.NaN;
 
   constructor(opts: NoiseGateOptions = {}) {
-    this.minGate = opts.minGateDb ?? -62;
+    this.minGate = opts.minGateDb ?? -68;
     this.maxGate = opts.maxGateDb ?? -38;
     this.margin = opts.marginDb ?? 8;
     this.rise = opts.riseDbPerSecond ?? 4;
@@ -59,9 +63,18 @@ export class NoiseGate {
     else this.floor = Math.min(levelDb, this.floor + Math.max(this.rise, (levelDb - this.floor) * 1.5) * dt);
   }
 
-  /** Declare the current level to be background (used when a steady hum is recognised). */
+  /**
+   * Declare the current level to be background (used when a steady hum is recognised). A recognised
+   * hum is known to be background however loud it is, so the `maxGateDb` cap does not apply to it.
+   */
   adopt(levelDb: number): void {
     this.floor = levelDb;
+    this.humFloor = levelDb;
+  }
+
+  /** The hum that was adopted is gone: the usual cap applies again. */
+  forgetHum(): void {
+    this.humFloor = Number.NaN;
   }
 
   /** Estimated background level in dBFS (-120 before any audio). */
@@ -71,12 +84,14 @@ export class NoiseGate {
 
   /** Level in dBFS a frame must reach to start a note. */
   get gateDb(): number {
-    return Math.min(this.maxGate, Math.max(this.minGate, this.floorDb + this.margin));
+    const gate = Math.min(this.maxGate, Math.max(this.minGate, this.floorDb + this.margin));
+    return Number.isNaN(this.humFloor) ? gate : Math.max(gate, this.humFloor + this.margin);
   }
 
   /** Forget everything (new stream). */
   reset(): void {
     this.floor = Number.NaN;
     this.lastTime = Number.NaN;
+    this.humFloor = Number.NaN;
   }
 }

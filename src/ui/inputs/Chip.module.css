@@ -28,11 +28,11 @@
     border-color var(--dur-1) var(--ease),
     color var(--dur-1) var(--ease);
 }
-/* 36 px tall visually, 44 px to the finger. */
+/* 36 px tall visually, 44 px to the finger (the inset starts inside the 1 px border). */
 .chip::before {
   content: '';
   position: absolute;
-  inset: -4px 0;
+  inset: -5px 0;
 }
 @media (hover: hover) {
   .chip:hover:not(:disabled):not(.selected) {

@@ -56,6 +56,17 @@ describe('searchRoutes', () => {
     expect(find('tuner zebra')).toEqual([]);
   });
 
+  it('understands a question typed in full', () => {
+    expect(find('tune my guitar')[0]).toBe('tuner');
+    expect(find('How do I tune my guitar?')[0]).toBe('tuner');
+    expect(find('I want to scan a PDF')).toEqual(['scan']);
+    expect(find('the circle of fifths')[0]).toBe('reference');
+    // Words made only of filler are still searched as typed, and "guitar" counts where it helps.
+    expect(find('me')).toContain('profile');
+    expect(find('guitar pro')[0]).toBe('scan');
+    expect(find('guitar zebra')).toEqual([]);
+  });
+
   it('ranks a title match above a keyword match', () => {
     const hits = find('scales');
     expect(hits[0]).toBe('scales');

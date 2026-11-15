@@ -148,6 +148,7 @@ export interface GtTabStaff extends GtStaffBase {
   measures: GtMeasure<GtTabEvent>[];
 }
 
+/** Any ground-truth staff. */
 export type GtStaff = GtNotationStaff | GtTabStaff;
 
 /** A system: one staff, or a notation staff with its tab staff. */

@@ -2,7 +2,7 @@
  "version": 1,
  "generator": "scripts/omr-fixtures.cjs",
  "vexflow": "4.2.5",
- "count": 64,
+ "count": 66,
  "fixtures": [
   {
    "id": "ode-bravura-100",
@@ -613,6 +613,25 @@
    "bytes": 12568
   },
   {
+   "id": "repeats-bravura-150",
+   "image": "repeats-bravura-150.png",
+   "truth": "repeats-bravura-150.json",
+   "subset": "notation",
+   "name": "repeats",
+   "dpi": 150,
+   "size": 1,
+   "staffSpace": 10.34,
+   "musicFont": "Bravura",
+   "tabFont": null,
+   "width": 1240,
+   "height": 190,
+   "systems": 1,
+   "staves": 1,
+   "measures": 5,
+   "tags": [],
+   "bytes": 6107
+  },
+  {
    "id": "page-notation-bravura-150",
    "image": "page-notation-bravura-150.png",
    "truth": "page-notation-bravura-150.json",
@@ -941,6 +960,25 @@
     "tab-stems"
    ],
    "bytes": 8160
+  },
+  {
+   "id": "tab-repeats-ls-150",
+   "image": "tab-repeats-ls-150.png",
+   "truth": "tab-repeats-ls-150.json",
+   "subset": "tab",
+   "name": "tab-repeats",
+   "dpi": 150,
+   "size": 1,
+   "staffSpace": 10.34,
+   "musicFont": "Bravura",
+   "tabFont": "ls",
+   "width": 1240,
+   "height": 195,
+   "systems": 1,
+   "staves": 1,
+   "measures": 5,
+   "tags": [],
+   "bytes": 4153
   },
   {
    "id": "page-tab-ls-150",

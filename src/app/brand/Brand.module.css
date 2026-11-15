@@ -26,6 +26,15 @@
   min-width: 0;
   line-height: 1.05;
 }
+/*
+ * Inside the phone top bar (the only place the brand sits in a size container): when the bar is
+ * narrower than the name plus the four progress chips need, the mark stands alone.
+ */
+@container (max-width: 21.5rem) {
+  .name {
+    display: none;
+  }
+}
 .word {
   font-family: var(--font-display);
   font-size: var(--text-lg);
@@ -39,5 +48,6 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--fg-faint);
+  /* 12 px text needs 4.5:1; --fg-faint does not reach it on --surface. */
+  color: var(--fg-muted);
 }

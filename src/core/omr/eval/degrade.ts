@@ -12,6 +12,7 @@ import { type GrayImage, type Point, gaussianBlur, rgbaToGray } from '../image/g
 import { applyHomography, homographyFromPoints, invert3, meshFromFunction, warpGray } from '../image/warp';
 import { type GroundTruth, transformTruth } from './truth';
 
+/** How badly a clean page is degraded: untouched, flatbed scan, careful phone photo, careless phone photo. */
 export type DegradeTier = 'clean' | 'scan' | 'photo-good' | 'photo-bad';
 
 /** All tiers, mildest first. */

@@ -69,7 +69,7 @@ export function NeckArt({ mirrored, frets = 5, dots = [], className }: NeckArtPr
           <g key={`${d.string}-${d.fret}`} transform={`translate(${midFret(d.fret)} ${stringY(d.string)})`}>
             <circle className={styles[`finger${d.finger}`]} r="9.5" />
             {/* Counter-flip the label so the finger number reads normally in the mirrored view. */}
-            <text className={styles.neckDotText} transform={mirrored ? 'scale(-1 1)' : undefined} textAnchor="middle" dominantBaseline="central">
+            <text className={cx(styles.neckDotText, d.finger === 4 && styles.neckDotTextLight)} fontSize="11" transform={mirrored ? 'scale(-1 1)' : undefined} textAnchor="middle" dominantBaseline="central">
               {d.finger}
             </text>
           </g>
