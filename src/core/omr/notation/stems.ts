@@ -149,6 +149,28 @@ export function findStrokes(strip: Strip, xFrom: number, xTo: number, opts: Stro
     }
     out.push({ x, xa: gx0, xb: gx1, ya, yb, top, bottom, width, barline: false });
   }
+  // A stem that passes several heads has several thin stretches: they extend to the same run.
+  out.sort((a, b) => a.x - b.x || a.top - b.top);
+  const merged: Stroke[] = [];
+  for (const st of out) {
+    const m = merged.find((q) => Math.abs(q.x - st.x) <= 2.5 && Math.min(q.bottom, st.bottom) - Math.max(q.top, st.top) >= -2);
+    if (m) {
+      const la = m.yb - m.ya + 1;
+      const lb = st.yb - st.ya + 1;
+      m.x = (m.x * la + st.x * lb) / (la + lb);
+      m.width = (m.width * la + st.width * lb) / (la + lb);
+      m.xa = Math.min(m.xa, st.xa);
+      m.xb = Math.max(m.xb, st.xb);
+      m.ya = Math.min(m.ya, st.ya);
+      m.yb = Math.max(m.yb, st.yb);
+      m.top = Math.min(m.top, st.top);
+      m.bottom = Math.max(m.bottom, st.bottom);
+    } else {
+      merged.push(st);
+    }
+  }
+  out.length = 0;
+  out.push(...merged);
   // Bar lines found by the layout stage.
   for (const st of out) {
     for (const b of strip.input.barlines) {

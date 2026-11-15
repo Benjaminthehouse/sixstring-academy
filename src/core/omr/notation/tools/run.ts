@@ -15,6 +15,7 @@ import type { GtNotationEvent, GtNotationStaff } from '../../eval/truth';
 import { assemblePage } from '../../page';
 import type { StaffReading } from '../../types';
 import { type StaffAnalysis, type StripEvent, analyzeNotationStaff, toReading } from '../index';
+import { measureHead } from '../heads';
 import { baseValue } from '../notes';
 import { boxToStrip, loadDevPage } from './strips';
 
@@ -50,7 +51,12 @@ function diagnose(a: StaffAnalysis, truth: GtNotationStaff): string[] {
   const gUsed = new Set(pairs.map((p) => p[0]));
   const dUsed = new Set(pairs.map((p) => p[1]));
   gHeads.forEach((g, i) => {
-    if (!gUsed.has(i)) out.push(`MISS  head ${g.n.headType} pos ${g.n.pos} x ${(g.b[0] + g.b[2] / 2).toFixed(0)} y ${(g.b[1] + g.b[3] / 2).toFixed(0)} (m${g.m} ${durName(g.e.duration)})`);
+    if (gUsed.has(i)) return;
+    const gx = g.b[0] + g.b[2] / 2;
+    const gy = g.b[1] + g.b[3] / 2;
+    const cand = a.heads.find((hd) => Math.abs(hd.x - gx) < 0.6 * s && Math.abs(hd.y - gy) < 0.6 * s);
+    const { feat } = measureHead(a.strip, gx, gy, 2, 2);
+    out.push(`MISS  head ${g.n.headType} pos ${g.n.pos} x ${gx.toFixed(0)} y ${gy.toFixed(0)} (m${g.m} ${durName(g.e.duration)}) ${cand ? `candidate ${cand.kind} ${cand.score.toFixed(2)} stem ${cand.stem ?? '-'}` : 'no candidate'} zF ${feat.zFilled.toFixed(2)} zO ${feat.zOpen.toFixed(2)} zW ${feat.zWhole.toFixed(2)} hole ${feat.holeOpen.toFixed(2)}/${feat.holeWhole.toFixed(2)} core ${feat.core.toFixed(2)}`);
   });
   dHeads.forEach((d, i) => {
     if (!dUsed.has(i)) out.push(`EXTRA head ${d.hd.kind} pos ${d.hd.pos} x ${d.hd.x.toFixed(0)} y ${d.hd.y.toFixed(0)} score ${d.hd.score.toFixed(2)} zF ${d.hd.feat.zFilled.toFixed(2)} zO ${d.hd.feat.zOpen.toFixed(2)} zW ${d.hd.feat.zWhole.toFixed(2)} hole ${d.hd.feat.holeOpen.toFixed(2)}/${d.hd.feat.holeWhole.toFixed(2)}`);

@@ -177,7 +177,11 @@ export function buildStrip(input: StaffInput): Strip {
   const thick = Math.max(1, input.lineThickness);
   const rowWeight = new Float32Array(h).fill(1);
   const band = thick / 2 + 1;
-  for (const ly of input.lineYs) {
+  // Staff lines, and the places where ledger lines run above and below the staff: a line through
+  // a symbol hides part of it either way.
+  const bottomY = input.lineYs[input.lineCount - 1];
+  for (let k = -Math.ceil((h - bottomY) / s); k <= Math.ceil(bottomY / s); k++) {
+    const ly = bottomY - k * s;
     for (let y = Math.max(0, Math.floor(ly - band)); y <= Math.min(h - 1, Math.ceil(ly + band - 1)); y++) rowWeight[y] = 0.3;
   }
   const cc = labelComponents(input.noLines);

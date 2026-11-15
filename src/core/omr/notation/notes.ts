@@ -82,7 +82,7 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
     });
   });
   // Per stroke: is it a stem going up from heads at its lower end, or down from heads at its upper end?
-  interface StemHyp { stroke: number; dir: 'up' | 'down'; normal: number[]; other: number[]; free: number }
+  interface StemHyp { stroke: number; dir: 'up' | 'down'; normal: number[]; other: number[]; free: number; score: number }
   const hyps: StemHyp[] = [];
   const byStroke = new Map<number, Attach[]>();
   for (const a of attaches) {
@@ -102,14 +102,14 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
       normal = normal.filter((hi) => free(hi) >= 1.7 * s);
       if (!normal.length || Math.min(...normal.map(near)) > 0.75 * s) continue;
       const other = list.filter((a) => a.side !== side && free(a.head) >= 1.7 * s).map((a) => a.head);
-      hyps.push({ stroke: si, dir, normal, other, free: Math.min(...normal.map(free)) });
+      hyps.push({ stroke: si, dir, normal, other, free: Math.min(...normal.map(free)), score: normal.reduce((q, hi) => q + heads[hi].score, 0) });
     }
   }
   // A stroke keeps its better hypothesis.
   const bestByStroke = new Map<number, StemHyp>();
   for (const hy of hyps) {
     const cur = bestByStroke.get(hy.stroke);
-    if (!cur || hy.normal.length > cur.normal.length || (hy.normal.length === cur.normal.length && hy.free > cur.free)) bestByStroke.set(hy.stroke, hy);
+    if (!cur || hy.score > cur.score) bestByStroke.set(hy.stroke, hy);
   }
   // A head belongs to the stem it sits on the normal side of (the nearest, if several).
   const owner = new Int32Array(heads.length).fill(-1);
@@ -216,6 +216,7 @@ function columnRuns(strip: Strip, x: number, ya: number, yb: number): { a: numbe
 function beamBetween(strip: Strip, a: Chord, b: Chord): boolean {
   const { w, h, nl, s } = strip;
   if (!a.stem || !b.stem || a.dir !== b.dir) return false;
+  if (b.stem.x - a.stem.x < 0.8 * s) return false;
   const inward = a.dir === 'up' ? 1 : -1;
   const xa = a.stem.x;
   const xb = b.stem.x;

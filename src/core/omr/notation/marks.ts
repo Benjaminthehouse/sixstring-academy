@@ -6,7 +6,7 @@ import type { AccidentalType } from '../types';
 import { classifyBox } from './header';
 import { type Match, matchAt, searchMatch } from './match';
 import type { Chord, SBox } from './notes';
-import { CLAIM, type Strip, posY } from './strip';
+import { CLAIM, type Strip, inkIn, posY } from './strip';
 import { templatesOf } from './templates';
 
 /** An accidental found in front of a head. */
@@ -22,19 +22,6 @@ const ACCIDENTALS: { type: AccidentalType; glyph: string }[] = [
   { type: 'flat', glyph: 'accidentalFlat' },
   { type: 'natural', glyph: 'accidentalNatural' },
 ];
-
-/** Unowned ink of `nl` in a box. */
-function unownedInk(strip: Strip, x0: number, y0: number, x1: number, y1: number): number {
-  const { w, h, cc, owner } = strip;
-  let n = 0;
-  for (let y = Math.max(0, Math.floor(y0)); y < Math.min(h, Math.ceil(y1)); y++) {
-    for (let x = Math.max(0, Math.floor(x0)); x < Math.min(w, Math.ceil(x1)); x++) {
-      const id = cc.labels[y * w + x];
-      if (id && !owner[id]) n++;
-    }
-  }
-  return n;
-}
 
 /** Give the unowned components under a box to a symbol kind. */
 export function ownBox(strip: Strip, b: SBox, code: number, minOverlap = 0.5): void {
@@ -70,7 +57,7 @@ export function readAccidentals(strip: Strip, chords: Chord[], limitX: (c: Chord
     for (const hd of c.heads) {
       const y = posY(strip, hd.pos);
       // Is there anything unexplained in front of the head at all?
-      if (unownedInk(strip, floor, y - 0.8 * s, left - 0.1 * s, y + 0.8 * s) < 0.12 * s * s) {
+      if (inkIn(strip, Math.max(floor, left - 1.6 * s), y - 0.8 * s, left - 0.12 * s, y + 0.8 * s) < 0.12 * s * s) {
         marks.push(null);
         continue;
       }

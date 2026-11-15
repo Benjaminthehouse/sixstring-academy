@@ -228,6 +228,7 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
   const hi = Math.floor(posAt(strip, 0.6 * s));
   for (let pos = lo; pos <= hi; pos++) {
     const y = posY(strip, pos);
+    const ledger = pos % 2 === 0 && (pos >= 10 || pos <= -2);
     let runStart = -1;
     let bestX = 0;
     let bestV = -1;
@@ -237,7 +238,8 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
       bestV = -1;
     };
     for (let x = xa; x <= xb; x++) {
-      const centre = inkFraction(strip, x - 3 * u, y - 2.5 * u, x + 3 * u, y + 2.5 * u);
+      // A ledger line runs through the hole of a head on it: only the walls can be tested there.
+      const centre = ledger ? 0 : inkFraction(strip, x - 3 * u, y - 2.5 * u, x + 3 * u, y + 2.5 * u);
       let ok = centre <= 0.5;
       let v = 0;
       if (ok) {
