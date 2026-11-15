@@ -104,6 +104,11 @@ async function open(browser, url, { mobile = false, viewport, seed = {}, reduced
 async function clearToasts(page) {
   await page.evaluate(async () => (await import('/src/ui/index.ts')).toast.clear());
   await page.waitForTimeout(350);
+  // A new level or a milestone opens a dialog of the shell's: close it as a learner would.
+  for (let i = 0; i < 3 && (await page.getByRole('dialog').count()) > 0; i++) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+  }
 }
 
 /** Start the round on screen and wait until it runs. */
@@ -626,7 +631,11 @@ async function playAlong(ctx, { deviations, bleed = null, patch = null } = {}) {
   await setTempo(ctx.page, 100);
   const startedBefore = await ctx.page.evaluate(() => window.__rhythm.started);
   await clearToasts(ctx.page);
-  await ctx.page.locator('[data-rhythm-start]').click();
+  await ctx.page.locator('[data-rhythm-start]').click({ timeout: 8000 }).catch(async (e) => {
+    await ctx.page.screenshot({ path: path.join(ROOT, 'e2e', 'out', 'rhythm-blocked.png') });
+    const top = await ctx.page.evaluate(() => { const b = document.querySelector('[data-rhythm-start]').getBoundingClientRect(); const el = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return el ? `${el.tagName}.${el.className} ${el.textContent.slice(0, 80)}` : 'none'; });
+    throw new Error(`Start is covered by: ${top} :: ${e.message.split('\n').slice(-6).join(' / ')}`);
+  });
   await ctx.page.waitForFunction((n) => window.__rhythm.started > n && window.__rhythm.session?.state === 'running', startedBefore, { timeout: 30000 });
   const source = await ctx.page.locator('[data-rhythm-phase="running"]').getAttribute('data-source');
   const listening = (await ctx.page.locator('[data-rhythm-listening]').count()) === 1;

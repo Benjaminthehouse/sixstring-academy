@@ -443,6 +443,7 @@ function gather(plan: Plan, opts: VoicingSearchOptions, generatedOnly: boolean):
     // In a drop tuning the open chords grow downward: drop D exists to play D as 000232, not xx0232.
     // The fullest shape that adds only open strings to a curated open chord takes its place.
     if (libraryCoverage(t) === 'partial') {
+      const grown = new Set<Candidate>();
       for (const v of curated) {
         if (v.category !== 'open') continue;
         let fullest: Candidate | null = null;
@@ -451,7 +452,8 @@ function gather(plan: Plan, opts: VoicingSearchOptions, generatedOnly: boolean):
           if (!fullest || cand.frets.filter((f) => f !== null).length > fullest.frets.filter((f) => f !== null).length) fullest = cand;
         }
         if (!fullest) continue;
-        fullest.score += LIBRARY_BONUS.open + curatedBonus(v);
+        if (!grown.has(fullest)) fullest.score += LIBRARY_BONUS.open + curatedBonus(v);
+        grown.add(fullest);
         candidates.delete(v.frets.join(','));
       }
     }
@@ -564,19 +566,24 @@ export function generateVoicings(chordInput: string | Chord, opts: VoicingSearch
 
 /** The top-ranked voicing of a chord, or null when the options leave none. */
 export function bestVoicing(chordInput: string | Chord, opts: VoicingSearchOptions = {}): Voicing | null {
-  return run(chordInput, { ...opts, maxResults: 1 }, false)[0] ?? null;
+  // The first entry is the same however long the list: share the list (and its cache entry) with `chordVoicings`.
+  return run(chordInput, { ...opts, maxResults: undefined }, false)[0] ?? null;
 }
 
-/** The voicing that is easiest to hold among the best-ranked ones, or null when there is none. */
+/**
+ * The voicing that is easiest to hold among the best-ranked ones (the first eight, or `maxResults`
+ * of them), or null when there is none. Often a small three- or four-string shape.
+ */
 export function easiestVoicing(chordInput: string | Chord, opts: VoicingSearchOptions = {}): Voicing | null {
-  const list = run(chordInput, { ...opts, maxResults: Math.max(8, opts.maxResults ?? 8) }, false);
+  const among = Math.max(8, opts.maxResults ?? 8);
+  const list = run(chordInput, { ...opts, maxResults: among > 12 ? among : undefined }, false).slice(0, among);
   return list.reduce<Voicing | null>((best, v) => (!best || v.difficulty < best.difficulty ? v : best), null);
 }
 
 /**
  * How hard a chord is on the guitar as it is normally played: the difficulty (1–10) of its
  * top-ranked voicing (Em 2.2, C 3.4, F 6.9 for the full barre, B flat 7.2); 10 when it has none.
- * `easiestVoicing(chord).difficulty` is what a beginner's version costs (the small F: 4.4).
+ * `beginnerVoicing(chord).difficulty` is what a learner's version costs (the small F: 4.4).
  */
 export function chordDifficulty(chordInput: string | Chord, opts: NeckOptions = {}): number {
   return bestVoicing(chordInput, opts)?.difficulty ?? 10;

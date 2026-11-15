@@ -74,8 +74,10 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
   const inset = 0.075 * s; // a stem overlaps the head's edge by about half its width
   const attaches: Attach[] = [];
   strokes.forEach((st, si) => {
-    if (st.barline || st.bottom - st.top < 1.9 * s) return;
+    if (st.bottom - st.top < 1.9 * s) return;
     heads.forEach((hd, hi) => {
+      // A stem that spans the staff is sometimes reported as a bar line: only a convincing head that touches it makes it a stem again.
+      if (st.barline && (hd.score < 0.75 || hd.y < st.top - 0.35 * s || hd.y > st.bottom + 0.35 * s)) return;
       // The stem normally touches the head; in a faint capture its first stretch may be missing.
       if (hd.y < st.top - 1.3 * s || hd.y > st.bottom + 1.3 * s) return;
       // A wide whole-note shape that looks nothing like a half note takes no stem.
@@ -112,7 +114,7 @@ export function buildChords(strip: Strip, heads: Head[], strokes: Stroke[]): Cho
       if (!normal.length || Math.min(...normal.map(near)) > 1.3 * s) continue;
       const other = list.filter((a) => a.side !== side && free(a.head) >= 1.7 * s).map((a) => a.head);
       // A stroke that looks like a bar line needs a convincing head to be a stem.
-      if (st.staffSpan && Math.max(...normal.map((hi) => heads[hi].score)) < 0.8) continue;
+      if (st.staffSpan && Math.max(...normal.map((hi) => heads[hi].score)) < 0.7) continue;
       hyps.push({ stroke: si, dir, normal, other, free: Math.min(...normal.map(free)), score: normal.reduce((q, hi) => q + heads[hi].score, 0) });
     }
   }

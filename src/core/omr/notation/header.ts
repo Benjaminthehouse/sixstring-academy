@@ -54,14 +54,16 @@ function readClef(strip: Strip): HeaderItem<ClefType> | null {
   ];
   const found: { type: ClefType; m: Match }[] = [];
   for (const c of candidates) {
-    // The clef starts within the first two spaces of the staff (after an opening bar line, if any).
-    const m = coarseToFine(strip, templatesOf(c.glyph), strip.x0 + 1.2 * s, posY(strip, c.pos), Math.round(1.4 * s), 4, 3);
+    // The clef starts within the first two spaces of the staff; when the staff's left end was
+    // found a little late (a photo), part of the clef lies before it.
+    const m = coarseToFine(strip, templatesOf(c.glyph), strip.x0 + 0.4 * s, posY(strip, c.pos), Math.round(2.2 * s), 4, 3);
     if (m) found.push({ type: c.type, m });
   }
   found.sort((a, b) => b.m.score - a.m.score);
   const best = found[0];
-  if (!best || best.m.score < 0.35) return null;
+  // (A weak match is usually something else: the time signature of a staff whose clef is cut off.)
   const second = found[1]?.m.score ?? 0;
+  if (!best || best.m.score < 0.42 || (best.m.score < 0.5 && best.m.score - second < 0.1)) return null;
   const b = box(best.m);
   return {
     value: best.type,
@@ -84,7 +86,7 @@ function columnInk(strip: Strip, from: number, to: number, ya: number, yb: numbe
   return out;
 }
 
-function readKey(strip: Strip, fromX: number, clefShift: number): { item: HeaderItem<number> | null; endX: number } {
+function readKey(strip: Strip, fromX: number, clefShift: number, firstReach = 1.4): { item: HeaderItem<number> | null; endX: number } {
   const { s } = strip;
   const chains: { fifths: number; x1: number; x0: number; y0: number; y1: number; score: number; scores: number[]; boxes: { x0: number; y0: number; x1: number; y1: number }[] }[] = [];
   for (const kind of ['sharp', 'flat'] as const) {
@@ -99,7 +101,7 @@ function readKey(strip: Strip, fromX: number, clefShift: number): { item: Header
     const boxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
     for (let k = 0; k < 7; k++) {
       // The first accidental follows the clef after a small gap; the next ones are packed.
-      const reach = k === 0 ? 1.4 * s : 0.8 * s;
+      const reach = k === 0 ? firstReach * s : 0.8 * s;
       const m = coarseToFine(strip, templates, x + reach / 2, posY(strip, positions[k] + clefShift), Math.ceil(reach / 2), 2, 2);
       if (!m || m.score < 0.55) break;
       const b = box(m);
@@ -275,47 +277,10 @@ function metrePrior(beats: number, beatValue: number): number {
   return 0;
 }
 
-function readTime(strip: Strip, fromX: number): { item: Header['time']; endX: number } {
-  const { s, cc } = strip;
+/** Read the block of ink `b` as a time signature (two stacked numbers, C or cut C), or return null. */
+function readTimeBlock(strip: Strip, b: { x0: number; y0: number; x1: number; y1: number }, fromX: number): { item: Header['time']; endX: number } {
+  const { s } = strip;
   const mid = posY(strip, 4);
-  // The time signature is the first block of ink inside the staff after the key signature. Its
-  // columns are found from the rows of the staff only (text above the staff does not reach into
-  // it); its height from the components that live in those columns (numbers taller than the
-  // staff, as some engravers print them, are followed out of it).
-  const { w, h } = strip;
-  const scanX = Math.round(fromX + 0.1 * s);
-  const cols = columnInk(strip, scanX, scanX + 5 * s, strip.top + 2, strip.bottom - 2);
-  const b = { x0: 0, y0: h, x1: 0, y1: 0 };
-  for (let i = 0; i < cols.length;) {
-    while (i < cols.length && cols[i] === 0) i++;
-    if (i >= cols.length) return { item: null, endX: fromX };
-    let end = i;
-    for (let j = i, gap = 0; j < cols.length && gap <= 0.25 * s; j++) {
-      if (cols[j] > 0) { end = j; gap = 0; } else gap++;
-    }
-    const xa = scanX + i;
-    const xb = scanX + end + 1;
-    i = end + 1;
-    // The last sliver of the key signature, a speck, an opening bar line.
-    if (xb - xa < 0.6 * s) continue;
-    b.x0 = xb;
-    b.x1 = xa;
-    const seen = new Set<number>();
-    for (let y = Math.round(strip.top + 2); y < Math.round(strip.bottom - 2); y++) {
-      for (let x = xa; x < xb && x < w; x++) {
-        const id = cc.labels[y * w + x];
-        if (!id || seen.has(id)) continue;
-        seen.add(id);
-        // A component of the block may stick out a little above or below the staff rows scanned.
-        if (cc.x0[id] < xa - 0.5 * s || cc.x1[id] > xb + 0.5 * s) continue;
-        b.x0 = Math.min(b.x0, cc.x0[id]);
-        b.y0 = Math.min(b.y0, cc.y0[id]);
-        b.x1 = Math.max(b.x1, cc.x1[id] + 1);
-        b.y1 = Math.max(b.y1, cc.y1[id] + 1);
-      }
-    }
-    break;
-  }
   const width = b.x1 - b.x0;
   const none = { item: null, endX: fromX };
   if (width < 0.9 * s || width > 3.6 * s) return none;
@@ -386,14 +351,63 @@ function readTime(strip: Strip, fromX: number): { item: Header['time']; endX: nu
   return none;
 }
 
+function readTime(strip: Strip, fromX: number, attempts = 1): { item: Header['time']; endX: number } {
+  const { s, cc } = strip;
+  // The time signature is the first block of ink inside the staff after the key signature. Its
+  // columns are found from the rows of the staff only (text above the staff does not reach into
+  // it); its height from the components that live in those columns (numbers taller than the
+  // staff, as some engravers print them, are followed out of it).
+  const { w, h } = strip;
+  const scanX = Math.round(fromX + 0.1 * s);
+  const cols = columnInk(strip, scanX, scanX + 5 * s, strip.top + 2, strip.bottom - 2);
+  const b = { x0: 0, y0: h, x1: 0, y1: 0 };
+  for (let i = 0; i < cols.length;) {
+    while (i < cols.length && cols[i] === 0) i++;
+    if (i >= cols.length) return { item: null, endX: fromX };
+    let end = i;
+    for (let j = i, gap = 0; j < cols.length && gap <= 0.25 * s; j++) {
+      if (cols[j] > 0) { end = j; gap = 0; } else gap++;
+    }
+    const xa = scanX + i;
+    const xb = scanX + end + 1;
+    i = end + 1;
+    // The last sliver of the key signature, a speck, an opening bar line.
+    if (xb - xa < 0.6 * s) continue;
+    b.x0 = xb;
+    b.x1 = xa;
+    b.y0 = h;
+    b.y1 = 0;
+    const seen = new Set<number>();
+    for (let y = Math.round(strip.top + 2); y < Math.round(strip.bottom - 2); y++) {
+      for (let x = xa; x < xb && x < w; x++) {
+        const id = cc.labels[y * w + x];
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        // A component of the block may stick out a little above or below the staff rows scanned.
+        if (cc.x0[id] < xa - 0.5 * s || cc.x1[id] > xb + 0.5 * s) continue;
+        b.x0 = Math.min(b.x0, cc.x0[id]);
+        b.y0 = Math.min(b.y0, cc.y0[id]);
+        b.x1 = Math.max(b.x1, cc.x1[id] + 1);
+        b.y1 = Math.max(b.y1, cc.y1[id] + 1);
+      }
+    }
+    const width = b.x1 - b.x0;
+    if (width > 3.6 * s) break; // music
+    const found = readTimeBlock(strip, b, fromX);
+    if (found.item || --attempts <= 0) return found;
+  }
+  return { item: null, endX: fromX };
+}
+
 /** Read clef, key signature and time signature at the start of the staff. */
 export function readHeader(strip: Strip): Header {
   const clef = readClef(strip);
   let x = clef ? clef.x1 : strip.x0;
-  // In bass clef the whole key-signature pattern sits one line lower.
-  const key = readKey(strip, x - 0.1 * strip.s, clef?.value === 'bass' ? -2 : 0);
+  // In bass clef the whole key-signature pattern sits one line lower. Without a clef (cut off at
+  // the edge of the picture, or too damaged) the signatures are still looked for, further afield.
+  const key = clef ? readKey(strip, x - 0.1 * strip.s, clef.value === 'bass' ? -2 : 0) : readKey(strip, Math.max(0, strip.x0 - strip.s), 0, 4.5);
   x = Math.max(x, key.endX);
-  const time = readTime(strip, x);
+  const time = readTime(strip, x, clef ? 1 : 3);
   x = Math.max(x, time.endX);
   return { clef, key: key.item, time: time.item, endX: x };
 }

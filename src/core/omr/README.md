@@ -184,7 +184,7 @@ The call is synchronous unless `options.ai` is given and the picture left doubts
 | sanity | `numbers.ts`, `recognize.ts` | Fret > 24, leading zero, wide gap inside a number ("10" or "1 0"), chord span > 5 frets: used to choose among near-equal alternatives and to lower confidence, never to rewrite silently; the raw reading stays in `alternatives`. |
 | rhythm | `rhythm.ts`, `header.ts` | Stems under or over the staff, beams / flags counted at the tip; rests and the time signature from music-font templates. What stems cannot show (half vs quarter, dots) is solved per measure against the time signature (printed, from `options.context`, remembered from an earlier staff of the page, or inferred from measures that add up) using the spacing; inferred values get confidence below 0.5-0.6 and alternatives. |
 | marks | `marks.ts` | Arcs between two numbers of a string (tie if equal frets, else `h` / `p`), slanted strokes (slides), strokes climbing above the staff into an arrow head (bends). |
-| reliability | `recognize.ts` | Mean correlation of the digits read: 0.95+ on good pictures. Towards 0.8 every confidence is scaled down, weak matches are dropped and a `low-quality` warning is raised. |
+| reliability | `recognize.ts` | Mean correlation of the digits read: 0.95+ on good pictures. Towards 0.8 every confidence is scaled down, weak matches are dropped and a `low-quality` warning is raised. A number also loses confidence when it matches clearly worse than the rest of its staff, when its digits had to be cut apart, and when a line runs through it on a soft picture. |
 
 ### 9.2 Measured
 
@@ -196,12 +196,15 @@ Corpus: the 31 fixtures with a tab staff (57 staves, 1111 fret numbers; five dig
 | clean | tab / linked | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
 | scan | tab / linked | 100 / 100 | 100 / 100 | 99.9 / 100 | 100 / 100 | 100 / 100 | 97.0 / 100 |
 | photo-good | tab / linked | 99.9 / 100 | 100 / 99.8 | 98.2 / 99.8 | 100 / 100 | 100 / 100 | 92.1 / 96.6 |
-| photo-bad | tab / linked | 90.0 / 75.7 | 68.5 / 72.2 | 65.8 / 57.9 | 100 / 100 | 73.2 / 100 | 9.9 / 17.9 |
+| photo-bad | tab / linked | 89.4 / 75.5 | 68.8 / 72.9 | 65.7 / 58.7 | 100 / 100 | 73.2 / 100 | 9.9 / 17.1 |
 
 Both subsets together (strip-level tool of section 9.5, same matching rule): fret accuracy 100 /
-99.9 / 98.8 / 62.8 % (seed 1) and - / 99.9 / 97.0 / 65.3 % (seed 2) for clean / scan / photo-good
-/ photo-bad; precision and recall 100 / 100, 100 / 100, 99.9 / 99.9, 85.1 / 69.8 (seed 1). Wrong
-frets reported with confidence >= 0.5: 0 of 0, 0 of 1, 2 of 13, 5 of 289. photo-bad is not usable
+99.9 / 98.8 / 62.7 % (seed 1) and - / 99.9 / 97.0 / 65.2 % (seed 2) for clean / scan / photo-good
+/ photo-bad; precision and recall 100 / 100, 100 / 100, 99.9 / 99.9, 84.7 / 70.3 (seed 1). Wrong
+frets reported with confidence >= 0.5 (seed 1): 0 of 0, 0 of 1, 0 of 13, 3 of 291; with seed 2:
+0 of 1, 0 of 33, 7 of 302. The price: 0.8 / 3.3 / 5.0 % of the RIGHT frets at clean / scan /
+photo-good are reported below 0.5 as well (mean confidence of right frets 0.96 / 0.91 / 0.89).
+photo-bad is not usable
 without proofreading: 100-dpi pages there are illegible to a person too (27 % of matched numbers
 right), 220-dpi pages reach 79 %; such staves carry the `low-quality` warning and confidences
 below 0.5. tabMeasEx falls behind the fret numbers because it also needs every bar line of the
@@ -215,7 +218,7 @@ The reader's own pages (`tab/fixtures/`, written by `scripts/omr-digit-templates
 |---|---|---|---|---|---|
 | clean | 100 / 100 | 99.7 | 100 (5 pages, incl. bass) | 100 and 97.6 | 85 / 85 |
 | scan | 99.6 / 99.7 | 95.1 | 97.8 - 100 | 76.5 and 90.4 | 75 / 75 |
-| photo-good | 98.8 / 97.6 | 90.0 | 71.3 (bold at 100 dpi), 92.3, 100, 100, 100 | 69.4 and 89.2 | 60 / 57 (of 78 found) |
+| photo-good | 98.8 / 97.6 | 90.0 | 71.3 (bold at 100 dpi), 92.3, 100, 100, 100 | 69.4 and 89.2 | 60 / 56 (of 78 found) |
 | photo-bad | 80.7 / 73.9 | 31.5 | 18 - 48 | 9 - 22 | not usable |
 
 Leave-one-family-out on the templates themselves (`glyph.test.ts`): 247 of 247 digits right when

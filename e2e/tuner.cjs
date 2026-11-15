@@ -17,7 +17,8 @@
  *   reference  A4 = 432 Hz from the settings: targets move, the 440 Hz A reads 32 cents sharp
  *   capo       capo on fret 2: targets move up two frets and the screen says so
  *   quiet      silence and steady noise: no note, ever
- *   far        a string a minor third flat: the far-below warning, on the same string
+ *   far        a string a minor third flat: in automatic mode the tuner asks which string it is
+ *              instead of guessing; held on the string (or guided) it gives the far-below warning
  *   guide      the first-time flow: Start leads through all six strings to the summary
  *   byear      the microphone refused (declined, and inside the Claude viewer): no dead end, the
  *              reference notes really sound at the right pitch, the by-ear flow reaches its summary
@@ -297,19 +298,37 @@ async function quiet() {
 }
 
 async function far() {
-  // F#2 is the A string a minor third flat; C#2 is the low E string a minor third flat.
-  const recording = await lib.makeRecording('far', [{ pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 }, { silence: 5 }, { pluck: { midi: 37, cents: 0, dur: 2.2 }, gap: 1 }], { lead: 3.5 });
+  // F#2 is the A string a minor third flat (heard twice); C#2 is the low E string a minor third flat.
+  const LEAD = 3.5;
+  const recording = await lib.makeRecording(
+    'far',
+    [{ pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 }, { silence: 3 }, { pluck: { midi: 42, cents: 0, dur: 2.2 }, gap: 1.2 }, { silence: 5 }, { pluck: { midi: 37, cents: 0, dur: 2.2 }, gap: 1 }],
+    { lead: LEAD },
+  );
   await open({ recording, mobile: true }, async ({ page, errors }) => {
     await restart(page);
+    const t0 = Date.now();
+    /** Wait until this many seconds of the recording have played. */
+    const until = (seconds) => sleep(Math.max(0, t0 + seconds * 1000 - Date.now()));
+
+    // 1. Automatic mode: the note lies between the E and the A string. The tuner must not guess.
+    await until(LEAD + 2.2 + 0.8);
+    let eps = lib.episodes(await lib.readLog(page));
+    check('automatic: a note between two strings is not blamed on the nearer one', eps.length === 1 && eps[0].instructions.includes('which-string') && !eps[0].instructions.some((x) => /^(loosen|far-above)/.test(x)), eps[0] ? eps[0].instructions.join(',') : 'no note');
+    check('automatic: it asks which string it is', (await page.getByText('Which string is this?').count()) > 0 || eps[0].instructions.includes('which-string'));
+
+    // 2. Locked on the A string: same note, now the far-below warning for that string.
     await page.click('[data-string="5"]');
     await attr(page, 'mode', 'locked');
     check('tapping a string locks the tuner onto it', (await lib.readout(page)).target === 'A2');
-    await sleep(3500 + 2200 + 900);
-    let eps = lib.episodes(await lib.readLog(page));
-    check('locked on A: the flat string is still read as string 5 (A2)', eps.length === 1 && eps[0].notes.join() === 'A2' && eps[0].strings.join() === '5', JSON.stringify(eps.map((e) => [e.notes, e.strings])));
+    await lib.startLog(page);
+    await until(LEAD + 2.2 + 1.2 + 3 + 2.2 + 0.8);
+    eps = lib.episodes(await lib.readLog(page));
+    check('locked on A: the flat string is read as string 5 (A2), not as another string', eps.length === 1 && eps[0].notes.join() === 'A2' && eps[0].strings.join() === '5', JSON.stringify(eps.map((e) => [e.notes, e.strings])));
     check('locked on A: the far-below warning is shown', !!eps[0] && eps[0].instructions.includes('far-below') && !eps[0].instructions.includes('other-string'), eps[0] ? eps[0].instructions.join(',') : '');
     check('locked on A: reads about -300 cents and is not confirmed', !!eps[0] && Math.abs(eps[0].cents + 300) < 3 && !eps[0].inTune, eps[0] ? `read ${eps[0].cents}` : '');
-    // Tap the same string again to release, then the guided flow on its first string.
+
+    // 3. Tap the same string again to release, then the guided flow on its first string.
     await page.click('[data-string="5"]');
     await attr(page, 'mode', 'auto');
     check('tapping the locked string again releases it', true);
@@ -317,7 +336,7 @@ async function far() {
     await page.keyboard.press('g');
     await attr(page, 'mode', 'guide');
     check('the G key starts the guided flow on the thickest string', (await lib.readout(page)).target === 'E2');
-    await sleep(recording.seconds * 1000 - (3500 + 2200 + 900) - 1500);
+    await until(LEAD + 2.2 + 1.2 + 3 + 2.2 + 1.2 + 5 + 2.2 + 0.8);
     eps = lib.episodes(await lib.readLog(page));
     check('guided: the low E a minor third flat is read as E2', eps.length === 1 && eps[0].notes.join() === 'E2' && eps[0].strings.join() === '6', JSON.stringify(eps.map((e) => [e.notes, e.strings])));
     check('guided: the far-below warning is shown, the guide does not move on', !!eps[0] && eps[0].instructions.includes('far-below') && (await lib.readout(page)).target === 'E2', eps[0] ? eps[0].instructions.join(',') : '');

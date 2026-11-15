@@ -17,7 +17,8 @@ import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, 
 const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'P8', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
 
-const noteAtPos = (pos: NeckPosition, tuning?: string): string => spellMidi(midiAt(pos, { tuning }), undefined, { octave: false });
+// Going up a string, notes are named with sharps throughout (E F F# G G# A), never a mix of sharps and flats.
+const noteAtPos = (pos: NeckPosition, tuning?: string): string => spellMidi(midiAt(pos, { tuning }), { prefer: 'sharps' }, { octave: false });
 const where = (pos: NeckPosition): string => (pos.fret === 0 ? `open string ${pos.string}` : `string ${pos.string}, fret ${pos.fret}`);
 
 function validStrings(strings: readonly number[] | undefined): boolean {
@@ -319,7 +320,7 @@ export const playNote = defineGenerator({
     const fret = rng.pick(frets.length ? frets : [lo]);
     const position = { string, fret };
     const midi = midiAt(position);
-    const full = spellMidi(midi);
+    const full = spellMidi(midi, { prefer: 'sharps' });
     const note = parseNote(full)!.pcName;
     const open = noteAtPos({ string, fret: 0 });
     const explain = fret === 0 ? `The open ${ordinal(string)} string is {n:${note}}.` : `String ${string}, fret ${fret} is {n:${note}}: ${count(fret, 'half step')} above the open {n:${open}}.`;

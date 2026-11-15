@@ -29,7 +29,7 @@ const flag = (name) => args.includes(name);
       for (const l of m.explore(args[1] || '', args[2] || 'clean')) console.log(l);
     } else if (cmd === 'inspect') {
       const m = await load('/src/core/omr/notation/tools/inspect.ts');
-      for (const l of m.inspect(args[1], args[2] || 'clean', Number(args[3] || 0), Number(args[4] || 0), Number(args[5] || 1e9))) console.log(l);
+      for (const l of m.inspect(args[1], args[2] || 'clean', Number(args[3] || 0), Number(args[4] || 0), Number(args[5] || 1e9), Number(opt('--seed') || 1))) console.log(l);
     } else if (cmd === 'nl') {
       const m = await load('/src/core/omr/notation/tools/inspect.ts');
       for (const l of m.dumpNl(args[1], args[2] || 'clean', Number(args[3] || 0), Number(args[4]), Number(args[5]), Number(args[6]), Number(args[7]), Number(args[8] || 4))) console.log(l);

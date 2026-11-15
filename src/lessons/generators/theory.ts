@@ -173,7 +173,7 @@ export const enharmonic = defineGenerator({
   kind: 'enharmonic',
   summary: 'Which note sounds the same as this one?',
   produces: ['choice'],
-  params: [{ name: 'notes', type: 'string[]', default: 'C# D# F# G# A# Db Eb Gb Ab Bb', description: 'Notes to ask about, easiest first. Each needs a sharp or flat.' }],
+  params: [{ name: 'notes', type: 'string[]', default: 'C# D# F# G# A# Db Eb Gb Ab Bb', description: 'Notes to ask about, easiest first. Black keys only (a sharp or a flat).' }],
   check: (p) =>
     checkParams().list('notes', p.notes, (n) => typeof n === 'string' && Math.abs(parseNote(n)?.alt ?? 0) === 1 && parseNote(n)?.octave === null && [1, 3, 6, 8, 10].includes(pcOf(n)), "['C#', 'Eb'] (black keys only)").problems,
   make(p, { rng, difficulty }) {

@@ -25,4 +25,4 @@ export * from './start';
 export * from './persist';
 export * from './map';
 export * from './validate';
-export { DEMO_COURSE } from './demo';
+export { DEMO_COURSE, EXERCISE_EXAMPLES, FIGURE_EXAMPLES } from './demo';

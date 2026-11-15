@@ -1,9 +1,10 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Icon, Popover, Spinner, VisuallyHidden, cx, focusRing, useLatest, usePrefersReducedMotion, useRafLoop } from '@/ui';
 import { LEVEL_MESSAGES, TIP_MESSAGES, instructionText, spokenReading, type InstructionIcon } from '../model/advice';
 import { formatHz, offsetWords } from '../model/scale';
 import type { MeterFrame, SessionView, TunerSession } from '../model/session';
 import { noteParts, stringWords, type NoteNaming, type StringTarget } from '../model/targets';
+import { LevelBar } from './LevelBar';
 import { NeedleMeter } from './NeedleMeter';
 import { StrobeMeter } from './StrobeMeter';
 import styles from './Readout.module.css';
@@ -45,15 +46,8 @@ export interface ReadoutProps {
 
 const ICONS: Record<InstructionIcon, string> = { pluck: 'Hand', up: 'ArrowUp', down: 'ArrowDown', hold: 'Pause', check: 'Check', warning: 'TriangleAlert' };
 
-/** Input level drawn between these, in dBFS. */
-const LEVEL_MIN_DB = -72;
-const LEVEL_MAX_DB = -12;
 /** A title longer than this is set a size smaller so it stays on one line on a phone. */
 const LONG_TITLE = 17;
-
-function levelFraction(db: number): number {
-  return Math.min(1, Math.max(0, (db - LEVEL_MIN_DB) / (LEVEL_MAX_DB - LEVEL_MIN_DB)));
-}
 
 /**
  * The tuner's face: the note in very large type, the meter, the offset as a number and the
@@ -69,9 +63,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
   const unitRef = useRef<HTMLSpanElement | null>(null);
   const sideRef = useRef<HTMLSpanElement | null>(null);
   const hzRef = useRef<HTMLSpanElement | null>(null);
-  const levelRef = useRef<HTMLSpanElement | null>(null);
-  const gateRef = useRef<HTMLSpanElement | null>(null);
-  const written = useRef({ stamp: -1, amount: '', unit: '', side: '', hz: '', level: -1, gate: -1 });
+  const written = useRef({ stamp: -1, amount: '', unit: '', side: '', hz: '' });
   const reducedMotion = usePrefersReducedMotion();
   const fineRef = useLatest(fine);
 
@@ -117,16 +109,6 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
         hzRef.current.textContent = hz || '– Hz';
       }
     }
-    const level = Math.round(levelFraction(f.db) * 100) / 100;
-    if (levelRef.current && (level !== w.level || !levelRef.current.style.transform)) {
-      w.level = level;
-      levelRef.current.style.transform = `scaleX(${level})`;
-    }
-    const gate = Math.round(levelFraction(f.gateDb) * 100);
-    if (gateRef.current && (gate !== w.gate || !gateRef.current.style.left)) {
-      w.gate = gate;
-      gateRef.current.style.left = `${gate}%`;
-    }
   });
 
   const listening = view.source === 'mic';
@@ -143,7 +125,8 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
   let caption = '';
   if (captionTarget) {
     const end = reentrant ? '' : captionTarget.index === 0 ? ' · thickest' : captionTarget.index === targets.length - 1 ? ' · thinnest' : '';
-    caption = `String ${captionTarget.string}${end}`;
+    // Between two strings the string shown is only the nearer one.
+    caption = !ear && view.instruction === 'which-string' ? `Nearest: string ${captionTarget.string}` : `String ${captionTarget.string}${end}`;
   } else if (listening && view.mode === 'chromatic' && parts) caption = 'Any note';
   else if (!listening && !ear) caption = tuningCaption;
   else if (listening) caption = view.paused ? 'Paused' : 'Listening for a string';
@@ -211,7 +194,15 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
       detailKind = 'tip';
     }
   }
-  const spoken = listening && !view.paused ? spokenReading(view.instruction, instruction, session.frame.cents, parts ? parts.text : '') : '';
+  // Announced when the instruction changes, with the offset at that moment: not on every re-render,
+  // or a screen reader would talk through the whole tuning.
+  const speakable = listening && !view.paused;
+  const spokenNote = parts ? parts.text : '';
+  const spoken = useMemo(
+    () => (speakable ? spokenReading(view.instruction, instruction, session.frame.cents, spokenNote) : ''),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [speakable, view.instruction, spokenNote, instruction.title, instruction.detail],
+  );
 
   // The number between the two ends of the meter: "12 cents low".
   const number = (
@@ -260,12 +251,7 @@ export function Readout({ session, view, targets, tuningCaption, naming, reentra
         <span className={cx(styles.status, listening && !view.paused && styles.statusOn)}>
           {view.source === 'starting' ? <Spinner size={14} /> : <Icon name={ear ? 'Volume2' : listening ? (view.paused ? 'Pause' : 'Mic') : 'MicOff'} size="xs" />}
           <span>{statusText}</span>
-          {listening && (
-            <span className={styles.level} aria-hidden="true">
-              <span ref={levelRef} className={cx(styles.levelFill, view.advice === 'too-loud' && styles.levelHot)} />
-              <span ref={gateRef} className={styles.levelGate} />
-            </span>
-          )}
+          {listening && <LevelBar session={session} hot={view.advice === 'too-loud'} />}
         </span>
         {headerEnd}
       </div>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChipGroup, Kbd, SegmentedControl, Select, Stepper, Switch, Text } from '@/ui';
 import type { TunerOptions } from '../model/options';
 import { A4_MAX, A4_MIN, A4_PRESETS, MAX_CAPO } from '../model/targets';
@@ -25,6 +26,10 @@ export interface TunerSettingsProps {
   onMic: (id: string | null) => void;
   /** Show the keyboard shortcuts (hidden on touch devices). */
   showShortcuts: boolean;
+  /** The live input level meter, while the microphone is on. */
+  level?: ReactNode;
+  /** What the tuner makes of the input right now ("Too quiet: move closer"), or empty. */
+  levelNote?: string;
 }
 
 const DEFAULT_MIC = 'default-microphone';
@@ -34,7 +39,7 @@ const DEFAULT_MIC = 'default-microphone';
  * the precision options an advanced player looks for. Used inline on wide screens and inside a
  * sheet on phones.
  */
-export function TunerSettings({ a4, onA4, capo, onCapo, capoLabel, options, onOptions, mics, micId, onMic, showShortcuts }: TunerSettingsProps) {
+export function TunerSettings({ a4, onA4, capo, onCapo, capoLabel, options, onOptions, mics, micId, onMic, showShortcuts, level, levelNote }: TunerSettingsProps) {
   const preset = A4_PRESETS.includes(a4) ? String(a4) : null;
   return (
     <div className={styles.settings}>
@@ -117,6 +122,15 @@ export function TunerSettings({ a4, onA4, capo, onCapo, capoLabel, options, onOp
             />
             <Switch label="Show the frequency" description="The measured pitch in hertz, beside its target." checked={options.showHz} onChange={(showHz) => onOptions({ showHz })} />
           </section>
+          {level != null && (
+            <section className={styles.block} aria-label="Input level">
+              <Text variant="label">Input level</Text>
+              {level}
+              <Text variant="caption" tone={levelNote ? 'warn' : 'muted'}>
+                {levelNote || 'The mark is how loud a note has to be to count. It follows the noise in the room.'}
+              </Text>
+            </section>
+          )}
           {mics.length > 1 && (
             <section className={styles.block} aria-label="Microphone">
               <Select

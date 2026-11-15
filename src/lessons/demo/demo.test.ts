@@ -86,7 +86,9 @@ describe('the demo course as a whole', () => {
         expect(spoken.length, l.id).toBeGreaterThan(0);
       }
     }
-    expect(speakable(lesson('first-chords').steps[0].type === 'card' ? (lesson('first-chords').steps[0] as { body: string }).body : '')).toContain('E minor is E, G and B');
+    const chordCard = lesson('first-chords').steps[0];
+    if (isGenerated(chordCard) || chordCard.type !== 'card') throw new Error('card');
+    expect(speakable(chordCard.body)).toContain('E minor is E, G and B');
   });
 
   it('every generated step of the course produces valid exercises for many seeds', () => {
@@ -161,7 +163,7 @@ describe('the music in the demo is the engines\' music', () => {
   });
 
   it('low E string: fret names, the fifth-fret trick and the phrase', () => {
-    const walk = [0, 1, 2, 3, 4, 5].map((fret) => noteAt({ string: 6, fret }, { octave: false }));
+    const walk = [0, 1, 2, 3, 4, 5].map((fret) => noteAt({ string: 6, fret }, { context: { prefer: 'sharps' }, octave: false }));
     expect(walk).toEqual(['E', 'F', 'F#', 'G', 'G#', 'A']);
     expect(midiAt({ string: 6, fret: 5 })).toBe(midiAt({ string: 5, fret: 0 }));
     const [named] = literal('low-e-string', 'fretboard-name');
@@ -267,7 +269,7 @@ describe('the music in the demo is the engines\' music', () => {
     const e = chordVoicings('E')[0];
     const differing = e.frets.map((f, i) => (f !== em.frets[i] ? 6 - i : 0)).filter(Boolean);
     expect(differing).toEqual([3]);
-    expect(noteAt({ string: 3, fret: 1 }, { octave: false })).toBe('G#');
+    expect(noteAt({ string: 3, fret: 1 }, { context: { chord: 'E' }, octave: false })).toBe('G#');
     // The audio card plays E then E minor.
     const audio = lesson('first-chords').steps.map((s) => (!isGenerated(s) && s.type === 'card' ? s.figure : undefined)).find((f): f is Extract<Figure, { kind: 'audio' }> => f?.kind === 'audio')!;
     const plan = soundPlan(audio.sound);

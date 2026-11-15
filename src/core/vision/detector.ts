@@ -163,6 +163,8 @@ export function fuseNumbering(a: NumberingReading, b: NumberingReading): Numberi
   return { delta: hi.delta, source: confidence >= 0.35 ? hi.source : 'assumed', confidence };
 }
 
+/** Tracking: frames for which a new or changed numbering is re-read on every frame, and after which it may become the anchor. */
+const PROBATION_FRAMES = 8;
 /** Tracking: evidence above which a pose both trackers agree on is taken without a second look. */
 const SETTLED_EVIDENCE = 2.5;
 /** Lowest correlation of the board's brightness profiles between two frames at which its motion is believed (an occluder sweeping past scores far lower). */
@@ -178,6 +180,11 @@ function scaleH(H: Mat3, sx: number, sy: number): Mat3 {
 
 function logistic(x: number): number {
   return 1 / (1 + Math.exp(-x));
+}
+
+/** The fret numbers of a pose rest on something (the nut, inlays, stickers, the user), not on a guess. */
+function numbered(pose: FretboardPose): boolean {
+  return pose.numbering !== 'assumed' && pose.numberingConfidence >= 0.5;
 }
 
 /** The part of a frame a tracker reads when the board was at `pose` a frame ago: its outline with room for a fast move. */
@@ -234,6 +241,8 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   const votes = new Map<number, number>();
   /** Consecutive frames the numbering of the current track has stood unchanged. */
   let settled = 0;
+  /** When the current track began (a detection, or a pose handed in from outside). */
+  let trackStart = 0;
   /** Brightness profiles of the board in the last frame, through the pose handed out for it (working pixels of the line view). */
   let flowFrom: { profiles: BoardProfiles; H: Mat3; width: number } | null = null;
   /** Consecutive frames the pose has been carried by the flow alone. */
@@ -341,19 +350,28 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
 
   const stringsLocked = (r: RefineResult): boolean => r.stringsLooked >= 18 && r.stringSupport >= 0.6;
 
-  /**
-   * Note a pose that is about to be handed out. The anchor (what numbers are carried from after a
-   * loss) only moves to poses whose numbering is solid: sure of itself and unchallenged for a few
-   * frames, or the only numbered pose there is.
-   */
+  /** Note a pose that is about to be handed out. */
   const remember = (pose: FretboardPose, time: number, lv: LineView): void => {
     clock = time;
     lastOut = pose.H;
     const Hline = scaleH(pose.H, 1 / lv.factor, 1 / lv.factor);
     const profiles = boardProfiles(lv.img, Hline, pose.model, computeVisibleFrets(Hline, pose.model, lv.img.width, lv.img.height));
     flowFrom = profiles ? { profiles, H: Hline, width: lv.img.width } : null;
-    const numbered = pose.numbering !== 'assumed' && pose.numberingConfidence >= 0.5;
-    if (numbered && (!anchor || time - anchor.time >= ANCHOR_LIFE_MS || (pose.numberingConfidence >= 0.9 && settled >= 3))) anchor = { pose, time };
+    // The anchor is the pose fret numbers are carried from after a loss. It follows the track, but
+    // only once the numbering has stood unchallenged for a few frames; numbers that rest on
+    // something are not given up for a guess while they are fresh.
+    const fresh = anchor !== null && time - anchor.time < ANCHOR_LIFE_MS;
+    if (!anchor || !fresh) anchor = { pose, time };
+    else if (numbered(pose) && !numbered(anchor.pose)) anchor = { pose, time };
+    else if (numbered(pose) === numbered(anchor.pose) && settled >= PROBATION_FRAMES && (!numbered(pose) || pose.numberingConfidence >= 0.9)) anchor = { pose, time };
+  };
+
+  /** After the numbering moved by `delta`, every vote refers to a shift that much smaller; old evidence counts for less. */
+  const shiftVotes = (delta: number, keep: number): void => {
+    const moved = new Map<number, number>();
+    for (const [d, score] of votes) moved.set(d - delta, keep * score);
+    votes.clear();
+    for (const [d, score] of moved) votes.set(d, score);
   };
 
   const sameH = (a: Mat3, b: Mat3): boolean => {
@@ -410,16 +428,22 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     // is still the same neck in the same view.
     const given = input.previousPose;
     const now = opts.timeMs ?? clock + 33;
-    const earlier = !given ? null : given.numbering !== 'assumed' && given.numberingConfidence >= 0.5 ? given : anchor && now - anchor.time < ANCHOR_LIFE_MS ? anchor.pose : null;
-    if (earlier && (!anchor || now - anchor.time >= ANCHOR_LIFE_MS)) anchor = { pose: earlier, time: now };
+    const recent = anchor && now - anchor.time < ANCHOR_LIFE_MS ? anchor.pose : null;
+    const earlier = !given ? null : numbered(given) ? given : (recent ?? given);
     if (earlier && !marked) {
       const carried = carryNumbering(pose, earlier, stringsLocked(refined));
       if (carried) {
         stats.carriedDelta = carried.delta;
-        // A nut or an inlay pattern read clearly off this very frame outranks numbers carried by shape,
-        // which a turn of the guitar can throw by a fret; when both say the same, all the better.
-        if (carried.delta === 0) pose = { ...pose, numbering: pose.numbering === 'assumed' ? 'tracked' : pose.numbering, numberingConfidence: Math.max(pose.numberingConfidence, carried.confidence) };
-        else if (pose.numberingConfidence < 0.8) pose = renumberPose(pose, carried.delta, 'tracked', carried.confidence);
+        const firm = numbered(earlier);
+        // Numbers carried by shape can be thrown by a fret when the guitar turned meanwhile, so a nut
+        // or an inlay pattern read clearly off this very frame outranks them; when both say the same,
+        // all the better. A pose that can only guess keeps whatever the earlier pose called the frets:
+        // even a guess should not jump.
+        if (carried.delta === 0) {
+          if (firm) pose = { ...pose, numbering: pose.numbering === 'assumed' ? 'tracked' : pose.numbering, numberingConfidence: Math.max(pose.numberingConfidence, carried.confidence) };
+        } else if (firm ? pose.numberingConfidence < 0.8 : pose.numberingConfidence < 0.5) {
+          pose = renumberPose(pose, carried.delta, firm ? 'tracked' : 'assumed', firm ? carried.confidence : Math.min(0.45, earlier.numberingConfidence));
+        }
       }
     }
     // A confirmation tap overrides whatever the image suggested.
@@ -428,6 +452,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     votes.clear();
     settled = 0;
     coasting = 0;
+    trackStart = now;
     remember(pose, now, lv);
     return finish(pose);
   };
@@ -521,8 +546,9 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     if (!continues) {
       votes.clear();
       settled = 0;
+      trackStart = now;
       // A pose from outside (a calibration, a tap, another detector) with numbers it is sure of is the new anchor.
-      if (previousPose.numbering !== 'assumed' && previousPose.numberingConfidence >= 0.9) anchor = { pose: previousPose, time: now };
+      if (numbered(previousPose) && previousPose.numberingConfidence >= 0.9) anchor = { pose: previousPose, time: now };
     }
     let pose = makePose(best.H, model, frame.width, frame.height, {
       confidence: coasted ? Math.min(COAST_CONFIDENCE, logistic(best.evidence)) : logistic(best.evidence + (agree ? 2 : 0)),
@@ -539,43 +565,64 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     const sure = pose.numberingConfidence;
     if (sure < 0.99 && !coasted) {
       t1 = performance.now();
-      if (sure < 0.75 || tracked % readEvery === 0) {
+      const guessing = sure < 0.5;
+      // A numbering that was just read, carried or shifted is checked on every frame of its probation.
+      if (sure < 0.75 || settled <= PROBATION_FRAMES || tracked % readEvery === 0) {
         const measured = refinePose(lv.img, scaleH(pose.H, 1 / lv.factor, 1 / lv.factor), model, { polarity: best.refine.polarity, windows: [0.12], priorWeight: 2, stringLock: false, evidence: true, fromFret: -6 });
         if (measured) {
-          const reading = fuseNumbering(resolveLineNumbering(measured.frets ?? [], measured.cells ?? [], { fretCount: model.fretCount, polarity: measured.polarity, strength: measured.strength }), align.numbering(av, scaleH(pose.H, av.scaleX, av.scaleY), model, best.polarity, best.score));
+          const byLine = resolveLineNumbering(measured.frets ?? [], measured.cells ?? [], { fretCount: model.fretCount, polarity: measured.polarity, strength: measured.strength });
+          const byAlign = align.numbering(av, scaleH(pose.H, av.scaleX, av.scaleY), model, best.polarity, best.score);
+          const reading = fuseNumbering(byLine, byAlign);
           stats.readDelta = reading.delta;
           stats.readConfidence = reading.source === 'assumed' ? 0 : reading.confidence;
-          if (reading.source !== 'assumed' && reading.confidence >= 0.6) votes.set(reading.delta, (votes.get(reading.delta) ?? 0) + reading.confidence);
+          if (reading.source !== 'assumed' && reading.confidence >= 0.6) {
+            votes.set(reading.delta, (votes.get(reading.delta) ?? 0) + reading.confidence);
+            // A pose that was only guessing takes the first clear reading at its word.
+            if (guessing) {
+              pose = renumberPose(pose, reading.delta, reading.source, reading.confidence);
+              stats.renumbered = reading.delta;
+              shiftVotes(reading.delta, 1);
+            }
+          } else if (guessing) {
+            // No clear reading: the two readers' hunches still add up over the frames to a better guess.
+            votes.set(byLine.delta, (votes.get(byLine.delta) ?? 0) + byLine.confidence);
+            votes.set(byAlign.delta, (votes.get(byAlign.delta) ?? 0) + byAlign.confidence);
+          }
         }
       }
-      if (anchor && now - anchor.time < ANCHOR_LIFE_MS && sure < 0.95) {
+      // While the anchor is still a pose from before this track began (before a loss), it has a say too.
+      if (anchor && anchor.time < trackStart && now - anchor.time < ANCHOR_LIFE_MS && sure < 0.95 && stats.renumbered === undefined) {
         const carried = carryNumbering(pose, anchor.pose, stringsLocked(best.refine));
         if (carried) {
           stats.carryDelta = carried.delta;
-          votes.set(carried.delta, (votes.get(carried.delta) ?? 0) + 0.6 * carried.confidence);
+          votes.set(carried.delta, (votes.get(carried.delta) ?? 0) + (numbered(anchor.pose) ? 0.6 * carried.confidence : 0.3));
         }
       }
-      let top = 0;
-      let topScore = votes.get(0) ?? 0;
-      for (const [delta, score] of votes) {
-        if (score > topScore) {
-          top = delta;
-          topScore = score;
+      if (stats.renumbered === undefined) {
+        let top = 0;
+        let topScore = votes.get(0) ?? 0;
+        for (const [delta, score] of votes) {
+          if (score > topScore) {
+            top = delta;
+            topScore = score;
+          }
+        }
+        const standing = votes.get(0) ?? 0;
+        if (top !== 0 && pose.numberingConfidence < 0.5 && topScore >= standing + 0.5) {
+          // Still a guess, but a better one.
+          pose = renumberPose(pose, top, pose.numbering, pose.numberingConfidence);
+          stats.renumbered = top;
+          shiftVotes(top, 1);
+        } else if (top !== 0 && pose.numberingConfidence >= 0.5 && topScore >= 1.5 && topScore >= standing + 1) {
+          // The evidence says every number is off by `top`: shift, and let the new numbering earn its trust afresh.
+          pose = renumberPose(pose, top, 'tracked', Math.min(0.9, Math.max(0.6, topScore / (topScore + standing + 1))));
+          stats.renumbered = top;
+          shiftVotes(top, 0.5);
+        } else if (top === 0 && standing >= 2 && pose.numberingConfidence >= 0.5 && pose.numberingConfidence < 0.92) {
+          pose = { ...pose, numbering: 'tracked', numberingConfidence: 0.92 };
         }
       }
-      const standing = votes.get(0) ?? 0;
-      if (top !== 0 && (sure < 0.5 ? topScore >= 0.6 : topScore >= 1.5 && topScore >= standing + 1)) {
-        // The evidence says every number is off by `top`: shift, and let the new numbering earn its trust afresh.
-        pose = renumberPose(pose, top, 'tracked', Math.min(0.9, Math.max(0.6, topScore / (topScore + standing + 1))));
-        stats.renumbered = top;
-        const shifted = new Map<number, number>();
-        for (const [delta, score] of votes) shifted.set(delta - top, 0.5 * score);
-        votes.clear();
-        for (const [delta, score] of shifted) votes.set(delta, score);
-        settled = 0;
-      } else if (top === 0 && standing >= 2 && sure < 0.92) {
-        pose = { ...pose, numbering: 'tracked', numberingConfidence: 0.92 };
-      }
+      if (stats.renumbered !== undefined) settled = 0;
       // Old votes fade: a neck that keeps moving must keep confirming.
       for (const [delta, score] of votes) votes.set(delta, 0.92 * score);
       timings.numbering = performance.now() - t1;
@@ -607,6 +654,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
       settled = 0;
       flowFrom = null;
       coasting = 0;
+      trackStart = 0;
     },
   };
 }

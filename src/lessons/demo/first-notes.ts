@@ -100,6 +100,7 @@ const musicalAlphabet: Lesson = {
   ],
 };
 
+// <example:lesson>
 const openStrings: Lesson = {
   id: 'open-strings',
   title: 'The six open strings',
@@ -190,6 +191,7 @@ const openStrings: Lesson = {
     { id: 'string-numbers', front: 'Which string is number 1?', back: 'The thinnest, highest string: the high {n:E}.' },
   ],
 };
+// </example:lesson>
 
 const lowEString: Lesson = {
   id: 'low-e-string',

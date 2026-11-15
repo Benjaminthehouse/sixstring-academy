@@ -399,7 +399,8 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
       const yi = Math.round(hd.y + fy * hd.h);
       if (xi < 0 || xi >= strip.w || yi < 0 || yi >= strip.h) continue;
       const id = strip.cc.labels[yi * strip.w + xi];
-      if (id && strip.owner[id]) return true;
+      // (A stem the layout stage took for a bar line carries its head with it: that is not "explained".)
+      if (id && strip.owner[id] && strip.owner[id] !== CLAIM.barline) return true;
     }
     return false;
   };

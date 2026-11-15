@@ -18,3 +18,4 @@ export const DEMO_COURSE: Course = {
 };
 
 export { BUILDING_BLOCKS, FIRST_NOTES };
+export { EXERCISE_EXAMPLES, FIGURE_EXAMPLES } from './examples';

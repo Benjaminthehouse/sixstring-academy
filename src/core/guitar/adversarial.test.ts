@@ -286,6 +286,37 @@ describe('scale patterns against the textbooks', () => {
     }
   });
 
+  it('climbs the neck in order for every scale and key when asked to', () => {
+    for (const scale of SCALES) {
+      for (const tonic of LIBRARY_ROOTS) {
+        for (const system of ['box', '3nps', 'position'] as const) {
+          if (!patternSystemsFor(scale).includes(system)) continue;
+          const low = scalePatterns(tonic, scale, { system });
+          const climb = scalePatterns(tonic, scale, { system, upTheNeck: true });
+          const label = `${tonic} ${scale.id} ${system}`;
+          // The same patterns under the same names, only placed differently.
+          expect(climb.map((p) => p.id), label).toEqual(low.map((p) => p.id));
+          expect(climb[0].notes.map((n) => `${n.string}:${n.fret}`), label).toEqual(low[0].notes.map((n) => `${n.string}:${n.fret}`));
+          // Boxes and 3NPS patterns climb by their first note, hand positions by where the hand sits.
+          const starts = climb.map((p) => (system === 'position' ? p.position + 0.5 * p.index : p.notes[0].fret));
+          // Each one starts above the one before, until the neck runs out: then the rest stay low.
+          const wraps = starts.filter((fret, i) => i > 0 && fret <= starts[i - 1]).length;
+          expect(wraps, `${label}: ${starts.join(' ')}`).toBeLessThanOrEqual(1);
+          climb.forEach((p, i) => {
+            expect(checkFingering(p.notes), `${label} ${p.id}`).toEqual([]);
+            expect(p.minFret, `${label} ${p.id}`).toBeGreaterThanOrEqual(low[i].minFret);
+            // A box or 3NPS pattern is the same shape wherever it sits: where it is, or an octave up.
+            // (A hand position that used open strings is a different pattern at the twelfth fret.)
+            if (system === 'position') return;
+            const shift = p.notes[0].fret - low[i].notes[0].fret;
+            expect([0, 12], `${label} ${p.id}`).toContain(shift);
+            expect(p.notes.map((n) => n.fret - shift), `${label} ${p.id}`).toEqual(low[i].notes.map((n) => n.fret));
+          });
+        }
+      }
+    }
+  }, 120_000);
+
   it('gives the major pentatonic the same five shapes, counted from its own root', () => {
     const major = scalePatterns('C', 'major-pentatonic', { upTheNeck: true });
     const minor = scalePatterns('A', 'minor-pentatonic', { upTheNeck: true });

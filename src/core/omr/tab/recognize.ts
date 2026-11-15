@@ -359,6 +359,21 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   for (let l = 0; l < n; l++) numbers.push(...assembleLine(glyphs.filter((g) => g.line === l), digitHeight, maxGap, base.inkHeight));
   rests = rests.filter((r) => r.confidence >= 0.6 || !numbers.some((q) => q.box.x1 > r.box.x0 && q.box.x0 < r.box.x1 && q.box.y1 > r.box.y0 && q.box.y0 < r.box.y1));
   if (reliability < 1) for (const q of numbers) q.confidence *= 0.3 + 0.7 * reliability;
+  // Doubts a single glyph cannot know about itself:
+  const sortedScores = digitScores.slice().sort((a, b) => a - b);
+  const typical = sortedScores.length ? sortedScores[sortedScores.length >> 1] : 0;
+  for (const q of numbers) {
+    if (q.dead) continue;
+    // - it matches clearly worse than the other numbers of its staff (something is off with it);
+    const worst = Math.min(...q.digits.map((g) => g.score));
+    const behind = typical - worst;
+    if (behind > 0.05) q.confidence *= Math.max(0.3, 1 - 6 * (behind - 0.05));
+    // - its digits had to be cut apart;
+    if (q.digits.some((g) => g.split)) q.confidence *= 0.85;
+    // - a staff line runs through it on a soft picture: the middle of the digit, which is what
+    //   tells 0, 6, 8 and 9 apart, cannot be seen.
+    if (base.lineThrough && blurLevel >= 2 && q.digits.some((g) => g.fused)) q.confidence *= 0.8;
+  }
   if (reliability < 0.5 && numbers.length) warnings.push({ code: 'low-quality', message: 'The numbers on this staff are hard to make out in this picture; treat them as guesses.' });
   timings.glyphs = now() - t1;
 

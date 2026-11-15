@@ -14,6 +14,8 @@ export interface StringStripProps {
   confirmed: readonly boolean[];
   /** Index of the string being heard right now, -1 for none. */
   heard: number;
+  /** A second string the note could belong to (automatic mode, between two strings), -1 for none. */
+  maybe?: number;
   /** Index of the string that is locked, guided or chosen for playing by ear, -1 for none. */
   target: number;
   targetKind: TargetKind | null;
@@ -32,14 +34,14 @@ export interface StringStripProps {
  * string is in tune, a lock when the tuner is held on it, and its string shimmers while it is heard.
  * Tapping a peg picks that string.
  */
-export function StringStrip({ targets, naming, confirmed, heard, target, targetKind, sounding, flipped, action, onPick }: StringStripProps) {
+export function StringStrip({ targets, naming, confirmed, heard, maybe = -1, target, targetKind, sounding, flipped, action, onPick }: StringStripProps) {
   return (
     <div className={cx(styles.strip, flipped && styles.flipped)} role="group" aria-label={`Strings. Choosing one ${action}.`}>
       <span className={styles.nut} aria-hidden="true" />
       {targets.map((t) => {
         const parts = noteParts(t.note, naming);
         const isTarget = t.index === target;
-        const isHeard = t.index === heard;
+        const isHeard = t.index === heard || t.index === maybe;
         const isSounding = t.index === sounding;
         const done = !!confirmed[t.index];
         const status = [done ? 'in tune' : '', isHeard ? 'sounding now' : '', isTarget ? (targetKind === 'locked' ? 'locked' : 'selected') : ''].filter(Boolean).join(', ');

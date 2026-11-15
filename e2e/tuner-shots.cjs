@@ -36,6 +36,8 @@ const SHOTS = {
   'idle-laptop': { opts: LAPTOP },
   'idle-small': { opts: SMALL },
   'idle-sideways': { opts: SIDEWAYS },
+  'idle-tablet': { opts: { viewport: { width: 1024, height: 768 } } },
+  'flat-tablet-portrait': { opts: { mobile: true, viewport: { width: 820, height: 1180 } }, audio: loop(45, -12), run: hearing },
 
   'flat-phone': { opts: PHONE, audio: loop(45, -12), run: hearing },
   'flat-phone-light': { opts: { ...PHONE, theme: 'light' }, audio: loop(45, -12), run: hearing },
@@ -79,6 +81,17 @@ const SHOTS = {
       await state(page, 'listening');
       await page.getByRole('radio', { name: 'Chromatic' }).click();
       await hearing(page);
+    },
+  },
+  'precision-desktop': {
+    opts: { viewport: { width: 1280, height: 1100 } },
+    audio: loop(45, -12),
+    run: async (page) => {
+      await page.getByText('Precision and input').click();
+      await page.getByText('Keyboard shortcuts').click();
+      await hearing(page);
+      await page.evaluate(() => window.scrollTo(0, 420));
+      await page.waitForTimeout(400);
     },
   },
   'strobe-phone': { opts: PHONE, audio: loop(45, -6), seed: { options: { display: 'strobe', showHz: true, tolerance: 'fine' } }, run: hearing },

@@ -134,6 +134,10 @@
   box-shadow: var(--focus-ring);
 }
 
+/* On phones this wrapper is not a box at all: the readout and the actions are grid rows of their own. */
+.left {
+  display: contents;
+}
 .stage {
   grid-area: stage;
   min-width: 0;
@@ -262,14 +266,25 @@
   grid-template-columns: minmax(0, 1.35fr) minmax(21rem, 0.65fr);
   grid-template-areas:
     'notices notices'
-    'stage side'
-    'actions side';
-  /* The right pane is the taller one: the last row takes the difference, so the buttons stay under the meter. */
-  grid-template-rows: auto auto 1fr;
+    'left side';
   align-items: start;
   column-gap: var(--sp-8);
   row-gap: var(--sp-4);
   max-width: none;
+}
+.twoPane .left {
+  grid-area: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+/* The meter stays in view while the settings beside it scroll (when the window is tall enough to hold it). */
+@media (min-height: 700px) {
+  .twoPane .left {
+    position: sticky;
+    top: var(--sp-6);
+  }
 }
 .twoPane .side {
   gap: var(--sp-4);

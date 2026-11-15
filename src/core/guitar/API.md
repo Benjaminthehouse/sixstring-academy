@@ -11,7 +11,7 @@ high** (index 0 = string 6 on a six-string). Fret 0 = open. With a capo, frets c
 Wherever a tuning is expected (`tuning?:`) pass an id, a name, note names, MIDI numbers or a `Tuning`.
 **Errors.** Unknown tunings, scales and chords and invalid shapes throw `RangeError`; `getTuning`,
 `identifyTuning`, `tryBuildVoicing`, `voicingFromFrets`, `scalePattern`, `positionPatternAt`, `bestVoicing`,
-`chordChange` and `placeChord` return `null` instead. Results of `chordVoicings` are cached: read-only.
+`beginnerVoicing`, `chordChange` and `placeChord` return `null` instead. Results of `chordVoicings` are cached: read-only.
 **Speed.** Everything here is cheap enough to call while rendering: a scale over the whole neck
 about 0.02 ms, the patterns of a scale 0.2 ms, a chord change 0.02 ms. A chord's voicings take 2–20 ms
 the first time (the biggest altered chords more) and are then remembered per chord, tuning and

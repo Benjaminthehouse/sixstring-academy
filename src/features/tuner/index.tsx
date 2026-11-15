@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RouteProps } from '@/app/routes';
-import { WIDE_LAYOUT_QUERY, useImmersive } from '@/app/shell';
+import { useImmersive } from '@/app/shell';
 import { playUi, unlockAudio } from '@/core/audio';
 import type { Tuning } from '@/core/guitar';
 import { PitchTracker } from '@/core/pitch';
@@ -48,12 +48,14 @@ import {
   useMediaQuery,
   useWakeLock,
 } from '@/ui';
+import { LevelBar } from './components/LevelBar';
 import { Readout } from './components/Readout';
 import { StringStrip, type TargetKind } from './components/StringStrip';
 import { Summary, type SummaryInfo } from './components/Summary';
 import { TunerSettings, type MicChoice } from './components/TunerSettings';
 import { RetuneSteps, TuningSheet } from './components/TuningSheet';
 import { queryMicPermission, useReferenceTone, useTunerSession } from './hooks';
+import { LEVEL_MESSAGES } from './model/advice';
 import { resolveTuning, type SavedTuning } from './model/catalog';
 import { DEFAULT_OPTIONS, OPTIONS_KEY, SAVED_TUNINGS_KEY, sanitizeOptions, sanitizeSavedTunings, toleranceCents, type TunerOptions } from './model/options';
 import type { Confirmation } from './model/session';
@@ -64,7 +66,7 @@ import styles from './Tuner.module.css';
 const TWO_PANE_QUERY = '(min-width: 1160px)';
 /** A phone held sideways. */
 const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 520px)';
-/** A laptop too short for a page heading above the meter. */
+/** A laptop too short for a page heading above the meter (in one column the heading is always left out: the shell names the screen). */
 const SHORT_QUERY = '(max-height: 759.98px)';
 
 function failureReason(reason: MediaFailure | 'audio-failed'): MediaFailure {
@@ -82,7 +84,6 @@ export default function TunerScreen(_props: RouteProps) {
 
   const twoPane = useMediaQuery(TWO_PANE_QUERY);
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
-  const wideChrome = useMediaQuery(WIDE_LAYOUT_QUERY);
   const shortScreen = useMediaQuery(SHORT_QUERY);
   const touch = useIsTouch();
   // On a phone held sideways there is no room for the tab bar: the shell keeps a Back button.
@@ -427,6 +428,8 @@ export default function TunerScreen(_props: RouteProps) {
       micId={prefs.mic.deviceId}
       onMic={chooseMic}
       showShortcuts={!touch}
+      level={listening ? <LevelBar session={session} size="lg" hot={view.advice === 'too-loud'} /> : undefined}
+      levelNote={listening && view.advice !== 'ok' ? LEVEL_MESSAGES[view.advice] : ''}
     />
   );
 
@@ -446,7 +449,7 @@ export default function TunerScreen(_props: RouteProps) {
   else caption = 'Pluck any string, or tap one to hold on it.';
 
   return (
-    <Page title="Tuner" hideHeader={!wideChrome || sideways || shortScreen} gap={0} className={styles.screen}>
+    <Page title="Tuner" hideHeader={!twoPane || sideways || shortScreen} gap={0} className={styles.screen}>
       <div className={cx(styles.layout, twoPane && styles.twoPane, sideways && styles.sideways)} data-tuner-layout={twoPane ? 'two-pane' : sideways ? 'sideways' : 'column'} data-tuning={tuning.id} data-capo={capo} data-a4={a4}>
         <div className={styles.notices}>
           {(capo > 0 || a4 !== 440) && (
@@ -516,39 +519,101 @@ export default function TunerScreen(_props: RouteProps) {
           )}
         </div>
 
-        <div className={styles.stage}>
-          <Readout
-            session={session}
-            view={view}
-            targets={targets}
-            tuningCaption={`${tuning.name} tuning${capo > 0 ? `, capo on fret ${capo}` : ''}`}
-            naming={naming}
-            reentrant={tuning.reentrant}
-            tolerance={tolerance}
-            fine={options.tolerance === 'fine'}
-            display={options.display}
-            showHz={options.showHz}
-            ear={ear !== null ? { index: ear, playing: tone.playing !== null } : null}
-            toneMidi={tone.playing}
-            headerStart={
-              twoPane ? undefined : (
-                <button type="button" className={cx(styles.tuningChip, focusRing)} onClick={() => setTuningOpen(true)} aria-label={`Tuning: ${tuning.name}, ${label}. Change tuning`} data-tuner-tuning={tuning.id}>
-                  <span className={styles.tuningName}>{tuning.name}</span>
-                  <Icon name="ChevronDown" size="sm" />
-                </button>
-              )
-            }
-            headerEnd={twoPane ? undefined : <IconButton icon="SlidersHorizontal" label="Tuner settings" size="sm" onClick={() => setSettingsOpen(true)} />}
-            earControls={
-              ear !== null ? (
-                <div className={styles.earControls}>
-                  <IconButton icon="ChevronLeft" label="Previous string" variant="secondary" round disabled={flipped ? ear >= targets.length - 1 : ear <= 0} onClick={() => pickString(flipped ? ear + 1 : ear - 1)} />
-                  <PlayButton playing={tone.playing !== null} icon={tone.playing !== null ? 'Square' : undefined} label={tone.playing !== null ? 'Stop the note' : `Play ${noteParts(targets[ear].note, naming).text}`} onClick={toggleReference} data-tuner-play="" />
-                  <IconButton icon="ChevronRight" label="Next string" variant="secondary" round disabled={flipped ? ear <= 0 : ear >= targets.length - 1} onClick={() => pickString(flipped ? ear - 1 : ear + 1)} />
-                </div>
-              ) : undefined
-            }
-          />
+        {/* Readout and actions travel together: one pane on wide screens, separate grid rows on phones. */}
+        <div className={styles.left}>
+          <div className={styles.stage}>
+            <Readout
+              session={session}
+              view={view}
+              targets={targets}
+              tuningCaption={`${tuning.name} tuning${capo > 0 ? `, capo on fret ${capo}` : ''}`}
+              naming={naming}
+              reentrant={tuning.reentrant}
+              tolerance={tolerance}
+              fine={options.tolerance === 'fine'}
+              display={options.display}
+              showHz={options.showHz}
+              ear={ear !== null ? { index: ear, playing: tone.playing !== null } : null}
+              toneMidi={tone.playing}
+              headerStart={
+                twoPane ? undefined : (
+                  <button type="button" className={cx(styles.tuningChip, focusRing)} onClick={() => setTuningOpen(true)} aria-label={`Tuning: ${tuning.name}, ${label}. Change tuning`} data-tuner-tuning={tuning.id}>
+                    <span className={styles.tuningName}>{tuning.name}</span>
+                    <Icon name="ChevronDown" size="sm" />
+                  </button>
+                )
+              }
+              headerEnd={twoPane ? undefined : <IconButton icon="SlidersHorizontal" label="Tuner settings" size="sm" onClick={() => setSettingsOpen(true)} />}
+              earControls={
+                ear !== null ? (
+                  <div className={styles.earControls}>
+                    <IconButton icon="ChevronLeft" label="Previous string" variant="secondary" round disabled={flipped ? ear >= targets.length - 1 : ear <= 0} onClick={() => pickString(flipped ? ear + 1 : ear - 1)} />
+                    <PlayButton playing={tone.playing !== null} icon={tone.playing !== null ? 'Square' : undefined} label={tone.playing !== null ? 'Stop the note' : `Play ${noteParts(targets[ear].note, naming).text}`} onClick={toggleReference} data-tuner-play="" />
+                    <IconButton icon="ChevronRight" label="Next string" variant="secondary" round disabled={flipped ? ear <= 0 : ear >= targets.length - 1} onClick={() => pickString(flipped ? ear - 1 : ear + 1)} />
+                  </div>
+                ) : undefined
+              }
+            />
+          </div>
+          <div className={styles.actions}>
+            {ear !== null ? (
+              <>
+                {!hostBlocked &&
+                  (twoPane ? (
+                    <Button size="lg" iconLeft="Mic" onClick={() => void startMic(true)} data-tuner-start="">
+                      Use the microphone
+                    </Button>
+                  ) : (
+                    <IconButton icon="Mic" label="Tune with the microphone" variant="secondary" size="lg" className={styles.compact} onClick={() => void startMic(true)} data-tuner-start="" />
+                  ))}
+                <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.start} onClick={earNext} data-tuner-ear-next="">
+                  Sounds right, next
+                </Button>
+              </>
+            ) : view.source === 'starting' ? (
+              <>
+                <Button size="lg" onClick={stopMic}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="lg" loading className={styles.start}>
+                  Starting
+                </Button>
+              </>
+            ) : listening ? (
+              <>
+                {view.mode === 'guide' ? (
+                  <>
+                    <IconButton icon="Square" label="Stop listening (Space)" variant="secondary" size="lg" className={styles.compact} onClick={stopMic} data-tuner-stop="" />
+                    <Button size="lg" iconLeft="SkipForward" onClick={() => session.skipGuideString()} data-tuner-skip="">
+                      Skip
+                    </Button>
+                  </>
+                ) : (
+                  <Tooltip content="Space">
+                    <Button size="lg" iconLeft="Square" onClick={stopMic} data-tuner-stop="">
+                      Stop
+                    </Button>
+                  </Tooltip>
+                )}
+                <Tooltip content="R">
+                  <Button size="lg" iconLeft={tone.playing !== null ? 'Square' : 'Volume2'} disabled={!referenceNote && tone.playing === null} pressed={tone.playing !== null} onClick={toggleReference} data-tuner-reference="">
+                    {tone.playing !== null ? 'Stop note' : referenceNote ? `Hear ${referenceNote}` : 'Hear it'}
+                  </Button>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                <Button size="lg" iconLeft="Ear" onClick={startByEar} data-tuner-by-ear="">
+                  By ear
+                </Button>
+                <Tooltip content="Space">
+                  <Button variant="primary" size="lg" iconLeft="Mic" className={styles.start} onClick={() => void startMic(true)} data-tuner-start="">
+                    Start tuning
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+          </div>
         </div>
 
         <div className={styles.side}>
@@ -557,6 +622,7 @@ export default function TunerScreen(_props: RouteProps) {
             naming={naming}
             confirmed={view.confirmed}
             heard={heardIndex}
+            maybe={listening && view.instruction === 'which-string' ? view.otherIndex : -1}
             target={stripTarget}
             targetKind={stripKind}
             sounding={soundingIndex}
@@ -613,66 +679,6 @@ export default function TunerScreen(_props: RouteProps) {
               <section className={styles.settingsCard} aria-label="Settings">
                 {settings}
               </section>
-            </>
-          )}
-        </div>
-
-        <div className={styles.actions}>
-          {ear !== null ? (
-            <>
-              {!hostBlocked &&
-                (twoPane ? (
-                  <Button size="lg" iconLeft="Mic" onClick={() => void startMic(true)} data-tuner-start="">
-                    Use the microphone
-                  </Button>
-                ) : (
-                  <IconButton icon="Mic" label="Tune with the microphone" variant="secondary" size="lg" className={styles.compact} onClick={() => void startMic(true)} data-tuner-start="" />
-                ))}
-              <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.start} onClick={earNext} data-tuner-ear-next="">
-                Sounds right, next
-              </Button>
-            </>
-          ) : view.source === 'starting' ? (
-            <>
-              <Button size="lg" onClick={stopMic}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="lg" loading className={styles.start}>
-                Starting
-              </Button>
-            </>
-          ) : listening ? (
-            <>
-              {view.mode === 'guide' ? (
-                <>
-                  <IconButton icon="Square" label="Stop listening (Space)" variant="secondary" size="lg" className={styles.compact} onClick={stopMic} data-tuner-stop="" />
-                  <Button size="lg" iconLeft="SkipForward" onClick={() => session.skipGuideString()} data-tuner-skip="">
-                    Skip
-                  </Button>
-                </>
-              ) : (
-                <Tooltip content="Space">
-                  <Button size="lg" iconLeft="Square" onClick={stopMic} data-tuner-stop="">
-                    Stop
-                  </Button>
-                </Tooltip>
-              )}
-              <Tooltip content="R">
-                <Button size="lg" iconLeft={tone.playing !== null ? 'Square' : 'Volume2'} disabled={!referenceNote && tone.playing === null} pressed={tone.playing !== null} onClick={toggleReference} data-tuner-reference="">
-                  {tone.playing !== null ? 'Stop note' : referenceNote ? `Hear ${referenceNote}` : 'Hear it'}
-                </Button>
-              </Tooltip>
-            </>
-          ) : (
-            <>
-              <Button size="lg" iconLeft="Ear" onClick={startByEar} data-tuner-by-ear="">
-                By ear
-              </Button>
-              <Tooltip content="Space">
-                <Button variant="primary" size="lg" iconLeft="Mic" className={styles.start} onClick={() => void startMic(true)} data-tuner-start="">
-                  Start tuning
-                </Button>
-              </Tooltip>
             </>
           )}
         </div>

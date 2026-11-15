@@ -1,0 +1,37 @@
+.level {
+  position: relative;
+  flex: none;
+  display: block;
+  width: clamp(1.75rem, 9vw, 3rem);
+  height: 0.375rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.large {
+  width: 100%;
+  height: 0.625rem;
+}
+.fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--fg-muted);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.hot {
+  background: var(--bad);
+}
+/* How loud a note has to be to count. */
+.gate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--surface);
+}
+.large .gate {
+  background: var(--fg);
+}

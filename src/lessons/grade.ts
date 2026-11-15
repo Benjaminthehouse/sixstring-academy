@@ -426,8 +426,12 @@ export function fretboardNameSpec(exercise: FretboardNameExercise): AnswerSpec |
     const midi = midiAt(exercise.position, opts);
     if (exercise.ask === 'note') {
       const key = exercise.key ? getKey(exercise.key) : null;
-      const value = key ? spellInKey(midi % 12, key) : spellMidi(midi, undefined, { octave: false });
-      return { kind: 'note', value, spelling: exercise.spelling === 'exact' && key ? 'exact' : 'any' };
+      const spelling = exercise.spelling === 'exact' && key ? 'exact' : 'any';
+      let value = key ? spellInKey(midi % 12, key) : spellMidi(midi, undefined, { octave: false });
+      // When the buttons already name the pitch one way (G# rather than Ab), the feedback uses that name.
+      const offered = spelling === 'any' ? (exercise.options ?? []).map((o) => parseNote(o)).find((n) => n !== null && n.chroma === midi % 12) : undefined;
+      if (offered) value = offered.pcName;
+      return { kind: 'note', value, spelling };
     }
     if (!exercise.root || positionProblem(exercise.root, opts)) return null;
     const semis = midi - midiAt(exercise.root, opts);
