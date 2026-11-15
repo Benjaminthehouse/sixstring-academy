@@ -115,7 +115,7 @@
                 "facts": [
                   "A fret is a metal strip across the neck; pressing just behind it lets the string vibrate only from that fret to the bridge.",
                   "A shorter vibrating string vibrates faster and sounds higher.",
-                  "Fret numbers count from the nut: fret 1 is the one closest to the headstock.",
+                  "Fret numbers count from the nut, the slotted strip where the strings leave the headstock (the end with the tuning pegs): fret 1 is the one closest to it.",
                   "Each fret toward the body raises the note by the same small step, called a half step."
                 ],
                 "onTheGuitar": "On string 1, play open, then frets 1, 2 and 3: each note is a little higher. Figure: fretboard of string 1, frets 0 to 5, with the vibrating length shaded for each fret.",
@@ -135,12 +135,16 @@
                   {
                     "type": "play-note",
                     "idea": "Play string 1 at fret 3 (G4)."
+                  },
+                  {
+                    "type": "play-phrase",
+                    "idea": "Play your first tune, \"Hot Cross Buns\" (traditional), on string 1 only: frets 4 2 0, 4 2 0, 0 0 0 0 2 2 2 2, 4 2 0. Higher frets give the higher notes."
                   }
                 ],
                 "generators": [
                   "play-note"
                 ],
-                "minutes": 3
+                "minutes": 4
               },
               {
                 "id": "sound-and-pitch/the-octave",
@@ -186,7 +190,7 @@
                 ],
                 "facts": [
                   "Timbre, or tone colour, is what lets you tell a guitar from a piano playing the same note.",
-                  "A plucked string vibrates at its main frequency (the fundamental) and, at the same time, at higher frequencies called overtones.",
+                  "A plucked string vibrates in several ways at once, and the mix of those vibrations gives each instrument its own colour.",
                   "Plucking near the bridge gives a brighter, thinner tone; plucking over the end of the neck gives a warmer, rounder tone."
                 ],
                 "onTheGuitar": "Play string 3 at fret 2 (A3) plucked near the bridge, then plucked over the end of the neck. Figure: guitar body with the two picking zones marked; audio of both tones.",
@@ -257,7 +261,8 @@
                 "facts": [
                   "In standard tuning the open strings, from string 6 to string 1, are E A D G B E.",
                   "Strings 6 and 1 are both E, two octaves apart.",
-                  "A memory sentence for the open strings from string 6 up: Every Apple Does Grow Big Eventually."
+                  "A memory sentence for the open strings from string 6 up: Every Apple Does Grow Big Eventually.",
+                  "The set of notes the open strings are tuned to is called a tuning; E A D G B E is standard tuning, the one most songs and lessons use."
                 ],
                 "onTheGuitar": "Figure: fretboard with each open string labelled with its name and number; audio plays the open strings from 6 to 1.",
                 "exercises": [
@@ -386,39 +391,9 @@
                   "open-strings"
                 ],
                 "minutes": 2
-              },
-              {
-                "id": "the-six-strings/what-a-tuning-is",
-                "title": "Other tunings",
-                "teaches": "A tuning is the set of notes the open strings are set to; standard tuning is the usual one, and others such as drop D exist.",
-                "prerequisites": [
-                  "the-six-strings/up-and-down-the-neck"
-                ],
-                "facts": [
-                  "A tuning is the set of notes the open strings are tuned to.",
-                  "Standard tuning (E A D G B E) is the one most songs and lessons assume.",
-                  "Drop D tuning lowers string 6 from E down to D, two frets lower; the other strings stay the same."
-                ],
-                "onTheGuitar": "Figure: two fretboards side by side, standard (E A D G B E) and drop D (D A D G B E), with string 6 highlighted; audio of open string 6 in each.",
-                "exercises": [
-                  {
-                    "type": "choice",
-                    "idea": "In drop D tuning, which string changes? (string 6)"
-                  },
-                  {
-                    "type": "true-false",
-                    "idea": "In drop D tuning every string is lowered (false)."
-                  },
-                  {
-                    "type": "play-note",
-                    "idea": "Tune string 6 down to D and play it open (D2)."
-                  }
-                ],
-                "generators": [],
-                "minutes": 2
               }
             ],
-            "checkpoint": "String numbers 1 to 6; the open-string names E A D G B E from string 6 to 1; flat and sharp on a tuner, tighten to raise; the fifth-fret rule with fret 4 on string 3; up the neck means toward the body; what a tuning is."
+            "checkpoint": "String numbers 1 to 6; the open-string names E A D G B E from string 6 to 1 and what standard tuning is; flat and sharp on a tuner, tighten to raise; the fifth-fret rule with fret 4 on string 3; up the neck means toward the body."
           },
           {
             "id": "the-musical-alphabet",
@@ -690,7 +665,7 @@
                   "Beats are evenly spaced in time, like the tick of a clock.",
                   "A metronome is a device or app that clicks a steady beat."
                 ],
-                "onTheGuitar": "Mute the strings with your fretting hand and strum once on every click at 60 BPM. Figure: rhythm line of four evenly spaced beats; audio click.",
+                "onTheGuitar": "Lay your fretting hand flat across all six strings around fret 5, without pressing, so they are muted, and strum once on every click at 60 BPM. Figure: rhythm line of four evenly spaced beats; audio click.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -722,7 +697,7 @@
                   "Tempo is measured in beats per minute (BPM): at 60 BPM there is one beat every second.",
                   "At 120 BPM the beats come twice as fast as at 60 BPM."
                 ],
-                "onTheGuitar": "Strum the muted strings on every click at 60, then 90, then 120 BPM. Figure: metronome with its BPM dial; audio at each tempo.",
+                "onTheGuitar": "Strum the six muted strings (fretting hand resting flat around fret 5) on every click at 60, then 90, then 120 BPM; then pick open string 6 on every click. Figure: metronome with its BPM dial; audio at each tempo.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -754,7 +729,7 @@
                   "In 4/4 time there are four beats in every bar, counted 1 2 3 4.",
                   "Beat 1 of a bar is called the downbeat and usually feels the strongest."
                 ],
-                "onTheGuitar": "Strum the muted strings on beat 1 only while counting \"1 2 3 4\" aloud, then on every beat. Figure: rhythm line of two 4/4 bars with bar lines and beat numbers; audio click with beat 1 accented.",
+                "onTheGuitar": "Pick open string 6 (low E) on beat 1 and strum the muted strings on beats 2, 3 and 4 while counting \"1 2 3 4\" aloud. Figure: rhythm line of two 4/4 bars with bar lines and beat numbers; audio click with beat 1 accented.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -820,7 +795,7 @@
                   "Eighth notes are counted 1 & 2 & 3 & 4 &; each \"&\" falls exactly halfway between two beats.",
                   "A single eighth note has one flag; eighth notes in a group are joined by one beam."
                 ],
-                "onTheGuitar": "Strum down on every number and up on every \"&\" at 70 BPM. Figure: rhythm line of eight eighth notes with counts and down/up arrows under them; audio.",
+                "onTheGuitar": "Strum open strings 3, 2 and 1 down on every number and up on every \"&\" at 70 BPM. Figure: rhythm line of eight eighth notes with counts and down/up arrows under them; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -851,10 +826,10 @@
                 "facts": [
                   "A rest is a silence that lasts an exact number of beats.",
                   "Each note value has a matching rest: whole, half, quarter and eighth rests.",
-                  "A half rest sits on the middle line of the staff; a whole rest hangs from the fourth line from the bottom.",
-                  "A whole rest also means a whole bar of silence in any time signature."
+                  "A whole rest is a small block that hangs down from a line; a half rest is the same block sitting on top of a line.",
+                  "A whole rest is also used for a whole bar of silence, however many beats the bar has."
                 ],
-                "onTheGuitar": "Strum on beats 1 and 3 and stop the strings with your palm on beats 2 and 4. Figure: rhythm line of quarter, quarter rest, quarter, quarter rest, plus the four rest symbols; audio.",
+                "onTheGuitar": "Strum open strings 3, 2 and 1 on beats 1 and 3, and stop them with the side of your picking hand on beats 2 and 4. Figure: rhythm line of quarter, quarter rest, quarter, quarter rest, plus the four rest symbols; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -887,7 +862,7 @@
                   "To leave out a strum, keep the hand moving and swing past the strings without touching them.",
                   "A hand that never stops moving down and up is what keeps strumming steady."
                 ],
-                "onTheGuitar": "Strum open strings (or Em, 022000, if you know it) with the pattern down (1), down-up (2 &), up (&), down-up (4 &), missing the strings on beat 3. Figure: rhythm line with the counts and down/up arrows, the silent beat 3 greyed out; audio.",
+                "onTheGuitar": "Strum open strings (or Em, 022000: strings 5 and 4 at fret 2, the rest open) with the pattern down (1), down-up (2 &), up (&), down-up (4 &), missing the strings on beat 3. Figure: rhythm line with the counts and down/up arrows, the silent beat 3 greyed out; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -928,7 +903,7 @@
                   "The top line of tab is string 1 (high E) and the bottom line is string 6 (low E).",
                   "Tab is often labelled e B G D A E from the top line down."
                 ],
-                "onTheGuitar": "Figure: an empty tab staff beside a fretboard diagram, each tab line joined to its string, labelled e B G D A E.",
+                "onTheGuitar": "Figure: six empty tab lines beside a fretboard diagram, each line joined to its string: top line string 1 (e), then string 2 (B), string 3 (G), string 4 (D), string 5 (A) and the bottom line string 6 (E).",
                 "exercises": [
                   {
                     "type": "choice",
@@ -988,7 +963,7 @@
                   "Tab writes a chord as a column of numbers, one for each string that sounds.",
                   "In tab, an x on a line is a muted note: the string is touched to deaden it and struck for a percussive click."
                 ],
-                "onTheGuitar": "Figure: tab column reading 0 1 0 2 3 from the top line down with nothing on the bottom line, which is the open C chord (x32010), next to its chord box; audio strum.",
+                "onTheGuitar": "Figure: tab column reading 0 1 0 2 3 from the top line down with nothing on the bottom line, which is the open C chord, written x32010 (frets from string 6 to string 1, x for a string not played), next to its chord box; audio strum.",
                 "exercises": [
                   {
                     "type": "chord-build",
@@ -1216,7 +1191,7 @@
                   "notes-on-the-neck/the-neck-repeats"
                 ],
                 "facts": [
-                  "Most guitars have dot markers at frets 3, 5, 7, 9 and 12 (a double dot at 12); some classical guitars have them only on the side of the neck.",
+                  "Most guitars have dot markers at frets 3, 5, 7, 9 and 12 (a double dot at 12), repeating at 15, 17, 19 and 21 on longer necks; some classical guitars have them only on the side of the neck.",
                   "On string 6 the dots fall on G (3), A (5), B (7) and C# (9).",
                   "On string 5 the dots fall on C (3), D (5), E (7) and F# (9)."
                 ],
@@ -1485,7 +1460,7 @@
               {
                 "id": "first-scale/moving-the-box",
                 "title": "Move the box, change the key",
-                "teaches": "Sliding the box along the neck keeps its shape and changes its tonic: the tonic is the note under your first finger on string 6.",
+                "teaches": "Sliding the box along the neck keeps its shape and changes its tonic, and with it the key (which note is home): the tonic is the note under your first finger on string 6.",
                 "prerequisites": [
                   "first-scale/roots-in-the-box"
                 ],
@@ -1526,7 +1501,7 @@
                   "Leaving silence between phrases sounds musical; you do not have to play all the time.",
                   "In A minor, ending on A sounds the most at rest."
                 ],
-                "onTheGuitar": "Figure: tab of an original two-bar phrase written for this lesson in box 1, played twice: the first time ending on D (string 3 fret 7), the second ending on A (string 4 fret 7); audio over an A drone.",
+                "onTheGuitar": "Figure: tab of an original two-bar phrase written for this lesson in box 1, played twice: the first time ending on D (string 3 fret 7), the second ending on A (string 4 fret 7); audio over an A drone (a low A that keeps sounding).",
                 "exercises": [
                   {
                     "type": "play-phrase",
@@ -1556,7 +1531,7 @@
               {
                 "id": "major-and-minor-chords/what-a-chord-is",
                 "title": "What a chord is",
-                "teaches": "A chord is several notes played together, named after its root, and a chord box shows where to put your fingers.",
+                "teaches": "A chord is several notes played together, named after its root, and guitarists write a chord shape as six fret numbers from string 6 to string 1.",
                 "prerequisites": [
                   "reading-tab/stacked-numbers",
                   "notes-on-the-neck/string-6-naturals"
@@ -1564,14 +1539,48 @@
                 "facts": [
                   "A chord is several different notes sounding together; most chords have at least three.",
                   "The note a chord is named after is its root.",
-                  "In a chord box the vertical lines are strings (string 6 on the left) and the horizontal lines are frets, with the nut at the top.",
-                  "In a chord box a dot is a finger, o means play the string open and x means do not play it."
+                  "Chord shapes are often written as six characters from string 6 to string 1: Em is 022000 (strings 5 and 4 at fret 2, the rest open).",
+                  "In that spelling an x marks a string that is not played: open C is x32010."
                 ],
-                "onTheGuitar": "Figure: chord box of Em (022000): fingers 2 and 3 on strings 5 and 4 at fret 2, all six strings marked o or with a dot; audio strum.",
+                "onTheGuitar": "Strum Em (022000): string 5 and string 4 at fret 2, all other strings open. Figure: the Em tab column (0 0 0 2 2 0 from the top line down) beside its six-character spelling 022000, read from string 6 to string 1; audio strum.",
+                "exercises": [
+                  {
+                    "type": "play-chord",
+                    "idea": "Strum Em (022000)."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "In the spelling 022000, which string does the first character describe? (string 6, the thickest)"
+                  },
+                  {
+                    "type": "true-false",
+                    "idea": "A chord is one note played loudly (false)."
+                  },
+                  {
+                    "type": "listen-choice",
+                    "idea": "Did you hear one note or a chord?"
+                  }
+                ],
+                "generators": [],
+                "minutes": 3
+              },
+              {
+                "id": "major-and-minor-chords/reading-a-chord-box",
+                "title": "Reading a chord box",
+                "teaches": "A chord box is a picture of the neck that shows where each finger goes: strings run down, frets run across, and o and x mark open and unplayed strings.",
+                "prerequisites": [
+                  "major-and-minor-chords/what-a-chord-is"
+                ],
+                "facts": [
+                  "In a chord box the vertical lines are strings (string 6 on the left) and the horizontal lines are frets, with the nut at the top.",
+                  "In a chord box a dot is a finger, o means play the string open and x means do not play it.",
+                  "Numbers on or under the dots name the fingers: 1 index, 2 middle, 3 ring, 4 little finger."
+                ],
+                "onTheGuitar": "Figure: chord boxes of Em (022000: fingers 2 and 3 on strings 5 and 4 at fret 2) and C (x32010: x over string 6, finger 3 on string 5 fret 3, finger 2 on string 4 fret 2, finger 1 on string 2 fret 1), each beside the same shape on a fretboard; audio strum.",
                 "exercises": [
                   {
                     "type": "chord-build",
-                    "idea": "Place Em: string 5 fret 2 and string 4 fret 2, all other strings open."
+                    "idea": "Place Em from its chord box: string 5 fret 2 and string 4 fret 2, all other strings open."
                   },
                   {
                     "type": "choice",
@@ -1582,8 +1591,12 @@
                     "idea": "An x above a string in a chord box means play it open (false)."
                   },
                   {
-                    "type": "play-chord",
-                    "idea": "Strum Em (022000)."
+                    "type": "chord-build",
+                    "idea": "Place C from its chord box (x32010), leaving string 6 unplayed."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "In the C chord box (x32010), how many strings are played? (5)"
                   }
                 ],
                 "generators": [
@@ -1596,7 +1609,7 @@
                 "title": "Root, third and fifth",
                 "teaches": "A triad is built from a root, the note a third above it and the note a fifth above it, found by counting letter names.",
                 "prerequisites": [
-                  "major-and-minor-chords/what-a-chord-is",
+                  "major-and-minor-chords/reading-a-chord-box",
                   "the-musical-alphabet/seven-letters"
                 ],
                 "facts": [
@@ -1621,7 +1634,7 @@
                   },
                   {
                     "type": "chord-build",
-                    "idea": "Place open C (x32010)."
+                    "idea": "Place open C (x32010) and name the note under each finger (C, E, C)."
                   }
                 ],
                 "generators": [
@@ -1677,7 +1690,7 @@
                   "Open E (022100) and open Em (022000) differ only on string 3: G# at fret 1 for E, open G for Em.",
                   "Lowering the third of a major chord by a half step makes it minor."
                 ],
-                "onTheGuitar": "Figure: chord boxes of E (022100) and Em (022000) side by side with the string 3 note labelled 3 or b3; audio of both.",
+                "onTheGuitar": "Figure: chord boxes of E (022100) and Em (022000) side by side with the string 3 note labelled 3 or b3 (flat 3, the minor third); audio of both.",
                 "exercises": [
                   {
                     "type": "chord-build",
@@ -1710,7 +1723,7 @@
                   "Open D (xx0232) has F# on string 1 at fret 2; open Dm (xx0231) has F on string 1 at fret 1.",
                   "A minor chord is written with a small m after the root: Am, Dm, Em."
                 ],
-                "onTheGuitar": "Figure: chord boxes of A, Am, D and Dm with the third labelled in each; audio pairs.",
+                "onTheGuitar": "Figure: chord boxes of A (x02220), Am (x02210), D (xx0232) and Dm (xx0231), with the third labelled: string 2 at fret 2 (C#) or fret 1 (C) for A and Am, string 1 at fret 2 (F#) or fret 1 (F) for D and Dm; audio pairs.",
                 "exercises": [
                   {
                     "type": "chord-build",
@@ -1748,7 +1761,7 @@
                   "A minor triad is a minor third with a major third on top: A-C-E.",
                   "Major and minor triads both have a perfect fifth, seven half steps, from root to fifth."
                 ],
-                "onTheGuitar": "Audio: pairs of open chords (E/Em, A/Am, D/Dm) and the same chords in random order. Figure: keyboard showing C-E-G and A-C-E with the thirds marked.",
+                "onTheGuitar": "Audio: pairs of open chords, E (022100) and Em (022000), A (x02220) and Am (x02210), D (xx0232) and Dm (xx0231), then the same chords in random order. Figure: the chord boxes with the third labelled 3 or b3, and C-E-G and A-C-E on string 5 (frets 3, 7, 10 and 0, 3, 7) with the thirds marked.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -1807,12 +1820,12 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "Chord, root and triad; reading a chord box (strings, frets, nut, o and x); root, third and fifth by counting letters; the major third (4 frets) versus the minor third (3 frets); the differences between E/Em, A/Am and D/Dm; hearing major versus minor; power chords as root and fifth."
+            "checkpoint": "Chord, root and triad; the six-character shape spelling (022000, x32010); reading a chord box (strings, frets, nut, o, x and finger numbers); root, third and fifth by counting letters; the major third (4 frets) versus the minor third (3 frets); the differences between E/Em, A/Am and D/Dm; hearing major versus minor; power chords as root and fifth."
           },
           {
             "id": "strumming-rhythm",
             "title": "Rhythm for strumming",
-            "summary": "Dotted notes, ties, 3/4 time, sixteenth notes, chord changes in time, accents and muted strums.",
+            "summary": "Dotted notes, ties, 3/4 time and time signatures, pickup notes, sixteenth notes, chord changes in time, accents and muted strums.",
             "whyItMatters": "These are the rhythms behind nearly every strummed song you will want to play.",
             "lessons": [
               {
@@ -1827,7 +1840,7 @@
                   "In 4/4 a dotted half note lasts three beats and a dotted quarter note lasts one and a half beats.",
                   "A dotted quarter note followed by an eighth note fills two beats."
                 ],
-                "onTheGuitar": "Strum Em: dotted half note then a quarter note; then dotted quarter, eighth, half. Figure: rhythm line with counts under each note; audio.",
+                "onTheGuitar": "Strum Em (022000): dotted half note then a quarter note; then dotted quarter, eighth, half. Figure: rhythm line with counts under each note; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -1859,7 +1872,7 @@
                   "A tie can carry a note across a bar line, which a dot cannot do.",
                   "A curved line joining notes of different pitches is a slur, not a tie."
                 ],
-                "onTheGuitar": "Strum Am on beat 4 and let it ring, tied over the bar line into beat 1. Figure: rhythm line of two bars with a tie across the bar line; audio.",
+                "onTheGuitar": "Strum Am (x02210) on beat 4 and let it ring, tied over the bar line into beat 1. Figure: rhythm line of two bars with a tie across the bar line; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -1890,7 +1903,8 @@
                 "facts": [
                   "In 3/4 time each bar has three beats, with the strongest on beat 1.",
                   "The waltz is a dance in 3/4.",
-                  "A dotted half note fills a whole bar of 3/4."
+                  "A dotted half note fills a whole bar of 3/4.",
+                  "In a time signature such as 3/4 or 4/4, the top number is the number of beats in a bar and the bottom number 4 means each beat is a quarter note."
                 ],
                 "onTheGuitar": "On Am (x02210): pick open string 5 on beat 1, strum strings 4 to 1 on beats 2 and 3 (\"bass, strum, strum\"). Figure: rhythm line of two 3/4 bars; audio.",
                 "exercises": [
@@ -1913,11 +1927,47 @@
                 "minutes": 3
               },
               {
+                "id": "strumming-rhythm/pickup-notes",
+                "title": "Pickup notes: starting before beat 1",
+                "teaches": "Some tunes start with a few pickup notes before the first full bar, so you count the missing beats silently and land on beat 1.",
+                "prerequisites": [
+                  "strumming-rhythm/three-four-time",
+                  "reading-tab/first-tab-tune"
+                ],
+                "facts": [
+                  "Notes that come before the first full bar are called a pickup (or an anacrusis).",
+                  "\"When the Saints Go Marching In\" starts with three pickup notes on beats 2, 3 and 4 (\"Oh when the\"), and \"Saints\" lands on beat 1.",
+                  "\"My Bonnie Lies over the Ocean\", in 3/4, starts with one pickup note on beat 3 (\"My\").",
+                  "Written music often shortens the last bar by the length of the pickup, so the two together make one full bar."
+                ],
+                "onTheGuitar": "Count \"1 2 3 4\" and play the pickup of \"When the Saints\" (traditional) in C on beats 2, 3 and 4: string 2 fret 1 (C), open string 1 (E), string 1 fret 1 (F), then string 1 fret 3 (G) on beat 1, held. Figure: tab and rhythm line with the pickup bar shaded; audio with a count-in.",
+                "exercises": [
+                  {
+                    "type": "tap-rhythm",
+                    "idea": "After a count-in, tap the opening of \"When the Saints\": beats 2, 3 and 4, then a long note on beat 1."
+                  },
+                  {
+                    "type": "play-phrase",
+                    "idea": "Play the pickup and first note of \"When the Saints\": string 2 fret 1, open string 1, string 1 fret 1, then string 1 fret 3 on beat 1."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "In \"When the Saints\", on which beat does \"Saints\" land? (beat 1)"
+                  },
+                  {
+                    "type": "listen-choice",
+                    "idea": "Does this tune start on beat 1 or with a pickup?"
+                  }
+                ],
+                "generators": [],
+                "minutes": 3
+              },
+              {
                 "id": "strumming-rhythm/sixteenth-notes",
                 "title": "Sixteenth notes",
                 "teaches": "Four sixteenth notes fit in one quarter-note beat, counted \"1 e & a\".",
                 "prerequisites": [
-                  "strumming-rhythm/three-four-time"
+                  "strumming-rhythm/pickup-notes"
                 ],
                 "facts": [
                   "Four sixteenth notes last as long as one quarter note.",
@@ -1925,7 +1975,7 @@
                   "Sixteenth notes have two flags, or two beams when grouped.",
                   "In sixteenth-note strumming the hand goes down on the numbers and \"&\"s and up on the \"e\"s and \"a\"s."
                 ],
-                "onTheGuitar": "Strum muted strings on every sixteenth note at 60 BPM, down on 1 and &, up on e and a. Figure: rhythm line of one beat of sixteenths with counts and arrows; audio.",
+                "onTheGuitar": "Strum the muted strings (fretting hand resting flat across them around fret 5) on every sixteenth note at 60 BPM, down on 1 and &, up on e and a; then the same on Em (022000). Figure: rhythm line of one beat of sixteenths with counts and arrows; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -1956,9 +2006,9 @@
                 "facts": [
                   "Unless the chart says otherwise, change to the next chord on beat 1 of the bar.",
                   "The last upstroke before a change may hit the open strings, which buys your fretting hand time to move.",
-                  "Many chord charts show one chord symbol per bar, and one slash (/) per beat when chords change inside a bar."
+                  "In a slash chart each beat gets a mark: the chord symbol on the beat where the chord starts and a slash (/) on each beat after it, as in \"| Em / / / |\"."
                 ],
-                "onTheGuitar": "Play Em for one bar and Am for one bar with the pattern down, down-up, up, down-up, changing on beat 1. Figure: chord chart \"| Em / / / | Am / / / |\" with chord boxes; audio at 70 BPM.",
+                "onTheGuitar": "Play Em (022000) for one bar and Am (x02210) for one bar with the pattern down, down-up, up, down-up, changing on beat 1: the second finger moves from string 5 to string 4 and the first finger joins on string 2 fret 1. Figure: chord chart \"| Em / / / | Am / / / |\" with chord boxes; audio at 70 BPM.",
                 "exercises": [
                   {
                     "type": "play-chord",
@@ -1990,7 +2040,7 @@
                   "A muted strum, written as an x note head, is a percussive \"chick\" made by strumming while the fretting hand rests lightly on the strings.",
                   "Stressing beats 2 and 4 is called the backbeat, the feel behind much pop and rock."
                 ],
-                "onTheGuitar": "Strum E: down on 1, a muted strum on 2, down-up on 3, a muted strum on 4. Figure: rhythm line with x note heads on beats 2 and 4 and accent marks; audio.",
+                "onTheGuitar": "Strum E (022100): down on 1, a muted strum on 2 (relax the fretting hand so the strings stop sounding), down-up on 3, a muted strum on 4. Figure: rhythm line with x note heads on beats 2 and 4 and accent marks; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -2011,7 +2061,7 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "A dot adds half; lengths of dotted half and dotted quarter notes; ties versus slurs; 3/4 time; sixteenth notes counted 1 e & a; reading a one-bar pattern and changing chords on beat 1; accents, muted strums and the backbeat on beats 2 and 4."
+            "checkpoint": "A dot adds half; lengths of dotted half and dotted quarter notes; ties versus slurs; 3/4 time and what the two numbers of a time signature mean; pickup notes before beat 1; sixteenth notes counted 1 e & a; reading a one-bar pattern and changing chords on beat 1; accents, muted strums and the backbeat on beats 2 and 4."
           },
           {
             "id": "intervals-1",
@@ -2574,7 +2624,7 @@
                   "A diminished triad is a minor third with another minor third on top: B D F in C major.",
                   "In G major the chords are G, Am, Bm, C, D, Em and F#dim."
                 ],
-                "onTheGuitar": "Figure: chord boxes for the open chords of G major (G 320003, Am x02210, Bm x24432, C x32010, D xx0232, Em 022000), and F#dim as a three-string triad (xx421x: F# A C on strings 4 to 2), each labelled with its quality.",
+                "onTheGuitar": "Figure: chord boxes for the open chords of G major (G 320003, Am x02210, Bm x24432, a barre chord you will learn later, C x32010, D xx0232, Em 022000), and F#dim as a three-string triad (xx421x: F# A C on strings 4 to 2), each labelled with its quality.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -2713,7 +2763,7 @@
                   "The higher a note sits on the staff, the higher it sounds.",
                   "A note sits either on a line (the line runs through its head) or in a space."
                 ],
-                "onTheGuitar": "Figure: an empty staff with lines and spaces numbered from the bottom, then two notes, one higher than the other; audio.",
+                "onTheGuitar": "Figure: an empty staff with lines and spaces numbered from the bottom, then two notes, one higher than the other, each joined to the string that plays it (open string 3 for the lower, open string 1 for the higher), so higher on the staff is higher on the guitar; audio.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -2747,7 +2797,7 @@
                   "The lines of the treble staff, bottom to top, are E G B D F; the spaces are F A C E.",
                   "A memory sentence for the lines from the bottom: Every Good Boy Deserves Fruit."
                 ],
-                "onTheGuitar": "Figure: treble staff with each line and space labelled; tapping one plays its sound.",
+                "onTheGuitar": "Figure: treble staff with each line and space labelled; tapping one plays its sound and lights where it is played in first position (the E on the bottom line at string 4 fret 2, the F on the top line at string 1 fret 1).",
                 "exercises": [
                   {
                     "type": "staff-read",
@@ -2880,7 +2930,7 @@
                 "exercises": [
                   {
                     "type": "staff-read",
-                    "idea": "Name the written note on the fourth line (D) and tap where it is played (string 2, fret 3)."
+                    "idea": "Name the written note on the fourth line (D)."
                   },
                   {
                     "type": "play-phrase",
@@ -2889,6 +2939,10 @@
                   {
                     "type": "fretboard-find",
                     "idea": "The written F on the top line: tap where you play it in first position (string 1, fret 1)."
+                  },
+                  {
+                    "type": "fretboard-find",
+                    "idea": "Tap where the written D on the fourth line is played in first position (string 2, fret 3)."
                   }
                 ],
                 "generators": [
@@ -3294,7 +3348,7 @@
                   "Flats are written in the order B E A D G C F, the order of sharps reversed.",
                   "F major has 1 flat, Bb 2, Eb 3, Ab 4, Db 5, Gb 6 and Cb 7."
                 ],
-                "onTheGuitar": "Figure: staff with the signatures of F, Bb, Eb and Ab major.",
+                "onTheGuitar": "Figure: staff with the signatures of F, Bb, Eb and Ab major; on the neck, their tonics at fret 1 of strings 6, 5, 4 and 3 (F, Bb, Eb, Ab), each a fourth above the last, which is a fifth below in the other direction.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -3327,7 +3381,7 @@
                   "One flat (Bb) is F major.",
                   "Every flat major key except F has a flat in its name."
                 ],
-                "onTheGuitar": "Figure: staff with the three-flat signature, the second-to-last flat (Eb) circled.",
+                "onTheGuitar": "Figure: staff with the three-flat signature, the second-to-last flat (Eb) circled, and the Eb major tonic on the neck at string 5 fret 6.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -3537,7 +3591,7 @@
                   "To find the minor key of a signature, find the major key and go down a minor third: one sharp is G major or E minor.",
                   "Which of the two keys a piece is in is shown by the chord and note it treats as home."
                 ],
-                "onTheGuitar": "Figure: staff with one sharp labelled \"G major or E minor\", two flats labelled \"Bb major or G minor\"; audio of a phrase ending on G and one ending on E.",
+                "onTheGuitar": "Figure: staff with one sharp labelled \"G major or E minor\", two flats labelled \"Bb major or G minor\"; on the neck, the two one-sharp tonics three frets apart on string 6 (E open, G at fret 3); audio of a phrase ending on G and one ending on E.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -3638,7 +3692,7 @@
                   "Around box 1 at fret 5, the added B notes are at string 6 fret 7, string 3 fret 4 and string 1 fret 7.",
                   "The added F notes are at string 5 fret 8 and string 2 fret 6."
                 ],
-                "onTheGuitar": "Figure: box 1 of A minor pentatonic in plain dots with the added B and F notes in a second colour, frets 4 to 8; tab ascending; audio.",
+                "onTheGuitar": "Fifth position means the first finger at fret 5, one finger per fret. Figure: box 1 of A minor pentatonic in plain dots with the added B and F notes in a second colour, frets 4 to 8; tab ascending; audio.",
                 "exercises": [
                   {
                     "type": "fretboard-find",
@@ -3771,7 +3825,7 @@
                   "An anticipation is a chord or note that arrives early, often by an eighth note on the \"&\" before a beat, and is usually tied over.",
                   "A common syncopated strum ties the \"&\" of 2 over beat 3, so beat 3 is not struck."
                 ],
-                "onTheGuitar": "Strum G with the pattern down (1), down-up (2 &), tie over 3, up (& of 3), down-up (4 &). Figure: rhythm line with the tie and counts; audio.",
+                "onTheGuitar": "Strum G (320003) with the pattern down (1), down-up (2 &), tie over 3, up (& of 3), down-up (4 &). Figure: rhythm line with the tie and counts; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -3802,9 +3856,10 @@
                   "In sixteenth-note rhythms the \"e\" and the \"a\" are the most off-beat positions.",
                   "An eighth note then two sixteenths in one beat is counted \"1 & a\"; two sixteenths then an eighth is \"1 e &\".",
                   "Sixteenth, eighth, sixteenth in one beat is counted \"1 e a\": the middle note starts on the \"e\".",
-                  "Funk rhythm guitar keeps the hand moving in sixteenths and strikes only some of them."
+                  "Funk rhythm guitar keeps the hand moving in sixteenths and strikes only some of them.",
+                  "A dotted eighth then a sixteenth fills one beat, counted \"1 (e &) a\": the sixteenth falls on the \"a\"."
                 ],
-                "onTheGuitar": "Strum muted strings with the hand moving in sixteenths at 70 BPM, striking only the notes of each figure. Figure: rhythm line of the three figures with counts and arrows; audio.",
+                "onTheGuitar": "Strum the muted strings with the hand moving in sixteenths at 70 BPM, striking only the notes of each figure; then play the same figures on Em7 (022030). Figure: rhythm line of the figures with counts and arrows; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -3837,7 +3892,7 @@
                   "Ritardando (rit.) means gradually slow down; accelerando (accel.) means gradually speed up.",
                   "A tempo means go back to the original speed."
                 ],
-                "onTheGuitar": "Figure: a short staff excerpt marked Andante, with rit. at the end and a tempo afterwards; metronome showing a typical Andante (about 76 to 108 BPM).",
+                "onTheGuitar": "Figure: a short original line on strings 1 and 2 (frets 0 to 3) on the staff, marked Andante, with rit. at the end and a tempo afterwards; metronome showing a typical Andante (about 76 to 108 BPM).",
                 "exercises": [
                   {
                     "type": "match-pairs",
@@ -3856,7 +3911,7 @@
                 "minutes": 2
               }
             ],
-            "checkpoint": "Triplets as three in the time of two and how to count them; swing as long-short pairs close to a 2:1 triplet feel; the shuffle; syncopation and anticipations; the sixteenth-note figures 1 & a, 1 e & and 1 e a; tempo words and rit., accel. and a tempo."
+            "checkpoint": "Triplets as three in the time of two and how to count them; swing as long-short pairs close to a 2:1 triplet feel; the shuffle; syncopation and anticipations; the sixteenth-note figures 1 & a, 1 e &, 1 e a and the dotted eighth plus sixteenth; tempo words and rit., accel. and a tempo."
           },
           {
             "id": "triads-and-inversions",
@@ -4017,8 +4072,8 @@
                     "idea": "Place F major in second inversion on strings 4-3-2 (frets 10, 10, 10)."
                   },
                   {
-                    "type": "fretboard-name",
-                    "idea": "Strings 4-3-2 at frets 7-5-6 are shown; name the chord and inversion (F, first inversion)."
+                    "type": "choice",
+                    "idea": "Strings 4-3-2 at frets 7-5-6: which chord and inversion is it? (F, first inversion)"
                   },
                   {
                     "type": "true-false",
@@ -4070,7 +4125,7 @@
           {
             "id": "caged",
             "title": "CAGED: five shapes, one neck",
-            "summary": "How the open C, A, G, E and D shapes become barre chords and link up to cover the whole neck.",
+            "summary": "How the open C, A, G, E and D shapes become barre chords, link up to cover the whole neck, and frame the five positions of the major scale.",
             "whyItMatters": "CAGED turns five chords you already know into a map of the entire fretboard.",
             "lessons": [
               {
@@ -4090,7 +4145,7 @@
                 "exercises": [
                   {
                     "type": "chord-build",
-                    "idea": "Place open D (xx0232) and mark which string carries its root (string 4)."
+                    "idea": "Place open D (xx0232); its lowest root is open string 4."
                   },
                   {
                     "type": "order",
@@ -4272,12 +4327,49 @@
                 "minutes": 4
               },
               {
+                "id": "caged/major-scale-positions",
+                "title": "The major scale in five positions",
+                "teaches": "The major scale can be played in five overlapping positions, one around each CAGED chord shape, which together cover the whole neck.",
+                "prerequisites": [
+                  "caged/one-chord-five-places",
+                  "major-scale/one-octave-shape"
+                ],
+                "facts": [
+                  "G major in the E-shape position (second position): string 6 frets 2, 3, 5; string 5 frets 2, 3, 5; string 4 frets 2, 4, 5; string 3 frets 2, 4, 5; string 2 frets 3, 5; string 1 frets 2, 3, 5.",
+                  "The five positions of G major sit around frets 0 to 4 (G shape), 2 to 5 (E shape), 4 to 8 (D shape), 7 to 10 (C shape) and 9 to 13 (A shape), then repeat twelve frets higher.",
+                  "Each position overlaps the next, as the chord shapes do, so learning them one at a time links up the whole neck.",
+                  "Many players also use three-notes-per-string patterns: from G on string 6 fret 3, G major is frets 3 5 7 on strings 6 and 5, 4 5 7 on strings 4 and 3, and 5 7 8 on strings 2 and 1."
+                ],
+                "onTheGuitar": "Figure: fretboard frets 0 to 15 with the five G major positions outlined in turn and the G roots in the root colour; the E-shape position (frets 2 to 5) in full with finger numbers, the G chord (355433 shape) inside it; tab of that position from the lowest G (string 6 fret 3) up two octaves to string 1 fret 3; audio.",
+                "exercises": [
+                  {
+                    "type": "play-phrase",
+                    "idea": "Play G major in the E-shape position from string 6 fret 3 up two octaves to string 1 fret 3, and back."
+                  },
+                  {
+                    "type": "fretboard-find",
+                    "idea": "In the E-shape position (frets 2 to 5), tap every G (string 6 fret 3, string 4 fret 5, string 1 fret 3)."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "Which position of G major sits around frets 7 to 10? (the C shape)"
+                  },
+                  {
+                    "type": "order",
+                    "idea": "Order the G major positions from the nut up: E shape, A shape, G shape, C shape, D shape (G, E, D, C, A)."
+                  }
+                ],
+                "generators": [
+                  "neck-tones"
+                ],
+                "minutes": 4
+              },
+              {
                 "id": "caged/shapes-inside-scales",
                 "title": "Chord shapes inside scale positions",
                 "teaches": "Each CAGED chord shape sits inside a matching position of the major scale, so the chord shows you the scale's root, third and fifth.",
                 "prerequisites": [
-                  "caged/one-chord-five-places",
-                  "major-scale/one-octave-shape"
+                  "caged/major-scale-positions"
                 ],
                 "facts": [
                   "Each CAGED chord shape sits inside a matching position of the major scale.",
@@ -4288,7 +4380,7 @@
                 "exercises": [
                   {
                     "type": "fretboard-find",
-                    "idea": "In the E-shape G major position, tap every B (the third)."
+                    "idea": "In the E-shape G major position, tap every B, the third (string 5 fret 2, string 3 fret 4)."
                   },
                   {
                     "type": "play-phrase",
@@ -4305,7 +4397,7 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "The five open shapes; the barre replacing the nut; E-shape and A-shape barre chords (major and minor) with roots on strings 6 and 5; the C-A-G-E-D order up the neck; one chord in five places; chord shapes inside scale positions."
+            "checkpoint": "The five open shapes; the barre replacing the nut; E-shape and A-shape barre chords (major and minor) with roots on strings 6 and 5; the C-A-G-E-D order up the neck; one chord in five places; the five major-scale positions (and three-notes-per-string patterns); chord shapes inside scale positions."
           },
           {
             "id": "pentatonic-boxes",
@@ -4562,7 +4654,7 @@
                   "A blues is A C D Eb E G.",
                   "The added b5 is often called the blue note (the b3 and b7 are blue notes too); it is usually passed through on the way to the 4 or the 5 rather than held."
                 ],
-                "onTheGuitar": "Figure: box 1 of A minor pentatonic with the Eb notes added at string 5 fret 6 and string 3 fret 8; tab of an original lick sliding string 3 frets 7-8-7 (D Eb D) to string 4 fret 7 (A); audio.",
+                "onTheGuitar": "Figure: box 1 of A minor pentatonic with the Eb notes added at string 5 fret 6 and string 3 fret 8; tab of an original lick (a short phrase) sliding string 3 frets 7-8-7 (D Eb D) to string 4 fret 7 (A); audio.",
                 "exercises": [
                   {
                     "type": "fretboard-find",
@@ -4629,7 +4721,7 @@
                   "The basic pattern: four bars of I, two of IV, two of I, one of V, one of IV, two of I.",
                   "In A the chords are A, D and E; in E they are E, A and B; in G they are G, C and D."
                 ],
-                "onTheGuitar": "Figure: a 12-bar chart in three lines of four bars (| A | A | A | A | D | D | A | A | E | D | A | A |) with numerals under it; audio of a backing loop.",
+                "onTheGuitar": "Figure: a 12-bar chart in three lines of four bars (| A | A | A | A | D | D | A | A | E | D | A | A |) with numerals under it and the chord boxes A (x02220), D (xx0232) and E (022100); audio of a backing loop.",
                 "exercises": [
                   {
                     "type": "fill-blanks",
@@ -4802,7 +4894,8 @@
                   "Chords in a key have three functions: tonic (home), subdominant (moving away) and dominant (tension that wants to return).",
                   "In a major key, I is the main tonic chord, IV the main subdominant chord and V the main dominant chord.",
                   "Many progressions follow the cycle tonic, subdominant, dominant, tonic.",
-                  "The subdominant function is also called predominant, because it usually comes before the dominant."
+                  "The subdominant function is also called predominant, because it usually comes before the dominant.",
+                  "Each degree has a name: 1 tonic, 2 supertonic, 3 mediant, 4 subdominant, 5 dominant, 6 submediant, 7 leading tone."
                 ],
                 "onTheGuitar": "Play C, F, G, C (x32010, xx3211, 320003, x32010) and say \"home, away, tension, home\". Figure: the three chords with function labels; audio.",
                 "exercises": [
@@ -4817,12 +4910,16 @@
                   {
                     "type": "choice",
                     "idea": "Which function wants to resolve home? (dominant)"
+                  },
+                  {
+                    "type": "match-pairs",
+                    "idea": "Match each degree to its name: 1 / tonic, 3 / mediant, 4 / subdominant, 5 / dominant, 7 / leading tone."
                   }
                 ],
                 "generators": [
                   "roman-chord"
                 ],
-                "minutes": 3
+                "minutes": 4
               },
               {
                 "id": "functional-harmony/substitute-chords",
@@ -4836,7 +4933,7 @@
                   "Chords that share two notes can often replace each other: Dm (D F A) shares F and A with F (F A C).",
                   "That is why ii-V-I and IV-V-I do the same job."
                 ],
-                "onTheGuitar": "Figure: the C major chords grouped in three function columns (tonic: C Em Am; subdominant: Dm F; dominant: G Bdim) with shared notes highlighted; audio of IV-V-I then ii-V-I.",
+                "onTheGuitar": "Figure: the C major chords grouped in three function columns, tonic C (x32010), Em (022000), Am (x02210); subdominant Dm (xx0231), F (xx3211); dominant G (320003), Bdim (x2343x), with shared notes highlighted; audio of IV-V-I then ii-V-I.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -4859,7 +4956,7 @@
               {
                 "id": "functional-harmony/why-v-pulls-home",
                 "title": "Why V pulls home",
-                "teaches": "V contains the leading tone, and V7 adds a note a half step above the third, so its tritone resolves inwards onto the tonic chord.",
+                "teaches": "V contains the leading tone (degree 7) and V7 adds degree 4; these two notes form a tritone that resolves by half steps onto the tonic chord.",
                 "prerequisites": [
                   "functional-harmony/substitute-chords",
                   "intervals-1/the-tritone",
@@ -4903,7 +5000,7 @@
                   "Half cadence: a phrase that ends on V. Deceptive cadence: V to vi.",
                   "The authentic cadence sounds the most final; a half cadence sounds like a comma, not a full stop."
                 ],
-                "onTheGuitar": "Figure: the four cadences in G as chord pairs (D7 to G, C to G, Am to D, D to Em) with chord boxes; audio of each.",
+                "onTheGuitar": "Figure: the four cadences in G as chord pairs, D7 (xx0212) to G (320003), C (x32010) to G, Am (x02210) to D (xx0232) and D to Em (022000), with chord boxes; audio of each.",
                 "exercises": [
                   {
                     "type": "match-pairs",
@@ -4935,7 +5032,7 @@
                   "The plagal cadence (IV-I) is the \"Amen\" ending of many hymns.",
                   "A phrase ending on V sounds unfinished: it waits for the next phrase."
                 ],
-                "onTheGuitar": "Audio: short four-chord phrases in C, G and D ending in each cadence, played on guitar. Figure: chord boxes revealed after each answer.",
+                "onTheGuitar": "Audio: short four-chord phrases in C, G and D ending in each cadence, played with open chords such as G7 (320001), C (x32010), Am (x02210), F (xx3211) and D (xx0232). Figure: chord boxes revealed after each answer.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -4968,7 +5065,7 @@
                   "ii-V-I (in C: Dm G C) is the central progression of jazz.",
                   "vi-IV-I-V is the same loop as I-V-vi-IV, started on a different chord."
                 ],
-                "onTheGuitar": "Play each progression in G with open chords (G, Em, C, D, Am). Figure: numerals over chord boxes; audio loops.",
+                "onTheGuitar": "Play each progression in G with open chords: G (320003), Em (022000), C (x32010), D (xx0232) and Am (x02210). Figure: numerals over chord boxes; audio loops.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -5000,7 +5097,7 @@
                   "If all the chords fit one major key, look for its I, IV and V: G, C, D and Em point to G major.",
                   "The same chords fit a major key and its relative minor; the chord that sounds like home decides which."
                 ],
-                "onTheGuitar": "Figure: three chord lists (G C D Em; A E F#m D; Am F C G) with the circle of fifths beside them; audio of each as a loop.",
+                "onTheGuitar": "Figure: three chord lists with their boxes, G 320003, C x32010, D xx0232, Em 022000; A x02220, E 022100, F#m 244222, D; Am x02210, F 133211, C, G; the circle of fifths beside them; audio of each as a loop.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -5019,7 +5116,7 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "Tonic, subdominant and dominant and their substitute chords; why V and V7 pull to I (leading tone, tritone); authentic, plagal, half and deceptive cadences by name and by ear; I-IV-V-I, I-vi-IV-V, ii-V-I and I-V-vi-IV; finding the key of a set of chords."
+            "checkpoint": "Tonic, subdominant and dominant and their substitute chords; the names of the seven degrees; why V and V7 pull to I (leading tone, tritone); authentic, plagal, half and deceptive cadences by name and by ear; I-IV-V-I, I-vi-IV-V, ii-V-I and I-V-vi-IV; finding the key of a set of chords."
           },
           {
             "id": "reading-first-position",
@@ -5044,7 +5141,7 @@
                 "exercises": [
                   {
                     "type": "staff-read",
-                    "idea": "Name the written note on the first ledger line below the staff (C) and tap where it is played (string 5, fret 3)."
+                    "idea": "Name the written note on the first ledger line below the staff (C)."
                   },
                   {
                     "type": "staff-place",
@@ -5053,6 +5150,10 @@
                   {
                     "type": "play-phrase",
                     "idea": "Read and play an eight-bar melody on strings 4 to 6."
+                  },
+                  {
+                    "type": "fretboard-find",
+                    "idea": "Tap where the written C on the first ledger line below the staff is played in first position (string 5, fret 3)."
                   }
                 ],
                 "generators": [
@@ -5109,7 +5210,7 @@
                 "exercises": [
                   {
                     "type": "staff-read",
-                    "idea": "Name the written note on the top line with a sharp (F#) and tap where it is played (string 1, fret 2)."
+                    "idea": "Name the written note on the top line with a sharp before it (F#; it is played at string 1 fret 2)."
                   },
                   {
                     "type": "fretboard-find",
@@ -5138,7 +5239,7 @@
                   "Beams group eighth and sixteenth notes by the beat, so each beat's start is easy to see.",
                   "To read a new piece, tap its rhythm first, then find the notes, then put the two together."
                 ],
-                "onTheGuitar": "Figure: two bars on the staff mixing quarters, beamed eighths and a dotted quarter, with counts under them; audio.",
+                "onTheGuitar": "Figure: two bars on the staff mixing quarters, beamed eighths and a dotted quarter, with notes on strings 1 to 3 in first position (frets 0 to 3) and the counts under them; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -5171,15 +5272,19 @@
                   "D.C. (da capo) means go back to the beginning; D.S. (dal segno) means go back to the sign, a slanted S with two dots.",
                   "\"al Fine\" means stop at the word Fine; \"al Coda\" means jump to the coda (marked with a circle and cross) when you reach \"To Coda\"."
                 ],
-                "onTheGuitar": "Figure: a 16-bar lead sheet with repeat signs, first and second endings, D.S. al Coda and a coda, with the playing order animated bar by bar.",
+                "onTheGuitar": "Figure: an original 16-bar lead sheet in G with chord boxes (G 320003, C x32010, D xx0232), repeat signs, first and second endings, D.S. al Coda and a coda, with the playing order animated bar by bar.",
                 "exercises": [
                   {
                     "type": "order",
-                    "idea": "Put the sections in playing order for \"A (repeat with endings), B, D.C. al Fine\"."
+                    "idea": "Section A has repeat signs with first and second endings, then B follows. Put in playing order: B, A with the second ending, A with the first ending (A with the first ending, A with the second ending, B)."
                   },
                   {
                     "type": "choice",
                     "idea": "What does D.C. al Fine mean? (go back to the start and stop at Fine)"
+                  },
+                  {
+                    "type": "order",
+                    "idea": "A ends with the word Fine, then B ends with D.C. al Fine. Put what you play in order: A, A, B (A, B, A, then stop at Fine)."
                   },
                   {
                     "type": "match-pairs",
@@ -5202,7 +5307,7 @@
                   "A crescendo (cresc. or an opening wedge) means gradually louder; a diminuendo (dim. or a closing wedge) means gradually softer.",
                   "A dot above or below a note (staccato) means short and detached; a short line (tenuto) means hold it its full length."
                 ],
-                "onTheGuitar": "Figure: a four-bar phrase on the staff marked p, crescendo, f, with staccato and tenuto notes; audio played as marked.",
+                "onTheGuitar": "Figure: an original four-bar phrase on strings 1 and 2 (frets 0 to 3) on the staff, marked p, crescendo, f, with staccato notes (stop the string with the fretting finger) and tenuto notes; audio played as marked.",
                 "exercises": [
                   {
                     "type": "order",
@@ -5210,7 +5315,7 @@
                   },
                   {
                     "type": "listen-choice",
-                    "idea": "Was the phrase played staccato or legato?"
+                    "idea": "Was the phrase played staccato (short) or tenuto (held full length)?"
                   },
                   {
                     "type": "match-pairs",
@@ -5307,9 +5412,9 @@
                 "facts": [
                   "i-bVII-bVI-bVII (Am G F G) and i-bVI-bIII-bVII (Am F C G) are common minor-key loops in rock and pop.",
                   "i-iv-v and i-iv-V are the basic minor-key progressions.",
-                  "Ending bVII-i (G to Am) is a common rock cadence that avoids the leading tone."
+                  "Ending bVII-i (G to Am) is a common rock cadence; its bVII is built on the subtonic, the note a whole step below the tonic, so there is no leading tone."
                 ],
-                "onTheGuitar": "Play each loop in A minor and in E minor (Em D C D; Em C G D). Figure: numerals over chord boxes; audio.",
+                "onTheGuitar": "Play each loop in A minor (Am x02210, G 320003, F xx3211, C x32010) and in E minor (Em 022000, D xx0232, C, G). Figure: numerals over chord boxes; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -5371,7 +5476,7 @@
                   "A verse can rest on vi (Am in C) and a chorus on I (C), changing the home feeling without changing key signature.",
                   "The major V of the relative minor (E or E7 in C major) is the chord that most clearly pulls toward the minor."
                 ],
-                "onTheGuitar": "Figure: a two-part original chart in C: verse Am F C G (resting on Am), chorus C G Am F (resting on C), with an E7 before the return to Am; audio.",
+                "onTheGuitar": "Figure: a two-part original chart in C with open chords (Am x02210, F xx3211, C x32010, G 320003, E7 020100): verse Am F C G (resting on Am), chorus C G Am F (resting on C), with an E7 before the return to Am; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -5394,7 +5499,7 @@
               {
                 "id": "minor-key-harmony/minor-key-colours",
                 "title": "The Picardy third and the major IV",
-                "teaches": "Two bright colours in minor: ending on a major tonic (the Picardy third) and a major IV chord borrowed from melodic minor or Dorian.",
+                "teaches": "Two bright colours in minor: ending on a major tonic chord (the Picardy third) and a major IV chord made with the raised 6th of melodic minor.",
                 "prerequisites": [
                   "minor-key-harmony/relative-keys-in-songs",
                   "minor-scales/melodic-minor"
@@ -5402,7 +5507,7 @@
                 "facts": [
                   "Ending a minor-key piece on a major tonic chord is called a Picardy third.",
                   "A major IV in a minor key (D in A minor) gives a brighter minor sound.",
-                  "That major IV comes from the raised 6th of melodic minor (F# in A minor), which is also the 6th of the Dorian mode."
+                  "That major IV uses the raised 6th of melodic minor (F# in A minor) in place of the natural minor's F."
                 ],
                 "onTheGuitar": "Play Am (x02210), D (xx0232), Am, D, and an ending Dm, E, A. Figure: chord boxes with the F#/F and C#/C differences labelled; audio.",
                 "exercises": [
@@ -5423,12 +5528,12 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "Natural-minor triad qualities and this app's numerals i ii° bIII iv v bVI bVII (versus the classical III VI VII); the major V and vii° from harmonic minor; i-bVII-bVI-bVII, i-bVI-bIII-bVII, i-iv-v and the bVII-i ending; the Andalusian cadence; moving between relative keys; the Picardy third and the major IV in minor."
+            "checkpoint": "Natural-minor triad qualities and this app's numerals i ii° bIII iv v bVI bVII (versus the classical III VI VII); the major V and vii° from harmonic minor; i-bVII-bVI-bVII, i-bVI-bIII-bVII, i-iv-v and the bVII-i ending on the subtonic; the Andalusian cadence; moving between relative keys; the Picardy third and the major IV in minor."
           },
           {
             "id": "seventh-chords",
             "title": "Seventh chords",
-            "summary": "The five main seventh chords, their formulas, the sevenths of a key, open and barre shapes, and what each one does.",
+            "summary": "The five main seventh chords, their formulas, the sevenths of major and minor keys, open and barre shapes, and what each one does.",
             "whyItMatters": "Seventh chords are the sound of jazz, soul, funk and the blues, and they explain how chords pull from one to the next.",
             "lessons": [
               {
@@ -5509,7 +5614,7 @@
                   "In C major they are Cmaj7, Dm7, Em7, Fmaj7, G7, Am7 and Bm7b5.",
                   "Only one diatonic chord in a major key is a dominant seventh: V7."
                 ],
-                "onTheGuitar": "Figure: the seven chords of C as drop shapes on strings 5 to 2, numerals underneath; audio climbing through them.",
+                "onTheGuitar": "Figure: the seven chords of C as four-note shapes on strings 5 to 2, numerals underneath; audio climbing through them.",
                 "exercises": [
                   {
                     "type": "fill-blanks",
@@ -5530,11 +5635,49 @@
                 "minutes": 3
               },
               {
+                "id": "seventh-chords/sevenths-in-a-minor-key",
+                "title": "The seventh chords of a minor key",
+                "teaches": "Stacking four notes on each degree of natural minor gives i7 iiø7 bIIImaj7 iv7 v7 bVImaj7 bVII7, and the raised 7th of harmonic minor adds the dominant V7 and the diminished vii°7.",
+                "prerequisites": [
+                  "seventh-chords/sevenths-in-a-key",
+                  "minor-key-harmony/the-major-v"
+                ],
+                "facts": [
+                  "In A minor the natural-minor seventh chords are Am7, Bm7b5, Cmaj7, Dm7, Em7, Fmaj7 and G7.",
+                  "This app writes them i7 iiø7 bIIImaj7 iv7 v7 bVImaj7 bVII7.",
+                  "With the raised 7th of harmonic minor (G# in A minor), v7 becomes the dominant seventh E7 and the chord on G# becomes the diminished seventh G#dim7.",
+                  "On the tonic the raised 7th gives a minor-major seventh chord, AmMaj7 (A C E G#): a minor triad with a major 7th."
+                ],
+                "onTheGuitar": "Play the A minor sevenths in open position: Am7 (x02010), Bm7b5 (x2323x), Cmaj7 (x32000), Dm7 (xx0211), Em7 (022030), Fmaj7 (xx3210) and G7 (320001); then E7 (020100), G#dim7 (4x343x) and AmMaj7 (x02110). Figure: chord boxes with numerals; audio climbing through them.",
+                "exercises": [
+                  {
+                    "type": "fill-blanks",
+                    "idea": "The seventh chords of E minor: Em7, F#m7b5, Gmaj7, Am7, _, Cmaj7, D7 (Bm7)."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "In A minor, which chord is bVImaj7? (Fmaj7)"
+                  },
+                  {
+                    "type": "listen-choice",
+                    "idea": "The chord before Am7: was it Em7 (v7) or E7 (V7)?"
+                  },
+                  {
+                    "type": "chord-build",
+                    "idea": "Place AmMaj7 (x02110)."
+                  }
+                ],
+                "generators": [
+                  "diatonic-chord"
+                ],
+                "minutes": 4
+              },
+              {
                 "id": "seventh-chords/open-seventh-shapes",
                 "title": "Open seventh-chord shapes",
                 "teaches": "Many open chords become seventh chords by moving or lifting one finger.",
                 "prerequisites": [
-                  "seventh-chords/sevenths-in-a-key",
+                  "seventh-chords/sevenths-in-a-minor-key",
                   "major-and-minor-chords/a-am-d-dm"
                 ],
                 "facts": [
@@ -5607,7 +5750,7 @@
                   "A major 7th is a half step below the octave and rubs against it; a minor 7th is a whole step below.",
                   "To tell 7 from m7, listen for the third: major in 7, minor in m7."
                 ],
-                "onTheGuitar": "Audio: the five types on the same root (A) as guitar voicings, then in random order. Figure: the voicings revealed after each answer.",
+                "onTheGuitar": "Audio: the five types on root A as open voicings, Amaj7 (x02120), A7 (x02020), Am7 (x02010), Am7b5 (x0101x) and Adim7 (x01212), then in random order. Figure: the voicings revealed after each answer.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -5661,7 +5804,7 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "A seventh chord as a triad plus a third; the formulas of maj7, 7, m7, m7b5 and dim7 (with the bb7 spelling); the diatonic seventh chords of a major key; open and barre shapes for maj7, 7, m7 and m7b5; hearing the five types; their usual functions."
+            "checkpoint": "A seventh chord as a triad plus a third; the formulas of maj7, 7, m7, m7b5 and dim7 (with the bb7 spelling); the diatonic seventh chords of a major key and of a minor key (with V7, vii°7 and the minor-major seventh from harmonic minor); open and barre shapes for maj7, 7, m7 and m7b5; hearing the five types; their usual functions."
           },
           {
             "id": "modes",
@@ -5738,7 +5881,7 @@
               {
                 "id": "modes/dorian",
                 "title": "Dorian",
-                "teaches": "Dorian is natural minor with a raised 6th, a minor sound with a brighter edge.",
+                "teaches": "Dorian is natural minor with a raised 6th, a minor sound with a brighter edge; it is the F# of the major IV in A minor heard as a scale.",
                 "prerequisites": [
                   "modes/modes-against-major",
                   "minor-key-harmony/minor-key-colours"
@@ -5746,7 +5889,7 @@
                 "facts": [
                   "Dorian is 1 2 b3 4 5 6 b7: natural minor with a raised 6th.",
                   "The raised 6th is Dorian's characteristic note: B in D Dorian, F# in A Dorian.",
-                  "Dorian suits a minor vamp with a major IV chord: Dm to G, or Am to D."
+                  "Dorian suits a vamp (two chords repeated over and over) of the minor tonic and the major IV: Dm to G, or Am to D."
                 ],
                 "onTheGuitar": "Vamp Am7 (x02010) to D (xx0232) and play A Dorian in fifth position: A natural minor with F# (string 4 fret 4, string 2 fret 7) in place of F. Figure: A Dorian in fifth position with F# highlighted; audio.",
                 "exercises": [
@@ -5920,7 +6063,8 @@
                 "facts": [
                   "A suspended chord replaces the 3rd with the 2nd (sus2) or the 4th (sus4): Csus2 is C D G, Csus4 is C F G.",
                   "With no 3rd, a sus chord is neither major nor minor.",
-                  "A sus4 often resolves to the major chord on the same root: Dsus4 (xx0233) to D (xx0232)."
+                  "A sus4 often resolves to the major chord on the same root: Dsus4 (xx0233) to D (xx0232).",
+                  "A 7sus4 chord adds the b7 to a sus4: A7sus4 (x02030) is A D E G, often used in place of V7 or just before it."
                 ],
                 "onTheGuitar": "Figure: chord boxes of Dsus2 (xx0230), D (xx0232), Dsus4 (xx0233) and Asus2 (x02200), A, Asus4 (x02230), with the moving note labelled 2, 3 or 4; audio.",
                 "exercises": [
@@ -5985,7 +6129,8 @@
                 "facts": [
                   "A 6 chord is a major triad plus the major 6th: C6 is C E G A.",
                   "A minor 6 chord adds the major 6th to a minor triad: Am6 is A C E F#.",
-                  "C6 and Am7 contain the same four notes; the bass note decides which name fits."
+                  "C6 and Am7 contain the same four notes; the bass note decides which name fits.",
+                  "A 6/9 chord adds both the 6th and the 9th to a major triad: C6/9 (x32233) is C E G A D."
                 ],
                 "onTheGuitar": "Figure: chord boxes of C6 (x35555) and Am7 (x02010) with the shared notes C, E, G and A highlighted, and Am6 (x02212); audio.",
                 "exercises": [
@@ -6099,18 +6244,18 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "sus2 and sus4 (no 3rd) and the sus4-to-major resolution; add9 versus 9; add4; 6 and m6 chords and C6 versus Am7; slash chords as inversions or as new bass notes; descending bass lines with slash chords; pedal points on open strings."
+            "checkpoint": "sus2 and sus4 (no 3rd), the sus4-to-major resolution and the 7sus4; add9 versus 9; add4; 6, m6 and 6/9 chords and C6 versus Am7; slash chords as inversions or as new bass notes; descending bass lines with slash chords; pedal points on open strings."
           },
           {
             "id": "capo-and-transposition",
             "title": "Transposing, the capo and Nashville numbers",
-            "summary": "Moving music to a new key, capo arithmetic, choosing a key, and writing progressions as numbers.",
+            "summary": "Moving music to a new key by interval and by numerals, capo arithmetic, choosing a key, and writing progressions as numbers.",
             "whyItMatters": "With these you can play any song in a key that suits your voice using the chord shapes you already know.",
             "lessons": [
               {
                 "id": "capo-and-transposition/transposing",
                 "title": "Transposing",
-                "teaches": "To transpose is to move every note or chord of a piece by the same interval into a new key.",
+                "teaches": "To transpose is to move every note or chord of a piece by the same interval into a new key, and writing the chords as numerals first makes it easy.",
                 "prerequisites": [
                   "functional-harmony/common-progressions",
                   "circle-of-fifths/the-circle"
@@ -6118,9 +6263,10 @@
                 "facts": [
                   "To transpose is to move music to a new key by moving every note or chord by the same interval.",
                   "C Am F G transposed up a whole step is D Bm G A.",
-                  "Chord qualities never change when you transpose: minor stays minor and a 7 stays a 7."
+                  "Chord qualities never change when you transpose: minor stays minor and a 7 stays a 7.",
+                  "Writing the chords as roman numerals first, then reading them in the new key, keeps every chord right: I-V-vi-IV is G D Em C in G and A E F#m D in A."
                 ],
-                "onTheGuitar": "Figure: the C Am F G chord boxes and, beside them, D Bm G A, with an arrow labelled \"up a whole step\"; audio of both.",
+                "onTheGuitar": "Figure: C (x32010), Am (x02210), F (xx3211), G (320003) and beside them D (xx0232), Bm (x24432), G (320003), A (x02220), with an arrow labelled \"up a whole step\" and the numerals I vi IV V under both; audio of both.",
                 "exercises": [
                   {
                     "type": "type-answer",
@@ -6137,52 +6283,24 @@
                   {
                     "type": "listen-choice",
                     "idea": "Two progressions are played: is the second the same progression in a new key?"
-                  }
-                ],
-                "generators": [
-                  "roman-chord"
-                ],
-                "minutes": 3
-              },
-              {
-                "id": "capo-and-transposition/transposing-with-numerals",
-                "title": "Transposing with numerals",
-                "teaches": "Write a progression as roman numerals, then read the numerals in the new key.",
-                "prerequisites": [
-                  "capo-and-transposition/transposing",
-                  "chords-in-a-key/roman-numerals"
-                ],
-                "facts": [
-                  "Writing a progression as roman numerals makes transposing easy: write the numerals, then read them in the new key.",
-                  "I-V-vi-IV is G D Em C in G and A E F#m D in A.",
-                  "Transposing by numerals keeps every chord spelled correctly for the new key."
-                ],
-                "onTheGuitar": "Figure: I-V-vi-IV laid out in G, A and C with chord boxes; audio of all three.",
-                "exercises": [
+                  },
                   {
                     "type": "fill-blanks",
                     "idea": "I-vi-IV-V in D: D, Bm, G, _ (A)."
-                  },
-                  {
-                    "type": "choice",
-                    "idea": "ii-V-I in F is which chords? (Gm C F)"
-                  },
-                  {
-                    "type": "type-answer",
-                    "idea": "Type IV in E major (A)."
                   }
                 ],
                 "generators": [
                   "roman-chord"
                 ],
-                "minutes": 3
+                "minutes": 4
               },
               {
                 "id": "capo-and-transposition/the-capo",
                 "title": "How a capo works",
                 "teaches": "A capo raises every open string by the number of frets it sits at, so the same shapes sound higher.",
                 "prerequisites": [
-                  "capo-and-transposition/transposing-with-numerals"
+                  "capo-and-transposition/transposing",
+                  "chords-in-a-key/roman-numerals"
                 ],
                 "facts": [
                   "A capo clamps across the strings at a fret and raises every open string by that many half steps.",
@@ -6197,7 +6315,7 @@
                   },
                   {
                     "type": "true-false",
-                    "idea": "With a capo at fret 2, a 0 in the tab means the open string behind the capo (false)."
+                    "idea": "In most capo tab, with the capo at fret 2, a 0 means the open string behind the capo (false: it means the capo fret)."
                   },
                   {
                     "type": "play-chord",
@@ -6284,7 +6402,7 @@
                   "A slash number marks the bass: 1/3 in C is C/E.",
                   "A number chart works in any key; the band only needs to be told the key."
                 ],
-                "onTheGuitar": "Figure: an original number chart (1 | 5 | 6- | 4 | 1/3 | 4 | 5 | 1) read in G and then in D, with chord boxes; audio.",
+                "onTheGuitar": "Figure: an original number chart (1 | 5 | 6- | 4 | 1/3 | 4 | 5 | 1) read in G (G 320003, D xx0232, Em 022000, C x32010, G/B x20003) and then in D (D xx0232, A x02220, Bm x24432, G 320003, D/F# 2x0232); audio.",
                 "exercises": [
                   {
                     "type": "fill-blanks",
@@ -6394,7 +6512,7 @@
                   "Placing chord tones on the strong beats (1 and 3 in 4/4) and other notes between them makes a line follow the harmony.",
                   "A non-chord tone on a strong beat sounds tense and usually moves by step to a chord tone."
                 ],
-                "onTheGuitar": "Figure: a two-bar line over Am to Dm with the notes on beats 1 and 3 highlighted as chord tones; audio over the backing.",
+                "onTheGuitar": "Figure: a two-bar line in fifth position over Am (x02210) to Dm (xx0231), with the beat 1 and 3 notes highlighted as chord tones: A (string 4 fret 7) and C (string 3 fret 5) over Am, D (string 3 fret 7) and F (string 2 fret 6) over Dm; audio over the backing.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -6530,7 +6648,8 @@
                 "facts": [
                   "In simple meters each beat divides into two; in compound meters each beat divides into three.",
                   "In compound meters the beat is a dotted note: in 6/8 the beat is a dotted quarter note.",
-                  "The top number of a compound meter counts the divisions, not the beats: 6/8 has six eighth notes but two beats."
+                  "The top number of a compound meter counts the divisions, not the beats: 6/8 has six eighth notes but two beats.",
+                  "Common time (a C) means 4/4; cut time (a C with a vertical line through it) means 2/2, two half-note beats per bar."
                 ],
                 "onTheGuitar": "Pick open string 5 in a bar of 2/4 with eighth notes (two beats of two), then a bar of 6/8 (two beats of three). Figure: rhythm lines of both bars with beat groupings bracketed; audio.",
                 "exercises": [
@@ -6660,7 +6779,7 @@
                   "A hemiola makes two bars of three beats feel like three bars of two beats by accenting every second beat.",
                   "Hemiolas are common at cadences in Baroque music and in Latin American styles that move between 6/8 and 3/4."
                 ],
-                "onTheGuitar": "Strum two bars of 3/4 on Am with accents on beats 1 and 3 of bar 1 and beat 2 of bar 2. Figure: two 3/4 bars with the accents and the 3 x 2 regrouping drawn above them; audio.",
+                "onTheGuitar": "Strum two bars of 3/4 on Am (x02210) with accents on beats 1 and 3 of bar 1 and beat 2 of bar 2. Figure: two 3/4 bars with the accents and the 3 x 2 regrouping drawn above them; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -6709,7 +6828,7 @@
                 "minutes": 4
               }
             ],
-            "checkpoint": "Simple versus compound meters and the dotted-note beat; counting 6/8, 9/8 and 12/8 and the difference between 3/4 and 6/8; groupings of 5/4 and 7/8; mixed meter and hemiola; the composite rhythm of 3 against 2."
+            "checkpoint": "Simple versus compound meters and the dotted-note beat; common time and cut time; counting 6/8, 9/8 and 12/8 and the difference between 3/4 and 6/8; groupings of 5/4 and 7/8; mixed meter and hemiola; the composite rhythm of 3 against 2."
           },
           {
             "id": "extended-chords",
@@ -6730,7 +6849,7 @@
                   "A 9th chord contains a 7th; a chord with a 9th and no 7th is an add9.",
                   "The 9th, 11th and 13th are the 2nd, 4th and 6th an octave higher."
                 ],
-                "onTheGuitar": "Figure: C stacked in thirds on a keyboard from C3 to A4 (C E G Bb D F A), each labelled 1 3 5 b7 9 11 13; audio as a rolled chord.",
+                "onTheGuitar": "Figure: C stacked in thirds on the neck from C3 to A4, each labelled 1 3 5 b7 9 11 13: C (string 5 fret 3), E (string 4 fret 2), G (open string 3), Bb (string 3 fret 3), D (string 2 fret 3), F (string 1 fret 1), A (string 1 fret 5); audio as a rolled chord.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -6892,7 +7011,7 @@
                   "Em9 is not diatonic to C major, because the 9th of E is F#.",
                   "Fmaj7#11 is diatonic to C major: the #11 of F is B."
                 ],
-                "onTheGuitar": "Figure: the C major seventh chords with their diatonic 9ths, 11ths and 13ths listed above each; outside notes (the F# of Em9) in red with a label; audio.",
+                "onTheGuitar": "Figure: the C major seventh chords with their diatonic 9ths, 11ths and 13ths listed above each, and movable shapes Cmaj9 (x3243x), Dm9 (x5355x) and G9 (x-10-9-10-10-x); outside notes (the F# of Em9) in red with a label; audio.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -6998,7 +7117,7 @@
                   "Secondary dominants usually resolve down a fifth to their target: E7 to Am.",
                   "Outside a blues, I7 (C7 in C) usually heads to IV, so it is heard as V7/IV rather than as the tonic."
                 ],
-                "onTheGuitar": "Figure: an original eight-bar chart in G (| G | E7 | Am | D7 | G | B7 | Em | D7 |) with secondary dominants circled and arrows to their targets; audio.",
+                "onTheGuitar": "Figure: an original eight-bar chart in G (| G | E7 | Am | D7 | G | B7 | Em | D7 |) with chord boxes (G 320003, E7 020100, Am x02210, D7 xx0212, B7 x21202, Em 022000), the secondary dominants circled and arrows to their targets; audio.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -7094,7 +7213,7 @@
                   "Hearing a major chord where the key would have a minor one is the clue to a secondary dominant.",
                   "Many secondary dominants are open shapes on guitar: A7, B7, D7 and E7."
                 ],
-                "onTheGuitar": "Audio: I-vi-ii-V and I-VI7-ii-V7 in C and G played on guitar. Figure: chord boxes revealed after each answer.",
+                "onTheGuitar": "Audio: I-vi-ii-V and I-VI7-ii-V7 in C, played with C (x32010), Am (x02210), A7 (x02020), Dm (xx0231) and G7 (320001), and the same in G. Figure: chord boxes revealed after each answer.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -7134,7 +7253,7 @@
                   "Each mode has a characteristic chord containing its characteristic note: Dorian IV, Mixolydian bVII, Lydian II, Phrygian bII, Aeolian bVI.",
                   "A two-chord vamp of the tonic and the characteristic chord establishes a mode clearly: Dm to G for D Dorian."
                 ],
-                "onTheGuitar": "Vamp each pair: Dm-G (D Dorian), G-F (G Mixolydian), F-G (F Lydian), Em-F (E Phrygian), Am-F (A Aeolian). Figure: chord boxes with the characteristic note circled in each second chord; audio.",
+                "onTheGuitar": "Vamp each pair: Dm (xx0231) to G (320003) for D Dorian, G to F (133211) for G Mixolydian, F (133211) to G for F Lydian, Em (022000) to F (133211) for E Phrygian, Am (x02210) to F for A Aeolian. Figure: chord boxes with the characteristic note circled in each second chord; audio.",
                 "exercises": [
                   {
                     "type": "match-pairs",
@@ -7279,7 +7398,7 @@
               {
                 "id": "modal-harmony-and-borrowing/neapolitan-and-dark-ii",
                 "title": "The Neapolitan and the borrowed iiø7",
-                "teaches": "Two more borrowings lead to V: the Neapolitan (a major chord on the flat 2nd) and the half-diminished ii from minor.",
+                "teaches": "Two more chromatic chords lead to V: the Neapolitan (a major chord on the flat 2nd, as in Phrygian) and the half-diminished ii borrowed from minor.",
                 "prerequisites": [
                   "modal-harmony-and-borrowing/flat-seven-and-flat-six"
                 ],
@@ -7354,10 +7473,11 @@
                 "teaches": "The minor ii-V-i uses a half-diminished ii, a dominant V (often with b9) and a minor tonic.",
                 "prerequisites": [
                   "jazz-harmony/major-two-five-one",
-                  "minor-key-harmony/the-major-v"
+                  "minor-key-harmony/the-major-v",
+                  "seventh-chords/sevenths-in-a-minor-key"
                 ],
                 "facts": [
-                  "The minor ii-V-i uses iiø7, V7 and a minor tonic: Bm7b5 E7 Am (or Am6, AmMaj7) in A minor.",
+                  "The minor ii-V-i uses iiø7, V7 and a minor tonic: Bm7b5 E7 Am (or Am6, or the minor-major seventh AmMaj7) in A minor.",
                   "A half-diminished chord (m7b5, ø7) is a diminished triad plus a minor 7th: Bm7b5 is B D F A.",
                   "The b9 of E7 (F) belongs to A harmonic minor, which is why V7b9 sounds natural in a minor key."
                 ],
@@ -7426,7 +7546,7 @@
                   "Shells with the root on string 5: Cmaj7 x3x45x, C7 x3x35x, Cm7 x3x34x.",
                   "ii-V-I in C with shells moves by small steps: Dm7 x5x56x, G7 3x34xx, Cmaj7 x3x45x."
                 ],
-                "onTheGuitar": "Figure: chord boxes of the six shells with dots labelled 1, 3 or b3, 7 or b7; then the shell ii-V-I; audio.",
+                "onTheGuitar": "Figure: chord boxes of the six shells, Gmaj7 3x44xx, G7 3x34xx, Gm7 3x33xx, Cmaj7 x3x45x, C7 x3x35x and Cm7 x3x34x, with dots labelled 1, 3 or b3, 7 or b7; then the shell ii-V-I; audio.",
                 "exercises": [
                   {
                     "type": "chord-build",
@@ -7456,9 +7576,10 @@
                 "facts": [
                   "A drop-2 voicing takes a close-position four-note chord and drops its second-highest note an octave.",
                   "Drop-2 voicings sit on four neighbouring strings, such as strings 5 to 2 or 4 to 1.",
-                  "Cmaj7 in root position as a drop-2 on strings 5 to 2: x3545x (C G B E)."
+                  "Cmaj7 in root position as a drop-2 on strings 5 to 2 is x3545x (C G B E): it comes from the close voicing G B C E with the C dropped an octave.",
+                  "Dropping the second-highest note of the close voicing C E G B gives G C E B instead: Cmaj7/G (3324xx), a drop-2 with the 5th in the bass."
                 ],
-                "onTheGuitar": "Figure: Cmaj7 in close position (C E G B) on a staff, the G dropped an octave to give C G B E, then the shape x3545x on the neck; audio.",
+                "onTheGuitar": "Figure: Cmaj7 in close position G B C E on a staff, the C dropped an octave to give C G B E, then the shape x3545x on strings 5 to 2; beside it, close C E G B with its G dropped to give G C E B, the shape Cmaj7/G (3324xx) on strings 6 to 3; audio of both.",
                 "exercises": [
                   {
                     "type": "chord-build",
@@ -7466,7 +7587,7 @@
                   },
                   {
                     "type": "order",
-                    "idea": "Close Cmaj7 from low to high is C E G B. Order the drop-2 voicing from low to high (C G B E)."
+                    "idea": "Close Cmaj7 voiced G B C E, low to high: drop its second-highest note and order the result from low to high (C G B E)."
                   },
                   {
                     "type": "choice",
@@ -7551,7 +7672,7 @@
                   "Swing-era rhythm guitarists often played short three-note chords on every beat, called four-to-the-bar comping.",
                   "Modern comping uses fewer, syncopated chord hits and leaves room for the soloist."
                 ],
-                "onTheGuitar": "Over a ii-V-I loop in C with shells: one bar of four short chords per bar, then a bar with hits on the \"&\" of 1 and on beat 3 only. Figure: rhythm lines for both; audio.",
+                "onTheGuitar": "Over a ii-V-I loop in C with shells (Dm7 x5x56x, G7 3x34xx, Cmaj7 x3x45x): one bar of four short chords, then a bar with hits on the \"&\" of 1 and on beat 3 only. Figure: rhythm lines for both; audio.",
                 "exercises": [
                   {
                     "type": "tap-rhythm",
@@ -7656,7 +7777,7 @@
                   "The altered scale, the seventh mode of melodic minor, contains all of them: G altered is G Ab Bb Cb Db Eb F.",
                   "G altered has the same notes as Ab melodic minor."
                 ],
-                "onTheGuitar": "Figure: G altered in one position around fret 3, degrees labelled 1 b9 #9 3 (spelled Cb) #11 b13 b7; audio over G7alt resolving to C.",
+                "onTheGuitar": "Figure: G altered in one position around fret 3, each note labelled with its job over G7: 1 (G), b9 (Ab), #9 (spelled Bb), 3 (spelled Cb), #11 (spelled Db), b13 (Eb), b7 (F); audio over G7alt resolving to C.",
                 "exercises": [
                   {
                     "type": "type-answer",
@@ -7685,7 +7806,7 @@
                   "altered-dominants/seven-alt-and-the-altered-scale"
                 ],
                 "facts": [
-                  "A tritone substitute replaces a dominant 7th chord with the dominant 7th a tritone away: Db7 for G7.",
+                  "A tritone substitute replaces a dominant 7th chord with the dominant 7th a tritone away: Db7 for G7, written subV7.",
                   "G7 (G B D F) and Db7 (Db F Ab Cb) share the same tritone, B and F, which Db7 spells Cb and F.",
                   "Dm7 Db7 Cmaj7 gives a chromatic bass line falling D, Db, C."
                 ],
@@ -7891,7 +8012,7 @@
                 "exercises": [
                   {
                     "type": "chord-build",
-                    "idea": "Play Caug on strings 4-3-2 (10-9-9), then move it down four frets."
+                    "idea": "Place the augmented triad on strings 4-3-2 at frets 6-5-5: the same three pitches as Caug at 10-9-9."
                   },
                   {
                     "type": "true-false",
@@ -8182,7 +8303,7 @@
           {
             "id": "voice-leading",
             "title": "Voice leading",
-            "summary": "How the notes of one chord move to the next: common tones, motion types, parallel fifths, line clichés and smooth seventh chords.",
+            "summary": "How the notes of one chord move to the next: common tones, motion types, parallel fifths, line clichés, non-chord tones and smooth seventh chords.",
             "whyItMatters": "Good voice leading makes simple progressions sound polished and makes chord changes easier for your hand.",
             "lessons": [
               {
@@ -8210,7 +8331,7 @@
                   },
                   {
                     "type": "fretboard-find",
-                    "idea": "In C (x32010) to Am (x02210), tap the strings whose notes change."
+                    "idea": "From C (x32010) to Am (x02210), tap the two new notes of Am, both A, between frets 0 and 3 (open string 5, string 3 fret 2)."
                   }
                 ],
                 "generators": [],
@@ -8340,10 +8461,48 @@
                 "minutes": 3
               },
               {
+                "id": "voice-leading/non-chord-tones",
+                "title": "Notes outside the chord",
+                "teaches": "Melody notes outside the chord are non-chord tones, named by how they move: passing tones, neighbour tones, suspensions and appoggiaturas.",
+                "prerequisites": [
+                  "voice-leading/line-cliches",
+                  "colour-chords/sus-chords",
+                  "improvising-1/chord-tones-on-strong-beats"
+                ],
+                "facts": [
+                  "A passing tone moves by step between two different chord tones: over C, the D in C D E.",
+                  "A neighbour tone steps away from a chord tone and back to it: over C, the F in E F E.",
+                  "A suspension holds a note over from the previous chord, where it clashes, then resolves down by step: G held from a G chord into D, then falling to F#, is a 4-3 suspension.",
+                  "An appoggiatura leaps to a non-chord tone on a strong beat and then resolves by step."
+                ],
+                "onTheGuitar": "Over C (x32010), play string 2 frets 1, 3, 5 (C D E, the D passing) and string 1 frets 0, 1, 0 (E F E, the F a neighbour); then play G (320003), Dsus4 (xx0233) and D (xx0232), keeping string 1 at fret 3 (G) until it falls to F# at fret 2. Figure: tab with each non-chord tone labelled; audio.",
+                "exercises": [
+                  {
+                    "type": "match-pairs",
+                    "idea": "Match each non-chord tone to its motion: passing tone / steps between two chord tones, neighbour tone / steps away and back, suspension / held over then falls by step, appoggiatura / leaps in then steps."
+                  },
+                  {
+                    "type": "choice",
+                    "idea": "Over a C chord the melody plays E F E. What is the F? (a neighbour tone)"
+                  },
+                  {
+                    "type": "play-chord",
+                    "idea": "Play G (320003), Dsus4 (xx0233), D (xx0232), holding string 1 at fret 3 until the last chord."
+                  },
+                  {
+                    "type": "listen-choice",
+                    "idea": "Did the held note resolve down by step?"
+                  }
+                ],
+                "generators": [],
+                "minutes": 4
+              },
+              {
                 "id": "voice-leading/voice-led-two-five-one",
                 "title": "A voice-led ii-V-I",
                 "teaches": "With four-note voicings, each voice of a ii-V-I can move by a step or stay, so the hand barely moves.",
                 "prerequisites": [
+                  "voice-leading/non-chord-tones",
                   "voice-leading/line-cliches",
                   "jazz-harmony/guide-tones"
                 ],
@@ -8371,7 +8530,7 @@
                 "minutes": 4
               }
             ],
-            "checkpoint": "Keeping common tones and moving by the smallest steps; choosing guitar inversions that keep common tones; parallel, similar, contrary and oblique motion; the classical rule against parallel fifths and octaves and where it does not apply; parallel thirds and sixths; line clichés; a voice-led ii-V-I with four-note voicings."
+            "checkpoint": "Keeping common tones and moving by the smallest steps; choosing guitar inversions that keep common tones; parallel, similar, contrary and oblique motion; the classical rule against parallel fifths and octaves and where it does not apply; parallel thirds and sixths; line clichés; passing tones, neighbour tones, suspensions and appoggiaturas; a voice-led ii-V-I with four-note voicings."
           },
           {
             "id": "modulation",
@@ -8392,7 +8551,7 @@
                   "Tonicization is a brief visit, such as a secondary dominant and its target, after which the music returns to the home key.",
                   "A modulation is confirmed by a cadence in the new key."
                 ],
-                "onTheGuitar": "Play two original eight-bar passages in C: one with a single D7-G visit that returns to C, one that moves to G and cadences there (D7 G repeated, ending on G). Figure: both charts with the new key marked; audio.",
+                "onTheGuitar": "Play two original eight-bar passages in C with open chords (C x32010, F xx3211, Am x02210, D7 xx0212, G 320003): one with a single D7-G visit that returns to C, one that moves to G and cadences there (D7 G repeated, ending on G). Figure: both charts with the new key marked; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -8422,7 +8581,7 @@
                   "The most common modulation from a major key is to its dominant key: C to G.",
                   "Minor keys most often modulate to their relative major: A minor to C."
                 ],
-                "onTheGuitar": "Figure: the circle of fifths with C, its neighbours G and F, and their relative minors Am, Em and Dm highlighted.",
+                "onTheGuitar": "Figure: the circle of fifths with C, its neighbours G and F, and their relative minors Am, Em and Dm highlighted; on the neck, each tonic on strings 6 and 5: C at string 5 fret 3, G at string 6 fret 3, F at string 6 fret 1, A open string 5, E open string 6, D at string 5 fret 5.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -8486,7 +8645,7 @@
                   "Moving up a half step or whole step for a final chorus is a common pop key change.",
                   "A common-tone modulation holds one note shared by both keys while the harmony changes beneath it."
                 ],
-                "onTheGuitar": "Play an original four-bar chorus in G (G D Em C), then the same chorus up a whole step in A (A E F#m D). Figure: both charts; audio.",
+                "onTheGuitar": "Play an original four-bar chorus in G (G 320003, D xx0232, Em 022000, C x32010), then the same chorus up a whole step in A (A x02220, E 022100, F#m 244222, D xx0232). Figure: both charts; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -8587,7 +8746,7 @@
                   "When every chord stays in one key, one scale can work; when chords leave the key, vertical playing is needed.",
                   "Most improvisers mix the two approaches."
                 ],
-                "onTheGuitar": "Over C Am F G, play C major pentatonic throughout; then over C A7 Dm G7, play chord tones of each chord (A7 adds C#). Figure: both progressions with the scale or arpeggios shown per bar; audio.",
+                "onTheGuitar": "Over C Am F G, play C major pentatonic with its root on string 6 fret 8 (frets 7 to 10) throughout; then over C A7 Dm G7, play chord tones of each chord in the same position (A7 adds C#, at string 6 fret 9). Figure: both progressions with the scale or arpeggios shown per bar; audio.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -8653,7 +8812,7 @@
                 "exercises": [
                   {
                     "type": "type-answer",
-                    "idea": "Type the half-step-below approach note to G# (G)."
+                    "idea": "Type the half-step-below approach note to A (G#)."
                   },
                   {
                     "type": "play-phrase",
@@ -8784,7 +8943,7 @@
                   "A bridge brings contrast, often with new chords, before a return to the chorus.",
                   "A pre-chorus builds from the verse into the chorus; an intro and an outro open and close the song."
                 ],
-                "onTheGuitar": "Figure: a song map of an original song (Intro, Verse, Pre-chorus, Chorus, Verse, Pre-chorus, Chorus, Bridge, Chorus, Outro) with the chords of each section in G; audio of each section.",
+                "onTheGuitar": "Figure: a song map of an original song (Intro, Verse, Pre-chorus, Chorus, Verse, Pre-chorus, Chorus, Bridge, Chorus, Outro) with the chords of each section in G as open shapes (G 320003, C x32010, D xx0232, Em 022000); audio of each section.",
                 "exercises": [
                   {
                     "type": "match-pairs",
@@ -8814,7 +8973,7 @@
                   "Verse-chorus form alternates verses and choruses, often with a bridge near the end.",
                   "Classical forms include binary (AB), ternary (ABA) and rondo (ABACA)."
                 ],
-                "onTheGuitar": "Figure: letter diagrams of AABA, verse-chorus, binary, ternary and rondo; the 12-bar blues shown as one repeating A.",
+                "onTheGuitar": "Figure: letter diagrams of AABA, verse-chorus, binary, ternary and rondo, each letter played as an original four-bar strum in G on open chords (A: G 320003 and C x32010; B: Em 022000 and D xx0232); the 12-bar blues shown as one repeating A.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -8845,7 +9004,7 @@
                   "A period is two phrases: the first ends with a half cadence (the antecedent), the second with an authentic cadence (the consequent).",
                   "Listeners feel groups of four bars like large beats, which is why a 3-bar or 5-bar phrase sounds surprising."
                 ],
-                "onTheGuitar": "Figure: an original eight-bar period in G on the staff and in tab, with the half cadence on D at bar 4 and the authentic cadence D7-G at bars 7-8; audio.",
+                "onTheGuitar": "Figure: an original eight-bar period in G on the staff and in tab, the melody on strings 1 to 3 in first position over G (320003), C (x32010), D (xx0232) and D7 (xx0212), with the half cadence on D at bar 4 and the authentic cadence D7-G at bars 7-8; audio.",
                 "exercises": [
                   {
                     "type": "listen-choice",
@@ -8970,7 +9129,7 @@
                   "Swapping one chord of a familiar progression for a borrowed or secondary chord gives it a fresh sound.",
                   "When adding a melody, put its long notes on chord tones and let passing notes fill between them."
                 ],
-                "onTheGuitar": "Figure: a worked example in G: tonic-subdominant-dominant-tonic as G C D G, then G Cm D7 G (borrowed iv) and G E7 Am D7 G (secondary dominant); audio of each.",
+                "onTheGuitar": "Figure: a worked example in G with open shapes: tonic-subdominant-dominant-tonic as G (320003), C (x32010), D (xx0232), G; then G Cm (x35543) D7 (xx0212) G for a borrowed iv, and G E7 (020100) Am (x02210) D7 G for a secondary dominant; audio of each.",
                 "exercises": [
                   {
                     "type": "order",
@@ -9049,7 +9208,7 @@
                   },
                   {
                     "type": "staff-read",
-                    "idea": "Name a written note in fifth position and tap where it is played."
+                    "idea": "Name the written note in the second space (A); in fifth position it is played at string 4 fret 7."
                   },
                   {
                     "type": "play-phrase",
@@ -9070,7 +9229,7 @@
                 ],
                 "facts": [
                   "Choose the position that keeps most notes of a passage under the hand with the fewest shifts.",
-                  "G major lies well in second position; A major and A minor lie well in fifth position.",
+                  "G major lies well in second position (frets 2 to 5); A minor lies well in fifth position and A major in fourth position (frets 4 to 7).",
                   "Shift during an open string, a repeated note or a rest, where the move is easiest to hide."
                 ],
                 "onTheGuitar": "Figure: an original eight-bar melody in G marked once with a bad fingering (three shifts) and once in second position (no shifts); audio.",
@@ -9239,7 +9398,7 @@
                   "Above the fundamental come the octave (2), the octave and a fifth (3), two octaves (4) and two octaves and a major third (5).",
                   "The balance of these harmonics is a large part of an instrument's timbre."
                 ],
-                "onTheGuitar": "Figure: a string drawn vibrating in one, two, three and four segments with the matching pitches from low E (E2, E3, B3, E4); audio.",
+                "onTheGuitar": "Figure: string 6 drawn vibrating in one, two, three and four segments, with the nodes at frets 12, 7 and 5 marked and the matching pitches (E2, E3, B3, E4); audio.",
                 "exercises": [
                   {
                     "type": "match-pairs",
@@ -9328,9 +9487,10 @@
                 "facts": [
                   "Equal temperament divides the octave into twelve equal half steps of 100 cents each.",
                   "A pure (just) fifth, ratio 3:2, is about 2 cents wider than the equal-tempered fifth; a pure major third, ratio 5:4, is about 14 cents narrower.",
-                  "Fretted instruments use equal temperament because the frets fix the same half steps in every key."
+                  "Fretted instruments use equal temperament because the frets fix the same half steps in every key.",
+                  "That is why tuning by matching the harmonics at frets 5 and 7 leaves each string about 2 cents flat or sharp: the fret-7 harmonic gives a pure fifth, not a tempered one."
                 ],
-                "onTheGuitar": "Figure: a cents ruler for one octave with the equal-tempered and pure fifth and major third marked; audio comparing a pure and a tempered major third.",
+                "onTheGuitar": "Figure: a cents ruler for one octave with the equal-tempered and pure fifth and major third marked; on the neck, the fifth A2-E3 (open string 5 with string 4 fret 2) and the major third E3-G#3 (string 4 fret 2 with string 3 fret 1); audio comparing a pure and a tempered major third.",
                 "exercises": [
                   {
                     "type": "choice",
@@ -9380,7 +9540,7 @@
                 "minutes": 3
               }
             ],
-            "checkpoint": "A4 = 440 Hz and octaves as doublings; the open-string frequencies; pitch versus length, tension and mass; the harmonic series up to the fifth harmonic; natural harmonics at frets 12, 7, 5 and 19; fret spacing and intonation at the saddle; equal temperament, cents, and pure fifths and thirds; drop D, DADGAD and open G, and why chord shapes change in them."
+            "checkpoint": "A4 = 440 Hz and octaves as doublings; the open-string frequencies; pitch versus length, tension and mass; the harmonic series up to the fifth harmonic; natural harmonics at frets 12, 7, 5 and 19; fret spacing and intonation at the saddle; equal temperament, cents, pure fifths and thirds, and why tuning by harmonics drifts; drop D, DADGAD and open G, and why chord shapes change in them."
           }
         ]
       }

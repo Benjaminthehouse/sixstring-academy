@@ -6,7 +6,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Text, cx } from '@/ui';
 import { RhythmView } from '@/ui/music';
-import { audioSoundingNow, audioState, playClick, unlockAudio } from '@/core/audio';
+import { audioSoundingNow, audioState, normalizeClickSet, playClick, unlockAudio } from '@/core/audio';
+import { soundPrefs } from '@/core/settings';
 import { soundPlan } from '../../sound';
 import type { TapRhythmExercise } from '../../types';
 import { useStepKeys } from '../keys';
@@ -107,8 +108,9 @@ export function TapRhythmView({ exercise, review, onSubmit, setPrimary, hints, l
     const firstClickHeard = pageNow + lead * 1000;
     const one = firstClickHeard + plan.countIn * 1000;
     beatOne.current = one;
+    const clickSet = normalizeClickSet(soundPrefs().clickSound);
     for (const c of plan.clicks) {
-      if (audio) takeBacks.current.push(playClick('woodblock', c.accent ? 'accent' : 'beat', soundingNow + lead + c.at));
+      if (audio) takeBacks.current.push(playClick(clickSet, c.accent ? 'accent' : 'beat', soundingNow + lead + c.at));
       const at = firstClickHeard + c.at * 1000 - pageNow;
       timers.current.push(window.setTimeout(() => setCount(c.count), Math.max(0, at)));
     }

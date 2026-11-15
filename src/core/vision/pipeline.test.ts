@@ -119,7 +119,9 @@ describe('VisionPipeline', () => {
     expect(frames.map((f) => f.seq)).toEqual(frames.map((_, i) => i + 1));
     expect(frames[0].width).toBe(640);
     expect(frames[0].height).toBe(360);
-    // 45 ms each with no waiting for the next frame: well over 20 per second of video.
+    // 45 ms each with no waiting for the next frame: well over 20 per second of video (waiting
+    // for the next frame after each answer would process every other frame: 30 of 60).
+    console.log(`45 ms per frame, 60 frames at 30 fps: ${frames.length} processed, ${p.stats.framesDropped} dropped`);
     expect(frames.length).toBeGreaterThanOrEqual(38);
     expect(p.stats.framesDropped).toBeGreaterThan(10);
     // Every answer says which frame it was for.

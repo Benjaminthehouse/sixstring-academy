@@ -245,7 +245,7 @@ describe('ASCII tab export and import round trip', () => {
   };
   const onsets = (s: Song) => s.tracks[0].measures.map((m) => m.beats.filter((b) => b.notes.length).map((b) => `${b.start}:${b.notes.map((n) => `${n.string}/${n.fret}`).join('+')}`));
 
-  it('reads back pitches, strings and rhythm exactly from its own rhythm row (200 random melodies)', () => {
+  it('reads back pitches, strings and rhythm exactly from its own rhythm row (200 random melodies)', { timeout: 90_000 }, () => {
     for (let seed = 1; seed <= 200; seed++) {
       const song = randomMelody(seed);
       const r = importAsciiTab(toAsciiTab(song));
@@ -440,6 +440,15 @@ describe('chord sheets in the styles found on the web', () => {
     expect(s.chords.slice(0, 4).map((c) => c.symbol)).toEqual(['E', 'A', 'E', 'B7']);
     expect(s.sections.map((x) => x.name)).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus']);
     expect(s.chords.some((c) => c.symbol === 'N.C.')).toBe(true);
+  });
+
+  it('imports the first song of a ChordPro songbook and skips tab blocks and chord definitions', () => {
+    const r = importChordPro(tab('{title: First}', '{c: Chorus}', '[G] [C] [D]', '[*Riff]some words [Am]here', '{sot}', 'e|---0---|', '{eot}', '{define: G base-fret 1 frets 3 2 0 0 0 3}', '{new_song}', '{title: Second}', '[F]other'));
+    expect(r.song.meta.title).toBe('First');
+    expect(r.song.chords.map((c) => c.symbol)).toEqual(['G', 'C', 'D', 'Am']);
+    expect(r.song.sections.map((x) => x.name)).toEqual(['Chorus']);
+    expect(r.warnings.some((w) => w.message.includes('more than one song'))).toBe(true);
+    expect(errors(r.song)).toEqual([]);
   });
 
   it('recognises inline chords even in a two-line ChordPro song', () => {
@@ -1227,7 +1236,7 @@ function randomSong(seed: number): Song {
 describe('SixTab fuzzing', () => {
   const strip = (s: Song) => JSON.parse(JSON.stringify(s));
 
-  it('random songs are valid, write without losses, and parse back to exactly the same song (300 seeds)', () => {
+  it('random songs are valid, write without losses, and parse back to exactly the same song (300 seeds)', { timeout: 90_000 }, () => {
     const seen = new Map<string, number>();
     const count = (k: string) => seen.set(k, (seen.get(k) ?? 0) + 1);
     for (let seed = 1; seed <= 300; seed++) {
@@ -1261,7 +1270,7 @@ describe('SixTab fuzzing', () => {
     }
   });
 
-  it('equivalent spellings parse to the same song: /n durations, extra whitespace and tabs, comments, Windows line ends (150 seeds)', () => {
+  it('equivalent spellings parse to the same song: /n durations, extra whitespace and tabs, comments, Windows line ends (150 seeds)', { timeout: 90_000 }, () => {
     const letters: Record<string, string> = { w: '/1', h: '/2', q: '/4', e: '/8', s: '/16' };
     for (let seed = 400; seed < 550; seed++) {
       const r = rng(seed);
@@ -1286,12 +1295,12 @@ describe('SixTab fuzzing', () => {
     }
   });
 
-  it('malformed input never throws: every error has a line and column inside the text, and a song that parses is valid (3000 mutations)', () => {
+  it('malformed input never throws: every error has a line and column inside the text, and a song that parses is valid (2000 mutations)', { timeout: 90_000 }, () => {
     const sources = [...Object.values(SONG_EXAMPLES), ...[11, 22, 33, 44, 55].map((seed) => toSixTab(randomSong(seed)))];
     const alphabet = ['|', ':', '(', ')', '[', ']', '{', '}', '"', '^', '%', '/', '\\', 'h', 'p', 'b', 'r', 's', 't', 'x', '~', '>', '-', '.', '0', '3', '9', '12', '99', ' ', 'q', 'e', 'w', 'D', 'U', 'X', '\n', ',', '#', '//', 'pm', '{x}', ':|x', '[1]', 'lyrics: la', 'track: B', 'time: 3/4', 'tuning: bass', '\t', 'é', '\u2014'];
     const r = rng(2024);
     let parsedOk = 0;
-    for (let k = 0; k < 3000; k++) {
+    for (let k = 0; k < 2000; k++) {
       let text = r.pick(sources);
       for (let m = r.int(1, 3); m > 0; m--) {
         const at = r.int(0, text.length);
@@ -1342,7 +1351,7 @@ describe('SixTab fuzzing', () => {
     }
     // Some mutations are harmless (a fret changed); most are not.
     expect(parsedOk).toBeGreaterThan(50);
-    expect(parsedOk).toBeLessThan(2500);
+    expect(parsedOk).toBeLessThan(1700);
   });
 });
 

@@ -14,8 +14,14 @@ approaches the pipeline is built from: `lines/README.md` (A, bottom-up line stru
 | `flow.ts` | Coarse board motion between frames (profile correlation): coasting through blur, slip referee |
 | `tracker.ts` | `FretboardTracker`: state machine, One-Euro smoothing, confidence hysteresis, numbering lock; `createSessionDetector()` |
 | `calibration.ts` | Four taps, two known wires, dragged quadrilateral, numbering shift, nudges |
-| `overlay.ts` | Marker placement, frame <-> display (scaled / mirrored) |
-| `protocol.ts`, `vision.worker.ts` | Web Worker host and entry |
+| `overlay.ts` | Marker placement, frame <-> display (scaled, fitted like `object-fit`, mirrored) |
+| `draw.ts` | The overlay on a 2D canvas (outline, wires, fret numbers, string names, note dots, pulse, indicator) |
+| `pipeline.ts` | `VisionPipeline`: video -> GPU-resized bitmap -> worker -> poses; frame dropping, fallback, start/stop |
+| `predict.ts` | `PosePredictor`: carries the newest pose forward to the displayed frame |
+| `quality.ts` | `QualityController`: working size and detection spacing from measured frame costs |
+| `color-markers.ts` | Marker mode with tapped colours: sampling, blobs, numbering check, board hypotheses |
+| `protocol.ts`, `vision.worker.ts` | Web Worker host (frames, bitmaps, commands, colour sampling) and entry |
+| `pipeline.test.ts`, `hardening.test.ts`, `marker-mode.test.ts` | Runtime logic with stand-ins; jitter, long negatives, occlusion, held hard scenes; marker mode |
 | `testing/compare.test.ts` | Side-by-side benchmark of detectors over seed sets, false-lock count, best-of-N timing |
 
 ## Evaluation of the two approaches
@@ -190,6 +196,41 @@ Worker (`vision.worker.ts` bundled by Vite, a scratch check, single runs on the 
 the tracker locked on an easy scene in 3 frames, tracked a sway sequence 39/39 correct at a median
 28-41 ms per frame, and stayed `searching` on 6 negatives at 27-185 ms per frame once warm (the
 first detection after start-up costs 200-300 ms of JIT warm-up).
+
+## Runtime (pipeline, overlay, marker mode)
+
+`VisionPipeline` runs the tracker in a module worker at the display rate. The design choices, each
+measured in `e2e/vision-live.cjs` (fake camera, 1280x720 MJPEG with a per-frame index code, scored
+against ground truth; numbers in `API.md`):
+
+- **Downscale on the GPU, read back in the worker.** `createImageBitmap(video, { resizeWidth,
+  resizeHeight, resizeQuality: 'medium' })` costs the main thread nothing measurable; the worker
+  draws the bitmap on an `OffscreenCanvas` and reads it back (about 1 ms at 640x360). Without
+  bitmap support it falls back to a canvas read-back on the main thread and transfers the buffer.
+- **One frame in flight, the newest one next.** Frames arriving while the worker is busy are
+  dropped; when the answer comes back, the newest dropped frame (the one on screen) is sent at once
+  instead of waiting for the next video frame. With 45 ms per frame and a 30 fps camera that is 45
+  of 60 frames processed instead of 30 (`pipeline.test.ts`). In the browser runs before
+  and after the change: 11-12 and 19-24 frames per second, but under different machine load, so
+  that gain is not isolated.
+- **Extrapolation to the displayed frame.** The answer is for a frame 1-2 frames old. Carrying the
+  four board corners forward at their filtered velocity (dead band below 0.4 string spacings per
+  second, jumps restart it, lead capped at 100 ms) halves the drawn error on a moving guitar
+  (1.5-2.0 px against 2.9-3.6 px at 1280 px; the tracker's own error is 1.2 px). A first version
+  compared neck models by identity and never extrapolated: poses that cross a worker boundary are
+  copies (fixed, with a test).
+- **Adaptive quality.** Tracked frames over 45 ms (median of 12, after a 2 s warm-up that ignores
+  JIT compilation) step the working width down 640 -> 544 -> 480; 3 s of headroom steps it up.
+  `FretboardTracker` rescales its poses when the frame size changes. Detections over 80 ms are
+  spaced to 75% duty.
+- **Graceful failure.** `TrackerUpdate.hint` and `suggestCalibration` (6 s without a board, 3 losses
+  in 20 s, or 6 s without a lock) tell the screen when to offer assisted calibration.
+- **Marker mode** (`color-markers.ts`): colours sampled by one tap each; blobs gated by colour,
+  chroma (wood of the tape's hue is out), distance from the marker's edge line (1.3 string
+  spacings) and position in the cell (middle 60%). Two markers fix or confirm the numbering; one
+  marker never turns a guess into a certainty (an orange book behind the neck did exactly that in
+  an early version). Board hypotheses from blob pairs (similarity plus two along-neck perspectives)
+  go through `FretboardDetector.fit` (line refinement + the common evidence) and need log-odds >= 1.
 
 ## Reproduce
 

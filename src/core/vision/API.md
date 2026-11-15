@@ -193,7 +193,7 @@ frame 24-31 ms median (p95 53-90), bitmap read-back about 1 ms, first detection 
 warm-up); the drawn pose against the frame actually on screen 1.5-2.0 px median (1280 px wide)
 with extrapolation against 2.9-3.6 px without (each answer on its own frame: 1.2 px); worker and
 page heaps flat over 8 s after GC (< 0.3 MB); the main-thread fallback locks and tracks right at
-15-21 frames/s; a forced quality drop (640 → 544 → 480) keeps tracking right; stop() leaves no
+9-21 frames/s; a forced quality drop (640 → 544 → 480) keeps tracking right; stop() leaves no
 worker, no callbacks; 6 rapid start/stop cycles leave nothing running.
 
 **Bench (`hardening.test.ts`, `marker-mode.test.ts`; synthetic, 640x360):** still guitar under
@@ -215,7 +215,8 @@ extreme 54% / 38%, most misses honest ("weak evidence": nothing drawn, calibrati
 - Measured on synthetic scenes and a synthetic video only; no real webcam footage was available.
 - Classical guitars: the slotted headstock's rollers can continue the fret comb, so the "nut" may be
   found 2-3 frets too far: confident-but-wrong numbering on 4 of 35 confidently numbered classical
-  frames in the stored runs (steel 2/370, electric 2/299). The `question` / one tap fixes it.
+  frames in the stored benchmark runs (some scenes counted in several runs; steel 2/370, electric
+  2/299). A tap (`confirmFret`) or marker mode fixes it.
 - A maple board with faint strings on a light background can be placed half a string off across
   the neck (seen on 4 of 96 fresh hard/extreme frames); frets stay right.
 - Detection takes about 100 ms (p95 ~170-250 on the loaded sandbox) on extreme frames and frames

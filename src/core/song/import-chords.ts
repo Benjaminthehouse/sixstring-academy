@@ -67,8 +67,16 @@ export function importChordPro(text: string, opts: ChordSheetOptions = {}): Impo
   let inChorus = false;
   let inTab = false;
   let verseCount = 0;
+  let ended = false;
   normalizeTabText(text).split(/\r\n|\r|\n/).forEach((raw, i) => {
+    if (ended) return;
     const line = expandTabs(raw).replace(/\s+$/, '');
+    if (/^\s*\{\s*(new_song|ns)\s*\}\s*$/i.test(line) && (lines.length || hints.title)) {
+      // A songbook file: the first song only.
+      ended = true;
+      warnings.push({ message: 'This file holds more than one song; the first one was imported.', line: i + 1, confidence: 0.8 });
+      return;
+    }
     const d = /^\s*\{\s*([a-z_]+)\s*(?::\s*(.*?))?\s*\}\s*$/i.exec(line);
     if (d) {
       const name = d[1].toLowerCase();

@@ -11,6 +11,7 @@ import { ChordDiagram } from '../chord/ChordDiagram';
 import { drawSystem, glyphsIn, type TabGlyph, type TabNoteGlyph } from './draw';
 import type { TabLayout, TabTile as Tile } from './layout';
 import { FONT_PX } from './metrics';
+import { ScoreLayer, type ScoreState } from './ScoreLayer';
 import styles from './TabView.module.css';
 
 /** A learner's state for a note in practice modes. */
@@ -26,7 +27,8 @@ export interface TabTileProps {
   /** Bumped when `states` changes (memo key). */
   statesKey: string;
   label: string;
-  notation?: ReactNode;
+  /** The notation staff's state when it is shown (memoised by the view). */
+  score?: ScoreState | null;
 }
 
 const f1 = (v: number) => Math.round(v * 10) / 10;
@@ -108,7 +110,7 @@ function Diagram({ x, y, w, symbol, text, frets, layout }: { x: number; y: numbe
 
 /** One tile. See the module comment. */
 export const TabTile = memo(
-  function TabTile({ layout, tile, visible, states, label, notation }: TabTileProps) {
+  function TabTile({ layout, tile, visible, states, label, score }: TabTileProps) {
     const style = { left: tile.x, top: tile.y, width: tile.width, height: tile.height };
     if (!visible) return <div className={styles.tile} style={style} aria-hidden="true" />;
     const drawing = drawSystem(layout, tile.system);
@@ -118,7 +120,7 @@ export const TabTile = memo(
     const diagrams = layout.options.diagrams ? drawing.diagrams.filter((d) => !line || (d.x >= tile.x && d.x < tile.x + tile.width)) : [];
     return (
       <div className={styles.tile} style={style} data-tile={tile.index}>
-        {notation}
+        {score?.ready && layout.systems[tile.system].rows.notation && <ScoreLayer layout={layout} tile={tile} score={score} />}
         <svg className={styles.svg} width={tile.width} height={tile.height} viewBox={`${f1(tile.x)} 0 ${f1(tile.width)} ${tile.height}`} role="img" aria-label={label}>
           {glyphs.map((g, i) => renderGlyph(g, i, z, states))}
         </svg>
@@ -128,5 +130,5 @@ export const TabTile = memo(
       </div>
     );
   },
-  (a, b) => a.layout === b.layout && a.tile === b.tile && a.visible === b.visible && a.statesKey === b.statesKey && a.label === b.label && a.notation === b.notation,
+  (a, b) => a.layout === b.layout && a.tile === b.tile && a.visible === b.visible && a.statesKey === b.statesKey && a.label === b.label && a.score === b.score,
 );

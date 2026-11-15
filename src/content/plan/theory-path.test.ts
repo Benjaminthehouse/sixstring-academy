@@ -5,10 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
-  bestCapo, fretDistance, identifyFretted, parseFrets, scalePattern, scalePositions, tuningFrequencies,
+  bestCapo, fretDistance, identifyFretted, inlayFrets, parseFrets, scalePattern, scalePositions, tuningFrequencies,
 } from '@/core/guitar';
 import {
-  chordNotes, chordPcs, chroma, diatonicChords, key, modalInterchange, parseChord, parseTimeSignature,
+  chordNotes, chordPcs, chroma, diatonicChords, key, modalInterchange, noteValue, parseChord, parseTimeSignature, PPQ,
   relativeKey, scaleNotes, secondaryDominants, semitones, staffPosition, SWING, TEMPO_MARKINGS,
   tritoneSubstitute,
 } from '@/core/theory';
@@ -190,6 +190,8 @@ describe('theory path: claims agree with the engines', () => {
       ['altered-dominants/diminished-as-dominant', 'Bdim7'], ['altered-dominants/diminished-as-dominant', 'G7b9'],
       ['major-and-minor-chords/e-and-e-minor', 'E'], ['major-and-minor-chords/e-and-e-minor', 'Em'],
       ['symmetric-sounds/augmented-in-progressions', 'G+'],
+      ['colour-chords/sus-chords', 'A7sus4'], ['colour-chords/sixth-chords', 'C6/9'],
+      ['seventh-chords/sevenths-in-a-minor-key', 'AmMaj7'],
     ];
     for (const [id, symbol] of cases) says(id, chordNotes(symbol).join(' '));
     expect(tritoneSubstitute('G7')).toBe('Db7');

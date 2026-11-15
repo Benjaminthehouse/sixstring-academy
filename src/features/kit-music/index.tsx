@@ -99,6 +99,7 @@ function TabGroup() {
   const [size, setSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [boxes, setBoxes] = useState(false);
   const [staff, setStaff] = useState(false);
+  const [samplerStaff, setSamplerStaff] = useState(false);
   const [part, setPart] = useState<'rhythm' | 'bass'>('rhythm');
   const [selection, setSelection] = useState<TabRange | null>({ from: 4, to: 7 });
   return (
@@ -125,8 +126,13 @@ function TabGroup() {
         >
           <TabView song={river} chords={boxes ? 'diagrams' : true} notation={staff} />
         </Demo>
-        <Demo wide title="Every technique" note="The technique sampler: slides in and out, tapping, ghost and dead notes, accents, staccato, pre-bends, triplets, picking-hand fingers.">
-          <TabView song={sampler} />
+        <Demo
+          wide
+          title="Every technique"
+          note="The technique sampler: slides in and out, tapping, ghost and dead notes, accents, staccato, pre-bends, triplets, picking-hand fingers."
+          controls={<Switch label="Notation" checked={samplerStaff} onChange={setSamplerStaff} />}
+        >
+          <TabView song={sampler} notation={samplerStaff} rhythm />
         </Demo>
         <Demo wide title="Notation above the tab" note="Amazing Grace in G with its pickup: the staff (treble clef, sounding an octave lower) is engraved from the same bars, note for note above the frets.">
           <TabView song={grace} notation />

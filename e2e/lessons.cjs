@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the lesson player, run against the demo course. Run: node e2e/lessons.cjs
- * [--only touch,keys,refused,rhythm,map,layout] [--verbose]
+ * [--only touch,keys,hearts,refused,rhythm,map,layout] [--verbose]
  *
  *  touch    phone (390 x 844, touch): a whole lesson by taps, with a fake microphone playing
  *           the right note (a plucked A2 made with the pitch module's test signals). Two
@@ -10,6 +10,8 @@
  *           a reload in the middle picks the lesson up where it was, "Next lesson" leads on.
  *  keys     desktop (1280 x 800): the same lesson by keyboard alone (number keys, letters,
  *           Enter, Escape for the leave dialog), one answer wrong, the microphone again.
+ *  hearts   phone: wrong answers until the hearts run out; the lesson ends kindly and offers a
+ *           practice round, which refills them.
  *  refused  phone, no microphone: the play step shows MediaBlocked and offers the tapping
  *           version, which then works; "I can't play right now" swaps a play step too.
  *  rhythm   desktop: a tap-rhythm exercise tapped with the Space key along the count-in.
@@ -70,7 +72,7 @@ async function heartsShown(page) {
  * Play the lesson on screen to its summary. `wrong` lists the exercises (by order of first
  * appearance, 0-based) to answer wrong the first time. Returns a log of every answer.
  */
-async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload, mode = 'lesson' }) {
+async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload, mode = 'lesson', mic = true, afterAnswer }) {
   const log = [];
   const seen = new Map();
   let answered = 0;
@@ -85,7 +87,31 @@ async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload
       continue;
     }
     const state = await lib.savedSession(page, L, mode);
-    const step = state ? L.currentStep(state) : null;
+    if (!state) {
+      // A session that opens on a question has saved nothing yet: rate a flashcard, or say
+      // "I don't know" (the question comes back later and is answered then).
+      const type = await page.getAttribute('[data-exercise-type]', 'data-exercise-type');
+      if (type === 'flashcard') {
+        if (how === 'touch') {
+          await lib.tap(page, '[data-player-bar] [data-action="primary"]');
+          await lib.tap(page, '[data-rating="good"]');
+        } else {
+          await lib.press(page, 'Space');
+          await lib.press(page, '3');
+        }
+        log.push({ key: 'first', type, attempt: 0, intended: 'right', tone: 'ok' });
+      } else {
+        if (how === 'touch') await lib.tap(page, '[data-action="skip"]');
+        else await page.locator('[data-action="skip"]').click();
+        await page.waitForSelector('[data-feedback]', { timeout: 15000 });
+        log.push({ key: 'first', type, attempt: 0, intended: 'skip', tone: await page.getAttribute('[data-feedback]', 'data-feedback') });
+        if (how === 'touch') await lib.tap(page, lib.sel.cont);
+        else await lib.press(page, 'Enter');
+      }
+      await lib.waitForNewStep(page, id);
+      continue;
+    }
+    const step = L.currentStep(state);
     if (!step || step.kind !== 'exercise') throw new Error(`No saved exercise for the step on screen (${id})`);
     if (!id.startsWith(`${step.key}:`)) throw new Error(`Saved step ${step.key} does not match the screen (${id})`);
     const ordinal = seen.has(step.key) ? seen.get(step.key) : seen.size;
@@ -96,6 +122,13 @@ async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload
     const answer = goWrong ? lib.wrongAnswer(L, ex) : L.solve(ex);
     const heartsBefore = await heartsShown(page);
     if (verbose) console.log(`    step ${id}: ${ex.type} ${goWrong ? 'wrong' : 'right'} ${JSON.stringify(answer)}`);
+    if (PLAY_TYPES.has(ex.type) && !mic) {
+      // No microphone here: "I can't play right now" swaps in the tapping version.
+      if (how === 'touch') await lib.tap(page, '[data-cant-play]');
+      else await page.locator('[data-cant-play]').click();
+      await lib.waitForNewStep(page, id);
+      continue;
+    }
     if (PLAY_TYPES.has(ex.type)) {
       if (how === 'touch') await lib.tap(page, '[data-player-bar] [data-action="primary"]');
       else await lib.press(page, 'Enter');
@@ -117,6 +150,7 @@ async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload
       await lib.waitForNewStep(page, id);
     }
     answered++;
+    if (afterAnswer) await afterAnswer(answered);
     if (answered === reloadAfter && onReload) await onReload();
   }
   throw new Error('The lesson did not end');
@@ -164,8 +198,26 @@ async function runLesson(L, how, wav) {
     let reloadedAt = null;
     let resumedAt = null;
     let toast = 0;
+    let pauseCheck = null;
+    const setHidden = (hidden) =>
+      page.evaluate((h) => {
+        Object.defineProperty(document, 'visibilityState', { value: h ? 'hidden' : 'visible', configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, hidden);
     const log = await playLesson(page, L, {
       how,
+      afterAnswer: async (n) => {
+        if (how !== 'keys' || n !== 2) return;
+        // The page is hidden (phone locked, another tab): the clock stops, and starts again on return.
+        await setHidden(true);
+        await page.waitForTimeout(300);
+        const paused = await lib.savedSession(page, L);
+        await page.waitForTimeout(2500);
+        await setHidden(false);
+        await page.waitForTimeout(300);
+        const back = await lib.savedSession(page, L);
+        pauseCheck = { paused: paused && paused.paused, active: paused && paused.activeMs, resumed: back && !back.paused, activeAfter: back && back.activeMs };
+      },
       wrong: how === 'touch' ? [0, 2] : [1],
       reloadAfter: 3,
       onReload: async () => {
@@ -180,6 +232,10 @@ async function runLesson(L, how, wav) {
     if (verbose) console.log(log);
 
     check(group, 'a reload in the middle resumes on the same step', reloadedAt && reloadedAt === resumedAt, `${reloadedAt} -> ${resumedAt}`);
+    if (how === 'keys') {
+      check(group, 'a hidden page pauses the session', pauseCheck && pauseCheck.paused === true, JSON.stringify(pauseCheck));
+      check(group, 'and the time away is not counted', pauseCheck && pauseCheck.resumed && pauseCheck.activeAfter === pauseCheck.active, JSON.stringify(pauseCheck));
+    }
     check(group, 'and says so (with a way to start over)', toast > 0);
     const wrongs = log.filter((e) => e.intended === 'wrong');
     check(group, 'the wrong answers were marked wrong', wrongs.length > 0 && wrongs.every((e) => e.tone === 'bad'), JSON.stringify(wrongs));
@@ -220,6 +276,50 @@ async function runLesson(L, how, wav) {
     await page.waitForTimeout(800);
     const hash = await page.evaluate(() => location.hash);
     check(group, '"Next lesson" opens the next lesson', expectedNext && hash === `#kit-lessons--play--${expectedNext.lessonId}`, `${hash} vs ${expectedNext && expectedNext.lessonId}`);
+
+    if (how === 'touch') {
+      // The lesson's facts are due for review: the review card leads into a review session.
+      await open(page, url, 'kit-lessons--map');
+      const entry = await page.getAttribute('[data-review-entry]', 'data-review-entry').catch(() => null);
+      check(group, 'the review card counts the new cards', entry === '2', entry);
+      await page.locator('[data-review-start]').tap();
+      await page.waitForSelector('[data-lesson-player][data-mode="review"]', { timeout: 30000 });
+      const reviewLog = await playLesson(page, L, { how, mode: 'review', mic: false });
+      check(group, 'the review session asks each card', reviewLog.length >= 2, reviewLog.map((e) => e.type).join(','));
+      const reviewed = await page.locator('[data-stat="reviewed"]').innerText().catch(() => '');
+      check(group, 'and its summary counts the cards reviewed', /2/.test(reviewed), reviewed.replace(/\n/g, ' '));
+      await page.waitForTimeout(900);
+      const after = await lib.storedProgress(page);
+      const card = after && after.srs.items['demo:open-strings'];
+      check(group, 'progress: the review graded the cards', card && card.lastAt > card.addedAt, JSON.stringify(card));
+    }
+    check(group, 'no console errors', errors.length === 0, errors.join(' | '));
+  });
+}
+
+async function runHearts(L) {
+  const group = 'hearts';
+  await withApp({ mobile: true }, async ({ page, url, errors }) => {
+    await seed(page);
+    await open(page, url, 'kit-lessons--play--musical-alphabet');
+    await playLesson(page, L, { how: 'touch', wrong: [0, 1, 2, 3, 4, 5, 6, 7, 8], mic: false });
+    const outcome = await page.getAttribute('[data-summary]', 'data-summary');
+    check(group, 'running out of hearts ends the lesson kindly', outcome === 'out-of-hearts', outcome);
+    const label = await page.locator('[data-action="next"]').innerText();
+    check(group, 'and offers practice to refill them', /Practise to refill hearts/.test(label), label);
+    await page.screenshot({ path: path.join(OUT, 'lessons-out-of-hearts-mobile.png') });
+    await page.waitForTimeout(900);
+    let progress = await lib.storedProgress(page);
+    check(group, 'progress: no heart is left', progress && progress.hearts.count === 0, progress && JSON.stringify(progress.hearts));
+    await lib.tap(page, '[data-action="next"]');
+    await page.waitForSelector('[data-lesson-player][data-mode="practice"]', { timeout: 30000 });
+    check(group, 'practice starts on the same unit', (await page.evaluate(() => location.hash)) === '#kit-lessons--practice--first-notes');
+    await playLesson(page, L, { how: 'touch', mode: 'practice', mic: false });
+    const practiceOutcome = await page.getAttribute('[data-summary]', 'data-summary');
+    check(group, 'the practice round completes', practiceOutcome === 'completed', practiceOutcome);
+    await page.waitForTimeout(900);
+    progress = await lib.storedProgress(page);
+    check(group, 'progress: the hearts are full again', progress && progress.hearts.count === 5, progress && JSON.stringify(progress.hearts));
     check(group, 'no console errors', errors.length === 0, errors.join(' | '));
   });
 }
@@ -420,6 +520,7 @@ async function runLayout() {
   const runs = [
     ['touch', () => runLesson(L, 'touch', wav)],
     ['keys', () => runLesson(L, 'keys', wav)],
+    ['hearts', () => runHearts(L)],
     ['refused', () => runRefused(L)],
     ['rhythm', () => runRhythm(L)],
     ['map', () => runMap()],

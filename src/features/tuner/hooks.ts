@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { playTone, pluck, unlockAudio, type ToneName } from '@/core/audio';
 import { isArtifact } from '@/core/platform';
-import { TunerSession, type SessionConfig, type SessionView } from './model/session';
+import { TunerSession, type SessionConfig, type SessionOptions, type SessionView } from './model/session';
 import type { StringTarget } from './model/targets';
 
 /** What the screen passes to the session on every render. */
@@ -15,6 +15,8 @@ export interface SessionProps {
   toleranceCents: number;
   deviceId: string | null;
   preferFlats: boolean;
+  /** The learner's microphone sensitivity as onset options (`micOptions().onset`); read when the session is made. */
+  onset?: SessionOptions['onset'];
 }
 
 /** The screen's session and its current snapshot. The microphone is released when the screen unmounts. */

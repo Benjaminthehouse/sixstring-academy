@@ -166,6 +166,8 @@ export interface SessionOptions {
   deviceId?: string | null;
   /** Name chromatic notes with flats instead of sharps. */
   preferFlats?: boolean;
+  /** How quiet a pluck may be and still count (the learner's microphone sensitivity, from `micOptions`). */
+  onset?: PitchTrackerOptions['onset'];
   /** Builds the microphone pipeline (tests pass a stand-in). */
   createTracker?: (options: PitchTrackerOptions) => TrackerLike;
   /** Wall clock in milliseconds, for the duration of a guided run. */
@@ -193,7 +195,7 @@ const UNTICK_AGE_S = 0.45;
  * …and only when it stays out of tune this long: the last moments of a string dying away into room
  * noise can read 15 to 20 cents off for a tenth of a second, and that must not cost a tick.
  */
-const UNTICK_HOLD_S = 0; // REVIEW-TEMP
+const UNTICK_HOLD_S = 0.3;
 /**
  * In automatic mode, a note further than this from the nearest string, with another string on its
  * far side, may just as well be that other string badly out of tune (a slack A reads as a sharp E).
@@ -313,7 +315,7 @@ export class TunerSession {
     this.state = this.tuner.state;
     const range = trackerRange(this.targets);
     const create = options.createTracker ?? ((o: PitchTrackerOptions): TrackerLike => new PitchTracker(o));
-    this.tracker = create({ a4: this.a4, minFreq: range.minFreq, maxFreq: range.maxFreq, deviceId: this.deviceId ?? undefined });
+    this.tracker = create({ a4: this.a4, minFreq: range.minFreq, maxFreq: range.maxFreq, deviceId: this.deviceId ?? undefined, ...(options.onset ? { onset: options.onset } : {}) });
     this.offs.push(
       this.tracker.on('pitch', (r) => this.onPitch(r)),
       this.tracker.on('noteon', (e) => this.onNoteOn(e)),

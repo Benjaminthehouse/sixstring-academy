@@ -4,7 +4,8 @@
  * Must be started from a tap or key press (the audio engine unlocks there).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { audioNow, playClick, pluck, strum, unlockAudio } from '@/core/audio';
+import { audioNow, normalizeClickSet, normalizeTone, playClick, pluck, strum, unlockAudio } from '@/core/audio';
+import { soundPrefs } from '@/core/settings';
 import { soundPlan, type SoundPlan } from '../sound';
 import type { Sound } from '../types';
 import { stretchPlan } from './logic/sound';
@@ -15,15 +16,19 @@ export type SoundSpeed = 'normal' | 'slow';
 /** Schedule a plan now. Returns a function that silences it. */
 export function schedulePlan(plan: SoundPlan): () => void {
   const t0 = audioNow() + 0.06;
+  // The learner's guitar sound and click (Settings).
+  const prefs = soundPrefs();
+  const tone = normalizeTone(prefs.guitarTone);
+  const click = normalizeClickSet(prefs.clickSound);
   const handles: Array<{ stop: (when?: number, release?: number) => void }> = [];
   const takeBacks: Array<() => void> = [];
   for (const e of plan.events) {
     if (e.type === 'strum') {
-      handles.push(...strum(e.midi, t0 + e.at, { direction: e.direction, articulation: e.muted ? 'dead' : 'normal', duration: e.duration }));
+      handles.push(...strum(e.midi, t0 + e.at, { tone, direction: e.direction, articulation: e.muted ? 'dead' : 'normal', duration: e.duration }));
     } else if (e.type === 'click') {
-      takeBacks.push(playClick('woodblock', e.accent ? 'accent' : 'beat', t0 + e.at));
+      takeBacks.push(playClick(click, e.accent ? 'accent' : 'beat', t0 + e.at));
     } else {
-      for (const m of e.midi) handles.push(pluck(m, t0 + e.at, { duration: e.duration, string: e.string }));
+      for (const m of e.midi) handles.push(pluck(m, t0 + e.at, { tone, duration: e.duration, string: e.string }));
     }
   }
   return () => {

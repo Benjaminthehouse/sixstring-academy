@@ -36,6 +36,33 @@ export interface Alternative<T> {
 /** Who produced a reading. */
 export type OmrSource = 'image' | 'ai' | 'merged' | 'inferred' | 'user';
 
+/**
+ * Why an element deserves a look from the user. Set by the page pipeline (linking notation and
+ * tab, rhythm checks) and by the AI fusion; the proofreading list is built from these.
+ */
+export type OmrIssueCode =
+  /** The notation staff and the tab staff of one system read different pitches here. */
+  | 'staves-disagree'
+  /** The notation rhythm and the stems under the tab disagree. */
+  | 'rhythm-disagree'
+  /** Found on one staff of a notation + tab pair only. */
+  | 'unlinked'
+  /** Durations worked out from the horizontal spacing (nothing printed to read them from). */
+  | 'rhythm-estimated'
+  /** A disagreement was settled by a rule (agreement with an alternative); worth a glance. */
+  | 'resolved'
+  /** The AI reading differs from the picture reading. */
+  | 'ai-disagree'
+  /** Only the AI saw this. */
+  | 'ai-only';
+
+/** One reason to check an element. */
+export interface OmrIssue {
+  code: OmrIssueCode;
+  /** One plain sentence for the proofreading screen. */
+  message: string;
+}
+
 /** Fields every recognised element carries. */
 export interface OmrElement {
   id: string;
@@ -44,6 +71,8 @@ export interface OmrElement {
   /** 0..1. */
   confidence: number;
   source?: OmrSource;
+  /** Reasons to check this element (absent when nothing is known to be wrong). */
+  issues?: OmrIssue[];
 }
 
 // ------------------------------------------------------------------------------------------
@@ -90,6 +119,8 @@ export interface OmrDuration {
   ticks: number;
   confidence: number;
   alternatives?: Alternative<{ value: DurationValue; dots: 0 | 1 | 2 }>[];
+  /** 'image' = read; 'merged' = copied from the linked staff; 'inferred' = estimated (spacing, measure length). */
+  source?: OmrSource;
 }
 
 /** Length in ticks of a value with dots and an optional tuplet ratio. */
@@ -241,7 +272,17 @@ export interface OmrMeasure extends OmrElement {
   clef?: OmrClef;
   keySignature?: OmrKeySignature;
   timeSignature?: OmrTimeSignature;
+  /** Filled by the page pipeline: ticks of the events (one voice), what the metre asks for, and whether they agree. */
+  ticks?: number;
+  expectedTicks?: number;
+  /** true / false when checked; absent when it could not be checked (no rhythm, unknown metre, two voices). */
+  addsUp?: boolean;
+  /** The first measure of a staff that is shorter than the metre (an upbeat). */
+  pickup?: boolean;
 }
+
+/** Where a key or time in force on a staff comes from. */
+export type OmrContextSource = 'printed' | 'carried' | 'given' | 'assumed';
 
 /** One staff line as a polyline in page px, left to right. */
 export type OmrStaffLine = Point[];
@@ -278,6 +319,10 @@ export interface OmrStaff extends OmrElement {
   tuning?: number[];
   /** Id of the other staff of the same system that shows the same music (notation <-> tab). */
   linkedStaffId?: string;
+  /** Time signature in force on this staff (printed here, carried from a staff above or a previous page, or assumed 4/4). */
+  timeInForce?: { beats: number; beatValue: number; source: OmrContextSource };
+  /** Key signature in force (notation staves). */
+  keyInForce?: { fifths: number; source: OmrContextSource };
 }
 
 /** What a piece of text on the page is. */
@@ -339,6 +384,10 @@ export interface OmrPage {
   texts: OmrText[];
   quality: OmrPageQuality;
   warnings: OmrWarning[];
+  /** Position in a multi-page document (0-based), when read as part of one. */
+  pageIndex?: number;
+  /** Milliseconds per stage of the run that produced it. */
+  timings?: Record<string, number>;
 }
 
 // ------------------------------------------------------------------------------------------

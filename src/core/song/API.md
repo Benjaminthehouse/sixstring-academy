@@ -43,7 +43,7 @@ A file is lines: **header fields** (before the music), **`[Section]`** headers, 
 |---|---|
 | `[Verse 1]` | a section starts at the next bar (later tracks may repeat it; it must match) |
 | `tempo: 104` · `time: 6/8` · `key: D` | change from the next bar (later tracks follow the first track's changes) |
-| `strum: D-DU-UDU` | strum pattern of the current section (one character per step: D U X, `-` skip) |
+| `strum: D-DU-UDU` | strum pattern of the current section (one character per equal step of the bar: D U X, `-` or `.` skip; a pattern that does not divide the bar falls back to one down-strum per beat) |
 | `track: Bass` · `role: bass` · `tuning: bass` · `capo: 0` | start another track (all tracks cover every bar); role/tuning/capo before its music |
 | `lyrics: A- maz- ing grace` | one syllable per struck note or slash of the music line **just above**; `_` skips a note; `A-maz-ing` = `A- maz- ing` |
 

@@ -639,6 +639,8 @@ export class VisionPipeline {
     if (this.droppedFrameTime > sent.frameTime && this.running && !this.paused) {
       const frameTime = this.droppedFrameTime;
       this.droppedFrameTime = -Infinity;
+      // Counted as dropped when it arrived; it is processed after all.
+      this.counters.dropped--;
       this.maybeSend(frameTime);
     }
   }

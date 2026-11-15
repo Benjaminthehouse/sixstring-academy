@@ -28,6 +28,7 @@ import type { Tuning } from '@/core/guitar';
 import { PitchTracker } from '@/core/pitch';
 import { isArtifact, type MediaFailure } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs, type ActivityResult } from '@/core/progress';
+import { micOptions } from '@/core/settings';
 import {
   Banner,
   Button,
@@ -97,7 +98,7 @@ export default function TunerScreen(_props: RouteProps) {
   const targets = useMemo(() => buildTargets(tuning, { capo, a4 }), [tuning, capo, a4]);
   const tolerance = toleranceCents(options.tolerance);
   const preferFlats = prefs.accidentals === 'flats' || (prefs.accidentals !== 'sharps' && tuning.notes.some((n) => n.slice(1).includes('b')));
-  const { session, view } = useTunerSession({ targets, a4, toleranceCents: tolerance, deviceId: prefs.mic.deviceId, preferFlats });
+  const { session, view } = useTunerSession({ targets, a4, toleranceCents: tolerance, deviceId: prefs.mic.deviceId, preferFlats, onset: micOptions(prefs).onset });
 
   const hostBlocked = isArtifact();
   const listening = view.source === 'mic';

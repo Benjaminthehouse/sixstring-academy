@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, MediaBlocked, Spinner, Text, cx } from '@/ui';
 import { ChordDiagram, Fretboard, NoteBadge, type FretMarker } from '@/ui/music';
 import { PitchTracker } from '@/core/pitch';
-import { getProgress } from '@/core/progress';
+import { learnerA4, micOptions } from '@/core/settings';
 import { midiToNote } from '@/core/theory';
 import type { MediaFailure } from '@/core/platform';
 import { phraseMidi, playNoteTarget, referenceFrets } from '../../grade';
@@ -106,7 +106,7 @@ export function PlayView({ exercise, review, onSubmit, setPrimary, onCantPlay, o
 
   const listen = useCallback(
     (tracker: PitchTracker) => {
-      const a4 = getProgress().prefs.a4;
+      const a4 = learnerA4();
       const listening = listenFor(tracker, exercise, {
         level,
         a4,
@@ -151,7 +151,7 @@ export function PlayView({ exercise, review, onSubmit, setPrimary, onCantPlay, o
     setMic({ kind: 'starting' });
     setMessage(null);
     setPhrase([]);
-    const tracker = new PitchTracker({ ...trackerOptionsFor(exercise), a4: getProgress().prefs.a4 });
+    const tracker = new PitchTracker({ ...micOptions(), ...trackerOptionsFor(exercise) });
     trackerRef.current = tracker;
     const result = await tracker.start();
     if (!alive.current || trackerRef.current !== tracker) {

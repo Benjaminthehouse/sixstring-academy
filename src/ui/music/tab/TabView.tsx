@@ -22,7 +22,7 @@ import type { NoteNaming } from '../types';
 import { barBoundaryAt, barRangeRects, columnSpan, hitTest, layoutTab, locate, measureOfBar, regionBottom, regionTop, type NotationSpacing, type TabLayout } from './layout';
 import { buildTabModel, type TabModel } from './model';
 import { TabTile, type TabNoteState } from './TabTile';
-import { ScoreLayer, useScoreSpacing } from './ScoreLayer';
+import { useScoreSpacing } from './ScoreLayer';
 import { useTabText } from './useTabText';
 import styles from './TabView.module.css';
 
@@ -666,7 +666,7 @@ export const TabView = forwardRef<TabViewHandle, TabViewProps>(function TabView(
                 states={st.map}
                 statesKey={st.key}
                 label={tileLabel(t)}
-                notation={notation && score.ready && isVisible ? <ScoreLayer layout={layout} tile={t} score={score} /> : null}
+                score={notation ? score : null}
               />
             );
           })}

@@ -795,14 +795,15 @@ async function layout() {
  *    before Start was ignored.
  */
 async function review() {
-  // Cents from 440 Hz; the tuner is set to A = 442 Hz (7.85 cents higher), the setting this was seen with.
+  // Cents from 440 Hz; the tuner is set to A = 442 Hz (7.85 cents higher), the setting this was seen
+  // with. Seen in the browser only now and then (it needs a bad moment in the audio), so two of the
+  // strings also wobble 30 cents flat for a fifth of a second while ringing: that always did it.
+  const slip = { at: 1.6, len: 0.2, cents: -30 };
   const notes = [
     { string: 6, cents: -17, ring: 3.2 },
     { string: 5, cents: 5, ring: 3.2 },
-    { string: 4, cents: 8, ring: 3.2 },
-    { string: 5, cents: 9, ring: 3.2 },
-    { string: 5, cents: 5, ring: 3.2 },
-    { string: 5, cents: 7, ring: 3.2 },
+    { string: 4, cents: 8, ring: 3.2, slip },
+    { string: 5, cents: 7, ring: 3.2, slip },
   ];
   const recording = await lib.makeEngineRecording('review-fade', notes, { lead: 3 });
   await open({ recording }, async ({ page, errors }) => {

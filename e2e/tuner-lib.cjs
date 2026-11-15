@@ -84,7 +84,10 @@ async function makeEngineRecording(name, notes, { lead = 2.5, gap = 0.6, tail = 
   let x = new Float32Array(Math.round(total * sr));
   let at = lead;
   for (const n of notes) {
-    const note = Float32Array.from(kit.renderNote({ string: n.string, fret: 0, tone: 'steel', velocity: 0.7, cents: n.cents, sampleRate: sr }, n.ring + 0.5).subarray(0, Math.round(n.ring * sr)));
+    let note = kit.renderNote({ string: n.string, fret: 0, tone: 'steel', velocity: 0.7, cents: n.cents, sampleRate: sr }, n.ring + 0.5);
+    // A wobble while it rings (a glitch in the audio, the string sinking into noise): `slip` cents for `len` s from `at` s.
+    if (n.slip) note = kit.pitchWarp(note, sr, n.ring, (t) => (t >= n.slip.at && t < n.slip.at + n.slip.len ? n.slip.cents : 0));
+    note = Float32Array.from(note.subarray(0, Math.round(n.ring * sr)));
     const fade = Math.round(0.04 * sr);
     for (let i = 0; i < fade; i++) note[note.length - 1 - i] *= i / fade;
     x = kit.mixInto(x, note, 1, Math.round(at * sr));
