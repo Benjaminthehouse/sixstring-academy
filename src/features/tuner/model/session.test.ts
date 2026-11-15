@@ -212,6 +212,16 @@ describe('TunerSession: automatic mode on real analysed audio', () => {
     r.tracker.play(join(pluck(44, 0), rest(0.4)), watch);
     expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
     expect(seen.has('tighten:-1')).toBe(true);
+    // Or a guitar left a little more than a half step flat (130 cents): the A string, not a wild E.
+    seen.clear();
+    const named = new Set<string>();
+    r.tracker.play(join(pluck(44, -30), rest(0.4)), () => {
+      watch();
+      if (r.session.frame.live) named.add(r.session.frame.note);
+    });
+    expect([...seen].some((x) => x.startsWith('which-string'))).toBe(false);
+    expect(seen.has('tighten:-1')).toBe(true);
+    expect([...named]).toEqual(['A2']);
     // The octave harmonic at the 12th fret is that string, not a doubt.
     seen.clear();
     r.tracker.play(join(pluck(62, 2), rest(0.4)), watch);

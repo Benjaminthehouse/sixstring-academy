@@ -67,7 +67,14 @@ export function StrumScreen({ pattern }: { pattern: StrumPattern }) {
       bpmMax={pattern.grid === 'sixteenth' ? 132 : 184}
       padMode="strum"
       display={(ctx) => <StrumStage ctx={ctx} pattern={pattern} bpm={bpm} chord={chord} />}
-      quick={<ChipGroup aria-label="Chord" options={[...STRUM_CHORDS]} value={chord} onChange={(v) => v && setChord(v)} />}
+      quick={
+        <div className={styles.chordPick}>
+          <Text variant="label" as="span" aria-hidden="true">
+            Chord
+          </Text>
+          <ChipGroup aria-label="Chord" options={[...STRUM_CHORDS]} value={chord} onChange={(v) => v && setChord(v)} />
+        </div>
+      }
       options={<Switch checked={prefs.guitar} onChange={(v) => setPrefs({ guitar: v })} label="Guitar plays along" description="Hear the pattern while you tap it. Off whenever the microphone is listening." />}
       hasCounts
       chord={chord}
@@ -241,7 +248,15 @@ export function StrumBuilder() {
                   <LinkButton variant="ghost" to="rhythm" params={['strum', s.code]} iconLeft="Guitar" className={styles.savedLink}>
                     {s.name} · {p.meter} · {patternNickname(p)}
                   </LinkButton>
-                  <IconButton icon="Trash2" label={`Remove ${s.name}`} onClick={() => setSaved(list.filter((x) => x.code !== s.code))} />
+                  <IconButton
+                    icon="Trash2"
+                    label={`Remove ${s.name}`}
+                    onClick={() => {
+                      const before = list;
+                      setSaved(list.filter((x) => x.code !== s.code));
+                      toast({ title: `Removed "${s.name}"`, action: { label: 'Undo', onClick: () => setSaved(before) } });
+                    }}
+                  />
                 </li>
               );
             })}

@@ -192,8 +192,10 @@ const UNTICK_AGE_S = 0.45;
 /**
  * In automatic mode, a note further than this from the nearest string, with another string on its
  * far side, may just as well be that other string badly out of tune (a slack A reads as a sharp E).
+ * Nearer than this, the other reading would need a string 350 cents or more out (strings are 400
+ * or 500 cents apart), so a guitar left a little over a half step flat is simply told to tighten.
  */
-const UNSURE_CENTS = 100;
+const UNSURE_CENTS = 150;
 const UNSURE_SLACK = 15;
 const UNTICK_CLARITY = 0.7;
 const SAME_STRING_CENTS = 150;

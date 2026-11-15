@@ -123,9 +123,9 @@ export default function TunerScreen(_props: RouteProps) {
 
   useWakeLock(listening || tone.playing !== null);
 
-  /** For progress: when this visit began, which target sets were already recorded, and the latest result. */
+  /** For progress: when this visit began, whether it was already recorded, and the latest result. */
   const visitStart = useRef(Date.now());
-  const recorded = useRef(new Set<string>());
+  const recorded = useRef(false);
   const lastResult = useRef<ActivityResult | null>(null);
 
   const patchOptions = useCallback((patch: Partial<TunerOptions>) => setStoredOptions((prev) => ({ ...sanitizeOptions(prev), ...patch })), [setStoredOptions]);
@@ -193,9 +193,6 @@ export default function TunerScreen(_props: RouteProps) {
 
   // --- confirmations: sound, celebration, progress -----------------------------------------------
 
-  const targetKey = `${targets.map((t) => t.midi).join(',')}@${a4}`;
-  const targetKeyRef = useRef(targetKey);
-  targetKeyRef.current = targetKey;
   const tuningNameRef = useRef(tuning.name);
   tuningNameRef.current = tuning.name;
 
@@ -209,9 +206,9 @@ export default function TunerScreen(_props: RouteProps) {
         if (heard) session.hush(c.all ? 0.9 : 0.55);
         if (!c.all) return;
         setFinale((n) => n + 1);
-        // One tuner activity per set of targets per visit: the store caps the XP per day as well.
-        if (!recorded.current.has(targetKeyRef.current)) {
-          recorded.current.add(targetKeyRef.current);
+        // One tuner activity per visit, however many tunings are tuned in it (the store caps the XP per day as well).
+        if (!recorded.current) {
+          recorded.current = true;
           const durationSec = Math.min(1800, Math.max(1, Math.round((Date.now() - visitStart.current) / 1000)));
           lastResult.current = recordActivity({ kind: 'tuner', durationSec, route: 'tuner', title: `Tuned to ${tuningNameRef.current}` });
         }
