@@ -1,4 +1,4 @@
-# `@/core/platform` — the host: storage, media, AI, files, saving, speech, sync, wake lock
+# `@/core/platform` — the host: storage, media, AI, files, saving, speech, sync, wake lock, offline app
 
 Everything that touches the host (browser APIs, the Claude-artifact runtime, the one permitted network
 call) lives here. Features import from `@/core/platform` and never call `localStorage`, `getUserMedia`,
@@ -39,7 +39,7 @@ anyone listing it. `classifyKey(key)` gives the class; the exceptions, each with
 | `secret` | `ai.*` (the API key) | never / never | kept |
 | `progress` | `progress`, `progress.*` | via the progress export | via `resetProgress` |
 | `songs` | `library.*` (the songs' key-value fallback) | song by song (`@/core/library`) | only with "also delete my songs" |
-| device-only blobs, not in key-value storage | the Recorder's takes: IndexedDB `ssa-recorder` (`takes.json` + `take/<id>`, `features/recorder/model/store.ts`), to move to the platform blob store under the same keys | no / no (too large: about 0.5 MB a minute; the screen says so and offers "Save as a file") | kept (deleted take by take on the Recorder screen) |
+| device-only blobs, not in key-value storage | the Recorder's takes: blob store `recorder` (`takes.json` + `take/<id>`, `features/recorder/model/store.ts`); takes left in its first database `ssa-recorder` are moved there on first open and that database deleted | no / no (too large: about 1 MB a minute; the screen says so and offers "Save as a file") | kept (deleted take by take on the Recorder screen) |
 
 So: a new key needs a line in `DATA_RULES` only when it is **not** the learner's (it describes this
 device or screen, is work in progress, or is secret). Something the learner made or earned (rather than
@@ -223,6 +223,47 @@ const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);   // prof
 `keepAwake(): () => void` (counted; `useEffect(() => keepAwake(), [])` while practising) · `requestWakeLock():
 Promise<boolean>` · `releaseWakeLock()` · `isWakeLockSupported()` · `getWakeLockState()` → `{ supported, wanted,
 active }` · `subscribeWakeLock(listener)`. Re-acquired when the tab becomes visible; a refusal is never an error.
+This is the only code that touches `navigator.wakeLock`: the kit's `useWakeLock(active)` is a hook over it, so
+every screen, the practice bar and anything else share one counted lock.
+
+## Installable and offline (`service-worker.ts` + `sw.js`; import from `@/core/platform/service-worker`)
+
+The standalone production app is an installable PWA that runs with no network. `src/main.tsx` calls
+`registerServiceWorker({ onUpdateReady })` once; features need nothing from it.
+
+```ts
+registerServiceWorker({ onUpdateReady?: (apply) => void }): Promise<'off' | 'active' | 'update-ready' | 'failed'>
+applyUpdate()                       // switch to the waiting version and reload (what "Reload" on the toast calls)
+getAppUpdateStatus() / subscribeAppUpdate(listener)   // for useSyncExternalStore, e.g. an "Update ready" row
+createServiceWorkerUpdater(deps)    // tests: the same logic on fakes
+```
+
+- **Where it registers.** Only in the standalone production build on a secure page: never inside a Claude
+  artifact (`isArtifact()`; the artifact build has no sw.js at all), never in the dev server (which also
+  unregisters a worker a production build left at the same address). It registers after the page's `load`
+  and an idle moment, so its background download never competes with the first screen.
+- **What it caches.** The build writes `sw.js` from `src/core/platform/sw.js` (hand-written, no libraries)
+  with the list of every file of the build (the `ssa-pwa` plugin in `vite.config.ts`, made after the build
+  from the output folder): all of `assets/`, `index.html`, the manifest and the SVG icon, about 15 MB raw,
+  fetched once in the background. `vendor/` (OCR data, hand model, pdf.js extras, 40 MB that most learners
+  never need) is not precached: each file is kept the first time it is used, so the scanner and camera work
+  offline after one use online. Opening the app (`./`, `index.html`) is answered from the cache; other hosts
+  (the AI service), POSTs and range requests are never touched.
+- **Updates.** A new deploy changes `sw.js`; the browser notices on the next launch, and the app also checks
+  when it comes back to the foreground (at most hourly). The new version downloads (files whose hashed name
+  is unchanged are copied from the old cache) and waits. `onUpdateReady` fires once; `src/main.tsx` shows a
+  sticky toast "A new version is ready" with **Reload**. Ignored, the new version starts the next time the
+  app is opened. When another tab switches first, this tab is offered the same reload. The first install
+  says nothing.
+- **Manifest.** `manifest.webmanifest` (name "Sixstring Academy", short name "Sixstring", standalone,
+  `theme_color` / `background_color` = the dark `--bg` read from `src/ui/tokens.css` at build time, shortcuts
+  to the Tuner, Metronome, Theory Path and Songs). Icons in `public/icons/` are drawn by
+  `node scripts/make-icons.cjs` from the token colours: `icon.svg` (also the favicon), `icon-192.png`,
+  `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`.
+- **Checks.** `src/core/platform/service-worker.test.ts` runs `sw.js` itself in a fake worker scope (install,
+  reuse on update, cleanup, offline answers, vendor caching, SKIP_WAITING) and the page side on fakes.
+  `node e2e/pwa.cjs` builds the app and checks install, offline (a never-opened screen too), the update toast
+  and Reload, and that the dev server and the artifact build register nothing.
 
 ## Blob store (`blobs.ts`; import from `@/core/platform/blobs`, not the barrel)
 

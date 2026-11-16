@@ -277,8 +277,13 @@ export class RecorderSession {
     return this.stopping;
   }
 
-  /** Stop without keeping anything (Stop pressed during the count-in, or leaving before the take began). */
+  /**
+   * Stop without keeping anything (Stop pressed during the count-in, or leaving before the take
+   * began). Does nothing once a stop is under way: that stop keeps the take (MediaRecorder may
+   * still be handing over its last chunk, and tearing down now would lose all the others).
+   */
   async cancel(): Promise<void> {
+    if (this.stopping) return;
     this.cancelled = true;
     try {
       if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop();

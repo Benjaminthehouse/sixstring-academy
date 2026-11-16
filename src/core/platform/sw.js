@@ -1,4 +1,4 @@
-// @ts-nocheck -- a classic service-worker script, not part of the TypeScript program.
+// A classic service-worker script (no modules, no TypeScript): it runs in the worker's own scope.
 /*
  * Sixstring Academy's service worker: hand-written, no libraries. It makes the installed app start
  * and run with no network at all.
@@ -34,7 +34,11 @@ const scoped = (path) => new URL(path, self.registration.scope).href;
 function relativePath(url) {
   const scope = new URL(self.registration.scope);
   if (url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname)) return null;
-  return decodeURIComponent(url.pathname.slice(scope.pathname.length));
+  try {
+    return decodeURIComponent(url.pathname.slice(scope.pathname.length));
+  } catch {
+    return null; // a malformed address: not one of ours
+  }
 }
 
 /** File names under assets/ carry a content hash: the same name is the same bytes, in any version. */

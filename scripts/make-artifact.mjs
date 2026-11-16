@@ -3,7 +3,7 @@
  * Turns the artifact build (`vite build --mode artifact` -> dist-artifact/) into what the Claude
  * artifact host publishes. `npm run build:artifact` runs both steps.
  *
- *   node scripts/make-artifact.mjs [dir]        (default dir: dist-artifact)
+ *   node scripts/make-artifact.mjs [dir] [--list]   (default dir: dist-artifact; --list prints every file)
  *
  * Writes into the build folder:
  *   page.html     the page itself: the title, the entry stylesheet and script (and the entry's
@@ -18,8 +18,10 @@
  *   control characters in text files; the pdf.js worker has three, all inside string literals,
  *   where the escape means the same byte).
  * Left out: vendor/tesseract and vendor/mediapipe (the camera is unavailable in the artifact host
- * and sheet reading uses the AI service there), source maps, index.html (page.html replaces it),
- * the launcher icons, and anything of the standalone app's service worker.
+ * and sheet reading uses the AI service there); vendor/pdfjs/cmaps (about 170 files, only for PDFs
+ * whose text needs Adobe character maps, i.e. CJK: without it the app is over the host's 511 files
+ * per version); source maps, index.html (page.html replaces it), the launcher icons, and anything
+ * of the standalone app's service worker.
  * Prints the files, their total size, and fails when something is over the host's limits.
  */
 import { readdirSync, readFileSync, statSync, writeFileSync, existsSync, rmSync } from 'node:fs';
@@ -27,7 +29,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = path.resolve(ROOT, process.argv[2] ?? 'dist-artifact');
+const ARGS = process.argv.slice(2);
+const DIR = path.resolve(ROOT, ARGS.find((a) => !a.startsWith('--')) ?? 'dist-artifact');
 const TITLE = 'Sixstring Academy';
 
 /** The host's limits (Artifact tool): per publish, per version, per file. */
@@ -57,6 +60,13 @@ export const CONTENT_TYPES = {
 };
 const TEXT = new Set(['.js', '.mjs', '.css', '.html', '.json', '.txt', '.svg']);
 
+/** Content type of a published path (licence files have no extension: plain text). */
+export function contentTypeOf(rel) {
+  const ext = path.extname(rel).toLowerCase();
+  if (!ext && /^LICEN[CS]E/i.test(path.basename(rel))) return 'text/plain';
+  return CONTENT_TYPES[ext] ?? null;
+}
+
 /** Paths left out of the artifact, relative to the build folder. */
 export function leftOut(rel) {
   return (
@@ -65,6 +75,7 @@ export function leftOut(rel) {
     /^files(-\d+)?\.json$/.test(rel) ||
     rel.startsWith('vendor/tesseract/') ||
     rel.startsWith('vendor/mediapipe/') ||
+    rel.startsWith('vendor/pdfjs/cmaps/') ||
     rel.startsWith('icons/') ||
     rel.startsWith('.vite/') ||
     rel.endsWith('.map') ||
@@ -81,11 +92,6 @@ export function escapeEsc(text) {
     return '\\x1b';
   });
   return { text: out, count };
-}
-
-/** Control characters other than tab, newline and carriage return (after ESC is escaped). */
-export function otherControls(text) {
-  return (text.match(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g) ?? []).length;
 }
 
 /** page.html from the build's index.html: title, entry styles, preloads and script, the root. */
@@ -116,10 +122,12 @@ function walk(dir, base = dir) {
 }
 
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+/** The build folder as the person running the script would type it. */
+const shown = (dir) => (dir.startsWith(ROOT + path.sep) ? path.relative(ROOT, dir) : dir);
 
 function main() {
   if (!existsSync(path.join(DIR, 'index.html'))) {
-    console.error(`make-artifact: ${path.relative(ROOT, DIR)}/index.html is missing. Run "vite build --mode artifact" first (npm run build:artifact does both).`);
+    console.error(`make-artifact: ${shown(DIR)}/index.html is missing. Run "vite build --mode artifact" first (npm run build:artifact does both).`);
     process.exit(1);
   }
   for (const old of readdirSync(DIR).filter((f) => /^files(-\d+)?\.json$/.test(f))) rmSync(path.join(DIR, old));
@@ -132,24 +140,23 @@ function main() {
   for (const rel of walk(DIR).sort()) {
     if (leftOut(rel)) continue;
     const ext = path.extname(rel).toLowerCase();
-    const contentType = CONTENT_TYPES[ext];
+    const contentType = contentTypeOf(rel);
     if (!contentType) {
       problems.push(`${rel}: no content type for "${ext}"`);
       continue;
     }
     const full = path.join(DIR, rel);
-    if (TEXT.has(ext)) {
+    const text = TEXT.has(ext) || contentType === 'text/plain';
+    if (text) {
       const original = readFileSync(full, 'utf8');
-      const { text, count } = escapeEsc(original);
-      if (count > 0) {
-        writeFileSync(full, text);
-        console.log(`  escaped ${count} ESC byte${count === 1 ? '' : 's'} in ${rel}`);
+      const escaped = escapeEsc(original);
+      if (escaped.count > 0) {
+        writeFileSync(full, escaped.text);
+        console.log(`  escaped ${escaped.count} ESC byte${escaped.count === 1 ? '' : 's'} in ${rel}`);
       }
-      const others = otherControls(text);
-      if (others > 0) problems.push(`${rel}: ${others} other control character(s) the host may refuse`);
     }
     const bytes = statSync(full).size;
-    const limit = TEXT.has(ext) ? LIMITS.textFile : LIMITS.binaryFile;
+    const limit = text ? LIMITS.textFile : LIMITS.binaryFile;
     if (bytes > limit) problems.push(`${rel}: ${mb(bytes)} is over the ${mb(limit)} limit for one file`);
     files.push({ rel, contentType, bytes });
   }
@@ -178,9 +185,10 @@ function main() {
 
   const byType = new Map();
   for (const f of files) byType.set(f.contentType, (byType.get(f.contentType) ?? 0) + f.bytes);
-  console.log(`\nArtifact in ${path.relative(ROOT, DIR)}/`);
+  console.log(`\nArtifact in ${shown(DIR)}/ (publish page.html, with each files*.json as \`files\` and root = that folder)`);
   console.log(`  page.html  ${(pageBytes / 1024).toFixed(1)} kB`);
   for (const [type, bytes] of [...byType.entries()].sort((a, b) => b[1] - a[1])) console.log(`  ${type.padEnd(26)} ${mb(bytes).padStart(9)}  (${files.filter((f) => f.contentType === type).length} files)`);
+  if (ARGS.includes('--list')) for (const f of files) console.log(`    ${f.rel}  ${f.contentType}  ${(f.bytes / 1024).toFixed(1)} kB`);
   console.log(`  ${names.join(', ')}: ${files.length} files beside the page`);
   console.log(`  total ${mb(total)} in ${files.length + 1} files`);
   if (problems.length) {

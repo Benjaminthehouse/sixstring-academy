@@ -68,8 +68,20 @@ export function passesToTarget(settings: TrainerSettings): number {
   return Math.ceil((settings.target - settings.start) / Math.max(1, settings.step));
 }
 
-/** One line for the trainer's switch: "From 70 % to 100 %, 5 % faster after each clean loop". */
-export function trainerSummary(settings: TrainerSettings, judged: boolean): string {
+/**
+ * One line for the trainer's switch: "From 70 % to 100 %, 5 % faster after each clean loop". With
+ * `mark` (a percent as the meter's tempo, see `tempoMark`) the ends say what the learner counts:
+ * "From 70 % (♩. = 42) to 100 % (♩. = 60), ...".
+ */
+export function trainerSummary(settings: TrainerSettings, judged: boolean, mark?: (percent: number) => string): string {
   const how = judged ? 'after each clean loop' : 'each time round';
-  return `From ${settings.start} % to ${settings.target} %, ${settings.step} % faster ${how}`;
+  const at = (p: number) => (mark ? `${p} % (${mark(p)})` : `${p} %`);
+  return `From ${at(settings.start)} to ${at(settings.target)}, ${settings.step} % faster ${how}`;
+}
+
+/** What the trainer says at the end of a pass: "Clean. Now 80 % (♩. = 48)." */
+export function trainerNote(next: { percent: number; changed: boolean; reached: boolean }, target: number, mark?: (percent: number) => string): string {
+  const at = (p: number) => (mark ? `${p} % (${mark(p)})` : `${p} %`);
+  if (next.reached) return `You reached ${at(target)}. Keep it going, or stop for your results.`;
+  return next.changed ? `Clean. Now ${at(next.percent)}.` : `Not quite clean: staying at ${at(next.percent)}.`;
 }

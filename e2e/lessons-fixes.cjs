@@ -307,6 +307,30 @@ async function desktop() {
     check(group, 'keys 6 and a letter make the sixth pair', placed === 'placed', `${placed} (${letter})`);
     await page.screenshot({ path: path.join(OUT, 'fixes-match-desktop.png') });
 
+    // A listening step's number keys pick an option (its play button's Space must not shadow them).
+    await page.goto(`${url}#kit-lessons--try--opt-listen-slow`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-exercise-type="listen-choice"]', { timeout: 60000 });
+    await page.waitForTimeout(500);
+    await page.keyboard.press('2');
+    await page.waitForTimeout(200);
+    const listenPick = await page.evaluate(() => [...document.querySelectorAll('[data-option]')].map((o) => o.getAttribute('data-state')));
+    check(group, 'a number key picks an option on a listening step', listenPick.filter((s) => s === 'selected').length === 1 && listenPick[1] === 'selected', listenPick.join(' '));
+
+    // After "I can't play right now" (a click), Enter on the tapping version checks: the focused
+    // button must not carry over as "I don't know".
+    await page.goto(`${url}#kit-lessons--try--opt-play-note-staff`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-cant-play]', { timeout: 60000 });
+    await page.waitForTimeout(500);
+    await page.locator('[data-cant-play]').first().click();
+    await page.waitForSelector('[data-exercise-type="true-false"]', { timeout: 20000 });
+    await page.waitForTimeout(300);
+    await page.keyboard.press('t');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-feedback]', { timeout: 15000 });
+    const afterCantPlay = await page.getAttribute('[data-feedback]', 'data-feedback');
+    check(group, 'Enter checks the tapping version after "I can\'t play"', afterCantPlay === 'ok', afterCantPlay);
+
     // Lesson sounds use the engine's drone, held chord and techniques: count what reaches Web Audio.
     await openOptions(page, url);
     const tabMarks = await page.evaluate(() => {

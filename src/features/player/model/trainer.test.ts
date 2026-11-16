@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TRAINER, isCleanPass, passesToTarget, sanitizeTrainer, trainerNext, trainerSummary } from './trainer';
+import { tempoMark } from './meter';
+import { DEFAULT_TRAINER, isCleanPass, passesToTarget, sanitizeTrainer, trainerNext, trainerNote, trainerSummary } from './trainer';
 
 const counts = (p: Partial<Record<'perfect' | 'good' | 'early' | 'late' | 'missed' | 'wrong', number>>) => ({ perfect: 0, good: 0, early: 0, late: 0, missed: 0, wrong: 0, ...p });
 
@@ -44,5 +45,14 @@ describe('speed trainer', () => {
     expect(trainerSummary(DEFAULT_TRAINER, false)).toBe('From 70 % to 100 %, 5 % faster each time round');
     expect(passesToTarget(DEFAULT_TRAINER)).toBe(6);
     expect(passesToTarget({ ...DEFAULT_TRAINER, start: 100 })).toBe(0);
+  });
+
+  it('counts the meter’s own beat: a 6/8 song at ♩. = 60 trains from ♩. = 42', () => {
+    const mark = (p: number) => tempoMark((90 * p) / 100, { numerator: 6, denominator: 8 }).short;
+    expect(trainerSummary(DEFAULT_TRAINER, true, mark)).toBe('From 70 % (♩. = 42) to 100 % (♩. = 60), 5 % faster after each clean loop');
+    expect(trainerNote({ percent: 80, changed: true, reached: false }, 100, mark)).toBe('Clean. Now 80 % (♩. = 48).');
+    expect(trainerNote({ percent: 80, changed: false, reached: false }, 100, mark)).toBe('Not quite clean: staying at 80 % (♩. = 48).');
+    expect(trainerNote({ percent: 100, changed: true, reached: true }, 100, mark)).toBe('You reached 100 % (♩. = 60). Keep it going, or stop for your results.');
+    expect(trainerNote({ percent: 80, changed: true, reached: false }, 100)).toBe('Clean. Now 80 %.');
   });
 });

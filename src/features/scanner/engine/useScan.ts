@@ -3,7 +3,9 @@
  * the pages (adding photos, PDFs and the sample, the quick look, rotate / crop / retake / reorder),
  * reading them (music through the sheet reader, text through OCR), the proofreading draft with its
  * undo history, the AI helper, and saving to the library. Unsaved work outlives the screen for
- * the rest of the visit (kept in this module when the screen unmounts), and a reload asks first.
+ * the rest of the visit (kept in this module when the screen unmounts) and a reload or a discarded
+ * tab: it is kept on the device as it changes (`persist.ts`) and offered back on the next visit.
+ * A reload asks first only while that copy is not up to date (or the browser keeps nothing).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createOmrWorker, type OmrWorkerClient } from '@/core/omr/worker/client';
@@ -14,6 +16,7 @@ import { type OmrSummary, summarizeDocument } from '@/core/omr/summary';
 import { detectTextFormat, type Song } from '@/core/song';
 import { getLibrary, isLibraryError, type SongListing } from '@/core/library';
 import { readFileText, sniffFile } from '@/core/platform';
+import { openBlobStore } from '@/core/platform/blobs';
 import { recordActivity } from '@/core/progress';
 import { type Draft, buildDraft } from '../model/draft';
 import { rearrange, songToSave } from '../model/edit';
@@ -23,12 +26,16 @@ import { layoutText } from '../model/text-layout';
 import { type AnyCanvas, canvasOfGray, cropPicture, grayOf, pictureFromCanvas, pictureFromFile, releasePicture, rotatePicture, toBlob } from './images';
 import { createLooker, type Looker } from './look';
 import { type Ocr, OcrUnavailableError } from './ocr';
+import { type DraftKeeper, type KeepInput, type KeeperState, type LoadedScan, type PageWithPictures, createDraftKeeper } from './persist';
+import { type KeptPage, describeSnapshot } from './snapshot';
 import { type PdfFile, PdfError, openPdf } from './pdf';
 import { type AiOutcome, type ReadProgress, type TextReading, aiErrorMessage, createOcr, fillTexts, findChordsOverTab, importText, improveMusicWithAi, isAbort, readMusic, readTextPages, readTextWithAi } from './read';
 
 /** A page with the scanner's private bits (its encoded picture, the cleaned view). */
 export interface Page extends ScanPage {
   blob: Blob;
+  /** The thumbnail, encoded (kept on the device with an unsaved scan). */
+  thumbBlob?: Blob;
   kindOf: 'photo' | 'render';
   /** The reader's cleaned, straightened view (object URL). */
   cleanUrl?: string;
@@ -73,6 +80,24 @@ interface Kept {
 }
 let kept: Kept | null = null;
 
+/** An unsaved scan from an earlier visit, kept on the device and offered back. */
+export interface ResumeOffer {
+  loaded: LoadedScan;
+  title: string;
+  detail: string;
+}
+
+let keeper: DraftKeeper | null = null;
+/** The keeper of the unsaved scan: one per page, on the platform blob store (nothing kept when the browser refuses). */
+function getKeeper(): DraftKeeper {
+  keeper ??= createDraftKeeper(openBlobStore('scanner').catch(() => null));
+  return keeper;
+}
+
+function keptOf(p: Page): PageWithPictures {
+  return { id: p.id, label: p.label, origin: p.origin, kindOf: p.kindOf, width: p.width, height: p.height, look: p.look, blob: p.blob, ...(p.thumbBlob ? { thumbBlob: p.thumbBlob } : {}), ...(p.pdfText ? { pdfText: p.pdfText } : {}) };
+}
+
 function release(list: Page[]): void {
   for (const p of list) {
     releasePicture(p);
@@ -102,8 +127,8 @@ export function useScan() {
   /** The pages the current reading came from, in its page order. */
   const [readPages, setReadPages] = useState<Page[]>(resume?.readPages ?? []);
   const removed = useRef<Page[]>(resume?.removed ?? []);
-  const latest = useRef<Omit<Kept, 'removed'> & { saved: Saved | null }>({ pages, readPages, doc, summary, history, readNotes, text, aiResult, saved });
-  latest.current = { pages, readPages, doc, summary, history, readNotes, text, aiResult, saved };
+  const latest = useRef<Omit<Kept, 'removed'> & { saved: Saved | null; phase: Phase }>({ pages, readPages, doc, summary, history, readNotes, text, aiResult, saved, phase });
+  latest.current = { pages, readPages, doc, summary, history, readNotes, text, aiResult, saved, phase };
 
   const grays = useRef<GrayImage[]>([]);
   const pdfs = useRef(new Map<string, { pdf: PdfFile; index: number; scale: number; size: { width: number; height: number } }>());
@@ -130,6 +155,7 @@ export function useScan() {
       for (const { pdf } of pdfs.current.values()) pdf.close();
       pdfs.current.clear();
       // Leaving the screen keeps unsaved work for when the learner comes back; a saved song is in the library.
+      void getKeeper().flush();
       const s = latest.current;
       if (hasWork(s)) {
         kept = { pages: s.pages, readPages: s.readPages, doc: s.doc, summary: s.summary, history: s.history, readNotes: s.readNotes, text: s.text, aiResult: s.aiResult, removed: removed.current };
@@ -140,8 +166,65 @@ export function useScan() {
     };
   }, []);
 
-  // A reload or a closed tab would lose the photos and the checking done so far: the browser asks first.
-  const precious = worthWarning({ pages, history, text, saved });
+  // ---- the copy kept on the device ------------------------------------------------------------------
+  const keep = useMemo(getKeeper, []);
+  const [keeperState, setKeeperState] = useState<KeeperState>(keep.state);
+  useEffect(() => {
+    setKeeperState(keep.state);
+    return keep.subscribe(setKeeperState);
+  }, [keep]);
+  // The unsaved scan of an earlier visit is offered back (a visit that kept one in memory has it already).
+  const [offer, setOffer] = useState<ResumeOffer | null>(null);
+  const [lookedForKept, setLookedForKept] = useState(!!resume);
+  useEffect(() => {
+    if (resume) return;
+    let live = true;
+    void keep.load().then((loaded) => {
+      if (!live) return;
+      if (loaded) setOffer({ loaded, ...describeSnapshot(loaded.snapshot) });
+      setLookedForKept(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [keep, resume]);
+  const buildKeep = useCallback((): KeepInput | null => {
+    const s = latest.current;
+    if (!hasWork(s)) return null;
+    return { phase: s.phase, pages: s.pages.map(keptOf), readPages: s.readPages.map(keptOf), readNotes: s.readNotes, text: s.text, aiResult: s.aiResult, history: s.history, doc: s.doc };
+  }, []);
+  // Keep the work as it changes; not while an earlier scan is on offer (this would replace it).
+  useEffect(() => {
+    if (!lookedForKept || offer) return;
+    if (saved) {
+      void keep.clear();
+      return;
+    }
+    if (!hasWork(latest.current) && (keep.state === 'idle' || keep.state === 'cleared')) return;
+    keep.schedule(buildKeep);
+  }, [lookedForKept, offer, pages, readPages, doc, history, text, aiResult, readNotes, phase, saved, keep, buildKeep]);
+  // A phone may discard a hidden tab without warning: write at once when the page is hidden.
+  useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') void keep.flush();
+    };
+    const leaving = () => void keep.flush();
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', leaving);
+    return () => {
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', leaving);
+    };
+  }, [keep]);
+  // Browser checks follow the keeper (development builds only).
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __ssaScanDraft?: unknown }).__ssaScanDraft = { state: keeperState, persistent: keep.persistent, offer: !!offer };
+  }, [keeperState, keep, offer]);
+
+  // A reload or a closed tab would lose the photos and the checking done so far: unless the copy on
+  // the device is up to date, the browser asks first.
+  const safelyKept = !offer && keep.persistent && keeperState === 'saved';
+  const precious = worthWarning({ pages, history, text, saved }) && !safelyKept;
   useEffect(() => {
     if (!precious) return;
     const ask = (e: BeforeUnloadEvent) => {
@@ -547,8 +630,75 @@ export function useScan() {
     return save(r.result.song, { warnings: r.result.warnings.map((w) => w.message), confidence: r.result.confidence, estimatedRhythm: !!r.result.estimatedRhythm, format: r.format });
   }, [save, text]);
 
+  // ---- an unsaved scan from an earlier visit ---------------------------------------------------------
+  /** Take the offered scan back: its pages, the reading with its recent undo steps, where the learner was. */
+  const resumeKept = useCallback(() => {
+    const o = offer;
+    if (!o) return;
+    const { snapshot, pictures, doc: d, history: h } = o.loaded;
+    run.current?.abort();
+    release([...pagesRef.current, ...removed.current, ...latest.current.readPages]);
+    removed.current = [];
+    for (const { pdf } of pdfs.current.values()) pdf.close();
+    pdfs.current.clear();
+    grays.current = [];
+    // One page object per picture, so the reading and the tray share it (as they do before a reload).
+    const byPic = new Map<string, Page>();
+    const toPage = (kp: KeptPage): Page => {
+      const known = byPic.get(kp.pic);
+      if (known) return known;
+      const blob = pictures.get(kp.pic) as Blob;
+      const thumbBlob = kp.thumb ? pictures.get(kp.thumb) : undefined;
+      const url = URL.createObjectURL(blob);
+      const page: Page = {
+        id: kp.id, label: kp.label, origin: kp.origin, kindOf: kp.kindOf, width: kp.width, height: kp.height, look: kp.look, blob, url,
+        thumbUrl: thumbBlob ? URL.createObjectURL(thumbBlob) : url,
+        ...(thumbBlob ? { thumbBlob } : {}),
+        ...(kp.pdfText ? { pdfText: kp.pdfText } : {}),
+      };
+      byPic.set(kp.pic, page);
+      return page;
+    };
+    const nextPages = snapshot.pages.map(toPage);
+    const nextRead = snapshot.readPages.map(toPage);
+    keep.adopt(pictures);
+    setPages(nextPages);
+    setReadPages(nextRead);
+    setDoc(d);
+    setSummary(d ? summarizeDocument(d, { limit: 50 }) : null);
+    setHistory(h);
+    setReadNotes(snapshot.readNotes);
+    setText(snapshot.text);
+    setAiResult(snapshot.aiResult);
+    setSaved(null);
+    setError(null);
+    setOffer(null);
+    setPhase(snapshot.phase === 'music' && h ? 'music' : snapshot.phase === 'text' && snapshot.text ? 'text' : 'pages');
+    // A fresh quick look brings back the cleaned view (the reading itself is kept as it was).
+    for (const p of nextPages) if (!p.pdfText) void lookAt(p);
+  }, [offer, keep, lookAt]);
+
+  /** Let the offered scan go (returns it, for Undo). */
+  const discardKept = useCallback((): ResumeOffer | null => {
+    const o = offer;
+    if (!o) return null;
+    setOffer(null);
+    void keep.clear();
+    return o;
+  }, [offer, keep]);
+
+  /** Undo of `discardKept`: the scan is kept and offered again. */
+  const restoreKept = useCallback(
+    (o: ResumeOffer) => {
+      void keep.restore(o.loaded);
+      setOffer(o);
+    },
+    [keep],
+  );
+
   /** Start again with no pages. */
   const reset = useCallback(() => {
+    void keep.clear();
     run.current?.abort();
     ai.current?.abort();
     release([...pagesRef.current, ...removed.current, ...latest.current.readPages]);
@@ -567,9 +717,10 @@ export function useScan() {
     setReadNotes([]);
     setError(null);
     setPhase('pages');
-  }, []);
+  }, [keep]);
 
   return {
+    offer, resumeKept, discardKept, restoreKept, keeperState,
     pages, readPages, adding, phase, setPhase, progress, error, setError, kind, doc, summary, draft, history, readNotes, text, aiBusy, aiResult, saved,
     addFiles, addSample, openText, removePage, restorePage, reorder, transform, read, cancel,
     apply, undo, redo, setTextValue, improveWithAi, stopAi, saveDraft, saveText, reset,

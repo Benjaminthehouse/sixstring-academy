@@ -9,11 +9,13 @@
  *   node e2e/perf.cjs --dist <dir>          measure a build you already have
  *   node e2e/perf.cjs --runs 5 --only home,scales --json /tmp/perf.json
  *   node e2e/perf.cjs --quick               one run of each screen
+ *   node e2e/perf.cjs --no-repeat           skip the repeat visits
  *
  * Prints, per screen (median of the runs): first contentful paint, "ready" (the screen's own
  * content is on screen, not the shell's skeleton), the JavaScript downloaded by then (gzip bytes
- * on the wire) and the slowest interaction (Event Timing: tap to next paint), plus the largest
- * chunks of the build. Fails when a first screen downloads a heavy library it does not show
+ * on the wire) and the slowest interaction (Event Timing: tap to next paint); then a repeat visit
+ * (the app opened again in a new tab: from the service worker when the build has one, else from
+ * the HTTP cache); and the largest chunks of the build. Fails when a first screen downloads a heavy library it does not show
  * (alphaTab, pdf.js, VexFlow, Tesseract, MediaPipe, the full icon set) or when the JavaScript a
  * first screen needs grows past its budget. Timings are reported, not judged: this machine is
  * shared, and a slowed CPU on a loaded machine is noisy.
@@ -39,14 +41,17 @@ const CPU_SLOWDOWN = 4;
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 
 /**
- * The screens. `ready` is the screen's own content; `act` is one tap a learner would make first.
- * `budgetKb` caps the gzip JavaScript on the wire before the screen is ready.
+ * The screens. `chunk` is the route's own code; `ready` is the screen's own content; `act` is one
+ * tap a learner would make first. `budgetKb` caps the gzip JavaScript on the wire before the
+ * screen is ready: what it needed in November 2026 plus about 15 %, so growth is noticed. (The
+ * lesson's is high because the Theory Path loads every unit's content at once, not just the
+ * lesson's own unit: see useTheory.ts in features/learn.)
  */
 const SCREENS = [
-  { id: 'home', hash: 'home', ready: 'main[data-route="home"] [data-ui-page]:not([data-shell-fallback])', act: '[data-chip]', budgetKb: 330 },
-  { id: 'lesson', hash: 'learn--sound-and-pitch--a-sound-is-a-vibration', ready: '[data-lesson-player]', act: '[data-lesson-player] [data-ui-primary]', budgetKb: 520 },
-  { id: 'play', hash: 'play--hot-cross-buns', ready: '[data-player] [data-player-play]', act: '[data-player-play]', budgetKb: 560 },
-  { id: 'scales', hash: 'scales', ready: '[data-scales] [data-neck]', act: '[data-play]', budgetKb: 470 },
+  { id: 'home', hash: 'home', chunk: /^assets\/home-/, ready: 'main[data-route="home"] [data-ui-page]:not([data-shell-fallback])', act: '[data-chip]', budgetKb: 230 },
+  { id: 'lesson', hash: 'learn--sound-and-pitch--a-sound-is-a-vibration', chunk: /^assets\/learn-.*\.js$/, ready: '[data-lesson-player]', act: '[data-lesson-player] [data-ui-primary]', budgetKb: 700 },
+  { id: 'play', hash: 'play--hot-cross-buns', chunk: /^assets\/player-.*\.js$/, ready: '[data-player] [data-player-play]', act: '[data-player-play]', budgetKb: 600 },
+  { id: 'scales', hash: 'scales', chunk: /^assets\/scales-.*\.js$/, ready: '[data-scales] [data-neck]', act: '[data-play]', budgetKb: 480 },
 ];
 
 /** Libraries that must never be on the wire before a first screen is ready (they are lazy by design). */
@@ -100,29 +105,49 @@ function instrument() {
   }
 }
 
-async function measure(browser, base, screen) {
-  const context = await browser.newContext({ ...PHONE, serviceWorkers: 'block' });
-  await context.addInitScript(instrument);
-  const page = await context.newPage();
+/** Throttle a page like a mid-range phone on slow 4G and log what crosses the wire. */
+async function throttle(context, page) {
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', NETWORK);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
   const responses = new Map();
   const wire = [];
-  cdp.on('Network.responseReceived', (e) => responses.set(e.requestId, { url: e.response.url, type: e.type }));
+  cdp.on('Network.responseReceived', (e) => responses.set(e.requestId, { url: e.response.url, type: e.type, fromWorker: e.response.fromServiceWorker }));
   cdp.on('Network.loadingFinished', (e) => {
     const r = responses.get(e.requestId);
-    if (r) wire.push({ ...r, bytes: e.encodedDataLength, at: e.timestamp });
+    // A file the service worker answered from its cache never touched the network.
+    if (r) wire.push({ ...r, bytes: r.fromWorker ? 0 : e.encodedDataLength, at: e.timestamp });
   });
+  return wire;
+}
+
+/**
+ * One visit to a screen. First visit: an empty cache, no service worker. Repeat visit (`repeat`):
+ * the app was opened once before in this browser (HTTP cache warm, and the service worker
+ * installed when the build has one), then opened again in a new tab, as a learner reopening it.
+ */
+async function measure(browser, base, screen, { repeat = false, hasWorker = false } = {}) {
+  const context = await browser.newContext({ ...PHONE, serviceWorkers: repeat ? 'allow' : 'block' });
+  await context.addInitScript(instrument);
+  if (repeat) {
+    const first = await context.newPage();
+    await first.goto(`${base}#${screen.hash}`, { timeout: 120000 });
+    await first.waitForSelector(screen.ready, { state: 'attached', timeout: 120000 });
+    if (hasWorker) {
+      await first.waitForFunction(async () => !!(await navigator.serviceWorker.ready).active && !!navigator.serviceWorker.controller, null, { timeout: 120000 });
+    }
+    await first.waitForTimeout(1500);
+    await first.close();
+  }
+  const page = await context.newPage();
+  const wire = await throttle(context, page);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const t0 = Date.now();
   await page.goto(`${base}#${screen.hash}`, { waitUntil: 'commit', timeout: 120000 });
   await page.waitForSelector(screen.ready, { state: 'attached', timeout: 120000 });
   await page.waitForFunction(() => !document.querySelector('[data-shell-fallback]'), null, { timeout: 120000 });
   const ready = await page.evaluate(() => performance.now());
-  const readyWall = Date.now() - t0;
   const atReady = wire.slice();
   // Let the page settle (late chunks, fonts) before the tap, then measure the tap to the next paint.
   await page.waitForTimeout(2500);
@@ -139,7 +164,6 @@ async function measure(browser, base, screen) {
     fcp: perf.fcp,
     lcp: perf.lcp,
     ready,
-    readyWall,
     blocking,
     tap,
     jsBytes: js.reduce((s, r) => s + r.bytes, 0),
@@ -163,6 +187,20 @@ function largestChunks(dist, count = 15) {
   return rows.slice(0, count);
 }
 
+/**
+ * What index.html's route preloader (the ssa-route-preload plugin in vite.config.ts) asks for
+ * at once for an address: runs its inline script against a stand-in document.
+ */
+function routePreloads(dist, hash) {
+  const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+  const inline = /<script>(\(function\(f,r\)[\s\S]*?)<\/script>/.exec(html);
+  if (!inline) return [];
+  const added = [];
+  const document = { createElement: () => ({}), head: { appendChild: (e) => added.push(e) } };
+  new Function('location', 'document', inline[1])({ hash: `#${hash}` }, document);
+  return added.map((e) => ({ rel: e.rel, href: e.href.replace(/^\.\//, '') }));
+}
+
 /** The JavaScript index.html asks for before anything runs (entry + modulepreloads). */
 function entryClosure(dist) {
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
@@ -183,7 +221,7 @@ function entryClosure(dist) {
     await buildInto(dist);
   }
   dist = path.resolve(dist);
-  const runs = flag('quick') ? 1 : Number(val('runs', 3));
+  const runs = argv.includes('--quick') ? 1 : Number(val('runs', 3));
   const only = val('only') ? val('only').split(',') : null;
   const screens = SCREENS.filter((s) => !only || only.includes(s.id));
 
@@ -196,9 +234,14 @@ function entryClosure(dist) {
 
   const server = await serveDir(dist);
   const browser = await chromium.launch();
-  const report = { network: 'DevTools Slow 4G', cpuSlowdown: CPU_SLOWDOWN, runs, screens: {}, closure, largest: largestChunks(dist) };
+  const hasWorker = fs.existsSync(path.join(dist, 'sw.js'));
+  const report = { network: 'DevTools Slow 4G', cpuSlowdown: CPU_SLOWDOWN, runs, hasWorker, screens: {}, repeat: {}, closure, largest: largestChunks(dist) };
   try {
     for (const screen of screens) {
+      const preloads = routePreloads(dist, screen.hash);
+      const own = preloads.filter((p) => p.rel === 'modulepreload' && screen.chunk.test(p.href));
+      const exist = preloads.every((p) => fs.existsSync(path.join(dist, p.href)));
+      check(`index.html starts downloading #${screen.hash}'s own code at once (${preloads.length} files)`, own.length > 0 && exist, own.map((p) => p.href).join(', ') || 'nothing preloaded');
       const results = [];
       for (let i = 0; i < runs; i++) results.push(await measure(browser, server.url, screen));
       const m = (k) => median(results.map((r) => r[k]));
@@ -215,6 +258,13 @@ function entryClosure(dist) {
       check(`#${screen.hash} needs at most ${screen.budgetKb} kB of JavaScript (gzip) to be ready`, row.jsBytes <= screen.budgetKb * 1024, kb(row.jsBytes));
       const errs = results.flatMap((r) => r.errors);
       check(`#${screen.hash} runs without page errors`, errs.length === 0, errs[0]);
+      if (!flag('no-repeat')) {
+        const again = [];
+        for (let i = 0; i < runs; i++) again.push(await measure(browser, server.url, screen, { repeat: true, hasWorker }));
+        const r = (k) => median(again.map((x) => x[k]));
+        report.repeat[screen.id] = { fcp: r('fcp'), ready: r('ready'), allBytes: r('allBytes'), requests: r('requests'), runs: again };
+        console.log(`  repeat visit (${hasWorker ? 'installed: service worker' : 'HTTP cache'}): first paint ${ms(r('fcp'))} · ready ${ms(r('ready'))} · ${kb(r('allBytes'))} on the wire`);
+      }
     }
   } finally {
     await browser.close();

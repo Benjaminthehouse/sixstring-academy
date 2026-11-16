@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FlowResult, WaitRecord } from '@/core/song';
-import { activityFor, bestLine, heatLevel, isBetter, practiceStretches, readSongData, runStars, suggestedTempo, summarizeFlow, summarizeListen, summarizeWait, withRun } from './results';
+import { activityFor, bestLine, heatLevel, isBetter, micUsable, practiceStretches, readSongData, runStars, suggestedTempo, summarizeFlow, summarizeListen, summarizeWait, withRun, withoutMic } from './results';
 
 function flowResult(bars: Array<[bar: number, targets: number, perfect: number, missed: number]>): FlowResult {
   const rows = bars.map(([bar, targets, perfect, missed]) => ({ bar, targets, perfect, good: 0, early: 0, late: 0, missed, wrong: 0, accuracy: (100 * perfect) / targets, mistakes: missed }));
@@ -129,5 +129,25 @@ describe('results', () => {
     expect(listen.accuracy).toBeUndefined();
     expect(listen.completed).toBe(false);
     expect(listen.progress).toBe(1);
+  });
+
+  it('never suggests a microphone mode after the microphone was refused or is missing', () => {
+    expect(micUsable(null, false)).toBe(true);
+    expect(micUsable('in-use', false)).toBe(true);
+    expect(micUsable('denied', false)).toBe(false);
+    expect(micUsable('no-device', false)).toBe(false);
+    expect(micUsable('insecure-context', false)).toBe(false);
+    expect(micUsable(null, true)).toBe(false);
+    // Listening suggests Wait mode; without a microphone it suggests tapping along.
+    const listen = summarizeListen({ ...CTX });
+    expect(listen.suggestion?.mode).toBe('wait');
+    expect(withoutMic(listen).suggestion).toMatchObject({ mode: 'tap', text: 'Now tap along in time with the notes' });
+    // A wait run's "try it in time with Flow" becomes tap-along too; a loop keeps its words.
+    const wait = summarizeWait([{ index: 0, bar: 0, matched: true, skipped: false, wrong: 0, hints: 0, attempts: 1, took: 1 }] as unknown as WaitRecord[], CTX);
+    expect(wait.suggestion?.mode).toBe('flow');
+    expect(withoutMic(wait).suggestion?.mode).toBe('tap');
+    const flow = summarizeFlow(flowResult([[0, 8, 8, 0], [1, 8, 2, 6]]), 'flow', CTX);
+    const kept = withoutMic({ ...flow, suggestion: { text: 'Loop bars 2 to 3 at 70 %', loop: { from: 1, to: 2 }, tempo: 70, mode: 'wait' } });
+    expect(kept.suggestion).toEqual({ text: 'Loop bars 2 to 3 at 70 %', loop: { from: 1, to: 2 }, tempo: 70, mode: 'tap' });
   });
 });

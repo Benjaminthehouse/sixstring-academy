@@ -3,6 +3,7 @@ import { act, StrictMode, useRef, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readJSON } from '@/core/platform/storage';
+import { getWakeLockState } from '@/core/platform/wake-lock';
 import { getTabbables, initialFocusTarget, trapTabTarget } from './focus';
 import { useControllableState } from './useControllableState';
 import { useDebounced, useDebouncedCallback } from './useDebounced';
@@ -13,7 +14,7 @@ import { useFocusTrap } from './useFocusTrap';
 import { useInterval, useTimeout } from './useInterval';
 import { useLatest } from './useLatest';
 import { useLocalState } from './useLocalState';
-import { useIsMobile, useMediaQuery, usePrefersReducedMotion } from './useMediaQuery';
+import { useIsMobile, useIsTouch, useMediaQuery, usePrefersReducedMotion } from './useMediaQuery';
 import { usePressHold } from './usePressHold';
 import { MAX_FRAME_MS, useRafLoop } from './useRafLoop';
 import { lockScroll, useScrollLock } from './useScrollLock';
@@ -271,6 +272,26 @@ describe('useMediaQuery', () => {
     const { result } = renderHook(() => useIsMobile(), undefined);
     expect(result.current).toBe(true);
   });
+
+  it('useIsTouch is right on the very first render, so a keyboard or touch hint never flashes', () => {
+    for (const coarse of [true, false]) {
+      stubMatchMedia({ '(pointer: coarse)': coarse });
+      const seen: boolean[] = [];
+      function Probe() {
+        seen.push(useIsTouch());
+        return null;
+      }
+      const view = mount(
+        <StrictMode>
+          <Probe />
+        </StrictMode>,
+      );
+      // Every render, the first included, saw the device's real pointer: no false-then-true.
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((value) => value === coarse)).toBe(true);
+      view.unmount();
+    }
+  });
 });
 
 describe('useElementSize', () => {
@@ -424,6 +445,28 @@ describe('useWakeLock', () => {
     rerender(false);
     expect(release).toHaveBeenCalledTimes(1);
     expect(result.current.held).toBe(false);
+  });
+
+  it('goes through the platform service: two screens share one lock, kept until the last lets go', async () => {
+    const sentinel = { released: false, release: vi.fn(async () => void (sentinel.released = true)), addEventListener: () => {} };
+    const request = vi.fn(async () => sentinel);
+    vi.stubGlobal('navigator', { ...navigator, wakeLock: { request } });
+    const tuner = renderHook((on: boolean) => useWakeLock(on), true);
+    const bar = renderHook((on: boolean) => useWakeLock(on), true);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // One browser lock for both (the hook used to ask the browser once per caller).
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(tuner.result.current.held && bar.result.current.held).toBe(true);
+    expect(getWakeLockState()).toMatchObject({ wanted: true, active: true });
+    tuner.rerender(false);
+    expect(sentinel.release).not.toHaveBeenCalled();
+    expect(tuner.result.current.held).toBe(false);
+    expect(bar.result.current.held).toBe(true);
+    bar.unmount();
+    expect(sentinel.release).toHaveBeenCalledTimes(1);
+    expect(getWakeLockState()).toMatchObject({ wanted: false, active: false });
   });
 
   it('carries on when the request is refused', async () => {

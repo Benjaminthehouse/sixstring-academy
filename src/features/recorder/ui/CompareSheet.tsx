@@ -35,8 +35,8 @@ export function CompareSheet({ open, onClose, store, takes, take }: CompareSheet
   const [side, setSide] = useState<Side>('a');
   const [matched, setMatched] = useState(true);
   const [playing, setPlaying] = useState(false);
+  // Decoded audio of the two takes in the comparison, and of nothing else (each is megabytes).
   const [loaded, setLoaded] = useState<Record<string, Loaded>>({});
-  const [failed, setFailed] = useState(false);
   const playerRef = useRef<TakePlayer | null>(null);
   if (!playerRef.current) playerRef.current = new TakePlayer();
   const player = playerRef.current;
@@ -46,40 +46,46 @@ export function CompareSheet({ open, onClose, store, takes, take }: CompareSheet
     if (!open || !take) return;
     setOtherId(comparisonFor(takes, take)?.id ?? null);
     setSide('a');
-    setFailed(false);
     // Only when it opens or A changes, not on every change of the list.
   }, [open, take?.id]);
 
   const other = useMemo(() => takes.find((t) => t.id === otherId) ?? null, [takes, otherId]);
 
-  // Decode both takes (once each).
+  // Decode the two takes; let go of any take that is no longer A or B.
   useEffect(() => {
     if (!open || !store) return;
+    const wanted = [take, other].filter((t): t is Take => t !== null);
+    const ids = new Set(wanted.map((t) => t.id));
+    const keepWanted = (prev: Record<string, Loaded>) => Object.fromEntries(Object.entries(prev).filter(([id]) => ids.has(id)));
+    setLoaded(keepWanted);
     let alive = true;
-    for (const t of [take, other]) {
-      if (!t || loaded[t.id]) continue;
+    for (const t of wanted) {
       void (async () => {
         const blob = await store.audio(t.id).catch(() => null);
         const buffer = blob ? await decodeTake(t.id, blob) : null;
         if (!alive) return;
-        if (!buffer) setFailed(true);
-        setLoaded((prev) => ({ ...prev, [t.id]: { buffer, rms: buffer ? rmsOf(channelsOf(buffer)) : 0 } }));
+        setLoaded((prev) => (prev[t.id]?.buffer === buffer && prev[t.id] ? prev : { ...keepWanted(prev), [t.id]: { buffer, rms: buffer ? rmsOf(channelsOf(buffer)) : 0 } }));
       })();
     }
     return () => {
       alive = false;
     };
-  }, [open, store, take, other, loaded]);
+  }, [open, store, take?.id, other?.id]);
 
   useEffect(() => player.onChange((s) => setPlaying(s.playing)), [player]);
   useEffect(() => () => player.dispose(), [player]);
+  // Closed: stop, and let go of both takes' audio.
   useEffect(() => {
-    if (!open) player.pause();
+    if (open) return;
+    player.load(null);
+    setLoaded({});
   }, [open, player]);
 
   const a = take ? loaded[take.id] : undefined;
   const b = other ? loaded[other.id] : undefined;
   const ready = !!a?.buffer && !!b?.buffer;
+  // Only the two takes being compared count: picking another B clears a warning about the last one.
+  const failed = (!!a && !a.buffer) || (!!b && !b.buffer);
   const [gainA, gainB] = matched && a && b ? matchGains(a.rms, b.rms) : [1, 1];
   const current = side === 'a' ? a : b;
 

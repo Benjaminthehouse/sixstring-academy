@@ -27,7 +27,7 @@ export interface Take {
 
 /** Longest name kept, in characters. */
 export const MAX_NAME_LENGTH = 60;
-/** A take stops by itself after this long, ms (ten minutes: about 5 MB, and a lot to decode on a phone). */
+/** A take stops by itself after this long, ms (ten minutes: about 10 MB at 128 kbit/s, and a lot to decode on a phone). */
 export const MAX_TAKE_MS = 10 * 60_000;
 /** Shorter takes are kept but not reported as practice time, seconds. */
 export const MIN_PRACTICE_SEC = 3;

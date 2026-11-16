@@ -1,6 +1,6 @@
 import { it } from 'vitest';
 import { renderSequence, strumPlan, type SequenceNote } from '@/core/audio';
-import { detectOnsets } from '@/core/pitch';
+import { detectOnsets, whiteNoise } from '@/core/pitch';
 import { meterInfo } from './meter';
 import { STRUM_PATTERNS, quietUpstroke, strokes } from './strum';
 
@@ -10,6 +10,7 @@ it('measures', () => {
   const sr = 44100;
   let qFound = 0, qTotal = 0, oFound = 0, oTotal = 0, extra = 0;
   const missedBy: Record<string, number> = {};
+  const errs: number[] = [];
   for (const p of STRUM_PATTERNS) {
     const meter = meterInfo(p.meter);
     const secPerTick = 60 / p.bpm / meter.tempoBeatTicks;
@@ -36,15 +37,20 @@ it('measures', () => {
       }
     }
     const x = renderSequence(notes, { sampleRate: sr, tail: 1.5, tone: 'steel' });
-    const on = detectOnsets(x, sr).map((o) => o.time);
+    const on = detectOnsets(x, sr, process.env.THR ? { fluxThreshold: Number(process.env.THR) } : {}).map((o) => o.time);
     const used = new Set<number>();
     for (const tg of targets) {
       const i = on.findIndex((o, k) => !used.has(k) && Math.abs(o - tg.t) < 0.03);
       if (i >= 0) used.add(i);
+      if (i >= 0 && tg.quiet) errs.push((on[i] - tg.t) * 1000);
       if (tg.quiet) { qTotal++; if (i >= 0) qFound++; else missedBy[p.id] = (missedBy[p.id] ?? 0) + 1; }
       else { oTotal++; if (i >= 0) oFound++; else missedBy[p.id + '*'] = (missedBy[p.id + '*'] ?? 0) + 1; }
     }
     extra += on.length - used.size;
   }
-  process.stdout.write(JSON.stringify({ qFound, qTotal, oFound, oTotal, extra, missedBy }) + "\n");
+  const abs = errs.map(Math.abs).sort((a, b) => a - b); const srt = [...errs].sort((a, b) => a - b);
+  process.stdout.write(JSON.stringify({ qFound, qTotal, oFound, oTotal, extra, missedBy, med: srt[srt.length >> 1], p95: abs[Math.floor(abs.length * 0.95)], max: abs[abs.length - 1] }) + "\n");
+  let fa = 0;
+  for (const [lvl, seed] of [[0.1, 11], [0.03, 12], [0.01, 13], [0.003, 15]] as const) { const n = whiteNoise(60 * sr, lvl, seed); fa += detectOnsets(n, sr).filter((o) => o.time > 0.1).length; const pk = whiteNoise(60 * sr, lvl, seed + 5); let acc = 0; for (let i = 0; i < pk.length; i++) { acc = 0.98 * acc + pk[i]; pk[i] = acc * 0.2; } fa += detectOnsets(pk, sr).filter((o) => o.time > 0.1).length; }
+  process.stdout.write(`noise FA in 480 s: ${fa}\n`);
 }, 120000);

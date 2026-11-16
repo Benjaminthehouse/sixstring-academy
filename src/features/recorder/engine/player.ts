@@ -4,43 +4,94 @@
  * compressor, only the app's master volume. Decoding gives the exact length, so seeking is exact
  * (a MediaRecorder WebM file has no index, and an <audio> element often cannot seek in one).
  *
+ * Decoded audio is big (about 11 MB a minute), so the cache keeps the last few takes only while
+ * the Recorder screen holds it (`holdDecodedTakes`) and lets go of all of them when it closes.
+ *
  * `TakePlayer` plays one buffer at a time; `swap` replaces it while keeping the position and the
  * playing state, which is what an A/B comparison needs.
  */
 import { audioSoundingNow, audioSupported, getAudioContext, getEngine, getMasterVolume, isMuted } from '@/core/audio';
 
-const cache = new Map<string, Promise<AudioBuffer | null>>();
-const CACHE_SIZE = 3;
+/** How many decoded takes are kept: the selected one and the two of a comparison. */
+export const DECODE_CACHE_SIZE = 3;
 
-/** The decoded audio of a take (null when this browser cannot decode it). Cached for the last few takes. */
+/** A cache of decoded takes by id (see {@link createDecodeCache}). */
+export interface DecodeCache<T> {
+  /** The decoded take (null when it cannot be decoded); kept while the cache is held. */
+  decode(id: string, blob: Blob): Promise<T | null>;
+  /** Forget one take (it was deleted). */
+  forget(id: string): void;
+  /** Keep decoded takes until the returned release; when the last holder lets go, all are dropped. */
+  hold(): () => void;
+  /** Decoded takes kept now. */
+  size(): number;
+}
+
+/**
+ * A cache of decoded takes: the last `limit` used, a failed decode never kept (a later try may
+ * work), and nothing kept at all while no screen holds it (so a take saved after leaving the
+ * screen is not left in memory).
+ */
+export function createDecodeCache<T>(decode: (blob: Blob) => Promise<T | null>, limit = DECODE_CACHE_SIZE): DecodeCache<T> {
+  const cache = new Map<string, Promise<T | null>>();
+  let holders = 0;
+  return {
+    decode(id, blob) {
+      const hit = cache.get(id);
+      if (hit) {
+        cache.delete(id);
+        cache.set(id, hit);
+        return hit;
+      }
+      const job = decode(blob).catch(() => null);
+      if (holders === 0) return job;
+      cache.set(id, job);
+      void job.then((value) => {
+        if (value === null && cache.get(id) === job) cache.delete(id);
+      });
+      while (cache.size > limit) cache.delete(cache.keys().next().value as string);
+      return job;
+    },
+    forget(id) {
+      cache.delete(id);
+    },
+    hold() {
+      holders++;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holders--;
+        if (holders === 0) cache.clear();
+      };
+    },
+    size: () => cache.size,
+  };
+}
+
+const decoded = createDecodeCache<AudioBuffer>(async (blob) => {
+  if (!audioSupported()) return null;
+  return getAudioContext().decodeAudioData(await blob.arrayBuffer());
+});
+
+/** The decoded audio of a take (null when this browser cannot decode it). Cached for the last few takes while held. */
 export function decodeTake(id: string, blob: Blob): Promise<AudioBuffer | null> {
-  const hit = cache.get(id);
-  if (hit) {
-    cache.delete(id);
-    cache.set(id, hit);
-    return hit;
-  }
-  const job = (async () => {
-    if (!audioSupported()) return null;
-    try {
-      const bytes = await blob.arrayBuffer();
-      return await getAudioContext().decodeAudioData(bytes);
-    } catch {
-      return null;
-    }
-  })();
-  cache.set(id, job);
-  // A failed decode is not kept, so a later try can succeed.
-  void job.then((buffer) => {
-    if (!buffer && cache.get(id) === job) cache.delete(id);
-  });
-  while (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value as string);
-  return job;
+  return decoded.decode(id, blob);
 }
 
 /** Forget a take's decoded audio (after it is deleted). */
 export function forgetTake(id: string): void {
-  cache.delete(id);
+  decoded.forget(id);
+}
+
+/** Keep decoded takes while the screen is open: `useEffect(() => holdDecodedTakes(), [])`. */
+export function holdDecodedTakes(): () => void {
+  return decoded.hold();
+}
+
+/** How many decoded takes are in memory now (the browser check reads it after leaving the screen). */
+export function decodedTakeCount(): number {
+  return decoded.size();
 }
 
 /** The channels of a decoded take, for measuring it. */

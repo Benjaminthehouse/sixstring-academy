@@ -69,6 +69,36 @@ describe('player session', () => {
     expect(settings(null, 'both')).toMatchObject({ layer: 'both', layerPicked: false });
   });
 
+  it('opens a reading study with the notation shown, unless the learner picked a view', () => {
+    const study = (saved: ReturnType<typeof defaultSession> | null, layer: 'tab' | 'both' = 'tab') =>
+      openingState(saved, resolveRequest(parsePlayerParams(['x']), SONG), '', { now: NOW, layer, micBlocked: false, prefersNotation: true }).session;
+    expect(study(null)).toMatchObject({ layer: 'both', layerPicked: false });
+    expect(study({ ...defaultSession(), at: NOW - 60_000 })).toMatchObject({ layer: 'both' });
+    expect(study({ ...defaultSession(), at: NOW - 60_000, layer: 'tab', layerPicked: true }).layer).toBe('tab');
+    expect(study({ ...defaultSession(), at: NOW - 60_000, layer: 'notation', layerPicked: true }).layer).toBe('notation');
+  });
+
+  it('follows the part, mutes, score, hidden chart, capo and transposition an address asks for', () => {
+    const song = { ...SONG, tracks: [{ id: 'melody', name: 'Melody', role: 'lead' as const }, { id: 'teacher', name: 'Teacher', role: 'rhythm' as const }] };
+    const req = resolveRequest(parsePlayerParams(['x', 'part-teacher', 'mute-melody', 'notes', 'capo2', 'up2']), song);
+    const saved = { ...defaultSession(), at: NOW - 60_000, solo: ['melody'], neck: true };
+    const s = openingState(saved, req, 'part-teacher--mute-melody--notes--capo2--up2', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(s).toMatchObject({ track: 'teacher', muted: ['melody'], solo: [], layer: 'notation', layerPicked: true, capo: 2, transpose: 2, neck: false });
+    // A hidden chart is for this visit: a plain visit later shows the chords again...
+    const hidden = openingState({ ...saved, hideChart: true, opened: 'hide-chart' }, resolveRequest(parsePlayerParams(['x']), song), '', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(hidden.hideChart).toBe(false);
+    // ...while a reload of the address that hid it keeps it hidden.
+    const reload = openingState({ ...saved, hideChart: true, opened: 'hide-chart' }, resolveRequest(parsePlayerParams(['x', 'hide-chart']), song), 'hide-chart', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(reload.hideChart).toBe(true);
+    // Capo and transposition are the learner's for this song: kept on the next plain visit.
+    expect(open(['x'], { ...saved, capo: 3, transpose: -2 }).session).toMatchObject({ capo: 3, transpose: -2 });
+  });
+
+  it('reads the new fields safely', () => {
+    expect(sanitizeSession({ v: 1, layer: 'notation', hideChart: true, transpose: 40, capo: 30 }, SHAPE)).toMatchObject({ layer: 'notation', hideChart: true, transpose: 7, capo: 9 });
+    expect(sanitizeSession({ v: 1, layer: 'staff', capo: 'two' }, SHAPE)).toMatchObject({ layer: 'tab', hideChart: false, transpose: 0, capo: null });
+  });
+
   it('turns a microphone mode into tap-along where there is no microphone', () => {
     expect(open(['x', 'wait'], null, NOW, true).session.mode).toBe('tap');
     expect(open(['x', 'listen'], null, NOW, true).session.mode).toBe('listen');

@@ -393,14 +393,16 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
                     </Button>
                   ) : exercise ? (
                     <>
+                      {/* Keyed by step: the tapping version that "I can't play" swaps in must not inherit the
+                          focused button, or Enter there would mean "I don't know" instead of Check. */}
                       {step?.kind === 'exercise' && step.usesMic ? (
                         // A play step's way out is always in reach: the tapping version of the same question.
-                        <Button variant="ghost" iconLeft={isMobile ? undefined : 'MicOff'} onClick={cantPlay} data-cant-play="" className={styles.skip}>
+                        <Button key={`cant-${stepId}`} variant="ghost" iconLeft={isMobile ? undefined : 'MicOff'} onClick={cantPlay} data-cant-play="" className={styles.skip}>
                           {isMobile ? "Can't play now" : "I can't play right now"}
                         </Button>
                       ) : (
                         exercise.type !== 'flashcard' && (
-                          <Button variant="ghost" onClick={skip} data-action="skip" className={styles.skip}>
+                          <Button key={`skip-${stepId}`} variant="ghost" onClick={skip} data-action="skip" className={styles.skip}>
                             I don't know
                           </Button>
                         )

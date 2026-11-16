@@ -6,7 +6,8 @@
 import { starsForAccuracy, type ActivityInput, type JsonValue, type Stars } from '@/core/progress';
 import type { FlowResult, WaitRecord } from '@/core/song';
 import { loopLabel } from './loop';
-import { clampTempo, type BarRange, type PracticeMode } from './types';
+import type { MediaFailure } from '@/core/platform';
+import { clampTempo, needsMic, type BarRange, type PracticeMode } from './types';
 
 /** How a bar went, for the heat strip: 0 clean, 1 a slip, 2 some trouble, 3 most of it wrong. */
 export type HeatLevel = 0 | 1 | 2 | 3;
@@ -320,4 +321,22 @@ export function activityFor(summary: RunSummary, song: { id: string; title: stri
     if (completed) input.stars = summary.stars;
   }
   return input;
+}
+
+/**
+ * Whether the results may suggest a microphone mode (Wait, Flow). Not where no microphone can be
+ * had, and not after the learner refused it or none was found: a suggestion they cannot take is a
+ * dead end.
+ */
+export function micUsable(failure: MediaFailure | null, hostBlocked: boolean): boolean {
+  if (hostBlocked) return false;
+  return !failure || failure === 'in-use' || failure === 'unknown';
+}
+
+/** A summary whose suggestion needs no microphone: a Wait or Flow suggestion becomes tap-along. */
+export function withoutMic(summary: RunSummary): RunSummary {
+  const sg = summary.suggestion;
+  if (!sg || !needsMic(sg.mode)) return summary;
+  const text = sg.loop ? sg.text : 'Now tap along in time with the notes';
+  return { ...summary, suggestion: { ...sg, mode: 'tap', text } };
 }

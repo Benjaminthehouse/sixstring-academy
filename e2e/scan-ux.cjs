@@ -133,8 +133,10 @@ async function groupProof(browser, url) {
     check(g, `${tag}, text at 200 %: nothing scrolls sideways`, await noSideScroll(p));
     const tab = await rectOf(p, '[data-scan-tab]');
     const panel = await rectOf(p, '[data-scan-inspector]');
-    const visibleMusic = tab ? Math.max(0, Math.min(tab.bottom, panel ? panel.top : tab.vh) - Math.max(tab.top, 0)) : 0;
-    check(g, `${tag}, text at 200 %: the tab keeps a usable share of the screen (${Math.round(visibleMusic)} px of ${viewport.height})`, visibleMusic >= viewport.height * 0.22, { tab, panel });
+    // The panel limits the music only when it sits under it (beside it, it does not).
+    const under = panel && tab && panel.left < tab.right - 1 && panel.right > tab.left + 1 && panel.top > tab.top;
+    const visibleMusic = tab ? Math.max(0, Math.min(tab.bottom, tab.vh, under ? panel.top : Infinity) - Math.max(tab.top, 0)) : 0;
+    check(g, `${tag}, text at 200 %: the music keeps a good share of the screen (${Math.round(visibleMusic)} px of ${viewport.height})`, visibleMusic >= viewport.height * 0.4, { tab, panel });
     check(g, `${tag}, text at 200 %: the correction panel leaves room (${panel ? Math.round(panel.height) : '-'} px)`, !!panel && panel.height <= viewport.height * 0.45, panel);
     const save = await p.page.$('[data-scan-save]');
     const saveBox = save ? await save.boundingBox() : null;
@@ -143,10 +145,14 @@ async function groupProof(browser, url) {
     const tools = await p.page.evaluate(() => [...document.querySelectorAll('[role="toolbar"] button')].map((b) => { const r = b.getBoundingClientRect(); return { l: r.left, r: r.right, label: b.getAttribute('aria-label') || b.textContent.trim() }; }));
     const out = tools.filter((t) => t.l < -1 || t.r > viewport.width + 1);
     check(g, `${tag}, text at 200 %: every proofreading tool is inside the window`, out.length === 0, out);
-    // The panel can still do its job: pick another fret.
-    const fretBefore = await p.page.evaluate(() => { const s = window.__ssaScan; return s.draft.song.tracks[0].measures[0].beats[0].notes[0]?.fret; });
+    // The panel can still do its job: open it if it is folded; it shows the fret control.
+    const folded = !!(await p.page.$('[data-scan-folded]'));
+    if (folded) await p.page.click('[data-scan-panel-toggle]');
+    await p.page.waitForTimeout(300);
+    const panelText = await p.page.innerText('[data-scan-inspector]').catch(() => '');
+    check(g, `${tag}, text at 200 %: the correction panel opens with its fret control${folded ? ' (one tap to unfold)' : ''}`, !(await p.page.$('[data-scan-folded]')) && /Fret|fret/.test(panelText), panelText.slice(0, 120));
+    await shot(p, `proof-200-${tag}-panel`);
     check(g, `${tag}, text at 200 %: no browser errors`, p.errors.length === 0, p.errors.slice(0, 3));
-    if (verbose) console.log('   fret before', fretBefore);
     await p.close();
   }
   // Sideways phone at normal text: header and panel side by side.

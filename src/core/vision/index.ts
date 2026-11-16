@@ -17,6 +17,7 @@
  *   guidance          coaching for the learner and the operating limits (`TrackerUpdate.guidance`)
  *   string-count      how many strings the board in view has (a wrong guitar type never locks)
  *   protocol          messages for running the tracker in `vision.worker.ts`
+ *   frame-copy        camera frame planes (I420, NV12, RGBA) averaged down to working-size RGBA
  *
  * The two detector approaches the production detector is built from (`lines/`, `align/`) and the
  * synthetic test benches (`testing/`, including the independent `alt-scenes.ts`) are internal and
@@ -57,7 +58,8 @@ export {
   type TrackerState,
   type TrackerUpdate,
 } from './tracker';
-export { createVisionHost, type FrameProbe, type FrameTiming, type VisionHostEnvironment, type VisionOptions, type VisionRequest, type VisionResponse } from './protocol';
+export { VIDEO_FRAMES_UNREADABLE, createVisionHost, type FrameProbe, type FrameTiming, type VisionHostEnvironment, type VisionOptions, type VisionRequest, type VisionResponse } from './protocol';
+export { canReadRaw, rawToRgba, type RawFrame, type RawPlane } from './frame-copy';
 export { VisionPipeline, workingSizeFor, type FrameTransfer, type PipelineMode, type PipelineOptions, type PipelineRender, type PipelineStats, type PipelineUpdate } from './pipeline';
 export { PosePredictor, type PredictorOptions } from './predict';
 export { QualityController, type FrameWork, type QualityOptions, type QualitySettings } from './quality';

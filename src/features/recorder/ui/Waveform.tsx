@@ -113,14 +113,16 @@ export function Waveform({ peaks, duration, position, playing, onSeek, onToggle,
   }, [draw, shareNow]);
 
   // The slider's value, kept current without re-rendering (it changes once a second while playing).
-  const lastSecond = useRef(-1);
+  // Compared with what the element says now, not with the last value written here: a re-render
+  // (playback ending puts it back to 0) also writes it.
   const syncValue = useCallback(
     (seconds: number) => {
+      const el = rootRef.current;
+      if (!el) return;
       const second = Math.floor(seconds);
-      if (second === lastSecond.current || !rootRef.current) return;
-      lastSecond.current = second;
-      rootRef.current.setAttribute('aria-valuenow', String(second));
-      rootRef.current.setAttribute('aria-valuetext', `${spokenDuration(second * 1000)} of ${spokenDuration(duration * 1000)}`);
+      if (el.getAttribute('aria-valuenow') === String(second)) return;
+      el.setAttribute('aria-valuenow', String(second));
+      el.setAttribute('aria-valuetext', `${spokenDuration(second * 1000)} of ${spokenDuration(duration * 1000)}`);
     },
     [duration],
   );

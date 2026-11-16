@@ -1864,7 +1864,7 @@ for a screen that already has its own primary action.
 | `RichText`, `usePlainText` | the markup of B3 as React: notes in the learner's naming, glossary terms tappable |
 | `LessonProvider`, `useLessonContext` | the course for glossary, teacher and level (the player and map provide it) |
 | `useSoundPlayer`, `schedulePlan`, `techniqueOptions`, `planLine` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click: tab techniques as pluck options, a drone under it, a held chord with the line over it (`stretchPlan` keeps both under a slowed line) |
-| `useStepKeys`, `StepKeysProvider`, `useKeysRegistry` | the step's keys inside the player's single keyboard listener |
+| `useStepKeys`, `StepKeysProvider`, `useKeysRegistry` | the step's keys inside the player's single keyboard listener. Several parts of one step may register (a listening step's Space, its options' numbers): each key goes to the newest registration that handles it |
 | `feedbackCopy`, `wrongLine` | the feedback panel's words: "Not quite. E is the third of C." + the answer + why |
 | `summaryHeadline`, `summaryStats`, `teacherLine`, `nextLabel`, `formatDuration`, `resumeNote` | the summary's words and numbers; the "Picked up" toast's line |
 | `memoryPort()` | a `ProgressPort` onto a throwaway store |

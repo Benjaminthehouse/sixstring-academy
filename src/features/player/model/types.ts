@@ -12,8 +12,44 @@ export const PRACTICE_MODES: readonly PracticeMode[] = ['listen', 'wait', 'flow'
 /** Modes that listen through the microphone. */
 export const MIC_MODES: readonly PracticeMode[] = ['wait', 'flow'];
 
-/** What the score shows: tab only, or tab with standard notation above it, note for note. */
-export type ScoreLayer = 'tab' | 'both';
+/**
+ * What the score shows: tab only, tab with standard notation above it note for note, or the
+ * notation alone (the tab covered: sight reading).
+ */
+export type ScoreLayer = 'tab' | 'both' | 'notation';
+
+/** Every score layer, in picker order. */
+export const SCORE_LAYERS: readonly ScoreLayer[] = ['tab', 'both', 'notation'];
+
+/** True when the score shows standard notation. */
+export function showsNotation(layer: ScoreLayer): boolean {
+  return layer !== 'tab';
+}
+
+/** How the song is moved for the learner: by semitones (for singing) and to the learner's capo. */
+export interface Arrangement {
+  /** Semitones the shapes move (the song sounds this much higher, plus what the capo adds). -7 … 7. */
+  transpose: number;
+  /** Where the learner's capo is (0 = none), or null for the song's own capo. */
+  capo: number | null;
+}
+
+/** Transposition limits, in semitones. */
+export const MAX_TRANSPOSE = 7;
+/** Highest capo fret offered. */
+export const MAX_CAPO = 9;
+
+/** Clamp a transposition into the player's range. */
+export function clampTranspose(semitones: number): number {
+  if (!Number.isFinite(semitones)) return 0;
+  return Math.max(-MAX_TRANSPOSE, Math.min(MAX_TRANSPOSE, Math.round(semitones)));
+}
+
+/** Clamp a capo fret into the player's range (null stays null: the song's own capo). */
+export function clampCapo(fret: number | null): number | null {
+  if (fret === null || !Number.isFinite(fret)) return null;
+  return Math.max(0, Math.min(MAX_CAPO, Math.round(fret)));
+}
 
 /** A range of song bars, both ends included. */
 export interface BarRange {

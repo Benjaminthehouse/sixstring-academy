@@ -1,11 +1,15 @@
 /**
- * Optional cloud sync of the learner's progress, for the Claude-artifact host only.
+ * Optional cloud sync of the learner's progress, on two backends that share this one engine.
  *
- * When the page is published with the `db` and `user` capabilities, the progress export is kept
- * in the viewer's private subtree of the artifact's database (`data/users/<id>/progress`, which
- * nobody else can read, the artifact's owner included), so the same learner sees the same
- * progress on every device. In the standalone app, and wherever the capabilities are missing,
- * this module does nothing and reports `off`.
+ *   - Inside a Claude artifact published with the `db` and `user` capabilities, the progress
+ *     export is kept in the viewer's private subtree of the artifact's database
+ *     (`data/users/<id>/progress`, which nobody else can read, the artifact's owner included).
+ *   - In the standalone app, when this copy was built with a Supabase project (`cloud/config.ts`)
+ *     and the learner signed in with an email code (`cloud/account.ts`), the same documents live
+ *     in the learner's own rows of one table (`cloud/db.ts`), guarded by row-level security.
+ *
+ * Either way the same learner sees the same progress on every device. Without either, this
+ * module does nothing and reports `off`. Merging below is the same for both backends.
  *
  * HOW TWO COPIES ARE MERGED
  *
@@ -52,9 +56,15 @@
  * Transient failures back off exponentially; nothing here ever reloads the page. A document
  * holds at most 256 KiB, so a large export is split into immutable part documents and a small
  * head document that names them; the head is written last, so readers never see half a save.
+ *
+ * "DELETE MY CLOUD DATA" (accounts only) leaves a small marker in place of the head
+ * (`erasedHeadDoc`). A device that had synced with that account stops when it sees it, forgets
+ * what it knew about the cloud and signs out, instead of writing its copy straight back; a device
+ * signing in afresh treats the marker as an empty cloud and starts the copy anew.
  */
+import { accountsOffered as configuredAccounts } from './cloud/config';
 import { claudeCapability, host as currentHost, type Host } from './env';
-import { readJSON, writeJSON } from './storage';
+import { readJSON, remove as removeStored, writeJSON } from './storage';
 import { planDataSync } from './storage-merge';
 import { announceStorageChange, entryText, getLearnerData, sanitizeDataSet, startDataTracker, syncsKey, textSum, type LearnerData } from './storage-scope';
 
@@ -62,24 +72,33 @@ import { announceStorageChange, entryText, getLearnerData, sanitizeDataSet, star
 // Public types
 // ---------------------------------------------------------------------------------------------
 
-/** The four states the profile screen shows. */
-export type SyncState = 'off' | 'syncing' | 'synced' | 'error';
+/** The states the profile screen shows. `offline` only comes from accounts (the browser says it is offline). */
+export type SyncState = 'off' | 'syncing' | 'synced' | 'error' | 'offline';
 
 /** More precisely why sync is off or failing. */
 export type SyncIssue =
-  | 'standalone' // not running inside Claude: there is nothing to sync with
+  | 'standalone' // standalone, and this copy offers no accounts: there is nothing to sync with
   | 'not-offered' // inside Claude, but the page has no database or identity for this viewer
+  | 'signed-out' // this copy offers accounts and nobody is signed in on this device
+  | 'offline' // signed in, and the browser is offline: changes wait on this device
   | 'unreachable' // the cloud copy could not be read yet (offline, slow network)
   | 'retrying' // writes keep failing; still trying, with longer and longer pauses
   | 'read-only' // this viewer may not write their data (view-only access)
-  | 'storage-full' // the artifact's database is out of room
+  | 'storage-full' // the artifact's database (or the account's room) is out of space
   | 'update-needed' // the cloud copy was written by a newer version of the app
-  | 'revoked'; // access was withdrawn while the page was open
+  | 'setup-needed' // accounts: the table or its policies are missing (supabase/schema.sql was not run)
+  | 'erased' // accounts: the learner deleted their cloud data (here or on another device)
+  | 'revoked'; // access was withdrawn while the page was open (accounts: signed out)
+
+/** Which backend the copy lives in: the Claude viewer's database, or the learner's own account. */
+export type SyncProvider = 'claude' | 'account';
 
 /** A snapshot of the sync service. A new object whenever anything changes. */
 export interface SyncStatus {
   state: SyncState;
   issue: SyncIssue | null;
+  /** Where the copy lives, once known (null while sync is off for lack of a backend). */
+  provider: SyncProvider | null;
   /** One plain sentence for the profile screen. */
   message: string;
   /** When this device and the cloud last agreed (epoch ms), if ever. */
@@ -145,10 +164,27 @@ export interface SyncTimers {
   clear(handle: unknown): void;
 }
 
+/** A signed-in account's database, from the account layer (`cloud/account.ts`). */
+export interface AccountLink {
+  database: SyncDatabase;
+  /** The learner's user id: documents live under `data/users/<uid>/`. */
+  uid: string;
+  /** Called once when this device finds the cloud copy deleted (it has stopped syncing by then). */
+  onErased?: () => void;
+}
+
 /** What the service needs from its surroundings; tests swap these for fakes. */
 export interface SyncDeps {
   host: () => Host;
   capability: <T>(name: string) => Promise<T | null>;
+  /** Standalone: does this copy offer accounts at all? */
+  accountsOffered: () => boolean;
+  /** Standalone: the signed-in account's database, or null when nobody is signed in. */
+  account: () => Promise<AccountLink | null>;
+  /** Whether the browser believes it is online (accounts only). */
+  online: () => boolean;
+  /** Call `changed` when the browser goes on- or offline. Returns the cleanup. */
+  watchOnline: (changed: () => void) => () => void;
   /** The progress store port (loaded lazily so this module does not pull the store in by itself). */
   progress: () => Promise<SyncProgressPort> | SyncProgressPort;
   /** Small device-local memory: what was last synced, and under which account. */
@@ -183,21 +219,29 @@ export interface CloudSync {
 // The `db` and `user` capabilities (shapes copied from the platform's type definitions)
 // ---------------------------------------------------------------------------------------------
 
-interface DocSnapshot {
+/** One document as read. A listener's snapshot from a local cache says so in `metadata`. */
+export interface SyncDocSnapshot {
   id: string;
   exists: boolean;
   data(): Record<string, unknown> | undefined;
   metadata?: { fromCache?: boolean; hasPendingWrites?: boolean };
 }
-interface DocRef {
-  get(): Promise<DocSnapshot>;
+/** One document. Failures reject (or reach `error`) with `{ code }`: see `TERMINAL_CODES` and `work()`. */
+export interface SyncDocRef {
+  get(): Promise<SyncDocSnapshot>;
   set(data: Record<string, unknown>): Promise<void>;
   delete(): Promise<void>;
-  onSnapshot(next: (snapshot: DocSnapshot) => void, error?: (error: { code?: string; message?: string }) => void): () => void;
+  onSnapshot(next: (snapshot: SyncDocSnapshot) => void, error?: (error: { code?: string; message?: string }) => void): () => void;
 }
-interface Database {
-  doc(path: string): DocRef;
+/** The document database sync writes to: the artifact's `db` capability, or an account's table (`cloud/db.ts`). */
+export interface SyncDatabase {
+  doc(path: string): SyncDocRef;
+  /** Look for changes now ("Sync now" asks before writing). The artifact's database has no such call. */
+  refresh?(): Promise<void>;
 }
+type DocSnapshot = SyncDocSnapshot;
+type DocRef = SyncDocRef;
+type Database = SyncDatabase;
 interface UserCapability {
   id(): Promise<string | null>;
 }
@@ -469,9 +513,23 @@ interface Head {
   /** 0 when the body is inline, otherwise the number of part documents. */
   parts: number;
   body?: string;
+  /** The learner deleted their cloud data: this is the marker left in place of the copy. */
+  erased?: true;
+}
+
+/** The name of the head document under `data/users/<id>/`. */
+export const HEAD_DOC = 'progress';
+
+/**
+ * What "delete my cloud data" writes in place of the head document. Devices that synced with the
+ * account stop when they see it instead of writing their copy back; see the header.
+ */
+export function erasedHeadDoc(now: number): Record<string, unknown> {
+  return { app: APP_ID, kind: 'erased', v: FORMAT, at: now };
 }
 
 function parseHead(data: Record<string, unknown> | undefined): Head | null {
+  if (data && data.kind === 'erased') return { v: FORMAT, gen: `erased-${String(num(data.at) ?? 0)}`, stamp: '', epoch: 0, chars: 0, sum: '', parts: 0, erased: true };
   if (!data || data.kind !== 'progress-sync') return null;
   const v = num(data.v);
   const parts = num(data.parts);
@@ -540,17 +598,42 @@ const MESSAGES: Record<SyncState, string> = {
   syncing: 'Syncing your progress…',
   synced: 'Your progress is backed up to your Claude account.',
   error: 'Cloud sync has a problem. Your progress is safe on this device.',
+  offline: 'You are offline. Your progress is safe on this device and syncs when you are back online.',
 };
 const ISSUE_MESSAGES: Record<SyncIssue, string> = {
-  standalone: 'Your progress is saved on this device. Cloud sync is available when the app runs inside Claude.',
+  standalone: 'Your progress is saved on this device. This copy of the app has no accounts set up, so it syncs only when it runs inside Claude.',
   'not-offered': 'Cloud sync is not available in this view. Your progress is saved on this device.',
+  'signed-out': 'Your progress is saved on this device. Sign in under Me, Account to keep it on all your devices.',
+  offline: 'You are offline. Your progress is safe on this device and syncs when you are back online.',
   unreachable: 'Cloud sync cannot be reached right now. Your progress is safe on this device and will sync when the connection is back.',
   retrying: 'Syncing is taking longer than usual. Your progress is safe on this device, and we will keep trying.',
   'read-only': 'This view cannot save to the cloud for your account. Your progress is saved on this device.',
   'storage-full': 'Cloud storage for this app is full, so syncing is paused. Your progress is saved on this device.',
   'update-needed': 'Your cloud progress was saved by a newer version of the app. Reload to update; syncing continues after that.',
+  'setup-needed': 'Syncing is paused because the app’s cloud database is not set up yet (its owner runs supabase/schema.sql once). Your progress is saved on this device.',
+  erased: 'Your cloud data was deleted, so this device stopped syncing and signed out. Your progress is still here.',
   revoked: 'Cloud sync was switched off for this view. Your progress is saved on this device.',
 };
+/** Where an account's words differ from the Claude viewer's. */
+const ACCOUNT_MESSAGES: Partial<Record<SyncState, string>> = {
+  synced: 'Your progress is backed up to your account.',
+  error: 'Syncing has a problem. Your progress is safe on this device.',
+};
+const ACCOUNT_ISSUE_MESSAGES: Partial<Record<SyncIssue, string>> = {
+  unreachable: 'The cloud cannot be reached right now. Your progress is safe on this device and will sync when the connection is back.',
+  'read-only': 'Your account cannot save to the cloud right now. Your progress is saved on this device.',
+  'storage-full': 'The cloud space for your account is full, so syncing is paused. Your progress is saved on this device.',
+  revoked: 'You were signed out on this device, so syncing stopped. Sign in again under Me, Account; your progress is safe here.',
+};
+
+/** The sentence for a state, worded for where the copy lives. */
+function messageFor(state: SyncState, issue: SyncIssue | null, provider: SyncProvider | null): string {
+  if (provider === 'account') {
+    if (issue) return ACCOUNT_ISSUE_MESSAGES[issue] ?? ISSUE_MESSAGES[issue];
+    return ACCOUNT_MESSAGES[state] ?? MESSAGES[state];
+  }
+  return issue ? ISSUE_MESSAGES[issue] : MESSAGES[state];
+}
 
 /** Codes after which the database is gone for this page load. */
 const TERMINAL_CODES = new Set(['revoked', 'not_granted', 'capability_disabled', 'capability_removed']);
@@ -643,6 +726,31 @@ export function appDataPort(store: SyncableStore, data: LearnerData, songs: Sync
   };
 }
 
+async function defaultAccount(): Promise<AccountLink | null> {
+  // Loaded on demand: the account layer (and the Supabase client behind it) only matters where accounts are offered.
+  const { accountLink } = await import('./cloud/account');
+  return accountLink();
+}
+
+function browserOnline(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
+}
+
+function watchBrowserOnline(changed: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  window.addEventListener('online', changed);
+  window.addEventListener('offline', changed);
+  return () => {
+    window.removeEventListener('online', changed);
+    window.removeEventListener('offline', changed);
+  };
+}
+
+/** Forget what this device knew about the cloud copy (after signing out with "remove", or deleting the cloud data). */
+export function forgetSyncMemory(): void {
+  removeStored(META_KEY);
+}
+
 async function defaultProgressPort(): Promise<SyncProgressPort> {
   // Loaded on demand: the platform layer must not pull the whole progress module in at import time.
   const progress = await import('@/core/progress');
@@ -665,6 +773,10 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
   const deps: SyncDeps = {
     host: currentHost,
     capability: claudeCapability,
+    accountsOffered: configuredAccounts,
+    account: defaultAccount,
+    online: browserOnline,
+    watchOnline: watchBrowserOnline,
     progress: defaultProgressPort,
     loadMeta: () => readJSON<unknown>(META_KEY, null),
     saveMeta: (meta) => {
@@ -680,15 +792,20 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     ...overrides,
   };
 
-  let snapshot: SyncStatus = { state: 'off', issue: 'standalone', message: ISSUE_MESSAGES.standalone, lastSyncedAt: null, pending: false, songs: null };
+  /** Where the copy lives: decided by the host, then by whether an account is signed in. */
+  let provider: SyncProvider | null = null;
+  const standaloneIssue = (): SyncIssue => (deps.accountsOffered() ? 'signed-out' : 'standalone');
+  const firstIssue: SyncIssue = deps.host() === 'artifact' ? 'standalone' : standaloneIssue();
+  let snapshot: SyncStatus = { state: 'off', issue: firstIssue, provider: null, message: messageFor('off', firstIssue, null), lastSyncedAt: null, pending: false, songs: null };
   const listeners = new Set<() => void>();
   /** Whether the songs travel, as last worked out. */
   let songInfo: SongSyncInfo | null = null;
   const publish = (state: SyncState, issue: SyncIssue | null, pending: boolean): void => {
-    const next: SyncStatus = { state, issue, message: issue ? ISSUE_MESSAGES[issue] : MESSAGES[state], lastSyncedAt: meta.syncedAt, pending, songs: state === 'off' ? null : songInfo };
+    const next: SyncStatus = { state, issue, provider, message: messageFor(state, issue, provider), lastSyncedAt: meta.syncedAt, pending, songs: state === 'off' ? null : songInfo };
     if (
       next.state === snapshot.state &&
       next.issue === snapshot.issue &&
+      next.provider === snapshot.provider &&
       next.pending === snapshot.pending &&
       next.lastSyncedAt === snapshot.lastSyncedAt &&
       JSON.stringify(next.songs) === JSON.stringify(snapshot.songs)
@@ -708,6 +825,8 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
   let blocked: SyncIssue | null = null;
 
   let db: Database | null = null;
+  /** The signed-in account, when the copy lives there. */
+  let accountLink: AccountLink | null = null;
   let port: SyncProgressPort | null = null;
   let headRef: DocRef | null = null;
   let uid = '';
@@ -762,6 +881,8 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     if (!running) return;
     const dirty = isDirty();
     if (blocked) return publish('error', blocked, dirty);
+    // An account on a device that knows it is offline: nothing is wrong, changes just wait.
+    if (provider === 'account' && !deps.online()) return publish('offline', 'offline', dirty);
     if (quotaFull) return publish('error', 'storage-full', dirty);
     if (!confirmed) return publish(loadTimedOut ? 'error' : 'syncing', loadTimedOut ? 'unreachable' : null, dirty);
     if (failures >= 2) return publish('error', 'retrying', dirty);
@@ -967,6 +1088,21 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     stale = null;
     staleTimer = clearTimer(staleTimer);
 
+    if (found.exists && found.head?.erased) {
+      if (meta.syncedAt !== null) {
+        // The learner deleted their cloud data after this device last synced: do not write it
+        // back. Forget the cloud copy (signing in again starts afresh) and stop.
+        meta = { ...readMeta(null), uid };
+        persist();
+        shutDown('erased');
+        const erased = accountLink?.onErased;
+        if (erased) deps.timers.set(() => erased(), 0);
+        return;
+      }
+      // Never synced here: the deletion is history, and this device's copy starts the cloud anew.
+      found = { exists: false, head: null };
+    }
+
     if (!found.exists) {
       // Nothing in the cloud yet (or it was erased): everything local is news.
       if (meta.gen !== null && meta.parts > 0) meta.trash.push({ gen: meta.gen, parts: meta.parts });
@@ -1117,7 +1253,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const latestHead = latest.exists ? parseHead(latest.data()) : null;
     if (latest.exists && latestHead && latestHead.gen !== meta.gen) {
       await merge({ exists: true, head: latestHead });
-      if (blocked || stale) return;
+      if (blocked || stale || !running) return;
     }
     if (!isDirty()) return;
 
@@ -1224,6 +1360,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
         incoming = undefined;
         await merge(current);
         current = undefined;
+        if (!running) return; // the copy was deleted: this device stopped (see merge)
       }
       if (confirmedSeen && !confirmed && stale === null) {
         confirmed = true;
@@ -1254,6 +1391,9 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       } else if (code === 'invalid_argument' || code === 'transform_error') {
         // A well-formed write to the viewer's own subtree is refused: they may not write here.
         blocked = 'read-only';
+      } else if (code === 'setup_needed') {
+        // Accounts: the table or its policies are missing. Nothing to retry until the owner fixes it.
+        blocked = 'setup-needed';
       } else if (code === 'quota_exceeded') {
         // Not transient, but room can be made (documents deleted elsewhere): look again much later.
         quotaFull = true;
@@ -1295,6 +1435,11 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
           const code = codeOf(error);
           if (TERMINAL_CODES.has(code)) return shutDown('revoked');
           if (code === 'invalid_argument') return shutDown('not-offered');
+          if (code === 'setup_needed') {
+            // Accounts: the table is missing. Retrying cannot help until the owner sets it up.
+            blocked = 'setup-needed';
+            return settle();
+          }
           // This listener is dead (the host stopped answering it, or a rate budget ran out).
           // A fresh one is the only way back; ask for it with longer and longer pauses.
           resubscribes += 1;
@@ -1310,12 +1455,49 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     subscribe();
   }
 
-  async function begin(): Promise<SyncStatus> {
-    if (deps.host() !== 'artifact') {
+  /** Standalone: sync through the signed-in account, when this copy offers accounts and someone is signed in. */
+  async function beginAccount(): Promise<SyncStatus> {
+    if (!deps.accountsOffered()) {
       off = 'standalone';
       settle();
       return snapshot;
     }
+    let link: AccountLink | null = null;
+    try {
+      link = await deps.account();
+    } catch {
+      link = null;
+    }
+    if (stopped) return snapshot;
+    if (!link) {
+      off = 'signed-out';
+      settle();
+      return snapshot;
+    }
+    provider = 'account';
+    publish('syncing', null, false);
+    try {
+      headRef = link.database.doc(`data/users/${link.uid}/${HEAD_DOC}`);
+    } catch {
+      shutDown('not-offered');
+      return snapshot;
+    }
+    db = link.database;
+    uid = link.uid;
+    accountLink = link;
+    cleanups.push(
+      deps.watchOnline(() => {
+        settle();
+        // Back online with changes waiting: send them now rather than after the next one.
+        if (deps.online() && running && confirmed && isDirty()) void flush();
+      }),
+    );
+    return connect();
+  }
+
+  async function begin(): Promise<SyncStatus> {
+    if (deps.host() !== 'artifact') return beginAccount();
+    provider = 'claude';
     publish('syncing', null, false);
     const [database, user] = await Promise.all([deps.capability<Database>('db'), deps.capability<UserCapability>('user')]);
     if (stopped) return snapshot;
@@ -1331,13 +1513,18 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       return snapshot;
     }
     try {
-      headRef = database.doc(`data/users/${id}/progress`);
+      headRef = database.doc(`data/users/${id}/${HEAD_DOC}`);
     } catch {
       shutDown('not-offered'); // an id the path grammar refuses
       return snapshot;
     }
     db = database;
     uid = id;
+    return connect();
+  }
+
+  /** With the database and the learner's id known: load, listen, and start writing when needed. */
+  async function connect(): Promise<SyncStatus> {
     port = await deps.progress();
     if (stopped) return snapshot;
 
@@ -1387,10 +1574,19 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     return snapshot;
   }
 
-  function flush(): Promise<void> {
-    if (!running || blocked) return Promise.resolve();
+  /** Write what is waiting now. `look`: first ask an account's database for other devices' changes ("Sync now"). */
+  async function flush(look = false): Promise<void> {
+    if (!running || blocked) return;
     pushTimer = clearTimer(pushTimer);
     pushRequested = true;
+    // What the look finds reaches the listener and is merged before the write below.
+    if (look && provider === 'account' && db?.refresh) {
+      try {
+        await db.refresh();
+      } catch {
+        /* the write below reads the cloud copy first anyway */
+      }
+    }
     return enqueue();
   }
 
@@ -1404,10 +1600,10 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     },
     stop() {
       stopped = true;
-      const issue = off ?? (deps.host() === 'artifact' ? 'not-offered' : 'standalone');
+      const issue = off ?? (deps.host() === 'artifact' ? 'not-offered' : standaloneIssue());
       shutDown(issue);
     },
-    flush,
+    flush: () => flush(true),
     status: () => snapshot,
     subscribe(listener) {
       listeners.add(listener);
@@ -1422,14 +1618,28 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
 // The shared instance
 // ---------------------------------------------------------------------------------------------
 
+// Signing in or out replaces the service (a stopped one never starts again); the status listeners
+// stay subscribed here and follow whichever service is current.
 let shared: CloudSync | null = null;
-const instance = (): CloudSync => (shared ??= createCloudSync());
+let sharedOff: (() => void) | null = null;
+const statusListeners = new Set<() => void>();
+const tellListeners = (): void => {
+  for (const listener of [...statusListeners]) listener();
+};
+const instance = (): CloudSync => {
+  if (!shared) {
+    shared = createCloudSync();
+    sharedOff = shared.subscribe(tellListeners);
+  }
+  return shared;
+};
 
 /**
  * Start cloud sync. The app shell calls this once at startup; it does nothing (and resolves with
- * `state: 'off'`) outside a Claude artifact that was published with the `db` and `user`
- * capabilities, apart from starting the learner data's change ledger (`startDataTracker`), which
- * every host needs. Never throws.
+ * `state: 'off'`) unless this is a Claude artifact published with the `db` and `user`
+ * capabilities, or a copy with accounts where someone is signed in, apart from starting the
+ * learner data's change ledger (`startDataTracker`), which every host needs. Safe to call more
+ * than once. Never throws.
  */
 export function startCloudSync(): Promise<SyncStatus> {
   // The change ledger runs in every host: imports merge by it even where nothing syncs.
@@ -1437,12 +1647,28 @@ export function startCloudSync(): Promise<SyncStatus> {
   return instance().start();
 }
 
+/**
+ * Stop the current service and start a fresh one: after signing in or out, after the cloud copy
+ * was deleted, or as "Try again" after a problem that stopped syncing. Never throws.
+ */
+export function restartCloudSync(): Promise<SyncStatus> {
+  startDataTracker();
+  const old = shared;
+  sharedOff?.();
+  shared = null;
+  sharedOff = null;
+  old?.stop();
+  const next = instance();
+  tellListeners();
+  return next.start();
+}
+
 /** Stop cloud sync for this page load. */
 export function stopCloudSync(): void {
   instance().stop();
 }
 
-/** Write pending changes now (a "Sync now" button). Resolves when the attempt is over. */
+/** Write pending changes now (a "Sync now" button; with an account it also looks for other devices' changes). Resolves when the attempt is over. */
 export function syncNow(): Promise<void> {
   return instance().flush();
 }
@@ -1454,5 +1680,9 @@ export function getSyncStatus(): SyncStatus {
 
 /** Be told when the snapshot changes. Returns the unsubscribe function. */
 export function subscribeSyncStatus(listener: () => void): () => void {
-  return instance().subscribe(listener);
+  instance();
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
 }

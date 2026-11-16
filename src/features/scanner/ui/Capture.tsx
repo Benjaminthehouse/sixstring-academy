@@ -4,7 +4,7 @@
  * in order, and read them.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, Sheet, Spinner, Stack, Text, TextArea, TextField, confirmDialog, cx, toast, useEventListener, useIsMobile, useIsTouch } from '@/ui';
+import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, Sheet, Spinner, Stack, Text, TextArea, TextField, confirmDialog, cx, toast, useEventListener, useIsMobile, useIsTouch, useMediaQuery } from '@/ui';
 import { attachDropZone, onPasteImage, pickFile } from '@/core/platform';
 import { detectTextFormat } from '@/core/song';
 import type { ScanState, Page as ScanPageT } from '../engine/useScan';
@@ -30,6 +30,8 @@ export function Capture({ scan }: { scan: ScanState }) {
   const mobile = useIsMobile();
   // Phones get the camera first (a touch screen or a phone-sized window).
   const touch = useIsTouch() || mobile;
+  // A phone held sideways: little height, so the way in comes first and the rest after it.
+  const short = useMediaQuery('(max-height: 520px)');
   const [tips, setTips] = useState(false);
   const [paste, setPaste] = useState<string | null>(null);
   const [review, setReview] = useState<string | null>(null);
@@ -91,6 +93,24 @@ export function Capture({ scan }: { scan: ScanState }) {
     void scan.read();
   };
 
+  // The unsaved scan of an earlier visit.
+  const pickUp = async () => {
+    if (pages.length || draft || text) {
+      const ok = await confirmDialog({
+        title: 'Pick up the earlier scan?',
+        description: `It takes the place of what you brought in now (${pages.length === 1 ? 'one page' : `${pages.length} pages`}).`,
+        confirmLabel: 'Pick it up',
+        cancelLabel: 'Keep these',
+      });
+      if (!ok) return;
+    }
+    scan.resumeKept();
+  };
+  const letGo = () => {
+    const gone = scan.discardKept();
+    if (gone) toast({ title: 'Earlier scan cleared', action: { label: 'Undo', onClick: () => scan.restoreKept(gone) } });
+  };
+
   const startAgain = async () => {
     const reading = !!(draft || text);
     const ok = await confirmDialog({
@@ -106,22 +126,38 @@ export function Capture({ scan }: { scan: ScanState }) {
     <div ref={root} className={cx(styles.root, dragging && styles.dragging)} data-scan="capture">
       <Page
         title="Scan & Import"
-        subtitle="Turn a printed sheet, a photo, a PDF or pasted tab into a song you can play along with."
+        subtitle={short ? undefined : 'Turn a printed sheet, a photo, a PDF or pasted tab into a song you can play along with.'}
         actions={pages.length ? (
           <Button variant="ghost" iconLeft="RotateCcw" onClick={() => void startAgain()}>
             Start over
           </Button>
         ) : undefined}
       >
-        <p className={styles.honest} data-scan-honest="">
-          <Icon name="Info" size="sm" />
-          <span>
-            Printed tab and clean printed notation read best; handwriting is not supported. Photos should be flat, sharp and well lit.{' '}
-            <button type="button" className={styles.link} onClick={() => setTips(true)}>
-              Tips for a good photo
-            </button>
-          </span>
-        </p>
+        {scan.offer && (
+          <section className={styles.resume} aria-labelledby="scan-resume" data-scan-resume="">
+            <span className={styles.resumeIcon} aria-hidden="true">
+              <Icon name="History" />
+            </span>
+            <div className={styles.resumeBody}>
+              <h2 id="scan-resume" className={styles.resumeTitle}>
+                {scan.offer.title}
+              </h2>
+              <Text size="sm" tone="muted">
+                {scan.offer.detail}
+              </Text>
+            </div>
+            <div className={styles.resumeActions}>
+              <Button variant="primary" iconLeft="RotateCcw" onClick={() => void pickUp()} data-scan-resume-go="">
+                Pick it up
+              </Button>
+              <Button variant="ghost" onClick={letGo} data-scan-resume-discard="">
+                Start fresh
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {!short && <Honest onTips={() => setTips(true)} />}
 
         {error && (
           <Banner tone="warn" title="Something needs a look" onDismiss={() => scan.setError(null)} live>
@@ -152,7 +188,7 @@ export function Capture({ scan }: { scan: ScanState }) {
         )}
 
         {pages.length === 0 ? (
-          <Start touch={touch} adding={adding} onPhoto={takePhoto} onChoose={choose} onPaste={() => setPaste('')} onSample={() => void scan.addSample(sampleUrl, 'Ode to Joy (sample)')} onTips={() => setTips(true)} dragging={dragging} />
+          <Start touch={touch} short={short} adding={adding} onPhoto={takePhoto} onChoose={choose} onPaste={() => setPaste('')} onSample={() => void scan.addSample(sampleUrl, 'Ode to Joy (sample)')} onTips={() => setTips(true)} dragging={dragging} />
         ) : (
           <section className={styles.traySection} aria-labelledby="scan-pages">
             <div className={styles.trayHead}>
@@ -205,6 +241,8 @@ export function Capture({ scan }: { scan: ScanState }) {
           </section>
         )}
 
+        {short && <Honest onTips={() => setTips(true)} />}
+
         {pages.length > 0 && (
           <ActionBar
             start={
@@ -248,16 +286,33 @@ export function Capture({ scan }: { scan: ScanState }) {
   );
 }
 
-function Start({ touch, adding, dragging, onPhoto, onChoose, onPaste, onSample, onTips }: { touch: boolean; adding: string | null; dragging: boolean; onPhoto: () => void; onChoose: () => void; onPaste: () => void; onSample: () => void; onTips: () => void }) {
+/** What reads well, and the photo tips. */
+function Honest({ onTips }: { onTips: () => void }) {
   return (
-    <div className={styles.start}>
+    <p className={styles.honest} data-scan-honest="">
+      <Icon name="Info" size="sm" />
+      <span>
+        Printed tab and clean printed notation read best; handwriting is not supported. Photos should be flat, sharp and well lit.{' '}
+        <button type="button" className={styles.link} onClick={onTips}>
+          Tips for a good photo
+        </button>
+      </span>
+    </p>
+  );
+}
+
+function Start({ touch, short, adding, dragging, onPhoto, onChoose, onPaste, onSample, onTips }: { touch: boolean; short: boolean; adding: string | null; dragging: boolean; onPhoto: () => void; onChoose: () => void; onPaste: () => void; onSample: () => void; onTips: () => void }) {
+  return (
+    <div className={cx(styles.start, short && styles.startShort)}>
       <div className={cx(styles.drop, dragging && styles.dropOver)} data-scan-drop="">
-        <div className={styles.dropArt} aria-hidden="true">
-          <ScanArt className={styles.art} />
-        </div>
+        {!short && (
+          <div className={styles.dropArt} aria-hidden="true">
+            <ScanArt className={styles.art} />
+          </div>
+        )}
         <div className={styles.dropBody}>
           <h2 className={styles.dropTitle}>{dragging ? 'Drop it here' : touch ? 'Photograph your sheet' : 'Drop photos or a PDF here'}</h2>
-          <Text tone="muted">{touch ? 'Lay it flat in good light and fill the frame. Several pages make one song.' : 'Or choose them. Several pages and photos make one song; you can paste a picture or text too.'}</Text>
+          {!short && <Text tone="muted">{touch ? 'Lay it flat in good light and fill the frame. Several pages make one song.' : 'Or choose them. Several pages and photos make one song; you can paste a picture or text too.'}</Text>}
           <div className={styles.startActions}>
             {touch ? (
               <>

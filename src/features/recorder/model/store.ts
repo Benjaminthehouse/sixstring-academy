@@ -1,12 +1,12 @@
 /**
  * Where takes are kept: their audio and the list that describes them, on this device only.
  *
- * Takes are large (about half a megabyte a minute), so they never travel in backups or cloud sync
+ * Takes are large (about 1 MB a minute at the 128 kbit/s the session asks for), so they never travel in backups or cloud sync
  * and are not in the key-value storage at all: they live in IndexedDB. The store is written
  * against a small `BlobBackend` (put / get / delete of blobs by key) so that it runs on:
  *
- *  - the platform blob store (`@/core/platform/blobs.ts`) once it is there (see `backend.ts`);
- *  - its own IndexedDB database (`ssa-recorder`) until then;
+ *  - the platform blob store (`@/core/platform/blobs.ts`, store `recorder`; see `backend.ts`);
+ *  - the recorder's first database (`ssa-recorder`, `legacy.ts`), only to move takes out of it;
  *  - memory, for tests and for browsers that refuse IndexedDB (takes then last until the page is
  *    closed, and the screen says so).
  *
@@ -14,15 +14,26 @@
  * JSON blob under `takes.json`. Audio is written before the list and removed after it, so the
  * list never names audio that is not there.
  */
+import { isBlobStoreError, type BlobStore } from '@/core/platform/blobs';
 import { sanitizeTakes, sortTakes, type Take } from './takes';
 
 /** The few blob calls the take store needs. */
 export interface BlobBackend {
-  /** 'indexeddb' and 'platform' survive a reload; 'memory' does not. */
+  /** 'platform' and 'indexeddb' (the old database) survive a reload; 'memory' does not. */
   readonly kind: 'platform' | 'indexeddb' | 'memory';
   get(key: string): Promise<Blob | null>;
   put(key: string, blob: Blob): Promise<void>;
   delete(key: string): Promise<void>;
+}
+
+/** The take store's backend on a platform blob store (its memory stand-in counts as memory). */
+export function platformBackend(store: BlobStore): BlobBackend {
+  return {
+    kind: store.persistent ? 'platform' : 'memory',
+    get: (key) => store.get(key),
+    put: (key, blob) => store.put(key, blob),
+    delete: (key) => store.delete(key),
+  };
 }
 
 /** What went wrong in the store, in words for the learner. */
@@ -43,7 +54,8 @@ const BROKEN = 'Your take could not be saved on this device. Try again; if it ke
 function storeError(e: unknown): TakeStoreError {
   if (e instanceof TakeStoreError) return e;
   const name = (e as { name?: string } | null)?.name;
-  if (name === 'QuotaExceededError') return new TakeStoreError('full', FULL, String(e));
+  // The platform store reports a full disk as BlobStoreError 'full'; raw IndexedDB as QuotaExceededError.
+  if (name === 'QuotaExceededError' || (isBlobStoreError(e) && e.reason === 'full')) return new TakeStoreError('full', FULL, String(e));
   return new TakeStoreError('storage', BROKEN, String(e));
 }
 
@@ -153,86 +165,23 @@ export function memoryBackend(): BlobBackend {
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// The recorder's own IndexedDB database, used until the platform blob store is there.
-// ---------------------------------------------------------------------------------------------
-
-const DB_NAME = 'ssa-recorder';
-const DB_VERSION = 1;
-const STORE = 'blobs';
-
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function done(tx: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new DOMException('aborted', 'AbortError'));
-  });
-}
-
-/** Open the recorder's database, or reject (missing, refused, or no answer within `timeoutMs`). */
-export function openRecorderDb(factory: IDBFactory | undefined = typeof indexedDB === 'undefined' ? undefined : indexedDB, timeoutMs = 4000): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (!factory) return reject(new Error('IndexedDB is not available'));
-    let settled = false;
-    const timer = setTimeout(() => {
-      settled = true;
-      reject(new Error('IndexedDB did not answer'));
-    }, timeoutMs);
-    let req: IDBOpenDBRequest;
-    try {
-      req = factory.open(DB_NAME, DB_VERSION);
-    } catch (e) {
-      clearTimeout(timer);
-      return reject(e);
-    }
-    req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
-    };
-    req.onsuccess = () => {
-      clearTimeout(timer);
-      if (settled) {
-        req.result.close();
-        return;
-      }
-      settled = true;
-      resolve(req.result);
-    };
-    req.onerror = () => {
-      clearTimeout(timer);
-      if (!settled) {
-        settled = true;
-        reject(req.error);
-      }
-    };
-  });
-}
-
-/** A backend on an open IndexedDB database (blobs stored as they are, keyed by string). */
-export function indexedDbBackend(db: IDBDatabase): BlobBackend {
-  db.onversionchange = () => db.close();
-  return {
-    kind: 'indexeddb',
-    get: async (key) => {
-      const tx = db.transaction(STORE, 'readonly');
-      const value = (await request(tx.objectStore(STORE).get(key))) as unknown;
-      return value instanceof Blob ? value : null;
-    },
-    put: async (key, blob) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(blob, key);
-      await done(tx);
-    },
-    delete: async (key) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(key);
-      await done(tx);
-    },
-  };
+/**
+ * Move every take of `from` that `to` does not have yet (by id), audio first, then its line in the
+ * list. A take whose audio is missing is left behind (it could not play). Safe to run twice and
+ * from two tabs at once; rejects (with nothing lost in `from`) when `to` cannot take a take.
+ * Returns how many takes were moved.
+ */
+export async function migrateTakes(from: TakeStore, to: TakeStore): Promise<number> {
+  const old = await from.list();
+  if (old.length === 0) return 0;
+  const have = new Set((await to.list()).map((t) => t.id));
+  let moved = 0;
+  for (const take of old) {
+    if (have.has(take.id)) continue;
+    const audio = await from.audio(take.id);
+    if (!audio) continue;
+    await to.put(take, audio);
+    moved++;
+  }
+  return moved;
 }

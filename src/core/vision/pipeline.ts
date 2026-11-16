@@ -8,8 +8,8 @@
  *
  * Per displayed video frame (`requestVideoFrameCallback`, else `requestAnimationFrame`):
  *  1. If the vision worker is idle, the camera frame is handed to it: wrapped as a WebCodecs
- *     `VideoFrame` and transferred (about 0.1 ms here; the worker shrinks it to the working size and
- *     reads the pixels), or, without WebCodecs, shrunk with `createImageBitmap` (a synchronous copy
+ *     `VideoFrame` and transferred (about 0.1 ms here; the worker copies its planes out and averages
+ *     them down to the working size, `frame-copy.ts`), or, without WebCodecs, shrunk with `createImageBitmap` (a synchronous copy
  *     and resize on this thread: 8-9 ms a frame in headless Chromium) and the bitmap transferred.
  *     The worker runs `FretboardTracker`. If the worker is still busy, the frame is dropped: frames
  *     never queue, so latency never grows.
@@ -139,6 +139,8 @@ export interface PipelineOptions {
   probe?: Rect;
   /** How long to wait for the worker to load before running on the main thread, ms (default 20000). */
   workerTimeoutMs?: number;
+  /** 'auto' (default): `VideoFrame` transfer where the browser and the worker can, else bitmaps. 'bitmap': never `VideoFrame`s (comparisons; a browser whose frame drawing is slow). */
+  transfer?: 'auto' | 'bitmap';
 }
 
 /** A video element whose frame callback may be missing (older Safari and Firefox). */
@@ -529,7 +531,7 @@ export class VisionPipeline {
           this.worker = worker;
           this.bitmaps = msg.bitmaps && typeof createImageBitmap === 'function';
           this.resizeBitmaps = true;
-          this.videoFrames = msg.videoFrames === true && typeof VideoFrame === 'function';
+          this.videoFrames = msg.videoFrames === true && typeof VideoFrame === 'function' && this.options.transfer !== 'bitmap';
           this.setMode('worker');
           this.configureHost();
           this.ready = true;

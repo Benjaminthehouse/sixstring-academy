@@ -13,6 +13,7 @@ import { loadAnyFixture, ownFixtures } from './dev/cache';
 import { type SynthItem, synthStaff } from './dev/synth';
 import { recognizeTabStaff } from './index';
 import { readTabStaff, tuningFor } from './recognize';
+import { omrToSong } from '../to-song';
 
 /** Frets per column, as "string:fret" lists, left to right. */
 function columns(events: OmrTabEvent[]): string[] {
@@ -106,12 +107,22 @@ describe('readTabStaff on synthetic strips', () => {
     expect(soft.confidence).toBeLessThanOrEqual(sharp.confidence + 1e-6);
   });
 
-  it('calls frets above 24 implausible instead of reporting them as fact', () => {
-    const { input } = synthStaff({ items: [{ line: 3, x: 200, text: '29' }, { line: 3, x: 330, text: '12' }] });
-    const first = readTabStaff(input).reading.events[0].notes[0];
-    expect(first.confidence).toBeLessThan(0.5);
-    // The printed digits stay available: either as the reading or among the alternatives.
-    expect([first.fret, ...(first.alternatives ?? []).map((a) => a.value)]).toContain(29);
+  it('never reports a fret past the neck: a reading of its digits takes its place, marked, with the others offered', () => {
+    const { input } = synthStaff({ items: [{ line: 3, x: 200, text: '29' }, { line: 3, x: 330, text: '12' }, { line: 2, x: 460, text: '92' }] });
+    const notes = readTabStaff(input).reading.events.flatMap((e) => e.notes);
+    const [first, , third] = notes;
+    for (const n of [first, third]) {
+      expect(n.fret).toBeLessThanOrEqual(24);
+      expect(n.confidence).toBeLessThan(0.5);
+      for (const a of n.alternatives ?? []) expect(a.value).toBeLessThanOrEqual(24);
+    }
+    // "29": its digits 2 and 9 are the reading and the one-tap fix; the issue says what was read.
+    expect([first.fret, ...(first.alternatives ?? []).map((a) => a.value)]).toEqual(expect.arrayContaining([2, 9]));
+    expect(first.issues?.[0]).toMatchObject({ code: 'past-the-neck', message: expect.stringMatching(/Read as 29/) });
+    expect(third.issues?.[0].message).toMatch(/Read as 92/);
+    expect(notes[1].fret).toBe(12);
+    // The pitch follows the fret it was moved to.
+    expect(first.midi).toBe(50 + first.fret);
   });
 
   it('reads a four-line (bass) staff', () => {
@@ -216,6 +227,50 @@ describe('recognizeTabStaff in the page pipeline', () => {
     expect(score.tabNotes.tp / (score.tabNotes.tp + score.tabNotes.fn)).toBeGreaterThanOrEqual(0.98);
     expect(rate(score.fret)).toBeGreaterThanOrEqual(0.97);
     expect(rate(score.string)).toBe(1);
+  }, PIPELINE_TIMEOUT);
+
+  it('a four-line staff is assembled as a bass in E A D G, and becomes a bass song', async () => {
+    const meta = ownFixtures().find((m) => m.id === 'bass-carlito-150')!;
+    const fx = loadAnyFixture(meta);
+    const page = await run(fx.gray);
+    const staff = page.systems[0].staves[0];
+    expect(staff.lineCount).toBe(4);
+    expect(staff.tuning).toEqual([28, 33, 38, 43]);
+    // Before the reading too: the skeleton of the page already has the bass tuning.
+    expect(analyzePage(fx.gray).page.systems[0].staves[0].tuning).toEqual([28, 33, 38, 43]);
+    const notes = staff.measures.flatMap((m) => m.events).flatMap((e) => (e.kind === 'tab' ? e.notes : []));
+    expect(notes.length).toBeGreaterThan(4);
+    for (const n of notes) expect(n.midi).toBe([28, 33, 38, 43][4 - n.string] + n.fret);
+    const { song } = omrToSong(page);
+    expect(song.tuning).toEqual([28, 33, 38, 43]);
+    expect(song.tracks[0].role).toBe('bass');
+    expect(song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes)).every((n) => n.midi === [28, 33, 38, 43][4 - n.string] + n.fret)).toBe(true);
+  }, PIPELINE_TIMEOUT);
+
+  it('a fret past the neck from any recognizer is put on the neck by the assembler, marked', async () => {
+    const fx = loadFixture('tab-ode-ls-150');
+    const analysis = analyzePage(fx.gray);
+    const readings: (StaffReading | null)[] = [];
+    for (const st of analysis.layout.staves) {
+      if (st.kind !== 'tab') {
+        readings.push(null);
+        continue;
+      }
+      const r = await recognizeTabStaff(extractStaff(analysis, st.index));
+      // A recognizer that reports what it saw, however unlikely.
+      const n = r.events.find((e) => e.kind === 'tab')!.notes[0];
+      n.fret = 121;
+      n.confidence = 0.9;
+      n.alternatives = [];
+      readings.push(r);
+    }
+    const page = assemblePage(analysis, readings);
+    const all = page.systems.flatMap((s) => s.staves).flatMap((st) => st.measures).flatMap((m) => m.events).flatMap((e) => (e.kind === 'tab' ? e.notes : []));
+    expect(Math.max(...all.map((n) => n.fret))).toBeLessThanOrEqual(24);
+    const fixed = all.find((n) => n.issues?.some((i) => i.code === 'past-the-neck'))!;
+    expect(fixed.fret).toBe(12);
+    expect(fixed.alternatives?.map((a) => a.value)).toEqual([21, 1, 2]);
+    expect(fixed.confidence).toBeLessThan(0.5);
   }, PIPELINE_TIMEOUT);
 
   it('reads faces it has no templates of, and a bass staff', async () => {

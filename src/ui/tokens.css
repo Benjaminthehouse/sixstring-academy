@@ -16,7 +16,7 @@
   --surface-2: #e8edeb;
   --surface-3: #dbe2df;
   --line: #cdd5d1;
-  --line-strong: #9eaaa5;
+  --line-strong: #7d8783; /* 3:1 or better on bg, surface and surface-2: a border you must see to use a control */
   --fg: #13201d;
   --fg-muted: #4d5d58;
   --fg-faint: #5a6964; /* still 4.5:1 on bg, surface and surface-2, so it is safe for small text */
@@ -163,7 +163,7 @@
     --surface-2: #1d262a;
     --surface-3: #273237;
     --line: #2e3a3f;
-    --line-strong: #4b5b61;
+    --line-strong: #66757a;
     --fg: #e8eeed;
     --fg-muted: #a2b0ae;
     --fg-faint: #8b9a97;
@@ -211,7 +211,7 @@
   --surface-2: #1d262a;
   --surface-3: #273237;
   --line: #2e3a3f;
-  --line-strong: #4b5b61;
+  --line-strong: #66757a;
   --fg: #e8eeed;
   --fg-muted: #a2b0ae;
   --fg-faint: #8b9a97;

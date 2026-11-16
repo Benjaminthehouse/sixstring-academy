@@ -32,8 +32,9 @@ pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worke
 ```
 - Frames: `requestVideoFrameCallback` (else `requestAnimationFrame`). Where the browser has
   WebCodecs the camera frame is wrapped as a `VideoFrame` (about 0.1 ms here) and transferred to the
-  module worker (`vision.worker.ts`), which shrinks it to the working size and reads it
-  (`stats.transfer === 'video-frame'`); otherwise `createImageBitmap(video, { resizeWidth, resizeHeight })`
+  module worker (`vision.worker.ts`), which copies its planes out and averages them down to the
+  working size (`frame-copy.ts`: I420 / NV12 / RGBA / BGRA, about 3.5 ms for 1280x720; other formats
+  are drawn on a canvas) (`stats.transfer === 'video-frame'`); otherwise `createImageBitmap(video, { resizeWidth, resizeHeight })`
   makes a shrunk bitmap, which is a synchronous copy and resize on the main thread (8-9 ms a frame,
   a fifth to a third of the main thread in headless Chromium), and the bitmap is transferred
   (`'bitmap'`); a worker that cannot read `VideoFrame`s answers once and bitmaps take over. One frame
@@ -59,7 +60,8 @@ pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worke
   `videoSize`, `isRunning`, `isPaused`. `pause()` stops the frame loop (an answer still in flight is dropped); options set
   before `start` are kept for it.
 - Options: `worker: 'off'` (main thread), `quality: QualityOptions`, `predictor: PredictorOptions | false`,
-  `stopTracksOnStop` (default false: the screen owns the stream), `createWorker`, `workerTimeoutMs`.
+  `stopTracksOnStop` (default false: the screen owns the stream), `createWorker`, `workerTimeoutMs`,
+  `transfer: 'auto' | 'bitmap'` ('bitmap' never sends `VideoFrame`s: comparisons).
 
 ### A React camera screen
 ```tsx
@@ -288,13 +290,14 @@ callbacks, the page's video and track untouched; 6 rapid start/stop cycles leave
 (That run sent bitmaps, and its main-thread figure counted only the grabs made inside the frame
 callback: most frames are sent when the worker answers, and `createImageBitmap(video, resize)` is a
 synchronous 8-9 ms copy there, 21% of the main thread in a CPU profile of headless Chromium.)
-Second integration pass, all main-thread work counted: with `VideoFrame` transfer 0.1 ms per frame
-sent, 0.1% of the main thread (bitmaps, same browser, CPU profile: 21%); the worker now shrinks the
-frame itself, 4.5 ms on an idle machine (11.6 ms median on the loaded one, where tracking took 54 ms);
-the main-thread fallback grabs a frame in about 15 ms, 27% of the main thread before tracking.
-The trade: on a machine whose worker is the bottleneck the shrink now counts against the tracking
-rate (about 4.5 ms on top of 25-28 ms a tracked frame), in exchange for a main thread that stays free
-for the page; less work in all (4.6 ms against 9.5 ms a frame).
+Second integration pass, all main-thread work counted, the two transfers alternated on one page
+(`transfer: 'bitmap'` against the default; load 9-16 on the 4 cores): `VideoFrame` with the plane copy
+0.1 ms per frame sent, 0.6-3.5% of the main thread, worker 26-31 ms a frame, 14-22.5 frames/s,
+latency frame -> answer 13-19 ms median (p90 33-73); bitmaps 9-13 ms per frame sent, 32-34% of the
+main thread, worker 30-31 ms, 13-19.5 frames/s, latency 32-41 ms (p90 131-135). (Drawing the
+`VideoFrame` on a canvas in the worker instead of copying its planes cost the worker 17 ms more a
+frame on the same machine: tried and dropped.) The main-thread fallback grabs a frame in about
+15 ms, 27% of the main thread before tracking.
 
 **Bench (`hardening.test.ts`, `marker-mode.test.ts`; synthetic, 640x360):** still guitar under
 heavy webcam noise (read 0.025, shot 0.04, JPEG 55; seven seed sets): drawn markers move 0.002-0.005 px

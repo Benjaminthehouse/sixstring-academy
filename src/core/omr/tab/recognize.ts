@@ -13,7 +13,7 @@ import { type Components, labelComponents } from '../image/cc';
 import { cropBinary } from '../image/gray';
 import {
   type Alternative, type DurationValue, type OmrClef, type OmrTabEvent, type OmrTabNote, type OmrText, type OmrTimeSignature, type OmrWarning,
-  type RecognizeOptions, type StaffInput, type StaffReading, STANDARD_TUNING, durationTicks, midiAtFret,
+  type RecognizeOptions, type StaffInput, type StaffReading, STANDARD_TUNING, TAB_TUNINGS, durationTicks, midiAtFret,
 } from '../types';
 import { type Box, type GlyphPatch, type LineProfile, classifyPatch, extractPatch, lineInBox, refineBox } from './glyph';
 import { type TabMark, applyMarks, findArcs, findBends, findSlides } from './marks';
@@ -307,13 +307,8 @@ function readRhythm(input: StaffInput, columns: TabColumn[], rests: RestReading[
   return { durations, restDurations, stems: chosen.stems, measureTicks: res.measureTicks, assumed: res.assumed, support: res.support };
 }
 
-/** Default tunings by number of tab lines, sounding MIDI low to high. */
-const DEFAULT_TUNINGS: Record<number, { tuning: readonly number[]; name: string }> = {
-  4: { tuning: [28, 33, 38, 43], name: 'bass tab in standard tuning (E A D G)' },
-  5: { tuning: [23, 28, 33, 38, 43], name: 'five-string bass tab (B E A D G)' },
-  6: { tuning: STANDARD_TUNING, name: 'guitar tab in standard tuning' },
-  7: { tuning: [35, 40, 45, 50, 55, 59, 64], name: 'seven-string guitar tab (B E A D G B E)' },
-};
+/** Default tunings by number of tab lines, sounding MIDI low to high (shared with the page assembler). */
+const DEFAULT_TUNINGS = TAB_TUNINGS;
 
 /**
  * The tuning a staff is read with: the one given when it has a string per line, else the usual
@@ -556,6 +551,7 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
         parenthesized: q.parenthesized || undefined,
         tieStop: q.tieStop || undefined,
         technique,
+        ...(q.readAs !== undefined ? { issues: [{ code: 'past-the-neck' as const, message: `Read as ${q.readAs}, which is past the last fret: probably two numbers side by side, or a smudge.` }] } : {}),
       };
     });
     const x0 = Math.min(...col.numbers.map((q) => q.box.x0));
@@ -608,7 +604,7 @@ export function readTabStaff(input: StaffInput, options: RecognizeOptions = {}, 
   const texts: OmrText[] = [];
   const confidence = events.length ? events.reduce((a, e) => a + e.confidence, 0) / events.length : 0.5;
   return {
-    reading: { events, clef, timeSignature, texts, confidence, warnings },
+    reading: { events, clef, timeSignature, texts, confidence, warnings, tuning: tuning.slice() },
     debug: { digitHeight, blurLevel, lineThrough: base.lineThrough, strike: strike.median, tuning, faceRatings, meanScore, reliability, blobs, glyphs, numbers, columns, marks, clefEnd, stripX, stems: rhythm.stems, measureTicks: rhythm.measureTicks, stackCuts: cuts, rests: rests.map((r) => ({ box: r.box, confidence: r.confidence })), ms: now() - t0, timings },
   };
 }

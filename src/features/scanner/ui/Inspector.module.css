@@ -262,3 +262,14 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Folded (large text on a phone): one line, the toggle at its end. */
+.toggle {
+  flex: none;
+}
+.folded .head {
+  flex-wrap: nowrap;
+}
+.folded .where {
+  white-space: nowrap;
+}

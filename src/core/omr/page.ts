@@ -17,8 +17,9 @@ import { type LayoutResult, detectLayout } from './staff/layout';
 import { type StaffGeom, type StaffLayout, lineYAt } from './staff/model';
 import { removeStaffLines } from './staff/removal';
 import type { BBox, OmrBarline, OmrEvent, OmrMeasure, OmrPage, OmrPageQuality, OmrStaff, OmrSystem, OmrWarning, StaffInput, StaffReading } from './types';
-import { STANDARD_TUNING } from './types';
+import { tabTuningFor } from './types';
 import { linkSystem } from './reconcile';
+import { fretOnNeck } from './frets';
 
 /** Result of {@link analyzePage}. */
 export interface PageAnalysis {
@@ -127,7 +128,8 @@ function staffToPage(st: StaffLayout, mesh: WarpMesh, id: string): OmrStaff {
     geometry: { lines, space, lineThickness: lt, x0: mid(lines, 0).x, x1: mid(lines, K - 1).x, bbox, contentBox: mapBox(mesh, st.contentBox) },
     barlines,
     measures,
-    tuning: st.kind === 'tab' ? STANDARD_TUNING.slice() : undefined,
+    // Until a reading says otherwise, the usual tuning for the number of lines (a four-line staff is a bass).
+    tuning: st.kind === 'tab' ? tabTuningFor(st.lineCount) : undefined,
   };
 }
 
@@ -375,6 +377,7 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
     staff.clef = reading.clef ?? staff.clef;
     staff.keySignature = reading.keySignature ?? staff.keySignature;
     staff.timeSignature = reading.timeSignature ?? staff.timeSignature;
+    if (staff.kind === 'tab' && reading.tuning?.length === staff.lineCount) staff.tuning = reading.tuning.slice();
     for (const t of reading.texts ?? []) page.systems[st.systemIndex].texts.push({ ...t, staffId: t.staffId ?? staff.id });
     for (const w of reading.warnings ?? []) page.warnings.push({ ...w, staffId: w.staffId ?? staff.id });
     const counters = new Map<number, number>();
@@ -391,6 +394,19 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
       const k = counters.get(mi) ?? 0;
       counters.set(mi, k + 1);
       const id = `${measure.id}.e${k}`;
+      // Whatever recognizer read it, a fret past the last fret becomes a marked guess on the neck.
+      if (ev.kind === 'tab') {
+        for (const n of ev.notes) {
+          const fix = fretOnNeck(n.fret, (n.alternatives ?? []).map((a) => a.value));
+          if (!fix) continue;
+          n.fret = fix.fret;
+          n.alternatives = fix.alternatives.map((value) => ({ value, confidence: Math.min(0.2, n.confidence) * 0.9 }));
+          n.confidence = Math.min(0.2, n.confidence);
+          if (staff.tuning?.length) n.midi = staff.tuning[staff.tuning.length - Math.min(n.string, staff.tuning.length)] + fix.fret;
+          if (!n.issues?.some((i) => i.code === 'past-the-neck')) n.issues = [...(n.issues ?? []), fix.issue];
+        }
+        if (ev.notes.length) ev.confidence = Math.min(ev.confidence, ...ev.notes.map((n) => n.confidence));
+      }
       const withIds = { ...ev, id, notes: ev.notes.map((n, j) => ({ ...n, id: `${id}.n${j}` })) } as OmrEvent & { measureIndex?: number };
       delete withIds.measureIndex;
       measure.events.push(withIds);

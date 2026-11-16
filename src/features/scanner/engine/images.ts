@@ -54,6 +54,8 @@ export function fitted(source: CanvasImageSource, width: number, height: number,
 /** A page picture ready for the tray and the reader. */
 export interface PagePicture {
   blob: Blob;
+  /** The thumbnail, encoded (kept with an unsaved scan). */
+  thumbBlob: Blob;
   url: string;
   thumbUrl: string;
   width: number;
@@ -65,7 +67,7 @@ export async function pictureFromCanvas(canvas: AnyCanvas, kind: 'photo' | 'rend
   const blob = await toBlob(canvas, kind === 'render' ? 'image/png' : 'image/jpeg', 0.92);
   const thumb = fitted(canvas as unknown as CanvasImageSource, canvas.width, canvas.height, THUMB_SIDE);
   const thumbBlob = await toBlob(thumb, 'image/jpeg', 0.8);
-  return { blob, url: URL.createObjectURL(blob), thumbUrl: URL.createObjectURL(thumbBlob), width: canvas.width, height: canvas.height };
+  return { blob, thumbBlob, url: URL.createObjectURL(blob), thumbUrl: URL.createObjectURL(thumbBlob), width: canvas.width, height: canvas.height };
 }
 
 /** A photo or picture file as a page picture (upright, at most MAX_SIDE). */

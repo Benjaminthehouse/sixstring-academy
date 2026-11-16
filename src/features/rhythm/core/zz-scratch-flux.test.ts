@@ -18,12 +18,16 @@ function fluxOnsets(x: Float32Array, sr: number): number[] {
   const k1 = Math.min(N / 2 - 1, Math.floor((8000 * N) / sr));
   const mags: Float64Array[] = [];
   const E: number[] = [];
+  const peaks: number[] = [];
   const out: number[] = [];
   let last = -1;
   for (let s = 0; s + N <= x.length; s += hop) {
     for (let i = 0; i < N; i++) { re[i] = x[s + i] * w[i]; im[i] = 0; }
     fft.forward(re, im);
     const m = new Float64Array(k1 - k0 + 1);
+    let pk = 0;
+    for (let k = 1; k < N / 2; k++) pk = Math.max(pk, Math.hypot(re[k], im[k]));
+    peaks.push(pk);
     let e = 0;
     for (let k = k0; k <= k1; k++) { m[k - k0] = Math.hypot(re[k], im[k]); e += m[k - k0] ** 2; }
     mags.push(m);
@@ -32,10 +36,11 @@ function fluxOnsets(x: Float32Array, sr: number): number[] {
     const prev = mags[j - P.L];
     if (!prev || j < P.back + P.L) continue;
     let lf = 0;
-    for (let k = 0; k < m.length; k++) lf += Math.max(0, Math.log((P.eps + m[k]) / (P.eps + prev[k])));
+    const eps = P.eps;
+    for (let k = 0; k < m.length; k++) lf += Math.max(0, Math.log((eps + m[k]) / (eps + prev[k])));
     lf /= m.length;
     let mx = 0;
-    for (let b = j - P.L; b >= j - P.L - P.back; b--) mx = Math.max(mx, E[b]);
+    if (P.back > 0) { for (let b = j - P.L; b >= j - P.L - P.back; b--) mx = Math.max(mx, E[b]); } else mx = E[j - P.L];
     const rise = 10 * Math.log10((e + 1e-12) / (mx + 1e-12));
     const t = (s + N) / sr;
     if (lf >= P.thr && rise >= P.rise && e / N > 1e-7 && j - last > 20) { out.push(t - (N * 0.75) / sr); last = j; }
@@ -93,11 +98,17 @@ it('flux', () => {
   sigs.push(['quietnoise', whiteNoise(4 * sr, 0.003, 4)]);
   sigs.push(['hum', addHum(silence(4, sr), sr, { rms: 0.01 })]);
   sigs.push(['E', strum({ freqs: [82.4, 123.5, 164.8, 207.7, 246.9, 329.6], sampleRate: sr, duration: 4, decay: 0.7 })]);
+  if (process.env.LONG) {
+    for (const [lvl, seed] of [[0.05, 11], [0.01, 12], [0.002, 13]] as const) sigs.push([`white${lvl}`, whiteNoise(60 * sr, lvl, seed)]);
+    // pink-ish: integrate white
+    const pk = whiteNoise(60 * sr, 0.05, 14); let acc = 0; for (let i = 0; i < pk.length; i++) { acc = 0.995 * acc + pk[i]; pk[i] = acc * 0.1; }
+    sigs.push(['brown', pk]);
+  }
   sigs.push(['Am', strum({ freqs: [110, 164.8, 220, 261.6, 329.6], sampleRate: sr, duration: 4, decay: 0.5, seed: 4 })]);
   const fa: string[] = [];
   for (const [name, x] of sigs) {
     const f = fluxOnsets(x, sr).filter((t) => t > 0.08);
-    if (f.length) fa.push(`${name}:${f.map((t) => t.toFixed(2)).join(',')}`);
+    if (f.length) fa.push(`${name}:${f.length}`);
   }
   const abs = errs.map(Math.abs);
   process.stdout.write(`${JSON.stringify(P)} quiet ${qFound}/${qTotal} other ${oFound}/${oTotal} extra ${extra} fluxExtra ${fluxExtra} err med ${q(errs, 0.5)?.toFixed(1)} p95abs ${q(abs, 0.95)?.toFixed(1)} max ${q(abs, 1)?.toFixed(1)} FA ${fa.length} ${fa.slice(0, 8).join(' ')}\n`);

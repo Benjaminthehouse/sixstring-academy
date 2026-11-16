@@ -3,11 +3,14 @@
  *   new Worker(new URL('./vision.worker.ts', import.meta.url), { type: 'module' })
  * and speaks `VisionRequest` / `VisionResponse` (see protocol.ts). One tracker per worker.
  *
- * Frames arrive as a camera `VideoFrame` (`video-frame`: shrunk and read here, so the main thread
- * only wraps the frame), as an `ImageBitmap` already shrunk to the working size (`bitmap`: read
- * back here), or as raw RGBA (`frame`). Both images go through one OffscreenCanvas.
+ * Frames arrive as a camera `VideoFrame` (`video-frame`: the main thread only wraps the frame), as
+ * an `ImageBitmap` already shrunk to the working size (`bitmap`: read back here), or as raw RGBA
+ * (`frame`). A `VideoFrame` is copied out plane by plane and averaged down to the working size in
+ * plain code (`frame-copy.ts`: about 3.5 ms for 1280x720 I420, against 6-8 ms for drawing it on a
+ * canvas); a format that code cannot read is drawn on the OffscreenCanvas instead.
  */
-import { createVisionHost, type VisionRequest } from './protocol';
+import { canReadRaw, rawToRgba } from './frame-copy';
+import { createVisionHost, type VisionRequest, type VisionResponse } from './protocol';
 import type { Frame } from './types';
 
 interface WorkerScope {
@@ -30,7 +33,7 @@ function canReadBitmaps(): boolean {
   }
 }
 
-/** Can this worker draw a transferred camera frame (WebCodecs `VideoFrame`) on its canvas? */
+/** Can this worker read a transferred camera frame (WebCodecs `VideoFrame`)? */
 function canReadVideoFrames(): boolean {
   return typeof VideoFrame === 'function' && canReadBitmaps();
 }
@@ -49,10 +52,54 @@ function decodeBitmap(bitmap: ImageBitmap | VideoFrame, width: number, height: n
   return { data: image.data, width, height };
 }
 
+/** Buffers reused from frame to frame (one frame in flight at a time). */
+let planes: Uint8Array | null = null;
+
+/** The camera frame's planes, copied out and averaged down to the working size; null when its format is not one `rawToRgba` reads. */
+async function copyVideoFrame(frame: VideoFrame, width: number, height: number): Promise<Frame | null> {
+  if (!canReadRaw(frame.format) || typeof frame.copyTo !== 'function') return null;
+  const size = frame.allocationSize();
+  if (!planes || planes.length < size) planes = new Uint8Array(size);
+  const buffer = planes.length === size ? planes : planes.subarray(0, size);
+  const layout = await frame.copyTo(buffer);
+  const rect = frame.visibleRect;
+  const data = rawToRgba(
+    { format: frame.format, width: rect?.width ?? frame.displayWidth, height: rect?.height ?? frame.displayHeight, data: buffer, layout, matrix: frame.colorSpace?.matrix ?? null, fullRange: frame.colorSpace?.fullRange ?? null },
+    width,
+    height,
+  );
+  return data ? { data, width, height } : null;
+}
+
+/** A `video-frame` request: copy the planes out (or draw the frame), then track it like a raw frame. */
+async function videoFrameRequest(request: Extract<VisionRequest, { type: 'video-frame' }>): Promise<VisionResponse> {
+  const t0 = performance.now();
+  let frame: Frame | null = null;
+  try {
+    frame = await copyVideoFrame(request.frame, request.width, request.height);
+  } catch {
+    frame = null;
+  }
+  if (!frame) {
+    // Not a layout the copy reads: the host draws it (or says it cannot).
+    return handle(request);
+  }
+  request.frame.close();
+  const readMs = performance.now() - t0;
+  const response = handle({ type: 'frame', frame, timeMs: request.timeMs, seq: request.seq });
+  if (response.type === 'update') response.timing = { ...response.timing, readMs, totalMs: response.timing.totalMs + readMs };
+  return response;
+}
+
 const bitmaps = canReadBitmaps();
 const videoFrames = canReadVideoFrames();
 const handle = createVisionHost({}, { ...(bitmaps ? { decodeBitmap } : {}), ...(videoFrames ? { decodeVideoFrame: decodeBitmap } : {}) });
 scope.onmessage = (event) => {
-  scope.postMessage(handle(event.data));
+  const request = event.data;
+  if (request.type === 'video-frame' && videoFrames) {
+    void videoFrameRequest(request).then((response) => scope.postMessage(response));
+    return;
+  }
+  scope.postMessage(handle(request));
 };
 scope.postMessage({ type: 'ready', bitmaps, videoFrames });

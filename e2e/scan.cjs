@@ -884,7 +884,10 @@ async function groupReview(browser, url, fx) {
   });
   check(g, 'after turning the page, the reading still shows the picture it was read from', picture);
 
-  // A reload asks first while there are changes.
+  // A reload asks first only while the copy on the device is behind; once it is kept, a reload
+  // offers the scan back instead (e2e/scan-ux.cjs checks that whole round trip).
+  await p.page.keyboard.press('ArrowRight');
+  await p.page.keyboard.press('3');
   let dialog = null;
   p.page.once('dialog', (d) => {
     dialog = d.type();
@@ -892,7 +895,18 @@ async function groupReview(browser, url, fx) {
   });
   await p.page.reload({ timeout: 4000 }).catch(() => undefined);
   await p.page.waitForTimeout(300);
-  check(g, 'a reload asks first and, when the learner stays, the work stays', dialog === 'beforeunload' && (await p.page.$('[data-scan="proof"]')) !== null, dialog);
+  check(g, 'a reload straight after a change asks first and, when the learner stays, the work stays', dialog === 'beforeunload' && (await p.page.$('[data-scan="proof"]')) !== null, dialog);
+  const keptOnDevice = await p.page.waitForFunction(() => window.__ssaScanDraft?.state === 'saved', null, { timeout: 15000 }).then(() => true, () => false);
+  let askedAgain = false;
+  p.page.once('dialog', (d) => {
+    askedAgain = true;
+    void d.dismiss();
+  });
+  await p.page.reload({ waitUntil: 'load' }).catch(() => undefined);
+  const offered = await p.page.waitForSelector('[data-scan-resume]', { timeout: 60000 }).then(() => true, () => false);
+  check(g, 'once the scan is kept on the device, a reload does not ask and offers it back', keptOnDevice && !askedAgain && offered, { keptOnDevice, askedAgain, offered });
+  await p.page.click('[data-scan-resume-go]');
+  await p.page.waitForSelector('[data-scan="proof"]', { timeout: 30000 });
 
   // Saving a bad photo keeps every note the reader found (bars that do not add up were cut before).
   await startOver(p);

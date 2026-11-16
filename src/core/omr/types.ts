@@ -54,7 +54,11 @@ export type OmrIssueCode =
   /** The AI reading differs from the picture reading. */
   | 'ai-disagree'
   /** Only the AI saw this. */
-  | 'ai-only';
+  | 'ai-only'
+  /** A fret number was read past the last fret and replaced by a reading of its digits on the neck. */
+  | 'past-the-neck'
+  /** The measure does not fit its time signature; its rhythm needs a look. */
+  | 'measure-does-not-fit';
 
 /** One reason to check an element. */
 export interface OmrIssue {
@@ -500,6 +504,8 @@ export interface StaffReading<E extends OmrEvent = OmrEvent> {
   /** Overall confidence of the reading, 0..1. */
   confidence: number;
   warnings?: OmrWarning[];
+  /** Tab staves: the tuning the frets were read with (sounding MIDI, low to high). */
+  tuning?: number[];
 }
 
 /**
@@ -522,6 +528,22 @@ export interface StaffRecognizers {
 
 /** Standard guitar tuning, sounding MIDI, low to high (string 6 to string 1). */
 export const STANDARD_TUNING: readonly number[] = [40, 45, 50, 55, 59, 64];
+
+/** The usual tuning of a tab staff with this many lines (sounding MIDI, low to high), with its name. */
+export const TAB_TUNINGS: Readonly<Record<number, { tuning: readonly number[]; name: string; bass: boolean }>> = {
+  4: { tuning: [28, 33, 38, 43], name: 'bass tab in standard tuning (E A D G)', bass: true },
+  5: { tuning: [23, 28, 33, 38, 43], name: 'five-string bass tab (B E A D G)', bass: true },
+  6: { tuning: STANDARD_TUNING, name: 'guitar tab in standard tuning', bass: false },
+  7: { tuning: [35, 40, 45, 50, 55, 59, 64], name: 'seven-string guitar tab (B E A D G B E)', bass: false },
+};
+
+/** The tuning a tab staff of `lines` lines is read with when none is given (guitar tuning for an unusual count). */
+export function tabTuningFor(lines: number): number[] {
+  return (TAB_TUNINGS[lines]?.tuning ?? STANDARD_TUNING).slice();
+}
+
+/** The highest fret a reading may hold: a number past it is a misreading (two numbers side by side, a smudge). */
+export const MAX_READ_FRET = 24;
 
 const STEP_SEMITONES: Record<StepName, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const STEPS: StepName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];

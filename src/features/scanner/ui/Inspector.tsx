@@ -47,8 +47,14 @@ function stringLetter(midi: number, string: number, strings: number): string {
   return string === 1 && strings >= 6 ? n.toLowerCase() : n;
 }
 
-/** The inspector. */
-export function Inspector({ draft, sel, actions, notationOnly, compact, tab = 'note', onTab = () => undefined }: { draft: Draft; sel: Selection | null; actions: InspectorActions; notationOnly: boolean; compact: boolean; tab?: InspectorTab; onTab?: (t: InspectorTab) => void }) {
+/**
+ * The inspector. With `onToggle` (large text on a phone) it folds down to its first line, what is
+ * selected and "It's right", so the music keeps the screen; one tap opens it again.
+ */
+export function Inspector({ draft, sel, actions, notationOnly, compact, tab = 'note', onTab = () => undefined, open = true, onToggle }: { draft: Draft; sel: Selection | null; actions: InspectorActions; notationOnly: boolean; compact: boolean; tab?: InspectorTab; onTab?: (t: InspectorTab) => void; open?: boolean; onToggle?: () => void }) {
+  const toggle = onToggle ? (
+    <IconButton icon={open ? 'ChevronDown' : 'ChevronUp'} label={open ? 'Fold the panel away' : 'Open the panel to correct it'} size="sm" variant="secondary" onClick={onToggle} aria-expanded={open} data-scan-panel-toggle="" />
+  ) : null;
   if (!sel) {
     return (
       <div className={styles.root} data-scan-inspector="none">
@@ -111,13 +117,16 @@ export function Inspector({ draft, sel, actions, notationOnly, compact, tab = 'n
           <Text size="sm" tone="muted">
             {beats.length} {beats.length === 1 ? 'beat' : 'beats'}: {beats.map((b) => valueName(b.value, b.duration)).join(', ') || 'empty'}
           </Text>
+          {toggle && <span className={cx(styles.toggle, styles.right)}>{toggle}</span>}
         </div>
-        {barLine}
-        <div className={styles.row}>
-          <Button size="sm" iconLeft="MousePointerClick" onClick={() => actions.select({ bar, beat: 0, note: beats[0]?.notes.length ? 0 : null, string: beats[0]?.notes[0]?.string ?? 1 })} disabled={!beats.length}>
-            Check its notes
-          </Button>
-        </div>
+        {open && barLine}
+        {open && (
+          <div className={styles.row}>
+            <Button size="sm" iconLeft="MousePointerClick" onClick={() => actions.select({ bar, beat: 0, note: beats[0]?.notes.length ? 0 : null, string: beats[0]?.notes[0]?.string ?? 1 })} disabled={!beats.length}>
+              Check its notes
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -263,8 +272,17 @@ export function Inspector({ draft, sel, actions, notationOnly, compact, tab = 'n
           It’s right
         </Button>
       )}
+      {toggle && <span className={cx(styles.toggle, !(doubtful || rhythmDoubt) && styles.right)}>{toggle}</span>}
     </div>
   );
+
+  if (compact && !open) {
+    return (
+      <div className={cx(styles.root, styles.compact, styles.folded)} data-scan-inspector="note" data-scan-folded="">
+        {header}
+      </div>
+    );
+  }
 
   if (compact) {
     return (

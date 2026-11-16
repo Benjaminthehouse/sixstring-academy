@@ -20,13 +20,15 @@ import type { ChromaEvent, NoteOnEvent } from '@/core/pitch';
 import { noteKey, type TabNoteState } from '@/ui/music/tab';
 import { playerDebug, pushBounded, resetDebug } from '../debug';
 import { IDLE_PICK, loopKey, normalizeLoop, stepBarTick, type LoopPick } from '../model/loop';
+import { chordCandidates, chordSpec, StrumListener, strumWords } from '../model/heard-chord';
+import { tempoMark } from '../model/meter';
 import { chordName, describeSpots, heardName, spotName, targetSpots, type NeckLabelOptions, type NeckSpot } from '../model/neck';
 import { activityFor, bestLine, readSongData, summarizeFlow, summarizeListen, summarizeWait, withRun, type RunSummary } from '../model/results';
 import { FlowRun } from '../model/run';
 import { sessionKey, type PlayerSession } from '../model/session';
 import { StrumGate } from '../model/strum';
-import { isCleanPass, trainerNext, type TrainerSettings } from '../model/trainer';
-import { clampTempo, needsMic, type BarRange, type PracticeMode, type ScoreLayer } from '../model/types';
+import { isCleanPass, trainerNext, trainerNote, type TrainerSettings } from '../model/trainer';
+import { clampTempo, needsMic, type Arrangement, type BarRange, type PracticeMode, type ScoreLayer } from '../model/types';
 import { MicInput, type MicStatus } from './mic';
 import { whenAudioUnlocked } from './unlock';
 
@@ -77,6 +79,10 @@ export interface EngineState {
   partAudible: boolean;
   layer: ScoreLayer;
   neck: boolean;
+  /** Chord names and boxes hidden: playing it from memory. */
+  hideChart: boolean;
+  /** How the song is moved (capo, transposition); the engine's song is already arranged so. */
+  arrangement: Arrangement;
   /** Last known position (updated on bars, seeks and pauses; the cursor itself moves per frame). */
   bar: number;
   tick: number;
@@ -115,6 +121,8 @@ export interface EngineOptions {
   clickSound: string;
   /** Where to start when the session's tick is -1 (an address that named a bar). */
   startBar?: number;
+  /** How `song` was moved from the written song (kept with the session). */
+  arrangement?: Arrangement;
 }
 
 /** A `SongPlayerOutput` whose guitar sound can be changed while the player lives. */
@@ -169,6 +177,8 @@ interface WaitRun {
   fullSong: boolean;
   tempo: number;
   states: Map<string, TabNoteState>;
+  /** Wrong chords strummed on each target (by index), heard through the chroma. */
+  chordMisses: Map<number, number>;
 }
 
 const HINT_AFTER = 2;
@@ -211,6 +221,10 @@ export class PlayerEngine {
   private lastLevel = Number.NEGATIVE_INFINITY;
   /** Audio time of the last thing heard (note-on or chroma frame), for the strum gate. */
   private lastHeard = 0;
+  /** Wait mode: listens to each strum on a chord target, to say what a wrong chord sounded like. */
+  private readonly strumEar = new StrumListener();
+  /** Chords to name a wrong strum by: the song's own, then the common triads. */
+  private readonly chordList: ReturnType<typeof chordCandidates>;
   private onHidden = () => {
     if (document.visibilityState === 'hidden') {
       // A phone put away, or another app in front: the music should not play on unheard.
@@ -236,13 +250,18 @@ export class PlayerEngine {
     const track = s.track && opts.song.tracks.some((t) => t.id === s.track) ? s.track : opts.song.tracks[0]?.id ?? '';
     this.stateNow = {
       phase: 'idle', mode: s.mode, tempo: s.tempo, loop: normalizeLoop(s.loop, opts.song.bars.length), pick: IDLE_PICK, countIn: s.countIn, metronome: s.metronome,
-      trainer: s.trainer, trainerNote: null, track, muted: s.muted, solo: s.solo, partAudible: false, layer: s.layer, neck: s.neck, bar: 0, tick: 0, wait: null,
+      trainer: s.trainer, trainerNote: null, track, muted: s.muted, solo: s.solo, partAudible: false, layer: s.layer, neck: s.neck, hideChart: s.hideChart === true,
+      arrangement: opts.arrangement ?? { transpose: s.transpose ?? 0, capo: s.capo ?? null }, bar: 0, tick: 0, wait: null,
       mic: { status: 'off', failure: MicInput.blockedByHost() ? 'blocked-by-host' : null }, results: null, noteStates: null, passes: 0, tone: normalizeTone(opts.tone, 'steel'),
     };
+    this.chordList = chordCandidates(opts.song.chords.map((c) => c.symbol));
     this.mic = new MicInput({
       noteon: (e) => this.onNoteOn(e),
       chroma: (e) => this.onChroma(e),
-      onset: (time) => this.strum.onset(time),
+      onset: (time) => {
+        this.strum.onset(time);
+        if (this.waitRun?.wait.current?.chord) this.strumEar.onset(time);
+      },
       level: (x, clipping) => this.hud({ type: 'level', x, clipping }),
       lost: (reason) => {
         this.set({ mic: { status: 'failed', failure: reason } });
@@ -440,7 +459,7 @@ export class PlayerEngine {
       if (t.on) {
         const next = trainerNext(this.player.tempoPercent, t, clean);
         if (next.changed) this.player.tempoPercent = next.percent;
-        note = next.reached ? `You reached ${t.target} %. Keep it going, or stop for your results.` : next.changed ? `Clean. Now ${next.percent} %.` : `Not quite clean: staying at ${next.percent} %.`;
+        note = trainerNote(next, t.target, (p) => this.tempoAt(p, loop.start));
       }
       run.flow?.newPass(time, this.timeline.secondsAt(loop.start), this.player.tempoPercent);
       // A new pass starts clean on the score.
@@ -580,6 +599,7 @@ export class PlayerEngine {
       if (i >= 0) {
         this.waitRun.wait.goTo(i);
         this.strum.reset();
+        this.strumEar.cancel();
         this.player.stop();
         this.player.seek(this.waitRun.wait.targets[i].tick);
         this.syncPosition();
@@ -700,10 +720,34 @@ export class PlayerEngine {
     this.applyMutes();
   }
 
-  /** What the score shows: the learner's own pick for this song, kept over Settings from now on. */
-  setLayer(layer: ScoreLayer): void {
+  /**
+   * What the score shows: the learner's own pick for this song, kept over Settings from now on.
+   * The notation alone (sight reading) also hides the fretboard, which would show the answers:
+   * returns true when it did, so the screen can say so.
+   */
+  setLayer(layer: ScoreLayer): boolean {
     this.layerPicked = true;
-    this.set({ layer });
+    const hideNeck = layer === 'notation' && this.stateNow.layer !== 'notation' && this.stateNow.neck;
+    this.set({ layer, ...(hideNeck ? { neck: false } : {}) });
+    return hideNeck;
+  }
+
+  /**
+   * Hide the chord names and boxes (play it from memory). Hiding them also hides the fretboard,
+   * which would show the shapes: returns true when it did.
+   */
+  setHideChart(on: boolean): boolean {
+    const hideNeck = on && !this.stateNow.hideChart && this.stateNow.neck;
+    this.set({ hideChart: on, ...(hideNeck ? { neck: false } : {}) });
+    if (this.waitRun) this.showWait(this.stateNow.wait?.feedback ?? null);
+    return hideNeck;
+  }
+
+  /** A practice tempo as the meter counts it, at a tick ("♩. = 48" in 6/8, "72 bpm" in 4/4). */
+  tempoAt(percent: number, tick = this.stateNow.tick): string {
+    const bar = this.timeline.barAt(Math.max(0, tick));
+    const time = (bar ? this.song.bars[bar.bar]?.time : this.song.bars[0]?.time) ?? null;
+    return tempoMark((this.timeline.tempo.bpmAt(Math.max(0, tick)) * percent) / 100, time).short;
   }
 
   /** Show or hide the fretboard. */
@@ -800,7 +844,8 @@ export class PlayerEngine {
     }
     const wait = new WaitMode(targets, { toleranceCents: 50 });
     this.strum.reset();
-    this.waitRun = { wait, startedAt: performance.now(), fromTick: from, endTick: end, fullSong: !loop && from <= (this.timeline.bars[0]?.start ?? 0), tempo: this.player.tempoPercent, states: new Map() };
+    this.waitRun = { wait, startedAt: performance.now(), fromTick: from, endTick: end, fullSong: !loop && from <= (this.timeline.bars[0]?.start ?? 0), tempo: this.player.tempoPercent, states: new Map(), chordMisses: new Map() };
+    this.strumEar.cancel();
     playerDebug.waitIndex = 0;
     playerDebug.waitTotal = targets.length;
     this.showWait(null);
@@ -858,6 +903,7 @@ export class PlayerEngine {
     if (!cur) return;
     w.states.set(noteKey(cur.bar, cur.beat.beat), 'miss');
     this.strum.reset();
+    this.strumEar.cancel();
     const next = w.wait.skip();
     this.afterWaitStep(cur, next);
   }
@@ -891,15 +937,23 @@ export class PlayerEngine {
     const w = this.waitRun;
     if (!w) return;
     if (r.kind === 'match' && r.target) {
+      this.strumEar.cancel();
       if (r.target.chord) this.strum.close(this.lastHeard, this.lastLevel);
       w.states.set(noteKey(r.target.bar, r.target.beat.beat), 'hit');
       playUi('correct', { volume: 0.35 });
       this.afterWaitStep(r.target, r.next ?? null);
       if (r.next) this.showWait({ tone: 'ok', text: 'Yes.' });
     } else if (r.kind === 'wrong' && r.target) {
+      // A strum is judged as a whole from its sound (`onChroma`): one string of it is not news.
+      if (r.target.chord && this.strumEar.listening) return;
       const heard = heardName(midi, this.song.key);
+      const hidden = this.stateNow.hideChart && !!r.target.symbol;
       const want = describeSpots(targetSpots(r.target), this.neckLabels, r.target.symbol);
-      const text = r.octave ? `Right note, other octave. Try ${want}.` : r.target.chord ? `${heard} is not in this chord. Play ${want}.` : `That sounded like ${heard}. This one is ${want}.`;
+      const text = r.octave
+        ? `Right note, other octave. Try ${want}.`
+        : r.target.chord
+          ? hidden ? `${heard} is not in this chord.` : `${heard} is not in this chord. Play ${want}.`
+          : `That sounded like ${heard}. This one is ${want}.`;
       const tries = (w.wait.summary().records[w.wait.index]?.wrong ?? 0);
       // After a few tries the hint comes by itself, with the note to hear.
       if (tries === HINT_AFTER) {
@@ -954,9 +1008,15 @@ export class PlayerEngine {
     this.strum.level(e.levelDb);
     if (this.waitRun && this.stateNow.mode === 'wait') {
       const cur = this.waitRun.wait.current;
-      if (!cur?.chord || !this.strum.open) return;
-      const r = this.waitRun.wait.hearChroma({ time: e.time, chroma: e.chroma, bass: e.bass });
-      if (r.kind === 'match') this.waitHeard(r, -1);
+      if (!cur?.chord) return;
+      if (this.strum.open) {
+        const r = this.waitRun.wait.hearChroma({ time: e.time, chroma: e.chroma, bass: e.bass });
+        if (r.kind === 'match') {
+          this.waitHeard(r, -1);
+          return;
+        }
+      }
+      this.wrongChord(cur, e);
     } else if (this.run?.flow && this.run.kind === 'flow' && this.player.state === 'playing') {
       if (!this.strum.open) return;
       const j = this.run.flow.hearChroma({ audio: e.time - this.mic.latency, chroma: e.chroma, bass: e.bass });
@@ -965,6 +1025,32 @@ export class PlayerEngine {
         this.judged(j.grade, j.target, j.combo, j.offset);
       }
     }
+  }
+
+  /**
+   * Wait mode on a chord: a strum that did not match is named from its sound, kindly ("That
+   * sounded like Am. The chart says C."), and after a couple of misses the hint comes by itself.
+   */
+  private wrongChord(target: PracticeTarget, e: ChromaEvent): void {
+    const w = this.waitRun;
+    if (!w) return;
+    const want = (target.symbol ? chordSpec(target.symbol) : null) ?? { pcs: [...target.pcs] };
+    const verdict = this.strumEar.frame(e.time, e.chroma, want, this.chordList);
+    if (!verdict) return;
+    const hidden = this.stateNow.hideChart && !!target.symbol && !this.stateNow.wait?.hint;
+    const chart = target.symbol && !hidden ? chordName(target.symbol) : null;
+    const key = this.song.key;
+    const text = strumWords(verdict, chart, chordName, (pc) => heardName(60 + pc, key));
+    pushBounded(playerDebug.notes, { time: e.time, audio: e.time, midi: -2, result: verdict.kind === 'other' ? `chord:${verdict.heard}` : verdict.kind });
+    const misses = (w.chordMisses.get(w.wait.index) ?? 0) + 1;
+    w.chordMisses.set(w.wait.index, misses);
+    if (misses === HINT_AFTER && !this.stateNow.wait?.hint) {
+      w.wait.hint();
+      this.sound(target);
+      this.showWait({ tone: verdict.kind === 'close' ? 'info' : 'bad', text }, true);
+      return;
+    }
+    this.showWait({ tone: verdict.kind === 'close' ? 'info' : 'bad', text });
   }
 
   /** Tap along: a tap at a DOM event time (ms on the performance clock). */
@@ -1103,6 +1189,7 @@ export class PlayerEngine {
     return {
       v: 1, at: Date.now(), opened, tick: Math.round(pos.tick), bar: pos.bar, tempo: s.tempo, loop: s.pick.stage === 'end' ? null : s.loop, mode: s.mode, layer: s.layer,
       layerPicked: this.layerPicked, track: s.track, muted: s.muted, solo: s.solo, countIn: s.countIn, metronome: s.metronome, trainer: s.trainer, neck: s.neck,
+      hideChart: s.hideChart, transpose: s.arrangement.transpose, capo: s.arrangement.capo,
     };
   }
 

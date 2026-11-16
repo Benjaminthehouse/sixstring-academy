@@ -4,7 +4,8 @@
  *
  *   const { song, warnings, confidence, estimatedRhythm } = omrToSong(doc, { title: 'My song' });
  *
- * One guitar track; one bar per measure of the joined systems. Where a tab staff exists its
+ * One track (guitar, or bass for a four- or five-line tab staff, in the tuning the staff was read
+ * with); one bar per measure of the joined systems. Where a tab staff exists its
  * strings and frets are used (pitches follow from them); notation alone is given frets low on the
  * neck. Durations come from the reading (read, copied from the notation, or estimated from the
  * spacing); a measure that does not add up is padded with a rest or cut at the bar line, with a
@@ -14,7 +15,7 @@
 import { type Beat, type ChordEvent, type ImportResult, type ImportWarning, type Note, type NoteValue, type Song, createSong } from '@/core/song';
 import { type OmrDocument, joinPages } from './pipeline';
 import { metreTicks } from './reconcile';
-import { type DurationValue, type OmrEvent, type OmrMeasure, type OmrPage, type OmrStaff, STANDARD_TUNING, isNotationEvent, isTabEvent } from './types';
+import { type DurationValue, type OmrEvent, type OmrMeasure, type OmrPage, type OmrStaff, STANDARD_TUNING, TAB_TUNINGS, isNotationEvent, isTabEvent } from './types';
 
 const BASE: Record<DurationValue, number> = { whole: 1, half: 2, quarter: 4, eighth: 8, '16th': 16, '32nd': 32 };
 const KEYS: Record<number, string> = { [-7]: 'Cb', [-6]: 'Gb', [-5]: 'Db', [-4]: 'Ab', [-3]: 'Eb', [-2]: 'Bb', [-1]: 'F', 0: 'C', 1: 'G', 2: 'D', 3: 'A', 4: 'E', 5: 'B', 6: 'F#', 7: 'C#' };
@@ -24,8 +25,14 @@ export interface OmrToSongOptions {
   title?: string;
   /** Quarter notes per minute (default: 90). */
   bpm?: number;
-  /** Open strings, sounding MIDI low to high (default standard tuning). */
+  /** Open strings, sounding MIDI low to high (default: the first tab staff's, else standard tuning). */
   tuning?: number[];
+}
+
+/** The first tab staff of a reading, if any. */
+function firstTabStaff(doc: OmrDocument): OmrStaff | undefined {
+  for (const p of doc.pages) for (const sys of p.systems) for (const st of sys.staves) if (st.kind === 'tab') return st;
+  return undefined;
 }
 
 /** Strings and frets for sounding pitches played together: each on its own string, low frets first. */
@@ -78,7 +85,9 @@ function notesOf(e: OmrEvent, tuning: readonly number[]): Note[] {
 /** Convert a reading to a Song (see the file comment). */
 export function omrToSong(input: OmrPage | OmrDocument, opts: OmrToSongOptions = {}): ImportResult {
   const doc: OmrDocument = 'pages' in input ? input : joinPages([input]);
-  const tuning = opts.tuning ?? STANDARD_TUNING.slice();
+  const tab = firstTabStaff(doc);
+  const tuning = opts.tuning ?? (tab?.tuning?.length === tab?.lineCount ? tab?.tuning?.slice() : undefined) ?? STANDARD_TUNING.slice();
+  const bass = !!tab && !opts.tuning && TAB_TUNINGS[tab.lineCount]?.bass === true;
   const warnings: ImportWarning[] = [];
   const confidences: number[] = [];
   let estimated = false;
@@ -151,7 +160,7 @@ export function omrToSong(input: OmrPage | OmrDocument, opts: OmrToSongOptions =
       chords.push({ bar: barIndex, tick, symbol: text.text });
     }
   });
-  const song = createSong({ meta: { title, source: 'Read from a picture of the sheet' }, tuning, bars: Math.max(1, bars.length), bpm: opts.bpm ?? 90, ...(key ? { key } : {}) });
+  const song = createSong({ meta: { title, source: 'Read from a picture of the sheet' }, tuning, bars: Math.max(1, bars.length), bpm: opts.bpm ?? 90, ...(key ? { key } : {}), ...(bass ? { tracks: [{ name: 'Bass', role: 'bass' as const }] } : {}) });
   if (bars.length) {
     song.bars = bars;
     song.tracks[0].measures = beatsPerBar.map((beats) => ({ beats }));

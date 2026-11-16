@@ -42,7 +42,8 @@
 
 /*
  * The box around a text-like control. Its edge is the only thing that says "you can type here",
- * so it is drawn at 3:1 against the page (WCAG 1.4.11); --line-strong alone is about 2.4:1.
+ * so it is drawn at 3:1 or better against every surface it sits on (WCAG 1.4.11), a step darker
+ * than --line-strong (itself 3:1 on bg, surface and surface-2, but not on surface-3).
  */
 .control {
   --control-edge: color-mix(in srgb, var(--line-strong) 60%, var(--fg-muted));

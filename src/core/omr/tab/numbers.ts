@@ -5,6 +5,7 @@
  * and turn correlation scores into confidences and alternatives.
  */
 import type { BinaryImage, GrayImage } from '../image/gray';
+import { fretsInDigits } from '../frets';
 import { type Box, type ClassScore, type GlyphPatch, type LineProfile, classifyPatch, correlate, correlateComposite, discriminate, extractPatch, lineInBox, lineProfileAt, refineBox, widthTolerance } from './glyph';
 import { GLYPH_H, struckTemplates } from './templates';
 import { type LineBlob, columnProfile, offLineExtent, profileValleys, tightBox } from './segment';
@@ -55,6 +56,8 @@ export interface TabNumber {
   /** Technique mark printed after the number ('h', 'p', '/', ...). */
   technique?: string;
   tieStop?: boolean;
+  /** The digits read as one number past the last fret (`fret` is then a reading of them on the neck). */
+  readAs?: number;
   /** Notes on how the reading was reached (for the warning list and for debugging). */
   flags: string[];
 }
@@ -446,6 +449,9 @@ export function buildNumber(digits: Glyph[], digitHeight: number): TabNumber {
   let pick = raw;
   let confidence = raw.p;
   const leadingZero = digits.length === 2 && opts[0][0].digit === 0;
+  let readAs: number | undefined;
+  /** Readings of the printed digits taken one or two at a time (when no reading of the whole is on the neck). */
+  let pieces: number[] = [];
   if (raw.value > MAX_FRET || leadingZero) {
     // Not a fret that exists (or a leading zero): take the best reading that does, but call it a guess.
     flags.push(raw.value > MAX_FRET ? 'implausible-fret' : 'leading-zero');
@@ -453,6 +459,13 @@ export function buildNumber(digits: Glyph[], digitHeight: number): TabNumber {
     if (ok) {
       pick = ok;
       confidence = Math.min(0.45, ok.p);
+    } else if (raw.value > MAX_FRET) {
+      // Nothing like it is on the neck: most likely two numbers side by side ("9" "2" read as 92).
+      // A reading of its own digits takes its place, as a guess, and the others are offered.
+      pieces = fretsInDigits(String(raw.value), MAX_FRET);
+      readAs = raw.value;
+      pick = { value: pieces[0] ?? 0, p: raw.p, raw: false };
+      confidence = Math.min(0.2, raw.p);
     } else {
       confidence = Math.min(0.2, raw.p);
     }
@@ -462,9 +475,15 @@ export function buildNumber(digits: Glyph[], digitHeight: number): TabNumber {
   for (const c of combos.slice().sort((a, b) => Number(b.raw) - Number(a.raw) || b.p - a.p)) {
     if (seen.has(c.value)) continue;
     seen.add(c.value);
-    if (c.value > MAX_FRET && !c.raw) continue;
+    // Only frets the neck has are offered (the printed number is said in an issue instead).
+    if (c.value > MAX_FRET) continue;
     alternatives.push({ value: c.value, confidence: Math.min(c.p, confidence * 0.9) });
     if (alternatives.length >= 3) break;
+  }
+  for (const v of pieces) {
+    if (seen.has(v) || alternatives.length >= 3) continue;
+    seen.add(v);
+    alternatives.push({ value: v, confidence: confidence * 0.9 });
   }
   let gap: number | undefined;
   if (digits.length === 2) {
@@ -482,7 +501,7 @@ export function buildNumber(digits: Glyph[], digitHeight: number): TabNumber {
       }
     }
   }
-  return { line, box, x0: box.x0, x1: box.x1, digits, fret: pick.value, confidence, alternatives, gap, flags };
+  return { line, box, x0: box.x0, x1: box.x1, digits, fret: pick.value, confidence, alternatives, gap, flags, ...(readAs !== undefined ? { readAs } : {}) };
 }
 
 const LEGATO_MARKS = new Set(['h', 'p', 's', '/', '\\']);

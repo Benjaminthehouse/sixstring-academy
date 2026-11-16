@@ -8,7 +8,15 @@
  * pick transient is all treble). An onset is a jump of either envelope above a threshold that
  * adapts to how restless the signal has been. The reported time is then walked back to the block
  * where the energy first left its previous level, which keeps the timing error near one block.
+ *
+ * A third detector covers what neither envelope can: a light, quick stroke while the previous strum
+ * still rings (the upstroke a sixteenth after a downstroke). It adds little energy, but its pick
+ * noise and the restarted strings put new energy into many bins between 1 and 8 kHz at once. That
+ * is measured as spectral flux: the mean rise, in log magnitude, of those bins from one ~11 ms
+ * frame to the next (every two blocks). Ringing strings, hum, beating strings and room noise move
+ * those bins little or slowly; magnitudes below a floor (15 dB under `minLevelDb`) do not count.
  */
+import { fftPlan, hannWindow, nextPow2 } from './fft';
 import type { OnsetEvent } from './types';
 
 /** Options for {@link OnsetDetector}. */
@@ -24,9 +32,103 @@ export interface OnsetOptions {
   minLevelDb?: number;
   /** Lowest note expected, in Hz (default 60). The full-band envelope is averaged over at least one period of it. */
   minFreq?: number;
+  /**
+   * Spectral flux between 1 and 8 kHz (mean rise in natural-log magnitude per bin) that counts as a
+   * stroke on its own (default 0.75; 0 switches this detector off). Room noise sits near 0.5.
+   */
+  fluxThreshold?: number;
 }
 
 const HISTORY = 128;
+/** Blocks between two flux frames. */
+const FLUX_EVERY = 2;
+/**
+ * A flux trigger waits this many blocks for the envelopes to confirm the same attack (their timing
+ * is better) before it is reported on its own.
+ */
+const FLUX_WAIT = 3;
+/** Share of the earlier level the blocks after a flux trigger must keep (-1.5 dB). */
+const FLUX_KEEP = 0.3;
+/** Where in a flux frame the attack sits when the frame first shows it, as a fraction of the frame from its end. */
+const FLUX_LAG = 0.42;
+
+/** The rising part of the onset detector that works on spectra; see the file comment. */
+class HighBandFlux {
+  readonly size: number;
+  private readonly ring: Float32Array;
+  private pos = 0;
+  private readonly k0: number;
+  private readonly k1: number;
+  private readonly floor: number;
+  private readonly re: Float64Array;
+  private readonly im: Float64Array;
+  private prev: Float64Array;
+  private cur: Float64Array;
+  private havePrev = false;
+
+  constructor(sampleRate: number, minLevelDb: number) {
+    // About 11 ms: short enough to place the attack, long enough to resolve the 1 kHz edge.
+    this.size = nextPow2(Math.round(sampleRate * 0.0105));
+    this.ring = new Float32Array(this.size);
+    this.k0 = Math.ceil((1000 * this.size) / sampleRate);
+    this.k1 = Math.max(this.k0, Math.min(this.size / 2 - 1, Math.floor((Math.min(8000, 0.45 * sampleRate) * this.size) / sampleRate)));
+    // White noise at this RMS gives bins of about this magnitude (Hann window: sum of w^2 = 3N/8).
+    this.floor = Math.pow(10, (minLevelDb - 15) / 20) * Math.sqrt((3 * this.size) / 8);
+    this.re = new Float64Array(this.size);
+    this.im = new Float64Array(this.size);
+    this.prev = new Float64Array(this.k1 - this.k0 + 1);
+    this.cur = new Float64Array(this.k1 - this.k0 + 1);
+  }
+
+  reset(): void {
+    this.ring.fill(0);
+    this.pos = 0;
+    this.havePrev = false;
+  }
+
+  push(x: number): void {
+    this.ring[this.pos] = x;
+    this.pos = (this.pos + 1) & (this.size - 1);
+  }
+
+  /** Flux of the newest frame against the one before it (0 for the first frame). */
+  frame(): number {
+    const n = this.size;
+    const w = hannWindow(n);
+    const re = this.re;
+    const im = this.im;
+    for (let i = 0; i < n; i++) {
+      re[i] = this.ring[(this.pos + i) & (n - 1)] * w[i];
+      im[i] = 0;
+    }
+    fftPlan(n).forward(re, im);
+    const cur = this.cur;
+    const prev = this.prev;
+    const floor = this.floor;
+    let sum = 0;
+    for (let k = this.k0, j = 0; k <= this.k1; k++, j++) {
+      const m = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
+      cur[j] = m;
+      if (this.havePrev && m > prev[j]) sum += Math.log((floor + m) / (floor + prev[j]));
+    }
+    const flux = this.havePrev ? sum / cur.length : 0;
+    this.cur = prev;
+    this.prev = cur;
+    this.havePrev = true;
+    return flux;
+  }
+}
+
+/** An attack found but not reported yet (it waits for look-ahead). */
+interface Pending {
+  block: number;
+  treble: boolean;
+  strength: number;
+  /** Set when only the high-band flux heard it: its time, already placed. */
+  fluxTime?: number;
+  /** Mean block energy before that attack (flux triggers only). */
+  before?: number;
+}
 
 /** Streaming onset detector. Feed consecutive chunks of any size; times are sample positions / sample rate. */
 export class OnsetDetector {
@@ -55,7 +157,9 @@ export class OnsetDetector {
   private restFull = 0;
   private restTreble = 0;
   private lastOnsetBlock = -1e9;
-  private pending: { block: number; treble: boolean; strength: number } | null = null;
+  private pending: Pending | null = null;
+  private readonly flux: HighBandFlux | null;
+  private readonly fluxThr: number;
 
   constructor(opts: OnsetOptions) {
     this.sr = opts.sampleRate;
@@ -69,6 +173,9 @@ export class OnsetDetector {
     this.thrTreble = opts.trebleThresholdDb ?? 5;
     this.minBlocks = Math.max(1, Math.round((opts.minIntervalMs ?? 60) / blockMs));
     this.minEnergy = Math.pow(10, (opts.minLevelDb ?? -55) / 10);
+    this.fluxThr = opts.fluxThreshold ?? 0.75;
+    // Below 16 kHz there is too little room above 1 kHz to tell a pick from a ringing string.
+    this.flux = this.fluxThr > 0 && this.sr >= 16000 ? new HighBandFlux(this.sr, opts.minLevelDb ?? -55) : null;
   }
 
   /** Forget all state; the next chunk starts a new stream whose first sample is at `originSeconds`. */
@@ -90,6 +197,7 @@ export class OnsetDetector {
     this.restTreble = 0;
     this.lastOnsetBlock = -1e9;
     this.pending = null;
+    this.flux?.reset();
   }
 
   /** Move the stream clock by `seconds` without disturbing the analysis (the caller re-synchronised its clock). */
@@ -97,16 +205,21 @@ export class OnsetDetector {
     this.origin += seconds;
   }
 
-  /** Process the next chunk and return the onsets confirmed in it (each is reported ~3-6 ms after it happened). */
+  /**
+   * Process the next chunk and return the onsets confirmed in it (each is reported ~3-6 ms after it
+   * happened, ~12 ms when only the high-band flux heard it).
+   */
   process(samples: ArrayLike<number>, out: OnsetEvent[] = []): OnsetEvent[] {
     const n = samples.length;
     const block = this.block;
+    const flux = this.flux;
     let prev = this.prev;
     let accF = this.accFull;
     let accT = this.accTreble;
     let fill = this.fill;
     for (let i = 0; i < n; i++) {
       const x = samples[i];
+      flux?.push(x);
       const d = x - prev;
       prev = x;
       accF += x * x;
@@ -157,19 +270,37 @@ export class OnsetDetector {
       riseT = 10 * Math.log10((wt + epsT) / (refT + epsT));
     }
 
-    if (this.pending && b > this.pending.block) {
-      // One block of look-ahead is in: place the onset and report it.
-      this.emit(this.pending, out);
+    let fluxHit = false;
+    if (this.flux && b % FLUX_EVERY === FLUX_EVERY - 1) {
+      const f = this.flux.frame();
+      fluxHit = b >= 2 * this.kFull && f >= this.fluxThr;
+    }
+
+    const p = this.pending;
+    if (p && b > p.block + (p.fluxTime === undefined ? 0 : FLUX_WAIT)) {
+      // The look-ahead is in: place the onset and report it. A flux trigger also has to leave
+      // the sound at least as loud as before: a sudden stop (a hand on the strings, the end of a
+      // recording) clicks across the high band too, but what follows it is quieter.
+      if (p.fluxTime === undefined || this.meanBlocks(this.eFull, b - 1, FLUX_WAIT) >= FLUX_KEEP * (p.before ?? 0)) this.emit(p, out);
       this.pending = null;
     }
 
     const loudEnough = wf >= this.minEnergy;
     const free = b - this.lastOnsetBlock >= this.minBlocks;
-    if (!this.pending && free && loudEnough) {
+    if (loudEnough) {
       const hitF = riseF >= this.thr + 2 * this.restFull;
       const hitT = riseT >= this.thrTreble + 2 * this.restTreble;
-      if (hitF || hitT) {
+      // An envelope that confirms a flux trigger still waiting takes it over: its timing is better.
+      const fluxWaiting = this.pending !== null && this.pending.fluxTime !== undefined;
+      if ((hitF || hitT) && ((!this.pending && free) || fluxWaiting)) {
         this.pending = { block: b, treble: hitT && (!hitF || riseT > riseF), strength: Math.max(riseF, riseT) };
+        if (!fluxWaiting) this.lastOnsetBlock = b;
+      } else if (fluxHit && !this.pending && free) {
+        const end = (b + 1) * this.block;
+        const at = this.origin + (end - FLUX_LAG * this.flux!.size) / this.sr;
+        // The level well before the frame that heard the attack.
+        const before = this.meanBlocks(this.eFull, b - Math.ceil(this.flux!.size / this.block) - 1, 4);
+        this.pending = { block: b, treble: false, strength: Math.max(0, riseF, riseT), fluxTime: at, before };
         this.lastOnsetBlock = b;
       }
     }
@@ -181,6 +312,14 @@ export class OnsetDetector {
     this.blockIndex = b + 1;
   }
 
+  /** Mean of `e` over the `k` blocks ending at block `last` (0 before the stream began). */
+  private meanBlocks(e: Float64Array, last: number, k: number): number {
+    let s = 0;
+    let n = 0;
+    for (let j = 0; j < k && last - j >= 0; j++, n++) s += e[(last - j) % HISTORY];
+    return n ? s / n : 0;
+  }
+
   private windowMean(e: Float64Array, b: number, k: number): number {
     let s = 0;
     const n = Math.min(k, b + 1);
@@ -188,7 +327,11 @@ export class OnsetDetector {
     return s / n;
   }
 
-  private emit(p: { block: number; treble: boolean; strength: number }, out: OnsetEvent[]): void {
+  private emit(p: Pending, out: OnsetEvent[]): void {
+    if (p.fluxTime !== undefined) {
+      out.push({ time: p.fluxTime, strength: p.strength, levelDb: 10 * Math.log10(Math.max(this.wFull[this.blockIndex % HISTORY], 1e-12)) });
+      return;
+    }
     const e = p.treble ? this.eTreble : this.eFull;
     const k = p.treble ? this.kTreble : this.kFull;
     const b = p.block;

@@ -19,9 +19,10 @@ Conventions that hold for the whole kit:
 - **Contrast is part of the kit.** Text is 4.5:1, large text and anything you must see to use a control
   is 3:1, in both themes. Three tokens do not get there by themselves, so use them like this:
   `--fg-faint` for icons, hairline details and large text only (small text is `--fg-muted`, or
-  `<Text tone="faint">`, which is adjusted to pass); `--line-strong` for dividers and labelled buttons,
-  not for the edge of an input, checkbox or switch (those use the darker edge already built into
-  `TextField`, `Select`, `Checkbox`, `Switch`, `Stepper`); `--accent` / `--accent-strong` as fills
+  `<Text tone="faint">`, which is adjusted to pass); `--line-strong` (3:1 on `--bg`, `--surface` and
+  `--surface-2` in every theme, not on `--surface-3`; `src/ui/tokens.test.ts` holds it there) for
+  dividers and the edges of buttons and chips, while the edge of an input, checkbox or switch uses the
+  darker edge already built into `TextField`, `Select`, `Checkbox`, `Switch`, `Stepper`; `--accent` / `--accent-strong` as fills
   under `--accent-fg`, never as text or a thin icon on a light surface (that is `--accent-text`).
   Coloured status text goes through `<Text tone="ok | warn | bad | info">`, not the raw token.
 - Every component accepts `className`; most spread the remaining DOM props onto their root element.
@@ -321,7 +322,7 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 
 | Export | Use |
 |---|---|
-| `useMediaQuery(query)`, `useIsMobile()`, `usePrefersReducedMotion()`, `useIsTouch()` | Live media queries. `BREAKPOINTS`, `MOBILE_QUERY`, `WIDE_QUERY`. `usePrefersReducedMotion()` is the learner's own motion setting in the app when they chose one (`data-motion` on `<html>`), otherwise the device's: use it for anything animated from JavaScript. |
+| `useMediaQuery(query)`, `useIsMobile()`, `usePrefersReducedMotion()`, `useIsTouch()` | Live media queries. `BREAKPOINTS`, `MOBILE_QUERY`, `WIDE_QUERY`. `usePrefersReducedMotion()` is the learner's own motion setting in the app when they chose one (`data-motion` on `<html>`), otherwise the device's: use it for anything animated from JavaScript. All of them read the media query during the very first render (no false-then-true flash), so a touch or keyboard hint is right from the first frame. |
 | `useElementSize<T>()` → `[ref, { width, height }]` | ResizeObserver on a callback ref (size a canvas or fretboard to its container). Safe under StrictMode. |
 | `useLocalState(key, initial)` → `[value, set, reset]` | `useState` persisted through the platform storage layer. For small screen preferences only; progress lives in `core/progress`. |
 | `useInterval(fn, ms \| null)`, `useTimeout(fn, ms \| null)` | `null` pauses. Not for musical timing. |
@@ -329,7 +330,7 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 | `useEventListener(target, type, handler, options?)` | `target`: window, document, element, ref or any EventTarget. |
 | `useLatest(value)` | Ref that always holds the newest value. |
 | `useDebounced(value, ms?)`, `useDebouncedCallback(fn, ms?)` | The latter has `.cancel()` and `.flush()`. |
-| `useWakeLock(active)` → `{ supported, held }` | Keeps the screen on; tolerant of refusal. |
+| `useWakeLock(active)` → `{ supported, held }` | Keeps the screen on while `active`; tolerant of refusal. A hook over the platform's counted wake-lock service (`@/core/platform/wake-lock`), so every screen and bar shares one browser lock, held until the last one lets go. |
 | `useBottomClearance(ref, active?)` | For bottom controls that are not an `ActionBar` (a one-screen tool's Start and tempo buttons): while they sit at the bottom of the screen, toasts and other bottom layers stay above them (`--action-bar-h`). Re-measures on scroll and resize. `bottomClearance(box, floor, viewportHeight, zone)` is the pure rule. |
 | `useDialogOpen()` | True while any kit Modal or Sheet is open. |
 | `useControllableState(value, defaultValue, onChange?)` | Controlled-or-uncontrolled state for your own components. |

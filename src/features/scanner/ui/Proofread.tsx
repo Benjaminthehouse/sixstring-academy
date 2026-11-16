@@ -15,6 +15,7 @@ import { saveErrorMessage } from '../engine/useScan';
 import { usePreviewPlayer } from '../engine/preview';
 import { type AiAvailability, aiAvailability } from '../engine/read';
 import { type Draft, GUESS, viewSong } from '../model/draft';
+import { roomFor } from '../model/room';
 import { type EditResult, addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, splitBar } from '../model/edit';
 import { type FretTyping, keyCommand, typeDigit } from '../model/keys';
 import { type Selection, firstSelection, itemsToCheck, moveSelection, nextToCheck, selectBeat } from '../model/select';
@@ -26,6 +27,20 @@ import { typingTarget } from './Capture';
 import styles from './Proofread.module.css';
 
 const TWO_PANE = '(min-width: 1000px)';
+
+function useRoom(): { short: boolean; tight: boolean } {
+  const measure = () => {
+    if (typeof window === 'undefined') return { short: false, tight: false };
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return roomFor(window.innerWidth, window.innerHeight, rem);
+  };
+  const [room, setRoom] = useState(measure);
+  useEventListener(window, 'resize', () => {
+    const next = measure();
+    setRoom((r) => (r.short === next.short && r.tight === next.tight ? r : next));
+  });
+  return room;
+}
 
 /** Is the key event aimed at a control that uses the key itself? */
 function controlTarget(el: EventTarget | null): boolean {
@@ -39,9 +54,12 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const draft = scan.draft!;
   const mobile = useIsMobile();
   const twoPane = useMediaQuery(TWO_PANE);
-  // A phone held sideways has the width of a tablet but little height: keep the panel compact.
-  const short = useMediaQuery('(max-height: 520px)');
-  const compact = mobile || short;
+  // A phone held sideways has the width of a tablet but little height: keep the panel compact. Large
+  // text on a phone is the same squeeze upright: a slim header and a panel that folds away.
+  const { short, tight } = useRoom();
+  const compact = mobile || short || tight;
+  const [panelOpen, setPanelOpen] = useState(!tight);
+  useEffect(() => setPanelOpen(!tight), [tight]);
   const [sel, setSel] = useState<Selection | null>(() => {
     const first = nextToCheck(draft, null);
     return first ? selectBeat(draft, first.bar, first.beat ?? 0, first.note !== null ? draft.song.tracks[0].measures[first.bar].beats[first.beat ?? 0]?.notes[first.note]?.string ?? 1 : 1) : firstSelection(draft);
@@ -362,21 +380,25 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const headline = left === 0 ? 'All checked' : verdict === 'poor' ? 'A hard picture to read' : verdict === 'good' && left <= 3 ? 'Read well' : 'Read, with some doubts';
   // A poor reading with doubts left: checking comes before saving.
   const hard = verdict === 'poor' && left > 0;
-  const showSource = twoPane || pane === 'sheet';
-  const showTab = twoPane || pane === 'tab';
+  const showSource = (twoPane && !tight) || pane === 'sheet';
+  const showTab = (twoPane && !tight) || pane === 'tab';
 
   return (
-    <div ref={root} className={cx(styles.root, twoPane && !short && styles.fixed, short && styles.short)} data-scan="proof">
+    <div ref={root} className={cx(styles.root, twoPane && !short && !tight && styles.fixed, short && styles.short)} data-scan="proof">
       <Page title={draft.song.meta.title} hideHeader width="full" gap={4} className={styles.page}>
-        {!short && (<header className={styles.head}>
+        {!short && !tight && (<header className={styles.head}>
           <div className={styles.headMain}>
             <p className={styles.eyebrow}>Check the reading</p>
-            <div className={styles.titleRow}>
-              <h2 className={styles.title} data-scan-title="">
-                {draft.song.meta.title}
-              </h2>
-              <IconButton icon="Pencil" label="Rename, tempo, key, tuning and capo" size="sm" onClick={() => setDetails_(true)} data-scan-details="" />
-            </div>
+            <h2 className={styles.title}>
+              {/* The title is the way to the song's details: it looks and acts like the button it is. */}
+              <button type="button" className={styles.titleButton} onClick={() => setDetails_(true)} title="Rename, tempo, key, tuning and capo" data-scan-title="" data-scan-details="">
+                <span className={styles.titleText}>{draft.song.meta.title}</span>
+                <span className={styles.titleEdit} aria-hidden="true">
+                  <Icon name="Pencil" size="sm" />
+                </span>
+                <span className={styles.srOnly}> (rename, tempo, key, tuning and capo)</span>
+              </button>
+            </h2>
             <div className={styles.verdict} aria-live="polite">
               <Badge tone={verdictTone} icon={verdictTone === 'ok' ? 'CircleCheck' : verdictTone === 'bad' ? 'CircleX' : 'Eye'}>
                 {headline}
@@ -393,7 +415,7 @@ export function Proofread({ scan }: { scan: ScanState }) {
           </div>
         </header>)}
 
-        {hard && !hideHard && !short && (
+        {hard && !hideHard && !short && !tight && (
           <Banner
             tone="warn"
             title="This picture was hard to read"
@@ -418,10 +440,10 @@ export function Proofread({ scan }: { scan: ScanState }) {
           </Banner>
         )}
 
-        {!short && <AiOffer ai={ai} busy={scan.aiBusy} message={aiMessage} onRun={() => void runAi()} onStop={scan.stopAi} />}
+        {!short && !tight && <AiOffer ai={ai} busy={scan.aiBusy} message={aiMessage} onRun={() => void runAi()} onStop={scan.stopAi} />}
 
         <div className={styles.toolbar} role="toolbar" aria-label="Proofreading tools">
-          {!twoPane && (
+          {(!twoPane || tight) && (
             <SegmentedControl
               aria-label="Show"
               size="sm"
@@ -453,12 +475,12 @@ export function Proofread({ scan }: { scan: ScanState }) {
               items={[
                 { label: 'Title, tempo, key, tuning, capo', icon: 'Settings2', onSelect: () => setDetails_(true) },
               ...(mobile ? [{ label: 'Redo', icon: 'Redo2', disabled: !scan.history?.future.length, onSelect: scan.redo }] : []),
-                ...(short && ai?.state === 'ready' ? [{ label: 'Improve with AI', icon: 'Sparkles', onSelect: () => void runAi() }] : []),
+                ...((short || tight) && ai?.state === 'ready' ? [{ label: 'Improve with AI', icon: 'Sparkles', onSelect: () => void runAi() }] : []),
                 { label: 'Back to the pages', icon: 'ArrowLeft', onSelect: () => scan.setPhase('pages') },
                 { label: 'Keyboard shortcuts', icon: 'Keyboard', onSelect: () => toast.info('Keyboard', { description: 'Arrows move between notes. 0-9 set the fret (two digits quickly for 10-24), + and - step it. W H Q E S set the length, . adds a dot. Delete removes a note. Enter says it is right. N goes to the next doubt. Space plays. Ctrl+Z undoes.', duration: 12000 }) },
               ]}
             />
-            {short && (
+            {(short || tight) && (
               <Button variant="primary" size="sm" iconLeft="Check" loading={saving} onClick={() => void save()} data-scan-save="">
                 Save and play
               </Button>
@@ -466,7 +488,7 @@ export function Proofread({ scan }: { scan: ScanState }) {
           </div>
         </div>
 
-        <div className={cx(styles.body, twoPane && !short && styles.twoPane, short && styles.side)}>
+        <div className={cx(styles.body, twoPane && !short && !tight && styles.twoPane, short && styles.side)}>
           {showSource && pages.length > 0 && (
             <div className={styles.sourcePane}>
               <SourceView pages={pages} draft={draft} sel={sel} onSelect={(s) => setSel(s.beat === null ? { bar: s.bar, beat: null, note: null, string: null } : selectBeat(draft, s.bar, s.beat, draft.song.tracks[0].measures[s.bar]?.beats[s.beat]?.notes[s.note ?? 0]?.string ?? null))} className={styles.source} />
@@ -508,7 +530,7 @@ export function Proofread({ scan }: { scan: ScanState }) {
         {!short && (
           <ActionBar stretchOnMobile={false} className={styles.inspectorBar} aria-label="Correct the selection">
             <div className={styles.inspector}>
-              <Inspector draft={draft} sel={sel} actions={actions} notationOnly={draft.notationOnly} compact={compact} tab={inspectorTab} onTab={setInspectorTab} />
+              <Inspector draft={draft} sel={sel} actions={actions} notationOnly={draft.notationOnly} compact={compact} tab={inspectorTab} onTab={setInspectorTab} {...(tight ? { open: panelOpen, onToggle: () => setPanelOpen((o) => !o) } : {})} />
             </div>
           </ActionBar>
         )}

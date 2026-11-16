@@ -9,8 +9,10 @@
  *    and reports the time played with `recordActivity` (kind `other`, source `recorder`).
  *  - `engine/player.ts` plays takes back on the app's AudioContext, untouched, and swaps takes at
  *    the same moment for the A/B comparison (`ui/CompareSheet.tsx`).
- *  - `model/store.ts` keeps takes in IndexedDB on this device only (`model/backend.ts` picks the
- *    backend); they are too large for backups and cloud sync, and the screen says so.
+ *  - `model/store.ts` keeps takes on this device only, in the platform blob store `recorder`
+ *    (`model/backend.ts`, which also moves takes out of the recorder's first database); they are
+ *    too large for backups and cloud sync, and the screen says so. Decoded audio stays in memory
+ *    only while the screen is open (`holdDecodedTakes`).
  *  - `model/support.ts` decides before anything is asked whether this host can record: in a Claude
  *    artifact the viewer refuses the microphone, so the screen shows `MediaBlocked` instead of a
  *    Record button and the takes list still works (empty, or what this browser already has).
@@ -22,7 +24,7 @@
  * Keyboard: R record / stop, Space play / pause the selected take, arrows on the waveform seek,
  * A / B / X in the comparison. The root mirrors state for tests: `data-phase`
  * (idle | opening | counting | recording | finishing), `data-takes`, `data-selected`, `data-playing`,
- * `data-saving`, `data-support` (ok | media | recorder), `data-backend` (indexeddb | memory).
+ * `data-saving`, `data-support` (ok | media | recorder), `data-backend` (platform | memory).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { RouteProps } from '@/app/routes';
@@ -61,7 +63,7 @@ import {
   useRafLoop,
 } from '@/ui';
 import { storeRecording } from './engine/finish';
-import { channelsOf, decodeTake, forgetTake, TakePlayer } from './engine/player';
+import { channelsOf, decodeTake, forgetTake, holdDecodedTakes, TakePlayer } from './engine/player';
 import { RecorderSession, type FinishedRecording, type SessionPhase, type StartFailure } from './engine/session';
 import { openTakeStore } from './model/backend';
 import { DEFAULT_PREFS, PREFS_KEY, describePrefs, sanitizePrefs, type RecorderPrefs } from './model/prefs';
@@ -83,19 +85,25 @@ function typing(el: HTMLElement | null): boolean {
   return el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
 }
 
-/** A clock that follows a source every frame without re-rendering ("0:12"). */
-function LiveClock({ read, running, className }: { read: () => number; running: boolean; className?: string }) {
+/**
+ * A clock that follows a source without re-rendering ("0:12"): every frame while `running`, and
+ * whenever `subscribe` says the source changed (a seek while paused moves no frame and renders nothing).
+ */
+function LiveClock({ read, running, subscribe, className }: { read: () => number; running: boolean; subscribe?: (fn: () => void) => () => void; className?: string }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const last = useRef('');
-  const paint = () => {
-    const text = formatDuration(read());
+  const readRef = useRef(read);
+  readRef.current = read;
+  const paint = useCallback(() => {
+    const text = formatDuration(readRef.current());
     if (text !== last.current && ref.current) {
       last.current = text;
       ref.current.textContent = text;
     }
-  };
+  }, []);
   useRafLoop(paint, running);
   useEffect(paint);
+  useEffect(() => subscribe?.(paint), [subscribe, paint]);
   return <span ref={ref} className={className} />;
 }
 
@@ -107,6 +115,9 @@ export default function RecorderScreen({ params }: RouteProps) {
   const dialogOpen = useDialogOpen();
   const [storedPrefs, setStoredPrefs] = useLocalState<unknown>(PREFS_KEY, DEFAULT_PREFS);
   const prefs = useMemo(() => sanitizePrefs(storedPrefs), [storedPrefs]);
+
+  // Decoded takes stay in memory only while this screen is open.
+  useEffect(() => holdDecodedTakes(), []);
 
   // --- the takes ------------------------------------------------------------------------------
   const [store, setStore] = useState<TakeStore | null>(null);
@@ -208,6 +219,7 @@ export default function RecorderScreen({ params }: RouteProps) {
   useEffect(() => player.onChange((s) => setPlaying(s.playing)), [player]);
   useEffect(() => () => player.dispose(), [player]);
   const position = useCallback(() => player.position(), [player]);
+  const followPlayer = useCallback((fn: () => void) => player.onChange(fn), [player]);
 
   useEffect(() => {
     player.load(null);
@@ -285,13 +297,14 @@ export default function RecorderScreen({ params }: RouteProps) {
     else void startRecording();
   }, [saving, startRecording, stopRecording]);
 
-  // Leaving mid-take keeps the take; leaving during the count-in keeps nothing.
+  // Leaving mid-take keeps the take; leaving during the count-in keeps nothing; leaving while a take
+  // is finishing (Stop just pressed, or the length limit) lets that stop store it.
   useEffect(
     () => () => {
       const session = sessionRef.current;
       if (!session) return;
       if (session.phase === 'recording') void session.stop().then((rec) => finished(rec));
-      else void session.cancel();
+      else if (session.phase !== 'finishing') void session.cancel();
     },
     [finished],
   );
@@ -333,11 +346,21 @@ export default function RecorderScreen({ params }: RouteProps) {
           ? {
               label: 'Undo',
               onClick: () => {
-                void store.put(take, blob).then((restored) => {
-                  if (!mounted.current) return;
-                  setTakes(restored);
-                  setSelectedId(take.id);
-                });
+                store.put(take, blob).then(
+                  (restored) => {
+                    if (!mounted.current) return;
+                    setTakes(restored);
+                    setSelectedId(take.id);
+                  },
+                  (e: unknown) => {
+                    // It could not go back: offer the audio as a file so the take is not lost.
+                    toast.error(`“${take.name}” could not be brought back`, {
+                      description: e instanceof Error ? e.message : undefined,
+                      duration: 0,
+                      action: { label: 'Save it as a file', onClick: () => void saveFile(takeFileName(take, extensionFor(take.mimeType)), blob, take.mimeType.split(';')[0]) },
+                    });
+                  },
+                );
               },
             }
           : undefined,
@@ -522,7 +545,7 @@ export default function RecorderScreen({ params }: RouteProps) {
           </Button>
         </Tooltip>
         <span className={styles.time} data-recorder-time="">
-          <LiveClock read={() => position() * 1000} running={playing} /> / {formatDuration(duration * 1000 || selected.durationMs)}
+          <LiveClock read={() => position() * 1000} running={playing} subscribe={followPlayer} /> / {formatDuration(duration * 1000 || selected.durationMs)}
         </span>
         {takes && takes.length > 1 && (
           <Button iconLeft="ArrowLeftRight" onClick={() => setDialog('compare')} disabled={busy} data-recorder-compare-open="" className={styles.compareButton}>
