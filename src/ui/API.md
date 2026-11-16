@@ -107,7 +107,7 @@ Conventions that hold for the whole kit:
 |---|---|---|
 | `Page` | `title`, `subtitle?`, `eyebrow?`, `back?: string \| { to?, params?, label?, onClick? }`, `actions?`, `width?: 'content' \| 'prose' \| 'full'` [content], `gap?` [8], `hideHeader?` | Screen wrapper. `back="songs"` renders a real link; name the destination with `label`. |
 | `Section` | `title?`, `description?`, `eyebrow?`, `actions?`, `level?: 2 \| 3`, `divided?`, `gap?` [4] | Titled block; no card. |
-| `ActionBar` | `start?`, `stretchOnMobile?` [true], `clearance?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`, primary button last (the shell's "Jump to actions" link focuses it). While it sits at the bottom of the screen it publishes its height as `--action-bar-h` on `<html>`; ended mid-screen (a short page, made static beside the content on wide screens) it publishes nothing. Toasts add it, and any other fixed bottom layer should too. `clearance={false}` opts out. |
+| `ActionBar` | `start?`, `stretchOnMobile?` [true], `clearance?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`, primary button last (the shell's "Jump to the main action" link focuses it). While it sits at the bottom of the screen it publishes its height as `--action-bar-h` on `<html>`; ended mid-screen (a short page, made static beside the content on wide screens) it publishes nothing. Toasts add it, and any other fixed bottom layer should too. `clearance={false}` opts out. |
 | `Stack` | `gap?` [4], `align?`, `justify?`, `as?` | Vertical flow. |
 | `Row` | `gap?` [3], `align?`, `justify?`, `wrap?`, `stackOnMobile?`, `as?` | One line, centred vertically. |
 | `Cluster` | `gap?` [2], `align?`, `justify?`, `as?` | Wrapping group of small things. |
@@ -147,7 +147,7 @@ baseline`. `justify`: `start center end between around evenly`. `size`: `xs sm m
 
 | Component | Props | Notes |
 |---|---|---|
-| `Button` | `variant?: 'primary' \| 'secondary' \| 'ghost' \| 'danger'` [secondary], `size?: 'sm' \| 'md' \| 'lg'`, `iconLeft?`, `iconRight?`, `fullWidth?`, `wrap?`, `loading?`, `pressed?`, `disabled?` + button props | `loading` shows a spinner and ignores presses. `pressed` makes it a toggle (`aria-pressed`). A label wider than its container ends in an ellipsis; pass `wrap` when the label is a phrase that must stay whole. |
+| `Button` | `variant?: 'primary' \| 'secondary' \| 'ghost' \| 'danger'` [secondary], `size?: 'sm' \| 'md' \| 'lg'`, `iconLeft?`, `iconRight?`, `fullWidth?`, `wrap?`, `loading?`, `pressed?`, `disabled?` + button props | `loading` shows a spinner and ignores presses. `pressed` makes it a toggle (`aria-pressed`). A label wider than its container ends in an ellipsis; pass `wrap` when the label is a phrase that must stay whole. A primary `Button` / `LinkButton` (and the `PlayButton`) carries `data-ui-primary`: the shell's "Jump to the main action" link goes to the first one when the screen has no `ActionBar`. |
 | `LinkButton` | Button's look props + `to?`, `params?`, `href?`, `disabled?` | An `<a>`. External URLs open in a new tab. |
 | `IconButton` | `icon`, `label` (required), `variant?` [ghost], `size?`, `round?`, `pressed?`, `loading?`, `noTooltip?` | `label` is the accessible name and the tooltip. |
 | `ButtonGroup` | `attached?`, `fullWidth?`, `align?: 'start' \| 'end'`, `stackOnMobile?` | `stackOnMobile` puts the last (primary) button on top. |

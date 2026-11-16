@@ -1,5 +1,8 @@
 import { defineSong } from '../types';
 
+// Key: the music centres on E (E Phrygian: the notes of A minor, home on the E chord). The content
+// test's key reader (parseKey) knows only major and minor, so the key is written as A minor, which
+// gives the right key signature (no sharps or flats); teaches names the mode.
 export default defineSong({
   title: 'Andalusian Cadence with Rasgueado',
   composer: 'Sixstring Academy',

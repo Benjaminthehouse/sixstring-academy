@@ -11,8 +11,11 @@
 # syncopated: many tune notes fall on the "and" and are tied over the next beat while the thumb
 # carries on underneath. The guide tones move by half steps across the chords: C# (A7) to C (D7)
 # to B (G7) to C, and bars 8 and 16 climb D, D# to the E that starts the next bar.
+# Four tune notes arrive early, on the last "and" of a bar, and are tied into the next chord:
+# F# into D7 (bar 4), B into G7 (bars 6 and 14) and C# into A7 (bar 10, where C rises to C#).
 # Extra notes above the shapes: finger 4 takes string 1 fret 3 (G) and string 2 fret 3 (D), and
-# string 2 fret 4 (D#) in bars 8 and 16; finger 3 takes string 1 fret 2 (F#) over A7 and D7.
+# string 2 fret 4 (D#) in bars 8 and 16; finger 3 takes string 1 fret 2 (F#) over A7 and D7, and
+# string 2 fret 2 (C#) at the end of bar 10.
 title: Ragtime Blues in C
 composer: Sixstring Academy
 source: Original fingerstyle study on the ragtime progression

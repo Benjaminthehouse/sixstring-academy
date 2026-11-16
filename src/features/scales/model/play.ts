@@ -145,10 +145,20 @@ function restTokens(ticks: number): string[] {
 }
 
 /**
+ * The key a scale's exercise is written in on the staff: the tonic's minor key when the scale has a
+ * minor third and no major third (minor, dorian, phrygian, the minor pentatonic, the blues scale),
+ * its major key otherwise. Notes outside the key signature then get accidentals, spelled for the key.
+ */
+export function staffKey(tonic: string, scale: { intervals: readonly string[] }): string {
+  const minor = scale.intervals.includes('m3') && !scale.intervals.includes('M3');
+  return `${tonic} ${minor ? 'minor' : 'major'}`;
+}
+
+/**
  * The line as SixTab (4/4, one bar per line group), padded with rests to whole bars, with the
  * left-hand finger on every fretted note. Parses without errors for every shape (unit-tested).
  */
-export function lineTab(line: readonly LineNote[], perBeat: NotesPerBeat, opts: { tuning: Tuning; capo?: number; tempo?: number; title?: string }): string {
+export function lineTab(line: readonly LineNote[], perBeat: NotesPerBeat, opts: { tuning: Tuning; capo?: number; tempo?: number; title?: string; key?: string }): string {
   const perBar = perBeat * 4;
   const bars: string[] = [];
   for (let i = 0; i < line.length; i += perBar) {
@@ -177,6 +187,8 @@ export function lineTab(line: readonly LineNote[], perBeat: NotesPerBeat, opts: 
     `tuning: ${opts.tuning.midi.join(' ')}`,
   ];
   if (opts.capo) head.push(`capo: ${opts.capo}`);
+  // The key only spells the staff under the tab (Settings > "Tab and notation"); the tab is the same.
+  if (opts.key) head.push(`key: ${opts.key}`);
   return `${head.join('\n')}\n${lines.join('\n')}\n`;
 }
 

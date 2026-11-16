@@ -1,0 +1,47 @@
+# Open G Slide Blues (repertoire plan: st-open-g-slide). An original 12-bar blues in G for
+# slide guitar in open G tuning: strings 6 to 1 tuned D G D G B D (D2 G2 D3 G3 B3 D4). From
+# standard tuning, tune strings 6, 5 and 1 down a whole step (E to D, A to G, E to D).
+# The slide is on finger 3 (or 4). Touch the string right over the fret wire, never press it
+# down. Fingers 1 and 2 rest lightly on the strings behind the slide so they do not ring or
+# buzz, and the picking hand mutes the strings you are not playing.
+# Every fret number is a fret in open G. Across the strings, fret 12 is a G chord, fret 5 a
+# C chord and fret 7 a D chord: the three chords of the blues. On the top three strings:
+#   string 1 (D4): 5 G4, 7 A4, 8 Bb4, 10 C5, 12 D5, 15 F5
+#   string 2 (B3): 5 E4, 7 F#4, 8 G4, 11 Bb4, 12 B4, 15 D5
+#   string 3 (G3): 5 C4, 7 D4, 10 F4, 12 G4
+# The whole-chord slides sound plain G, C and D; the single-note answers add each chord's flat
+# seventh (F over G, Bb over C, C over D), so the harmony is G7, C7 and D7. The blue note
+# Bb4 (string 2, fret 11) slides up into B4 in bars 2 and 8.
+# Swing: each beat is long-short, written as a triplet quarter (q3) then a triplet eighth (e3).
+title: Open G Slide Blues
+composer: Sixstring Academy
+source: Original 12-bar slide blues in open G tuning
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: slide, bottleneck, open g, alternate tuning, blues, 12-bar, shuffle
+tempo: 72
+time: 4/4
+key: G
+tuning: open-g
+
+track: Your slide
+role: lead
+[12-bar blues]
+| ^"Slide on finger 3; fingers 1 and 2 mute behind it" "G7" h (/3:12 /2:12 /1:12){vib} q3 1:15 e3 1:12s q 2:12 | ^"Blue note: Bb slides up to B" q3 2:11 e3 2:12s q3 1:12 e3 2:12 h 3:12~ |
+| h (/3:12 /2:12 /1:12){vib} q3 2:15 e3 2:12s q 3:12 | q3 1:12 e3 1:15s q3 1:12s e3 2:12 h 3:10~ |
+| ^"C chord at fret 5" "C7" h (/3:5 /2:5 /1:5){vib} q3 1:8 e3 1:5s q 2:5 | q3 2:5 e3 2:8s q3 1:8 e3 1:5 h (/3:5 /2:5 /1:5){vib} |
+| "G7" h (/3:12 /2:12 /1:12){vib} q 1:15~ 1:12s | q3 2:11 e3 2:12s q3 3:12 e3 3:10 h 3:12s~ |
+| ^"D chord at fret 7" "D7" h (/3:7 /2:7 /1:7){vib} q3 1:10 e3 1:7s q 2:7 | ^"Slide down into C" "C7" h (\3:5 \2:5 \1:5){vib} q3 1:8 e3 1:5s q 2:5 |
+| "G7" h (/3:12 /2:12 /1:12){vib} q3 1:15 e3 1:12s q3 2:12 e3 3:12 | "D7" q3 1:7 e3 1:10s q3 1:7s e3 2:7 h (/3:7 /2:7 /1:7){vib} ||
+[Ending]
+| ^"All six strings at fret 12" "G" w (/6:12 /5:12 /4:12 /3:12 /2:12 /1:12){vib} ||
+
+track: Bass
+role: bass
+tuning: bass
+[12-bar blues]
+| q 4:3 3:2 2:0 2:2 | 1:0 2:2 2:0 3:2 | 4:3 3:2 2:0 2:2 | 1:0 2:3 2:0 3:2 |
+| 3:3 2:2 1:0 1:2 | 1:3 1:2 1:0 2:2 | 4:3 3:2 2:0 2:2 | 1:0 2:2 2:0 3:4 |
+| 2:0 2:4 1:2 1:4 | 3:3 2:2 1:0 2:2 | 4:3 3:2 2:0 2:2 | 2:0 2:4 1:2 1:5 ||
+[Ending]
+| w 4:3 ||

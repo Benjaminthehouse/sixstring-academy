@@ -6,7 +6,8 @@
 # The chords are the open shapes with the melody note on top. For the A on top of Am (bars 2, 6
 # and 14) the hand moves up to fifth position (finger 1 across strings 1 to 3 at fret 5, finger 3
 # on string 4 fret 7) and comes back down after the long note. Each chord symbol shows the grip
-# played under it.
+# played under it; the Dm with A on top (xx3235, bars 11 and 15) has F in the bass, so it is
+# written Dm/F, the classic ii chord before G7.
 title: Chord Melody: First Ballad
 composer: Sixstring Academy
 source: Original chord-melody ballad
@@ -32,10 +33,10 @@ role: lead
 [Bridge]
 | "F=xx35x5" q (4:3 3:5 1:5) 1:3 "F=xx3211" q (4:3 3:2 2:1 1:1) 1:0 |
 | "Em=022003" q (6:0 5:2 4:2 3:0 2:0 1:3) e 1:5 1:3 "Em=022000" h (6:0 5:2 4:2 3:0 2:0 1:0) |
-| "Dm=xx0231" q (4:0 3:2 2:3 1:1) e 1:0 1:1h "Dm=xx3235" h (4:3 3:2 2:3 1:5) |
+| "Dm=xx0231" q (4:0 3:2 2:3 1:1) e 1:0 1:1h "Dm/F=xx3235" h (4:3 3:2 2:3 1:5) |
 | "G7=323003" q (6:3 5:2 4:3 3:0 2:0 1:3) e 1:1 1:0p "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |
 [Last phrase]
 | "C=x3201x" q (5:3 4:2 3:0 2:1) e 2:3 1:0 "C=x32013" q (5:3 4:2 3:0 2:1 1:3) 1:0 |
 | "Am=x07555" ^"fifth position" q (5:0 4:7 3:5 2:5 1:5) e 2:8 2:6 "Am=x0755x" h (5:0 4:7 3:5 2:5) |
-| "Dm=xx3235" q (4:3 3:2 2:3 1:5) e 1:3 1:1 "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |
+| "Dm/F=xx3235" q (4:3 3:2 2:3 1:5) e 1:3 1:1 "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |
 | "C=x3201x" w (5:3 4:2 3:0 2:1) ||

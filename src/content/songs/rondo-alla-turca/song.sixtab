@@ -7,7 +7,8 @@
 # quarter notes, without ornaments.
 # Bar numbers here count the upbeat as bar 0 (the Player numbers it 1).
 # Positions: first position for bars 1-2 (finger 4 for D# on string 2 fret 4); bar 3 shifts to
-# fourth position on string 1 (finger 1 on fret 4: G#, 2 on 5: A, 4 on 7: B); bar 4 moves up to
+# fourth position on string 1 (finger 1 on fret 4: G#, 2 on 5: A, 4 on 7: B), the hand moving while
+# the open E that ends bar 2 rings (there is no rest before it); bar 4 moves up to
 # fifth position for the top C (finger 4 on fret 8); in bar 5 finger 1 slips back from A to G#;
 # the open E in bar 6 brings the hand back to first position.
 # Pick every sixteenth down-up (or alternate i and m), down on the beat.

@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['technique', 'melody'],
   tags: ['tapping', 'legato', 'arpeggios', 'one string', 'triplets', 'a minor', 'pull-off', 'hammer-on'],
   about:
-    'Each beat is three even notes from one string: tap the high note with a fingertip of the picking hand, pull it off sideways so the left-hand note sounds, then hammer the left-hand little finger down. The tapped notes form a slow tune on top (E, F, G, E) while the left hand keeps one small shape and moves it. The usual problems are a quiet pull-off and noise from the other strings: flick the tapping finger slightly down toward the floor as it leaves, and lay the side of the picking hand and the spare left-hand fingers lightly across strings 2 to 6. Start at half speed and keep the three notes equal.',
+    'Each beat is three even notes on string 1: tap the high note with a fingertip of the picking hand, pull it off so the note under your first finger sounds, then hammer the little finger down. Lift that little finger as you tap again, or the next pull-off lands on it and repeats the hammered note instead of the low one. The tapped notes sing a slow tune on top (E, F, G, E) while the left hand keeps one small shape and moves it. Flick the tapping finger slightly toward the floor as it leaves so the pull-off is loud enough, keep strings 2 to 6 quiet with the side of the picking hand and the spare left-hand fingers, and start at half speed with the three notes equal.',
   plan: 'st-lick-tapping',
   added: '2026-11-16',
 });

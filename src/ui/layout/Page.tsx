@@ -153,7 +153,7 @@ export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
 /**
  * A bar of actions that stays at the bottom of the screen while the content scrolls: the lesson
  * runner's "Check" / "Continue", a form's "Save". Put it last inside a `<Page>`. The shell's
- * "Jump to actions" link finds it (`data-ui-action-bar`).
+ * "Jump to the main action" link finds it (`data-ui-action-bar`).
  *   <ActionBar start={<Text tone="ok">Correct</Text>}><Button variant="primary">Continue</Button></ActionBar>
  */
 export function ActionBar({ start, stretchOnMobile = true, clearance = true, className, children, ...rest }: ActionBarProps) {

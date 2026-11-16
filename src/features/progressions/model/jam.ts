@@ -8,6 +8,7 @@ import {
   type ConcreteScale, type HomeKey, type Progression, type ProgressionFeel, type ResolvedChord, type ResolvedProgression,
 } from '@/content/progressions';
 import { BACKING_INSTRUMENTS, BACKING_STYLES, BACKING_STYLE_IDS, type BackingChord, type BackingInstrument, type BackingStyleId } from '@/core/audio';
+import type { Tuning } from '@/core/guitar';
 import type { ActivityInput } from '@/core/progress';
 import { chroma, getScale, scaleNotes, scalesForChord } from '@/core/theory';
 import { arpeggioMarkers, scaleMarkers, type FretMarker } from '@/ui/music';
@@ -315,13 +316,15 @@ export function scaleFor(choice: ScaleChoice | undefined, chordSymbol: string, h
 
 /**
  * Dots for the jam neck: the chord's tones (labelled R 3 5 ♭7, degree colours, the root large)
- * over the scale's other notes as dimmed rings with their names.
+ * over the scale's other notes as dimmed rings with their names. `tuning` is the learner's (default
+ * standard): where the notes lie depends on it, unlike the chord shapes of the chart.
  */
-export function jamMarkers(chordSymbol: string, scale: ConcreteScale | null, opts: { maxFret?: number } = {}): FretMarker[] {
+export function jamMarkers(chordSymbol: string, scale: ConcreteScale | null, opts: { maxFret?: number; tuning?: Tuning } = {}): FretMarker[] {
   const maxFret = opts.maxFret ?? 12;
+  const tuning = opts.tuning ? { tuning: opts.tuning } : {};
   let tones: FretMarker[] = [];
   try {
-    tones = arpeggioMarkers(chordSymbol, { maxFret, label: 'degree', color: 'degree' });
+    tones = arpeggioMarkers(chordSymbol, { maxFret, label: 'degree', color: 'degree', ...tuning });
   } catch {
     tones = [];
   }
@@ -329,7 +332,7 @@ export function jamMarkers(chordSymbol: string, scale: ConcreteScale | null, opt
   const taken = new Set(tones.map((m) => `${m.string}:${m.fret}`));
   let rest: FretMarker[] = [];
   try {
-    rest = scaleMarkers(scale.tonic, scale.scale, { maxFret, label: 'note', color: 'neutral', state: 'ghost', shape: 'ring', rootShape: 'ring' }).filter((m) => !taken.has(`${m.string}:${m.fret}`));
+    rest = scaleMarkers(scale.tonic, scale.scale, { maxFret, label: 'note', color: 'neutral', state: 'ghost', shape: 'ring', rootShape: 'ring', ...tuning }).filter((m) => !taken.has(`${m.string}:${m.fret}`));
   } catch {
     rest = [];
   }

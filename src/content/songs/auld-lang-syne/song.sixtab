@@ -1,0 +1,47 @@
+# Auld Lang Syne, strum and sing (repertoire plan: auld-lang-syne). The traditional Scottish tune
+# (printed 1799) with Robert Burns's words of 1788, verse 1 and the chorus, in his Scots. The tune
+# is the one independent recollections agreed on note for note, as it is commonly sung today
+# (older printings vary). It keeps to the five notes of D major pentatonic (D E F# A B), and
+# every line starts with a pickup on beat 4.
+# Your part: D (xx0232), A (x02220), G (320003) and the open Bm7 (x20202), the easier shape to
+# use until barre chords arrive at level 5. The verse strums four quarter downstrokes a bar; the
+# chorus lifts to "down, down-up" on every two beats. Bars 7 and 15 change from Bm7 to A on
+# beat 3. The pickup bar is silent for you: the tune's first note comes before your first strum.
+# The tune (second track) carries the words, played an octave below the sung pitch, in first
+# position on strings 5 to 2 (finger = fret number).
+title: Auld Lang Syne
+id: auld-lang-syne
+composer: Traditional Scottish; words by Robert Burns
+source: Traditional tune printed 1799, melody as commonly sung today; words by Robert Burns, 1788, verse 1 and chorus; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional tune; Burns died in 1796); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: strumming, new year, scottish, pentatonic, pickup, lyrics
+tempo: 80
+time: 4/4
+key: D
+pickup: q
+
+track: Your strum
+role: rhythm
+[Verse]
+strum: DDDD
+| q r | "D=xx0232" D D D D | "A=x02220" D D D D | "D=xx0232" D D D D | "G=320003" D D D D |
+| "D=xx0232" D D D D | "A=x02220" D D D D | "Bm7=x20202" D D "A=x02220" D D | "D=xx0232" D D D D |
+[Chorus]
+strum: D-DUD-DU
+| "D=xx0232" q D e D U q D e D U | "A=x02220" q D e D U q D e D U | "D=xx0232" q D e D U q D e D U | "G=320003" q D e D U q D e D U |
+| "D=xx0232" q D e D U q D e D U | "A=x02220" q D e D U q D e D U | "Bm7=x20202" q D e D U "A=x02220" q D e D U | "D=xx0232" w D ||
+
+track: Tune
+role: lead
+[Verse]
+| q 5:0 | q. 4:0 e 4:0 q 4:0 4:4{4} | q. 4:2{2} e 4:0 q 4:2 4:4 | q. 4:0 e 4:0 q 4:4 3:2{2} | h. 2:0 q 2:0 |
+lyrics: Should auld ac- quain- tance be for- got, And nev- er brought to mind? Should
+| q. 3:2 e 4:4 q 4:4 4:0 | q. 4:2 e 4:0 q 4:2 4:4 | ^"auld lang syne: long ago" q. 4:0 e 5:2{2} q 5:2 5:0 | h. 4:0 q 2:0 |
+lyrics: auld ac- quain- tance be for- got, And auld _ lang _ syne? For
+[Chorus]
+| q. 3:2 e 4:4 q 4:4 4:0 | ^"jo: dear" q. 4:2 e 4:0 q 4:2 2:0 | q. 3:2 e 4:4 q 4:4 3:2 | h. 2:0 q 2:3{3} |
+lyrics: auld lang syne, my jo, _ _ For auld _ lang _ syne, We'll
+| ^"tak: take; o': of" q. 3:2 e 4:4 q 4:4 4:0 | q. 4:2 e 4:0 q 4:2 4:4 | q. 4:0 e 5:2 q 5:2 5:0 | h. 4:0 q r ||
+lyrics: tak a cup o' kind- ness yet, For auld _ lang _ syne.

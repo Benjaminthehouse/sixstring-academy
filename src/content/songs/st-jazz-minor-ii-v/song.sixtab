@@ -1,0 +1,45 @@
+# Jazz Comping: Minor ii-V-i (repertoire plan: st-jazz-minor-ii-v). An original 16-bar study on
+# the minor ii-V-i in A minor, as a bossa nova: Bm7b5 | E7 | Am7 | Am7, four times.
+# Shapes: Bm7b5 (x2323x: B F A D), E7 (xx2434: E B D G#), Am7: the grip xx2213 (E A C G) with the
+# open A string under it, so the box shows x02213.
+# Bossa comping, fingerstyle, straight eighths: the thumb (p) plays the bass on beats 1 and 3,
+# and i, m and a pluck the other three notes of the grip together. Over two bars the chords fall
+# on 1, the "and" of 2 and 4, then on 2 and the "and" of 3. In Am7 the thumb alternates the
+# open A (beat 1) and the E on string 4 fret 2 (beat 3).
+# Bars 9-16: an 8-bar melody over the same chords, in seventh position (finger 1 on fret 7). Over
+# E7 it uses A harmonic minor, with G# (string 2 fret 9) in place of G (string 2 fret 8); over
+# Bm7b5 and Am7 the natural minor, with G. Bar 14 runs up E F G# A B: the step and a half from
+# F to G# is the sound of harmonic minor.
+title: Jazz Comping: Minor ii-V-i
+composer: Sixstring Academy
+source: Original comping study on the minor ii-V-i, bossa nova style
+licence: Original study for Sixstring Academy
+difficulty: 8
+tags: jazz, bossa nova, comping, minor ii-v-i, half-diminished, harmonic minor, fingerstyle
+tempo: 116
+time: 4/4
+key: Am
+
+track: Your comping
+role: rhythm
+[Comping]
+| ^"Thumb on the bass, i m a on the chord" "Bm7b5=x2323x" q. (5:2{P} 4:3{I} 3:2{M} 2:3{A}) e (4:3 3:2 2:3) q 5:2 (4:3 3:2 2:3) | "E7=xx2434" q 4:2{P} (3:4{I} 2:3{M} 1:4{A}) e 4:2 q. (3:4 2:3 1:4) |
+| "Am7=x02213" q. (5:0{P} 3:2{I} 2:1{M} 1:3{A}) e (3:2 2:1 1:3) q 4:2{P} (3:2 2:1 1:3) | q 5:0 (3:2 2:1 1:3) e 4:2 q. (3:2 2:1 1:3) |
+| "Bm7b5=x2323x" q. (5:2 4:3 3:2 2:3) e (4:3 3:2 2:3) q 5:2 (4:3 3:2 2:3) | "E7=xx2434" q 4:2 (3:4 2:3 1:4) e 4:2 q. (3:4 2:3 1:4) |
+| "Am7=x02213" q. (5:0 3:2 2:1 1:3) e (3:2 2:1 1:3) q 4:2 (3:2 2:1 1:3) | q 5:0 (3:2 2:1 1:3) e 4:2 q. (3:2 2:1 1:3) ||
+[With the melody]
+| "Bm7b5=x2323x" q. (5:2 4:3 3:2 2:3) e (4:3 3:2 2:3) q 5:2 (4:3 3:2 2:3) | "E7=xx2434" q 4:2 (3:4 2:3 1:4) e 4:2 q. (3:4 2:3 1:4) |
+| "Am7=x02213" q. (5:0 3:2 2:1 1:3) e (3:2 2:1 1:3) q 4:2 (3:2 2:1 1:3) | q 5:0 (3:2 2:1 1:3) e 4:2 q. (3:2 2:1 1:3) |
+| "Bm7b5=x2323x" q. (5:2 4:3 3:2 2:3) e (4:3 3:2 2:3) q 5:2 (4:3 3:2 2:3) | "E7=xx2434" q 4:2 (3:4 2:3 1:4) e 4:2 q. (3:4 2:3 1:4) |
+| "Am7=x02213" q. (5:0 3:2 2:1 1:3) e (3:2 2:1 1:3) q 4:2 (3:2 2:1 1:3) | w (5:0 4:2 3:2 2:1 1:3) ||
+
+track: Melody
+role: lead
+[Comping]
+| w r | r | r | r |
+| r | r | r | r ||
+[With the melody]
+| ^"Seventh position" q 1:10{4} e 1:8{2} 1:7{1} h 3:10{4} | ^"G#: string 2, fret 9" q 3:9{3} e 2:9{3} 1:7{1} h 1:10{4} |
+| h. 1:8{2} e 1:7{1} 2:10{4} | h. 2:8{2} q r |
+| q 1:7{1} e 2:10{4} 3:10{4} h 3:7{1} | e 3:9{3} 3:10{4} 2:9{3} 2:10{4} q 1:7{1} 2:9{3} |
+| h 2:10{4} q 1:8{2} e 1:7{1} 2:8{2} | w 2:10{4} ||

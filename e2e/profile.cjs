@@ -291,7 +291,8 @@ async function overview(browser, url, seeds) {
   });
   check(group, 'who: the name is the page title, with level, title and teacher on the page', story.h1 === 'Robin' && story.all.includes(`Level ${facts.level}`) && story.all.includes(facts.title) && story.all.includes('Learning with Dev Okafor'), `${story.h1} / level ${facts.level} ${facts.title}`);
   check(group, 'streak: the count of the store is written out', story.all.includes(`${facts.streak} days in a row`), `${facts.streak}`);
-  const barMinutes = story.bars.map((b) => parseInt(b, 10));
+  // Days later this week carry no number, only "still to come" for screen readers: the store has 0 for them.
+  const barMinutes = story.bars.map((b) => (/still to come/.test(b) ? 0 : parseInt(b, 10)));
   check(group, 'this week: seven columns whose numbers are the store’s minutes per day', story.bars.length === 7 && barMinutes.join() === facts.weekMinutes.join(), `${barMinutes.join()} vs ${facts.weekMinutes.join()}`);
   check(group, 'calendar: one square per day in several intensities, with the month table as its text equivalent', story.cells >= 16 * 7 - 6 && story.levels.length >= 3 && story.months >= 3 && /You practised on \d+ of the last \d+ days/.test(story.all), `cells=${story.cells} levels=${story.levels} months=${story.months}`);
   check(group, 'time by activity: labelled bars with minutes, longest first', story.kinds.length >= 3 && story.kinds.every((k) => /\d+ (min|h)/.test(k)), story.kinds.join(' | '));
@@ -1116,7 +1117,11 @@ async function review(browser, url, seeds) {
   const input = page.locator('[data-card="import"] input[type="file"]');
   // The file picker shows its own one-line reason too; the screen's banner is the one that ends "Nothing was changed."
   const banner = page.locator('[data-card="import"] [role="alert"]', { hasText: 'Nothing was changed' });
-  await input.setInputFiles({ name: 'huge.json', mimeType: 'application/json', buffer: Buffer.alloc(8_100_000, 32) });
+  // Just over MAX_IMPORT_BYTES (64 MB: backups carry the learner's songs too), written to disk so it streams.
+  const hugeFile = path.join(require('node:os').tmpdir(), `ssa-huge-${process.pid}.json`);
+  fs.writeFileSync(hugeFile, Buffer.alloc(64_000_001, 32));
+  await input.setInputFiles(hugeFile);
+  fs.rmSync(hugeFile, { force: true });
   const huge = (await banner.innerText({ timeout: 10000 }).catch(() => '')).replace(/\s+/g, ' ');
   await input.setInputFiles({ name: 'holiday.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) });
   await page.waitForTimeout(300);

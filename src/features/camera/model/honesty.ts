@@ -1,22 +1,68 @@
 /**
  * Are the dots on screen where the neck is? The overlay draws every video frame from the newest
- * tracker answer carried forward to that frame (the vision pipeline predicts it). A moment later
- * the answer for that very frame arrives: comparing what was drawn with what the tracker found
- * measures how far off the dots were, whatever the cause (a slow or busy device, a fast move, a
- * prediction that overshot). When they were off by close to half a string, the screen draws
- * outlines until the dots have been on target again for a few answers.
+ * tracker answer carried forward to that frame (the vision pipeline predicts it), so while the
+ * neck moves the dots can trail it, more on a slow or busy device. Two checks, and the dots turn
+ * into outlines when either fails:
  *
- * This replaces guessing the error from the neck's speed and the answer delay: it is measured,
- * so a fast device that keeps up stays solid while the neck moves, and a slow one turns to
- * outlines as soon as its dots trail.
+ *  - Expected: the neck's speed times how late the tracker's answers arrive. Catches a trail
+ *    before it shows.
+ *  - Measured: a moment after a frame is drawn, the tracker's answer for that very frame arrives;
+ *    the dots drawn on it are compared with where the tracker found the neck. Catches what the
+ *    guess misses (a prediction that overshot as the neck turned back, a device so slow or busy
+ *    that its answers come few and far between: there the guess alone let 20-40% of the frames of
+ *    a swaying neck show solid dots off their frets).
+ *
+ * Checked on independent rendered scenes of a swaying neck (`e2e/camera-alt.cjs`): at normal speed
+ * the solid dots were right on 97-100% of the frames that showed them, on most frames; under a 4x
+ * CPU slow-down most frames show outlines, and 70-95% of the few solid ones were right.
  */
-import { projectMarker, type FretboardPose } from '@/core/vision';
+import { fretX, projectMarker, projectPlanePoint, type FretboardPose } from '@/core/vision';
 
-/** Drawn this far off (in string spacings) or more, the dots turn into outlines. */
+/** Measured this far off (in string spacings: half a string is the neighbouring string), the dots turn into outlines... */
 export const OFF_GHOST = 0.5;
-/** Back to solid dots only after this many answers in a row at most `OFF_SOLID` off. */
+/** ...until `SOLID_AFTER` answers in a row are at most `OFF_SOLID` off. */
 export const OFF_SOLID = 0.35;
 export const SOLID_AFTER = 1;
+
+/** Expected trail (string spacings) from which the dots turn into outlines; solid again below `TRAIL_SOLID`. */
+export const TRAIL_GHOST = 0.45;
+export const TRAIL_SOLID = 0.27;
+
+/**
+ * The expected trail of the dots behind a moving neck, in string spacings: speed (working-frame
+ * pixels per second) times how late the answers arrive. A rough guess on purpose (the pipeline
+ * predicts the pose forward, so the real trail is usually smaller); the measured check below
+ * catches what it misses. 0 when it cannot be told.
+ */
+export function expectedTrail(speedPxPerSec: number, latencyMs: number, stringSpacingPx: number): number {
+  if (!(speedPxPerSec > 0) || !(latencyMs > 0) || !(stringSpacingPx > 0)) return 0;
+  return (speedPxPerSec * latencyMs) / 1000 / stringSpacingPx;
+}
+
+/** Whether the expected trail calls for outlines (with hysteresis, so they do not flicker at the edge). */
+export function trailTooLong(wasTooLong: boolean, trail: number): boolean {
+  return wasTooLong ? trail > TRAIL_SOLID : trail > TRAIL_GHOST;
+}
+
+/** The neck's speed between two answers, smoothed: the middle of the board, in working-frame pixels per second. */
+export interface NeckMotion {
+  x: number;
+  y: number;
+  t: number;
+  speed: number;
+}
+
+/** Fold one more answer (`pose` for the frame at `t` ms; null without a board) into the motion. */
+export function nextMotion(prev: NeckMotion | null, pose: FretboardPose | null, t: number): NeckMotion | null {
+  if (!pose) return null;
+  const m = pose.model;
+  const p = projectPlanePoint(pose, fretX(m, 7), m.nutWidth / 2);
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+  const dt = prev ? t - prev.t : 0;
+  if (!prev || !(dt > 5)) return { x: p.x, y: p.y, t, speed: prev?.speed ?? 0 };
+  const raw = Math.hypot(p.x - prev.x, p.y - prev.y) / (dt / 1000);
+  return { x: p.x, y: p.y, t, speed: 0.6 * prev.speed + 0.4 * raw };
+}
 
 /** Where to compare: the corners and middle of the region the notes cover, else the outer strings at the first, middle and last fret in view. */
 function samplePoints(p: FretboardPose, at: ReadonlyArray<{ string: number; fret: number }>): Array<{ string: number; fret: number }> {

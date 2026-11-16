@@ -327,16 +327,48 @@
 .meter[data-running] .meterPeak {
   opacity: 0.7;
 }
-/* The zone a good signal reaches: from -35 dB to just under full scale. */
+/* The zone a good signal reaches: from -35 dB to just under full scale (the meter starts at -80 dB). */
 .meterGood {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 42%;
+  left: 56%;
   right: 5%;
   border-left: 2px solid var(--fg-muted);
   border-right: 2px solid var(--fg-muted);
   opacity: 0.55;
+}
+/* The note gate: quieter than this does not count. Moves with the sensitivity. */
+.meterGate {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 15%;
+  width: 3px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: left 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .meterGate {
+    transition: none;
+  }
+}
+.meterLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: calc(-1 * var(--sp-1));
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.meterGateKey {
+  flex: none;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 .micStatus {
   min-height: 3em;

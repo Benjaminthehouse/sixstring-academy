@@ -263,14 +263,14 @@
 @media (min-width: 480px) {
   /* Label and count on one line when there is room. */
   .included .includedColumn:first-child .line {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto max-content minmax(0, 1fr);
   }
   .included .includedColumn:first-child .lineIcon {
     grid-row: auto;
   }
   .included .includedColumn:first-child .lineDetail {
+    justify-self: end;
     text-align: right;
-    max-width: 22rem;
   }
 }
 

@@ -1,0 +1,40 @@
+# Sweep-Picked Arpeggios (repertoire plan: st-arpeggio-sweep). An original 8-bar study around
+# the 12th fret. Sweep picking: one pick stroke per direction, the pick falling through the
+# strings in one motion, down from the lowest string of the shape to string 1, up on the way back.
+# Shapes:
+#   Am on three strings: string 3 fret 14 (A, finger 3), string 2 fret 13 (C, finger 2),
+#   string 1 fret 12 (E, finger 1).
+#   C on three strings: string 3 fret 12 (G, finger 1), string 2 fret 13 (C, finger 2),
+#   string 1 fret 12 (E, finger 1 again: roll it from string 3 to string 1).
+#   Am on five strings: string 5 fret 12 (A, finger 1), string 4 fret 14 (E, finger 3),
+#   string 3 fret 14 (A, finger 3 rolled over), string 2 fret 13 (C, finger 2), string 1 fret 12
+#   (E, finger 1), then a hammer-on with finger 4 up to string 1 fret 17 (A) and a pull-off back.
+# Every note stops as the next one sounds: roll the finger from string to string and lift the
+# one behind, so the arpeggio sounds like single notes, never a strummed chord.
+# Bars 1-4 in triplets, bars 5-7 in sextuplets (six notes in a beat), bar 8 ends on a held A.
+title: Sweep-Picked Arpeggios
+composer: Sixstring Academy
+source: Original sweep-picking study
+licence: Original study for Sixstring Academy
+difficulty: 8
+tags: sweep picking, arpeggios, triplets, sextuplets, a minor, 12th position
+tempo: 72
+time: 4/4
+key: Am
+
+track: Your sweeps
+role: lead
+[Triplets]
+| ^"Down-sweep, then up" "Am" e3 3:14{3 dn} 2:13{2} 1:12{1} 2:13{2 up} q3 3:14{3} "C" e3 3:12{1 dn} 2:13{2} 1:12{1} 2:13{2 up} q3 3:12{1} | e3 3:12{dn} 2:13 1:12 2:13{up} q3 3:12 "Am" e3 3:14{dn} 2:13 1:12 2:13{up} q3 3:14 |
+| ^"Five strings: hammer up to A, pull back" e3 5:12{1 dn} 4:14{3} 3:14{3} 2:13{2} 1:12{1} 1:17h{4} 1:12p{1} 2:13{2 up} 3:14{3} 4:14{3} q3 5:12{1} | "C" e3 3:12{dn} 2:13 1:12 2:13{up} q3 3:12 "Am" e3 3:14{dn} 2:13 1:12 2:13{up} q3 3:14 |
+[Sextuplets]
+| ^"Six to a beat: up in one beat, down in the next" s6 5:12{dn} 4:14 3:14 2:13 1:12 1:17h s6 1:12p 2:13{up} 3:14 4:14 e3 5:12 s6 5:12{dn} 4:14 3:14 2:13 1:12 1:17h s6 1:12p 2:13{up} 3:14 4:14 e3 5:12 | "C" s6 3:12{dn} 2:13 1:12 2:13{up} e3 3:12 s6 3:12{dn} 2:13 1:12 2:13{up} e3 3:12 "Am" s6 3:14{dn} 2:13 1:12 2:13{up} e3 3:14 s6 3:14{dn} 2:13 1:12 2:13{up} e3 3:14 |
+| s6 5:12{dn} 4:14 3:14 2:13 1:12 1:17h s6 1:12p 2:13{up} 3:14 4:14 e3 5:12 s6 5:12{dn} 4:14 3:14 2:13 1:12 1:17h s6 1:12p 2:13{up} 3:14 4:14 e3 5:12 | ^"Let the top A ring" e3 5:12{dn} 4:14 3:14 2:13 1:12 1:17h h 1:-~ ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[Triplets]
+| h 3:0 3:3 | 3:3 3:0 | w 3:0 | h 3:3 3:0 |
+[Sextuplets]
+| w 3:0 | h 3:3 3:0 | w 3:0 | 3:0 ||

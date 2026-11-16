@@ -9,6 +9,8 @@
 import { describe, expect, it } from 'vitest';
 import { getProgression, progressionInKey } from '@/content/progressions';
 import { loadSongText, songEntry } from '@/content/songs';
+import { BACKING_STYLES } from '@/core/audio';
+import { chordFromParam } from '@/features/chords/model/symbols';
 import { chordVoicings, identifyFretted, noteAt } from '@/core/guitar';
 import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, chroma, scaleNotes, semitones, intervalBetween } from '@/core/theory';
@@ -228,5 +230,106 @@ describe('Mia unit 6: Minor chords, minor songs', () => {
 
   it('names the BPM of every Player task as the song tempo times its percentage', async () => {
     expect(await taskBpmProblems(unit)).toEqual([]);
+  });
+});
+
+// ── checks added by the review ──────────────────────────────────────────────────────────────────
+
+type LooseStep = { type?: string; chord?: string; options?: Array<{ text?: string; correct?: boolean; figure?: { kind: string } }>; alternative?: { type?: string; chord?: string; generate?: string; params?: { chords?: string[] } } };
+
+describe('Mia unit 6: what the review fixed', () => {
+  it('never offers chord boxes as answer options (the engine prints each box\'s name on it)', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps as LooseStep[]) if (s.type === 'choice') for (const o of s.options ?? []) expect(o.figure?.kind, l.id).not.toBe('chord');
+    }
+  });
+
+  it('gives every lesson two to four facts', () => {
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeGreaterThanOrEqual(2);
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeLessThanOrEqual(4);
+  });
+
+  it('lets a play-chord step without a microphone build the chord it names', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps as LooseStep[]) {
+        if (s.type !== 'play-chord') continue;
+        const alt = s.alternative!;
+        if (alt.type === 'chord-build') expect(alt.chord, `${l.id}: ${s.chord}`).toBe(s.chord);
+        else expect(alt.generate === 'chord-shape' && alt.params?.chords?.[0], `${l.id}: ${s.chord}`).toBe(s.chord);
+      }
+    }
+  });
+
+  it('turns A into Am by moving the string 2 note down one fret, as the A-to-Am question says', () => {
+    expect(at(2, 2, 'A')).toBe('C#');
+    expect(at(2, 1, 'Am')).toBe('C');
+    // The other two fretted notes of A stay in Am.
+    expect([at(3, 2, 'Am'), at(4, 2, 'Am')]).toEqual(['A', 'E']);
+    expect(identifyFretted('x02210').symbol).toBe('Am');
+    expect(identifyFretted('x02120').symbol).not.toBe('Am');
+    expect(identifyFretted('x02120').symbol).not.toBe('A');
+    const q = unit.lessons.find((l) => l.id === 'major-or-minor')!.steps.find((s) => (s as LooseStep).type === 'choice') as LooseStep;
+    expect(q.options!.find((o) => o.correct)!.text).toBe('String 2: from fret 2 down to fret 1');
+  });
+
+  it('defines the third as the theory engine has it, and uses the word only from the lesson that teaches it', () => {
+    const g = unit.glossary!.find((x) => x.id === 'chord-third')!;
+    expect(chordNotes('E')[1]).toBe('G#');
+    expect(chordNotes('Em')[1]).toBe('G');
+    const letters = 'ABCDEFG';
+    expect((letters.indexOf('G') - letters.indexOf('E') + 7) % 7).toBe(2); // E F G: three letter names
+    expect(g.definition).toContain('{n:G#} in {c:E}');
+    expect(g.definition).toContain('{n:G} in {c:Em}');
+    expect(g.definition).not.toMatch(/middle/);
+    const teaching = unit.lessons.findIndex((l) => l.id === 'major-or-minor');
+    for (const l of unit.lessons.slice(0, teaching)) expect(JSON.stringify(l), l.id).not.toMatch(/\bthird\b/i);
+  });
+
+  it('names Player parts the songs really have', async () => {
+    let named = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (!isTaskStep(s) || s.tool !== 'player') continue;
+        const id = taskSong(s)!;
+        if (!songEntry(id)) continue;
+        const tracks = (await song(id)).tracks.map((t) => t.name);
+        for (const m of plain(s.body).matchAll(/\btap ([A-Z][a-z]+)\b/g)) {
+          named++;
+          expect(tracks, `${l.id} > ${s.id}`).toContain(m[1]);
+        }
+      }
+    }
+    expect(named).toBe(1); // Korobeiniki: Strum
+  });
+
+  it('swaps a chord the chord trainer really has open', () => {
+    let swaps = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (!isTaskStep(s) || s.tool !== 'chords') continue;
+        const open = (s.params ?? []).slice(1).map(chordFromParam);
+        for (const m of plain(s.body).matchAll(/swap \{c:([^}]+)\} for \{c:([^}]+)\}/g)) {
+          swaps++;
+          expect(open, `${l.id} > ${s.id}`).toContain(m[1]);
+          expect(open, `${l.id} > ${s.id}`).not.toContain(m[2]);
+        }
+      }
+    }
+    expect(swaps).toBe(3);
+  });
+
+  it('sends the jam fallbacks to styles and tempos the band really has', () => {
+    const waltz = Object.values(BACKING_STYLES).find((st) => st.name === 'Waltz 3/4')!;
+    expect(waltz.timeSignature).toEqual({ numerator: 3, denominator: 4 });
+    expect(waltz.tempo.min).toBeLessThanOrEqual(96);
+    expect(waltz.tempo.max).toBeGreaterThanOrEqual(96);
+    const kings = unit.lessons.flatMap((l) => l.steps).find((s) => isTaskStep(s) && s.id === 'we-three-kings');
+    if (!kings || !isTaskStep(kings)) throw new Error('no We Three Kings task');
+    expect(plain(kings.fallback!.body)).toContain('Waltz 3/4');
+    expect(plain(kings.fallback!.body)).toContain('96 BPM');
+    // Go Down, Moses and Wade in the Water jam on the minor cadence, whose own feel can play 60 to 72.
+    const ballad = BACKING_STYLES[getProgression('classical-minor-cadence')!.feel.backing];
+    expect(ballad.tempo.min).toBeLessThanOrEqual(60);
+    expect(ballad.tempo.max).toBeGreaterThanOrEqual(72);
   });
 });

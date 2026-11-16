@@ -70,7 +70,7 @@ const devWelcome: TeacherLesson = {
     }),
     toolTask({
       id: 'changes-am-f',
-      title: 'Check 1: Am to F for one minute',
+      title: 'Check 1: A minor to F for one minute',
       tool: 'chords',
       params: ['trainer', 'a-minor', 'f-major'],
       minutes: 2,
@@ -185,7 +185,7 @@ const eShapeBarres: TeacherLesson = {
     {
       type: 'card',
       title: 'Name it by string 6',
-      body: 'The chord takes its name from the note under finger 1 on string 6, its {t:root}. In {c:G} (355433) that is fret 3, {n:G}, and the same note sounds again on strings 4 and 1. From now on the notes on string 6 are your map.',
+      body: 'The chord takes its name from the note under finger 1 on string 6, its {t:root}. In {c:G} (355433) that is {n:G} at fret 3, which sounds again on strings 4 and 1. From now on, string 6 is your map.',
       figure: {
         kind: 'fretboard',
         frets: [1, 6],
@@ -211,7 +211,7 @@ const eShapeBarres: TeacherLesson = {
       strings: [6],
       frets: [0, 12],
       explain: 'String 6, fret 5 is {n:A}: barre fret 5 and the E shape above it gives {c:A} (577655).',
-      fact: 'e-shape-root',
+      fact: 'barre-e-shape-root',
     },
     {
       type: 'card',
@@ -227,12 +227,12 @@ const eShapeBarres: TeacherLesson = {
       accept: 'this-shape',
       prompt: 'Build {c:Gm} as an E-shape barre at fret 3.',
       explain: 'Barre fret 3, fingers 3 and 4 on strings 5 and 4 at fret 5, and string 3 under the barre at fret 3: {n:Bb}, the minor third of {c:Gm}.',
-      fact: 'e-shape-minor',
+      fact: 'barre-e-shape-minor',
     },
     {
       type: 'card',
       title: 'String 6 is your map',
-      body: 'The natural notes on string 6: {n:F} at fret 1, {n:G} at 3, {n:A} at 5, {n:B} at 7, {n:C} at 8, {n:D} at 10 and {n:E} at 12. Two frets between them, except {n:B} to {n:C} and {n:E} to {n:F}, which are one.',
+      body: 'The natural notes on string 6: {n:F} at fret 1, {n:G} at 3, {n:A} at 5, {n:B} at 7, {n:C} at 8, {n:D} at 10 and {n:E} at 12. Learn them and you can find any E-shape barre.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -248,13 +248,13 @@ const eShapeBarres: TeacherLesson = {
         caption: 'The natural notes on string 6, frets 1 to 12.',
       },
     },
-    { generate: 'note-on-string', params: { strings: [6], frets: [1, 12], naturals: true, ask: 'name' }, fact: 'string-6-naturals' },
+    { generate: 'note-on-string', params: { strings: [6], frets: [1, 12], naturals: true, ask: 'name' }, fact: 'barre-string-6-map' },
     toolTask({
       id: 'string-6-names',
       title: 'Name the notes on string 6',
       tool: 'fretboard',
       params: ['stage', 'string-6-naturals'],
-      minutes: 4,
+      minutes: 5,
       body: 'One minute of naming notes on string 6, as fast as you can stay right. Aim for 20. This is the map every E-shape barre lives on.',
     }),
     {
@@ -310,13 +310,12 @@ const eShapeBarres: TeacherLesson = {
     },
     playerTask({
       id: 'barre-shapes-e',
-      title: 'Barre Shapes: the E and Em bars',
+      title: 'Barre Shapes: the E-shape bars',
       song: 'st-barre-shapes',
       bars: [1, 6],
       tempo: 75,
       minutes: 4,
       body: 'Bars 1 to 6 at 60 BPM: {c:F}, {c:G}, {c:A}, then {c:Fm}, {c:Gm}, {c:Am}, four steady down-strums each. Say the root out loud on every first strum. When it feels easy, 100 % is 80 BPM.',
-      tip: 'Saying the root aloud feels silly for a day. Then it is how you find any chord.',
     }),
     {
       type: 'choice',
@@ -328,15 +327,14 @@ const eShapeBarres: TeacherLesson = {
         { text: 'Fret 6', why: 'String 6 fret 6 is {n:A#}, a fret short.' },
       ],
       explain: 'String 6 fret 7 is {n:B}, so the minor E shape at fret 7 is {c:Bm} (799777). {c:D} would be the major shape at fret 10.',
-      fact: 'e-shape-root',
+      fact: 'barre-e-shape-root',
     },
-    { generate: 'note-on-string', params: { strings: [6], frets: [1, 12], naturals: true, ask: 'find' } },
   ],
   facts: [
-    { id: 'e-shape-root', front: 'An E-shape barre chord is named by which note?', back: 'The note under finger 1 on string 6: barre fret 3 and it is {c:G}, fret 5 {c:A}, fret 8 {c:C}.' },
-    { id: 'e-shape-minor', front: 'How does an E-shape major barre become minor?', back: 'Lift finger 2 (the third, on string 3). {c:G} (355433) becomes {c:Gm} (355333).' },
+    { id: 'barre-e-shape-root', front: 'An E-shape barre chord is named by which note?', back: 'The note under finger 1 on string 6: barre fret 3 and it is {c:G}, fret 5 {c:A}, fret 8 {c:C}.' },
+    { id: 'barre-e-shape-minor', front: 'How does an E-shape major barre become minor?', back: 'Lift finger 2 (the third, on string 3). {c:G} (355433) becomes {c:Gm} (355333).' },
     {
-      id: 'string-6-naturals',
+      id: 'barre-string-6-map',
       front: 'The natural notes on string 6, frets 1 to 12?',
       back: '{n:F} 1, {n:G} 3, {n:A} 5, {n:B} 7, {n:C} 8, {n:D} 10, {n:E} 12.',
       ask: { generate: 'note-on-string', params: { strings: [6], frets: [1, 12], naturals: true, ask: 'name' } },
@@ -349,7 +347,7 @@ const eShapeBarres: TeacherLesson = {
 const aShapeBarres: TeacherLesson = {
   id: 'a-shape-barres',
   title: 'A-shape barres, root on string 5',
-  teaches: 'An A-shape barre has its root under finger 1 on string 5; the Am shape is its minor version.',
+  teaches: 'An A-shape barre has its root under finger 1 on string 5; the {c:Am} shape is its minor version.',
   minutes: 5,
   skill: 'teacher:dev:a-shape-barres',
   steps: [
@@ -381,7 +379,7 @@ const aShapeBarres: TeacherLesson = {
         { text: 'String 4', why: 'String 4 is pressed two frets above the barre: it is the fifth of the chord.' },
       ],
       explain: 'Like the open {c:A}, the A-shape barre starts on string 5, and the note under finger 1 there names it.',
-      fact: 'a-shape-root',
+      fact: 'barre-a-shape-root',
     },
     {
       type: 'card',
@@ -402,9 +400,9 @@ const aShapeBarres: TeacherLesson = {
     },
     {
       type: 'card',
-      title: 'The Am shape: minor on string 5',
+      title: 'The minor A shape, on string 5',
       body: 'The minor version is the open {c:Am} shape moved up. The third sits on string 2, one fret lower than in the major shape: {c:C} (x35553) becomes {c:Cm} (x35543), and {c:Bm} is (x24432).',
-      figure: { kind: 'chord', symbol: 'Cm', frets: 'x35543', caption: '{c:Cm}: the Am shape with the barre at fret 3.' },
+      figure: { kind: 'chord', symbol: 'Cm', frets: 'x35543', caption: '{c:Cm}: the {c:Am} shape with the barre at fret 3.' },
     },
     {
       type: 'chord-build',
@@ -412,8 +410,8 @@ const aShapeBarres: TeacherLesson = {
       chord: 'Bm',
       frets: 'x24432',
       accept: 'this-shape',
-      prompt: 'Build {c:Bm} as an Am-shape barre at fret 2.',
-      explain: 'Barre fret 2 from string 5, finger 3 and 4 on strings 4 and 3 at fret 4, finger 2 on string 2 at fret 3: {n:B} {n:F#} {n:B} {n:D} {n:F#}.',
+      prompt: 'Build {c:Bm} as an {c:Am}-shape barre at fret 2.',
+      explain: 'Barre fret 2 from string 5, fingers 3 and 4 on strings 4 and 3 at fret 4, finger 2 on string 2 at fret 3: {n:B} {n:F#} {n:B} {n:D} {n:F#}.',
     },
     {
       type: 'card',
@@ -439,10 +437,9 @@ const aShapeBarres: TeacherLesson = {
       title: 'Name the notes on string 5',
       tool: 'fretboard',
       params: ['stage', 'string-5-naturals'],
-      minutes: 4,
+      minutes: 5,
       body: 'One minute of naming notes on string 5. Beat yesterday\'s string 6 score if you can. Together the two strings are where every barre root lives.',
     }),
-    { generate: 'note-on-string', params: { strings: [5], frets: [2, 12], naturals: true, ask: 'find' }, fact: 'string-5-naturals' },
     {
       type: 'fretboard-find',
       prompt: '{c:D} major in two places: tap its root for the E shape and for the A shape.',
@@ -452,7 +449,7 @@ const aShapeBarres: TeacherLesson = {
       strings: [6, 5],
       frets: [1, 12],
       explain: 'String 5 fret 5 is {n:D} for the A shape, {c:D} (x57775); string 6 fret 10 is the same {n:D} for the E shape, {c:D} (10-12-12-11-10-10).',
-      fact: 'two-places',
+      fact: 'barre-d-two-places',
     },
     {
       type: 'choice',
@@ -466,7 +463,7 @@ const aShapeBarres: TeacherLesson = {
     },
     playerTask({
       id: 'barre-shapes-a',
-      title: 'Barre Shapes: the A and Am bars',
+      title: 'Barre Shapes: the A-shape bars',
       song: 'st-barre-shapes',
       bars: [7, 11],
       tempo: 75,
@@ -492,13 +489,13 @@ const aShapeBarres: TeacherLesson = {
     },
     {
       type: 'play-chord',
-      prompt: 'Now {c:Bm}, the Am shape at fret 2.',
+      prompt: 'Now {c:Bm}, the {c:Am} shape at fret 2.',
       chord: 'Bm',
       frets: 'x24432',
       explain: '{c:Bm} is {n:B}, {n:D} and {n:F#}. If string 1 dies, pull the elbow in a little so finger 1 lies flatter.',
       alternative: {
         type: 'fretboard-find',
-        prompt: 'Tap the root of an Am-shape {c:Bm} on string 5.',
+        prompt: 'Tap the root of an {c:Am}-shape {c:Bm} on string 5.',
         find: { note: 'B2' },
         mode: 'one',
         octave: 'exact',
@@ -515,14 +512,14 @@ const aShapeBarres: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'a-shape-root', front: 'An A-shape barre chord is named by which note?', back: 'The note under finger 1 on string 5: fret 1 {c:Bb}, fret 2 {c:B}, fret 3 {c:C}.' },
+    { id: 'barre-a-shape-root', front: 'An A-shape barre chord is named by which note?', back: 'The note under finger 1 on string 5: fret 1 {c:Bb}, fret 2 {c:B}, fret 3 {c:C}.' },
     {
-      id: 'string-5-naturals',
+      id: 'barre-string-5-map',
       front: 'The natural notes on string 5, frets 2 to 12?',
       back: '{n:B} 2, {n:C} 3, {n:D} 5, {n:E} 7, {n:F} 8, {n:G} 10, {n:A} 12.',
       ask: { generate: 'note-on-string', params: { strings: [5], frets: [2, 12], naturals: true, ask: 'name' } },
     },
-    { id: 'two-places', front: '{c:D} major as a barre, in two places?', back: 'The A shape at fret 5, {c:D} (x57775), and the E shape at fret 10, {c:D} (10-12-12-11-10-10).' },
+    { id: 'barre-d-two-places', front: '{c:D} major as a barre, in two places?', back: 'The A shape at fret 5, {c:D} (x57775), and the E shape at fret 10, {c:D} (10-12-12-11-10-10).' },
   ],
 };
 
@@ -542,7 +539,7 @@ const GROUND_BASS = [
 const barreProgressions: TeacherLesson = {
   id: 'barre-progressions',
   title: 'Barre chords in real progressions',
-  teaches: 'With barres, one set of hand moves plays a progression in any key; mixing E and A shapes keeps the hand in place.',
+  teaches: 'Barres let one set of hand moves play a progression in any key; mixing E and A shapes keeps the hand still.',
   minutes: 5,
   skill: 'teacher:dev:barre-progressions',
   steps: [
@@ -566,7 +563,7 @@ const barreProgressions: TeacherLesson = {
     {
       type: 'card',
       title: 'In C, every chord a barre',
-      body: 'Now in {k:C major} with barres only: {c:C} (x35553), {c:Am} (577555), {c:F} (133211), {c:G} (355433). The A-shape {c:C} and the E shapes sit between frets 1 and 5, so the hand barely travels.',
+      body: 'Now in {k:C major} with barres only: {c:C} (x35553), {c:Am} (577555), {c:F} (133211), {c:G} (355433). Their barres all sit between frets 1 and 5, so the hand barely travels.',
       figure: {
         kind: 'fretboard',
         frets: [0, 6],
@@ -584,12 +581,12 @@ const barreProgressions: TeacherLesson = {
       prompt: 'Match each barre chord in C with its shape and fret.',
       pairs: [
         { left: '{c:C} (x35553)', right: 'A shape at fret 3' },
-        { left: '{c:Am} (577555)', right: 'Em shape at fret 5' },
+        { left: '{c:Am} (577555)', right: '{c:Em} shape at fret 5' },
         { left: '{c:F} (133211)', right: 'E shape at fret 1' },
         { left: '{c:G} (355433)', right: 'E shape at fret 3' },
       ],
       explain: '{c:C} has its root on string 5, so it is an A shape; {c:Am}, {c:F} and {c:G} have theirs on string 6. Mixing the two keeps all four inside frets 1 to 5.',
-      fact: 'barres-in-c',
+      fact: 'barre-1645-in-c',
     },
     playerTask({
       id: 'progression-in-a',
@@ -597,7 +594,7 @@ const barreProgressions: TeacherLesson = {
       song: 'st-barre-progression',
       bars: [1, 8],
       tempo: 78,
-      minutes: 4,
+      minutes: 3,
       body: 'Bars 1 to 8 at about 72 BPM with the folk strum: {c:A}, {c:F#m}, {c:D}, {c:E}. Lift the old chord on the last up-strum of the bar and let those open strings ring while you move.',
     }),
     playerTask({
@@ -606,7 +603,7 @@ const barreProgressions: TeacherLesson = {
       song: 'st-barre-progression',
       bars: [9, 16],
       tempo: 78,
-      minutes: 4,
+      minutes: 3,
       body: 'Bars 9 to 16 at about 72 BPM: the same progression in {k:C major}, every chord a barre. Then the whole study at 100 % (92 BPM).',
       tip: 'A barre buzzes? Roll finger 1 slightly onto its bony side and pull the elbow in, rather than squeezing harder.',
     }),
@@ -641,7 +638,7 @@ const barreProgressions: TeacherLesson = {
       id: 'canon',
       title: 'Canon in D: bass, then chords',
       song: 'canon-in-d',
-      minutes: 4,
+      minutes: 3,
       body: 'At 60 BPM: the ground bass for eight bars, then the chords, one strum per beat. The Player shows the open {c:Bm7} and the small {c:F#m}; tonight play them as barres, {c:Bm} (x24432) and {c:F#m} (244222).',
     }),
     {
@@ -651,11 +648,11 @@ const barreProgressions: TeacherLesson = {
       blanks: ['{c:Bm}', '{c:A}'],
       bank: ['{c:B}', '{c:E}'],
       explain: '{c:D} {c:A} {c:Bm} {c:F#m} {c:G} {c:D} {c:G} {c:A}: the same eight chords over and over, which is what makes a canon possible.',
-      fact: 'canon-chords',
+      fact: 'barre-canon-chords',
     },
     toolTask({
       id: 'changes-a-f-sharp-m',
-      title: 'One minute: A to F#m',
+      title: 'One minute: A to F sharp minor',
       tool: 'chords',
       params: ['trainer', 'a-major', 'f-sharp-minor'],
       minutes: 2,
@@ -674,9 +671,9 @@ const barreProgressions: TeacherLesson = {
     { generate: 'roman-chord', params: { numerals: ['I', 'vi', 'IV', 'V'], direction: 'to-chord', maxAccidentals: 3 } },
   ],
   facts: [
-    { id: 'one-six-four-five-in-a', front: '{r:I}–{r:vi}–{r:IV}–{r:V} in {k:A major}?', back: '{c:A}, {c:F#m} (244222), {c:D}, {c:E}.' },
-    { id: 'barres-in-c', front: '{r:I}–{r:vi}–{r:IV}–{r:V} in {k:C major}, barres only?', back: '{c:C} (x35553), {c:Am} (577555), {c:F} (133211), {c:G} (355433).' },
-    { id: 'canon-chords', front: 'The eight chords of Pachelbel\'s Canon in D?', back: '{c:D} {c:A} {c:Bm} {c:F#m} {c:G} {c:D} {c:G} {c:A}.' },
+    { id: 'barre-1645-in-a', front: '{r:I}–{r:vi}–{r:IV}–{r:V} in {k:A major}?', back: '{c:A}, {c:F#m} (244222), {c:D}, {c:E}.' },
+    { id: 'barre-1645-in-c', front: '{r:I}–{r:vi}–{r:IV}–{r:V} in {k:C major}, barres only?', back: '{c:C} (x35553), {c:Am} (577555), {c:F} (133211), {c:G} (355433).' },
+    { id: 'barre-canon-chords', front: 'The eight chords of Pachelbel\'s Canon in D?', back: '{c:D} {c:A} {c:Bm} {c:F#m} {c:G} {c:D} {c:G} {c:A}.' },
   ],
 };
 
@@ -719,7 +716,7 @@ const barreChangeSpeed: TeacherLesson = {
     {
       type: 'card',
       title: 'Lead with the long move',
-      body: 'Lead with the finger that has farthest to go, and keep the shape of the hand as you move. From {c:Bb} to {c:C} the whole A shape slides two frets; from {c:C} to {c:Dm} the third on string 2 drops a fret as you slide.',
+      body: 'Lead with the finger that has farthest to go, and keep the shape of the hand as you move. From {c:Bb} to {c:C} the whole A shape slides two frets; from {c:C} to {c:Dm} it slides two more and turns into the {c:Am} shape on the way.',
       tip: 'Most players press far harder than they need. Every week, aim for a lighter squeeze.',
     },
     {
@@ -728,14 +725,14 @@ const barreChangeSpeed: TeacherLesson = {
       chord: 'Dm',
       frets: [null, 5, 7, 7, 6, 5],
       accept: 'this-shape',
-      prompt: 'Build {c:Dm} as an Am-shape barre at fret 5.',
+      prompt: 'Build {c:Dm} as an {c:Am}-shape barre at fret 5.',
       explain: 'Barre fret 5 from string 5 ({n:D}), fingers 3 and 4 on strings 4 and 3 at fret 7, finger 2 on string 2 at fret 6 ({n:F}, the minor third).',
     },
     techniqueTask({
       id: 'barre-change-speed',
       title: 'Barre Change Speed',
       exercise: 'tech-changes-barre',
-      minutes: 5,
+      minutes: 4,
       body: '{c:F}, {c:Bb}, {c:C}, {c:Dm}. Start at 50 BPM changing every two beats; when that is clean, every beat. Go up 5 BPM per clean pass. Rest every few minutes, and stop if your thumb or wrist aches.',
     }),
     {
@@ -781,7 +778,7 @@ const barreChangeSpeed: TeacherLesson = {
     },
     toolTask({
       id: 'changes-f-b-flat',
-      title: 'One minute: F to Bb',
+      title: 'One minute: F to B flat',
       tool: 'chords',
       params: ['trainer', 'f-major', 'b-flat-major'],
       minutes: 2,
@@ -809,7 +806,7 @@ const barreChangeSpeed: TeacherLesson = {
 const barreSongs: TeacherLesson = {
   id: 'barre-songs',
   title: 'Songs with barre chords',
-  teaches: 'Use open chords where they ring and barres where they help: in D major the barre is Bm, the vi chord.',
+  teaches: 'Open chords where they ring, barres where they help: in {k:D major} the barre is {c:Bm}, the {r:vi} chord.',
   minutes: 4,
   skill: 'teacher:dev:barre-songs',
   steps: [
@@ -817,7 +814,7 @@ const barreSongs: TeacherLesson = {
       type: 'card',
       title: 'Two songs in D',
       body: 'Waltzing Matilda and Loch Lomond are both in {k:D major}, and both need {c:Bm}, the {r:vi} chord. Loch Lomond uses {c:D}, {c:G}, {c:A}, {c:Bm} and {c:Em}; Waltzing Matilda adds one chord from outside the key.',
-      figure: { kind: 'chord', symbol: 'Bm', frets: 'x24432', caption: '{c:Bm}: the Am-shape barre at fret 2.' },
+      figure: { kind: 'chord', symbol: 'Bm', frets: 'x24432', caption: '{c:Bm}: the {c:Am}-shape barre at fret 2.' },
     },
     {
       type: 'choice',
@@ -829,11 +826,11 @@ const barreSongs: TeacherLesson = {
         { text: '{c:Em}', why: '{c:Em} is {r:ii}.' },
       ],
       explain: '{k:D major} is {n:D} {n:E} {n:F#} {n:G} {n:A} {n:B} {n:C#}: the sixth note is {n:B}, and its chord is {c:Bm}.',
-      fact: 'vi-in-d',
+      fact: 'barre-vi-in-d',
     },
     {
       type: 'card',
-      title: 'E7: a detour outside the key',
+      title: 'A detour outside the key',
       body: 'Waltzing Matilda also has {c:E7}, which is not in {k:D major}: its {n:G#} is not in the key. {c:E7} is the chord that pulls toward {c:A}, a little detour that gives the tune its lift. Hear {c:D}, {c:E7}, {c:A}, {c:D}.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['D', 'E7', 'A', 'D'], tempo: 84, beats: 4 }, label: 'Hear the detour' },
     },
@@ -851,7 +848,7 @@ const barreSongs: TeacherLesson = {
       statement: 'The {n:G#} in {c:E7} leads up a half step to {n:A}, the root of the {r:V} chord in {k:D major}.',
       answer: true,
       explain: '{n:G#} to {n:A} is one fret. That pull is why {c:E7} sounds like it is heading for {c:A}.',
-      fact: 'e7-pulls-to-a',
+      fact: 'barre-e7-pulls-to-a',
     },
     {
       type: 'card',
@@ -869,7 +866,7 @@ const barreSongs: TeacherLesson = {
         { text: '{c:Em}', why: 'The open {c:Em} uses four open strings, all in the key.' },
       ],
       explain: 'Open where the chord rings, barre where there is no good open shape: in these songs that is {c:Bm} (x24432).',
-      fact: 'open-or-barre',
+      fact: 'barre-open-or-barre',
     },
     playerTask({
       id: 'loch-lomond',
@@ -881,7 +878,7 @@ const barreSongs: TeacherLesson = {
       fallback: {
         tool: 'progressions',
         params: ['fifties-i-vi-iv-v', 'd', 'jam'],
-        title: 'Jam on D, Bm, G and A',
+        title: 'Jam on D, B minor, G and A',
         body: 'Loch Lomond is not in the Songs library yet, so jam on its key with the band: {c:D}, {c:Bm}, {c:G}, {c:A}, around and around. Set the band to about 72 BPM, then 84. Open chords, barre {c:Bm}, and land every change on beat 1.',
       },
     }),
@@ -895,7 +892,7 @@ const barreSongs: TeacherLesson = {
       fallback: {
         tool: 'progressions',
         params: ['country-ii7', 'd', 'jam'],
-        title: 'Jam on the E7 detour in D',
+        title: 'Jam on the E seven detour in D',
         body: 'Waltzing Matilda is not in the Songs library yet, so jam on its detour with the band: {c:D}, {c:E7}, {c:A7}, {c:D}, two bars each. Set about 84 BPM, then 96. Listen for {c:E7} pulling toward {c:A7}, and {c:A7} bringing you home.',
       },
     }),
@@ -938,9 +935,9 @@ const barreSongs: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'vi-in-d', front: 'The {r:vi} chord in {k:D major}?', back: '{c:Bm}: as a barre, (x24432).' },
-    { id: 'e7-pulls-to-a', front: 'Why does {c:E7} pull toward {c:A} in {k:D major}?', back: 'Its {n:G#}, not in the key, is a half step below {n:A}. {c:E7} is the chord that points at {c:A}.' },
-    { id: 'open-or-barre', front: 'Open chord or barre?', back: 'Open where the chord rings with the key\'s open strings ({c:D}, {c:G}, {c:A}, {c:Em} in {k:D major}); barre where there is no good open shape ({c:Bm}).' },
+    { id: 'barre-vi-in-d', front: 'The {r:vi} chord in {k:D major}?', back: '{c:Bm}: as a barre, (x24432).' },
+    { id: 'barre-e7-pulls-to-a', front: 'Why does {c:E7} pull toward {c:A} in {k:D major}?', back: 'Its {n:G#}, not in the key, is a half step below {n:A}. {c:E7} is the chord that points at {c:A}.' },
+    { id: 'barre-open-or-barre', front: 'Open chord or barre?', back: 'Open where the chord rings with the key\'s open strings ({c:D}, {c:G}, {c:A}, {c:Em} in {k:D major}); barre where there is no good open shape ({c:Bm}).' },
   ],
 };
 

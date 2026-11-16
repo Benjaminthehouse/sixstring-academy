@@ -106,7 +106,7 @@ const theGChord: TeacherLesson = {
       bars: [9, 16],
       minutes: 4,
       body: 'Bars 9 to 16 of the change study, at 60 BPM: {c:Em} with fingers 1 and 2, then {c:G}, one strum a bar, then two, then four, then a change every two beats. Finger 1 never leaves string 5, fret 2.',
-      tip: 'If finger 1 lifts by habit, press it a tiny bit harder on the change. Lightly, no squeezing.',
+      tip: 'If finger 1 lifts by habit, let it rest on the string through the change. Light pressure is enough: never squeeze.',
     }),
     toolTask({
       id: 'em-g-minute',
@@ -209,7 +209,15 @@ const michaelRow: TeacherLesson = {
       chord: 'A',
       frets: 'x02220',
       explain: '{c:A} rings on strings 5 to 1. Starting on the open string 5 ({n:A}) gives it its full, clear sound, with no low {n:E} under it.',
-      alternative: { generate: 'chord-shape', params: { chords: ['A', 'D', 'G'] } },
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'A',
+        frets: 'x02220',
+        accept: 'this-shape',
+        prompt: 'Build {c:A}, with string 6 left out.',
+        explain: 'Fret 2 on strings 4, 3 and 2, over the open string 5 ({n:A}), with string 1 open and string 6 silent.',
+      },
     },
     playerTask({
       id: 'michael-eighths',
@@ -230,7 +238,7 @@ const michaelRow: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'd-major', 'g-major'],
       minutes: 2,
-      body: 'One minute of {c:D} to {c:G} and back, then pick {c:G} and {c:A} for another minute. Count the changes where every string rang, and note both scores.',
+      body: 'One minute of {c:D} to {c:G} and back. Then tap Change chords, swap {c:D} for {c:A}, and do a minute of {c:G} to {c:A}. Count the changes where every string rang, and note both scores.',
     }),
     {
       type: 'true-false',
@@ -360,6 +368,7 @@ const theCChord: TeacherLesson = {
       params: ['trainer', 'g-major', 'c-major'],
       minutes: 2,
       body: 'One minute of {c:G} to {c:C} and back. This is the hardest change so far, so whatever your score is today, it is simply the number to beat. Note it down.',
+      tip: 'Shake your hand loose between rounds. Sore fingertips are normal; an aching wrist or thumb means stop and rest.',
     }),
     { generate: 'chord-shape', params: { chords: ['C', 'G'] } },
   ],
@@ -464,7 +473,7 @@ const theD7Chord: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'g-major', 'd-7'],
       minutes: 3,
-      body: 'One minute of {c:G} to {c:D7} and back, then pick {c:D} and {c:G} for another minute with the four-finger {c:G}. Count the clean changes and note both scores.',
+      body: 'One minute of {c:G} to {c:D7} and back. Then tap Change chords, swap {c:D7} for {c:D}, and do a minute of {c:D} to {c:G} with the four-finger {c:G}. Count the clean changes and note both scores.',
     }),
     {
       type: 'true-false',
@@ -708,7 +717,7 @@ const amazingGrace: TeacherLesson = {
       title: "Your encore: Brahms' Lullaby",
       song: 'brahms-lullaby',
       minutes: 5,
-      body: 'Same three chords, same 3/4, at 72 BPM. In Options, pick the Teacher part: bass, strum, strum on {c:G}, {c:D7} and {c:C} under the melody. Then pick the Melody and play the tune, from the open string 3 ({n:G}) up to string 1, fret 3 ({n:G}).',
+      body: 'Same three chords, same 3/4, at 72 BPM. In Options, under Parts, tap Teacher: you play bass, strum, strum on {c:G}, {c:D7} and {c:C} under the melody. Then tap Melody and play the tune, from the open string 3 ({n:G}) up to string 1, fret 3 ({n:G}).',
     }),
     {
       type: 'card',

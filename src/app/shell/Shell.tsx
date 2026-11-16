@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { cx, useMediaQuery } from '@/ui';
 import { redirect, useRoute } from '../router';
 import { routeDef } from '../routes';
@@ -28,23 +28,40 @@ function RouteAnnouncer({ title }: { title: string }) {
   return <div ref={ref} className="sr-only" role="status" aria-live="polite" aria-atomic="true" />;
 }
 
+/** A control the learner can reach right now: on screen, enabled, not hidden from them. */
+function usable(el: HTMLElement): boolean {
+  if (el.getClientRects().length === 0) return false;
+  if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return false;
+  return !el.closest('[aria-hidden="true"], [inert]');
+}
+
 /**
- * Focus the screen's main action: the last enabled control of the last ActionBar in `<main>` (the
- * kit puts the primary button last). Returns false when the screen has none.
+ * The screen's main action: the primary (last) control of its ActionBar, or else the first primary
+ * button (or the PlayButton) in `<main>`. The kit marks those with `data-ui-primary`.
  */
-export function focusMainAction(): boolean {
-  const bars = document.querySelectorAll<HTMLElement>('#main [data-ui-action-bar]');
+export function findMainAction(): HTMLElement | null {
+  const bars = Array.from(document.querySelectorAll<HTMLElement>('#main [data-ui-action-bar]')).filter((b) => b.getClientRects().length > 0);
   const bar = bars[bars.length - 1];
-  if (!bar) return false;
-  const controls = Array.from(bar.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')).filter((el) => el.getClientRects().length > 0);
-  const target = controls[controls.length - 1];
-  if (target) {
-    target.focus();
-    return true;
+  if (bar) {
+    const controls = Array.from(bar.querySelectorAll<HTMLElement>('button, a[href], input, select')).filter(usable);
+    if (controls.length > 0) return controls[controls.length - 1];
   }
-  bar.tabIndex = -1;
-  bar.focus();
-  return true;
+  return Array.from(document.querySelectorAll<HTMLElement>('#main [data-ui-primary]')).find(usable) ?? null;
+}
+
+/** Focus the screen's main action ("Jump to …"). Returns false when the screen has none. */
+export function focusMainAction(): boolean {
+  const target = findMainAction();
+  if (!target) return false;
+  target.focus();
+  return document.activeElement === target;
+}
+
+/** The skip link's words for the main action: its own label when it is short. */
+function mainActionLabel(): string {
+  const target = findMainAction();
+  const name = (target?.getAttribute('aria-label') || target?.textContent || '').replace(/\s+/g, ' ').trim();
+  return name && name.length <= 32 ? `Jump to “${name}”` : 'Jump to the main action';
 }
 
 /**
@@ -85,10 +102,12 @@ export function Shell() {
     event.preventDefault();
     document.getElementById('main')?.focus();
   };
-  const skipToActions = (event: MouseEvent<HTMLAnchorElement>) => {
+  const skipToAction = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     focusMainAction();
   };
+  // Named after the action itself ("Jump to “Start session”") when the link gets focus.
+  const [actionLabel, setActionLabel] = useState('Jump to the main action');
 
   return (
     <div className={cx(styles.shell, wide ? styles.wide : styles.phone)} data-layout={wide ? 'wide' : 'phone'} data-immersive={immersion}>
@@ -96,9 +115,9 @@ export function Shell() {
       <a className={styles.skip} href="#main" onClick={skipToContent}>
         Jump to content
       </a>
-      {/* Only there while the screen has an ActionBar (CSS :has): its primary button is the thing the screen is for. */}
-      <a className={cx(styles.skip, styles.skipActions)} href="#main" onClick={skipToActions} data-skip="actions">
-        Jump to actions
+      {/* Only there while the screen has a main action (CSS :has): the primary button the screen is for. */}
+      <a className={cx(styles.skip, styles.skipAction)} href="#main" onClick={skipToAction} onFocus={() => setActionLabel(mainActionLabel())} data-skip="action">
+        {actionLabel}
       </a>
       {wide ? <Sidebar def={def} rail={immersion !== 'none'} /> : immersion !== 'bare' && <TopBar def={def} params={params} title={title} immersion={immersion} />}
       <main id="main" data-route={def.name} tabIndex={-1} className={styles.main}>

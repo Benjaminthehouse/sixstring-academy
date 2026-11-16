@@ -267,7 +267,7 @@ const dmAndE: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'a-minor', 'd-minor'],
       minutes: 3,
-      body: 'One minute of {c:Am} to {c:Dm} and back, then pick {c:Am} and {c:E} for another minute. Count the changes where every string rang, and note both scores.',
+      body: 'One minute of {c:Am} to {c:Dm} and back. Then tap Change chords, swap {c:Dm} for {c:E}, and do a minute of {c:Am} to {c:E}. Count the changes where every string rang, and note both scores.',
     }),
     { generate: 'chord-shape', params: { chords: ['Dm', 'Am', 'E'] } },
   ],
@@ -383,7 +383,7 @@ const goDownMoses: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'a-minor', 'e-7'],
       minutes: 2,
-      body: 'One minute of {c:Am} to {c:E7} and back, then pick {c:Dm} and {c:E7} for another minute. Count the clean changes and note both scores.',
+      body: 'One minute of {c:Am} to {c:E7} and back. Then tap Change chords, swap {c:Am} for {c:Dm}, and do a minute of {c:Dm} to {c:E7}. Count the clean changes and note both scores.',
     }),
     {
       type: 'true-false',
@@ -397,7 +397,7 @@ const goDownMoses: TeacherLesson = {
       song: 'korobeiniki',
       tempo: 72,
       minutes: 4,
-      body: 'Korobeiniki is a Russian folk melody in {k:A minor} on the same three chords. In Options, pick the Strum part, and strum {c:Am}, {c:E7} and {c:Dm} at 72 BPM while the app plays the tune. The melody itself can wait for another day.',
+      body: 'Korobeiniki is a Russian folk melody in {k:A minor} on the same three chords. In Options, under Parts, tap Strum, and strum {c:Am}, {c:E7} and {c:Dm} at 72 BPM while the app plays the tune. The melody itself can wait for another day.',
       tip: 'It starts on {c:E7}, not {c:Am}. Have the shape ready before the count-in ends.',
     }),
     {
@@ -587,7 +587,7 @@ const wadeInTheWater: TeacherLesson = {
       prompt: 'In {k:E minor}, which chord leads back home to {c:Em}?',
       options: [
         { text: '{c:B7}', correct: true },
-        { text: '{c:Am}', why: '{c:Am} is the third chord of the family. The one that leans home to {c:Em} is {c:B7}.' },
+        { text: '{c:Am}', why: '{c:Am} belongs to the family, but it does not pull home. The one that leans home to {c:Em} is {c:B7}.' },
         { text: '{c:E7}', why: '{c:E7} leads home to {c:Am}, in {k:A minor}.' },
       ],
       explain: '{c:B7} leans toward {c:Em}, just as {c:E7} leans toward {c:Am}. With {c:Em} and {c:Am} they make the family of {k:E minor}.',
@@ -622,7 +622,15 @@ const wadeInTheWater: TeacherLesson = {
       chord: 'B7',
       frets: 'x21202',
       explain: 'Finger 2 stays on string 5, fret 2; fingers 1, 3 and 4 land around it. Strum {c:B7} from string 5.',
-      alternative: { generate: 'chord-shape', params: { chords: ['B7', 'Am', 'Em'] } },
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'B7',
+        frets: 'x21202',
+        accept: 'this-shape',
+        prompt: 'Build {c:B7}, finger 2 first, on string 5, fret 2.',
+        explain: 'String 5 fret 2, string 4 fret 1, string 3 fret 2 and string 1 fret 2, with the open string 2.',
+      },
     },
     playerTask({
       id: 'wade',
@@ -650,7 +658,7 @@ const wadeInTheWater: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'e-minor', 'a-minor'],
       minutes: 2,
-      body: 'One minute of {c:Em} to {c:Am} and back, then pick {c:Am} and {c:B7} for another minute. Count the clean changes and note both scores.',
+      body: 'One minute of {c:Em} to {c:Am} and back. Then tap Change chords, swap {c:Em} for {c:B7}, and do a minute of {c:Am} to {c:B7}. Count the clean changes and note both scores.',
     }),
     {
       type: 'choice',
@@ -686,14 +694,16 @@ const majorOrMinor: TeacherLesson = {
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['E', 'Em', 'A', 'Am', 'D', 'Dm'], beats: 2, tempo: 60 }, label: 'Hear three pairs' },
     },
     {
+      // Text options: the engine's chord boxes print their names, so boxes as options would give it away.
       type: 'choice',
-      prompt: 'Which chord box is {c:Am}?',
+      prompt: 'Here is your {c:A}. Which one-fret move turns it into {c:Am}?',
+      figure: { kind: 'chord', symbol: 'A', frets: 'x02220', fingers: 'x01230' },
       options: [
-        { figure: { kind: 'chord', symbol: 'Am', frets: 'x02210', fingers: 'x02310' }, correct: true },
-        { figure: { kind: 'chord', symbol: 'A', frets: 'x02220', fingers: 'x01230' }, why: 'This is {c:A}: string 2 at fret 2 ({n:C#}). One fret lower, at fret 1 ({n:C}), it becomes {c:Am}.' },
-        { figure: { kind: 'chord', symbol: 'Dm', frets: 'xx0231', fingers: 'xx0231' }, why: 'This is {c:Dm}, on strings 4 to 1.' },
+        { text: 'String 2: from fret 2 down to fret 1', correct: true },
+        { text: 'String 3: from fret 2 down to fret 1', why: 'String 3, fret 2 is {n:A}, the note the chord is named after. It stays in {c:Am}.' },
+        { text: 'String 4: from fret 2 down to fret 1', why: 'String 4, fret 2 is {n:E}, and it stays in {c:Am}. The note that changes is on string 2.' },
       ],
-      explain: '{c:Am} has fret 1 on string 2 ({n:C}); {c:A} has fret 2 there ({n:C#}). That one fret is the third.',
+      explain: '{c:A} has fret 2 on string 2 ({n:C#}); {c:Am} has fret 1 there ({n:C}). That one fret is the third.',
     },
     {
       type: 'match-pairs',
@@ -713,7 +723,15 @@ const majorOrMinor: TeacherLesson = {
       chord: 'Dm',
       frets: 'xx0231',
       explain: '{c:Dm}: string 3 fret 2, string 2 fret 3, string 1 fret 1, strummed from the open string 4.',
-      alternative: { generate: 'chord-shape', params: { chords: ['Dm', 'D'] } },
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'Dm',
+        frets: 'xx0231',
+        accept: 'this-shape',
+        prompt: 'Build {c:Dm}.',
+        explain: 'String 3 fret 2, string 2 fret 3, string 1 fret 1, over the open string 4.',
+      },
     },
     {
       type: 'play-chord',
@@ -721,7 +739,15 @@ const majorOrMinor: TeacherLesson = {
       chord: 'E',
       frets: '022100',
       explain: '{c:E}: string 5 fret 2, string 4 fret 2, string 3 fret 1, all six strings ringing.',
-      alternative: { generate: 'chord-shape', params: { chords: ['E', 'Em'] } },
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'E',
+        frets: '022100',
+        accept: 'this-shape',
+        prompt: 'Build {c:E}.',
+        explain: 'String 5 fret 2, string 4 fret 2, string 3 fret 1, with strings 6, 2 and 1 open.',
+      },
     },
     {
       type: 'play-chord',
@@ -729,7 +755,15 @@ const majorOrMinor: TeacherLesson = {
       chord: 'A',
       frets: 'x02220',
       explain: '{c:A}: three fingers in a row at fret 2, strummed from the open string 5.',
-      alternative: { generate: 'chord-shape', params: { chords: ['A', 'Am'] } },
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'A',
+        frets: 'x02220',
+        accept: 'this-shape',
+        prompt: 'Build {c:A}.',
+        explain: 'Fret 2 on strings 4, 3 and 2, over the open string 5, with string 1 open.',
+      },
     },
     toolTask({
       id: 'quality-drill',
@@ -775,7 +809,7 @@ const majorOrMinor: TeacherLesson = {
         tool: 'progressions',
         params: ['minor-i-bvi-biii-bvii', 'e', 'jam'],
         title: 'Jam: E minor turning bright',
-        body: 'We Three Kings is not in the Songs library yet, so jam on {c:Em}, {c:C}, {c:G} and {c:D} with the band. It starts dark on {c:Em} and brightens on {c:G}, the home chord of the relative major. Under Band, pick the waltz feel and count "1 2 3".',
+        body: 'We Three Kings is not in the Songs library yet, so jam on {c:Em}, {c:C}, {c:G} and {c:D} with the band. It starts dark on {c:Em} and brightens on {c:G}, the home chord of the relative major. Tap Band, set Style to Waltz 3/4 and the tempo to about 96 BPM, and count "1 2 3".',
       },
     }),
     {
@@ -805,7 +839,7 @@ const unit: TeacherUnit = {
   lessons: [amAndC, dmAndE, goDownMoses, b7AndAnchors, wadeInTheWater, majorOrMinor],
   checkpoint: { sample: 8, maxMistakes: 2 },
   glossary: [
-    { id: 'chord-third', term: 'third', definition: 'The middle note of a chord like {c:E}: count three letter names from E (E F G) to reach it. It is {n:G#} in {c:E} and {n:G} in {c:Em}.' },
+    { id: 'chord-third', term: 'third', definition: 'The note three letter names up from the one a chord is named after (E F G for {c:E}): {n:G#} in {c:E}, {n:G} in {c:Em}. It makes a chord major or minor.' },
     { id: 'relative-major', term: 'relative major', definition: 'The major key that uses the same notes as a minor key: G major for E minor, C major for A minor.' },
   ],
 };

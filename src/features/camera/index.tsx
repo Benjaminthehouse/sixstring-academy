@@ -17,7 +17,8 @@
  * mirrors state for tests: `data-mode` (guide | starting | live | blocked | drawn | hidden),
  * `data-state` (tracker state), `data-tool`, `data-content`, `data-mirrored`, `data-hands`,
  * `data-listen`, `data-step`. Keyboard: Space play / next note, arrows previous / next, F full
- * screen, M mirror, Esc leaves a tool or full screen. Browser check: `node e2e/camera.cjs`.
+ * screen, M mirror, Esc leaves a tool or full screen. Browser checks: `node e2e/camera.cjs` (the
+ * builder's fixture, every feature) and `node e2e/camera-alt.cjs` (independent scenes, dot accuracy).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { redirect } from '@/app/router';
@@ -29,7 +30,7 @@ import { explainMediaFailure, isArtifact } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs } from '@/core/progress';
 import { cameraDeviceId, cameraMirrored, learnerTuning } from '@/core/settings';
 import { formatNote } from '@/core/theory';
-import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, projectMarker, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
+import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
 import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet, Spinner, Stepper as NumberStepper, Text, cx, toast, useEventListener, useLocalState, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
@@ -43,8 +44,9 @@ import { boardRange, chordNotes, chordTitle, matchHeard, scaleNotes, scaleTitle,
 import { answers, drillNote, nextTarget, type DrillTarget } from './model/drill';
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor, type GuitarKind } from './model/guitar';
 import { frettingHand, handAdvice, type FingerReading } from './model/hands';
+import { NO_VISIT, visitActivities, type VisitTotals } from './model/session';
 import { describeStep, stepHeard, stepNotes } from './model/song';
-import { DrawnPoses, TRUSTED, drawnOffset, nextDrawnTrust, type DrawnTrust } from './model/honesty';
+import { DrawnPoses, TRUSTED, drawnOffset, expectedTrail, nextDrawnTrust, nextMotion, trailTooLong, type DrawnTrust, type NeckMotion } from './model/honesty';
 import { STARTING_STATUS, announcement, describeStatus, sameStatus, type LiveStatus } from './model/status';
 import { ContentControls, PrevNext, TrackingControls, type ContentControlsProps } from './ui/Controls';
 import { CoachBar, HudButton, StatusPill, TapLayer, ToolBanner } from './ui/Hud';
@@ -65,7 +67,8 @@ interface Stickers {
   colors: MarkerColor[];
 }
 
-const WIDE_QUERY = '(min-width: 1080px)';
+// In em, so a learner who sets a larger text size in the browser gets the stacked layout.
+const WIDE_QUERY = '(min-width: 67.5em)';
 const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 540px)';
 
 /** How long the green "heard it" flash lasts (ms). */
@@ -208,42 +211,28 @@ export default function CameraScreen({ params }: RouteProps) {
   const reducedRef = useRef(reducedMotion);
   reducedRef.current = reducedMotion;
 
-  // What was drawn on each recent frame, to check it against the tracker's answer for that frame.
+  // Are the dots where the neck is? Expected from the neck's speed and the answers' delay, and
+  // measured on each frame once its answer arrives (`model/honesty.ts`).
+  const motion = useRef<NeckMotion | null>(null);
+  const trailing = useRef(false);
   const drawnPoses = useRef(new DrawnPoses());
   const drawnTrust = useRef<DrawnTrust>(TRUSTED);
-  const abMotion = useRef<{ prev: { x: number; y: number; t: number; speed: number } | null; fast: boolean }>({ prev: null, fast: false });
   const onUpdate = useCallback((pu: PipelineUpdate) => {
     const u = pu.update;
     const now = performance.now();
     if (u.state === 'lost') lostSince.current = lostSince.current ?? now;
     else lostSince.current = null;
-    // Measured, not guessed: the dots drawn on this very frame against where the tracker found the
-    // neck in it. Off by close to half a string (a slow device, a fast move): outlines until they
-    // are back on target.
+    motion.current = nextMotion(motion.current, u.state === 'locked' || u.state === 'candidate' ? u.pose : null, pu.frameTime);
+    const m = motion.current;
+    trailing.current = trailTooLong(trailing.current, m ? expectedTrail(m.speed, pu.latencyMs, u.guidance.measures.stringSpacingPx) : 0);
     const found = u.measured ?? u.pose;
     if (u.state !== 'locked' || !found) drawnTrust.current = TRUSTED;
     else {
       const drawn = drawnPoses.current.at(pu.frameTime);
       if (drawn) drawnTrust.current = nextDrawnTrust(drawnTrust.current, drawnOffset(drawn, found, notesRef.current));
     }
-    // TEMP A/B (review): the builder's speed x latency guess.
-    let behind = drawnTrust.current.behind;
-    if ((cameraDebug as unknown as { gate?: string }).gate === 'speed') {
-      let trailing = 0;
-      const pose = u.state === 'locked' || u.state === 'candidate' ? u.pose : null;
-      const mm = abMotion.current;
-      if (pose) {
-        const p = projectMarker(pose, 3, 7);
-        const dt = mm.prev ? (pu.frameTime - mm.prev.t) / 1000 : 0;
-        const raw = mm.prev && dt > 0.005 ? Math.hypot(p.x - mm.prev.x, p.y - mm.prev.y) / dt : 0;
-        const speed = mm.prev && dt > 0.005 ? 0.6 * mm.prev.speed + 0.4 * raw : 0;
-        mm.prev = { x: p.x, y: p.y, t: pu.frameTime, speed };
-        const sp = u.guidance.measures.stringSpacingPx;
-        trailing = speed > 0 && pu.latencyMs > 0 && sp > 0 ? (speed * pu.latencyMs) / 1000 / sp : 0;
-      } else mm.prev = null;
-      mm.fast = mm.fast ? trailing > 0.6 * 0.45 : trailing > 0.45;
-      behind = mm.fast;
-    }
+    // Outlines when either says the dots trail the neck.
+    const behind = trailing.current || drawnTrust.current.behind;
     const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, behind);
     const prev = statusRef.current;
     statusRef.current = next;
@@ -363,6 +352,10 @@ export default function CameraScreen({ params }: RouteProps) {
       statusRef.current = STARTING_STATUS;
       setStatus(STARTING_STATUS);
       lostSince.current = null;
+      motion.current = null;
+      trailing.current = false;
+      drawnPoses.current.clear();
+      drawnTrust.current = TRUSTED;
       clearOverlay(canvasRef.current);
     }
   }, [camera.phase]);
@@ -394,6 +387,16 @@ export default function CameraScreen({ params }: RouteProps) {
     void unlockAudio();
     void camera.start();
   }, [camera]);
+
+  // The button that had focus can go with the state it belonged to ("Start camera", "Turn the
+  // camera off", "Use a drawn neck"): focus then stays on the stage instead of falling to the page.
+  const shownMode = useRef(mode);
+  useEffect(() => {
+    if (shownMode.current === mode) return;
+    shownMode.current = mode;
+    const el = document.activeElement;
+    if (!el || el === document.body) stageRef.current?.focus({ preventScroll: true });
+  }, [mode]);
 
   // ── Full screen focus ───────────────────────────────────────────────────────────────────────
   const [focus, setFocus] = useState(false);
@@ -450,6 +453,7 @@ export default function CameraScreen({ params }: RouteProps) {
     recent.current = [...recent.current.filter((r) => at - r.at < 1500), { midi, at }];
     if (content.kind === 'note') {
       if (target && answers(target, midi)) {
+        if (mode === 'drawn') drawnTotals.current.found++;
         flash([{ string: target.string, fret: target.fret }], false);
         setRevealNow(true);
         setFound((n) => n + 1);
@@ -558,8 +562,14 @@ export default function CameraScreen({ params }: RouteProps) {
       return;
     }
     if (t.kind === 'numbers') {
+      const at = fretUnder(p);
+      // Say so now, not after the learner has picked a number for a spot that is not a fret.
+      if (at === null) {
+        setTool({ ...t, tap: null, current: null, error: 'That spot is not on the neck the camera sees. Tap between two fret wires, or use Mark the neck if the outline is off.' });
+        return;
+      }
       if (!frozen.current) freeze(true);
-      setTool({ ...t, tap: p, current: fretUnder(p), error: null });
+      setTool({ ...t, tap: p, current: at, error: null });
       return;
     }
     const color = await pipeline.sampleMarkerColor(toVideo(p));
@@ -659,18 +669,36 @@ export default function CameraScreen({ params }: RouteProps) {
   });
 
   // ── The practice log ────────────────────────────────────────────────────────────────────────
+  // Logged when the visit ends and when the page is hidden for good (the screen may never unmount
+  // on a phone that is locked or a tab that is closed); each time only what is not logged yet.
   const logRef = useRef({ content, title, found });
   logRef.current = { content, title, found };
   const secondsRunning = camera.secondsRunning;
-  useEffect(
-    () => () => {
-      const seconds = Math.round(secondsRunning());
-      if (seconds < 10) return;
-      const l = logRef.current;
-      recordActivity({ kind: 'camera', durationSec: seconds, title: `Live fretboard: ${l.title}`, route: 'camera', params: cameraParams(l.content), count: l.found || undefined });
-    },
-    [secondsRunning],
-  );
+  const drawnTotals = useRef({ seconds: 0, since: null as number | null, found: 0, missed: 0 });
+  const logged = useRef<VisitTotals>(NO_VISIT);
+  const logVisit = useCallback(() => {
+    const d = drawnTotals.current;
+    const now: VisitTotals = {
+      cameraSeconds: secondsRunning(),
+      drawnSeconds: d.seconds + (d.since !== null ? (performance.now() - d.since) / 1000 : 0),
+      drawnFound: d.found,
+      drawnMissed: d.missed,
+    };
+    const l = logRef.current;
+    const out = visitActivities(now, logged.current, { title: l.title, params: cameraParams(l.content), cameraFound: l.found });
+    logged.current = out.logged;
+    for (const a of out.activities) recordActivity(a);
+  }, [secondsRunning]);
+  useEffect(() => () => logVisit(), [logVisit]);
+  useEventListener(window, 'pagehide', logVisit);
+  useEffect(() => {
+    const d = drawnTotals.current;
+    if (mode === 'drawn') d.since = d.since ?? performance.now();
+    else if (d.since !== null) {
+      d.seconds += (performance.now() - d.since) / 1000;
+      d.since = null;
+    }
+  }, [mode]);
 
   // ── The drawn neck (no camera) and the preview ──────────────────────────────────────────────
   const hitSet = useMemo(() => new Set(hits), [hits]);
@@ -686,12 +714,14 @@ export default function CameraScreen({ params }: RouteProps) {
       pluck(cell.midi);
       if (content.kind === 'note' && target) {
         if (cell.string === target.string && cell.fret === target.fret) {
+          drawnTotals.current.found++;
           flash([{ string: target.string, fret: target.fret }], false);
           setRevealNow(true);
           setFound((n) => n + 1);
           playUi('correct');
           setTimeout(nextNote, FLASH_MS + 200);
         } else {
+          drawnTotals.current.missed++;
           playUi('wrong');
           toast.info(`That is ${fmt(cell.note)}`, { description: `Look for ${fmt(target.note)} on string ${target.string}.`, id: 'camera-drill' });
         }
@@ -972,6 +1002,9 @@ export default function CameraScreen({ params }: RouteProps) {
     <div
       ref={stageRef}
       className={cx(stage.stage, focus && stage.focus, mode === 'drawn' && stage.drawn)}
+      role="group"
+      aria-label="Live fretboard"
+      tabIndex={-1}
       data-camera-stage=""
       data-mode={mode}
       data-fitted={live && camera.aspect ? '' : undefined}
@@ -1040,13 +1073,16 @@ export default function CameraScreen({ params }: RouteProps) {
     </p>
   );
 
+  // On a wide screen the shape goes under the picture, where there is room, instead of making the
+  // controls column longer.
+  const previewBeside = wide && !sideways;
   const preview =
     mode !== 'drawn' && !sideways && notes.length > 0 ? (
       <div className={styles.preview}>
         <Text variant="label" tone="muted" as="p">
           {content.kind === 'song' ? 'Now and next' : content.kind === 'note' ? 'Where it is' : content.kind === 'chord' ? 'The chord shape' : 'The shape'}
         </Text>
-        <Fretboard frets={range} markers={markers} muted={content.kind === 'chord' ? derived.muted : undefined} capo={capoInUse || undefined} tuning={content.kind === 'song' && song.plan ? [...song.plan.tuning] : neckTuning} size="sm" onCellClick={onCell} cellLabels="note" />
+        <Fretboard frets={range} markers={markers} muted={content.kind === 'chord' ? derived.muted : undefined} capo={capoInUse || undefined} tuning={content.kind === 'song' && song.plan ? [...song.plan.tuning] : neckTuning} size={previewBeside ? 'md' : 'sm'} onCellClick={onCell} cellLabels="note" />
       </div>
     ) : null;
 
@@ -1057,7 +1093,7 @@ export default function CameraScreen({ params }: RouteProps) {
           Show on the neck
         </h2>
         <ContentControls {...controls} />
-        {preview}
+        {previewBeside ? null : preview}
       </section>
       <section className={styles.block} aria-label={mode === 'drawn' ? 'Settings' : 'Tracking help and settings'}>
         <TrackingControls {...tracking} drawn={mode === 'drawn'} />
@@ -1106,6 +1142,7 @@ export default function CameraScreen({ params }: RouteProps) {
           {stageNode}
           {live && !coachOnStage && bottom ? <div className={stage.under}>{bottom}</div> : null}
           {mode !== 'drawn' && !sideways && privacy}
+          {previewBeside && preview ? <div className={styles.previewWide}>{preview}</div> : null}
           {mode === 'guide' && (
             <ul className={styles.tips} aria-label="Before you start">
               {SETUP_TIPS.map((t) => (

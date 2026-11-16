@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['fingerpicking', 'rhythm', 'chords', 'melody'],
   tags: ['ragtime', 'alternating bass', 'syncopation', 'dominant seventh', 'fingerstyle', 'c major', 'piedmont'],
   about:
-    'The thumb is a steady walk on every beat, root first, and the tune skips around it: many tune notes land on the "and" and keep ringing while the thumb plays the next beat. Learn the thumb alone on each chord until it runs without thought, then add the tune one bar at a time. The common mistake is letting the thumb wait for a syncopated note, which turns the bass lumpy; keep the thumb in time and let the tune fall between its notes, and in the D7 bars keep the tune on strings 1 and 2 because the thumb uses string 3 there.',
+    'The thumb is a steady walk on every beat, root first, and the tune skips around it: many tune notes land on the "and" and keep ringing while the thumb plays the next beat. The thumb also takes strings the chord box marks x: on C finger 3 hops from string 5 to string 6, and A7 and D7 borrow the open sixth and fifth strings. Learn the thumb alone on each chord until it runs without thought, then add the tune one bar at a time. The common mistake is letting the thumb wait for a syncopated note, which turns the bass lumpy; keep the thumb in time and let the tune fall between its notes, and in the D7 bars keep the tune on strings 1 and 2 because the thumb uses string 3 there.',
   plan: 'st-ragtime-blues-c',
   added: '2026-11-16',
 });

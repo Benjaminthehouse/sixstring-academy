@@ -28,13 +28,18 @@ export type AiTier = 'quick' | 'default' | 'complex';
 
 /** What `aiStatus()` reports. */
 export interface AiStatus {
-  /** True when `ask` can work right now. */
+  /** True when this host can answer right now. `ask` also needs `enabled`: check both. */
   available: boolean;
   provider: AiProvider;
   /** True when pictures can be sent along. */
   images: boolean;
   /** Most pictures one question may carry (0 when `images` is false). */
   maxImages: number;
+  /**
+   * The learner's own switch (Settings > AI helper, `prefs.ai.enabled`). While it is false, `ask` and
+   * `askJson` refuse with `AiError('disabled')` and send nothing, whatever the host offers.
+   */
+  enabled: boolean;
   /** Why it is not available: no key entered, not offered in this view, or declined by the viewer. */
   reason?: 'no-key' | 'not-offered' | 'declined';
 }
@@ -109,6 +114,7 @@ export interface AskJsonResult<T> {
 
 /** Failure classes. Branch on these, never on message text. */
 export type AiErrorKind =
+  | 'disabled' // the learner has the AI helper switched off in Settings: nothing was sent
   | 'not-available' // no provider here (no key / not offered), or this feature (pictures, this model) is not
   | 'not-granted' // the viewer declined, or the key is not allowed to do this
   | 'rate-limited' // too many requests or a usage limit; let the learner retry later
@@ -124,6 +130,7 @@ export type AiErrorKind =
   | 'invalid'; // the request was malformed: a bug on our side
 
 const MESSAGES: Record<AiErrorKind, string> = {
+  disabled: 'The AI helper is switched off, so nothing was sent. You can turn it on in Settings, under AI helper.',
   'not-available': 'Claude is not available here, so this feature is switched off.',
   'not-granted': 'This app does not have permission to use Claude.',
   'rate-limited': 'Claude is getting a lot of requests right now. Wait a minute, then try again.',
@@ -140,6 +147,7 @@ const MESSAGES: Record<AiErrorKind, string> = {
 };
 
 const RETRYABLE: Record<AiErrorKind, boolean> = {
+  disabled: false,
   'not-available': false,
   'not-granted': false,
   'rate-limited': true,
@@ -758,6 +766,8 @@ export interface AiDeps {
   removeKey: () => void;
   /** Wait, or reject early when the signal aborts. */
   sleep: (ms: number, signal?: AbortSignal) => Promise<void>;
+  /** The learner's opt-in (`prefs.ai.enabled`). False, or a failure to read it, means nothing may be sent. */
+  enabled: () => boolean | Promise<boolean>;
 }
 
 /** Result of `setApiKey`. */
@@ -815,6 +825,19 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * The learner's opt-in, read from Settings (`aiAllowed()` in `@/core/settings`). Loaded when needed
+ * because the progress store behind Settings depends on this module. Fails closed.
+ */
+async function learnerAllowsAi(): Promise<boolean> {
+  try {
+    const settings = await import('@/core/settings');
+    return settings.aiAllowed() === true;
+  } catch {
+    return false;
+  }
+}
+
 function cleanKey(raw: string): string {
   return raw.trim().replace(/^["']+|["']+$/g, '').trim();
 }
@@ -835,6 +858,7 @@ export function createAi(overrides: Partial<AiDeps> = {}): Ai {
     },
     removeKey: () => remove(KEY_STORAGE),
     sleep: defaultSleep,
+    enabled: learnerAllowsAi,
     ...overrides,
   };
 
@@ -867,7 +891,17 @@ export function createAi(overrides: Partial<AiDeps> = {}): Ai {
   /** Remove the key from anything that may be shown or stored. */
   const scrub = (text: string | undefined, key: string): string | undefined => (text && key ? text.split(key).join('[key]') : text);
 
-  async function status(): Promise<AiStatus> {
+  /** The learner's switch; anything but a clear yes (including an error reading it) is a no. */
+  async function enabledByLearner(): Promise<boolean> {
+    try {
+      return (await deps.enabled()) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** What the host offers, before the learner's switch is taken into account. */
+  async function offered(): Promise<Omit<AiStatus, 'enabled'>> {
     if (deps.host() === 'artifact') {
       // The viewer blocks every outside request, so a pasted key could not be used here anyway.
       const sample = await getSample();
@@ -880,6 +914,13 @@ export function createAi(overrides: Partial<AiDeps> = {}): Ai {
     if (!storedKey()) return { available: false, provider: 'none', images: false, maxImages: 0, reason: 'no-key' };
     // 20 keeps a request clear of the API's stricter per-picture size rule for many-picture requests.
     return { available: true, provider: 'anthropic', images: true, maxImages: 20 };
+  }
+
+  async function status(): Promise<AiStatus> {
+    // What the host offers and the learner's switch are told apart, so a screen can say which one
+    // stands in the way ("add a key" against "turn it on in Settings").
+    const [host, enabled] = await Promise.all([offered(), enabledByLearner()]);
+    return { ...host, enabled };
   }
 
   // -- artifact ---------------------------------------------------------------------------------
@@ -1092,7 +1133,11 @@ export function createAi(overrides: Partial<AiDeps> = {}): Ai {
     if (options.signal?.aborted) throw abortedError();
     if (typeof options.prompt !== 'string' || !options.prompt.trim()) throw new AiError('invalid', { detail: 'empty prompt' });
     const tier: AiTier = options.tier === 'quick' || options.tier === 'complex' ? options.tier : 'default';
-    const current = await status();
+    // The opt-in is enforced here, so no caller can forget it: switched off, nothing is sent and no
+    // host permission is asked for.
+    if (!(await enabledByLearner())) throw new AiError('disabled', { code: 'disabled' });
+    if (options.signal?.aborted) throw abortedError();
+    const current = await offered();
     if (!current.available) {
       if (current.reason === 'no-key') {
         throw new AiError('not-available', {

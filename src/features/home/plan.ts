@@ -1,11 +1,15 @@
 /**
  * Today's plan: three to five suggested steps for one balanced practice session, chosen from the
  * learner's level, sized to their daily goal, and varied a little from day to day so it never
- * reads like a chore list. Pure: the screen passes in what it read from the progress store.
+ * reads like a chore list. The lesson path (tune, theory, the teacher, due reviews) is fixed; the
+ * drill and the music come from the practice planner (`suggestPracticePlan`), which knows what is
+ * getting rusty, what was neglected this week and the learner's focus goals. Pure: the screen
+ * passes in what it read from the progress store.
  */
-import { dayNumber, type ActivityKind, type DayKey, type ExperienceLevel, type RecentItem, type TeacherId } from '@/core/progress';
+import { dayNumber, xpFor, type ActivityKind, type DayKey, type ExperienceLevel, type RecentItem, type TeacherId } from '@/core/progress';
 import { ROUTE_BY_NAME } from '@/app/routes';
 import { teacherById } from '@/app/teachers';
+import type { PlanBlock } from '@/features/practice/model/planner';
 
 /** One suggested step. */
 export interface PlanStep {
@@ -39,6 +43,8 @@ export interface PlanContext {
   dueReviews: number;
   /** Newest first. */
   recents: readonly RecentItem[];
+  /** The practice planner's blocks for the day's minutes (`suggestPracticePlan`): they fill the drill and music steps. */
+  practice?: readonly PlanBlock[];
 }
 
 type StepId = 'tune' | 'theory' | 'teacher' | 'review' | 'chords' | 'rhythm' | 'fretboard' | 'arcade' | 'scales' | 'ear' | 'technique' | 'progressions' | 'song';
@@ -95,6 +101,51 @@ export function slotsForLength(length: 3 | 4 | 5, day: number): number[] {
   return [0, 1, 2, 3, 4];
 }
 
+/** What counts as having done a step on each screen the practice planner sends the learner to. */
+const KINDS_BY_ROUTE: Readonly<Record<string, readonly ActivityKind[]>> = {
+  tuner: ['tuner'],
+  learn: ['theory-lesson', 'review'],
+  teachers: ['teacher-lesson'],
+  chords: ['chord-practice', 'chord-change'],
+  rhythm: ['rhythm'],
+  fretboard: ['fretboard'],
+  arcade: ['scale-game'],
+  scales: ['scale-practice', 'scale-game'],
+  ear: ['ear'],
+  technique: ['technique'],
+  progressions: ['progression'],
+  songs: ['song'],
+  play: ['song'],
+  metronome: ['metronome'],
+};
+
+/** Areas of the practice planner that fill the drill slot, and the one that fills the music slot. */
+const DRILL_AREAS: ReadonlySet<PlanBlock['area']> = new Set(['technique', 'scales', 'chords', 'rhythm', 'ear', 'theory']);
+const MUSIC_AREA: PlanBlock['area'] = 'repertoire';
+/** Screens the fixed part of the plan already sends the learner to: a drill there would repeat a step. */
+const LESSON_ROUTES: ReadonlySet<string> = new Set(['tuner', 'learn', 'teachers']);
+
+/** A Today step made from a practice-planner block; null when the block has no screen this plan can count. */
+export function stepFromBlock(block: PlanBlock, doneKinds: ReadonlySet<ActivityKind>): PlanStep | null {
+  const target = block.target;
+  if (!target || !ROUTE_BY_NAME[target.route]) return null;
+  const kinds = KINDS_BY_ROUTE[target.route];
+  if (!kinds) return null;
+  const firstLine = block.goal.split(/(?<=\.)\s/)[0] ?? block.goal;
+  return {
+    id: `practice-${block.id}`,
+    route: target.route,
+    params: [...target.params],
+    title: block.title,
+    detail: block.reason ?? firstLine,
+    icon: ROUTE_BY_NAME[target.route]?.icon ?? 'Circle',
+    minutes: block.minutes,
+    xp: xpFor(kinds[0], { durationSec: block.minutes * 60, accuracy: 0.8 }),
+    kinds,
+    done: kinds.some((kind) => doneKinds.has(kind)),
+  };
+}
+
 function unfinished(recents: readonly RecentItem[], route: string): RecentItem | undefined {
   return recents.find((r) => r.route === route && r.fraction < 1 && r.params.length > 0);
 }
@@ -103,20 +154,49 @@ function unfinished(recents: readonly RecentItem[], route: string): RecentItem |
 export function buildPlan(ctx: PlanContext): PlanStep[] {
   const day = dayNumber(ctx.today);
   const slots = PLAN_SLOTS[ctx.experience];
-  const ids: StepId[] = slotsForLength(planLength(ctx.dailyGoalXp), day).map((slot) => {
+  const slotIds = slotsForLength(planLength(ctx.dailyGoalXp), day);
+  const ids: StepId[] = slotIds.map((slot) => {
     const options = slots[slot];
     return options[day % options.length];
   });
+  /** Which of the five slots each step fills (-1: the review step). */
+  const slotOf: number[] = [...slotIds];
 
   // Cards that are due come right after tuning; a full plan gives up its drill to make room.
   const reviewing = ctx.dueReviews > 0 || ctx.doneKinds.has('review');
   if (reviewing) {
     ids.splice(1, 0, 'review');
-    if (ids.length > 5) ids.splice(4, 1);
+    slotOf.splice(1, 0, -1);
+    if (ids.length > 5) {
+      ids.splice(4, 1);
+      slotOf.splice(4, 1);
+    }
   }
 
+  // The drill and the music the practice planner picked for today, when it picked them.
+  const used = new Set<string>();
+  const fromPlanner = (want: (b: PlanBlock) => boolean): PlanStep | null => {
+    for (const block of ctx.practice ?? []) {
+      if (used.has(block.id) || !want(block)) continue;
+      const step = stepFromBlock(block, ctx.doneKinds);
+      if (step) {
+        used.add(block.id);
+        return step;
+      }
+    }
+    return null;
+  };
+
   const teacher = teacherById(ctx.teacher);
-  return ids.map((id) => {
+  return ids.map((id, index) => {
+    const slot = slotOf[index];
+    const planned =
+      slot === 3
+        ? fromPlanner((b) => DRILL_AREAS.has(b.area) && !LESSON_ROUTES.has(b.target?.route ?? ''))
+        : slot === 4
+          ? fromPlanner((b) => b.area === MUSIC_AREA && !LESSON_ROUTES.has(b.target?.route ?? ''))
+          : null;
+    if (planned) return planned;
     const template = STEPS[id];
     let { title, detail } = template;
     let params: string[] = [];

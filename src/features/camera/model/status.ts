@@ -56,7 +56,10 @@ export const STARTING_STATUS: LiveStatus = {
   numbered: false,
 };
 
-const WORDS: Record<TrackerState, string> = { searching: 'Looking for the neck', candidate: 'Checking the frets', locked: 'Locked', lost: 'Lost the neck' };
+/** What to say when automatic tracking keeps failing (the button beside it is "Mark the neck"). */
+export const MARK_THE_NECK = 'The camera can’t find the neck by itself here. Tap Mark the neck and show it the nut and the 12th fret.';
+
+const WORDS: Record<TrackerState, string> ={ searching: 'Looking for the neck', candidate: 'Checking the frets', locked: 'Locked', lost: 'Lost the neck' };
 
 /**
  * The status for one tracker answer. `lostForMs` = how long the board has been lost (0 otherwise);
@@ -75,6 +78,8 @@ export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | '
   else if (u.state === 'lost' && lostForMs < GHOST_MS) notes = 'ghost';
   let message = g.message;
   if (u.state === 'locked' && g.code === 'ok') message = '';
+  // The tracker's own words name a "Calibrate" button; this screen's button is "Mark the neck".
+  if (g.code === 'calibrate') message = MARK_THE_NECK;
   if (u.state === 'lost') message = 'Lost the neck for a moment. Hold the guitar still in the picture.';
   else if (u.state === 'locked' && behind && !message) message = 'Moving: the dots catch up when the neck holds still.';
   const tone: LiveStatus['tone'] = u.state === 'locked' ? 'ok' : u.state === 'searching' ? 'info' : 'warn';

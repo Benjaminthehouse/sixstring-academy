@@ -75,6 +75,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
       aria-pressed={pressed}
+      data-ui-primary={variant === 'primary' ? '' : undefined}
       onClick={loading ? (e) => e.preventDefault() : onClick}
       {...rest}
     >
@@ -110,7 +111,7 @@ export const LinkButton = forwardRef<HTMLAnchorElement, LinkButtonProps>(functio
     );
   }
   return (
-    <a ref={ref} href={url} target={target ?? (external ? '_blank' : undefined)} rel={rel ?? (external ? 'noopener noreferrer' : undefined)} className={lookClass(look, className)} {...rest}>
+    <a ref={ref} href={url} target={target ?? (external ? '_blank' : undefined)} rel={rel ?? (external ? 'noopener noreferrer' : undefined)} className={lookClass(look, className)} data-ui-primary={variant === 'primary' ? '' : undefined} {...rest}>
       {content(look, children)}
     </a>
   );
@@ -221,6 +222,7 @@ export const PlayButton = forwardRef<HTMLButtonElement, PlayButtonProps>(functio
       aria-busy={loading || undefined}
       disabled={disabled}
       className={cx(styles.play, styles[`play-${size}`], tone === 'neutral' && styles.playNeutral, tone === 'danger' && styles.playDanger, disabled && styles.disabled, className)}
+      data-ui-primary=""
       onClick={loading ? (e) => e.preventDefault() : onClick}
       {...rest}
     >

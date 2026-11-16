@@ -108,7 +108,9 @@ async function clickAndReload(ctx, locator) {
   try {
     await Promise.all([ctx.page.waitForEvent('load', { timeout: 30000 }), locator.click()]);
   } catch (e) {
-    throw new Error(`the page did not reload: ${e.message.split('\n')[0]} ${ctx.errors.join(' / ')}`);
+    if (shots) await ctx.page.screenshot({ path: path.join(OUT, 'failed-reload.png') }).catch(() => undefined);
+    const notice = await ctx.page.evaluate(() => localStorage.getItem('ssa:data.notice')).catch(() => null);
+    throw new Error(`the page did not reload: ${e.message.split('\n')[0]} (message left for after the reload: ${notice}) ${ctx.errors.join(' / ')}`);
   }
   await ctx.ready();
 }
@@ -266,7 +268,9 @@ async function desktop(browser, url, seeds) {
   const mergeNote = await dialog.locator('[data-import-note]').innerText();
   check('merge', 'Merge is offered first and its preview says "3 entries now, 4 after"', mergeRows['data-journal']?.join('|') === '3 entries|4 entries' && /Lists are joined/.test(mergeNote), JSON.stringify(mergeRows['data-journal']));
   await clickAndReload(ctx, dialog.locator('[data-import-confirm]'));
+  const mergeToast = await toastText(page);
   const merged = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:practice.data') || 'null')?.journal?.map((e) => e.id).sort());
+  check('merge', 'a toast confirms the merge, with Undo', /Backup merged/.test(mergeToast) && /Undo/.test(mergeToast), mergeToast);
   check('merge', 'after merging the journal holds both sides: 4 entries', JSON.stringify(merged) === JSON.stringify(['e2e-entry-0', 'e2e-entry-1', 'e2e-entry-2', 'e2e-entry-new']), JSON.stringify(merged));
   await clickAndReload(ctx, page.locator('[data-toast]').getByRole('button', { name: 'Undo' }));
   const undone = await look(page);

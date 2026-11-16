@@ -58,8 +58,11 @@
  */
 .segmentedFull .segment {
   flex: 1 1 0;
-  min-width: fit-content;
   padding: 0 var(--sp-2);
+}
+/* Above the size rules' minimum widths (sm, lg), whatever the size. */
+.segmented.segmentedFull .segment {
+  min-width: fit-content;
 }
 .segmentLabel {
   min-width: 0;

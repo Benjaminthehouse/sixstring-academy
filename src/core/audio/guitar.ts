@@ -7,6 +7,7 @@
  * on a string takes over from the one ringing there with a few milliseconds of fade, exactly what a
  * fretting finger does.
  */
+import { soundDefaults } from './defaults';
 import { clamp, finiteOr } from './dsp';
 import { AudioEngine, audioSupported, chainFilters, getEngine, hasEngine, onAudioClosed, onAudioUnlocked, pannedInput, type BusName } from './engine';
 import { renderRawPluck, strumPlan, type PluckOptions, type StrumOptions } from './pluck';
@@ -420,10 +421,31 @@ function validString(string: number | undefined, strings: number): number | unde
 
 let sharedGuitar: GuitarSynth | null = null;
 let sharedBass: GuitarSynth | null = null;
+/** The default tone last given to the shared guitar (null: none yet), to tell it apart from a tone a screen set. */
+let appliedTone: ToneName | null = null;
 
-/** The shared guitar synth on the live engine. */
+/**
+ * Keep the shared guitar on the learner's default tone (`soundDefaults()`, from Settings). A tone a
+ * screen gave it itself (`getGuitar().tone = 'nylon'`) is left alone, as is a `tone` on the note.
+ */
+function followDefaultTone(guitar: GuitarSynth): void {
+  const want = soundDefaults().guitarTone;
+  if (guitar.tone === want) {
+    appliedTone = want;
+    return;
+  }
+  if (appliedTone !== null && guitar.tone !== appliedTone) return;
+  guitar.tone = want;
+  const base = resolveTone(want, undefined, guitar.baseTone).instrument;
+  if (INSTRUMENTS[base]) guitar.baseTone = base;
+  appliedTone = want;
+}
+
+/** The shared guitar synth on the live engine. Its tone follows the learner's Settings unless a screen set one. */
 export function getGuitar(): GuitarSynth {
-  return (sharedGuitar ??= new GuitarSynth());
+  const guitar = (sharedGuitar ??= new GuitarSynth());
+  followDefaultTone(guitar);
+  return guitar;
 }
 
 /** The shared bass synth on the live engine (monophonic, on the `bass` bus). */
@@ -454,6 +476,7 @@ export function playBass(midi: number, when?: number, opts?: PlayOptions): Voice
 onAudioClosed(() => {
   sharedGuitar = null;
   sharedBass = null;
+  appliedTone = null;
 });
 
 /**

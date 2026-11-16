@@ -17,6 +17,8 @@ export interface SessionProps {
   preferFlats: boolean;
   /** The learner's microphone sensitivity as onset options (`micOptions().onset`); read when the session is made. */
   onset?: SessionOptions['onset'];
+  /** The learner's microphone sensitivity as the note gate (`micOptions().tracker`); read when the session is made. */
+  tracker?: SessionOptions['tracker'];
 }
 
 /** The screen's session and its current snapshot. The microphone is released when the screen unmounts. */

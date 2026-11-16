@@ -34,7 +34,8 @@
 }
 
 .layout[data-layout='wide'] {
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+  /* The controls never take more than two fifths: with large text the picture keeps its room. */
+  grid-template-columns: minmax(0, 1fr) minmax(min(20rem, 40%), min(24rem, 40%));
   gap: var(--sp-6);
 }
 .layout[data-layout='wide'] .panel {
@@ -47,7 +48,7 @@
 }
 
 .layout[data-layout='sideways'] {
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+  grid-template-columns: minmax(0, 1fr) minmax(min(12rem, 36%), min(16rem, 36%));
   gap: var(--sp-3);
 }
 .layout[data-layout='sideways'] .panel {
@@ -88,6 +89,18 @@
   min-width: 0;
 }
 
+/* The shape under the picture on a wide screen. */
+.previewWide {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.previewWide .preview {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .privacy {
   display: flex;
   align-items: flex-start;
@@ -105,7 +118,7 @@
 
 .tips {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   gap: var(--sp-3) var(--sp-5);
   margin: var(--sp-2) 0 0;
   padding: 0;

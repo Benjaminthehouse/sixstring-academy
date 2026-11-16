@@ -152,6 +152,8 @@ function rig(options: { host?: Host; sample?: unknown; key?: string | null; repl
     sleep: async (ms) => {
       sleeps.push(ms);
     },
+    // The learner switched the helper on; the opt-in itself is covered in its own block below.
+    enabled: () => true,
     ...options.deps,
   });
   return { ai, fetchCalls: calls, sleeps, store };
@@ -355,7 +357,7 @@ describe('error mapping', () => {
   });
 
   it('has a sentence for every kind and marks which ones can be tried again', () => {
-    const kinds: AiErrorKind[] = ['not-available', 'not-granted', 'rate-limited', 'network', 'bad-key', 'refused', 'aborted', 'too-large', 'bad-image', 'bad-response', 'server', 'billing', 'invalid'];
+    const kinds: AiErrorKind[] = ['disabled', 'not-available', 'not-granted', 'rate-limited', 'network', 'bad-key', 'refused', 'aborted', 'too-large', 'bad-image', 'bad-response', 'server', 'billing', 'invalid'];
     for (const kind of kinds) {
       expect(aiErrorMessage(kind).length).toBeGreaterThan(5);
       expect(new AiError(kind).message).toBe(aiErrorMessage(kind));
@@ -364,6 +366,85 @@ describe('error mapping', () => {
     expect(new AiError('rate-limited').retryable).toBe(true);
     expect(new AiError('bad-key').retryable).toBe(false);
     expect(new AiError('refused').retryable).toBe(false);
+    expect(new AiError('disabled').retryable).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The learner's opt-in (Settings > AI helper)
+// ---------------------------------------------------------------------------------------------
+
+describe("the learner's opt-in", () => {
+  const off = { enabled: () => false };
+
+  it('switched off: ask and askJson refuse with "disabled" and send nothing, on either host', async () => {
+    const standalone = rig({ key: KEY, replies: [answer('should never be asked')], deps: off });
+    const err = await failure(standalone.ai.ask({ prompt: 'Hello?' }));
+    expect(err).toMatchObject({ kind: 'disabled', code: 'disabled', retryable: false });
+    expect(err.message).toMatch(/switched off/);
+    expect(err.message).toMatch(/Settings/);
+    expect((await failure(standalone.ai.askJson({ prompt: 'JSON please', validate: (v) => v }))).kind).toBe('disabled');
+    expect(standalone.fetchCalls).toHaveLength(0);
+
+    const sample = fakeSample();
+    const artifact = rig({ host: 'artifact', sample: sample.api, deps: off });
+    expect((await failure(artifact.ai.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+    // Not even the viewer's consent prompt: the capability is never called.
+    expect(sample.calls).toHaveLength(0);
+  });
+
+  it('aiStatus says it is switched off, apart from what the host offers', async () => {
+    expect(await rig({ key: KEY, deps: off }).ai.status()).toEqual({ available: true, provider: 'anthropic', images: true, maxImages: 20, enabled: false });
+    expect(await rig({ host: 'artifact', sample: fakeSample().api, deps: off }).ai.status()).toEqual({ available: true, provider: 'artifact', images: true, maxImages: 4, enabled: false });
+    expect(await rig({ deps: off }).ai.status()).toEqual({ available: false, provider: 'none', images: false, maxImages: 0, enabled: false, reason: 'no-key' });
+    expect(await rig({ key: KEY }).ai.status()).toMatchObject({ available: true, enabled: true });
+  });
+
+  it('reads the switch at every call: turned on, the same service answers', async () => {
+    let on = false;
+    const r = rig({ key: KEY, replies: [answer('Hi there.')], deps: { enabled: () => on } });
+    expect((await failure(r.ai.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+    on = true;
+    expect((await r.ai.ask({ prompt: 'Hello?' })).text).toBe('Hi there.');
+    expect(r.fetchCalls).toHaveLength(1);
+  });
+
+  it('fails closed: a switch that cannot be read, or reads anything but true, is off', async () => {
+    const broken = rig({ key: KEY, deps: { enabled: () => Promise.reject(new Error('store gone')) } });
+    expect((await failure(broken.ai.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+    const throws = rig({ key: KEY, deps: { enabled: () => { throw new Error('no'); } } });
+    expect((await throws.ai.status()).enabled).toBe(false);
+    expect((await failure(throws.ai.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+    const odd = rig({ key: KEY, deps: { enabled: () => 'yes' as unknown as boolean } });
+    expect((await failure(odd.ai.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+    expect(broken.fetchCalls.length + throws.fetchCalls.length + odd.fetchCalls.length).toBe(0);
+  });
+
+  it("by default follows prefs.ai.enabled from the learner's Settings", async () => {
+    const { createActions, createProgressStore, memoryStorage, setProgressStore } = await import('@/core/progress');
+    const store = createProgressStore({ storage: memoryStorage() });
+    setProgressStore(store);
+    try {
+      let sent = 0;
+      // No `enabled` here: the service's own default reads the learner's Settings.
+      const real = createAi({
+        host: () => 'standalone',
+        readKey: () => KEY,
+        fetch: async () => {
+          sent++;
+          return answer('Hello from Claude.');
+        },
+      });
+      expect(await real.status()).toMatchObject({ available: true, enabled: false });
+      expect((await failure(real.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
+      expect(sent).toBe(0);
+      createActions(() => store).setPrefs({ ai: { enabled: true } });
+      expect(await real.status()).toMatchObject({ available: true, enabled: true, provider: 'anthropic' });
+      expect((await real.ask({ prompt: 'Hello?' })).text).toBe('Hello from Claude.');
+      expect(sent).toBe(1);
+    } finally {
+      setProgressStore(null);
+    }
   });
 });
 
@@ -374,7 +455,7 @@ describe('error mapping', () => {
 describe('provider selection', () => {
   it('standalone without a key: nothing is available and no request is ever made', async () => {
     const r = rig();
-    expect(await r.ai.status()).toEqual({ available: false, provider: 'none', images: false, maxImages: 0, reason: 'no-key' });
+    expect(await r.ai.status()).toEqual({ available: false, provider: 'none', images: false, maxImages: 0, enabled: true, reason: 'no-key' });
     const err = await failure(r.ai.ask({ prompt: 'Hello?' }));
     expect(err).toMatchObject({ kind: 'not-available', code: 'no-key' });
     expect(err.message).toMatch(/API key/);
@@ -383,15 +464,15 @@ describe('provider selection', () => {
 
   it('standalone with a key: the Anthropic API, pictures included', async () => {
     const r = rig({ key: KEY });
-    expect(await r.ai.status()).toEqual({ available: true, provider: 'anthropic', images: true, maxImages: 20 });
+    expect(await r.ai.status()).toEqual({ available: true, provider: 'anthropic', images: true, maxImages: 20, enabled: true });
   });
 
   it('inside an artifact: the viewer capability, with pictures only when its limits offer them', async () => {
     const withImages = rig({ host: 'artifact', sample: fakeSample().api });
-    expect(await withImages.ai.status()).toEqual({ available: true, provider: 'artifact', images: true, maxImages: 4 });
+    expect(await withImages.ai.status()).toEqual({ available: true, provider: 'artifact', images: true, maxImages: 4, enabled: true });
 
     const textOnly = rig({ host: 'artifact', sample: fakeSample({ limits: async () => ({ maxPromptBytes: 262144 }) }).api });
-    expect(await textOnly.ai.status()).toEqual({ available: true, provider: 'artifact', images: false, maxImages: 0 });
+    expect(await textOnly.ai.status()).toEqual({ available: true, provider: 'artifact', images: false, maxImages: 0, enabled: true });
 
     const brokenLimits = rig({ host: 'artifact', sample: fakeSample({ limits: async () => Promise.reject({ code: 'upstream_error' }) }).api });
     expect(await brokenLimits.ai.status()).toMatchObject({ available: true, provider: 'artifact', images: false });
@@ -399,7 +480,7 @@ describe('provider selection', () => {
 
   it('inside an artifact without the capability: unavailable, and a stored key is NOT used (the viewer blocks the network)', async () => {
     const r = rig({ host: 'artifact', sample: null, key: KEY, replies: [answer('should never be asked')] });
-    expect(await r.ai.status()).toEqual({ available: false, provider: 'none', images: false, maxImages: 0, reason: 'not-offered' });
+    expect(await r.ai.status()).toEqual({ available: false, provider: 'none', images: false, maxImages: 0, enabled: true, reason: 'not-offered' });
     expect((await failure(r.ai.ask({ prompt: 'Hello?' }))).kind).toBe('not-available');
     expect(r.fetchCalls).toHaveLength(0);
   });
@@ -1019,7 +1100,9 @@ describe('the shared instance', () => {
     expect(platform.setApiKey(KEY)).toEqual({ ok: true });
     expect(storage.readRaw('ai.anthropic-key')).toBe(KEY);
     expect(platform.ai.hasApiKey()).toBe(true);
-    expect(await platform.ai.status()).toMatchObject({ available: true, provider: 'anthropic' });
+    // A key alone is not enough: the shared instance follows the learner's switch, off by default.
+    expect(await platform.ai.status()).toMatchObject({ available: true, provider: 'anthropic', enabled: false });
+    expect((await failure(platform.ask({ prompt: 'Hello?' }))).kind).toBe('disabled');
     platform.clearApiKey();
     expect(storage.readRaw('ai.anthropic-key')).toBeNull();
     vi.restoreAllMocks();

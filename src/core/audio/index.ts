@@ -15,6 +15,10 @@ export type { AudioState, BusName, EngineOptions, OutputLevel } from './engine';
 export { offlineSupported, renderOffline } from './offline';
 export type { OfflineRender, OfflineRenderOptions } from './offline';
 
+// The learner's default guitar tone and click (Settings), used when a screen does not choose
+export { BUILT_IN_SOUND_DEFAULTS, connectSoundDefaults, setSoundDefaultsSource, soundDefaults } from './defaults';
+export type { SoundDefaults, SoundDefaultsSource } from './defaults';
+
 // Guitar and bass synth
 export { GuitarSynth, getBass, getGuitar, playBass, pluck, stopAll, strum } from './guitar';
 export type { GuitarSynthOptions, PlayOptions, PlayStrumOptions, VoiceHandle } from './guitar';

@@ -7,7 +7,10 @@
  * `npx vitest run src/content/teachers/mia/mia-g-and-c.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
+import { getProgression } from '@/content/progressions';
 import { loadSongText, songEntry } from '@/content/songs';
+import { BACKING_STYLES } from '@/core/audio';
+import { chordFromParam } from '@/features/chords/model/symbols';
 import { identifyFretted, noteAt } from '@/core/guitar';
 import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, chroma, midiToNote, scaleNotes } from '@/core/theory';
@@ -223,5 +226,73 @@ describe('Mia unit 5: G, C and three-chord songs', () => {
     const { progressionInKey } = await import('@/content/progressions');
     const r = progressionInKey('folk-i-iv-i-v', 'D');
     expect([...new Set(r.bars.flat().map((c) => c.symbol))]).toEqual(['D', 'G', 'A']);
+  });
+});
+
+// ── checks added by the review ──────────────────────────────────────────────────────────────────
+
+type LooseStep = { type?: string; chord?: string; options?: Array<{ figure?: { kind: string } }>; alternative?: { type?: string; chord?: string; generate?: string; params?: { chords?: string[] } } };
+
+describe('Mia unit 5: what the review fixed', () => {
+  it('never offers chord boxes as answer options (the engine prints each box\'s name on it)', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps as LooseStep[]) if (s.type === 'choice') for (const o of s.options ?? []) expect(o.figure?.kind, l.id).not.toBe('chord');
+    }
+  });
+
+  it('gives every lesson two to four facts', () => {
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeGreaterThanOrEqual(2);
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeLessThanOrEqual(4);
+  });
+
+  it('lets a play-chord step without a microphone build the chord it names', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps as LooseStep[]) {
+        if (s.type !== 'play-chord') continue;
+        const alt = s.alternative!;
+        if (alt.type === 'chord-build') expect(alt.chord, `${l.id}: ${s.chord}`).toBe(s.chord);
+        else expect(alt.generate === 'chord-shape' && alt.params?.chords?.[0], `${l.id}: ${s.chord}`).toBe(s.chord);
+      }
+    }
+  });
+
+  it('names Player parts the songs really have', async () => {
+    let named = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (!isTaskStep(s) || s.tool !== 'player') continue;
+        const id = taskSong(s)!;
+        if (!songEntry(id)) continue;
+        const tracks = (await song(id)).tracks.map((t) => t.name);
+        for (const m of plain(s.body).matchAll(/\btap ([A-Z][a-z]+)\b/g)) {
+          named++;
+          expect(tracks, `${l.id} > ${s.id}`).toContain(m[1]);
+        }
+      }
+    }
+    expect(named).toBe(2); // Brahms: Teacher, then Melody
+  });
+
+  it('swaps a chord the chord trainer really has open', () => {
+    let swaps = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (!isTaskStep(s) || s.tool !== 'chords') continue;
+        const open = (s.params ?? []).slice(1).map(chordFromParam);
+        for (const m of plain(s.body).matchAll(/swap \{c:([^}]+)\} for \{c:([^}]+)\}/g)) {
+          swaps++;
+          expect(open, `${l.id} > ${s.id}`).toContain(m[1]);
+          expect(open, `${l.id} > ${s.id}`).not.toContain(m[2]);
+        }
+      }
+    }
+    expect(swaps).toBe(2); // D-G then G-A; G-D7 then D-G
+  });
+
+  it('asks the band for a tempo its folk style can play while Michael, Row is missing', () => {
+    const p = getProgression('folk-i-iv-i-v')!;
+    const style = BACKING_STYLES[p.feel.backing];
+    expect(style.tempo.min).toBeLessThanOrEqual(80);
+    expect(style.tempo.max).toBeGreaterThanOrEqual(92);
   });
 });

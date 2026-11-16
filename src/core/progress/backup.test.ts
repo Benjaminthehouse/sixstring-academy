@@ -249,6 +249,25 @@ describe('import merge', () => {
   });
 });
 
+describe('when something fails part of the way', () => {
+  it('a song library that breaks during an import does not stop the rest, and Undo still puts everything back', async () => {
+    const a = device('laptop');
+    await learner(a);
+    const text = await fileOf(a);
+    const b = device('phone', a.rig.clock.t);
+    b.kv.write('chords.dots', '"notes"');
+    const broken: BackupSongs = { ...songsOf(b.lib), importAll: async () => { throw new Error('IndexedDB went away'); } };
+    const deps = { ...b.deps, songs: broken };
+    const done = await applyBackup(read(b, text), 'replace', deps);
+    expect(done).toMatchObject({ ok: true, undo: true, songs: null });
+    expect(b.kv.read('practice.data')).toBe(a.kv.read('practice.data'));
+    expect(pendingUndo(deps)).toMatchObject({ action: 'import' });
+    await undoLastChange(deps);
+    expect(b.kv.read('practice.data')).toBeNull();
+    expect(b.kv.read('chords.dots')).toBe('"notes"');
+  });
+});
+
 describe('older backups', () => {
   it('a version-2 progress export imports its progress and leaves everything else here alone', async () => {
     const a = device('laptop');

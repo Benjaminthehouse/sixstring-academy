@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the layers above a screen: toasts, sheets and dialogs, the bars at the bottom,
- * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose]
+ * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose] [--only toasts,back]
  *
  * What it checks (phone 390 x 844 unless it says desktop 1280 x 800):
  *  toasts      a moment's rewards never cover an open sheet: they wait and show once it closes,
@@ -9,8 +9,8 @@
  *              rewards plus replies never shows more than three toasts, and the rewards share one card
  *  clearance   --action-bar-h is published only while an ActionBar is stuck at the bottom (not for
  *              the tuner's static bar on a desktop, not for a bar boxed mid-screen), the metronome's
- *              controls keep toasts above them through the kit hook, and an immersive screen does not
- *              lift toasts for a tab bar it hides
+ *              controls keep toasts above them through the kit hook, toasts clear a practice session
+ *              bar, and an immersive screen does not lift toasts for a tab bar it hides
  *  text 200 %  on 390 and 360 px: the tab bar's labels are whole and on screen, the top bar's chips
  *              stay inside the bar with the title showing, the pill tabs on #chords and the segmented
  *              controls on #tuner and the player never cut a label; at the normal size nothing moved
@@ -18,7 +18,8 @@
  *  back        Back closes an open sheet and stays on the screen (phone and desktop); a link inside a
  *              sheet, then Back, returns to the screen; a sheet opened from the address
  *              (#songs--add) and closed does not come back on Back
- *  keyboard    on a desktop, two Tabs and Enter reach the practice screen's Start ("Jump to actions")
+ *  keyboard    two Tabs and Enter reach a screen's main action: the practice plan's Start on a desktop
+ *              (it took 29 Tabs), the tuner's bar on a phone ("Jump to the main action")
  * Screenshots go to e2e/out/overlays-*.png. Exits non-zero if any check failed.
  */
 const fs = require('node:fs');
@@ -28,6 +29,8 @@ const { startServer, ROOT } = require('./lib/harness.cjs');
 const { buildSeeds, seedContext } = require('./profile-seed.cjs');
 
 const verbose = process.argv.includes('--verbose');
+const onlyArg = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : '';
+const only = onlyArg ? onlyArg.split(',') : null;
 const OUT = path.join(ROOT, 'e2e', 'out');
 fs.mkdirSync(OUT, { recursive: true });
 const BENIGN = [/favicon\.ico/i, /Download the React DevTools/i];
@@ -176,6 +179,28 @@ async function clearance(browser, url) {
   check(group, 'metronome (kit hook): toasts sit above the tempo buttons and Start', metro > 0 && mt && mt.bottom <= m.step + 1, JSON.stringify({ metro, toast: mt && mt.bottom, controls: m.step }));
   await phone.shot('metronome-toast-phone');
 
+  // A practice session running: its bar floats at the bottom of every other screen.
+  await phone.goto('home');
+  await phone.page.evaluate(() => {
+    const fake = document.createElement('div');
+    fake.setAttribute('data-practice-bar', '');
+    document.body.appendChild(fake);
+  });
+  await reply(phone.page, 'Saved');
+  await phone.page.waitForTimeout(500);
+  const space = await phone.page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;height:var(--practice-bar-space,0px)';
+    document.body.appendChild(probe);
+    const h = probe.getBoundingClientRect().height;
+    probe.remove();
+    return { space: h, nav: document.querySelector('nav[aria-label="Main"]').getBoundingClientRect().top };
+  });
+  const st = (await toastsOnScreen(phone.page))[0];
+  // The session bar ends 8 px above the tab bar and is 3.75rem tall.
+  check(group, 'a practice session bar at the bottom: toasts sit above it, not on it', space.space > 40 && st && st.bottom <= space.nav - 8 - 60 + 1, JSON.stringify({ ...space, toast: st && st.bottom }));
+  await phone.page.evaluate(() => document.querySelector('[data-practice-bar]')?.remove());
+
   await phone.goto('play--hot-cross-buns', 'main[data-route="play"]', 1500);
   const imm = await phone.page.evaluate(() => ({ immersive: document.querySelector('[data-immersive]').dataset.immersive, nav: getComputedStyle(document.documentElement).getPropertyValue('--nav-h').trim(), bottom: parseFloat(getComputedStyle(document.querySelector('ol[aria-label="Notifications"]')).bottom), bar: parseFloat(document.documentElement.style.getPropertyValue('--action-bar-h')) || 0 }));
   check(group, 'immersive screen: toasts are not lifted for the tab bar it hides', imm.immersive !== 'none' && imm.nav === '0px' && imm.bottom <= imm.bar + 20, JSON.stringify(imm));
@@ -223,9 +248,25 @@ async function largeText(browser, url, seeds) {
       const segs = await page.evaluate(() =>
         [...document.querySelectorAll('[role="radiogroup"]')]
           .filter((g) => g.offsetParent)
-          .map((g) => ({ label: g.getAttribute('aria-label'), right: g.getBoundingClientRect().right, cut: [...g.querySelectorAll('[role="radio"] span')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent) })),
+          .map((g) => {
+            const spans = [...g.querySelectorAll('[role="radio"] span')].filter((s) => s.firstChild && s.firstChild.nodeType === 3);
+            // Cut short (an ellipsis) or broken inside a word ("List|en"): a word that takes two boxes.
+            const broken = spans.filter((s) => {
+              const text = s.firstChild.textContent;
+              let at = 0;
+              return text.split(' ').some((word) => {
+                const range = document.createRange();
+                range.setStart(s.firstChild, at);
+                range.setEnd(s.firstChild, at + word.length);
+                at += word.length + 1;
+                return word.length > 0 && new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1;
+              });
+            });
+            const cut = spans.filter((s) => s.scrollWidth > s.clientWidth + 1 || broken.includes(s)).map((s) => s.textContent);
+            return { label: g.getAttribute('aria-label'), right: g.getBoundingClientRect().right, cut };
+          }),
       );
-      check(group, `${width} px #${route}: no segmented label is cut short, none runs off the page`, segs.every((s) => s.cut.length === 0 && s.right <= width + 0.5), JSON.stringify(segs.filter((s) => s.cut.length || s.right > width)));
+      check(group, `${width} px #${route}: no segmented label is cut short or broken inside a word, none runs off the page`, segs.every((s) => s.cut.length === 0 && s.right <= width + 0.5), JSON.stringify(segs.filter((s) => s.cut.length || s.right > width)));
       if (width === 390) await ctx.shot(`${route.split('--')[0]}-200-phone`);
     }
     check(group, `${width} px: no console errors`, ctx.errors.length === 0, ctx.errors.slice(0, 2).join(' | '));
@@ -316,26 +357,33 @@ async function back(browser, url) {
 
 // -----------------------------------------------------------------------------------------------
 async function keyboard(browser, url) {
-  const ctx = await open(browser, url, { viewport: DESKTOP });
-  const { page } = ctx;
-  await ctx.goto('practice', '[data-ui-action-bar]', 1200);
-  await page.evaluate(() => document.activeElement && document.activeElement.blur());
-  await page.keyboard.press('Tab');
-  const first = await page.evaluate(() => document.activeElement.textContent.trim());
-  await page.keyboard.press('Tab');
-  const second = await page.evaluate(() => {
-    const el = document.activeElement;
-    const r = el.getBoundingClientRect();
-    return { text: el.textContent.trim(), visible: r.width > 0 && r.top >= 0 };
-  });
-  await ctx.shot('jump-to-actions-desktop');
-  await page.keyboard.press('Enter');
-  const landed = await page.evaluate(() => ({ text: document.activeElement.textContent.trim(), inBar: !!document.activeElement.closest('[data-ui-action-bar]') }));
-  check('keyboard', 'desktop #practice: Tab, Tab, Enter reaches Start ("Jump to content", then "Jump to actions")', first === 'Jump to content' && second.text === 'Jump to actions' && second.visible && landed.inBar && /^Start/.test(landed.text), JSON.stringify({ first, second, landed }));
-  await ctx.goto('home');
-  const none = await page.evaluate(() => getComputedStyle(document.querySelector('[data-skip="actions"]')).display);
-  check('keyboard', 'a screen without an ActionBar offers no "Jump to actions"', none === 'none', none);
-  await ctx.close();
+  const group = 'keyboard';
+  // Desktop #practice has no ActionBar: Start is the plan's primary button (29 Tabs away before).
+  for (const [route, ready, viewport, want] of [
+    ['practice', '[data-practice-start]', DESKTOP, /^Start/],
+    ['tuner', '[data-ui-action-bar]', PHONE, /./],
+  ]) {
+    const where = viewport === PHONE ? 'phone' : 'desktop';
+    const ctx = await open(browser, url, { viewport });
+    const { page } = ctx;
+    await ctx.goto(route, ready, 1200);
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await page.keyboard.press('Tab');
+    const first = await page.evaluate(() => document.activeElement.textContent.trim());
+    await page.keyboard.press('Tab');
+    const second = await page.evaluate(() => {
+      const el = document.activeElement;
+      const r = el.getBoundingClientRect();
+      return { text: el.textContent.trim(), visible: r.width > 0 && r.top >= 0 };
+    });
+    if (route === 'practice') await ctx.shot('jump-to-action-desktop');
+    await page.keyboard.press('Enter');
+    const landed = await page.evaluate(() => ({ text: document.activeElement.textContent.trim(), tag: document.activeElement.tagName, primary: document.activeElement.hasAttribute('data-ui-primary'), inBar: !!document.activeElement.closest('[data-ui-action-bar]') }));
+    const named = second.text.startsWith('Jump to') && (landed.text.length > 32 || second.text.includes(landed.text));
+    check(group, `${where} #${route}: Tab, Tab, Enter reaches the main action ("Jump to content", then "${second.text}")`, first === 'Jump to content' && second.visible && named && want.test(landed.text) && (landed.inBar || landed.primary), JSON.stringify({ first, second, landed }));
+    check(group, `${where} #${route}: no console errors`, ctx.errors.length === 0, ctx.errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
 }
 
 (async () => {
@@ -351,6 +399,7 @@ async function keyboard(browser, url) {
       ['back', () => back(browser, server.url)],
       ['keyboard', () => keyboard(browser, server.url)],
     ]) {
+      if (only && !only.includes(name)) continue;
       try {
         await fn();
       } catch (e) {

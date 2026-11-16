@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, flattenSong, parseSixTab, type Song } from '@/core/song';
 import { buildVoicing, scalePatterns } from '@/core/guitar';
-import { chordPcs, midiToNote, noteToMidi, scalePcs } from '@/core/theory';
+import { chordPcs, chroma, midiToNote, noteToMidi, parseChord, scalePcs } from '@/core/theory';
 import { loadSongText, songEntry } from '@/content/songs';
 
 const STANDARD = [40, 45, 50, 55, 59, 64];
@@ -183,16 +183,21 @@ const SHAPES: Record<string, string> = {
   'Em=022003': 'E2 B2 E3 G3 B3 G4',
   'Em=022000': 'E2 B2 E3 G3 B3 E4',
   'Dm=xx0231': 'D3 A3 D4 F4',
-  'Dm=xx3235': 'F3 A3 D4 A4',
+  'Dm/F=xx3235': 'F3 A3 D4 A4',
   'Bb=x13331': 'Bb2 F3 Bb3 D4 F4',
   'C7=x32310': 'C3 E3 Bb3 C4 E4',
 };
 
-/** Root, third and (for seventh chords) the seventh: a shape may leave out only the fifth. */
+/**
+ * Root, third and (for seventh chords) the seventh: a shape may leave out only the fifth. Read
+ * root first from the parsed chord, because chordPcs puts a slash chord's bass first (Dm/F: F D A).
+ */
 function requiredPcs(symbol: string): number[] {
-  const pcs = chordPcs(symbol);
+  const pcs = parseChord(symbol)!.notes.map((n) => chroma(n));
   return pcs.length >= 4 ? [pcs[0], pcs[1], pcs[3]] : [pcs[0], pcs[1]];
 }
+
+const BATCH = ['st-pent-connect', 'st-barre-progression', 'st-caged-chords', 'st-mode-ionian', 'st-mode-dorian', 'st-mode-mixolydian', 'st-mode-aeolian', 'st-chord-melody-1', 'st-read-fifth-position'];
 
 describe('batch 13: the chord shapes', () => {
   it('reads chord tones root first (the helper below depends on it)', () => {
@@ -210,13 +215,22 @@ describe('batch 13: the chord shapes', () => {
   });
 
   it('every chord event in the batch uses a shape from the table', async () => {
-    for (const id of ['st-pent-connect', 'st-barre-progression', 'st-caged-chords', 'st-mode-ionian', 'st-mode-dorian', 'st-mode-mixolydian', 'st-mode-aeolian', 'st-chord-melody-1', 'st-read-fifth-position']) {
+    for (const id of BATCH) {
       const song = await load(id);
       for (const c of song.chords) {
         expect(c.voicing, `${id} bar ${c.bar + 1}: ${c.symbol} has no shape`).toBeDefined();
         expect(Object.keys(SHAPES), `${id} bar ${c.bar + 1}`).toContain(`${c.symbol}=${shapeText(c.voicing!)}`);
       }
     }
+  });
+
+  it.each(Object.keys(SHAPES))('%s: the symbol names what the grip sounds, bass included', (shape) => {
+    // validateSong accepts any chord tones, so a first-inversion grip under a plain symbol
+    // (Dm over xx3235, whose lowest note is F) passed it; the engine names the inversion.
+    const [symbol, frets] = shape.split('=');
+    expect(buildVoicing(symbol, frets).chord, `${shape}: the lowest note is ${midiToNote(shapeSounds(frets)[0])}`).toBe(symbol);
+    const bass = parseChord(symbol)!.bass ?? parseChord(symbol)!.root;
+    expect(shapeSounds(frets)[0] % 12, `${shape}: the lowest note is the bass the symbol names`).toBe(chroma(bass));
   });
 });
 
@@ -628,6 +642,35 @@ describe.each(MODES)('batch 13: $id', (m) => {
   });
 });
 
+describe('batch 13: what the mode abouts say is in the music', () => {
+  it('Ionian holds G# (two beats, vibrato) over Amaj7 in the bars the about names', async () => {
+    const beats = played(await load('st-mode-ionian'), 'Your melody');
+    const held = beats.filter((b) => b.midis.length === 1 && b.midis[0] % 12 === 8 && b.duration === 1920);
+    expect(held.map((b) => b.bar + 1)).toEqual([1, 5, 9, 13]);
+    expect(held.every((b) => b.chord === 'Amaj7')).toBe(true);
+    expect(songEntry('st-mode-ionian')!.about).toContain('bars 1, 5, 9 and 13');
+  });
+
+  it('Dorian passes through F# over Am in exactly the bars the about names', async () => {
+    const beats = played(await load('st-mode-dorian'), 'Your melody');
+    expect([...new Set(beats.filter((b) => b.midis[0] % 12 === 6 && b.chord === 'Am').map((b) => b.bar + 1))]).toEqual([10, 13]);
+    expect(songEntry('st-mode-dorian')!.about).toContain('bars 10 and 13');
+  });
+
+  it('Aeolian leans on F over the F chord in exactly the bars the about names', async () => {
+    const beats = played(await load('st-mode-aeolian'), 'Your melody');
+    const onBeat = beats.filter((b) => b.midis[0] % 12 === 5 && (b.inBar === 0 || b.inBar === 1920) && b.duration >= 960);
+    expect([...new Set(onBeat.map((b) => b.bar + 1))]).toEqual([3, 7, 11, 15]);
+    expect(onBeat.every((b) => b.chord === 'F')).toBe(true);
+    expect(songEntry('st-mode-aeolian')!.about).toContain('bars 3, 7, 11 and 15');
+  });
+
+  it('Mixolydian ends G to A: the flat seventh rising home', async () => {
+    const notes = played(await load('st-mode-mixolydian'), 'Your melody').filter((b) => b.midis.length);
+    expect(notes.slice(-2).map((b) => `${midiToNote(b.midis[0])}/${b.chord}`)).toEqual(['G4/G', 'A4/A']);
+  });
+});
+
 describe('batch 13: Dorian and Aeolian sit in the same place', () => {
   it('play every F# (Dorian) and every F (Aeolian) on string 2, one fret apart, in fifth position', async () => {
     const dorian = played(await load('st-mode-dorian'), 'Your melody').filter((b) => b.midis[0] % 12 === 6);
@@ -680,7 +723,11 @@ describe('batch 13: st-chord-melody-1', () => {
 
   it('uses C, Am, F, G7, Em and Dm, all in C major, with diatonic melody notes', async () => {
     const song = await load('st-chord-melody-1');
-    expect(new Set(song.chords.map((c) => c.symbol))).toEqual(new Set(['C', 'Am', 'F', 'G7', 'Em', 'Dm']));
+    const name = (s: string) => s.split('/')[0];
+    expect(new Set(song.chords.map((c) => name(c.symbol)))).toEqual(new Set(['C', 'Am', 'F', 'G7', 'Em', 'Dm']));
+    // The one inversion: Dm with A on top (xx3235) has F in the bass, the ii chord before G7.
+    expect(song.chords.filter((c) => c.symbol.includes('/')).map((c) => `${c.bar + 1}:${c.symbol}=${shapeText(c.voicing!)}`)).toEqual(['11:Dm/F=xx3235', '15:Dm/F=xx3235']);
+    expect(song.chords.find((c) => c.bar === 14 && c.tick === 1920)?.symbol, 'Dm/F goes to G7').toBe('G7');
     expect(outside(played(song, 'Your part').flatMap((b) => b.midis), scalePcs('C', 'major'))).toEqual([]);
     const ends = song.chords.filter((c) => c.bar === 7 || c.bar === 15).map((c) => c.symbol);
     expect(ends).toEqual(['C', 'C']);

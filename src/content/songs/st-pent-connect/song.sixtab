@@ -3,8 +3,8 @@
 # of the Scales screen: box 5 (frets 2-5) in bars 1-2, box 1 (frets 5-8) in bars 3-4, box 2
 # (frets 7-10) in bars 5-6, box 3 (frets 9-13) in bar 7, box 4 (frets 12-15) at the top in bars
 # 8-9, then box 3 (bar 10), box 2 (bars 11-12), box 1 (bars 13-14) and home to box 5 (bars 15-16).
-# Every move to the next box is a slide: going up, the ring finger slides two frets (or three) and
-# lands where the new box puts it; coming down, the index finger slides back.
+# Every move to the next box is a slide: going up, the ring finger slides two frets and lands
+# where the new box puts it; coming down, the index finger slides back two or three frets.
 # Bars 17-32 play the same notes over a C chord, where they sound as C major pentatonic. Only the
 # very last note changes: the tune comes home to A over Am7 and to C over C.
 # Notes on beats 1 and 3 are C, E or G (in both chords) or a step from one, so both halves sound settled.

@@ -23,12 +23,35 @@ import {
   type RecentItem,
 } from '@/core/progress';
 import { AnimatedNumber, Badge, Banner, Button, Card, GemChip, Icon, LinkButton, List, ListItem, Page, ProgressBar, ProgressRing, Section, cx } from '@/ui';
+import type { PlanBlock } from '@/features/practice/model/planner';
+import { suggestPracticePlan } from '@/features/practice/model/signals';
+import { getPracticeData } from '@/features/practice/model/store';
 import { greetingLine, standingLine, timeAgo } from './greeting';
 import { buildPlan, minutesLeft, nextStep, type PlanStep } from './plan';
 import { tipForDay } from './tips';
 import styles from './Home.module.css';
 
 const QUICK_TOOLS = ['tuner', 'metronome', 'camera', 'scan'] as const;
+
+/**
+ * The practice planner's blocks for today, worked out once per day, level, teacher and goal for the
+ * life of the page: the drill a step shows must not change under the learner while they work
+ * through the plan (finishing it changes what the planner would pick next).
+ */
+let plannedToday: { key: string; blocks: PlanBlock[] } | null = null;
+function practiceBlocks(store: ReturnType<typeof useProgressStore>, key: string, minutes: number): PlanBlock[] {
+  if (plannedToday?.key === key) return plannedToday.blocks;
+  let blocks: PlanBlock[] = [];
+  try {
+    // The learner's focus goals and practice journal steer it too (pinned goals first).
+    const { journal, goals } = getPracticeData();
+    blocks = suggestPracticePlan(store.getState(), store.now(), minutes, { journal, goals });
+  } catch {
+    blocks = [];
+  }
+  plannedToday = { key, blocks };
+  return blocks;
+}
 
 /** Signature features to point a brand-new learner at, beyond what the plan already covers. */
 const FIRST_LOOKS: ReadonlyArray<{ route: string; title: string; text: string }> = [
@@ -288,6 +311,11 @@ export default function Home(_props: RouteProps) {
   const today = useProgress((s) => s.meta.today);
   const todayKinds = useProgress((s) => s.days[s.meta.today]?.kinds);
   const now = store.now();
+  const goalMinutes = GOAL_CHOICES.find((c) => c.xp === prefs.dailyGoalXp)?.minutes ?? 10;
+  const practice = useMemo(
+    () => practiceBlocks(store, `${today}|${profile.experience}|${profile.teacher}|${goalMinutes}|${store.getState().profile.createdAt}`, goalMinutes),
+    [store, today, profile.experience, profile.teacher, goalMinutes],
+  );
 
   const plan = useMemo(
     () =>
@@ -299,11 +327,11 @@ export default function Home(_props: RouteProps) {
         doneKinds: new Set(Object.keys(todayKinds ?? {}) as ActivityKind[]),
         dueReviews: reviews.due,
         recents,
+        practice,
       }),
-    [profile.experience, profile.teacher, prefs.dailyGoalXp, today, todayKinds, reviews.due, recents],
+    [profile.experience, profile.teacher, prefs.dailyGoalXp, today, todayKinds, reviews.due, recents, practice],
   );
 
-  const goalMinutes = GOAL_CHOICES.find((c) => c.xp === prefs.dailyGoalXp)?.minutes ?? 10;
   const teacher = teacherById(profile.teacher);
   const subtitle = standingLine({ xp: goal.xp, goal: goal.goal, met: goal.met, remaining: goal.remaining, streak: streak.current, planLeft: plan.filter((s) => !s.done).length, goalMinutes });
 

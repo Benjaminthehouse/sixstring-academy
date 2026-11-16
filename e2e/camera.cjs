@@ -4,7 +4,7 @@
  *
  *   node e2e/camera.cjs                  everything (about 10 minutes on a busy machine once the fixture exists;
  *                                        the first run renders it, about 5 minutes more)
- *   node e2e/camera.cjs --only live,tools   some groups: live, mirror, tools, content, lifecycle, nocamera, shots
+ *   node e2e/camera.cjs --only live,tools   some groups: live, mirror, tools, content, lifecycle, nocamera, bigtext, shots
  *   node e2e/camera.cjs --verbose        print every check, not just failures
  *
  * The camera plays `e2e/camera-fixture.cjs`'s video: a rendered steel-string neck that sways,
@@ -31,7 +31,13 @@
  *              and the vision worker, and logs the session as practice
  *   nocamera   no camera: MediaBlocked once, then the drawn neck with the same dots; the next visit
  *              goes straight to the drawn neck
+ *   bigtext    text at 200 percent: no sideways scroll, "Start camera" whole, the picture keeps its room
  *   shots      screenshots: desktop and phone sideways (dark and light), phone upright
+ *
+ * Added in review (each caught a real bug): focus kept on the picture after "Start camera"; a tap
+ * beside the neck in "Fix the fret numbers" refused at once; pagehide logs the session; the
+ * drawn-neck drill is logged as fretboard practice; the bigtext group. The honesty of the dots on
+ * scenes the builder never used is `e2e/camera-alt.cjs`.
  *
  * Prints one line per failed check (all with --verbose), then PASSED or FAILED; exits non-zero on failure.
  */
@@ -265,6 +271,9 @@ async function liveGroups(browser, url, fixture, geo, ov) {
     const { live, locked } = await startCamera(page);
     check('live', 'one tap on "Start camera" turns the camera on', live);
     check('live', 'the neck locks', locked, `${Date.now() - t0} ms after the tap`);
+    // Review: the button that had focus disappears with the guide; focus must not fall to the page.
+    const focused = await page.evaluate(() => (document.activeElement?.hasAttribute('data-camera-stage') ? 'stage' : document.activeElement?.tagName));
+    check('live', 'after "Start camera", keyboard focus stays on the picture (not lost to the page)', focused === 'stage', focused);
     if (!locked) return;
 
     if (want('live')) {
@@ -351,6 +360,26 @@ async function tools(page, truth, geo, ov) {
   await waitAttr(page, 'data-state', 'locked', 10000);
   await page.getByRole('button', { name: 'Fix the fret numbers' }).click();
   check('tools', '"Fix the fret numbers" opens its tool', await waitAttr(page, 'data-tool', 'numbers', 5000));
+  // Review: a tap beside the neck is refused at once, not after the learner has picked a number.
+  {
+    // A point well clear of the true board of the frame on screen (and of the frame-number stamp).
+    const shown = await shownFrame(page);
+    const pose = truth.frames[Math.max(0, shown)].pose;
+    const clear = (p) => {
+      const loc = pose ? geo.locatePixel(pose, p) : null;
+      const nearCode = Math.abs(p.x - (truth.code.x + 96)) < 160 && Math.abs(p.y - truth.code.y) < 80;
+      return !nearCode && (!loc || !loc.onBoard) && (!pose || ![-40, 0, 40].some((dx) => [-40, 0, 40].some((dy) => geo.locatePixel(pose, { x: p.x + dx, y: p.y + dy })?.onBoard)));
+    };
+    const off = [{ x: 640, y: 40 }, { x: 80, y: 680 }, { x: 1200, y: 680 }, { x: 640, y: 690 }, { x: 80, y: 40 }, { x: 1200, y: 40 }].find(clear);
+    const sv = await stageView(page);
+    if (off) await tapStage(page, ov.frameToDisplay(off, sv.view, sv.vw, sv.vh));
+    const said = await page.locator('[data-camera-banner]').filter({ hasText: /not on the neck/i }).waitFor({ timeout: 4000 }).then(() => true).catch(() => false);
+    const chips = await page.getByRole('group', { name: 'This fret is number' }).isVisible().catch(() => false);
+    check('tools', 'a tap beside the neck says so at once and offers no fret numbers', !!off && said && !chips, `point ${JSON.stringify(off)} (frame ${shown}), said ${said}, chips ${chips}`);
+    // Keep going whatever happened: back to the tool's first step.
+    if (chips) await page.getByRole('button', { name: 'Cancel' }).click().catch(() => undefined);
+    if ((await attr(page, 'data-tool')) !== 'numbers') await page.getByRole('button', { name: 'Fix the fret numbers' }).click().catch(() => undefined);
+  }
   await page.getByRole('button', { name: 'All one higher' }).click();
   await page.waitForTimeout(250);
   await page.getByRole('button', { name: 'All one higher' }).click();
@@ -515,6 +544,13 @@ async function lifecycle(page) {
   });
   check('lifecycle', 'shown again, it takes the camera back', await waitAttr(page, 'data-mode', 'live', 20000));
   check('lifecycle', 'and locks again', await waitAttr(page, 'data-state', 'locked', 20000));
+  // Review: a phone locked or a tab closed may never unmount the screen; pagehide logs the session.
+  const onHide = await page.evaluate(async () => {
+    window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+    const progress = await import('/src/core/progress/index.ts');
+    return progress.getProgress().log.filter((e) => e.kind === 'camera').length;
+  });
+  check('lifecycle', 'pagehide puts the session in the practice log', onHide === 1, onHide);
   // Leave the route.
   await page.evaluate(() => {
     window.__cam.stream = window.__cam.debug.stream;
@@ -530,7 +566,7 @@ async function lifecycle(page) {
     const progress = await import('/src/core/progress/index.ts');
     return progress.getProgress().log.filter((e) => e.kind === 'camera').map((e) => ({ title: e.title, sec: e.durationSec, xp: e.xp }));
   });
-  check('lifecycle', 'the session goes into the practice log (kind "camera")', logged.length === 1 && logged[0].sec >= 10, JSON.stringify(logged));
+  check('lifecycle', 'the session goes into the practice log (kind "camera"), once', logged.length === 1 && logged[0].sec >= 10, JSON.stringify(logged));
 }
 
 async function noCamera(url) {
@@ -555,12 +591,21 @@ async function noCamera(url) {
     await page.waitForTimeout(500);
     const where = await page.locator('[data-camera-controls="note"]').textContent();
     check('nocamera', 'the drill works on the drawn neck', /on string \d/.test(where), where.slice(0, 80));
+    // Review: finding notes by tapping the drawn neck is practice too (it was never logged).
+    const m = /on string (\d), fret (\d+)/.exec(where);
+    if (m) await page.locator(`[data-camera-drawn] [aria-label^="string ${m[1]}, fret ${m[2]},"]`).first().click().catch(() => undefined);
+    await page.waitForTimeout(400);
     // Next visit: straight to the drawn neck, no second MediaBlocked.
     await s.goto(ROUTE);
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('[data-camera-stage]', { timeout: 60000 });
     await page.getByRole('button', { name: 'Start camera' }).click();
     check('nocamera', 'MediaBlocked is shown once: the next refusal goes straight to the drawn neck', await waitAttr(page, 'data-mode', 'drawn', 20000));
+    const drill = await page.evaluate(async () => {
+      const p = (await import('/src/core/progress/index.ts')).getProgress();
+      return { fretboard: p.log.filter((e) => e.kind === 'fretboard').map((e) => e.title), camera: p.log.filter((e) => e.kind === 'camera').length };
+    });
+    check('nocamera', 'a note found on the drawn neck goes into the practice log (fretboard, not camera)', drill.fretboard.length === 1 && drill.camera === 0, JSON.stringify(drill));
     const errs = s.errors.filter((e) => !/NotFoundError|NotAllowedError|Requested device not found|Permission/.test(e));
     check('nocamera', 'no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
     await s.close();
@@ -577,6 +622,33 @@ async function noCamera(url) {
     const wide = await p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     check('nocamera', 'phone: the drawn neck fits without sideways scroll', wide <= 1, wide);
     await p.close();
+  } finally {
+    await browser.close();
+  }
+}
+
+/** Review: text at 200 percent (the root font size doubled): nothing cut off, nothing pushed off the page. */
+async function bigText(url) {
+  const browser = await launch(null);
+  try {
+    for (const r of [{ name: 'phone', viewport: { width: 390, height: 844 }, mobile: true }, { name: 'desktop', viewport: { width: 1280, height: 800 } }, { name: 'sideways', viewport: { width: 844, height: 390 }, mobile: true }]) {
+      const s = await open(browser, url, { ...r, camera: false });
+      await s.context.addInitScript(() => document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = '200%'; }));
+      await s.page.goto(`${url}#${ROUTE}`, { waitUntil: 'load' });
+      await s.page.waitForSelector('[data-camera-stage]', { state: 'attached', timeout: 120000 });
+      await s.page.waitForTimeout(800);
+      const m = await s.page.evaluate(() => {
+        const stage = document.querySelector('[data-camera-stage]').getBoundingClientRect();
+        const panel = document.querySelector('[data-ui-page] aside').getBoundingClientRect();
+        const start = [...document.querySelectorAll('[data-camera-stage] button')].find((b) => /Start camera/.test(b.textContent)).getBoundingClientRect();
+        return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, stageW: stage.width, panelW: panel.width, startInside: start.bottom <= stage.bottom + 1 && start.right <= stage.right + 1 && start.width > 0 };
+      });
+      await s.page.screenshot({ path: path.join(OUT, `bigtext-${r.name}.png`) });
+      check('bigtext', `${r.name}: no sideways scroll`, m.overflow <= 1, m.overflow);
+      check('bigtext', `${r.name}: "Start camera" is whole, inside the picture box`, m.startInside, JSON.stringify(m));
+      if (r.name !== 'phone') check('bigtext', `${r.name}: the picture keeps most of the width beside the controls`, m.stageW >= 1.3 * m.panelW, `${Math.round(m.stageW)} vs ${Math.round(m.panelW)} px`);
+      await s.close();
+    }
   } finally {
     await browser.close();
   }
@@ -671,6 +743,7 @@ async function main() {
       }
     }
     if (want('nocamera')) await noCamera(server.url);
+    if (want('bigtext')) await bigText(server.url);
     if (want('shots')) await shots(server.url, fixture);
   } finally {
     await server.close();

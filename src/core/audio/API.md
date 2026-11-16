@@ -123,6 +123,24 @@ session keeps its attack. Instrument chains are BiquadFilterNodes (an IIRFilterN
 create in Chromium); they match the pure renderer to −60 dB. A full strum + bass + drums at full
 velocity peaks at 0.92 with 0.3 % of samples in the clipper's knee.
 
+## The learner's default tone and click (`defaults.ts`)
+
+`soundDefaults(): { guitarTone: ToneName, clickSound: ClickSet }` is what the shared guitar (`pluck`,
+`strum`, `getGuitar()`, and so the song player) plays and what a new `Metronome` clicks with when a
+screen does not choose. In the app it follows Settings > Sound (`soundPrefs()` from `@/core/settings`,
+connected by itself when this module loads in a browser), live: a change in Settings is heard on the
+next note or click. A screen's own choice still wins: a `tone` on the note, `getGuitar().tone = …`
+(the shared guitar then keeps it), `metronome.sound = …`. `setSoundDefaultsSource(fn | null)` replaces
+the source (tests, galleries); `connectSoundDefaults()` connects to Settings where that does not
+happen by itself (unit tests: `await connectSoundDefaults()`). Unknown names fall back to
+`BUILT_IN_SOUND_DEFAULTS` (steel, woodblock). Own `GuitarSynth`s and the backing band keep their own tones.
+
+```ts
+pluck(64);                                  // the learner's guitar tone
+new Metronome({ tempo: 90 }).start();       // the learner's click
+const m = new Metronome(); m.sound = 'rim'; // this screen's own click
+```
+
 ## Guitar and bass (`guitar.ts`, `pluck.ts`, `tones.ts`)
 
 - `pluck(midi, when?, opts?): VoiceHandle` · `strum(midis, when?, opts?): VoiceHandle[]` · `stopAll(when?, release?)`
@@ -198,7 +216,7 @@ velocity peaks at 0.92 with 0.3 % of samples in the clipper's knee.
     firing a burst. NaN / Infinity arguments are ignored.
 - `Metronome`: tempo 20..400 counted in the meter's tempo beat (dotted quarter in 6/8); `setTimeSignature`,
   `accents` / `setAccent(beat, 0..3)` / `cycleAccent`, `subdivision` (`none | eighth | triplet | sixteenth |
-  swing | quintuplet | sextuplet`), `swingRatio`, `sound`, `volume`, `countInBars`, `speedTrainer`,
+  swing | quintuplet | sextuplet`), `swingRatio`, `sound` (the learner's default click until set), `volume`, `countInBars`, `speedTrainer`,
   `silentBars`, `tap()`, `start/stop/toggle`, `running`, `onBeat`, `onSchedule`, `pattern()`, `position()`.
   Pass `{ transport }` to click along with someone else's transport. Stopping takes back clicks not yet
   heard; a new subdivision starts on the next beat; a new time signature restarts on a downbeat with

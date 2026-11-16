@@ -1,0 +1,70 @@
+# Reading: Shifting Through the Neck (repertoire plan: st-read-shifting). An original 32-bar
+# reading study that climbs the neck through five positions, each with its own key and meter:
+#   bars 1-8    E major (4 sharps), 4/4, position I   (open strings, finger 1 on fret 1)
+#   bars 9-14   F minor (4 flats), 3/4, position V    (finger 1 on fret 5)
+#   bars 15-20  C major, 6/8, position VII            (finger 1 on fret 7)
+#   bars 21-26  A major (3 sharps), 3/4, position IX  (finger 1 on fret 9)
+#   bars 27-32  E major again, 4/4, position XII      (the first section an octave higher)
+# The keys move by major thirds and their neighbours: E to F minor through the common note
+# G# = Ab, F minor ends on its dominant C, which becomes the new tonic; C turns to A minor and
+# its dominant E, then A major, whose last chord B7 leads home to E.
+# Every shift has a way in: an open string (bars 8, 26), the same note on a new string
+# (bars 14-15) or a finger that changes on a held note (bar 20). Fingerings are given only at
+# the shifts. The eighth note keeps its speed through every change of meter.
+title: Reading: Shifting Through the Neck
+composer: Sixstring Academy
+source: Original reading study through the positions
+licence: Original study for Sixstring Academy
+difficulty: 9
+tags: reading, shifting, positions, key signatures, changing meter, 6/8, 3/4
+tempo: 80
+time: 4/4
+key: E
+
+track: Melody
+role: lead
+[Position I: E major, 4/4]
+| ^"First position" q 1:0 e. 2:4 s 1:0 q 2:0 e 3:1 4:2 | q 5:0 e 5:4 4:2 q. 3:2 e 2:2 |
+| s 3:1 2:0 1:0 2:0 q 1:4 e3 1:2 1:0 2:4 q 1:0 | e 2:4 2:2 2:0 3:2 q 4:4 5:2 |
+| q 6:0 e. 5:2 s 4:2 q 3:1 e 2:0 1:0 | q. 1:4 e 1:0 q 2:2 e 3:1 2:2 |
+| q. 3:2 e 2:2 q 2:4 e 1:2 3:2 | q 3:1 e 2:0 1:0 ^"Open B: shift to fifth position while it rings" h 2:0 ||
+time: 3/4
+key: Fm
+[Position V: F minor, 3/4]
+| ^"G# becomes Ab: string 4, fret 6" q 4:6{2} e 3:5 2:6 e 2:8 2:6 | q. 2:6 e 3:8 q 3:6 | q 4:8 s 3:6 2:6 1:6 2:6 q 3:6 |
+| q. 1:8 e 1:6 e 2:8 2:5 | e 2:6 3:8 3:6 3:5 q 3:6 | h. 2:5 ||
+time: 6/8
+key: C
+[Position VII: C major, 6/8]
+| ^"The same E on string 3: seventh position" e. 3:9{3} s 3:10 e 2:8 q 1:8 e 2:8 | e. 2:10 s 2:8 e 3:10 q 4:10 e 3:10 |
+| e 6:10 4:7 3:7 3:10 2:10 1:10 | e. 1:7 s 2:10 e 2:9 q. 3:9 |
+| s 2:10 1:7 1:8 1:7 2:10 2:9 q. 2:10 | q. 1:7 ^"Take this G# with finger 1: ninth position" 2:9{1} ||
+time: 3/4
+key: A
+[Position IX: A major, 3/4]
+| q 1:12 e3 1:9 2:12 2:10 q 3:9 | q. 3:11 e 2:10 q 1:10 | e 2:12 1:9 1:10 2:12 q 3:11 |
+| q 2:9 s 2:12 1:9 1:10 1:12 q 1:10 | q 1:9 e 2:10 3:11 e 4:11 5:12 | q 1:11 e 2:12 2:10 3:11 ^"Open B: shift to twelfth position" 2:0 ||
+time: 4/4
+key: E
+[Position XII: E major, 4/4]
+| ^"Twelfth position: the first section an octave higher" q 1:12{1} e. 2:16{4} s 1:12 q 2:12 e 3:13 4:14 | q 3:14 e 2:14 1:12 q. 1:14 e 1:12 |
+| s 3:13 2:12 1:12 2:12 q 1:16 e3 1:14 1:12 2:16 q 1:12 | q. 3:14 e 2:14 q 2:16 e 1:14 3:14 |
+| q 3:13 e 2:12 1:12 h 1:16 | w (6:12 5:14 4:14 3:13 2:12 1:12) ||
+
+track: Teacher
+role: rhythm
+[Position I: E major, 4/4]
+| "E" h D D | "A" D D | "E" D D | "B7" D D |
+| "E" D D | "C#m" D D | "F#m" D "B7" D | "E" D D ||
+[Position V: F minor, 3/4]
+| "Fm" q D D D | "Db" D D D | "Bbm" D D D |
+| "C7" D D D | "Db" D D D | "C" h. D ||
+[Position VII: C major, 6/8]
+| "C" q. D D | "F" D D | "Dm" D D |
+| "E" D D | "Am" D D | "E" D D ||
+[Position IX: A major, 3/4]
+| "A" q D D D | "D" D D D | "Bm" D D D |
+| "E7" D D D | "F#m" D D D | "B7" D D D ||
+[Position XII: E major, 4/4]
+| "E" h D D | "A" D D | "E" D D |
+| "F#m" D "B7" D | "E" D D | "E" w D ||

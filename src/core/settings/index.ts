@@ -3,9 +3,28 @@
  * Settings the same way. Components from `@/ui/music` already follow note naming, handedness,
  * fretboard wood, inlays and labels by themselves; this module covers the rest.
  *
- *   const tracker = new PitchTracker({ ...micOptions(), chroma: true });
+ *   const tracker = new PitchTracker({ ...micOptions(), chroma: true });   // A4, input, sensitivity
+ *   new PitchTracker(micOptionsWith({ onset: { minIntervalMs: 70 } }));    // own onset/tracker/detector keys
  *   const t = learnerTuning();                // the learner's tuning (a Tuning object)
- *   if (!aiAllowed()) offerSettingsLink();    // before any ai.ask / ai.askJson
+ *   if (!aiAllowed()) offerSettingsLink();    // before offering any ai.ask / ai.askJson
+ *
+ * What reaches the engines by itself, so a screen has nothing to remember:
+ *  - Guitar tone and click: `@/core/audio` reads `soundPrefs()` for its defaults (`soundDefaults()`):
+ *    the shared guitar (`pluck`, `strum`, `getGuitar()`, the song player) and every new `Metronome`.
+ *    A `tone` on a note, `getGuitar().tone = …` or `metronome.sound = …` still wins.
+ *  - The AI switch: `ask` / `askJson` in `@/core/platform` refuse with `AiError('disabled')` while
+ *    `aiAllowed()` is false, whoever calls them. Screens still check it first to offer the link.
+ *  - Speech: teacher lesson cards are read aloud by themselves only while `speechWanted()`; the
+ *    speaker buttons read on request either way.
+ *
+ * Tuning: the tuner, the fretboard trainer, scales, chord pages and the chord finder, the arcade,
+ * the jam neck of progressions and the reference circle use `learnerTuning()`. These stay in a fixed
+ * tuning on purpose: a song or exercise (player, technique, lessons) in the tuning it is written
+ * for; progression chord charts and rhythm strums in standard shapes (the voicings are standard
+ * tuning); the reference interval shapes, which teach the standard-tuning B-string shift.
+ *
+ * Fret count (`fretCount()`): scales, the fretboard trainer, the player's neck, the reference circle
+ * and the jam neck on wide screens (a phone keeps 12 frets while the band plays).
  *
  * Every function reads the store at call time; pass `prefs` (for example from `usePrefs()`) to
  * use a value you already hold and to re-render when it changes.
@@ -20,19 +39,51 @@ export function learnerPrefs(): Preferences {
   return getProgressStore().getState().prefs;
 }
 
+/** What {@link micOptions} sets on a `PitchTracker`. */
+export type MicOptions = Pick<PitchTrackerOptions, 'a4' | 'deviceId' | 'onset' | 'tracker'>;
+
 /**
  * Microphone options for `new PitchTracker(...)`: the learner's reference pitch (A4), chosen input
  * device and sensitivity. Sensitivity 0 hears only loud playing, 1 very quiet playing; the default
- * 0.5 gives the pitch module's own defaults. Spread the result first, then your own options.
+ * 0.5 gives the pitch module's own defaults. Sensitivity moves both the quietest pluck that counts
+ * (`onset.minLevelDb`) and the floor of the noise gate that decides what is a note at all
+ * (`tracker.minGateDb` / `maxGateDb`), so it changes what every screen hears, not only strums.
+ * Spread the result first, then your own options; when your options have their own `onset`,
+ * `tracker` or `detector`, use {@link micOptionsWith} instead so the sensitivity is not lost.
  */
-export function micOptions(prefs: Preferences = learnerPrefs()): Pick<PitchTrackerOptions, 'a4' | 'deviceId' | 'onset'> {
+export function micOptions(prefs: Preferences = learnerPrefs()): MicOptions {
   const s = clamp01(prefs.mic.sensitivity);
-  const out: Pick<PitchTrackerOptions, 'a4' | 'deviceId' | 'onset'> = {
+  const out: MicOptions = {
     a4: prefs.a4,
     // -55 dBFS at 0.5 (the onset detector's default), -40 at 0 (loud only), -70 at 1 (very quiet).
     onset: { minLevelDb: Math.round(-40 - 30 * s) },
+    // The note gate: -68 / -38 dBFS at 0.5 (the note tracker's defaults), -58 / -32 at 0, -78 / -44 at 1.
+    tracker: { minGateDb: Math.round(-58 - 20 * s), maxGateDb: Math.round(-32 - 12 * s) },
   };
   if (prefs.mic.deviceId) out.deviceId = prefs.mic.deviceId;
+  return out;
+}
+
+/**
+ * A screen's own tracker options merged with the learner's microphone settings. Plain options
+ * (`chroma`, `audioContext`, `minFreq` ...) are the screen's; `a4` and `deviceId` are the screen's
+ * when it sets them (a screen with its own picker wins), the learner's otherwise. `onset`,
+ * `tracker` and `detector` are merged key by key, and the level thresholds that sensitivity sets
+ * (`onset.minLevelDb`, `tracker.minGateDb`, `tracker.maxGateDb`) always stay the learner's.
+ *
+ *   new PitchTracker(micOptionsWith({ audioContext: ctx, onset: { minIntervalMs: 70 } }));
+ */
+export function micOptionsWith(own: PitchTrackerOptions = {}, prefs: Preferences = learnerPrefs()): PitchTrackerOptions {
+  const mic = micOptions(prefs);
+  const out: PitchTrackerOptions = { ...mic, ...own };
+  if (own.a4 === undefined) out.a4 = mic.a4;
+  if (own.deviceId === undefined || own.deviceId === '') {
+    if (mic.deviceId) out.deviceId = mic.deviceId;
+    else delete out.deviceId;
+  }
+  out.onset = { ...own.onset, ...mic.onset };
+  out.tracker = { ...own.tracker, ...mic.tracker };
+  if (own.detector) out.detector = { ...own.detector };
   return out;
 }
 

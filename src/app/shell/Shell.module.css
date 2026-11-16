@@ -27,10 +27,10 @@
   box-shadow: var(--shadow-2);
   transform: translateY(-300%);
 }
-.skipActions {
+.skipAction {
   display: none;
 }
-.shell:has(#main [data-ui-action-bar]) .skipActions {
+.shell:has(main :is([data-ui-action-bar], [data-ui-primary])) .skipAction {
   display: block;
 }
 .skip:focus-visible {

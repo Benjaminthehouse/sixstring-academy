@@ -15,7 +15,6 @@ import {
   type DailyGoalXp,
 } from '@/core/progress';
 import { AnimatedNumber, Button, Icon, LevelBadge, LinkButton, ProgressBar, ProgressRing, SegmentedControl, Sheet, Switch, toast, useInterval } from '@/ui';
-import { dismissShellToasts } from '../feedback/toasts';
 import { GOAL_CHOICES } from '../onboarding/model';
 import { useSignal } from './signal';
 import { closeStats, openStats, statsSheet, type StatTab } from './stats';
@@ -218,9 +217,9 @@ export function StatsSheet() {
   const [shown, setShown] = useState<StatTab>(tab ?? 'goal');
   useEffect(() => {
     if (!tab) return;
+    // The shell's toasts are news: they wait while this sheet is open instead of covering it, and
+    // show again when it closes (the one whose "View" led here has already gone with that tap).
     setShown(tab);
-    // Toasts float above dialogs; the ones that led here would cover the sheet.
-    dismissShellToasts();
   }, [tab]);
 
   return (

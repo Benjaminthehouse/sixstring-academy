@@ -1,20 +1,24 @@
-# Joy to the World, the opening (repertoire plan: joy-to-the-world). Lowell Mason's tune Antioch
-# (1839) on Isaac Watts's words (1719), in D. Only the carol's first two lines are written here,
-# for verses 1 and 2: the part of the tune this arrangement can give note for note.
-# Line 1 is the D major scale stepping down an octave, in first position: D (string 2 fret 3),
-# C# (string 2 fret 2), B (open string 2), A (string 3 fret 2), G (open string 3), F# (string 4
-# fret 4), E (string 4 fret 2), D (open string 4). Rhythm: D quarter, C# dotted eighth, B
-# sixteenth | A dotted quarter, G eighth | F# E | D, then "Let" on the last eighth.
-# Line 2 climbs back up in pairs, a long note and a short one on the same pitch: B B, C# C#, D.
-# The teacher strums D, G and A7.
-title: Joy to the World (opening)
+# Joy to the World (repertoire plan: joy-to-the-world). Lowell Mason's tune Antioch (1839) on
+# Isaac Watts's words (1719), in D, the whole tune for verses 1 and 2. The melody is the one
+# independent recollections agreed on note for note, as the carol is commonly sung today (older
+# printings vary), played an octave below the sung pitch so it sits in first position.
+# Line 1 is the D major scale stepping down an octave: D (string 2 fret 3), C# (string 2 fret 2),
+# B (open string 2), A (string 3 fret 2), G (open string 3), F# (string 4 fret 4), E (string 4
+# fret 2), D (open string 4). Rhythm: D quarter, C# dotted eighth, B sixteenth | A dotted quarter,
+# G eighth | F# E | D, then "Let" on the last eighth.
+# Line 2 climbs back up in pairs, a long note and a short one on the same pitch: B B, C# C#, D D.
+# Line 3 runs down from D twice in eighths. The refrain repeats F#, then E, four times and flicks
+# up a step on a sixteenth; the last line leaps from low D to high D and walks home.
+# One finger per fret in first position (finger = fret number). The teacher strums D, G and A7,
+# two strums a bar; the chords change on beat 2 where the melody does.
+title: Joy to the World
 id: joy-to-the-world
 composer: Lowell Mason (tune Antioch); words by Isaac Watts
-source: Words 1719; tune Antioch published 1839; first two lines of verses 1 and 2; arranged for Sixstring Academy
+source: Words 1719; tune Antioch published 1839, melody as commonly sung today; verses 1 and 2; arranged for Sixstring Academy
 arranger: Sixstring Academy
 licence: Public domain (Watts died in 1748, Mason in 1872); this arrangement is original to Sixstring Academy
 difficulty: 3
-tags: melody, major scale, dotted rhythm, christmas, carol, lyrics
+tags: melody, major scale, dotted rhythm, sixteenth notes, christmas, carol, lyrics
 tempo: 72
 time: 2/4
 key: D
@@ -22,19 +26,33 @@ key: D
 track: Melody
 role: lead
 [Verse 1]
-| "D" q 2:3{3} e. 2:2{2} s 2:0 | q. 3:2{2} e 3:0 | q 4:4{4} "A7" 4:2{2} | "D" q. 4:0 e 3:2 |
+| "D" q 2:3{3} "A7" e. 2:2{2} s 2:0 | "D" q. 3:2{2} e 3:0 | q 4:4{4} "A7" 4:2{2} | "D" q. 4:0 e 3:2 |
 lyrics: Joy to the world! the Lord is come; Let
-| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" h 2:3 ||
-lyrics: earth re- ceive her King;
+| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" q. 2:3 e 2:3 |
+lyrics: earth re- ceive her King; Let
+| e 2:3 2:2 "G" 2:0 3:2 | "A7" e. 3:2 s 3:0 "D" e 4:4 2:3 | e 2:3 2:2 "G" 2:0 3:2 | "A7" e. 3:2 s 3:0 "D" e 4:4 4:4 |
+lyrics: ev- ery heart pre- pare Him room, And heav'n and na- ture sing, _ _ And
+| e 4:4 4:4 4:4 s 4:4 3:0 | q. 3:2 s 3:0 4:4 | "A7" e 4:2 4:2 4:2 s 4:2 4:4 | q. 3:0 s 4:4 4:2 |
+lyrics: heav'n and na- ture _ sing, _ and heav'n and na- ture _ sing, _ _
+| "D" e 4:0 q 2:3 e 2:0 | e. 3:2 s 3:0 e 4:4 3:0 | q 4:4 "A7" 4:2 | "D" h 4:0 ||
+lyrics: And heav'n, and heav'n, and na- _ ture _ sing.
 [Verse 2]
-| q 2:3 e. 2:2 s 2:0 | q. 3:2 e 3:0 | q 4:4 "A7" 4:2 | "D" q. 4:0 e 3:2 |
+| "D" q 2:3 "A7" e. 2:2 s 2:0 | "D" q. 3:2 e 3:0 | q 4:4 "A7" 4:2 | "D" q. 4:0 e 3:2 |
 lyrics: Joy to the earth! the Sav- iour reigns; Let
-| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" h 2:3 ||
-lyrics: men their songs em- ploy;
+| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" q. 2:3 e 2:3 |
+lyrics: men their songs em- ploy; While
+| e 2:3 2:2 "G" 2:0 3:2 | "A7" e. 3:2 s 3:0 "D" e 4:4 2:3 | e 2:3 2:2 "G" 2:0 3:2 | "A7" e. 3:2 s 3:0 "D" e 4:4 4:4 |
+lyrics: fields and floods, rocks, hills and plains Re- peat the sound- ing joy, _ _ Re-
+| e 4:4 4:4 4:4 s 4:4 3:0 | q. 3:2 s 3:0 4:4 | "A7" e 4:2 4:2 4:2 s 4:2 4:4 | q. 3:0 s 4:4 4:2 |
+lyrics: peat the sound- ing _ joy, _ re- peat the sound- ing _ joy, _ _
+| "D" e 4:0 q 2:3 e 2:0 | e. 3:2 s 3:0 e 4:4 3:0 | q 4:4 "A7" 4:2 | "D" h 4:0 ||
+lyrics: Re- peat, re- peat the sound- _ ing _ joy.
 
 track: Teacher
 role: rhythm
 [Verse 1]
-| q / / | / / | / / | / / | / / | / / | h / ||
+| q / / | / / | / / | / / | / / | / / | / / | / / | / / | / / |
+| / / | / / | / / | / / | / / | / / | / / | / / | h / ||
 [Verse 2]
-| q / / | / / | / / | / / | / / | / / | h / ||
+| q / / | / / | / / | / / | / / | / / | / / | / / | / / | / / |
+| / / | / / | / / | / / | / / | / / | / / | / / | h / ||

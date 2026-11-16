@@ -5,6 +5,7 @@
  * The musical decisions are pure functions (`clickPattern`, `speedTrainerBpm`, `isSilentBar`,
  * `TapTempo`) so they are tested without audio; `Metronome` wires them to the clock and the clicks.
  */
+import { soundDefaults } from './defaults';
 import { engineClock } from './engine';
 import type { ClickLevel, ClickSet } from './percussion';
 import { PPQ, defaultAccents, resolveMeter, type AccentLevel, type Meter, type TimeSignature } from './timeline';
@@ -202,8 +203,17 @@ export interface MetronomeOptions {
 export class Metronome {
   /** The transport the metronome runs on. */
   readonly transport: Transport;
-  /** Click sound set. */
-  sound: ClickSet = 'woodblock';
+  /** The click the screen chose, or null to follow the learner's default (`soundDefaults().clickSound`). */
+  private chosenSound: ClickSet | null = null;
+
+  /** Click sound set: the one a screen set, else the learner's default click from Settings (read at each click). */
+  get sound(): ClickSet {
+    return this.chosenSound ?? soundDefaults().clickSound;
+  }
+
+  set sound(set: ClickSet) {
+    this.chosenSound = set;
+  }
   /** Click volume 0..1.5. */
   volume = 1;
   /** Swing ratio used by the `swing` subdivision (0.5 straight .. 0.75 hard; default triplet feel). */

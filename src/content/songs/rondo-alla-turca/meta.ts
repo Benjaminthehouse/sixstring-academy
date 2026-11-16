@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['melody', 'technique', 'rhythm'],
   tags: ['mozart', 'classical', 'turkish march', 'sixteenth notes', 'turns', 'position shift', '2/4'],
   about:
-    'Light and crisp, like a toy march: each turn of four quick notes spins around a note and lands on it, and the notes just before the two short rests should be really short. The common trouble is the jump up to fourth position for the two turns around A, which makes them late or uneven. Practise the turn around E and the turns around A alone, slowly, moving your whole hand up the neck during the rest before them, and keep the pick going down-up, down on every beat.',
+    'Light and crisp, like a toy march: each turn of four quick notes spins around a note and lands on it, and the notes just before the two short rests should be really short. The common trouble is the jump up to fourth position for the two turns around A, which makes them late or uneven. Practise the turn around E and the turns around A alone, slowly: the turn around E ends on the open E string, and while it rings you move your whole hand up to fourth position. Keep the pick going down-up, down on every beat.',
   plan: 'rondo-alla-turca',
   added: '2026-11-16',
 });

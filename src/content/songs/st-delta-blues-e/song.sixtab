@@ -20,7 +20,7 @@ time: 4/4
 key: E
 
 [12-bar blues]
-| ^"Thumb: steady quarters, lightly muted" "E7" q (6:0{pm P} /1:3{3 M}) q3 (6:0{pm} 1:0) e3 2:3{3 I} q (6:0{pm} 2:0) 6:0{pm} |
+| ^"Thumb: steady quarters, lightly muted" "E7" q (6:0{pm P} /1:3{3}) q3 (6:0{pm} 1:0{M}) e3 2:3{3 I} q (6:0{pm} 2:0) 6:0{pm} |
 | ^"Blue note: B flat slides to B" q3 (6:0{pm} 3:3{3 I}) e3 3:4s{3} q3 (6:0{pm} 3:2{2}) e3 3:0 q 6:0{pm} q3 6:0{pm} e3 1:0 |
 | q3 (6:0{pm} 1:3{3}) e3 1:0 q3 (6:0{pm} 1:3) e3 1:0 q3 (6:0{pm} 2:3{3}) e3 2:0 q (6:0{pm} 3:2{2}) |
 | q3 (6:0{pm} 3:3{3}) e3 3:4s{3} q (6:0{pm} 3:2{2}) (6:0{pm} 3:0) 6:0{pm} |

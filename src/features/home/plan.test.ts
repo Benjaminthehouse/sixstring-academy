@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVITY_KINDS, addDays, type ActivityKind, type RecentItem } from '@/core/progress';
+import { ACTIVITY_KINDS, addDays, createInitialState, type ActivityKind, type RecentItem } from '@/core/progress';
+import type { PlanBlock } from '@/features/practice/model/planner';
+import { suggestPracticePlan } from '@/features/practice/model/signals';
 import { ROUTE_BY_NAME } from '@/app/routes';
 import { PLAN_SLOTS, buildPlan, minutesLeft, nextStep, planLength, slotsForLength, type PlanContext } from './plan';
 
@@ -134,5 +136,60 @@ describe('nextStep and minutesLeft', () => {
     const done = plan.map((s) => ({ ...s, done: true }));
     expect(nextStep(done)).toBeNull();
     expect(minutesLeft(done)).toBe(0);
+  });
+});
+
+describe("Today's drill and music come from the practice planner", () => {
+  const block = (over: Partial<PlanBlock> & Pick<PlanBlock, 'id' | 'area'>): PlanBlock => ({
+    minutes: 4,
+    title: 'Block',
+    goal: 'Do it slowly. Then a little faster.',
+    target: null,
+    ...over,
+  });
+  const drill = block({ id: 'b2', area: 'chords', title: 'One-minute changes: G to C', reason: 'Your G to C change is getting rusty', target: { route: 'chords', params: ['trainer', 'g-c'], label: 'Open the trainer' } });
+  const song = block({ id: 'b3', area: 'repertoire', minutes: 5, title: 'Strum a two-chord song', target: { route: 'songs', params: [], label: 'Open Songs' } });
+  const practice = [block({ id: 'b1', area: 'warmup', target: { route: 'technique', params: [], label: 'Warm up' } }), drill, song];
+
+  it('a full plan keeps tune, theory and the teacher, and takes the drill and the song the planner chose', () => {
+    const plan = buildPlan({ ...base, dailyGoalXp: 50, practice });
+    expect(plan.map((s) => s.route)).toEqual(['tuner', 'learn', 'teachers', 'chords', 'songs']);
+    expect(plan[3]).toMatchObject({ title: 'One-minute changes: G to C', params: ['trainer', 'g-c'], detail: 'Your G to C change is getting rusty', minutes: 4, done: false });
+    expect(plan[3].xp).toBeGreaterThan(0);
+    expect(plan[4]).toMatchObject({ title: 'Strum a two-chord song', detail: 'Do it slowly.', minutes: 5 });
+    // Without the planner's blocks the same day still has a plan of its own.
+    expect(buildPlan({ ...base, dailyGoalXp: 50 }).map((s) => s.route)).toEqual(buildPlan({ ...base, dailyGoalXp: 50, practice: [] }).map((s) => s.route));
+  });
+
+  it('ticks a planned step off with the activity its screen records', () => {
+    const plan = buildPlan({ ...base, dailyGoalXp: 50, practice, doneKinds: new Set<ActivityKind>(['chord-change']) });
+    expect(plan.find((s) => s.route === 'chords')?.done).toBe(true);
+    expect(plan.find((s) => s.route === 'songs')?.done).toBe(false);
+  });
+
+  it('falls back to its own step when the planner has nothing it can count for a slot', () => {
+    const odd = [
+      block({ id: 'x', area: 'theory', target: { route: 'reference', params: ['circle'], label: 'Open' } }),
+      block({ id: 'y', area: 'free', target: null }),
+      // The theory lesson and the tuner are steps of their own already: never a second time as the drill.
+      block({ id: 'z', area: 'theory', target: { route: 'learn', params: [], label: 'Open the path' } }),
+      block({ id: 'w', area: 'ear', target: { route: 'tuner', params: [], label: 'Open the tuner' } }),
+    ];
+    const plan = buildPlan({ ...base, dailyGoalXp: 50, practice: odd });
+    const own = buildPlan({ ...base, dailyGoalXp: 50 });
+    expect(plan.map((s) => s.id)).toEqual(own.map((s) => s.id));
+  });
+
+  it('every step the real planner gives a fresh learner is a real screen', () => {
+    for (const experience of LEVELS) {
+      for (const minutes of [5, 10, 15, 20]) {
+        const state = createInitialState({ now: Date.parse('2026-03-02T10:00:00Z'), timeZone: 'UTC', deviceId: 't' });
+        state.profile.experience = experience;
+        const blocks = suggestPracticePlan(state, Date.parse('2026-03-02T10:00:00Z'), minutes);
+        const plan = buildPlan({ ...base, experience, dailyGoalXp: 50, practice: blocks });
+        for (const step of plan) expect(ROUTE_BY_NAME[step.route], step.route).toBeTruthy();
+        expect(plan.filter((s) => s.id.startsWith('practice-')).length).toBeGreaterThan(0);
+      }
+    }
   });
 });

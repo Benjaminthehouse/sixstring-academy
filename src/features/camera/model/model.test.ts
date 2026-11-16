@@ -10,7 +10,7 @@ import { answers, drillCandidates, drillNote, nextTarget } from './drill';
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor } from './guitar';
 import { FAR_FROM_WIRE, frettingHand, handAdvice, readFingers } from './hands';
 import { describeStep, songPlan, stepHeard, stepIndexAt, stepNotes } from './song';
-import { GHOST_MS, SOLID_CONFIDENCE, STARTING_STATUS, announcement, describeStatus, sameStatus } from './status';
+import { GHOST_MS, MARK_THE_NECK, SOLID_CONFIDENCE, STARTING_STATUS, announcement, describeStatus, sameStatus } from './status';
 
 const SETUP = { tuning: STANDARD_TUNING, capo: 0 };
 
@@ -454,9 +454,13 @@ describe('status', () => {
     expect(describeStatus(lost).message).toMatch(/Hold the guitar still/);
   });
 
-  it('searching for a while offers the four taps', () => {
-    const s = describeStatus(update({ suggestCalibration: true, guidance: guidance('calibrate', 'calibrate') }));
+  it('searching for a while offers the four taps, in this screen\'s words', () => {
+    const s = describeStatus(update({ suggestCalibration: true, guidance: guidance('calibrate', 'calibrate', 'Automatic tracking is struggling here. Tap Calibrate and mark the nut and the 12th fret.') }));
     expect(s.offers).toEqual(['calibrate']);
+    // The button beside the line is "Mark the neck": the line must not send the learner looking for "Calibrate".
+    expect(s.message).toBe(MARK_THE_NECK);
+    expect(s.message).toMatch(/Mark the neck/);
+    expect(s.message).not.toMatch(/Calibrate/);
     expect(s.bars).toBe(0);
     expect(s.tone).toBe('info');
     expect(sameStatus(s, describeStatus(update({ suggestCalibration: true, guidance: guidance('calibrate', 'calibrate') })))).toBe(true);

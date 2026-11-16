@@ -13,11 +13,14 @@
  * mode, the range, the frets, strings and fingers the plan names, and the difficulty estimate
  * against the plan's level. The duet is also checked as counterpoint: the interval between the
  * two voices on every beat, and no parallel fifths or octaves.
+ *
+ * Tests whose comment starts "Review:" were added by the independent review of this batch: each
+ * covers something the review found and fixed, or a fact the first checks could not see.
  */
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, soundingPitch, type Note, type Song } from '@/core/song';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
-import { loadSongText } from '@/content/songs';
+import { loadSongText, songEntry } from '@/content/songs';
 
 const name = (m: number) => midiToNote(m, { prefer: 'sharps' });
 const BAR_34 = 2880;
@@ -313,6 +316,26 @@ describe('batch 12: st-duet-baroque', () => {
       if (sameWay && a === b && (a === 0 || a === 7)) parallels.push(`${name(l0)}-${name(h0)} to ${name(l1)}-${name(h1)} at tick ${onsets[i]}`);
     }
     expect(parallels).toEqual([]);
+  });
+
+  // Review: the parallels test above sees only similar motion. Consecutive perfect consonances by
+  // contrary motion (antiparallel fifths or octaves) are also counted here: the only one is F over F
+  // closing the first half, back to D over D at the repeat sign, which the dance style allows.
+  it('has consecutive perfect consonances by contrary motion only across the repeat of the first half', async () => {
+    const song = await load('st-duet-baroque');
+    const upper = played(song, UP).filter((b) => b.midis.length);
+    const lower = played(song, LOW).filter((b) => b.midis.length);
+    const at = (beats: Played[], tick: number) => beats.find((b) => b.tick <= tick && tick < b.tick + b.duration);
+    const onsets = [...new Set([...upper, ...lower].map((b) => b.tick))].sort((a, b) => a - b);
+    const found: string[] = [];
+    for (let i = 1; i < onsets.length; i++) {
+      const [h0, l0, h1, l1] = [at(upper, onsets[i - 1]), at(lower, onsets[i - 1]), at(upper, onsets[i]), at(lower, onsets[i])];
+      if (!h0 || !l0 || !h1 || !l1) continue;
+      const [a, b] = [(h0.midis[0] - l0.midis[0]) % 12, (h1.midis[0] - l1.midis[0]) % 12];
+      const contrary = Math.sign(h1.midis[0] - h0.midis[0]) * Math.sign(l1.midis[0] - l0.midis[0]) === -1;
+      if (contrary && a === b && (a === 0 || a === 7)) found.push(`bar ${h0.bar + 1} to bar ${h1.bar + 1} (pass ${h1.pass}): ${name(l0.midis[0])}-${name(h0.midis[0])} to ${name(l1.midis[0])}-${name(h1.midis[0])}`);
+    }
+    expect(found).toEqual(['bar 8 to bar 1 (pass 2): F2-F4 to D3-D4']);
   });
 
   it('has chord tones (or steps to them) on every beat, in D minor, first position for both players', async () => {
@@ -623,6 +646,17 @@ describe('batch 12: st-delta-blues-e', () => {
     expect(range(beats)).toEqual(['E2', 'G4']);
   });
 
+  // Review: bar 1 marked the thumb p and the melody m on the same beat, which the tab prints side by
+  // side as "mp" and reads like the dynamic mezzo-piano. Each beat now carries at most one
+  // right-hand finger, and the marks still name the plan's division: p thumb, i strings 2-3, m string 1.
+  it('marks at most one right-hand finger per beat (no "mp" that reads as a dynamic): p on the thumb, i on strings 2-3, m on string 1', async () => {
+    const song = await load('st-delta-blues-e');
+    const beats = played(song, 'Guitar');
+    for (const b of beats) expect(b.notes.filter((n) => n.pluck).length, `bar ${b.bar + 1} tick ${b.inBar}`).toBeLessThanOrEqual(1);
+    const marks = beats.flatMap((b) => b.notes.filter((n) => n.pluck).map((n) => `${n.pluck}:${n.string}`));
+    expect([...new Set(marks)].sort()).toEqual(['i:2', 'i:3', 'm:1', 'p:6']);
+  });
+
   it('estimates at level 4 against the plan\'s 6: the estimate cannot see thumb independence', async () => {
     // Note for note this is swung eighths in open position; what makes it level 6 is a thumb that
     // keeps a steady muted beat while the fingers syncopate above it.
@@ -718,6 +752,21 @@ describe('batch 12: rondo-alla-turca', () => {
     const withChord = beats.map((b) => ({ ...b, chord: IMPLIED[b.bar][Math.floor(b.inBar / 960)] }));
     expect(strongBeatProblems(withChord, [0, 960])).toEqual([]);
     expect(range(beats)).toEqual(['G#3', 'C5']);
+  });
+
+  // Review: the learner text told the learner to shift "during the rest before" the turns around A,
+  // but no rest comes before them: the shift is made while the open E that ends bar 2 rings.
+  it('reaches fourth position straight from an open string, as the learner text says (no rest before the shift)', async () => {
+    const song = await load('rondo-alla-turca');
+    const beats = firstTime(played(song, 'Melody'));
+    const first4th = beats.findIndex((b) => b.bar === 3);
+    const before = beats[first4th - 1];
+    expect(before.token).toBe(canon('E4'));
+    expect(before.notes.map((n) => `${n.string}:${n.fret}`)).toEqual(['1:0']);
+    expect(before.tick + before.duration).toBe(beats[first4th].tick);
+    const about = songEntry('rondo-alla-turca')!.about;
+    expect(about).not.toMatch(/during the rest/);
+    expect(about).toMatch(/open E string/);
   });
 
   it('estimates near level 6', async () => {

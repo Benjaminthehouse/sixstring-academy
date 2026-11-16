@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { STANDARD_TUNING, tuning } from '@/core/guitar';
 import { parseSixTab } from '@/core/song';
-import { SCALES } from '@/core/theory';
+import { SCALES, getScale, parseKey } from '@/core/theory';
 import { shapesFor, systemsFor } from './neck';
-import { BAR_TICKS, PPQ, buildLine, exerciseChoices, fillBars, lineTab, tabPosition, timeLine, type NotesPerBeat } from './play';
+import { BAR_TICKS, PPQ, buildLine, exerciseChoices, fillBars, lineTab, staffKey, tabPosition, timeLine, type NotesPerBeat } from './play';
 
 const box1 = () => shapesFor('A', 'minor-pentatonic', 'box', { lastFret: 15 })[0];
 
@@ -96,6 +96,23 @@ describe('tab', () => {
     const text = lineTab(line, 2, { tuning: tuning('dadgad') });
     expect(parseSixTab(text).errors).toEqual([]);
     expect(lineTab(buildLine(box1(), 'shape', 'up'), 2, { tuning: STANDARD_TUNING })).toContain('6:5{1}');
+  });
+
+  it('names the key the staff under the tab is spelled in (Settings > "Tab and notation")', () => {
+    const key = (tonic: string, id: string) => staffKey(tonic, getScale(id)!);
+    expect(key('A', 'minor-pentatonic')).toBe('A minor');
+    expect(key('E', 'phrygian')).toBe('E minor');
+    expect(key('A', 'blues')).toBe('A minor');
+    expect(key('Bb', 'major-pentatonic')).toBe('Bb major');
+    expect(key('F', 'lydian')).toBe('F major');
+    expect(key('G', 'mixolydian')).toBe('G major');
+    // Every scale gets a key the song parser understands, on every tonic spelling.
+    for (const s of SCALES) for (const tonic of ['C', 'F#', 'Eb']) expect(parseKey(staffKey(tonic, s))).not.toBeNull();
+    const text = lineTab(buildLine(box1(), 'shape', 'up'), 2, { tuning: STANDARD_TUNING, key: 'A minor' });
+    const parsed = parseSixTab(text);
+    expect(parsed.errors).toEqual([]);
+    expect(text).toMatch(/^key: A minor$/m);
+    expect(lineTab(buildLine(box1(), 'shape', 'up'), 2, { tuning: STANDARD_TUNING })).not.toMatch(/^key:/m);
   });
 
   it('finds a note’s place in the tab', () => {

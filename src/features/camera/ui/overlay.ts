@@ -6,6 +6,7 @@
  */
 import {
   drawVisionOverlay,
+  fretSpacingPx,
   frameToDisplay,
   readOverlayPalette,
   type FretboardPose,
@@ -66,6 +67,21 @@ export interface OverlayFrame {
   palette: StagePalette;
 }
 
+/** Narrowest fret cell (CSS px on the stage) that still takes its own number: the smallest two-digit label is about 19 px wide. */
+export const MIN_NUMBERED_CELL = 22;
+
+/**
+ * Whether every fret can be numbered on this stage: the narrowest cell in view (the last one) is
+ * wide enough for its label. Otherwise only the inlay frets are numbered (3, 5, 7, 9, 12 ...), as
+ * on a small phone picture, where twenty numbers would pile into each other.
+ */
+export function roomForEveryNumber(pose: FretboardPose, view: { width: number; height: number }): boolean {
+  if (!(pose.frameWidth > 0) || !(pose.frameHeight > 0)) return false;
+  const scale = Math.min(view.width / pose.frameWidth, view.height / pose.frameHeight);
+  const last = Math.max(1, Math.min(pose.model.fretCount, pose.visibleFrets.max));
+  return fretSpacingPx(pose, last) * scale >= MIN_NUMBERED_CELL;
+}
+
 /** Draw one frame. Returns what the vision overlay placed (for hit tests and the browser check). */
 export function drawFrame(ctx: CanvasRenderingContext2D, f: OverlayFrame): OverlayResult {
   const notes: OverlayNote[] =
@@ -84,7 +100,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: OverlayFrame): Overl
     reducedMotion: f.reducedMotion,
     // The screen shows the state in words beside the picture.
     indicator: false,
-    allFretNumbers: f.state === 'locked',
+    allFretNumbers: f.state === 'locked' && f.pose !== null && roomForEveryNumber(f.pose, f.view),
     // Open-string notes sit behind the nut, where the string names would go.
     stringLabels: !notes.some((n) => n.fret <= 0),
   });

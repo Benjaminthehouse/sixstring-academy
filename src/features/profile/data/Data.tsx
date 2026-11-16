@@ -46,9 +46,29 @@ import styles from './Data.module.css';
 
 const TONE_ICON = { ok: 'ShieldCheck', warn: 'TriangleAlert', bad: 'ShieldAlert', info: 'Info', busy: 'RefreshCw' } as const;
 
-/** Reload so every screen reads the new data (features keep some of it in memory). */
-function reloadApp(): void {
-  window.location.reload();
+/**
+ * Reload so every screen reads the new data (features keep some of it in memory). A dialog that
+ * has just closed steps history back by one (the kit's Back-closes-the-dialog entry), and a reload
+ * started before that step lands is cancelled by it: so after a dialog, wait for the step first.
+ */
+function reloadApp(afterDialog = false): void {
+  if (!afterDialog) {
+    window.location.reload();
+    return;
+  }
+  let started = false;
+  const go = (): void => {
+    if (started) return;
+    started = true;
+    window.removeEventListener('popstate', onStep);
+    window.location.reload();
+  };
+  const onStep = (): void => {
+    setTimeout(go, 0);
+  };
+  window.addEventListener('popstate', onStep);
+  // A host that refuses history entries never steps back: reload anyway.
+  setTimeout(go, 1000);
 }
 
 /** The learner data on this device, kept current while the screen is open. */
@@ -365,9 +385,12 @@ function ImportCard() {
       const description = notes.length ? `${listText(notes)}.` : undefined;
       if (result.reload) {
         leaveNotice({ tone: notes.length > 1 ? 'warn' : 'ok', title, description, undo: result.undo });
-        reloadApp();
+        reloadApp(true);
       } else if (result.undo) offerUndo(title, description);
       else toast.ok(title, { description });
+    } catch {
+      setFile(null);
+      toast.error('The backup could not be imported', { description: 'Something went wrong part of the way. Reload the page: Your data then offers Undo to put back what was here.' });
     } finally {
       setBusy(false);
     }
@@ -491,9 +514,12 @@ function ResetCard() {
       const description = result.songsDeleted > 0 && !result.songsUndoable ? 'Your songs were too large to keep a copy of, so Undo cannot bring them back.' : undefined;
       if (result.reload) {
         leaveNotice({ tone: 'ok', title, description, undo: result.undo });
-        reloadApp();
+        reloadApp(true);
       } else if (result.undo) offerUndo(title, description);
       else toast.ok(title, { description });
+    } catch {
+      close();
+      toast.error('The reset did not finish', { description: 'Reload the page and look at Your data again; your backup file can bring everything back.' });
     } finally {
       setBusy(false);
     }

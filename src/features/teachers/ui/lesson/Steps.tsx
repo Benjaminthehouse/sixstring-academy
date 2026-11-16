@@ -62,7 +62,7 @@ export function TeacherCard({ teacher, card, art, onNext }: { teacher: TeacherKe
     <article className={cx(styles.card, hasPicture && styles.split)} data-step-kind="card" {...swipe}>
       <div className={styles.cardHead}>
         <TeacherLine teacher={teacher} />
-        <SpeakButton teacher={teacher} text={spokenOf(card, glossary)} />
+        <SpeakButton teacher={teacher} text={spokenOf(card, glossary)} auto />
       </div>
       <div className={styles.cardMain}>
         {card.title && (

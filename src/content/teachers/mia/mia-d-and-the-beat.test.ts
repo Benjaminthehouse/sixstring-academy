@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { loadSongText, songEntry } from '@/content/songs';
+import { getExercise } from '@/content/technique';
 import { identifyFretted, noteAt } from '@/core/guitar';
 import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, parseChord } from '@/core/theory';
@@ -14,6 +15,7 @@ import { estimateLessonSeconds, formatProblems, validateCourse } from '@/lessons
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TeacherUnit } from '../types';
 import unit from './mia-d-and-the-beat';
+import { A_WIDE_FINGERS, SHAPES } from './mia-first-chords';
 
 // ── helpers (kept in this file: the unit folder holds only unit files and their tests) ──────────
 
@@ -211,5 +213,93 @@ describe('Mia unit 4: D, A7 and the steady beat', () => {
 
   it('names the BPM of every Player task as the song tempo times its percentage', async () => {
     expect(await taskBpmProblems(unit)).toEqual([]);
+  });
+});
+
+// ── checks added by the review ──────────────────────────────────────────────────────────────────
+
+/** Where each finger sits in a shape: `{ 1: '3:2' }` from frets `xx0232` and fingers `xx0132`. */
+function places(frets: string, fingers: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  [...fingers].forEach((f, i) => {
+    if (f >= '1' && f <= '4') out[Number(f)] = `${6 - i}:${frets[i]}`;
+  });
+  return out;
+}
+
+function task(lessonId: string, taskId: string) {
+  const step = unit.lessons.find((l) => l.id === lessonId)!.steps.find((s) => isTaskStep(s) && s.id === taskId);
+  if (!step || !isTaskStep(step)) throw new Error(`no task ${lessonId} > ${taskId}`);
+  return step;
+}
+
+describe('Mia unit 4: what the review fixed', () => {
+  it('never offers chord boxes as answer options (the engine prints each box\'s name on it)', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        const st = s as { type?: string; options?: Array<{ figure?: { kind: string } }> };
+        if (st.type === 'choice') for (const o of st.options ?? []) expect(o.figure?.kind, l.id).not.toBe('chord');
+      }
+    }
+  });
+
+  it('gives every lesson two to four facts', () => {
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeGreaterThanOrEqual(2);
+    for (const l of unit.lessons) expect((l.facts ?? []).length, l.id).toBeLessThanOrEqual(4);
+  });
+
+  it('says only true things about the Em to D change', () => {
+    const em = places('022000', '023000');
+    const d = places('xx0232', 'xx0132');
+    const travel = (f: number) => Math.abs(Number(em[f].split(':')[0]) - Number(d[f].split(':')[0]));
+    // Finger 2 travels from string 5 to string 1, farther than finger 3 (string 4 to string 2) ...
+    expect(travel(2)).toBe(4);
+    expect(travel(3)).toBe(2);
+    expect(JSON.stringify(unit.lessons.find((l) => l.id === 'the-d-chord'))).not.toMatch(/farthest/);
+    // ... and finger 3 is the only finger at fret 3: the top of the triangle.
+    expect(Object.entries(d).filter(([, p]) => p.endsWith(':3')).map(([f]) => f)).toEqual(['3']);
+  });
+
+  it('finds the D triangle on strings 3 to 1 at exactly the three fretted notes', () => {
+    const shape = identifyFretted('xx0232');
+    const fretted = shape.notes.filter((n) => n.fret > 0).map((n) => `${n.string}:${n.fret}`).sort();
+    expect(fretted).toEqual(['1:2', '2:3', '3:2']);
+    // Every chord tone of D in frets 1 to 3 of strings 3, 2 and 1 (what the fretboard-find step asks for).
+    const tones = new Set(chordNotes('D'));
+    const found: string[] = [];
+    for (const string of [3, 2, 1]) for (let fret = 1; fret <= 3; fret++) if (tones.has(at(string, fret, 'D'))) found.push(`${string}:${fret}`);
+    expect(found.sort()).toEqual(fretted);
+  });
+
+  it('names the A fingering that really keeps finger 1 on string 3, fret 2 from D', async () => {
+    const d = places('xx0232', 'xx0132');
+    expect(d[1]).toBe('3:2');
+    expect(places(SHAPES.A.frets, A_WIDE_FINGERS)[1]).toBe('3:2');
+    // With the 1-2-3 fingering (the one unit 2 teaches first), finger 1 is on string 4: it does not stay.
+    expect(places(SHAPES.A.frets, SHAPES.A.fingers)[1]).toBe('4:2');
+    expect(plain(task('a7-and-waltz-time', 'd-a7-ladder').body)).toMatch(/fingered 2, 1, 3/);
+    expect(await loadSongText('st-change-d-a7-a-d')).toMatch(/A \(x02220\), fingered 2-1-3/);
+  });
+
+  it('keeps Technique tasks on chords already taught, or says which chord to stay on', () => {
+    // Unit 2: Em, E, Am, the one-finger G, A, E7. This unit: D, A7.
+    const known = new Set(['022000', '022100', 'x02210', 'xx0003', 'x02220', '020100', 'xx0232', 'x02020']);
+    let checked = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (!isTaskStep(s) || s.tool !== 'technique') continue;
+        const ex = getExercise(s.params![0])!;
+        const shapes = new Map(ex.parts.flatMap((p) => [...p.tab.matchAll(/"([A-G][^="]*)=([x0-9]{6})"/g)].map((m) => [m[2], m[1]] as const)));
+        expect(shapes.size, s.id).toBeGreaterThan(0);
+        for (const [frets, name] of shapes) {
+          checked++;
+          if (known.has(frets)) continue;
+          // tech-strum-constant switches to the full G (320003) for its last eight bars; G comes in unit 5.
+          expect(plain(s.body), `${s.id}: ${name} ${frets}`).toContain(`{c:${name}}`);
+          expect(plain(s.body), `${s.id}: ${name} ${frets}`).toMatch(/stay on it/);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(4);
   });
 });

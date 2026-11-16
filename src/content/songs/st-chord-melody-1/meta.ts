@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['fingerpicking', 'chords', 'melody'],
   tags: ['chord melody', 'fingerstyle', 'ballad', 'solo', 'c major', 'arranging'],
   about:
-    'This is a song with no singer: the tune is the top note of every chord, on strings 1 and 2, and on beats 1 and 3 the chord rings under it. Pluck each chord with the thumb on the bass and the fingers together on the higher strings, a little louder on the top string so the melody sings over the rest. The usual problem is losing the tune inside the chords: play the top notes alone first and hum along, then add the chords. In bars 2, 6 and 14 move up to fifth position for the Am with A on top, and come back down while the long note rings.',
+    'This is a song with no singer: the tune is the top note of every chord, on strings 1 and 2, and on beats 1 and 3 the chord rings under it. Pluck each chord with the thumb on the bass and the fingers together on the higher strings, a little louder on the top string so the melody sings over the rest. The usual problem is losing the tune inside the chords: play the top notes alone first and hum along, then add the chords. In bars 2, 6 and 14 move up to fifth position for the Am with A on top; hold the long Am for its full count, then move straight back down for the next chord, keeping the fingers close to the strings.',
   plan: 'st-chord-melody-1',
   added: '2026-11-16',
 });

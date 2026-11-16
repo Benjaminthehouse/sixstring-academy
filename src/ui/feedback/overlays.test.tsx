@@ -146,6 +146,18 @@ describe('Back with a dialog open', () => {
     expect(dialogOpen()).toBe(false);
   });
 
+  it('ignores an entry left marked by a reload while a dialog was open', async () => {
+    await go('#tuner');
+    window.history.replaceState({ ssaDialog: 1 }, '');
+    resetBackClose();
+    await mount(<Harness />);
+    await act(async () => (document.querySelector('[aria-label="Close"]') as HTMLButtonElement).click());
+    await settle(260);
+    expect(window.location.hash).toBe('#tuner');
+    await back();
+    expect(window.location.hash).toBe('#start');
+  });
+
   it('keeps a dialog that cannot be dismissed right now, and the screen with it', async () => {
     await go('#scan');
     await mount(<Harness dismissable={false} kind="modal" />);

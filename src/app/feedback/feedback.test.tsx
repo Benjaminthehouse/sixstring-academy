@@ -179,6 +179,47 @@ describe('a moment that earns a lot', () => {
     await act(async () => sheetRoot.unmount());
     sheet.remove();
   });
+
+  it('keeps every reward that arrives while a sheet stays open, however long it stays open', async () => {
+    const sheet = document.createElement('div');
+    document.body.appendChild(sheet);
+    const sheetRoot = createRoot(sheet);
+    const render = (open: boolean) =>
+      act(async () => {
+        sheetRoot.render(
+          <Sheet open={open} onClose={() => undefined} title="Results">
+            Three stars
+          </Sheet>,
+        );
+      });
+    await render(true);
+    await act(async () => {
+      actions.recordActivity({ kind: 'song', id: 'song:greensleeves', title: 'Greensleeves', accuracy: 0.9, stars: 2, durationSec: 120 });
+    });
+    await moment();
+    // Long after the card would have left the screen, more news: it must join, not replace it.
+    await moment(20_000);
+    await act(async () => {
+      actions.recordActivity({ kind: 'tuner', durationSec: 60 });
+    });
+    await moment();
+    expect(toasts()).toEqual([]);
+    await render(false);
+    await moment(400);
+    // A new level may have earned its own dialog: the toasts come after it.
+    for (let i = 0; i < 3 && dialog(); i++) {
+      const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+      await act(async () => button?.click());
+      await moment(400);
+    }
+    const text = toasts().map((t) => t.text).join(' | ');
+    expect(text).toMatch(/XP/);
+    expect(toasts().length).toBeLessThanOrEqual(3);
+    // The song's news (its crown) is still there next to the tuner's.
+    expect(text).toContain('Greensleeves');
+    await act(async () => sheetRoot.unmount());
+    sheet.remove();
+  });
 });
 
 describe('hearts', () => {

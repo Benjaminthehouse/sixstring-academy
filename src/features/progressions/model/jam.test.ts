@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { backingFor, progression, progressionInKey } from '@/content/progressions';
 import { arrangeBacking } from '@/core/audio';
 import { chordPcs } from '@/core/theory';
-import { midiAt } from '@/core/guitar';
+import { midiAt, tuning } from '@/core/guitar';
 import {
   DEFAULT_JAM, LOG_AFTER_SEC, chordAt, finishedText, chordScale, clampTempo, distanceText, endingChord, feelsFor, glyphCount, jamActivity, jamMarkers, positionOf,
   sanitizeJam, scaleChoices, scaleFor, upcoming,
@@ -147,6 +147,17 @@ describe('scales to solo with', () => {
     for (const m of rest) expect(want).not.toContain(midiAt(m) % 12);
     expect(new Set(tones.map((m) => m.label))).toEqual(new Set(['R', '♭3', '5', '♭7']));
     expect(jamMarkers('Am7', null).every((m) => m.state !== 'ghost')).toBe(true);
+  });
+
+  it("puts the notes where they are in the learner's tuning", () => {
+    const dropD = tuning('drop-d');
+    const markers = jamMarkers('D', { tonic: 'D', scale: 'major' }, { maxFret: 12, tuning: dropD });
+    const want = chordPcs('D');
+    for (const m of markers.filter((x) => x.state !== 'ghost')) expect(want).toContain(midiAt(m, { tuning: dropD }) % 12);
+    // The open low string is D in Drop D (a chord root), E in standard (not a D-major chord tone).
+    const lowOpen = (list: ReturnType<typeof jamMarkers>) => list.find((m) => m.string === 6 && m.fret === 0 && m.state !== 'ghost');
+    expect(lowOpen(markers)?.label).toBe('R');
+    expect(lowOpen(jamMarkers('D', { tonic: 'D', scale: 'major' }, { maxFret: 12 }))).toBeUndefined();
   });
 });
 

@@ -336,7 +336,7 @@ function writeStash(r: Resolved, stash: UndoStash): boolean {
 function readStash(r: Resolved): UndoStash | null {
   const e = r.data.entry(UNDO_KEY);
   const v = e?.value;
-  if (!isObj(v) || v.v !== 1 || typeof v.at !== 'number' || !isObj(v.progress) || !isObj(v.data) || !Array.isArray(v.classes)) return null;
+  if (!isObj(v) || v.v !== 1 || typeof v.at !== 'number' || !isObj(v.progress) || !isObj(v.data) || !Array.isArray(v.classes) || !isObj(v.songs) || !Array.isArray(v.songs.remove)) return null;
   if (r.now() - v.at > UNDO_MS || v.at > r.now() + 60_000) return null;
   return v as unknown as UndoStash;
 }
@@ -446,8 +446,13 @@ export async function applyBackup(read: ReadBackupOk, strategy: MergeStrategy, d
     classes: ['learner'],
     songs: { remove: [], restore: [] },
   };
+  // The copy for Undo goes first, so even an import that fails half-way can be taken back.
+  let undo = writeStash(r, before);
   const progress = r.store.importData(read.progress, strategy);
-  if (!progress.ok) return progress;
+  if (!progress.ok) {
+    if (undo) r.data.remove(UNDO_KEY);
+    return progress;
+  }
 
   const plan = planBackupData(before.data, read, strategy);
   const applied = plan ? applyPlan(r.data, plan) : { changed: [], failed: [] };
@@ -461,12 +466,12 @@ export async function applyBackup(read: ReadBackupOk, strategy: MergeStrategy, d
       songs = null;
     }
   }
-  if (songs) {
+  if (songs && (songs.added.length > 0 || songs.replaced.length > 0)) {
     before.songs.remove = songs.added;
     const bytes = songs.replaced.reduce((n, s) => n + s.json.length, 0);
     before.songs.restore = bytes <= UNDO_SONG_BYTES ? songs.replaced : null;
+    undo = writeStash(r, before);
   }
-  const undo = writeStash(r, before);
   return { ok: true, strategy, reload: settle(r, applied.changed), undo, changed: applied.changed, failed: applied.failed, songs, skipped: read.skipped };
 }
 
@@ -515,6 +520,9 @@ export async function resetEverything(options: { keepPrefs?: boolean; deleteSong
   }
   const songBytes = removed.reduce((n, s) => n + s.json.length, 0);
   stash.songs.restore = songBytes <= UNDO_SONG_BYTES ? removed : null;
+  // The copy for Undo goes before anything is erased; if the browser has no room for it now, it is
+  // tried again once the erased keys have made some.
+  let undo = writeStash(r, stash);
 
   r.store.dispatch({ type: 'reset', keepPrefs });
   r.store.flush();
@@ -530,7 +538,7 @@ export async function resetEverything(options: { keepPrefs?: boolean; deleteSong
       /* already gone */
     }
   }
-  const undo = writeStash(r, stash);
+  if (!undo) undo = writeStash(r, stash);
   return { reload: settle(r, erased), undo, songsDeleted: removed.length, songsUndoable: stash.songs.restore !== null, erased };
 }
 

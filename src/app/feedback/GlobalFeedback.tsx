@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { selectDailyGoal, shouldReduceMotion, useProgress, useProgressStore, xpBoostOf, type ProgressEvent } from '@/core/progress';
-import { Button, Celebration, Icon, LevelBadge, Modal, toast } from '@/ui';
+import { Button, Celebration, Icon, LevelBadge, Modal, toast, useDialogOpen } from '@/ui';
 import { openStats } from '../shell/stats';
-import { XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast, type RewardCard } from './digest';
+import { REWARD_CARD_MAX_MS, XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast, type RewardCard } from './digest';
 import { applySoundSettings, applySoundSettingsWhenReady, playShellSound, prepareShellSounds } from './sounds';
 import { noteShellToast } from './toasts';
 import styles from './Feedback.module.css';
@@ -155,6 +155,15 @@ export function GlobalFeedback() {
 
   // What the reward card on screen carries, so news a moment later joins it instead of stacking.
   const card = useRef<{ id: string; items: PlannedToast[]; until: number } | null>(null);
+  // While a dialog is open the card waits off screen: news meanwhile joins it, however long that is,
+  // and its time on screen starts when the dialog closes.
+  const dialogOpen = useDialogOpen();
+  const dialogOpenRef = useRef(dialogOpen);
+  useEffect(() => {
+    const wasOpen = dialogOpenRef.current;
+    dialogOpenRef.current = dialogOpen;
+    if (wasOpen && !dialogOpen && card.current) card.current.until = Date.now() + REWARD_CARD_MAX_MS;
+  }, [dialogOpen]);
   const showRewards = useCallback(
     (items: PlannedToast[]) => {
       const next = rewardCard(items);
@@ -187,7 +196,7 @@ export function GlobalFeedback() {
       const rewards = plan.toasts.filter((t) => !isAlertToast(t));
       if (xp || rewards.length > 0) {
         emit(() => {
-          const onCard = card.current && Date.now() < card.current.until ? card.current.items : [];
+          const onCard = card.current && (dialogOpenRef.current || Date.now() < card.current.until) ? card.current.items : [];
           showRewards(mergeRewardItems(onCard, xp, rewards));
         });
       }

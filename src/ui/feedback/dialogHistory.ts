@@ -26,15 +26,17 @@ interface Live {
   onBack: () => boolean;
 }
 
-let seq = 0;
+/**
+ * Dialog ids grow with time across page loads (they start from the clock), so an entry left marked
+ * by an earlier load is always older, and never mistaken for a dialog that is open now.
+ */
+let seq = Date.now();
 let enabled = true;
 let listening = false;
 /** Open dialogs that asked for Back handling, oldest first. */
 const live: Live[] = [];
 /** Dialogs that have a history entry, in the order the entries were pushed (top of history last). */
 const entries: number[] = [];
-/** Entries of dialogs that closed while another screen's entry was on top: skipped when Back reaches them. */
-const stale = new Set<number>();
 /** History steps we started ourselves; their popstate is not the learner going Back. */
 let expected = 0;
 let expectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -121,12 +123,10 @@ function reconcile(): void {
       return;
     }
   }
-  // Closed while something else was on top (the screen navigated away): the entry stays behind.
+  // Closed while something else was on top (the screen navigated away): the entry stays behind,
+  // and Back skips it when it gets there (see onPopState).
   for (let i = entries.length - 1; i >= 0; i--) {
-    if (!open.has(entries[i])) {
-      stale.add(entries[i]);
-      entries.splice(i, 1);
-    }
+    if (!open.has(entries[i])) entries.splice(i, 1);
   }
   for (const l of live) if (!entries.includes(l.id)) push(l.id);
 }
@@ -167,7 +167,6 @@ function onPopState(): void {
   }
   // A dialog entry whose dialog is gone: skip it going back; going forward, make it an ordinary entry.
   if (id > 0 && !live.some((l) => l.id === id)) {
-    stale.delete(id);
     if (ours || from !== window.location.href) {
       goBack(1);
       return;
@@ -227,6 +226,16 @@ function onHashChange(): void {
 function listen(): void {
   if (listening || typeof window === 'undefined') return;
   listening = true;
+  // A reload while a dialog was open leaves this entry marked: no dialog of this page owns it.
+  if (currentId() > 0) {
+    try {
+      const plain = stateObject();
+      delete plain[KEY];
+      window.history.replaceState(plain, '');
+    } catch {
+      /* harmless */
+    }
+  }
   lastHref = window.location.href;
   knownLength = window.history.length;
   window.addEventListener('popstate', onPopState);
@@ -250,11 +259,15 @@ export function registerBackClose(onBack: () => boolean): () => void {
   };
 }
 
-/** For tests: forget everything (history itself is left alone). */
+/** For tests: forget everything, as a fresh page load would (history itself is left alone). */
 export function resetBackClose(): void {
+  if (listening && typeof window !== 'undefined') {
+    window.removeEventListener('popstate', onPopState);
+    window.removeEventListener('hashchange', onHashChange);
+  }
+  listening = false;
   live.length = 0;
   entries.length = 0;
-  stale.clear();
   expected = 0;
   if (expectTimer) clearTimeout(expectTimer);
   expectTimer = null;

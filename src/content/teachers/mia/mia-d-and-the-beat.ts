@@ -202,14 +202,16 @@ const theDChord: TeacherLesson = {
       body: 'Two bars each of {c:D}, {c:A} and {c:E}, four strums a bar, from 60 BPM. Aim the first strum of each bar at the chord\'s lowest string: string 4 for {c:D}, 5 for {c:A}, 6 for {c:E}. Close your eyes in the {c:D} bars and listen for a low rumble.',
     }),
     {
-      type: 'choice',
-      prompt: 'Which chord box is {c:D}?',
-      options: [
-        { figure: { kind: 'chord', symbol: 'D', frets: 'xx0232', fingers: 'xx0132' }, correct: true },
-        { figure: { kind: 'chord', symbol: 'Em', frets: '022000', fingers: '023000' }, why: 'This is {c:Em}: two fingers at fret 2 and all six strings.' },
-        { figure: { kind: 'chord', symbol: 'A', frets: 'x02220', fingers: 'x01230' }, why: 'This is {c:A}: three fingers in a row at fret 2, strummed from string 5.' },
-      ],
-      explain: '{c:D} is the triangle on strings 3, 2 and 1, with an x over strings 6 and 5.',
+      // The chord boxes of the engine always print their name, so a "which box is D?" question would
+      // answer itself. Finding the triangle on a bare neck asks for the shape from memory.
+      type: 'fretboard-find',
+      prompt: 'From memory: tap the three places your fingers press for {c:D}, on strings 3, 2 and 1.',
+      find: { chord: 'D' },
+      mode: 'all',
+      octave: 'any',
+      frets: [1, 3],
+      strings: [3, 2, 1],
+      explain: 'String 3 fret 2 ({n:A}), string 2 fret 3 ({n:D}) and string 1 fret 2 ({n:F#}): the {c:D} triangle, with finger 3 at the top.',
     },
     {
       type: 'card',
@@ -225,7 +227,7 @@ const theDChord: TeacherLesson = {
         { text: 'Finger 1, on string 3, fret 2', why: 'Finger 1 falls in once finger 3 is down. Finger 3 leads.' },
         { text: 'Whichever finger is nearest', why: 'A fixed order makes the change automatic. Finger 3 first, every time.' },
       ],
-      explain: 'Finger 3 has the highest fret and the farthest to go. Put it down first and fingers 1 and 2 fall in around it.',
+      explain: 'Finger 3 is the top of the triangle, the only one at fret 3. Put it down first and fingers 1 and 2 fall in around it, at fret 2 on strings 3 and 1.',
       fact: 'em-to-d',
     },
     playerTask({
@@ -316,8 +318,8 @@ const downUpEighths: TeacherLesson = {
       title: 'Keep the hand moving',
       exercise: 'tech-strum-constant',
       minutes: 4,
-      body: 'Hold {c:Em} and start at 60 BPM. The exercise misses some strums; for now, touch the strings on every down and every up anyway. All you are learning today is the swing: down on the numbers, up on the &, never stopping.',
-      tip: 'Strum from the wrist and forearm, like turning a doorknob, not from the elbow.',
+      body: 'Hold {c:Em} at 60 BPM and stay on it all the way, even where the exercise changes to {c:G}: the full {c:G} comes in the next unit. The exercise misses some strums; today, touch the strings on every down and every up anyway. You are learning the swing: down on the numbers, up on the &, never stopping.',
+      tip: 'Strum from the wrist and forearm, like turning a doorknob, not from the elbow. The extra strums may lower the score today; that is fine.',
     }),
     toolTask({
       id: 'down-up-trainer',
@@ -405,6 +407,7 @@ const drunkenSailor: TeacherLesson = {
       options: [{ text: '{c:Em}', correct: true }, { text: '{c:D}' }],
       shuffle: false,
       explain: 'That was {c:Em}: all six strings, deep and dark. {c:D} uses only four strings and sounds higher and brighter.',
+      fact: 'em-or-d-sound',
     },
     playerTask({
       id: 'sailor-downstrums',
@@ -452,6 +455,7 @@ const drunkenSailor: TeacherLesson = {
   ],
   facts: [
     { id: 'sailor-chords', front: 'The chords of Drunken Sailor, line by line?', back: 'Line 1 {c:Em}, line 2 {c:D}, line 3 {c:Em}, the last line {c:D} then {c:Em}. The chorus is the same.' },
+    { id: 'em-or-d-sound', front: 'How do you tell {c:Em} from {c:D} by ear?', back: '{c:Em} rings on all six strings, deep and dark. {c:D} uses only strings 4 to 1, so it sounds higher and brighter.' },
   ],
 };
 
@@ -554,7 +558,8 @@ const a7AndWaltzTime: TeacherLesson = {
       title: 'Change ladder: D, A seven and A',
       song: 'st-change-d-a7-a-d',
       minutes: 4,
-      body: 'Both halves at 60 BPM. First {c:D} and {c:A7}: finger 3 slides one fret along string 2. Then {c:D} and {c:A}: finger 1 stays on string 3, fret 2 for both. One strum a bar, then two, then four, then a change every two beats.',
+      body: 'Both halves at 60 BPM. First {c:D} and {c:A7}: finger 3 slides one fret along string 2. Then {c:D} and {c:A}, with {c:A} fingered 2, 1, 3 (finger 2 on string 4, 1 on string 3, 3 on string 2): finger 1 stays on string 3, fret 2. One strum a bar, then two, four, then every two beats.',
+      tip: 'That 2-1-3 {c:A} is the one for wide fingertips from your first chords. Here it also keeps finger 1 still.',
     }),
     toolTask({
       id: 'd-a7-minute',

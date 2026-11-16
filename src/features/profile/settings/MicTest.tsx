@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listDevices, type MediaFailure } from '@/core/platform';
 import { setPrefs, usePrefs } from '@/core/progress';
+import { micOptions } from '@/core/settings';
 import { Button, MediaBlocked, Select, Slider } from '@/ui';
 import styles from './Settings.module.css';
 
@@ -17,11 +18,17 @@ const VERDICT_TEXT: Readonly<Record<Verdict, string>> = {
   loud: 'Too loud: it is clipping. Move back a little.',
 };
 
-/** Level in decibels (full scale = 0) as a share of the meter, with -60 dB at the left end. */
-function meterShare(db: number): number {
+/** The quietest level the meter shows, in dBFS: low enough that the note gate of every sensitivity is on it. */
+export const METER_FLOOR_DB = -80;
+
+/** Level in decibels (full scale = 0) as a share of the meter, with {@link METER_FLOOR_DB} at the left end. */
+export function meterShare(db: number): number {
   if (!Number.isFinite(db)) return 0;
-  return Math.max(0, Math.min(1, (db + 60) / 60));
+  return Math.max(0, Math.min(1, (db - METER_FLOOR_DB) / -METER_FLOOR_DB));
 }
+
+/** How long the sensitivity slider must rest before a running test restarts with it, in ms. */
+const RESTART_MS = 300;
 
 const DEFAULT_DEVICE = '__default__';
 
@@ -42,9 +49,19 @@ export function MicSettings() {
   const trackerRef = useRef<Tracker | null>(null);
   const barRef = useRef<HTMLSpanElement | null>(null);
   const peakRef = useRef<HTMLSpanElement | null>(null);
+  const gateRef = useRef<HTMLSpanElement | null>(null);
+  const meterRef = useRef<HTMLDivElement | null>(null);
   const verdictRef = useRef<Verdict>('silent');
   const peak = useRef({ value: 0, at: 0 });
   const mounted = useRef(true);
+
+  /** Put the gate line where notes start to count (its level is also kept in the meter's `data-gate-db`). */
+  const showGate = useCallback((gateDb: number) => {
+    if (!Number.isFinite(gateDb)) return;
+    const rounded = Math.round(gateDb);
+    if (gateRef.current) gateRef.current.style.left = `${(meterShare(gateDb) * 100).toFixed(1)}%`;
+    if (meterRef.current && meterRef.current.dataset.gateDb !== String(rounded)) meterRef.current.dataset.gateDb = String(rounded);
+  }, []);
 
   const refreshDevices = useCallback(async () => {
     const found = await listDevices('audioinput');
@@ -79,8 +96,15 @@ export function MicSettings() {
     setFailure(null);
     try {
       const [{ PitchTracker }, theory] = await Promise.all([import('@/core/pitch'), import('@/core/theory')]);
-      trackerRef.current?.stop();
-      const tracker = new PitchTracker({ a4: prefs.a4, ...(deviceId ? { deviceId } : {}) });
+      // Let go of the old test first, so its "stopped" does not end the new one.
+      const previous = trackerRef.current;
+      trackerRef.current = null;
+      previous?.stop();
+      // The learner's own settings (A4, sensitivity) read now, so a change made a moment ago counts.
+      const options = micOptions();
+      if (deviceId) options.deviceId = deviceId;
+      else delete options.deviceId;
+      const tracker = new PitchTracker(options);
       const result = await tracker.start();
       if (!mounted.current) {
         tracker.stop();
@@ -100,6 +124,8 @@ export function MicSettings() {
         const now = level.time;
         if (share >= peak.current.value || now - peak.current.at > 1.2) peak.current = { value: share, at: now };
         if (peakRef.current) peakRef.current.style.left = `${(peak.current.value * 100).toFixed(1)}%`;
+        // The note gate: what the sensitivity (and the room) lets through. It moves slowly.
+        showGate(level.gateDb);
         const next: Verdict = level.clipping ? 'loud' : level.db > -35 ? 'good' : level.db > level.gateDb ? 'quiet' : verdictRef.current === 'silent' ? 'silent' : verdictRef.current;
         if (next !== verdictRef.current) {
           verdictRef.current = next;
@@ -121,6 +147,31 @@ export function MicSettings() {
       if (mounted.current) setStarting(false);
     }
   };
+
+  // Before the test (and between restarts) the line shows the lowest the gate can go at this
+  // sensitivity; while the test runs it follows the real gate, which also rises with room noise.
+  const idleGate = micOptions(prefs).tracker?.minGateDb ?? -68;
+  useEffect(() => {
+    if (!running) showGate(idleGate);
+  }, [running, idleGate, showGate]);
+
+  // A new sensitivity takes effect in the running test once the slider rests, so its effect can be heard and seen.
+  const startRef = useRef(start);
+  startRef.current = start;
+  const sensitivity = prefs.mic.sensitivity;
+  const applied = useRef(sensitivity);
+  useEffect(() => {
+    if (!running) {
+      applied.current = sensitivity;
+      return;
+    }
+    if (applied.current === sensitivity) return;
+    const timer = setTimeout(() => {
+      applied.current = sensitivity;
+      void startRef.current();
+    }, RESTART_MS);
+    return () => clearTimeout(timer);
+  }, [running, sensitivity]);
 
   const named = devices.filter((d) => d.label);
   const options = [{ value: DEFAULT_DEVICE, label: 'System default' }, ...named.filter((d) => d.deviceId && d.deviceId !== 'default').map((d) => ({ value: d.deviceId, label: d.label }))];
@@ -157,11 +208,16 @@ export function MicSettings() {
             {running ? 'Stop the test' : 'Test the microphone'}
           </Button>
         </div>
-        <div className={styles.meter} role="img" aria-label="Microphone level" data-running={running || undefined} data-verdict={running ? verdict : undefined}>
+        <div ref={meterRef} className={styles.meter} role="img" aria-label="Microphone level" data-running={running || undefined} data-verdict={running ? verdict : undefined}>
           <span className={styles.meterFill} ref={barRef} />
           <span className={styles.meterPeak} ref={peakRef} />
           <span className={styles.meterGood} aria-hidden="true" />
+          <span className={styles.meterGate} ref={gateRef} aria-hidden="true" data-mic-gate="" />
         </div>
+        <p className={styles.meterLegend}>
+          <span className={styles.meterGateKey} aria-hidden="true" />
+          Notes left of the line are too quiet to count. More sensitivity moves it left.
+        </p>
         <p className={styles.micStatus} aria-live="polite" data-mic-status={running ? verdict : 'off'}>
           {running ? (
             <>

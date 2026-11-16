@@ -1,0 +1,41 @@
+# Mode Study: A Locrian (repertoire plan: st-mode-locrian). An original 16-bar melody over a
+# vamp that changes every two bars: Am7b5 (x0101x) for two bars, then Bbmaj7 (x1323x) for two,
+# four times; the last bar comes home to Am7b5.
+# A Locrian is A Bb C D Eb F G. Its two colour notes are Bb, the flat second, and Eb, the flat
+# fifth: the home chord Am7b5 (A C Eb G) is half-diminished, so it never sounds settled, and that
+# is why songs rarely stay in Locrian for long.
+# The melody lands on Eb (over Am7b5) or Bb (over Bbmaj7) on a strong beat ten times: bars 1, 3,
+# 5, 7 (twice), 9, 10, 11, 14 and 15. It ends with Bb falling a half step to A.
+# Fifth position: finger 1 on fret 5, finger 2 on fret 6, finger 3 on fret 7, finger 4 on fret 8.
+# Eb is string 3 fret 8 (finger 4); Bb is string 1 fret 6 (finger 2) or string 4 fret 8 (finger 4).
+# Slurs: pairs of notes on one string are hammered on (up) or pulled off (down); hold the long
+# colour notes with a slow vibrato.
+title: Mode Study: A Locrian
+composer: Sixstring Academy
+source: Original study on the Locrian mode
+licence: Original study for Sixstring Academy
+difficulty: 8
+tags: modes, locrian, half-diminished, colour note, vamp
+tempo: 84
+time: 4/4
+key: Am
+
+track: Your melody
+role: lead
+[Vamp]
+| ^"Fifth position" q 1:5{1} e 1:8{4} 1:5p{1} ^"Eb: the flat fifth" h 3:8~{4} | e 3:7{3} 3:8h{4} 2:6{2} 2:8h{4} q 1:5{1} 2:8{4} |
+| ^"Bb: the flat second" h 1:6~{2} q 1:5{1} 2:6{2} | e 3:7{3} 2:6{2} 1:5{1} 2:6{2} q 3:7{3} 4:8{4} |
+| q 3:5{1} e 4:7{3} 3:5{1} h 3:8~{4} | e 2:8 2:6p 3:8 3:7p q 3:5 4:7 |
+| q 4:8 e 3:7 2:6 h 1:6~ | e 1:5 1:6h 1:8h 1:6p q 1:5p 2:6 |
+| h 3:8~ q 3:5 e 3:7h 3:8h | q 2:8 e 1:5 2:8 q 3:8 e 3:5 4:7 |
+| e 4:8 3:7 2:6 1:5 h 1:6h~ | q 1:8 1:6p e 1:5p 2:6 q 3:7 |
+| q 3:5 e 3:8 2:8 q 1:5 e 2:8 3:8 | h 3:8~ q 3:7p 3:5p |
+| q 4:8 e 3:7 2:6 q 1:5 1:6h | w 1:5p~ ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| "Am7b5=x0101x" q D D D e D U | q D D D e D U | "Bbmaj7=x1323x" q D D D e D U | q D D D e D U |
+| "Am7b5=x0101x" q D D D e D U | q D D D e D U | "Bbmaj7=x1323x" q D D D e D U | q D D D e D U |
+| "Am7b5=x0101x" q D D D e D U | q D D D e D U | "Bbmaj7=x1323x" q D D D e D U | q D D D e D U |
+| "Am7b5=x0101x" q D D D e D U | q D D D e D U | "Bbmaj7=x1323x" q D D D e D U | "Am7b5=x0101x" w D ||

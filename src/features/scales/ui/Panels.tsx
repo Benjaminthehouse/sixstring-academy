@@ -235,6 +235,8 @@ export interface PracticePanelProps {
   sequence: SequenceKind;
   onSequence: (kind: SequenceKind) => void;
   tab: string;
+  /** Show standard notation over the tab (Settings > "Tab and notation"). */
+  notation?: boolean;
   playingExercise: boolean;
   onPlayExercise: () => void;
   skill: SkillView | null;
@@ -247,7 +249,7 @@ export interface PracticePanelProps {
 /** Exercises as tab with a click, marking the shape learnt, and the Arcade. */
 export const PracticePanel = memo(
   forwardRef<TabViewHandle, PracticePanelProps>(function PracticePanel(props, tabRef) {
-    const { shape, exercises, sequence, onSequence, tab, playingExercise, onPlayExercise, skill, onMarkLearnt, tonic, scaleId, shapeTitle } = props;
+    const { shape, exercises, sequence, onSequence, tab, notation = false, playingExercise, onPlayExercise, skill, onMarkLearnt, tonic, scaleId, shapeTitle } = props;
     const current = exercises.find((e) => e.id === sequence) ?? exercises[0];
     const learnt = !!skill && (skill.completed || skill.mastery >= 1);
     return (
@@ -260,7 +262,7 @@ export const PracticePanel = memo(
                 {current.description} <span className={styles.mono}>{current.example}</span>
               </Text>
               <div className={styles.tab}>
-                <TabSnippet ref={tabRef} tab={tab} size="sm" aria-label={`${current.name}, written as tab`} />
+                <TabSnippet ref={tabRef} tab={tab} size="sm" notation={notation} aria-label={`${current.name}, written as ${notation ? 'notation and tab' : 'tab'}`} />
               </div>
               <div>
                 <Button iconLeft={playingExercise ? 'Square' : 'Play'} onClick={onPlayExercise} pressed={playingExercise}>

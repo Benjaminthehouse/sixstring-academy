@@ -168,6 +168,8 @@ export interface SessionOptions {
   preferFlats?: boolean;
   /** How quiet a pluck may be and still count (the learner's microphone sensitivity, from `micOptions`). */
   onset?: PitchTrackerOptions['onset'];
+  /** How quiet a note may be and still be heard: the noise gate the learner's sensitivity sets (`micOptions().tracker`). */
+  tracker?: PitchTrackerOptions['tracker'];
   /** Builds the microphone pipeline (tests pass a stand-in). */
   createTracker?: (options: PitchTrackerOptions) => TrackerLike;
   /** Wall clock in milliseconds, for the duration of a guided run. */
@@ -315,7 +317,7 @@ export class TunerSession {
     this.state = this.tuner.state;
     const range = trackerRange(this.targets);
     const create = options.createTracker ?? ((o: PitchTrackerOptions): TrackerLike => new PitchTracker(o));
-    this.tracker = create({ a4: this.a4, minFreq: range.minFreq, maxFreq: range.maxFreq, deviceId: this.deviceId ?? undefined, ...(options.onset ? { onset: options.onset } : {}) });
+    this.tracker = create({ a4: this.a4, minFreq: range.minFreq, maxFreq: range.maxFreq, deviceId: this.deviceId ?? undefined, ...(options.onset ? { onset: options.onset } : {}), ...(options.tracker ? { tracker: options.tracker } : {}) });
     this.offs.push(
       this.tracker.on('pitch', (r) => this.onPitch(r)),
       this.tracker.on('noteon', (e) => this.onNoteOn(e)),

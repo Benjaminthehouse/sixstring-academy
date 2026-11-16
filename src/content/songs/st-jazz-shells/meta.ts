@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['chords', 'rhythm'],
   tags: ['jazz', 'comping', 'shell voicings', 'ii-v-i', 'swing', 'charleston', 'c major', 'seventh chords'],
   about:
-    'Three notes are enough for a jazz chord: the root, the third and the seventh. Watch how little your hand moves, because F and B stay or slide by one fret while only the bass note jumps. In the first eight bars play every beat short, squeezing then relaxing the fretting hand so each chord stops before the next, like a soft drum. The common trouble in the Charleston bars is rushing the second chord: it comes on the last third of beat 2, late and lazy, so count "1 trip-let 2 trip-LET" and play on that last "let".',
+    'Three notes are enough for a jazz chord: the root, the third and the seventh. Watch how little your hand moves: the two top notes stay put or slip down one fret (C to B, then F to E) while only the bass note jumps, and in G7 the tip of finger 1 touches string 5 so the string you skip stays silent. In the first eight bars play every beat short, squeezing then relaxing the fretting hand so each chord stops before the next, like a soft drum. The common trouble in the Charleston bars is rushing the second chord: it comes on the last third of beat 2, late and lazy, so count "1 trip-let 2 trip-LET" and play on that last "let".',
   plan: 'st-jazz-shells',
   added: '2026-11-16',
 });

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { usePrefs } from '@/core/progress';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { noteSlug } from '@/core/theory';
 import { ActionBar, Button, Icon, LinkButton, Section, Text, cx, useIsMobile } from '@/ui';
 import { CircleOfFifths, DegreeLegend, Fretboard, NotationView, scaleMarkers } from '@/ui/music';
@@ -31,6 +31,8 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
   const prefs = usePrefs();
   const isPhone = useIsMobile();
   const tuning = useMemo(() => learnerTuning(prefs), [prefs]);
+  // A full-neck view: as many frets as the learner asked for in Settings (12 to 24).
+  const lastFret = fretCount(prefs);
   const [keyName, setKeyName] = useState(() => keyFromParam(item)?.name ?? DEFAULT_KEY);
   useEffect(() => {
     const k = keyFromParam(item);
@@ -42,7 +44,7 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
   const cadence = useMemo(() => cadenceOf(k), [k]);
   const neighbours = useMemo(() => neighboursOf(k), [k]);
   const neck = neckScaleOf(k);
-  const markers = useMemo(() => scaleMarkers(neck.tonic, neck.scale, { maxFret: 12, label: 'degree', tuning }), [neck.tonic, neck.scale, tuning]);
+  const markers = useMemo(() => scaleMarkers(neck.tonic, neck.scale, { maxFret: lastFret, label: 'degree', tuning }), [neck.tonic, neck.scale, tuning, lastFret]);
   const line = useMemo(() => scaleLine(k), [k]);
   const [step, setStep] = useState(-1);
 
@@ -166,15 +168,15 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
       <Section
         level={level}
         title="On the neck"
-        description={`Every ${fmt.key(k.name)} note from the nut to fret 12, labelled by scale degree (R is the root).`}
+        description={`Every ${fmt.key(k.name)} note from the nut to fret ${lastFret}, labelled by scale degree (R is the root).`}
         actions={
           <LinkButton to="scales" params={[noteSlug(neck.tonic), neck.scale]} variant="ghost" size="sm" iconRight="ArrowRight">
             Shapes in Scales
           </LinkButton>
         }
       >
-        <div className={styles.neck}>
-          <Fretboard frets={[0, 12]} markers={markers} tuning={tuning} size="md" />
+        <div className={styles.neck} data-neck-frets={lastFret}>
+          <Fretboard frets={[0, lastFret]} markers={markers} tuning={tuning} size="md" />
         </div>
         <DegreeLegend compact degrees={k.mode === 'minor' ? ['1', '2', 'b3', '4', '5', 'b6', 'b7'] : ['1', '2', '3', '4', '5', '6', '7']} />
       </Section>

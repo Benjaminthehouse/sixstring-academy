@@ -1,0 +1,43 @@
+# Jazz Comping: Drop-2 Voicings (repertoire plan: st-jazz-drop2). An original 16-bar comping
+# study on the ii-V-I, in four-note drop-2 voicings on the top four strings.
+# In C: Dm7 (xx3535: F C D A), G7 (xx3433: F B D G), Cmaj7 (xx2413: E B C G). Each voice moves
+# as little as it can. Dm7 to G7: F stays, C goes down to B, D stays, A goes down to G.
+# G7 to Cmaj7: F goes down to E, B stays, D goes down to C, G stays. Two notes move by a step at
+# each change, two stay where they are.
+# In F (from bar 9): the same three shapes moved up 5 frets: Gm7 (x-x-8-10-8-10),
+# C7 (x-x-8-9-8-8), Fmaj7 (x-x-7-9-6-8), with exactly the same voice leading.
+# Rhythm: half notes first, so you can hear each voice move; then the Charleston (a chord on
+# beat 1 and a push on the swung "and" of 2, held through beats 3 and 4). Swing: the "and" is
+# the last third of the beat, written as a triplet quarter rest (q3) then a triplet eighth (e3).
+# The teacher walks a bass line in quarter notes.
+title: Jazz Comping: Drop-2 Voicings
+composer: Sixstring Academy
+source: Original comping study on the ii-V-I
+licence: Original study for Sixstring Academy
+difficulty: 8
+tags: jazz, comping, drop-2, voice leading, ii-v-i, swing, charleston
+tempo: 120
+time: 4/4
+key: C
+
+track: Your comping
+role: rhythm
+[ii-V-I in C]
+| ^"Half notes: hear each voice move" "Dm7=xx3535" h (4:3 3:5 2:3 1:5) (4:3 3:5 2:3 1:5) | "G7=xx3433" (4:3 3:4 2:3 1:3) (4:3 3:4 2:3 1:3) | "Cmaj7=xx2413" (4:2 3:4 2:1 1:3) (4:2 3:4 2:1 1:3) | (4:2 3:4 2:1 1:3) r |
+| ^"Charleston: 1, then the swung and of 2" "Dm7=xx3535" q (4:3 3:5 2:3 1:5) q3 r e3 (4:3 3:5 2:3 1:5) h (4:- 3:- 2:- 1:-) | "G7=xx3433" q (4:3 3:4 2:3 1:3) q3 r e3 (4:3 3:4 2:3 1:3) h (4:- 3:- 2:- 1:-) |
+| "Cmaj7=xx2413" q (4:2 3:4 2:1 1:3) q3 r e3 (4:2 3:4 2:1 1:3) h (4:- 3:- 2:- 1:-) | q (4:2 3:4 2:1 1:3) r h r ||
+key: F
+[ii-V-I in F]
+| ^"Every shape up 5 frets" "Gm7=x-x-8-10-8-10" h (4:8 3:10 2:8 1:10) (4:8 3:10 2:8 1:10) | "C7=x-x-8-9-8-8" (4:8 3:9 2:8 1:8) (4:8 3:9 2:8 1:8) | "Fmaj7=x-x-7-9-6-8" (4:7 3:9 2:6 1:8) (4:7 3:9 2:6 1:8) | (4:7 3:9 2:6 1:8) r |
+| "Gm7=x-x-8-10-8-10" q (4:8 3:10 2:8 1:10) q3 r e3 (4:8 3:10 2:8 1:10) h (4:- 3:- 2:- 1:-) | "C7=x-x-8-9-8-8" q (4:8 3:9 2:8 1:8) q3 r e3 (4:8 3:9 2:8 1:8) h (4:- 3:- 2:- 1:-) |
+| "Fmaj7=x-x-7-9-6-8" q (4:7 3:9 2:6 1:8) q3 r e3 (4:7 3:9 2:6 1:8) h (4:- 3:- 2:- 1:-) | w (4:7 3:9 2:6 1:8) ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[ii-V-I in C]
+| q 2:0 2:3 1:2 1:1 | 1:0 2:3 2:0 3:2 | 3:3 2:2 1:0 2:2 | 3:3 3:2 4:3 3:0 |
+| 2:0 3:3 3:0 4:4 | 4:3 3:2 2:0 3:2 | 3:3 2:0 2:2 1:0 | 3:3 2:2 1:0 2:4 ||
+[ii-V-I in F]
+| 1:0 2:3 2:0 3:4 | 3:3 2:2 1:0 2:2 | 2:3 1:0 1:2 1:5 | 1:5 1:2 2:3 1:1 |
+| 1:0 2:3 2:0 3:4 | 3:3 3:1 4:3 4:0 | 4:1 3:0 3:3 2:2 | w 4:1 ||

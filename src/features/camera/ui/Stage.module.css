@@ -16,7 +16,14 @@
   touch-action: manipulation;
 }
 
-@media (min-width: 1080px) {
+.stage:focus {
+  outline: none;
+}
+.stage:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+@media (min-width: 67.5em) {
   .stage {
     height: auto;
     aspect-ratio: 16 / 9;
@@ -30,7 +37,7 @@
   aspect-ratio: var(--video-aspect);
   max-height: min(60dvh, 40rem);
 }
-@media (min-width: 1080px) {
+@media (min-width: 67.5em) {
   .stage[data-fitted] {
     max-height: calc(100dvh - var(--sticky-top, 0px) - 7.5rem);
   }
@@ -141,10 +148,32 @@
 }
 
 /* ── The setup guide ──────────────────────────────────────────────────────────────────────── */
-.guide {
-  position: absolute;
-  inset: 0;
+/* The guide is in the flow, so with large text the stage grows to hold it instead of cutting the
+   button off; the stage's height becomes a minimum. */
+.stage[data-mode='guide'] {
   display: grid;
+  height: auto;
+  min-height: clamp(15rem, 54dvh, 34rem);
+  max-height: none;
+}
+@media (min-width: 67.5em) {
+  /* 16:9 as a minimum: with visible overflow the box grows to hold larger text. */
+  .stage[data-mode='guide'] {
+    min-height: auto;
+    overflow: visible;
+  }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .stage[data-mode='guide'] {
+    height: auto;
+    min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-6));
+  }
+}
+.guide {
+  position: relative;
+  border-radius: inherit;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto auto auto;
   justify-items: center;
   align-content: center;

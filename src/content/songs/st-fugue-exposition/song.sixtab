@@ -1,0 +1,55 @@
+# Fugue Exposition for Solo Guitar (repertoire plan: st-fugue-exposition). An original fugue
+# exposition in D minor for three voices on one guitar, in drop D tuning (string 6 down to D).
+# Subject (bars 1-2, top voice alone): D D E F F G climbing in a dotted rhythm, then A Bb A G F E
+# and the leading note C#. Answer at the fifth (bars 3-4, middle voice): the subject on A, in
+# A minor (A A B C C D | E F E D C B G#), with the countersubject above it
+# (C F E A | C A F D: quarter notes against the answer's dotted rhythm, eighths against its
+# quarters). Codetta (bars 5-6): the subject's rhythm turned downwards, back to D minor.
+# Third entry (bars 7-8): the subject in the bass from the open low D, with the countersubject
+# in the middle voice a fifth lower than before, and the top voice adding a few notes.
+# The countersubject is written in invertible counterpoint: only thirds, sixths and octaves
+# on the beats, so it works above the answer and below the subject alike.
+# Then an episode built from the subject's head (bars 9-12), a dominant pedal on the open A
+# (bars 13-16, the head climbing to G at fret 15) and a close over the open low D, ending on
+# D major. Held notes are ties (string:-): keep those fingers down while the other voices move.
+# The chord symbols name the harmony the voices make; they are not strummed.
+title: Fugue Exposition for Solo Guitar
+composer: Sixstring Academy
+source: Original fugue exposition for solo guitar
+licence: Original study for Sixstring Academy
+difficulty: 10
+tags: fugue, counterpoint, three voices, drop d, d minor, baroque
+tempo: 60
+time: 4/4
+key: Dm
+tuning: drop-d
+
+track: Your part
+role: lead
+[Subject]
+| ^"Fifth position: finger 1 on fret 5" "Dm" q 3:7{3} e. 3:7 s 2:5{1} q 2:6{2} e. 2:6 s 2:8{4} |
+| "Dm" q 1:5{1} e 1:6{2} 1:5 "A7" 2:8{4} 2:6 2:5 3:6{2} ||
+[Answer]
+| ^"The answer, on A (the fifth of D minor), in the middle voice; the countersubject above it" "Am" q (4:7 3:5) e. (4:7 2:6) s (4:9{4} 2:-) q (3:5{1} 2:5) e. (3:5 1:5) s (3:7 1:-) |
+| "Am" q (2:5 1:8{4}) e (2:6 1:5) (2:5 1:-) "Dm" (3:7 2:6) (3:5 2:-) "E7" (3:7 2:0) (4:6 3:-) ||
+[Codetta]
+| "Am" q (4:7 1:5) "Dm" e. (3:7 1:5) s (3:- 2:8) q (3:- 2:6) "A7" e. (3:6 2:6) s (3:- 2:5) |
+| "Dm" q (3:7 2:6) e (3:- 1:6) (3:- 1:5) "A7" (3:6 2:5) (3:- 2:8) "Dm" q (3:7 2:6) ||
+[Third entry]
+| ^"The subject in the bass, from the open low D; the countersubject in the middle voice" "Dm" q (6:0 4:3 1:5) "Gm/D" e. (6:0 3:3 1:3) s (6:2{1} 3:- 1:-) "Dm/F" q (6:3{2} 3:2) e. (6:3 2:3) s (6:5{4} 2:-) |
+| "Dm/A" q (5:0 1:1) "Bb" e (5:1 2:3) (5:0 2:-) "Gm" (6:5 3:3 2:3) (6:3 3:- 2:-) "A7/E" (6:2 3:0 1:0) (5:4 3:- 1:-) ||
+[Episode]
+| ^"Fifth position" "Dm" q (4:0 3:7 1:5) e. (4:- 3:- 1:5) s (4:- 3:- 2:8) "Gm7" q (6:5 3:- 2:6) "A7" e. (5:0 3:6 2:6) s (5:- 3:- 1:0) |
+| "Dm" q (4:0 3:7 2:6) e. (4:- 3:7 2:-) s (4:- 2:- 1:0) "Bb" q (6:8 2:6 1:6) e. (6:- 2:6 1:-) s (6:- 2:8 1:-) |
+| "Gm/Bb" q (6:8 3:7 1:6) e. (6:- 3:- 1:6) s (6:- 3:- 1:5) "A7" q (5:0 3:6 2:8) e. (5:- 3:- 2:8) s (5:- 3:- 2:6) |
+| "Dm" q (4:0 3:7 1:5) "Gm" (6:5 3:- 2:8) "A" h (5:0 3:6 2:5) ||
+[Dominant pedal]
+| ^"Keep the open A ringing under both voices" "A7" q (5:0 4:7) e. (5:- 4:7 2:5) s (5:- 4:8 2:-) e. (5:- 3:6 2:5) s (5:- 3:- 2:6) e. (5:- 3:6 2:8) s (5:- 3:7 2:-) |
+| "Dm/A" q (5:0 3:7 1:5) (5:- 3:- 2:6) "A7" (5:- 3:6 2:8) (5:- 3:- 2:5) |
+| ^"Tenth position, then reach up to fret 15" "Dm/A" q (5:0 3:10{1} 1:10{1}) e. (5:- 3:- 1:10) s (5:- 3:- 1:12{3}) q (5:- 2:10{1} 1:13{4}) e. (5:- 1:13) s (5:- 1:15{4}) |
+| "Dm/A" q (5:0 2:10 1:13) e (5:- 2:11 1:12) (5:- 2:- 1:10) "A7" (5:- 3:12 1:9) (5:- 3:- 1:12) q (5:- 3:9 2:10) ||
+[Close]
+| ^"Fifth position, over the open low D" "Dm" q (6:0 3:7 2:6) e. (6:- 3:- 2:6) s (6:- 3:- 2:8) q (6:- 2:6 1:5) e. (6:- 2:- 1:5) s (6:- 2:- 1:6) |
+| "Gm/D" q (6:0 3:7 1:6) (6:- 3:- 1:5) "A7/D" (6:- 3:6 2:8) (6:- 3:- 1:0) |
+| "Bb" q (6:8 3:7 2:6) "Gm" (6:5 3:- 1:6) "A" (5:0 3:6 1:5) "A7" (5:- 3:- 2:8) |
+| "D=0x0232" w (6:0 4:0 3:2 2:3 1:2) ||

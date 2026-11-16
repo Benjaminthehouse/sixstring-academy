@@ -73,6 +73,21 @@ Imports are saved at once (offer "Undo" with `remove`, never lose work). Photos 
 sheet looks like); files with no notes or chords with `empty`; damaged files with `unreadable`. File names:
 `.sixtab.txt` and `-tab.txt` save in the Claude viewer too; `.musicxml` only on the app's own address.
 
+## In a backup and in cloud sync (`backup.ts`)
+
+```ts
+const songs = await exportMySongs(lib);            // SongBackup[]: { listing (no summary/bytes), json } of the learner's songs, exactly as stored
+const r = await importSongBackups(items, 'merge' | 'replace', lib);   // { added, replaced (previous versions, for undo), kept, skipped, failed }
+const removed = await removeMySongs(lib);          // RemovedSong[] for lib.restore (a reset with "also delete my songs")
+songFromBackup(item)                               // a checked RemovedSong (listing re-validated, summary recomputed) or null
+songContentSum({ listing, json })                  // fingerprint of what the learner sees, not when it was saved
+const port = songSyncPort(lib);                    // { ready, stamp, index, read, write, remove, subscribe } for cloud sync
+```
+
+Built-in songs never travel. An import never deletes a song: a song not here is restored with its own id; one in
+both is overwritten with `replace`, and with `merge` only when the file's copy was saved later; the same song is
+left alone. A damaged entry is skipped, never fatal.
+
 ## Lists: search, filters, sort, "Good next songs for you" (pure)
 
 ```ts

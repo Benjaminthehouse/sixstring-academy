@@ -8,8 +8,10 @@
  * early) is what calibration measures.
  */
 import { engineClock, getAudioContext, getEngine, unlockAudio, type TransportClock } from '@/core/audio';
-import { PitchTracker, type OnsetEvent } from '@/core/pitch';
+import { PitchTracker, type OnsetEvent, type PitchTrackerOptions } from '@/core/pitch';
 import type { MediaFailure } from '@/core/platform';
+import type { Preferences } from '@/core/progress';
+import { learnerPrefs, micOptionsWith } from '@/core/settings';
 
 /** Audio-clock time of an input event (now, when there is no event). */
 export function tapTime(event?: { timeStamp: number } | null, clock: TransportClock = engineClock): number {
@@ -29,6 +31,14 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   if (!el || typeof el.closest !== 'function') return false;
   if (el.isContentEditable) return true;
   return !!el.closest('input, textarea, select, [role="dialog"], [role="menu"], [role="listbox"]');
+}
+
+/**
+ * Tracker options for hearing claps and strums: on the playback context's clock, strums at least
+ * 70 ms apart, and the learner's microphone settings (A4, input, sensitivity) from Settings.
+ */
+export function rhythmTrackerOptions(audioContext: AudioContext | undefined, deviceId?: string | null, prefs: Preferences = learnerPrefs()): PitchTrackerOptions {
+  return micOptionsWith({ ...(audioContext ? { audioContext } : {}), ...(deviceId ? { deviceId } : {}), onset: { minIntervalMs: 70 } }, prefs);
 }
 
 /** Why the microphone could not be started. */
@@ -73,7 +83,7 @@ export class MicInput {
       return { ok: false, reason: 'audio-failed' };
     }
     // Sharing the playback context puts every onset on the same clock as the clicks.
-    const tracker = new PitchTracker({ audioContext: ctx, deviceId: deviceId || undefined, onset: { minIntervalMs: 70 } });
+    const tracker = new PitchTracker(rhythmTrackerOptions(ctx, deviceId));
     const res = await tracker.start();
     if (!res.ok) {
       tracker.stop();

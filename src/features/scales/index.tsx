@@ -27,7 +27,7 @@ import { useImmersive, useScreenTitle } from '@/app/shell';
 import { normalizeTone, pluck, strum, unlockAudio, playUi } from '@/core/audio';
 import { chordVoicings, type FretPosition, type PatternSystem, type SequenceKind } from '@/core/guitar';
 import { markSkill, recordActivity, setPrefs, touchRecent, useProgress, usePrefs, useSkill } from '@/core/progress';
-import { learnerTuning } from '@/core/settings';
+import { learnerTuning, showNotation } from '@/core/settings';
 import { chroma, formatDegree, formatNote, getScale, intervalName, noteToMidi, scaleSlug, scaleToneMap, toneAt, withOctaveFor } from '@/core/theory';
 import {
   ActionBar,
@@ -70,7 +70,7 @@ import {
   type NeckView,
 } from './model/neck';
 import { familyModes, scalePageModel, staffLine } from './model/page';
-import { buildLine, exerciseChoices, lineTab, tabPosition, type LineNote, type PlaySource } from './model/play';
+import { buildLine, exerciseChoices, lineTab, staffKey, tabPosition, type LineNote, type PlaySource } from './model/play';
 import { DEFAULT_SETTINGS, labelInForce, sanitizeSettings, type ScreenSettings } from './model/settings';
 import { ChordsSection, FormulaSection, IntervalsSection, MoodSection, RelativesSection, StaffSection } from './ui/Details';
 import { Neck } from './ui/Neck';
@@ -392,7 +392,10 @@ export default function ScalesScreen({ params }: RouteProps) {
   const exercises = useMemo(() => (shape ? exerciseChoices(shape) : []), [shape]);
   const sequence = exercises.some((e) => e.id === settings.sequence) ? settings.sequence : exercises[0]?.id ?? 'thirds';
   const exerciseLine = useMemo(() => (shape ? buildLine(shape, 'sequence', settings.direction, sequence) : []), [shape, settings.direction, sequence]);
-  const tab = useMemo(() => lineTab(exerciseLine, settings.perBeat, { tuning, capo, tempo: settings.bpm, title: `${title} exercise` }), [exerciseLine, settings.perBeat, tuning, capo, settings.bpm, title]);
+  const tab = useMemo(
+    () => lineTab(exerciseLine, settings.perBeat, { tuning, capo, tempo: settings.bpm, title: `${title} exercise`, key: staffKey(tonic, scale) }),
+    [exerciseLine, settings.perBeat, tuning, capo, settings.bpm, title, tonic, scale],
+  );
   const tabRef = useRef<TabViewHandle | null>(null);
   const playingExercise = playing && playingLine?.source === 'sequence';
   useEffect(() => {
@@ -595,6 +598,7 @@ export default function ScalesScreen({ params }: RouteProps) {
         sequence={sequence}
         onSequence={onSequence}
         tab={tab}
+        notation={showNotation(prefs)}
         playingExercise={playingExercise}
         onPlayExercise={onPlayExercise}
         skill={shape ? skill : null}

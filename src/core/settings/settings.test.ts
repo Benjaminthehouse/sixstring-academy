@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_TUNING_ID_FALLBACK, prefsWith } from './testing';
 import { SPEECH_PREF_KEY as PROFILE_SPEECH_KEY } from '@/features/profile/settings/model';
-import { aiAllowed, cameraDeviceId, cameraMirrored, fretCount, learnerTuning, micOptions, showNotation, soundPrefs, SPEECH_PREF_KEY } from './index';
+import { aiAllowed, cameraDeviceId, cameraMirrored, fretCount, learnerTuning, micOptions, micOptionsWith, showNotation, soundPrefs, SPEECH_PREF_KEY } from './index';
 
 describe('micOptions', () => {
   it('gives the pitch module its own onset default at the default sensitivity', () => {
@@ -19,6 +19,54 @@ describe('micOptions', () => {
     expect(micOptions(prefsWith({ a4: 442 }))).toMatchObject({ a4: 442 });
     expect(micOptions(prefsWith({})).deviceId).toBeUndefined();
     expect(micOptions(prefsWith({ mic: { deviceId: 'usb-1', sensitivity: 0.5 } })).deviceId).toBe('usb-1');
+  });
+});
+
+describe('micOptions: the note gate', () => {
+  it("is the note tracker's own default gate at the default sensitivity", () => {
+    expect(micOptions(prefsWith({})).tracker).toEqual({ minGateDb: -68, maxGateDb: -38 });
+  });
+
+  it('lets quieter notes through as sensitivity rises, and only loud ones at zero', () => {
+    const at = (sensitivity: number) => micOptions(prefsWith({ mic: { deviceId: null, sensitivity } })).tracker!;
+    expect(at(0)).toEqual({ minGateDb: -58, maxGateDb: -32 });
+    expect(at(1)).toEqual({ minGateDb: -78, maxGateDb: -44 });
+    for (let s = 0; s < 1; s += 0.1) {
+      expect(at(s + 0.1).minGateDb!).toBeLessThanOrEqual(at(s).minGateDb!);
+      expect(at(s).maxGateDb!).toBeGreaterThan(at(s).minGateDb!);
+    }
+  });
+
+  it('treats a broken stored sensitivity as the default', () => {
+    expect(micOptions(prefsWith({ mic: { deviceId: null, sensitivity: Number.NaN } })).tracker).toEqual({ minGateDb: -68, maxGateDb: -38 });
+    expect(micOptions(prefsWith({ mic: { deviceId: null, sensitivity: 7 } })).tracker).toEqual({ minGateDb: -78, maxGateDb: -44 });
+  });
+});
+
+describe('micOptionsWith', () => {
+  const learner = prefsWith({ a4: 442, mic: { deviceId: 'usb-1', sensitivity: 1 } });
+
+  it("merges a screen's own onset options without losing the learner's sensitivity", () => {
+    const o = micOptionsWith({ onset: { minIntervalMs: 70, minLevelDb: -20 }, tracker: { holdMs: 200 }, chroma: true }, learner);
+    expect(o.onset).toEqual({ minIntervalMs: 70, minLevelDb: -70 });
+    expect(o.tracker).toEqual({ holdMs: 200, minGateDb: -78, maxGateDb: -44 });
+    expect(o.chroma).toBe(true);
+  });
+
+  it("uses the learner's A4 and input unless the screen chose its own", () => {
+    expect(micOptionsWith({}, learner)).toMatchObject({ a4: 442, deviceId: 'usb-1' });
+    expect(micOptionsWith({ a4: 432, deviceId: 'other' }, learner)).toMatchObject({ a4: 432, deviceId: 'other' });
+    expect(micOptionsWith({ deviceId: '' }, learner).deviceId).toBe('usb-1');
+    expect('deviceId' in micOptionsWith({ deviceId: '' }, prefsWith({}))).toBe(false);
+  });
+
+  it('passes detector options through and never shares objects with the caller', () => {
+    const own = { detector: { peakThreshold: 0.7 }, onset: { thresholdDb: 4 } };
+    const o = micOptionsWith(own, learner);
+    expect(o.detector).toEqual({ peakThreshold: 0.7 });
+    o.onset!.thresholdDb = 9;
+    o.detector!.peakThreshold = 0.1;
+    expect(own).toEqual({ detector: { peakThreshold: 0.7 }, onset: { thresholdDb: 4 } });
   });
 });
 

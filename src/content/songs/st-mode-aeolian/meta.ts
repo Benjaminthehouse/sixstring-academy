@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['melody', 'chords'],
   tags: ['modes', 'aeolian', 'natural minor', 'colour note', 'vamp', 'flat sixth', 'a minor', 'fifth position'],
   about:
-    'A Aeolian is A B C D E F G, the natural minor scale, and its colour is the F: hold it over the F chord in bars 3, 7, 11 and 15 and hear how dark and serious it makes the tune. Stay in fifth position, finger 1 on fret 5, with every F on string 2 under finger 2; it sits in the same place as the Dorian study, one fret lower on that string. The common mistake is rushing the long notes into the next bar: count the held F and the final A out to the end and let the vibrato stay slow.',
+    'A Aeolian is A B C D E F G, the natural minor scale, and its colour is the F: the melody leans on it over the F chord in bars 3, 7, 11 and 15, so hear how dark and serious it makes the tune. Stay in fifth position, finger 1 on fret 5, with every F on string 2 under finger 2; it sits in the same place as the Dorian study, one fret lower on that string. The common mistake is rushing the long notes into the next bar: count the held F and the final A out to the end and let the vibrato stay slow.',
   plan: 'st-mode-aeolian',
   added: '2026-11-16',
 });

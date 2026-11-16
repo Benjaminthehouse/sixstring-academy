@@ -99,7 +99,8 @@ export default function TunerScreen(_props: RouteProps) {
   const targets = useMemo(() => buildTargets(tuning, { capo, a4 }), [tuning, capo, a4]);
   const tolerance = toleranceCents(options.tolerance);
   const preferFlats = prefs.accidentals === 'flats' || (prefs.accidentals !== 'sharps' && tuning.notes.some((n) => n.slice(1).includes('b')));
-  const { session, view } = useTunerSession({ targets, a4, toleranceCents: tolerance, deviceId: prefs.mic.deviceId, preferFlats, onset: micOptions(prefs).onset });
+  const mic = micOptions(prefs);
+  const { session, view } = useTunerSession({ targets, a4, toleranceCents: tolerance, deviceId: prefs.mic.deviceId, preferFlats, onset: mic.onset, tracker: mic.tracker });
 
   const hostBlocked = isArtifact();
   const listening = view.source === 'mic';

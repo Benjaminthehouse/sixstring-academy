@@ -73,6 +73,12 @@ describe('TunerSession: microphone', () => {
     expect(rig().tracker.created.onset).toBeUndefined();
   });
 
+  it("hands the learner's note gate (sensitivity) to the pipeline too", () => {
+    const quiet = rig({ tracker: { minGateDb: -78, maxGateDb: -44 } });
+    expect(quiet.tracker.created.tracker).toEqual({ minGateDb: -78, maxGateDb: -44 });
+    expect(rig().tracker.created.tracker).toBeUndefined();
+  });
+
   it('reports a refused microphone and can try again', async () => {
     const r = rig();
     r.tracker.startResult = { ok: false, reason: 'denied', detail: 'nope' };

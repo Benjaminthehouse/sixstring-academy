@@ -1,0 +1,58 @@
+# Two-Voice Invention for Solo Guitar (repertoire plan: st-two-voice-invention). An original
+# 24-bar invention in E minor for one guitar, in the manner of the Baroque two-part inventions.
+# The subject (bar 1, treble alone): E up to B, A G F# E running down, D# B, home to E.
+# Bar 2: the bass imitates it an octave lower while the treble plays the countersubject
+# (G | C A | B A G F# | G E). Bars 3-6: episodes built from the subject's running figure,
+# cadencing in E minor (bar 4) and turning towards G major. Bars 7-10: G major; the subject in
+# the bass (bar 9), then in the treble (bar 10). Bars 11-16: back to E minor over a falling bass,
+# ending on a pedal on low B. Bar 17: the subject in E minor in the treble with the
+# countersubject below it (the two lines swap places, and every interval still works); bar 18
+# and bar 21 put it in the bass again; bar 23 states it over the open low E. It ends on E major.
+# Positions: VII (finger 1 on fret 7) for most of it; V (finger 1 on fret 5) in bars 5-6,
+# 11-12 and 22; open position for the last chord. A held note is written as a tie (string:-):
+# keep that finger down so the note lasts its full length while the other voice moves.
+# The chord symbols name the harmony the two lines make; they are not strummed.
+title: Two-Voice Invention for Solo Guitar
+composer: Sixstring Academy
+source: Original two-part invention for solo guitar
+licence: Original study for Sixstring Academy
+difficulty: 9
+tags: counterpoint, invention, baroque, two voices, imitation, e minor
+tempo: 56
+time: 4/4
+key: Em
+
+track: Your part
+role: lead
+[Exposition]
+| ^"Seventh position: finger 1 on fret 7" "Em" e 3:9 1:7 s 2:10 2:8 2:7 3:9 "B7" e 3:8 4:9 "Em" q 3:9 |
+| "Em" e (5:7 2:8) (4:9 2:-) "Am" s (4:7 1:8) (5:10 1:-) (5:9 2:10) (5:7 2:-) ^"D#: finger 4 reaches to fret 11" "B7" (6:11 1:7) (6:- 2:10) (6:7 2:8) (6:- 2:7) "Em" e (5:7 2:8) (5:- 3:9) |
+| "C" s (6:8 1:8) (6:- 1:7) (6:- 2:10) (6:- 2:8) "Am/C" e (6:- 2:10) (6:- 3:9) "B7" s (6:11 1:7) (6:- 2:10) (6:7 2:8) (6:- 2:7) "Em" e (5:7 2:8) (6:7 3:8) |
+| "Am" e (5:0 1:8) (5:7 1:-) "B7" (6:7 1:7) (6:11 2:10) "Em" q (5:7 2:8) s (5:- 3:9) (5:- 2:7) (5:- 2:8) (5:- 2:10) ||
+[Episode]
+| ^"Fifth position: finger 1 on fret 5" "Am" e (6:5{1} 1:8{4}) (5:7 1:-) s (5:5 1:7) (6:8 1:-) (6:7 2:8) (6:5 2:-) "D7" e (4:0 3:7) (4:- 1:5) s (4:- 2:8) (4:- 2:7) (4:- 2:5) (4:- 3:7) |
+| "G" e (4:5 1:7) (3:7 1:-) "Am/C" s (3:5 1:5) (2:0 1:-) (4:7 1:8) (4:5 1:-) "C" e (6:8 1:8) (6:- 2:5) "D7" s (5:5 1:5) (5:- 1:7) (5:- 1:8) (5:- 1:5) ||
+key: G
+[G major]
+| ^"Seventh position again" "G/B" s (6:7{1} 1:7{1}) (6:- 1:8) (5:10 1:10) (5:- 1:7) "C/E" e (5:7 1:8) (5:10 2:8) "D7" s (4:0 2:10) (4:- 1:7) (5:9 1:8) (5:- 2:10) e (4:7 2:7) (4:10 2:10) |
+| "G" q (5:10 1:7) (5:- 2:8) s 1:10 1:8 1:7 2:10 e 2:8 2:7 |
+| ^"The subject in the bass, in G major" "G" e (5:10 1:7) (3:7 1:-) "C" s (4:10 2:10) (4:9 2:-) (4:7 2:7) (5:10 2:-) "D7" (5:9 2:10) (5:- 1:7) (4:0 1:8) (4:- 2:10) "G" e (5:10 1:7) (5:- 2:8) |
+| ^"The subject in the treble, in G major" "G/B" e (6:7 2:8) (6:- 1:10) "C/E" s (5:7 1:8) (5:- 1:7) (6:8 2:10) (6:- 2:8) "D" (4:0 2:7) (6:8 2:-) (6:7 3:7) (5:0 3:-) "G/B" e (6:7 2:8) (4:0 2:-) ||
+key: Em
+[Back to E minor]
+| ^"Fifth position" "C" e (6:8 2:5{1}) (4:5 2:-) s (5:9 2:-) (5:7 2:-) (5:5 2:-) (6:8 2:-) "Am" e (6:5 1:8) (5:7 1:-) s (5:5 1:7) (6:8 1:-) (6:7 3:7) (6:5 3:-) |
+| "Am" e (5:0 1:8) (5:- 2:5) s (6:8 1:5) (6:- 1:7) (5:7 1:8) (5:- 1:5) "B7" e (6:7 3:8) (6:- 2:0) q (6:- 1:5) |
+| ^"Seventh position" "Em" s (5:7{1} 2:8) (5:- 1:7) (5:- 2:10) (5:- 2:8) "D" (4:0 2:7) (4:- 2:10) (4:- 2:8) (4:- 2:7) "C" (6:8 3:9) (6:- 2:8) (6:- 2:7) (6:- 3:9) "B7" (6:7 3:8) (6:- 2:7) (6:- 3:9) (6:- 3:8) |
+| "Am" s (5:0 1:8) (5:- 2:10) (5:- 1:7) (5:- 1:8) (6:8 2:10) (6:- 1:8) (6:- 1:7) (6:- 2:10) "B7" e (6:7 1:7) (6:- 2:7) (6:- 2:10) (6:- 3:8) |
+| ^"Low B held under the treble" "Em/B" s (6:7 3:9) (6:- 2:7) (6:- 2:8) (6:- 2:10) e (6:- 1:7) (6:- 2:8) "B7" s (6:- 2:10) (6:- 2:8) (6:- 2:7) (6:- 3:9) e (6:- 3:8) (6:- 2:7) |
+| "B7" s (6:7 2:7) (6:- 2:8) (6:- 2:10) (6:- 1:7) e (6:- 1:8) (6:- 2:10) s (6:- 1:7) (6:- 2:10) (6:- 2:8) (6:- 2:7) q (6:- 3:8) ||
+[Return]
+| ^"The subject in E minor, the countersubject below it" "Em" e (5:10 3:9) (5:- 1:7) "Am" s (4:10 2:10) (4:- 2:8) (4:7 2:7) (4:- 3:9) "B7" (4:9 3:8) (4:7 3:-) (5:10 4:9) (5:9 4:-) "Em" e (5:10 3:9) (5:7 3:-) |
+| "Em" e (5:7 2:8) (4:9 2:-) "Am" s (4:7 1:8) (5:10 1:-) (5:9 2:10) (5:7 2:-) "B7" (6:11 1:7) (6:- 2:10) (6:7 2:8) (6:- 2:7) "Em" e (5:7 2:8) (5:- 3:9) |
+| "C/E" s (5:7 3:9) (5:- 2:8) (5:- 1:8) (5:- 2:8) "Am" (5:0 3:9) (5:- 2:10) (5:- 1:8) (5:- 2:10) "F#m7b5" (5:9 2:7) (5:- 2:10) (5:- 1:8) (5:- 2:10) "B7" (6:7 3:8) (6:- 2:7) (6:- 1:7) (6:- 2:10) |
+| "Em" s (5:7 2:8) (5:- 2:10) (5:- 1:7) (5:- 2:8) "Am" (5:0 1:8) (5:- 1:7) (5:- 2:10) (5:- 1:8) "B7" e (6:7 1:7) (6:- 1:11) (6:- 2:10) (6:- 2:7) |
+| ^"Last entry: the subject in the bass" "Em" e (5:7 2:8) (4:9 2:-) "Am" s (4:7 1:8) (5:10 1:-) (5:9 2:10) (5:7 2:-) "B7" (6:11 1:7) (6:- 2:10) (6:7 2:8) (6:- 2:7) "Em" e (5:7 2:8) (5:- 1:7) ||
+[Coda]
+| ^"Fifth position" "Am" s (5:0 1:8{4}) (5:- 1:7) (6:8 1:5) (6:- 2:8) (5:7 2:5) (5:- 2:7) (6:8 2:8) (6:- 1:5) "B7" q (6:7 1:7) (6:- 1:5) |
+| ^"Seventh position, over the open low E" "Em" e (6:0 3:9) (6:- 1:7) s (6:- 2:10) (6:- 2:8) (6:- 2:7) (6:- 3:9) "B7/E" e (6:- 3:8) (6:- 4:9) "Em" q (6:- 3:9) |
+| ^"E major to finish" "E=022100" w (6:0 5:2 4:2 3:1 2:0 1:0) ||

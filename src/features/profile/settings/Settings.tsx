@@ -337,7 +337,7 @@ function Speech() {
         <WithTest align="center" label={`Hear ${teacher.first} say hello`} disabled={!enabled || available === false} onTest={() => void test()}>
           <Switch
             label="Read explanations aloud"
-            description={available === false ? 'This browser has no voice to read with, so this stays silent here.' : `In ${teacher.first}’s voice, where a screen offers it.`}
+            description={available === false ? 'This browser has no voice to read with, so this stays silent here.' : `${teacher.first} reads each new card of a teacher lesson aloud. The speaker buttons work either way.`}
             checked={enabled && available !== false}
             disabled={available === false}
             onChange={(on) => {
