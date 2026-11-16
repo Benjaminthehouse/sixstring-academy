@@ -8,7 +8,7 @@ import { noteAtStaffPosition, noteToMidi, parseNote, staffPosition } from '@/cor
 import { midiAt } from '@/core/guitar';
 import {
   estimateLessonSeconds, findTargets, formatProblems, plainText, soundPlan, validateCourse,
-  type Exercise, type Figure, type FretboardFindExercise, type Lesson, type Step, type StaffFigure, type Unit,
+  type Exercise, type Figure, type FretboardFindExercise, type Lesson, type OrderExercise, type PlayPhraseExercise, type RichText, type Step, type StaffFigure, type Unit,
 } from '@/lessons';
 import { assembleTheory } from '../index';
 import unit, { TUNE, TUNE_BARS, TUNE_LOW, TUNE_OPENING } from './reading-the-staff';
@@ -172,8 +172,47 @@ describe('reading-the-staff: the answers', () => {
       if (q.type !== 'choice' || q.figure?.kind !== 'staff') throw new Error('expected a staff figure');
       const notes = q.figure.notes.map((n) => (typeof n === 'string' ? { note: n, label: '' } : { note: n.note, label: n.label ?? '' }));
       const top = notes.reduce((a, b) => (noteToMidi(b.note) > noteToMidi(a.note) ? b : a));
-      expect(plainText(q.options.find((o) => o.correct)!.text ?? '')).toBe(`Note ${top.label}`);
+      // The labels under the notes are the option texts ("Note 1"), not bare numbers: earlier
+      // in the same lesson bare numbers under notes count the lines and spaces.
+      expect(q.options.map((o) => plainText(o.text ?? ''))).toEqual(notes.map((n) => n.label));
+      expect(plainText(q.options.find((o) => o.correct)!.text ?? '')).toBe(top.label);
     }
+  });
+
+  it('draws the listening options as the lesson draws every other staff: whole notes', () => {
+    const q = lesson('the-staff').steps.find((s) => isExercise(s) && s.type === 'listen-choice');
+    if (!q || !isExercise(q) || q.type !== 'listen-choice') throw new Error('no listening question');
+    for (const o of q.options) {
+      const f = o.figure as StaffFigure;
+      expect(f.notes.every((n) => typeof n !== 'string' && n.duration === 'w')).toBe(true);
+    }
+  });
+
+  it('shows middle C on a keyboard that fits a phone, with C4 in the middle', () => {
+    const card = lesson('an-octave-lower').steps.find((s) => !isExercise(s) && !('generate' in s) && s.figure?.kind === 'keyboard');
+    if (!card || isExercise(card) || 'generate' in card || card.figure?.kind !== 'keyboard') throw new Error('no keyboard card');
+    const f = card.figure;
+    const whites = (from: string, to: string) => {
+      let n = 0;
+      for (let m = noteToMidi(from); m <= noteToMidi(to); m++) if ([0, 2, 4, 5, 7, 9, 11].includes(m % 12)) n++;
+      return n;
+    };
+    // An interactive keyboard keeps at least 34 px per white key; a 390 px phone card holds about 326 px.
+    expect(whites(f.from!, f.to!) * 34).toBeLessThanOrEqual(326);
+    expect(f.keys).toEqual([{ note: 'C4', role: 'root' }]);
+    expect(whites(f.from!, 'C4')).toBe(whites('C4', f.to!)); // as many white keys each side
+    expect(midiAt({ string: 2, fret: 1 })).toBe(noteToMidi('C4'));
+  });
+
+  it('teaches ledger lines above as well as below before asking about it', () => {
+    const l = lesson('ledger-lines');
+    const first = l.steps[0];
+    if (isExercise(first) || 'generate' in first) throw new Error('expected a card first');
+    expect(plainText(first.body)).toMatch(/below or above/);
+    const tf = l.steps.find((s) => isExercise(s) && s.type === 'true-false');
+    if (!tf || !isExercise(tf) || tf.type !== 'true-false') throw new Error('no true-false');
+    expect(plainText(tf.statement)).toMatch(/above or below/);
+    expect(tf.answer).toBe(true);
   });
 });
 
@@ -220,6 +259,36 @@ describe('reading-the-staff: the tune', () => {
       expect(staffNotes(p.figure)).toEqual(half.map(([, , n]) => n));
       expect(p.notes.map((n) => ('fret' in n ? midiAt(n) : -1))).toEqual(half.map(([, , n]) => noteToMidi(n)));
     });
+  });
+
+  it('makes the tapping versions of the phrases a reading task, checked on the neck', () => {
+    const tile = (t: RichText) => {
+      const m = /^String (\d), (?:open|fret (\d+))$/.exec(plainText(t));
+      if (!m) throw new Error(`not a place: ${t}`);
+      return midiAt({ string: Number(m[1]), fret: m[2] ? Number(m[2]) : 0 });
+    };
+    const l = lesson('reading-strings-1-to-3');
+    const phrases = l.steps.filter((s): s is PlayPhraseExercise => isExercise(s) && s.type === 'play-phrase');
+    for (const p of phrases) {
+      const alt = p.alternative as Exercise;
+      const asked: RichText = 'prompt' in alt ? (alt.prompt ?? '') : '';
+      // The prompt names no note and no line: the learner reads them off the staff.
+      expect(JSON.stringify(asked), plainText(asked)).not.toMatch(/\{n:|line \d|space \d/);
+      expect(staffNotes(alt.figure).length).toBeGreaterThan(0);
+    }
+    const second = phrases[1].alternative as OrderExercise;
+    expect(second.type).toBe('order');
+    const sounding = TUNE_LOW.map(([, , n]) => noteToMidi(n));
+    expect(staffNotes(second.figure).map((n) => noteToMidi(n))).toEqual(sounding);
+    expect(second.tiles.map(tile)).toEqual(sounding);
+    expect(second.tiles.map((t) => plainText(t))).toEqual(['String 3, open', 'String 3, fret 2', 'String 2, open', 'String 2, fret 1', 'String 2, fret 3', 'String 1, open']);
+    // The distractor is the G an octave above the staff's line-2 G: the same letter, not a note of the bars.
+    for (const d of second.distractors ?? []) {
+      expect(sounding).not.toContain(tile(d));
+      expect(tile(d) - noteToMidi('G3')).toBe(12);
+    }
+    const cp = unit.checkpoint!.steps!.find((s): s is OrderExercise => isExercise(s) && s.type === 'order')!;
+    expect(cp.tiles.map(tile)).toEqual(staffNotes(cp.figure).map((n) => noteToMidi(n)));
   });
 
   it('labels the first-position fingers with their fret numbers', () => {

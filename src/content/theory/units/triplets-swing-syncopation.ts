@@ -26,8 +26,10 @@ import type { Lesson, TabNote, Unit } from '@/lessons';
 
 const U = 'triplets-swing-syncopation';
 
-/** Beat 1 in eighths, beat 2 in triplets, twice: the triplet lesson's picture. */
-const EIGHTS_THEN_TRIPLETS = 'e e et et et e e et et et';
+/** Beat 1 in eighths, beat 2 in triplets: the triplet lesson's picture (two beats fit a phone). */
+const ONE_BEAT_EACH = 'e e et et et';
+/** The same, twice: one bar of 4/4 for the audio on the open high E string. */
+const EIGHTS_THEN_TRIPLETS = `${ONE_BEAT_EACH} ${ONE_BEAT_EACH}`;
 /** Two beats of triplets, then two quarters (the planned tap). */
 const TRIPLET_TAP = 'et et et et et et q q';
 /** One bar of swung eighths, written as it sounds: triplet quarter + triplet eighth on each beat. */
@@ -78,7 +80,9 @@ const triplets: Lesson = {
       type: 'card',
       title: 'Three in the time of two',
       body: 'A {t:triplet} squeezes **three** notes into the time normally taken by **two** of the same kind. Two eighth notes fill one beat; so do three triplet eighths. A triplet is written with a small 3 over the group.',
-      figure: { kind: 'rhythm', pattern: EIGHTS_THEN_TRIPLETS, tempo: 70, caption: 'Two eighths on beat 1, a triplet on beat 2: three notes in the same time.' },
+      // Two beats only, and no count row: a bar that mixes eighths and triplets is counted on a
+      // six-step grid ("1 ta trip ta let ta"), which would call the eighth's "&" a "ta".
+      figure: { kind: 'rhythm', pattern: ONE_BEAT_EACH, time: '2/4', tempo: 70, counting: false, caption: 'Two eighths on beat 1, a triplet on beat 2: three notes in the same time.' },
     },
     {
       type: 'choice',
@@ -117,7 +121,7 @@ const triplets: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'A quarter note marks each beat, then the beat is split. Eighth notes or triplets?',
+      prompt: 'One beat has a single note, the next is split. Is it split into eighth notes or triplets?',
       sound: { kind: 'rhythm', pattern: 'q et et et q et et et', tempo: 70 },
       options: [{ text: 'Eighth notes: two per beat' }, { text: 'Triplets: three per beat', correct: true }],
       shuffle: false,
@@ -328,7 +332,7 @@ const theShuffle: Lesson = {
     {
       type: 'card',
       title: 'Move it to D and E',
-      body: 'The same shape moves across the strings. For {n:D}: the open string 4 with string 3 at frets 2 and 4. For {n:E}: the open string 6 with string 5 at frets 2 and 4. With the {n:A} shuffle, that is all three chords of a blues.',
+      body: 'The same shape moves across the strings. For {n:D}: the open string 4 with string 3 at frets 2 and 4. For {n:E}: the open string 6 with string 5 at frets 2 and 4. With the {n:A} shuffle, those are the three chords of a blues in {n:A}.',
       figure: {
         kind: 'fretboard',
         frets: [0, 5],
@@ -484,7 +488,7 @@ const syncopation: Lesson = {
       options: [
         { text: 'Stressing or starting notes off the beat', correct: true },
         { text: 'Playing every note on the beat', why: 'That is the opposite: notes exactly where you expect them.' },
-        { text: 'Playing faster and faster', why: 'That is an accelerando, a change of tempo.' },
+        { text: 'Playing faster and faster', why: 'That changes the tempo, not where the notes fall against the beat.' },
       ],
       shuffle: false,
       explain: 'Syncopation puts stresses and new notes where the listener does not expect them, usually on the off-beats.',
@@ -689,7 +693,8 @@ const tempoWords: Lesson = {
       type: 'listen-choice',
       prompt: 'Listen to the end of the line. Did the music slow down or speed up?',
       sound: { kind: 'tab', notes: RIT_LINE, tempo: 92 },
-      options: [{ text: 'It slowed down: rit.', correct: true }, { text: 'It sped up: accel.' }],
+      // The abbreviations sit in brackets: the feedback adds its own full stop ("You picked ... .").
+      options: [{ text: 'It slowed down (rit.)', correct: true }, { text: 'It sped up (accel.)' }],
       shuffle: false,
       explain: 'The notes came further and further apart toward the end: a ritardando.',
     },
@@ -779,7 +784,7 @@ const unit: Unit = {
         prompt: 'What is a shuffle?',
         options: [
           { text: 'A swung groove kept up through a song', correct: true },
-          { text: 'A sudden change of tempo', why: 'That would be a tempo marking such as rit. or accel.' },
+          { text: 'A gradual change of tempo', why: 'That is what rit. and accel. ask for. A shuffle keeps one steady, swung groove.' },
           { text: 'A rhythm in straight sixteenth notes', why: 'A shuffle is swung: long-short.' },
         ],
         explain: 'A shuffle is swing used as the groove of a whole song, as in blues and boogie.',

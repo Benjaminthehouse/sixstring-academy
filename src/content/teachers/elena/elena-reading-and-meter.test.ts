@@ -16,6 +16,8 @@ import { parseSixTab, type Song } from '@/core/song';
 import { chroma, noteToMidi, parseNote, scaleNotes, staffPosition } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, parseRhythm, validateCourse, type RichText, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
+import repertoireUnit from './elena-classical-repertoire';
+import techniqueUnit from './elena-classical-technique';
 import type { TaskStep, TeacherLesson, TeacherUnit } from '../types';
 import unit, {
   FIFTH_POSITION_F, FIFTH_POSITION_F_STAFF, HEMIOLA_BARS, PHRASE_FIRST, PHRASE_SEVENTH, RIFF_SEVEN, SEVEN_2_2_3, SEVEN_3_2_2, SEVENTH_ONLY, STEPS_UP_C,
@@ -345,4 +347,30 @@ describe('Elena unit 11: Sight-reading and rhythm', () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^rd-/);
   });
+
+  // ── what the independent review fixed (keep these honest) ─────────────────────────────────────
+
+  it('reads at sight only what earlier units left unplayed', async () => {
+    const earlier = [...tasks(techniqueUnit), ...tasks(repertoireUnit)];
+    // The duo's upper voice was played in the classical units, so the at-sight task reads its bass.
+    expect(earlier.some((x) => taskSong(x) === 'st-duet-baroque')).toBe(true);
+    const duo = await song('st-duet-baroque');
+    const bassName = duo.tracks[1].name;
+    expect(bassName).toBe('Teacher (bass line)');
+    expect(plain(task('duo-at-sight').body)).toContain(bassName);
+    expect(plain(task('duo-at-sight').body)).not.toMatch(/the upper voice at about/);
+    // The seventh-position study: the Coste lesson looped bars 1 to 8, so the at-sight task opens on bars 9 to 16.
+    const coste = earlier.find((x) => taskSong(x) === 'st-read-seventh-position')!;
+    expect(coste.params).toContain('m1-8');
+    expect(task('seventh-at-sight').params).toEqual(['st-read-seventh-position', 'm9-16', 't79']);
+  });
+
+  it('says what the three-against-two recording leaves out', () => {
+    // A tab sound is one note at a time: on "nice" only the thumb's low E sounds.
+    const atZero = struck(THREE_AGAINST_TWO).filter((_, i) => onsets(THREE_AGAINST_TWO)[i] === 0);
+    expect(atZero.map((n) => n.string)).toEqual([6]);
+    const card = lesson('hemiola-and-polyrhythm').steps.find((x) => (x as { title?: string }).title === 'Now split it between the hands') as { body: RichText };
+    expect(plain(card.body)).toMatch(/add the high \{n:E\} yourself/);
+  });
 });
+

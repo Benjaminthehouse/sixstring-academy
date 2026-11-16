@@ -117,6 +117,9 @@ export const TURNAROUND: readonly string[] = ['Cmaj7', 'A7', 'Dm7', 'G7'];
 /** The deceptive cadence (`classical-deceptive` in C), one chord to a bar. */
 export const DECEPTIVE: readonly string[] = ['C', 'F', 'G7', 'Am', 'F', 'Dm', 'G7', 'C'];
 
+/** The in-lesson tempo of the deceptive cadence: the top of the catalog's ballad range, four beats a chord. */
+export const DECEPTIVE_TEMPO = 84;
+
 /** The tune on top of bars 9 to 15 of the A minor study in 3/4 (`st-pimami-3-4`), one note a bar. */
 export const STUDY_TUNE: TabNote[] = [t(1, 0, 'h.'), t(1, 1, 'h.'), t(1, 4, 'h.'), t(1, 0, 'h.'), t(1, 3, 'h.'), t(1, 1, 'h.'), t(1, 0, 'h.')];
 
@@ -270,7 +273,7 @@ const transcribingHarmony: TeacherLesson = {
       options: [
         { text: '{n:C} {n:A} {n:D} {n:G}', correct: true },
         { text: '{n:C} {n:A} {n:F} {n:G}', why: 'Chord 3 shares three notes with an {c:F} chord, but its bass is {n:D}, a fourth above the {n:A}.' },
-        { text: '{n:C} {n:E} {n:D} {n:G}', why: 'The second bass note falls from {n:C}; it does not rise.' },
+        { text: '{n:C} {n:E} {n:D} {n:G}', why: 'The second bass note falls a minor third from {n:C}: that is {n:A}. {n:E} would be a major third above it, or a sixth below.' },
       ],
       explain: 'The bass falls from {n:C} to {n:A}, rises a fourth to {n:D} and falls a fifth to {n:G}: four roots in {k:C major}.',
       fact: 'es-harmony-bottom-up',
@@ -319,18 +322,10 @@ const transcribingHarmony: TeacherLesson = {
       minutes: 4,
       body: 'Chord quality, level 7: major seventh, dominant, minor seventh, half-diminished and diminished seventh. The third first, then the seventh. Stay until you are right nine times in ten.',
     }),
-    toolTask({
-      id: 'deceptive-hidden',
-      title: 'Jam: a chart you cannot see',
-      tool: 'progressions',
-      params: ['classical-deceptive', 'c', 'jam'],
-      minutes: 4,
-      body: 'An eight-bar progression in {k:C major}. Start the band, then turn the screen away. Write the bass first, then the qualities, then any sevenths: four times through. Then look. That is the reveal.',
-    }),
     {
       type: 'order',
-      prompt: 'Its bass line, bar by bar. Put it in order.',
-      figure: { kind: 'audio', sound: { kind: 'progression', chords: [...DECEPTIVE], beats: 2, tempo: 72 }, label: 'Eight bars' },
+      prompt: 'A second progression, eight bars in {k:C major}, the chart hidden. Its bass line, bar by bar: put it in order.',
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: [...DECEPTIVE], beats: 4, tempo: DECEPTIVE_TEMPO }, label: 'Eight bars, one chord each' },
       tiles: ['{n:C}', '{n:F}', '{n:G}', '{n:A}', '{n:F}', '{n:D}', '{n:G}', '{n:C}'],
       explain: '{n:C} {n:F} {n:G} {n:A}, {n:F} {n:D} {n:G} {n:C}: {c:C} {c:F} {c:G7} {c:Am}, {c:F} {c:Dm} {c:G7} {c:C}.',
       fact: 'es-deceptive-bass',
@@ -346,6 +341,15 @@ const transcribingHarmony: TeacherLesson = {
       explain: 'A deceptive cadence: {r:V7} to {r:vi}. The bass steps up from {n:G} to {n:A} where the ear expected {n:C}, and the phrase has to try again.',
       fact: 'es-deceptive-bass',
     },
+    // The jam screen shows the chart and names the cadence, so it comes after the transcription: it is the reveal.
+    toolTask({
+      id: 'deceptive-hidden',
+      title: 'Jam: the reveal',
+      tool: 'progressions',
+      params: ['classical-deceptive', 'c', 'jam'],
+      minutes: 4,
+      body: 'Before you open it: under your bass line, write each chord\'s quality and any seventh. Then start the band, play along four times through, and check every symbol of your chart against the screen. That is the reveal.',
+    }),
     { generate: 'cadence-ear', params: { types: ['authentic', 'deceptive', 'half', 'plagal'] } },
     toolTask({
       id: 'turnaround-band',
@@ -459,7 +463,8 @@ const transcribingASolo: TeacherLesson = {
     {
       type: 'card',
       title: 'Into the Player',
-      body: 'To play your transcription in the Player, type it as text tab and paste it into Scan & Import, in Tools: proofread, save, and it opens there. Play it with my recording here, then without. Then a second solo, by ear.',
+      body: 'Take down the rest of mine from this recording, two bars at a time. Paste it as text tab into Scan & Import, in Tools: proofread, save, and it opens in the Player. Play along with my recording here, then without.',
+      figure: { kind: 'audio', sound: { kind: 'tab', notes: SOLO, tempo: SOLO_TEMPO }, label: 'My solo (play again)' },
     },
     playerTask({
       id: 'second-solo',
@@ -467,7 +472,7 @@ const transcribingASolo: TeacherLesson = {
       song: 'st-minor-blues-a',
       bars: [1, 2],
       minutes: 12,
-      body: 'Minor Blues in A at 80 BPM, bars 1 and 2 on loop, the screen turned away: rhythm, then pitches, on paper. Then bars 3 and 4, and on. Then look, count your errors, and play it with the Player, then in Wait mode.',
+      body: 'Minor Blues in A at 80 BPM, bars 1 and 2 on loop, the screen turned away: rhythm, then pitches, on paper; then bars 3 and 4, and on. If you once read it from tab with Dev, do not trust that memory. Then look, count your errors, and play it in Wait mode.',
     }),
     {
       type: 'true-false',
@@ -482,7 +487,7 @@ const transcribingASolo: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-12-bar', 'a', 'jam'],
       minutes: 8,
-      body: 'Now two choruses of your own over the 12-bar in {k:A major}, in the same style: one motif fitted to the chords, chord tones on beats 1 and 3, room to breathe. The band shuffles, so swing your eighths. Play with it at 100 BPM, and record it.',
+      body: 'Two choruses of your own over the 12-bar in {k:A major}, in the same style: one motif fitted to the chords, chord tones on beats 1 and 3, room to breathe. The band shuffles: swing your eighths. Play at 100 BPM, and record it.',
     }),
     {
       type: 'choice',
@@ -530,7 +535,7 @@ const memorising: TeacherLesson = {
     {
       type: 'card',
       title: 'A memory map',
-      body: 'Begin with something short: the {k:A minor} study in 3/4. Section A, bars 1 to 8, arpeggios; section B, bars 9 to 16, a tune on top. Every four bars the same harmony, ending on a cadence. So four starting points: bars 1, 5, 9 and 13.',
+      body: 'Begin with something short: the {k:A minor} study in 3/4 (in Songs: Fingerstyle: p i m a m i in 3/4). Section A, bars 1 to 8, arpeggios; section B, bars 9 to 16, a tune on top. Every four bars the same harmony, ending on a cadence. So four starting points: bars 1, 5, 9 and 13.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Am', 'Dm', 'E', 'Am'], beats: 3, tempo: 66 }, label: 'Four bars of harmony' },
     },
     {
@@ -593,7 +598,7 @@ const memorising: TeacherLesson = {
       title: 'Play it in your head',
       tool: 'metronome',
       minutes: 5,
-      body: 'Away from the guitar: set 66 BPM, close your eyes, and play section A in your head with the click, every note and every finger. Then write the form and the chords of your current piece from memory. Where the picture blurs, that is the bar to study.',
+      body: 'Away from the guitar: set 66 BPM in 3/4, close your eyes, and play section A in your head with the click, every note and every finger. Then write the form and the chords of your current piece from memory. Where the picture blurs, that is the bar to study.',
     }),
     {
       type: 'card',
@@ -764,7 +769,7 @@ const recital: TeacherLesson = {
       type: 'card',
       id: 'programme',
       title: 'Five slots',
-      body: 'Opener, centrepiece, your own piece, jazz or blues, closer. Say Gran Vals to open, Asturias in the middle, the jazz-ballad chord melody for jazz. Neither is in the library: scan your editions, or take the {k:A minor} study and the Concert Tremolo Etude. Close with a jig.',
+      body: 'Opener, centrepiece, your own piece, jazz or blues, closer. For instance: Gran Vals to open, Asturias in the middle, the jazz-ballad chord melody for jazz, a jig to close. The first two are not in the library: scan your editions, or play the {k:A minor} study and the Concert Tremolo Etude in their place.',
     },
     {
       type: 'match-pairs',
@@ -816,7 +821,7 @@ const recital: TeacherLesson = {
       tool: 'practice',
       params: ['routines'],
       minutes: 15,
-      body: 'Start your Recital routine, set your phone recording, and give the whole programme, start to finish, introducing each piece in one sentence. No restarts. Listen back tomorrow, not tonight.',
+      body: 'Today as a first run-through, and again when the four weeks are up: start your Recital routine, set your phone recording, and give the whole programme, start to finish, introducing each piece in one sentence. No restarts. Listen back tomorrow, not tonight.',
     }),
     {
       type: 'choice',
@@ -835,12 +840,12 @@ const recital: TeacherLesson = {
       tool: 'practice',
       params: ['goals'],
       minutes: 5,
-      body: 'Mark the recital goal achieved. Then four goals for the year, one each for repertoire, technique, theory and ear, each with a number and a date. The plan keeps three open at once: pin the three that come first, and keep the fourth in your journal.',
+      body: 'Four goals for the year, one each for repertoire, technique, theory and ear, each with a number and a date. The plan keeps three open at once, and the recital holds one place until you mark it achieved: pin what fits, the earliest dates first, and keep the rest in your journal.',
     }),
     {
       type: 'play-phrase',
       id: 'show',
-      prompt: 'Your closer: the pickup and two bars of The Irish Washerwoman, at full speed, without stopping.',
+      prompt: 'Your closer: the pickup and two bars of The Irish Washerwoman, at tempo, without stopping.',
       notes: WASHERWOMAN_OPENING,
       octave: 'exact',
       tempo: 138,
@@ -873,7 +878,8 @@ const unit: TeacherUnit = {
   milestone: {
     lesson: 'recital',
     step: 'show',
-    piece: 'The Irish Washerwoman',
+    // The show is the pickup and two bars, and the screen says "You know {piece} from start to finish".
+    piece: 'the opening of The Irish Washerwoman',
     song: 'irish-washerwoman',
     celebrate: 'A programme, played through, and a jig to send them home: that is a recital. You no longer need me to tell you what is next, only the habit of asking. Keep it. It has been a privilege to teach you.',
   },

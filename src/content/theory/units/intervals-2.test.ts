@@ -95,6 +95,20 @@ describe('intervals-2: the neck figures', () => {
     expect(checked).toBeGreaterThanOrEqual(30);
   });
 
+  it('names every pair of neighbouring strings that shares the shapes, and only those', () => {
+    // Pairs a fourth apart (thicker string first): every pair but 3 and 2.
+    const fourths = [[6, 5], [5, 4], [4, 3], [3, 2], [2, 1]].filter(([lo, hi]) => at(hi, 0) - at(lo, 0) === semitones('P4'));
+    expect(fourths).toEqual([[6, 5], [5, 4], [4, 3], [2, 1]]);
+    const card = lesson('adjacent-string-shapes').steps[0];
+    if (isExercise(card) || 'generate' in card) throw new Error('expected the opening card');
+    const tip = plainText(card.tip ?? '');
+    const named = [...tip.matchAll(/(\d) and (\d)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    // The tip lists the other pairs (the card shows 6 and 5), then the exception.
+    expect(named.slice(0, -1)).toEqual(fourths.slice(1));
+    expect(named[named.length - 1]).toEqual([3, 2]);
+    expect(at(2, 0) - at(3, 0)).toBe(semitones('M3'));
+  });
+
   it('draws the shapes the text describes', () => {
     // Neighbouring strings from A on string 6 fret 5: frets 3..7 of string 5 are m3 M3 P4 A4 P5.
     expect([3, 4, 5, 6, 7].map((f) => at(5, f) - at(6, 5))).toEqual(['m3', 'M3', 'P4', 'A4', 'P5'].map(semitones));

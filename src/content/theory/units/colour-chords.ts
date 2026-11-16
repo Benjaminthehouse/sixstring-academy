@@ -82,7 +82,7 @@ const susChords: Lesson = {
     {
       type: 'card',
       title: 'A sus4 wants to go home',
-      body: 'A sus4 leans. It often {t:resolve|resolves} to the major chord on the same root, the 4th falling to the 3rd: {c:Dsus4} (xx0233) to {c:D} (xx0232). The {n:A} shape works the same way, on string 2: {c:Asus2} (x02200), {c:A} (x02220), {c:Asus4} (x02230).',
+      body: 'A sus4 leans. It often {t:resolve|resolves} to the major chord on the same root, the 4th falling to the 3rd: {c:Dsus4} (xx0233) to {c:D} (xx0232). The {c:A} shape works the same way, on string 2: {c:Asus2} (x02200), {c:A} (x02220), {c:Asus4} (x02230).',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],
@@ -449,14 +449,13 @@ const slashChords: Lesson = {
         { text: 'Yes: second inversion, the 5th in the bass', why: 'The 5th of {c:D} is {n:A}. {n:F#} is its 3rd.' },
         { text: 'No: {n:F#} is not in {c:D}', why: '{c:D} is {n:D} {n:F#} {n:A}, so {n:F#} is one of its notes: the 3rd.' },
       ],
-      shuffle: false,
       explain: '{c:D} is {n:D} {n:F#} {n:A}. With its 3rd, {n:F#}, lowest, {c:D/F#} is {c:D} in first inversion.',
       fact: 'colour-slash-inversion',
     },
     {
       type: 'card',
       title: 'G over B',
-      body: '{c:G/B} (x20003) is the same idea: a {c:G} chord with its 3rd, {n:B}, in the bass. When the bass is one of the chord\'s own notes, the slash chord is an {t:inversion}. {c:G/B} is a favourite stepping stone between {c:C} and {c:Am}: listen to the bass go {n:C}, {n:B}, {n:A}.',
+      body: '{c:G/B} (x20003) is the same idea: a {c:G} chord with its 3rd, {n:B}, in the bass. When the bass is one of the chord\'s own notes, the slash chord is an {t:inversion}. {c:G/B} is a favourite stepping stone between {c:C} and {c:Am}: the bass goes {n:C}, {n:B}, {n:A}.',
       figure: { kind: 'chord', symbol: 'G/B', frets: 'x20003', caption: 'String 6 is silent: the {n:B} on string 5 is the lowest note.' },
     },
     {
@@ -616,7 +615,6 @@ const walkingBass: Lesson = {
         { text: 'Slide the whole shape up three frets', why: 'That moves every note and makes a new chord. Only the bass should change.' },
         { text: 'Lift the finger on string 2', why: 'That changes a note at the top of the chord, not the bass.' },
       ],
-      shuffle: false,
       explain: 'Keep the {c:Am} shape and change only the lowest note: add {n:G} at fret 3 of string 6. Most players mute string 5 (3x2210), though its open {n:A} may ring too.',
       fact: 'colour-slash-shapes',
     },
@@ -723,7 +721,6 @@ const pedalPoints: Lesson = {
         { text: 'The note on string 1', why: 'String 1 is the note that moves: {n:F#}, {n:G}, {n:F#}, {n:E}.' },
         { text: 'None: every note moves', why: 'The open {n:D} comes back under every chord: it is the pedal.' },
       ],
-      shuffle: false,
       explain: 'The open {n:D} on string 4 rings under every chord while the top note moves: that low, held note is the pedal.',
       fact: 'colour-pedal-meaning',
     },
@@ -759,14 +756,14 @@ const pedalPoints: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'In that figure, which open string is the pedal?',
+      prompt: 'In this figure over the open {n:A}, which open string is the pedal?',
+      figure: { kind: 'tab', tempo: 84, notes: A_PEDAL_TAB },
       options: [
         { text: 'String 5, {n:A}', correct: true },
         { text: 'String 6, {n:E}', why: 'String 6 is not played in this figure.' },
-        { text: 'String 4, {n:D}', why: 'String 4 is fretted at 2 here, an {n:E}, as part of the chord.' },
+        { text: 'String 4, {n:D}', why: 'In these {c:A} shapes string 4 is held at fret 2, an {n:E}: part of each chord, not the pedal.' },
         { text: 'String 2, {n:B}', why: 'String 2 is the moving voice: {n:C#}, {n:D}, {n:C#}, {n:B}.' },
       ],
-      shuffle: false,
       explain: 'The open {n:A} on string 5 sounds under all four chords: the pedal. String 2 is the note that moves.',
       fact: 'colour-pedal-open-strings',
     },

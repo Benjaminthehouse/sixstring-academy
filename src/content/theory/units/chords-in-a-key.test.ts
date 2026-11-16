@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { identifyFretted } from '@/core/guitar';
 import { MAJOR_KEYS, chordNotes, harmonizeScale, intervalBetween, progressionToChords, romanToChord, scaleNotes } from '@/core/theory';
 import {
-  formatProblems, plainText, validateCourse,
+  START_DIFFICULTY, formatProblems, generateStrict, plainText, validateCourse,
   type AudioFigure, type CardStep, type ChoiceExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
   type MatchPairsExercise, type Step,
 } from '@/lessons';
@@ -232,6 +232,53 @@ describe('chords-in-a-key: shared notes', () => {
     const q = exercisesOf(lesson('the-six-chord').steps).find((e): e is ChoiceExercise => e.type === 'choice' && /share/.test(String(e.prompt)))!;
     expect(tags(correctOption(q).text, 'n')).toEqual(shared('G', 'Em'));
     for (const o of q.options.filter((x) => !x.correct)) expect(tags(o.text, 'n')).not.toEqual(shared('G', 'Em'));
+  });
+});
+
+describe('chords-in-a-key: review fixes', () => {
+  /** The keys a drill step asks about, over many seeds, at one difficulty. */
+  const keysAsked = (step: Step, difficulty: number): Set<string> => {
+    const keys = new Set<string>();
+    for (let seed = 1; seed <= 60; seed++) {
+      const e = generateStrict(step as Extract<Step, { generate: unknown }>, { seed, difficulty, level: 'beginner' });
+      const m = /([A-G][#b]?) major/.exec(ascii('prompt' in e ? e.prompt : ''));
+      if (m) keys.add(m[1]);
+    }
+    return keys;
+  };
+
+  it('key drills stay in keys the path has spelled (C G F D) from the start until well past it', () => {
+    // A beginner starts at START_DIFFICULTY and moves up 0.04 per right answer: check up to 0.6.
+    const drills = unit.lessons.flatMap((l) => l.steps).filter((s) => 'generate' in s && ['roman-chord', 'diatonic-chord'].includes(String(s.generate)));
+    expect(drills.length).toBeGreaterThanOrEqual(8);
+    for (const d of drills) {
+      for (const difficulty of [START_DIFFICULTY.beginner, 0.4, 0.6]) {
+        for (const k of keysAsked(d, difficulty)) expect(['C', 'G', 'F', 'D'], `${JSON.stringify(d)} at ${difficulty}`).toContain(k);
+      }
+    }
+    // The I-IV-V drills and their fact include D, whose I-IV-V the lesson teaches.
+    const oneFourFive = lesson('one-four-five').steps.filter((s) => 'generate' in s);
+    expect([...keysAsked(oneFourFive[0], START_DIFFICULTY.beginner)]).toContain('D');
+  });
+
+  it('no choice gives its answer away: options with pictures all have one, and none has a caption of its own', () => {
+    const withFigures = allExercises().filter((e): e is ChoiceExercise => e.type === 'choice' && e.options.some((o) => o.figure));
+    expect(withFigures.length).toBeGreaterThanOrEqual(5);
+    for (const q of withFigures) {
+      expect(q.options.every((o) => o.figure), ascii(q.prompt)).toBe(true);
+      expect(q.options.some((o) => o.figure && 'caption' in o.figure && o.figure.caption), ascii(q.prompt)).toBe(false);
+    }
+  });
+
+  it('the diminished triad is two stacked minor thirds; the wrong stacks are major and minor', () => {
+    const q = exercisesOf(lesson('the-major-key-pattern').steps).find((e): e is ChoiceExercise => e.type === 'choice' && /Which thirds are stacked/.test(String(e.prompt)))!;
+    expect(q.fact).toBe('chords-key-diminished');
+    expect(chordNotes('Bdim')).toEqual(['B', 'D', 'F']);
+    const stack = (notes: string[]): string[] => [intervalBetween(notes[0], notes[1]), intervalBetween(notes[1], notes[2])];
+    expect(stack(chordNotes('Bdim'))).toEqual(['m3', 'm3']);
+    expect(ascii(correctOption(q).text)).toBe('A minor third, then another minor third');
+    expect(stack(chordNotes('G'))).toEqual(['M3', 'm3']); // "a major third, then a minor third": G B D, major
+    expect(stack(chordNotes('Dm'))).toEqual(['m3', 'M3']); // "a minor third, then a major third": D F A, minor
   });
 });
 

@@ -265,6 +265,49 @@ describe('major-scale: major pentatonic', () => {
   });
 });
 
+describe('major-scale: review fixes', () => {
+  it('"same five notes": each pentatonic phrase really uses all five notes, C D E G A', () => {
+    const pent = [...scalePcs('C', 'major-pentatonic')].sort((a, b) => a - b);
+    for (const p of [PHRASE_ON_A, PHRASE_ON_C]) expect([...new Set(pitches(p).map((m) => m % 12))].sort((a, b) => a - b)).toEqual(pent);
+    // The first outlines A minor (A C E) and the second C major (C E G), as the explanation says.
+    const q = exercisesOf(lesson('major-pentatonic').steps).find((e): e is ListenChoiceExercise => e.type === 'listen-choice')!;
+    expect(ascii(q.prompt)).toMatch(/same five notes/);
+    expect(ascii(q.explain)).toMatch(/leaned on A, C and E and ended on A/);
+    expect(pitches(PHRASE_ON_A).slice(0, 3).map((m) => m % 12)).toEqual([9, 0, 4]); // A C E
+    expect(pitches(PHRASE_ON_C).slice(0, 3).map((m) => m % 12)).toEqual([0, 4, 7]); // C E G
+    const sound = q.sound;
+    if (sound.kind !== 'tab') throw new Error('a tab sound');
+    expect(pitches(sound.notes)).toEqual([...pitches(PHRASE_ON_A), ...pitches(PHRASE_ON_C)]);
+  });
+
+  it('the leading-tone question names which G it leads to, so the F# a fret below the low G is not a trap', () => {
+    const find = exercisesOf(lesson('the-major-sound').steps).find((e): e is FretboardFindExercise => e.type === 'fretboard-find')!;
+    expect(ascii(find.prompt)).toMatch(/leads up to the top G/);
+    const top = find.shown!.find((d) => d.string === 4)!;
+    const [target] = findTargets(find);
+    expect(at(top.string, top.fret) - at(target.string, target.fret)).toBe(1);
+    // The other F# in the box (string 6, fret 2) leads to the low G, and the explanation says so.
+    expect(at(6, 3) - at(6, 2)).toBe(1);
+    expect(ascii(find.explain)).toMatch(/string 6, fret 2/);
+  });
+
+  it('a phone shows the answer of each "find one" question without scrolling the neck (7 frets fit)', () => {
+    for (const f of allExercises().filter((e): e is FretboardFindExercise => e.type === 'fretboard-find' && e.mode === 'one')) {
+      for (const t of findTargets(f)) expect(t.fret - f.frets[0], ascii(f.prompt)).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('no major scale mixes sharps and flats, and C major has neither', () => {
+    for (const tonic of ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']) {
+      const notes = scaleNotes(tonic, 'major');
+      expect(notes.some((n) => n.includes('#')) && notes.some((n) => /^[A-G].*b/.test(n)), tonic).toBe(false);
+    }
+    expect(scaleNotes('C', 'major').some((n) => /[#b]/.test(n))).toBe(false);
+    const fact = unit.lessons.flatMap((l) => l.facts ?? []).find((f) => f.id === 'major-scale-no-mixing')!;
+    expect(ascii(fact.back)).toMatch(/never both/);
+  });
+});
+
 describe('major-scale: on the go', () => {
   it('every lesson still teaches with Sound and Guitar off', () => {
     for (const l of unit.lessons) {

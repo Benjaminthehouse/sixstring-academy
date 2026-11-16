@@ -106,8 +106,8 @@ const simpleAndCompound: Lesson = {
     },
     {
       type: 'card',
-      title: 'Two beats or three',
-      body: 'Meters are also named by their number of beats: **duple** for two, **triple** for three. 2/4 is simple duple, 3/4 simple triple. 6/8 is compound duple, 9/8 compound triple.',
+      title: 'Two, three or four beats',
+      body: 'Meters are also named by their number of beats: **duple** for two, **triple** for three, **quadruple** for four. 2/4 is simple duple, 3/4 simple triple, 4/4 simple quadruple. 6/8 is compound duple, 9/8 compound triple.',
     },
     {
       type: 'match-pairs',
@@ -157,12 +157,12 @@ const simpleAndCompound: Lesson = {
         type: 'match-pairs',
         prompt: 'Match each time signature with its kind.',
         pairs: [
-          { left: '2/4', right: 'Simple duple' },
           { left: '3/4', right: 'Simple triple' },
+          { left: '4/4', right: 'Simple quadruple' },
           { left: '6/8', right: 'Compound duple' },
-          { left: '12/8', right: 'Compound quadruple' },
+          { left: '9/8', right: 'Compound triple' },
         ],
-        explain: 'Simple beats split in two, compound beats in three. Duple is two beats, triple three, quadruple four: 12/8 is four beats of three eighths.',
+        explain: 'Simple beats split in two, compound beats in three. Duple is two beats, triple three, quadruple four: 4/4 is four beats of two eighths.',
       },
     },
     {
@@ -627,7 +627,7 @@ const mixedMeterAndHemiola: Lesson = {
       prompt: 'Where are hemiolas common?',
       options: [
         { text: 'Baroque cadences and Latin American music', correct: true },
-        { text: 'Only in drum solos', why: 'Hemiolas are everywhere music moves in threes, played by the whole band.' },
+        { text: 'Only in drum solos', why: 'Hemiolas turn up in many styles that move in threes, played by the whole band.' },
         { text: 'In every bar of a waltz', why: 'A waltz keeps its ONE two three. A hemiola is a moment where the threes regroup.' },
         { text: 'Only in 4/4', why: 'In 4/4 the groups of two never cross groups of three; a hemiola needs threes.' },
       ],
@@ -729,7 +729,7 @@ const threeAgainstTwo: Lesson = {
     },
     {
       type: 'tap-rhythm',
-      prompt: 'Tap the combined rhythm on steps 1, 3, 4 and 5. The click marks all six steps. Two bars.',
+      prompt: 'Tap steps 1, 3, 4 and 5 of the six: under the notes they read 1, a, 2 and &. The click marks all six steps. Two bars.',
       rhythm: { pattern: 'q e e q | q e e q', time: '6/8' },
       tempo: 100,
       show: 'both',
@@ -738,7 +738,7 @@ const threeAgainstTwo: Lesson = {
     {
       type: 'card',
       title: 'Hear both hands',
-      body: 'Slowly: the thumb\'s low {n:E} on the beats, the fingers\' high {n:E} on the triplets. On beat 1 both play together, so you hear one note there. Then the high note, the low note, the high note: short, short, long.',
+      body: 'Slowly: the thumb\'s low {n:E} on the beats, the fingers\' high {n:E} on the triplets. On beat 1 thumb and fingers pluck together, as one sound. Then the high note, the low note, the high note: short, short, long.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: phrase(THREE_AGAINST_TWO, 4), tempo: 50 }, label: 'Hear 3 against 2, slowly' },
     },
     {

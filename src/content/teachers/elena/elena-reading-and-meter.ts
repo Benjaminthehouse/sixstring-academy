@@ -183,7 +183,7 @@ const readingInFifthPosition: TeacherLesson = {
       song: 'st-read-fifth-position',
       tempo: 79,
       minutes: 6,
-      body: 'Set Score to Tab and notes and lay a strip of paper over the tab: you read the notes. Hand in fifth position, then once through at about 60 BPM without stopping, wrong notes included. Bar 9 turns to {k:F major}: find both {n:Bb} before you start. Then once more.',
+      body: 'Set Score to Tab and notes and lay a strip of paper over the tab: you read the notes. Hand in fifth position, then once through at about 60 BPM without stopping, wrong notes included. Bar 9 turns to {k:F major}: find both places for {n:Bb} before you start. Then once more.',
       tip: 'The second time through is not at sight. It tells you what the first one missed.',
     }),
     {
@@ -282,9 +282,10 @@ const seventhPositionAndChoices: TeacherLesson = {
       id: 'seventh-at-sight',
       title: 'The seventh-position study, at sight',
       song: 'st-read-seventh-position',
+      bars: [9, 16],
       tempo: 79,
       minutes: 6,
-      body: 'Tab and notes, paper over the tab, hand in seventh position. At about 60 BPM, without stopping: bars 1 to 8 in 4/4 and {k:G major}, then bars 9 to 16 in 6/8 and {k:E minor}. If you met the first half in my Coste lesson, read the 6/8 half first: that one is still at sight.',
+      body: 'My Coste lesson had you play bars 1 to 8, so begin where it stopped: bars 9 to 16, in 6/8 and {k:E minor}, still at sight. Tab and notes, paper over the tab, hand in seventh position, about 60 BPM, without stopping. Then clear the loop and read bars 1 to 8, in 4/4 and {k:G major}, for the position.',
     }),
     {
       type: 'true-false',
@@ -415,7 +416,7 @@ const sightReadingRoutine: TeacherLesson = {
       song: 'st-duet-baroque',
       tempo: 56,
       minutes: 5,
-      body: 'Now with a partner: the upper voice at about 60 BPM, while the app plays the bass. Preview first: {k:D minor}, 3/4, first position. If you played this duo in my classical lessons, it is no longer at sight: in Parts, choose the bass line and read that instead.',
+      body: 'Now with a partner. You know the duo\'s upper voice from my classical lessons, so at sight means its bass: in Parts, tap Teacher (bass line) to make it yours, then mute it. You play the bass at about 60 BPM; the app plays the upper voice. Preview first: {k:D minor}, 3/4, first position.',
       tip: 'The partner will not wait. That is the point of a partner.',
     }),
     {
@@ -672,7 +673,7 @@ const hemiolaAndPolyrhythm: TeacherLesson = {
     {
       type: 'card',
       title: 'Six beats, two ways',
-      body: 'A {t:hemiola} regroups six beats as two threes or as three twos. Over the same six eighth notes, 6/8 is felt 3+3 and 3/4 is felt 2+2+2. Alternate them and you have the heartbeat of Sanz\'s Canarios, and of much Latin American music.',
+      body: 'You met the {t:hemiola} in my Baroque dances: six beats regrouped as two threes or as three twos. Over the same six eighth notes, 6/8 is felt 3+3 and 3/4 is felt 2+2+2. Alternate them and you have the heartbeat of Sanz\'s Canarios, and of much Latin American music. Now we make it exact.',
       figure: { kind: 'tab', notes: HEMIOLA_BARS, time: '6/8', tempo: 90, caption: 'The low {n:E} every three eighths, then every two.' },
     },
     {
@@ -722,7 +723,7 @@ const hemiolaAndPolyrhythm: TeacherLesson = {
     {
       type: 'card',
       title: 'Now split it between the hands',
-      body: 'The thumb takes the twos on the open low {n:E}, on each beat; the fingers take the threes on the open high {n:E}. On *nice* both pluck together. Listen first, slowly.',
+      body: 'The thumb takes the twos on the open low {n:E}, on each beat; the fingers take the threes on the open high {n:E}. On *nice* both pluck together. The recording sounds one string at a time: the low {n:E} on the beats, the high {n:E} on *cup* and *tea*. On *nice*, add the high {n:E} yourself. Listen first, slowly.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: [...THREE_AGAINST_TWO, ...THREE_AGAINST_TWO, ...THREE_AGAINST_TWO], tempo: 50 }, label: 'Hear three against two' },
     },
     {
@@ -747,7 +748,7 @@ const hemiolaAndPolyrhythm: TeacherLesson = {
       song: 'st-solea-compas',
       tempo: 61,
       minutes: 6,
-      body: 'Canarios is not in the library; its nearest relation here is the solea. Its 12 counts accent 3, 6, 8, 10 and 12: two threes, then three twos, a hemiola in every cycle. At about 66 BPM, then 100 % (108 BPM). Make the change from threes to twos audible.',
+      body: 'Canarios is not in the library; its nearest relation is the solea you played in my flamenco lesson. Again, now for the hemiola: its 12 counts accent 3, 6, 8, 10 and 12, two threes, then three twos, in every cycle. At about 66 BPM, then 100 % (108 BPM). Make the change from threes to twos audible.',
       tip: 'Count the twelve aloud for one cycle before you play a stroke.',
     }),
     {

@@ -7,9 +7,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { chordNotes, chordPcs, chroma, diatonicChords, getChordType, intervalBetween, parseChord, semitones } from '@/core/theory';
-import { buildVoicing, identifyFretted, midiAt } from '@/core/guitar';
+import { buildVoicing, identifyFretted, midiAt, parseFrets } from '@/core/guitar';
 import {
-  findTargets, formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
+  findTargets, formatProblems, grade, isGenerated, plainText, soundPlan, tokenize, validateCourse,
   type ChordBuildExercise, type Exercise, type FillBlanksExercise, type FretboardFindExercise, type Lesson, type ListenChoiceExercise,
   type MatchPairsExercise, type PlayPhraseExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
@@ -201,6 +201,14 @@ describe('triads-and-inversions: inversions and slash names', () => {
       const role: Role = /first inversion/.test(plainText(e.prompt)) ? 'third' : 'fifth';
       expect(e.answer.value).toBe(`${symbol}/${chordNotes(symbol)[ROLES.indexOf(role)]}`);
     }
+    // What a learner types: the slash chord in any case is right; the plain chord or the wrong bass is not.
+    const typedRight = (e: TypeAnswerExercise, text: string) => grade(e, { type: 'type-answer', text }).correct;
+    const dOverFs = typed.find((e) => e.answer.value === 'D/F#')!;
+    expect(['D/F#', 'd/f#', 'D/F♯'].map((t) => typedRight(dOverFs, t))).toEqual([true, true, true]);
+    expect(['D', 'D/A', 'D/Gb', 'F#'].map((t) => typedRight(dOverFs, t))).toEqual([false, false, false, false]);
+    const cOverG = typed.find((e) => e.answer.value === 'C/G')!;
+    expect(['C/G', 'c/g'].map((t) => typedRight(cOverG, t))).toEqual([true, true]);
+    expect(['C', 'C/E', 'G'].map((t) => typedRight(cOverG, t))).toEqual([false, false, false]);
   });
 });
 
@@ -280,6 +288,34 @@ describe('triads-and-inversions: the shapes on three strings', () => {
     const builds = ofType<ChordBuildExercise>('chord-build').filter((e) => e.task === 'fingers');
     expect(builds.length).toBeGreaterThanOrEqual(10);
     for (const e of builds) expect(buildVoicing(e.chord, e.frets!).chord, `${e.chord} ${String(e.frets)}`).toBe(e.chord);
+  });
+
+  it('marks a chord-build right only for the inversion and shape it asks for', () => {
+    // Every chord-build here names an inversion or a small shape, so only that shape may pass:
+    // "any-voicing" would let open C (x32010) pass for "C in second inversion".
+    const builds = ofType<ChordBuildExercise>('chord-build').filter((e) => e.task === 'fingers');
+    for (const e of builds) expect(e.accept, `${e.chord} ${String(e.frets)}`).toBe('this-shape');
+    const asBuilt = (e: ChordBuildExercise, f: string | Array<number | null>) =>
+      grade(e, { type: 'chord-build', frets: typeof f === 'string' ? parseFrets(f) : f }).correct;
+    const cOverG = builds.find((e) => e.chord === 'C/G')!;
+    expect(asBuilt(cOverG, '332010')).toBe(true);
+    expect(asBuilt(cOverG, 'x32010')).toBe(false); // root position
+    expect(asBuilt(cOverG, '032010')).toBe(false); // first inversion
+    // A three-string shape left with the low strings ringing open is not that shape either.
+    const gOverD = builds.find((e) => e.chord === 'G/D')!;
+    expect(asBuilt(gOverD, [null, null, null, 7, 8, 7])).toBe(true);
+    expect(asBuilt(gOverD, [0, 0, 0, 7, 8, 7])).toBe(false);
+    expect(asBuilt(gOverD, [null, null, null, 4, 3, 3])).toBe(false); // G, but first inversion
+  });
+
+  it('quotes the four C triads on strings 4-3-2 as the chords they are', () => {
+    const body = String((lesson('four-triads').steps[1] as { body: RichText }).body);
+    const quoted = [...body.matchAll(/\{c:(\w+)\} (\d+-\d+-\d+)/g)].map((m) => [m[1], m[2]] as const);
+    expect(quoted.map(([c]) => c)).toEqual(['C', 'Cm', 'Cdim', 'Caug']);
+    for (const [symbol, shape] of quoted) {
+      const midi = shape.split('-').map((f, i) => midiAt({ string: S432[i], fret: Number(f) }));
+      expect(midi.map((m) => m % 12), symbol).toEqual(chordNotes(symbol).map(chroma));
+    }
   });
 
   it('asks every fretboard-find for exactly the notes its explanation names', () => {

@@ -90,7 +90,7 @@ describe('improvising-1: the unit on its own', () => {
 describe('improvising-1: every note the neck questions ask for', () => {
   it('finds exactly the positions each explanation lists', () => {
     const finds = ofType<FretboardFindExercise>('fretboard-find');
-    expect(finds.length).toBe(12);
+    expect(finds.length).toBe(13);
     let listed = 0;
     for (const e of finds) {
       const targets = findTargets(e).map((t) => `${t.string}:${t.fret}`).sort();
@@ -100,7 +100,20 @@ describe('improvising-1: every note the neck questions ask for', () => {
         expect(targets, plainText(e.prompt)).toEqual(named);
       }
     }
-    expect(listed).toBe(10);
+    expect(listed).toBe(11);
+  });
+
+  it('asks for the major and the minor arpeggio shape in the checkpoint', () => {
+    const finds = exercises(unit.checkpoint!.steps!).filter((e): e is FretboardFindExercise => e.type === 'fretboard-find' && 'chord' in e.find);
+    const chords = finds.map((e) => (e.find as { chord: string }).chord);
+    expect(chords).toEqual(['C', 'Am']);
+    for (const e of finds) {
+      const t = findTargets(e).map((p) => midiAt(p) % 12);
+      expect(new Set(t), plainText(e.prompt)).toEqual(new Set(chordPcs((e.find as { chord: string }).chord)));
+      expect(t.length).toBe(4); // root, 3rd, 5th and the root an octave up
+    }
+    // The minor 3rd of A on string 6, fret 8 is a half step below the C sharp of the major shape.
+    expect(midiAt({ string: 5, fret: 4 }) - midiAt({ string: 6, fret: 8 })).toBe(1);
   });
 
   it('counts the ones it gives by number', () => {
@@ -356,6 +369,20 @@ describe('improvising-1: call and response', () => {
         expect(finished, t).toBe(!!o.correct);
       }
     }
+  });
+});
+
+describe('improvising-1: fair questions and clear targets', () => {
+  it('shuffles every choice: none keeps the right answer in a fixed first place', () => {
+    for (const e of ofType<ChoiceExercise>('choice')) expect(e.shuffle, plainText(e.prompt)).not.toBe(false);
+  });
+
+  it('explains why the A7 to D7 line lands on the 7th after saying the 3rd is the strongest target', () => {
+    const card = lesson('target-notes').steps[3] as { body: RichText };
+    expect(plainText(card.body)).toMatch(/7th is the other strong target/);
+    // C is not in A7 but is in D7: landing on it marks the change.
+    expect(chordPcs('A7')).not.toContain(pc('C'));
+    expect(chordPcs('D7')).toContain(pc('C'));
   });
 });
 

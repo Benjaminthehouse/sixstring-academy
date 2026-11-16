@@ -67,9 +67,9 @@ export const THEORY_GLOSSARY: readonly GlossaryTerm[] = [
   T('picardy-third', 'Picardy third', 'A major tonic chord at the end of a minor-key piece: an A major chord to end a piece in A minor.'),
   T('andalusian-cadence', 'Andalusian cadence', 'A minor progression that walks down from the tonic chord: Am, G, F, E in A minor. Central to flamenco.'),
   // seventh-chords
-  T('half-diminished', 'half-diminished', 'A seventh chord of root, minor 3rd, flat 5th and minor 7th, such as Bm7b5 (B D F A). Also written with a slashed circle.'),
-  T('diminished-seventh', 'diminished seventh chord', 'Three minor thirds stacked on a root, such as Cdim7 (C Eb Gb Bbb). Also written with a small circle.'),
-  T('minor-major-seventh', 'minor-major seventh', 'A minor triad with a major 7th on top, such as AmMaj7 (A C E G#).'),
+  T('half-diminished', 'half-diminished', 'A seventh chord of root, minor 3rd, flat 5th and minor 7th, such as B D F A on B. Also written with a slashed circle.'),
+  T('diminished-seventh', 'diminished seventh chord', 'Three minor thirds stacked on a root, such as C, E flat, G flat and B double flat on C. Also written with a small circle.'),
+  T('minor-major-seventh', 'minor-major seventh', 'A minor triad with a major 7th on top, such as A, C, E and G sharp on A.'),
   // modes
   T('drone', 'drone', 'One low note held or repeated under the music, so that it sounds like home.'),
   T('vamp', 'vamp', 'A short chord pattern, often just two chords, repeated over and over.'),

@@ -11,8 +11,9 @@
  * - Capo shapes are drawn as fretboard figures with a capo: the dots count from the capo and are
  *   labelled with the notes they SOUND (the engine checks them), the caption names the shape. The
  *   chord-box figure does not draw a capo, and the chord-build grid does not reach above it.
- * - A play-chord step has no capo field, so "the G shape at capo 2" is shown as the frets on the
- *   wood (542225, the capo being the bar at fret 2); its tapping version asks what it sounds.
+ * - A play-chord step has no capo field: its chord box draws the A it sounds counted from the nut
+ *   (542225, with an automatic barre at fret 2), so the step also shows the G shape behind the
+ *   capo as its picture. Its tapping version asks what it sounds.
  * - The syllabus asks the learner to TYPE "6-" for E minor in G. The answer checker drops the minus
  *   sign (a plain "6" would pass too), so the lesson asks for the degree as a number and then for
  *   the written form as a choice.
@@ -28,6 +29,22 @@ const G_SHAPE_TWICE = [
   ...[3, 2, 0, 0, 0, 3].map((fret, i) => ({ string: 6 - i, fret: fret + 2, duration: 'e' as const })),
   { rest: true as const, duration: 'q' as const },
 ];
+
+/** The G shape behind a capo at fret 2: frets count from the capo, notes are what it sounds (A). */
+const G_SHAPE_AT_CAPO_2 = {
+  kind: 'fretboard' as const,
+  capo: 2,
+  frets: [0, 5] as [number, number],
+  dots: [
+    { string: 6, fret: 3, note: 'A2' },
+    { string: 5, fret: 2, note: 'C#3' },
+    { string: 4, fret: 0, note: 'E3' },
+    { string: 3, fret: 0, note: 'A3' },
+    { string: 2, fret: 0, note: 'C#4' },
+    { string: 1, fret: 3, note: 'A4' },
+  ],
+  caption: 'Shape {c:G}, capo at fret 2: the notes of {c:A}.',
+};
 
 const transposing: Lesson = {
   id: 'transposing',
@@ -165,20 +182,7 @@ const theCapo: Lesson = {
       type: 'card',
       title: 'A movable nut',
       body: 'A {t:capo} clamps across all six strings at one fret. Each open string now starts that many half steps higher, so every shape you know sounds higher too. With the capo at fret 2, the {c:G} shape sounds {c:A}.',
-      figure: {
-        kind: 'fretboard',
-        capo: 2,
-        frets: [0, 5],
-        dots: [
-          { string: 6, fret: 3, note: 'A2' },
-          { string: 5, fret: 2, note: 'C#3' },
-          { string: 4, fret: 0, note: 'E3' },
-          { string: 3, fret: 0, note: 'A3' },
-          { string: 2, fret: 0, note: 'C#4' },
-          { string: 1, fret: 3, note: 'A4' },
-        ],
-        caption: 'Shape {c:G}, capo at fret 2: the notes of {c:A}.',
-      },
+      figure: G_SHAPE_AT_CAPO_2,
     },
     {
       type: 'choice',
@@ -203,27 +207,28 @@ const theCapo: Lesson = {
     {
       type: 'card',
       title: 'Named by shape',
-      body: 'Players name chords by **shape**: "play {c:G} with the capo on 2" means the {c:G} shape, which sounds {c:A}. Tab for capo songs counts frets **from the capo**: a 0 means the capo fret, a 2 means two frets above it.',
+      body: 'Players name chords by **shape**: "play {c:G} with the capo on 2" means the {c:G} shape, which sounds {c:A}. Tab for capo songs usually counts frets **from the capo**: a 0 means the capo fret, a 2 means two frets above it.',
       figure: { kind: 'tab', capo: 2, tempo: 80, notes: [{ string: 3, fret: 0, duration: 'q' }, { string: 2, fret: 0, duration: 'q' }, { string: 1, fret: 3, duration: 'h' }], caption: 'Capo 2: these 0s are played at the capo, the 3 at fret 5.' },
     },
     {
       type: 'true-false',
       statement: 'In most capo tab, with the capo at fret 2, a 0 means the open string behind the capo.',
       answer: false,
-      explain: 'The strings behind the capo cannot sound. In capo tab a 0 means the string played at the capo fret, here fret 2.',
+      explain: 'The strings behind the capo cannot sound. In capo tab a 0 usually means the string played at the capo fret, here fret 2.',
       fact: 'capo-tab-counts',
     },
     {
       type: 'choice',
-      prompt: 'Capo at fret 3. The tab shows a 2 on string 1. Which fret on the wood is that?',
+      prompt: 'Capo at fret 3. The tab shows a 2 on string 1. Which fret is that, counted from the {t:nut}?',
       options: [{ text: 'Fret 2' }, { text: 'Fret 3' }, { text: 'Fret 5', correct: true }, { text: 'Fret 6' }],
       shuffle: false,
-      explain: 'Capo tab counts from the capo: 2 frets above fret 3 is fret 5.',
+      explain: 'Capo tab usually counts from the capo: 2 frets above fret 3 is fret 5.',
       fact: 'capo-tab-counts',
     },
     {
       type: 'play-chord',
-      prompt: 'Put the capo at fret 2 and strum the {c:G} shape. The diagram shows the wood: the capo is the bar at fret 2.',
+      prompt: 'Put the capo at fret 2 and strum the {c:G} shape, as in the picture. It sounds {c:A}: the chord box below shows those notes counted from the nut.',
+      figure: G_SHAPE_AT_CAPO_2,
       chord: 'A',
       frets: '542225',
       explain: 'Your {c:G} shape now sounds {c:A}: {n:A} {n:C#} {n:E}. If a string buzzes, move the capo right up against the fret wire.',
@@ -547,7 +552,7 @@ const nashvilleNumbers: Lesson = {
       type: 'card',
       title: 'Chords as numbers',
       body: 'The {t:nashville-numbers|Nashville number system} writes chords as numbers of the key: the chord on the 1st note of the scale is 1, on the 4th note 4, and so on. In {k:G major}, 1 4 5 is {c:G} {c:C} {c:D}. It is {t:roman-numerals|roman numerals} written as plain digits.',
-      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G', 'D', 'Em', 'C', 'G/B', 'C', 'D', 'G'], beats: 2, tempo: 90 }, label: 'Hear a chart in G' },
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G', 'C', 'D', 'G'], beats: 2, tempo: 90 }, label: 'Hear 1 4 5 1 in G' },
     },
     {
       type: 'card',
@@ -581,7 +586,6 @@ const nashvilleNumbers: Lesson = {
         { text: { text: '3-', say: 'three minus' }, why: '3- in {k:G major} is {c:Bm}, the chord on the 3rd note.' },
         { text: { text: '2-', say: 'two minus' }, why: '2- in {k:G major} is {c:Am}, the chord on the 2nd note.' },
       ],
-      shuffle: false,
       explain: '{c:Em} is the chord on the 6th note, and it is minor: 6- (or 6m).',
       fact: 'capo-nashville-minus',
     },
@@ -707,9 +711,9 @@ const unit: Unit = {
       },
       {
         type: 'true-false',
-        statement: 'In capo tab, a 0 means the string played at the capo fret.',
+        statement: 'In most capo tab, a 0 means the string played at the capo fret.',
         answer: true,
-        explain: 'Capo tab counts from the capo: 0 is the capo fret, 1 the fret above it, and so on.',
+        explain: 'Capo tab usually counts from the capo: 0 is the capo fret, 1 the fret above it, and so on.',
       },
       {
         type: 'type-answer',
@@ -779,7 +783,6 @@ const unit: Unit = {
           { text: { text: '6-', say: 'six minus' }, why: '6- in {k:G major} is {c:Em}.' },
           { text: { text: '1-', say: 'one minus' }, why: '1 is the key chord, {c:G}.' },
         ],
-        shuffle: false,
         explain: '{n:A} is the 2nd note of {k:G major}, and the chord is minor: 2-.',
       },
       {

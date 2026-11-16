@@ -11,6 +11,7 @@ import {
   estimateLessonSeconds, findTargets, generateExercise, grade, isGenerated, missingChordNote, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type Lesson, type Step,
 } from '@/lessons';
+import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
 import unit from './major-and-minor-chords';
 
 const lesson = (id: string): Lesson => {
@@ -378,6 +379,26 @@ describe('major-and-minor-chords: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^chords-/);
+  });
+
+  it('still teaches on the go, as the Learn screen adapts it (Sound off and Guitar off)', () => {
+    const quiet = adaptUnit(unit, { guitar: false, sound: false });
+    const noGuitar = adaptUnit(unit, { guitar: false, sound: true });
+    quiet.lessons.forEach((l, i) => {
+      const asked = l.steps.filter((s) => isGenerated(s) || s.type !== 'card');
+      expect(asked.length, l.id).toBeGreaterThanOrEqual(MIN_QUIET_EXERCISES);
+      expect(asked.some((s) => isListeningStep(s)), l.id).toBe(false);
+      expect(asked.some((s) => !isGenerated(s) && /^play-/.test(s.type)), l.id).toBe(false);
+      // Opens with a card, never ends on one, never three cards in a row.
+      expect(!isGenerated(l.steps[0]) && l.steps[0].type, l.id).toBe('card');
+      const last = l.steps[l.steps.length - 1];
+      expect(isGenerated(last) || last.type !== 'card', l.id).toBe(true);
+      const kinds = l.steps.map((s) => (!isGenerated(s) && s.type === 'card' ? 'c' : 'q')).join('');
+      expect(kinds, l.id).not.toContain('ccc');
+      // Without the guitar, every play step became its tapping alternative and nothing else was lost.
+      expect(noGuitar.lessons[i].steps.length, l.id).toBe(unit.lessons[i].steps.length);
+    });
+    expect((quiet.checkpoint?.steps ?? []).length).toBeGreaterThanOrEqual(6);
   });
 
   it('tags every accidental and degree, so speech and the naming setting see them', () => {

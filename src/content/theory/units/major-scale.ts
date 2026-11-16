@@ -52,9 +52,12 @@ const BOX1: ReadonlyArray<readonly [number, number, string]> = [
 
 /** Original phrases in the G major shape: one stops on the leading tone, one goes home. */
 export const PHRASE_HANGING: TabNote[] = [note(4, 5), note(4, 2), note(5, 5), note(4, 2), note(4, 4, 'h')];
-/** Two original phrases on the notes C D E G A: the first leans on A, the second on C. */
-export const PHRASE_ON_A: TabNote[] = [note(5, 0), note(5, 3), note(5, 7), note(5, 5), note(5, 3), note(5, 0, 'h')];
-export const PHRASE_ON_C: TabNote[] = [note(5, 3), note(5, 7), note(5, 10), note(5, 7), note(5, 5), note(5, 3, 'h')];
+/**
+ * Two original phrases, each using all five notes C D E G A: the first outlines A C E and ends on A,
+ * the second outlines C E G and ends on C.
+ */
+export const PHRASE_ON_A: TabNote[] = [note(5, 0), note(5, 3), note(5, 7), note(5, 5), note(5, 10), note(5, 7), note(5, 3), note(5, 0, 'h')];
+export const PHRASE_ON_C: TabNote[] = [note(5, 3), note(5, 7), note(5, 10), note(5, 12), note(5, 10), note(5, 7), note(5, 5), note(5, 3, 'h')];
 
 // ── 1. Whole, whole, half ─────────────────────────────────────────────────────────────────────
 
@@ -404,7 +407,7 @@ const buildingMajorScales: Lesson = {
     {
       type: 'card',
       title: 'Flats work the same way',
-      body: 'For {n:F}: F G A B C D E. Notes 3 to 4 must be a half step, but {n:A} to {n:B} is a whole step, so {n:B} drops to {n:Bb}. Why not {n:A#}? The letter A is already used. And a major scale never mixes sharps and flats: it uses one kind or the other.',
+      body: 'For {n:F}: F G A B C D E. Notes 3 to 4 must be a half step, but {n:A} to {n:B} is a whole step, so {n:B} drops to {n:Bb}. Why not {n:A#}? The letter A is already used. And a major scale never mixes sharps and flats: it uses one kind or the other, never both.',
       figure: {
         kind: 'fretboard',
         frets: [8, 20],
@@ -435,7 +438,7 @@ const buildingMajorScales: Lesson = {
       type: 'true-false',
       statement: 'A major scale can use sharps and flats together.',
       answer: false,
-      explain: 'Each major scale uses only sharps or only flats: {n:D} major has {n:F#} and {n:C#}, {n:F} major has {n:Bb}.',
+      explain: 'A major scale has sharps or flats, never both: {n:D} major has {n:F#} and {n:C#}, {n:F} major has {n:Bb}, and {n:C} major has neither.',
       fact: 'major-scale-no-mixing',
     },
     { generate: 'scale-notes', params: { scales: ['major'], tonics: ['C', 'G', 'D', 'F', 'A'], form: 'order' } },
@@ -460,7 +463,7 @@ const buildingMajorScales: Lesson = {
       back: '{n:F} {n:G} {n:A} {n:Bb} {n:C} {n:D} {n:E} {n:F}: one flat.',
       ask: { generate: 'scale-notes', params: { scales: ['major'], tonics: ['F'], form: 'fill' } },
     },
-    { id: 'major-scale-no-mixing', front: 'Can a major scale mix sharps and flats?', back: 'No. It uses sharps only or flats only.' },
+    { id: 'major-scale-no-mixing', front: 'Can a major scale mix sharps and flats?', back: 'No. It has sharps or flats, never both ({n:C} major has neither).' },
   ],
 };
 
@@ -488,7 +491,7 @@ const oneOctaveShape: Lesson = {
     {
       type: 'card',
       title: 'The same shape in tab',
-      body: 'As tab, low string first: string 6 frets 3 and 5, string 5 frets 2, 3 and 5, string 4 frets 2, 4 and 5. Inside it is still W W H W W W H: the strings simply take turns.',
+      body: 'In tab, the eight notes climb from string 6 to string 4: frets 3 and 5 on string 6, frets 2, 3 and 5 on string 5, then frets 2, 4 and 5 on string 4. It is still W W H W W W H: the strings take turns.',
       figure: { kind: 'tab', tempo: 80, notes: SHAPE_UP, caption: 'One octave of {n:G} major, up.' },
     },
     {
@@ -639,14 +642,14 @@ const theMajorSound: Lesson = {
     },
     {
       type: 'fretboard-find',
-      prompt: 'Tap the leading tone of {n:G} major in the one-octave shape.',
+      prompt: 'The dots are the two {n:G}s of the shape. Tap the leading tone that leads up to the top {n:G}.',
       find: { note: 'F#3' },
       mode: 'one',
       octave: 'exact',
       frets: [1, 6],
       strings: [6, 5, 4],
       shown: [dot(6, 3, 'G', { role: 'root' }), dot(4, 5, 'G', { role: 'root' })],
-      explain: 'Degree 7 is {n:F#}: string 4, fret 4, one fret below the top {n:G}.',
+      explain: 'Degree 7 is {n:F#}: string 4, fret 4, a half step below the top {n:G}. The {n:F#} at string 6, fret 2 leads up to the low {n:G} in the same way.',
       fact: 'major-scale-leading-tone',
     },
     {
@@ -807,7 +810,7 @@ const unit: Unit = {
       { generate: 'scale-formula', params: { scales: ['major'] } },
       {
         type: 'choice',
-        prompt: 'Which two notes of a major scale are a half step apart?',
+        prompt: 'Which of these pairs of notes in a major scale is a half step apart?',
         options: [{ text: 'Notes 1 and 2' }, { text: 'Notes 2 and 3' }, { text: 'Notes 3 and 4', correct: true }, { text: 'Notes 5 and 6' }],
         shuffle: false,
         explain: 'W W H W W W H: the half steps are between notes 3 and 4, and between 7 and 8.',
@@ -872,7 +875,7 @@ const unit: Unit = {
         find: { note: 'B2' },
         mode: 'one',
         octave: 'exact',
-        frets: [0, 12],
+        frets: [3, 9],
         strings: [6],
         explain: '{n:B} is at string 6, fret 7. Start the shape there with your middle finger and it plays {n:B} major.',
       },

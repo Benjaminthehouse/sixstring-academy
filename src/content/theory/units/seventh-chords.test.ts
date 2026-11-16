@@ -300,6 +300,16 @@ describe('seventh-chords: taught before asked', () => {
     }
   });
 
+  it('spells the glossary examples in words (definitions are plain text) and as the engine does', () => {
+    const def = (id: string): string => THEORY_GLOSSARY.find((t) => t.id === id)!.definition;
+    for (const id of ['half-diminished', 'diminished-seventh', 'minor-major-seventh']) expect(def(id), id).not.toMatch(/\b[A-G](#|bb?)(?![a-z])|m7b5|dim7|mMaj7/);
+    expect(def('half-diminished')).toContain(chordNotes('Bm7b5').join(' '));
+    expect(chordNotes('Cdim7')).toEqual(['C', 'Eb', 'Gb', 'Bbb']);
+    expect(def('diminished-seventh')).toContain('C, E flat, G flat and B double flat');
+    expect(chordNotes('AmMaj7')).toEqual(['A', 'C', 'E', 'G#']);
+    expect(def('minor-major-seventh')).toContain('A, C, E and G sharp');
+  });
+
   it('writes every lesson summary in words, since the map shows it as plain text', () => {
     for (const l of unit.lessons) expect(l.teaches, l.id).not.toMatch(/\b(maj7|dim7|m7b5|m7)\b/);
   });

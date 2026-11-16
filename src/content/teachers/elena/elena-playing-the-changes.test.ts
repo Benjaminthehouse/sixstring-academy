@@ -237,7 +237,9 @@ describe('going outside', () => {
     for (const x of [...m.slice(0, 3), ...m.slice(6)]) expect(aPent.has(x % 12)).toBe(true);
     for (const x of m.slice(3, 6)) expect(bbPent.has(x % 12)).toBe(true);
     expect(OUTSIDE.sideSlip.slice(0, 3).map((n) => n.fret + 1)).toEqual(OUTSIDE.sideSlip.slice(3, 6).map((n) => n.fret));
-    expect(pitchClassAt(OUTSIDE.sideSlip[9])).toBe(chroma('D'));
+    // Home is a chord tone of Am7 (the lesson's own rule): C, its minor third, not D, its eleventh.
+    expect(pitchClassAt(OUTSIDE.sideSlip[9])).toBe(chroma('C'));
+    expect(chordPcs('Am7')).toContain(pitchClassAt(OUTSIDE.sideSlip[9]));
     expect(scaleNotes('Bb', 'minor-pentatonic')).toEqual(['Bb', 'Db', 'Eb', 'F', 'Ab']);
     expect(progressionInKey('funk-one-chord-minor', 'A').bars.flat().map((c) => c.symbol)).toEqual(['Am7', 'Am7']);
   });
@@ -250,6 +252,33 @@ describe('going outside', () => {
     const m = OUTSIDE.db7.map((n) => midiAt(n));
     expect(m[4] - m[3]).toBe(1);
     expect(midiAt({ string: 3, fret: 5 })).toBe(60);
+  });
+});
+
+describe('review fixes', () => {
+  it('melodic minor is defined where it is first used, and the definition spells A melodic minor', () => {
+    const term = unit.glossary!.find((g) => g.id === 'melodic-minor')!;
+    expect(term).toBeTruthy();
+    const spelled = [...textOf(term.definition).matchAll(/\{n:([A-G][#b]?)\}/g)].map((m) => m[1]);
+    expect(spelled).toEqual(scaleNotes('A', 'melodic-minor'));
+    const card = lesson('altered-dominant').steps.find((s) => (s as { title?: string }).title === 'One scale holds them all') as { body: string };
+    expect(card.body).toContain('{t:melodic-minor|');
+    // No earlier lesson of this unit says "melodic minor" before the card that defines it.
+    const before = unit.lessons.slice(0, unit.lessons.findIndex((l) => l.id === 'altered-dominant'));
+    expect(JSON.stringify(before)).not.toMatch(/melodic minor/i);
+  });
+
+  it('the "G melodic minor" distractor is wrong for the reason it gives: it lacks G7\'s third and seventh', () => {
+    const gmm = new Set(scalePcs('G', 'melodic-minor'));
+    const [third, seventh] = [chroma('B'), chroma('F')];
+    expect(chordPcs('G7')).toEqual(expect.arrayContaining([third, seventh]));
+    expect(gmm.has(third)).toBe(false);
+    expect(gmm.has(seventh)).toBe(false);
+    expect([chroma('Bb'), chroma('F#')].every((p) => gmm.has(p))).toBe(true);
+    const choice = lesson('altered-dominant').steps.find((s) => (s as { type?: string }).type === 'choice') as { options: Array<{ text: string; why?: string }> };
+    const why = choice.options.find((o) => o.text === '{n:G} melodic minor')!.why!;
+    expect(why).toContain('{n:Bb} and {n:F#}');
+    expect(why).not.toMatch(/no tensions/);
   });
 });
 

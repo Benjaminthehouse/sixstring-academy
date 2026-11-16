@@ -53,6 +53,8 @@ export const TUNE: readonly TuneNote[] = TUNE_BARS.flat();
 export const TUNE_OPENING: readonly TuneNote[] = [...TUNE_BARS[0], ...TUNE_BARS[1]];
 export const TUNE_LOW: readonly TuneNote[] = [...TUNE_BARS[4], ...TUNE_BARS[5]];
 const tab = (notes: readonly TuneNote[]): TabNote[] => notes.map(([string, fret, , duration]) => ({ string, fret, duration }));
+/** Where a tune note is played, as an order tile: "String 2, fret 1" or "String 3, open". */
+export const placeTile = ([string, fret]: readonly [number, number, ...unknown[]]): string => (fret === 0 ? `String ${string}, open` : `String ${string}, fret ${fret}`);
 const tuneStaff = (notes: readonly TuneNote[], caption?: string): Figure => ({
   kind: 'staff',
   time: '4/4',
@@ -122,7 +124,7 @@ const theStaff: Lesson = {
     {
       type: 'choice',
       prompt: 'Which note sounds higher?',
-      figure: staff([['D4', '1'], ['A3', '2']]),
+      figure: staff([['D4', 'Note 1'], ['A3', 'Note 2']]),
       options: [
         { text: 'Note 1', correct: true },
         { text: 'Note 2', why: 'Note 2 sits lower on the staff, in space 2, so it sounds lower.' },
@@ -136,8 +138,8 @@ const theStaff: Lesson = {
       prompt: 'Listen to two notes. Which staff shows what you heard?',
       sound: { kind: 'notes', notes: ['E4', 'G3'], tempo: 70 },
       options: [
-        { figure: { kind: 'staff', notes: ['E4', 'G3'] }, correct: true },
-        { figure: { kind: 'staff', notes: ['G3', 'E4'] } },
+        { figure: staff(['E4', 'G3']), correct: true },
+        { figure: staff(['G3', 'E4']) },
       ],
       explain: 'You heard open string 1, the high {n:E}, then open string 3, {n:G}: high, then low. So the first note sits higher on the staff.',
     },
@@ -161,7 +163,7 @@ const theStaff: Lesson = {
       ask: {
         type: 'choice',
         prompt: 'Which note sounds higher?',
-        figure: staff([['F3', '1'], ['D4', '2']]),
+        figure: staff([['F3', 'Note 1'], ['D4', 'Note 2']]),
         options: [
           { text: 'Note 1', why: 'Note 1 sits low, in space 1, so it sounds lower.' },
           { text: 'Note 2', correct: true },
@@ -322,7 +324,9 @@ const anOctaveLower: Lesson = {
       type: 'card',
       title: 'Middle C',
       body: 'Press string 2 at fret 1. That {n:C} is written in space 3, but it **sounds** {n:C4}: the {n:C} in the middle of a piano, called {t:middle-c|middle C}. Piano music writes that same sound lower, on a ledger line below the staff.',
-      figure: { kind: 'keyboard', keys: [{ note: 'C4', label: 'Middle C', role: 'root' }], from: 'C3', to: 'B4', caption: 'Middle C, {n:C4}: string 2, fret 1 on the guitar.' },
+      // Seven white keys with middle C in the centre fit a phone; the key names itself in the
+      // learner's naming (a plain-text label would not, and "Middle C" overflows one key).
+      figure: { kind: 'keyboard', keys: [{ note: 'C4', role: 'root' }], from: 'G3', to: 'F4', caption: 'Middle C, {n:C4}: string 2, fret 1 on the guitar.' },
     },
     {
       type: 'choice',
@@ -376,7 +380,7 @@ const anOctaveLower: Lesson = {
         { text: 'Play everything at fret 8', why: 'The 8 is about octaves, not frets.' },
         { text: 'Play every bar eight times', why: 'Repeats have their own signs. This 8 means an octave lower.' },
       ],
-      explain: 'The 8 under the clef stands for the octave: the music sounds eight letter names, one octave, lower than written.',
+      explain: 'The 8 stands for an octave: eight letter names from one {n:C} up to the next, counting both. The music sounds one octave lower than written.',
       fact: 'staff-clef-8',
     },
     {
@@ -554,7 +558,7 @@ const ledgerLines: Lesson = {
     {
       type: 'card',
       title: 'Lines below the staff',
-      body: 'Some notes are too low for the staff. Short {t:ledger-line|ledger lines} extend it, just for the notes that need them. The {n:C} on **one** ledger line below is string 5, fret 3. Open string 5, {n:A}, sits on the **second**. The open low {n:E}, string 6, hangs **below the third**.',
+      body: 'Some notes are too low or too high for the staff. Short {t:ledger-line|ledger lines} extend it, below or above, just for the notes that need them. The {n:C} on **one** ledger line below is string 5, fret 3. Open string 5, {n:A}, sits on the **second**. The open low {n:E}, string 6, hangs **below the third**.',
       figure: staff(['C3', 'A2', 'E2'], 'One, two and three ledger lines: string 5 fret 3, open 5, open 6.'),
     },
     {
@@ -785,15 +789,12 @@ const readingStrings1To3: Lesson = {
       tempo: 70,
       explain: 'Up step by step from the open {n:G}: {n:A} at string 3 fret 2, then {n:B} {n:C} {n:D} on string 2, and {n:E}, open string 1.',
       alternative: {
-        type: 'fretboard-find',
-        prompt: 'Bar 5 starts on this {n:G}, on line 2. Tap where you play it in first position.',
-        figure: staff(['G3']),
-        find: { note: 'G3' },
-        mode: 'one',
-        octave: 'exact',
-        frets: [0, 4],
-        strings: [1, 2, 3],
-        explain: 'The {n:G} on line 2 is open string 3. The {n:G} just above the top line is an octave higher: string 1, fret 3.',
+        type: 'order',
+        prompt: 'Read bars 5 and 6 and put the places you play in order.',
+        figure: tuneStaff(TUNE_LOW),
+        tiles: TUNE_LOW.map(placeTile),
+        distractors: [placeTile([1, 3])],
+        explain: 'Step by step up from line 2: {n:G} open string 3, {n:A} string 3 fret 2, {n:B} open string 2, {n:C} fret 1, {n:D} fret 3, then {n:E}, open string 1. The {n:G} at string 1 fret 3 is an octave higher.',
       },
     },
     { generate: 'staff-note', params: { ask: 'read', low: 'G3', high: 'G4' } },
@@ -941,7 +942,7 @@ const unit: Unit = {
         type: 'order',
         prompt: 'Read this bar and put the places you play in order.',
         figure: tuneStaff(TUNE_BARS[0]),
-        tiles: ['String 2, fret 1', 'String 2, fret 3', 'String 1, open', 'String 1, fret 3'],
+        tiles: TUNE_BARS[0].map(placeTile),
         explain: 'The bar is {n:C} {n:D} {n:E} {n:G}: string 2 at frets 1 and 3, then string 1 open and at fret 3.',
       },
       { generate: 'staff-note', params: { ask: 'read', low: 'E2', high: 'G4' } },

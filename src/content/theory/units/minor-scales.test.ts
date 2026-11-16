@@ -156,6 +156,23 @@ describe('minor-scales: relative and parallel keys', () => {
     expect(right(find<ChoiceExercise>(checkpoint(), 'choice', 'parallel minor of D major'))).toBe('D minor');
   });
 
+  it('lists every note that differs when a wrong option says "X instead of Y"', () => {
+    // D minor is offered as the relative minor of D major: its why must name all the notes that differ.
+    const q = find<ChoiceExercise>(exercisesOf(lesson('relative-minor')), 'choice', 'relative minor of D major');
+    const why = String(q.options.find((o) => String(o.text) === '{k:D minor}')!.why);
+    const [ownPart, insteadPart] = why.split('instead of');
+    expect(tags(ownPart).filter((n) => n.length <= 2 && !/minor|major/.test(n)).sort()).toEqual(scaleNotes('D', 'minor').filter((n) => !scaleNotes('D', 'major').includes(n)).sort());
+    expect(tags(insteadPart).sort()).toEqual(scaleNotes('D', 'major').filter((n) => !scaleNotes('D', 'minor').includes(n)).sort());
+  });
+
+  it('says parallel keys share some notes but not all of them', () => {
+    const shared = scaleNotes('C', 'major').filter((n) => scaleNotes('C', 'minor').includes(n));
+    expect(shared).toEqual(['C', 'D', 'F', 'G']); // four of seven: "not all their notes", not "none"
+    expect(lesson('parallel-minor').teaches).toContain('not all their notes');
+    const card = lesson('parallel-minor').steps.filter(isCard).find((c) => c.title === 'Same tonic, other notes')!;
+    expect(String(card.body)).toContain('do not share all their notes');
+  });
+
   it('matches relative and parallel minors of C and G', () => {
     const m = find<MatchPairsExercise>(exercisesOf(lesson('parallel-minor')), 'match-pairs', 'description');
     for (const p of m.pairs) {

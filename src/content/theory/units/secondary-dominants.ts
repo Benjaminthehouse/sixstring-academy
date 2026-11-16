@@ -37,7 +37,7 @@ const whatASecondaryDominantIs: Lesson = {
     {
       type: 'card',
       title: 'A dominant for G',
-      body: 'Play {c:C}, {c:D7} (xx0212), {c:G}, {c:C}. In {k:C major}, {c:G} is {r:V}. The {c:D7} before it is the {r:V7} *of* {c:G}, so for a moment {c:G} sounds like home. A {t:secondary-dominant} is the dominant of a chord other than the tonic.',
+      body: 'Play {c:C}, {c:D7} (xx0212), {c:G}, {c:C}. In {k:C major}, {c:G} is {r:V}. The {c:D7} before it is the {r:V7} *of* {c:G}, written {r:V7/V}, so for a moment {c:G} sounds like home. A {t:secondary-dominant} is the dominant of a chord other than the tonic.',
       figure: { kind: 'chord', symbol: 'D7', frets: 'xx0212', caption: '{c:D7} (xx0212): the {n:F#} on string 1 is not in {k:C major}.' },
     },
     {
@@ -290,7 +290,8 @@ const spottingAndResolving: Lesson = {
     {
       type: 'type-answer',
       prompt: 'In {k:D major}, type the target chord of {c:F#7}.',
-      answer: { kind: 'chord', value: 'Bm', spelling: 'exact' },
+      // The key's chord on B as a seventh chord is just as right a target.
+      answer: { kind: 'chord', value: 'Bm', spelling: 'exact', accept: ['Bm7'] },
       input: 'keyboard',
       explain: '{c:F#7} falls a fifth to {n:B}. The chord of {k:D major} on {n:B} is {c:Bm}, so {c:F#7} is {r:V7/vi}.',
       fact: 'secondary-resolve-down-fifth',
@@ -326,7 +327,7 @@ const spottingAndResolving: Lesson = {
     {
       id: 'secondary-spotting',
       front: 'How can you spot a secondary dominant in a chord chart?',
-      back: 'A major or dominant 7th chord on a degree where the key has a minor chord: {c:A7} in {k:C major}, where the key\'s own chord is {c:Am}.',
+      back: 'Look for a major or dominant 7th chord on a degree where the key has a minor chord. It is usually a secondary dominant: {c:A7} in {k:C major}, where the key\'s own chord is {c:Am}.',
     },
     {
       id: 'secondary-resolve-down-fifth',
@@ -517,7 +518,7 @@ const secondaryLeadingToneChords: Lesson = {
       blanks: ['{n:Eb}'],
       bank: ['{n:D#}', '{n:E}', '{n:D}'],
       spelling: 'exact',
-      explain: 'A diminished 7th chord stacks minor thirds: {n:F#} {n:A} {n:C}, then a minor third above {n:C}, {n:Eb}. It is a kind of 7th above {n:F#}, a kind of E, so it is spelled {n:Eb}, not {n:D#}.',
+      explain: 'A diminished 7th chord stacks minor thirds: {n:F#} {n:A} {n:C}, then a minor third above {n:C}, {n:Eb}. A 7th above {n:F#} is always some kind of E, so it is spelled {n:Eb}, not {n:D#}.',
     },
     {
       type: 'card',
@@ -532,7 +533,8 @@ const secondaryLeadingToneChords: Lesson = {
           { note: 'C5', role: 'seventh' },
           { note: 'Eb5', role: 'tone' },
         ],
-        from: 'C4',
+        // Nine white keys, D4 to E5: a tenth is cropped at phone width.
+        from: 'D4',
         to: 'E5',
         caption: '{c:D7b9}: take away the {n:D} and {c:F#dim7} is left.',
       },

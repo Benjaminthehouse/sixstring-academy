@@ -785,7 +785,7 @@ const phrygianAndLocrian: Lesson = {
     {
       type: 'card',
       title: 'Locrian: the unsettled one',
-      body: 'Lower the 5th as well and you get Locrian: {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished ({n:B} {n:D} {n:F} in {n:B} Locrian), so home itself sounds unsettled: it rarely works as a home key. It fits {t:half-diminished} chords such as {c:Bm7b5} instead.',
+      body: 'Lower the 5th as well and you get Locrian: {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished ({n:B} {n:D} {n:F} in {n:B} Locrian), so even its home chord sounds unsettled, and it rarely works as a home key. It fits {t:half-diminished} chords such as {c:Bm7b5} instead.',
       figure: { kind: 'chord', symbol: 'Bm7b5', frets: 'x2323x', caption: '{c:Bm7b5}: the seventh chord on the tonic of {n:B} Locrian.' },
     },
     {
@@ -824,7 +824,7 @@ const phrygianAndLocrian: Lesson = {
     {
       id: 'modes-locrian',
       front: 'Why is Locrian rarely a home key, and what does it fit?',
-      back: 'Locrian is {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished, so home sounds unsettled, but it fits half-diminished chords such as {c:Bm7b5}.',
+      back: 'Locrian is {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished, so even home sounds unsettled, but it fits half-diminished chords such as {c:Bm7b5}.',
     },
   ],
 };

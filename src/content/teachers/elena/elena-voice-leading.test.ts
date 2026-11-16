@@ -364,6 +364,46 @@ describe('the Jazz Ballad in the library', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('the triads lesson plays a strings 3 to 1 inversion too (the plan: both string sets by microphone)', () => {
+    const plays = lesson('triads-across-string-sets').steps.filter((s) => (s as { type?: string }).type === 'play-chord') as unknown as Array<{ chord: string; frets: string }>;
+    const sets = plays.map((p) => parseFrets(p.frets).map((x, i) => (x === null ? null : 6 - i)).filter((s) => s !== null).join(''));
+    expect(sets).toContain('432');
+    expect(sets).toContain('321');
+    const top = plays.find((p) => p.frets === SHAPES.set31['C/E'])!;
+    expect(top.chord).toBe('C/E');
+    expect(buildVoicing('C', top.frets).chord).toBe('C/E');
+    expect(midiOf(top.frets)).toEqual(['E4', 'G4', 'C5'].map((n) => noteToMidi(n)));
+  });
+
+  it('the secondary-dominant card puts D7 before Gm7, where Dm7 was (the plan\'s fact)', () => {
+    const card = stepOf<{ body: string }>('reharmonisation', (s) => s.title === 'Two dependable moves');
+    expect(card.body).toContain('{c:D7} before {c:Gm7}');
+    expect(secondaryDominants('F').find((s) => s.symbol === 'D7')?.targetChord).toBe('Gm');
+  });
+
+  it('the drop-2 card names every grip of the reharmonised phrase, and only the phrase\'s melody notes as melody', () => {
+    const card = stepOf<{ body: string }>('chord-melody-2', (s) => s.title === 'Melody on top of every grip');
+    const ph = SHAPES.phrase;
+    for (const f of [ph.Fmaj7, ph.D7, ph.Gm7, ph.Gb7, ph.Fmaj7Home]) expect(card.body).toContain(f);
+    // The grips' top voices in order are the melody on beat 1 of bars 1, 3, 5 and 7, then A for the return home.
+    const tops = [ph.Fmaj7, ph.D7, ph.Gm7, ph.Gb7].map((f) => Math.max(...midiOf(f)));
+    const firstOfBar = [0, 2, 4, 6].map((b) => {
+      let beat = 0;
+      for (const n of PHRASE_MELODY) {
+        if (Math.floor(beat / 4) === b) return noteToMidi(n.note);
+        beat += n.duration === 'w' ? 4 : 2;
+      }
+      return -1;
+    });
+    expect(tops).toEqual(firstOfBar);
+    expect(card.body).toContain('{n:C}, {n:C}, {n:Bb}, {n:Bb}, and resolves to {n:A}');
+    // The phrase itself ends on Bb over the dominant: the A belongs to the Fmaj7 that follows it.
+    expect(PHRASE_MELODY.at(-1)!.note).toBe('Bb4');
+    expect(Math.max(...midiOf(ph.Fmaj7Home))).toBe(noteToMidi('A4'));
+  });
+});
+
 describe('the tasks of unit 6', () => {
   it('name the BPM the Player will play, or carry a fallback for a piece not yet in the library', async () => {
     for (const { lesson: l, task } of tasks()) {

@@ -21,7 +21,7 @@ const box = (symbol: string, frets: string, caption?: string): ChordFigure => ({
 /** The shapes these lessons use, string 6 to string 1. */
 export const SHAPES: Readonly<Record<string, string>> = {
   G: '320003', C: 'x32010', D: 'xx0232', Am: 'x02210', Em: '022000', Dm: 'xx0231', F: 'xx3211', Fm: 'xx3111',
-  Bm: 'x24432', A: 'x02220', E: '022100', 'F#dim': 'xx421x',
+  Bm: 'x24432', A: 'x02220', E: '022100', 'F#dim': 'xx421x', B: 'x24442', Bdim: 'x2343x',
 };
 const shape = (symbol: string): ChordFigure => box(symbol, SHAPES[symbol]);
 
@@ -189,7 +189,7 @@ const triadsFromTheScale: Lesson = {
       type: 'choice',
       prompt: 'Which chord is built on degree 4 of {k:C major}?',
       options: [
-        { text: '{c:F}', figure: box('F', SHAPES.F, 'The small {c:F}'), correct: true },
+        { text: '{c:F}', figure: shape('F'), correct: true },
         { text: '{c:Fm}', figure: shape('Fm'), why: '{c:Fm} has {n:Ab}, which is not in {k:C major}.' },
         { text: '{c:Em}', figure: shape('Em'), why: '{c:Em} is built on degree 3, {n:E}.' },
       ],
@@ -244,6 +244,18 @@ const theMajorKeyPattern: Lesson = {
       figure: box('F#dim', SHAPES['F#dim'], '{c:F#dim} on strings 4 to 2: {n:F#} {n:A} {n:C}.'),
     },
     {
+      type: 'choice',
+      prompt: '{c:Bdim} is {n:B} {n:D} {n:F}. Which thirds are stacked to make it?',
+      options: [
+        { text: 'A minor third, then another minor third', correct: true },
+        { text: 'A major third, then a minor third', why: 'That stack is a major triad, such as {n:G} {n:B} {n:D}.' },
+        { text: 'A minor third, then a major third', why: 'That stack is a minor triad, such as {n:D} {n:F} {n:A}.' },
+      ],
+      shuffle: false,
+      explain: '{n:B} up to {n:D} is three half steps, and {n:D} up to {n:F} is three more: two minor thirds. That is a diminished triad.',
+      fact: 'chords-key-diminished',
+    },
+    {
       type: 'match-pairs',
       prompt: 'In every major key: match each degree with the quality of its chord.',
       pairs: [
@@ -285,11 +297,12 @@ const theMajorKeyPattern: Lesson = {
       type: 'choice',
       prompt: 'Which chord is built on degree 3 of {k:G major}?',
       options: [
-        { text: '{c:Bm}', figure: box('Bm', SHAPES.Bm, 'A barre chord you will learn later'), correct: true },
-        { text: '{c:B}', why: '{c:B} has {n:D#}, which is not in {k:G major}.' },
-        { text: '{c:Bdim}', why: 'The diminished chord of {k:G major} is on degree 7: {c:F#dim}.' },
+        // Every option gets a box, so the picture never singles out the answer.
+        { text: '{c:Bm}', figure: shape('Bm'), correct: true },
+        { text: '{c:B}', figure: shape('B'), why: '{c:B} has {n:D#}, which is not in {k:G major}.' },
+        { text: '{c:Bdim}', figure: shape('Bdim'), why: 'The diminished chord of {k:G major} is on degree 7: {c:F#dim}.' },
       ],
-      explain: 'Degree 3 is minor: {n:B} {n:D} {n:F#}, the {c:Bm} chord. Its usual shape, x24432, is a barre chord you will learn later.',
+      explain: 'Degree 3 is minor: {n:B} {n:D} {n:F#}, the {c:Bm} chord. Its usual shape, x24432, is a barre chord you will learn later; so is {c:B}.',
       fact: 'chords-key-g-chords',
     },
     { generate: 'diatonic-chord', params: { ask: 'quality', maxAccidentals: 1 } },
@@ -519,8 +532,10 @@ const oneFourFive: Lesson = {
       explain: 'A huge number of songs use only {r:I}, {r:IV} and {r:V}: {c:G}, {c:C} and {c:D} in {k:G major}.',
       fact: 'chords-key-three-chord-songs',
     },
-    { generate: 'roman-chord', params: { direction: 'to-chord', numerals: ['I', 'IV', 'V'], maxAccidentals: 4 } },
-    { generate: 'roman-chord', params: { direction: 'to-roman', numerals: ['I', 'IV', 'V'], maxAccidentals: 4 } },
+    // Keys are drawn simplest signature first (C G F D Bb ...). Up to two accidentals keeps the drill to
+    // C, G, F and D, keys this path has spelled, until a high difficulty adds Bb; A and E are asked above.
+    { generate: 'roman-chord', params: { direction: 'to-chord', numerals: ['I', 'IV', 'V'], maxAccidentals: 2 } },
+    { generate: 'roman-chord', params: { direction: 'to-roman', numerals: ['I', 'IV', 'V'], maxAccidentals: 2 } },
   ],
   facts: [
     { id: 'chords-key-one-four-five', front: 'Which are the three major chords of a major key?', back: '{r:I}, {r:IV} and {r:V}: the chords on degrees 1, 4 and 5.' },
@@ -528,7 +543,7 @@ const oneFourFive: Lesson = {
       id: 'chords-key-one-four-five-keys',
       front: 'What is {r:I}–{r:IV}–{r:V} in {k:G major}, {k:D major}, {k:A major}, {k:E major} and {k:C major}?',
       back: '{c:G}–{c:C}–{c:D}, {c:D}–{c:G}–{c:A}, {c:A}–{c:D}–{c:E}, {c:E}–{c:A}–{c:B} and {c:C}–{c:F}–{c:G}.',
-      ask: { generate: 'roman-chord', params: { direction: 'to-chord', numerals: ['I', 'IV', 'V'], maxAccidentals: 4 } },
+      ask: { generate: 'roman-chord', params: { direction: 'to-chord', numerals: ['I', 'IV', 'V'], maxAccidentals: 2 } },
     },
     {
       id: 'chords-key-three-chord-songs',

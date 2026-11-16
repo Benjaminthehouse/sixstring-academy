@@ -17,7 +17,9 @@ import {
   chordNotes, chordToRoman, chroma, classifyCadence, consonance, diatonicChords, intervalBetween, noteToMidi, parseNote, relativeKey, scaleNotes,
 } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, parseRhythm, validateCourse, type RichText, type TabNote } from '@/lessons';
+import { palette } from '@/features/progressions/model/builder';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
+import repertoireUnit from './elena-classical-repertoire';
 import type { TaskStep, TeacherLesson, TeacherUnit } from '../types';
 import unit, {
   DADGAD_OPEN, DADGAD_SCALE, DADGAD_TUNE, FUGUE_ANSWER, FUGUE_COUNTERSUBJECT, FUGUE_SUBJECT, FUGUE_THIRD_ENTRY, INVENTION_BASS, INVENTION_SUBJECT,
@@ -425,4 +427,58 @@ describe('Elena unit 12: Composition and arranging', () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^comp-/);
   });
+
+  // ── what the independent review fixed (keep these honest) ─────────────────────────────────────
+
+  it('retunes to DADGAD before anything is played in it', () => {
+    const steps = lesson('alternate-tunings').steps;
+    const retune = steps.findIndex((x) => (x as { id?: string }).id === 'tune-dadgad');
+    const firstPlayed = steps.findIndex((x) => 'type' in x && (x.type === 'play-phrase' || x.type === 'play-note') && (x as { tuning?: string }).tuning === 'dadgad');
+    expect(retune).toBeGreaterThan(-1);
+    expect(firstPlayed).toBeGreaterThan(retune);
+    // In standard tuning string 2 frets 4 and 5 are D# and E, not the C# and D of the scale.
+    expect(midis(DADGAD_SCALE.slice(-2), 'standard')).not.toEqual(midis(DADGAD_SCALE.slice(-2), 'dadgad'));
+  });
+
+  it('hums the subject only against the countersubject that is made to sound with it (bars 7 and 8)', () => {
+    // The subject's note on each quarter beat, against each version of the countersubject.
+    const on = onsets(FUGUE_SUBJECT);
+    const beatNote = (i: number) => midis(FUGUE_SUBJECT)[on.filter((t) => t <= i * 960).length - 1];
+    const cs = midis(FUGUE_COUNTERSUBJECT);
+    // Two-voice consonances by size: unisons and octaves, thirds, fifths, sixths (a fourth counts as dissonant).
+    const kinds = (shift: number) => cs.map((c, i) => ([0, 3, 4, 7, 8, 9].includes(Math.abs(beatNote(i) - (c - shift)) % 12) ? 'consonant' : 'dissonant'));
+    // As bars 3 and 4 have it (made for the answer), it clashes with the subject; a fifth lower, it fits on every beat.
+    expect(kinds(0)).toContain('dissonant');
+    expect(kinds(7).every((k) => k === 'consonant')).toBe(true);
+    const away = lesson('fugue').steps.find((x) => (x as { title?: string }).title === 'Away from the guitar') as { body: RichText };
+    expect(plain(away.body)).toMatch(/bars 7 and 8/);
+    expect(plain(away.body)).toMatch(/a fifth lower/);
+  });
+
+  it('asks for the third entry alone from the cards, since the Player cannot isolate one voice of bars 7 and 8', async () => {
+    const fugueSong = await song('st-fugue-exposition');
+    const third = attacks(fugueSong, 7, 8);
+    expect(third.some((a) => a.all.length > 1)).toBe(true);
+    expect(plain(task('fugue-entries').body)).toMatch(/third entry alone: from my cards/);
+    const cardFigures = lesson('fugue').steps.map((x) => (x as { figure?: { notes?: unknown } }).figure?.notes);
+    expect(cardFigures).toContain(FUGUE_THIRD_ENTRY);
+  });
+
+  it('points to More colours, where the builder keeps the borrowed chords', () => {
+    const plainKey = palette({ tonic: 'C', mode: 'major', sevenths: true, advanced: false });
+    const more = palette({ tonic: 'C', mode: 'major', sevenths: true, advanced: true });
+    const symbols = (g: { symbol: string }[]) => g.map((c) => c.symbol);
+    expect(symbols(plainKey.diatonic)).toContain('G7');
+    expect(symbols(plainKey.borrowed)).toEqual([]);
+    for (const c of ['Fm', 'Ab', 'Bb']) expect(symbols(more.borrowed), c).toContain(c);
+    expect(plain(task('eight-bars-in-c').body)).toMatch(/More colours/);
+    expect(plain(task('eight-bars-in-c').body)).toMatch(/Sevenths/);
+  });
+
+  it('greets the invention as a piece the learner already played in the repertoire unit', () => {
+    expect(repertoireUnit.milestone?.song).toBe('st-two-voice-invention');
+    const card = lesson('counterpoint').steps.find((x) => (x as { title?: string }).title === 'The subject') as { body: RichText };
+    expect(plain(card.body)).toMatch(/opened your recital/);
+  });
 });
+

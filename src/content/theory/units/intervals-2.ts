@@ -440,7 +440,7 @@ const adjacentStringShapes: Lesson = {
         dots: [root(6, 5, 'A2'), dot(5, 3, 'C3', 'm3'), dot(5, 4, 'C#3', 'M3'), dot(5, 5, 'D3', 'P4'), dot(5, 6, 'D#3', 'A4'), dot(5, 7, 'E3', 'P5')],
         caption: 'From {n:A} (R) on string 6: {i:m3} {i:M3} {i:P4} {i:A4} {i:P5} on string 5.',
       },
-      tip: 'The same shapes work on strings 5 and 4, and 4 and 3. Strings 3 and 2 need one change, two lessons from now.',
+      tip: 'The same shapes work on strings 5 and 4, 4 and 3, and 2 and 1. Only strings 3 and 2 need a change, two lessons from now.',
     },
     {
       type: 'choice',
@@ -501,7 +501,7 @@ const adjacentStringShapes: Lesson = {
       notes: [{ string: 6, fret: 5, duration: 'h' }, { string: 5, fret: 4, duration: 'h' }],
       octave: 'exact',
       tempo: 70,
-      explain: 'One fret lower on the next string is the major third. Play the two together and you hear the bright start of an {c:A} chord.',
+      explain: 'One fret lower on the next string is the major third. Root and major third are the two notes that make an {c:A} chord sound major.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'The dot is {n:A}, string 6 fret 5. Tap the major third above it on string 5.',
@@ -562,15 +562,15 @@ const adjacentStringShapes: Lesson = {
 
 const skipAStringShapes: Lesson = {
   id: 'skip-a-string-shapes',
-  title: 'Sixths, sevenths, octaves over a string',
+  title: 'Sixths to octaves, skipping a string',
   teaches: 'Skipping a string (not across G-B), two frets higher is an octave; each fret lower is a half step smaller.',
   minutes: 3,
   skill: `theory:${U}:skip-a-string-shapes`,
   steps: [
     {
       type: 'card',
-      title: 'Across one string',
-      body: 'Now skip a string: root on string 6, note on string 4. **Two frets higher** is the octave, the shape you know. Shrink it fret by fret: one fret higher is a major seventh, the same fret a minor seventh, one fret lower a major sixth, two frets lower a minor sixth.',
+      title: 'Skip a string',
+      body: 'Now leave one string out: root on string 6, note on string 4. **Two frets higher** is the octave, the shape you know. Shrink it fret by fret: one fret higher is a major seventh, the same fret a minor seventh, one fret lower a major sixth, two frets lower a minor sixth.',
       figure: {
         kind: 'fretboard',
         frets: [0, 6],

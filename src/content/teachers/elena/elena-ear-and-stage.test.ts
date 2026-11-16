@@ -24,7 +24,7 @@ import { chordSoundMidi } from '@/lessons/sound';
 import { estimateLessonSeconds, formatProblems, parseRhythm, validateCourse, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherLesson } from '../types';
-import unit, { DECEPTIVE, MELODY, MELODY_BARS, MELODY_STAFF, MELODY_TEMPO, SOLO, SOLO_BARS, SOLO_CHORDS, SOLO_TEMPO, STUDY_TUNE, TURNAROUND, WASHERWOMAN_OPENING } from './elena-ear-and-stage';
+import unit, { DECEPTIVE, DECEPTIVE_TEMPO, MELODY, MELODY_BARS, MELODY_STAFF, MELODY_TEMPO, SOLO, SOLO_BARS, SOLO_CHORDS, SOLO_TEMPO, STUDY_TUNE, TURNAROUND, WASHERWOMAN_OPENING } from './elena-ear-and-stage';
 
 // ── helpers (kept in this file: the unit folder holds only unit files and their tests) ──────────
 
@@ -417,7 +417,7 @@ describe('Elena unit 13: Transcription and performance', () => {
       expect(frets.has(8) && frets.has(10)).toBe(true);
     });
 
-    it('performs the opening of The Irish Washerwoman exactly as the library has it, at full speed', async () => {
+    it('performs the opening of The Irish Washerwoman exactly as the library has it, at the library tempo', async () => {
       const s = await song('irish-washerwoman');
       const lib = s.tracks[0].measures.slice(0, 3).flatMap((m) => m.beats.map((b) => `${b.notes[0].string}:${b.notes[0].fret}/${b.duration}`));
       expect(WASHERWOMAN_OPENING.map((n) => `${(n as Fretted).string}:${(n as Fretted).fret}/${TICKS[n.duration]}`)).toEqual(lib);
@@ -426,8 +426,11 @@ describe('Elena unit 13: Transcription and performance', () => {
       expect(show.tempo).toBe(s.tempo[0].bpm);
       expect(tagged(show.explain)).toEqual(names(WASHERWOMAN_OPENING, { key: 'G major' }));
       expect(show.alternative.tiles.map((x) => tagged(x)[0])).toEqual(names(WASHERWOMAN_OPENING.slice(2, 8), { key: 'G major' }));
-      expect(unit.milestone).toMatchObject({ lesson: 'recital', step: 'show', song: 'irish-washerwoman', piece: 'The Irish Washerwoman' });
-      expect(songEntry('irish-washerwoman')!.title).toBe(unit.milestone!.piece);
+      expect(unit.milestone).toMatchObject({ lesson: 'recital', step: 'show', song: 'irish-washerwoman' });
+      // The show is the pickup and two bars of a 16-bar tune: the unit's end says "You know {piece}
+      // from start to finish", so the piece is named as the opening, not the whole jig.
+      expect(unit.milestone!.piece).toBe(`the opening of ${songEntry('irish-washerwoman')!.title}`);
+      expect(s.bars.length).toBeGreaterThan(3);
     });
 
     it('swaps only the classical solos the library does not hold', () => {
@@ -441,6 +444,109 @@ describe('Elena unit 13: Transcription and performance', () => {
       for (const id of ['tech-warm-up', 'tech-play-without-pain']) expect(music).toContain(id);
       const linked = tasks().map((x) => taskSong(x)).filter(Boolean);
       expect(linked).toContain('st-chord-melody-2');
+    });
+  });
+
+  // Added by the independent review: each check pins a fix, so the wording cannot drift back.
+  describe('review fixes', () => {
+    it('plays the deceptive cadence one chord to a bar, as the jam and the "bar 4" question count it', () => {
+      const order = step<{ figure: { sound: { kind: string; chords: string[]; beats: number; tempo: number }; label: string } }>('transcribing-harmony', 'order', 'bass line');
+      expect(order.figure.sound.chords).toEqual([...DECEPTIVE]);
+      // 4/4, so four beats a chord make eight chords eight bars, and chord 4 (Am) is bar 4.
+      expect(order.figure.sound.beats).toBe(4);
+      expect(order.figure.label).toMatch(/Eight bars/);
+      expect(DECEPTIVE.length).toBe(8);
+      expect(DECEPTIVE[3]).toBe('Am');
+      const [lo, hi] = getProgression('classical-deceptive')!.feel.tempo;
+      expect(order.figure.sound.tempo).toBe(DECEPTIVE_TEMPO);
+      expect(DECEPTIVE_TEMPO >= lo && DECEPTIVE_TEMPO <= hi).toBe(true);
+      expect(progressionInKey('classical-deceptive', 'C').bars.every((b) => b.length === 1)).toBe(true);
+    });
+
+    it('has the deceptive cadence transcribed before the jam, whose screen shows the chart and names the cadence', () => {
+      // The jam screen cannot hide its chart, and its title is the catalog's name.
+      expect(getProgression('classical-deceptive')!.name).toMatch(/Deceptive cadence/);
+      const steps = lesson('transcribing-harmony').steps;
+      const at = (pred: (s: (typeof steps)[number]) => boolean) => steps.findIndex(pred);
+      const orderAt = at((s) => (s as { type?: string; prompt?: string }).type === 'order' && /bass line/.test((s as { prompt: string }).prompt));
+      const bar4At = at((s) => (s as { prompt?: string }).prompt === 'Bar 4 surprises the ear. What happens there?');
+      const jamAt = at((s) => isTaskStep(s as never) && (s as unknown as TaskStep).id === 'deceptive-hidden');
+      expect(orderAt).toBeGreaterThan(0);
+      expect(bar4At).toBeGreaterThan(orderAt);
+      expect(jamAt).toBeGreaterThan(bar4At);
+      expect(plain(task('deceptive-hidden').body)).toMatch(/reveal/);
+      expect(plain(task('deceptive-hidden').title)).not.toMatch(/cannot see/);
+    });
+
+    it('names the A minor study once by its title in Songs, so the learner can find it again', () => {
+      const card = step<{ body: string }>('memorising', 'card', 'A memory map');
+      expect(card.body).toContain(`in Songs: ${songEntry('st-pimami-3-4')!.title}`);
+    });
+
+    it('explains the E bass distractor by the interval the learner hears', () => {
+      const listen = step<{ options: Array<{ text: string; why?: string }> }>('transcribing-harmony', 'listen-choice', 'the bass');
+      const why = plain(listen.options.find((o) => o.text.includes('{n:E}'))!.why);
+      expect(why).not.toMatch(/does not rise/);
+      const c = Math.min(...chordSoundMidi('Cmaj7')!);
+      const a = Math.min(...chordSoundMidi('A7')!);
+      expect(c - a).toBe(3); // a minor third down, to A
+      expect(noteToMidi('E3') - c).toBe(4); // E a major third above
+      expect(c - noteToMidi('E2')).toBe(8); // or a minor sixth below
+      expect(why).toMatch(/minor third/);
+      expect(why).toMatch(/major third above/);
+    });
+
+    it('gives the "play along with my recording here" card the recording itself', () => {
+      const card = step<{ body: string; figure?: { kind: string; sound: { kind: string; notes: TabNote[]; tempo: number } } }>('transcribing-a-solo', 'card', 'Into the Player');
+      expect(card.body).toMatch(/my recording here/);
+      expect(card.figure?.kind).toBe('audio');
+      expect(card.figure!.sound).toEqual({ kind: 'tab', notes: SOLO, tempo: SOLO_TEMPO });
+      expect(card.body).toMatch(/Scan & Import/);
+    });
+
+    it('says honestly that a Dev graduate has met the second solo, which Dev\'s blues unit really uses', async () => {
+      const body = plain(task('second-solo').body);
+      expect(body).toMatch(/If you once read it from tab with Dev/);
+      const dev = (await import('../dev/dev-blues')).default;
+      const devSongs = dev.lessons.flatMap((l) => l.steps.filter(isTaskStep)).map((x) => taskSong(x));
+      expect(devSongs).toContain('st-minor-blues-a');
+    });
+
+    it('sets the in-your-head metronome to the study\'s own meter and tempo', async () => {
+      const s = await song('st-pimami-3-4');
+      expect(s.bars[0].time).toEqual({ numerator: 3, denominator: 4 });
+      expect(plain(task('in-your-head').body)).toMatch(new RegExp(`${s.tempo[0].bpm} BPM in 3/4`));
+    });
+
+    it('names only the programme pieces that are really missing, and the stand-ins that are there', () => {
+      const card = step<{ body: string }>('recital', 'card', 'Five slots');
+      expect(card.body).not.toMatch(/Neither/);
+      expect(card.body).toMatch(/The first two are not in the library/);
+      expect(card.body.indexOf('Gran Vals')).toBeLessThan(card.body.indexOf('Asturias'));
+      for (const id of ['gran-vals', 'asturias']) expect(songEntry(id), id).toBeUndefined();
+      expect(songEntry('st-chord-melody-2')).toBeTruthy(); // the third piece named is in the library
+      expect(songEntry('st-concert-tremolo-etude')!.title).toBe('Concert Tremolo Etude');
+    });
+
+    it('keeps the recital timeline honest: run today, give it after four weeks, and the goal limit respected', () => {
+      expect(plain(task('build-programme').body)).toMatch(/four weeks from today/);
+      expect(plain(task('recital-recorded').body)).toMatch(/when the four weeks are up/);
+      const next = plain(task('next-year').body);
+      expect(next).not.toMatch(/^Mark the recital goal achieved/);
+      expect(next).toMatch(/three open at once/);
+      expect(MAX_OPEN_GOALS).toBe(3);
+      expect(next).toMatch(/repertoire, technique, theory and ear/);
+      for (const area of ['repertoire', 'technique', 'theory', 'ear'] as const) expect(AREA_INFO[area]).toBeTruthy();
+    });
+
+    it('asks for the show at the library tempo, without claiming more speed than that', async () => {
+      const show = lesson('recital').steps.find((x) => (x as { id?: string }).id === 'show') as { prompt: string; tempo: number };
+      expect(show.prompt).not.toMatch(/full speed/);
+      expect(show.prompt).toMatch(/at tempo/);
+      const s = await song('irish-washerwoman');
+      expect(s.bars[0].time).toEqual({ numerator: 6, denominator: 8 });
+      expect(show.tempo).toBe(s.tempo[0].bpm); // 138 quarters a minute: 92 to the dotted quarter
+      expect((show.tempo * 2) / 3).toBe(92);
     });
   });
 });

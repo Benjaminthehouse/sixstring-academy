@@ -273,6 +273,35 @@ describe('intervals-1: intervals inside chords', () => {
   });
 });
 
+describe('intervals-1: review fixes', () => {
+  it('the "third above C" question asks for the natural note, since Eb at fret 6 is a third too', () => {
+    const q = exercisesOf(lesson('what-an-interval-is').steps).find((e): e is FretboardFindExercise => e.type === 'fretboard-find')!;
+    // Every E-letter note is a third above C: E (major), Eb (minor) ... so the question must narrow it down.
+    expect(interval(intervalBetween('C', 'Eb')).number).toBe(3);
+    expect(at(5, 6) - at(5, 3)).toBe(semitones('m3'));
+    expect(ascii(q.prompt)).toMatch(/natural note/);
+    // Of the third-sized notes on string 5 within the frets asked, only fret 7 is a natural note.
+    const [lo, hi] = q.frets;
+    const thirds = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).filter((f) => [3, 4].includes(at(5, f) - at(5, 3)));
+    expect(thirds).toEqual([6, 7]);
+    expect(thirds.filter((f) => !noteAt({ string: 5, fret: f }, { octave: false }).match(/[#b]/))).toEqual([7]);
+  });
+
+  it('a phone shows the answer of each "find one" question without scrolling the neck (7 frets fit)', () => {
+    for (const f of allExercises().filter((e): e is FretboardFindExercise => e.type === 'fretboard-find' && e.mode === 'one')) {
+      // The minor seventh on one string is ten frets from its root: that question scrolls by design.
+      if ('interval' in f.find && f.find.interval === 'm7') continue;
+      for (const t of findTargets(f)) expect(t.fret - f.frets[0], ascii(f.prompt)).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('the open-strings card does not claim every pair is a fourth', () => {
+    const card = cards(lesson('fourths-fifths-octaves')).find((c) => /Fourths between the strings/.test(String(c.title)))!;
+    expect(ascii(card.body)).not.toMatch(/^Each open string/);
+    expect(ascii(card.body)).toMatch(/^Most neighbouring open strings/);
+  });
+});
+
 describe('intervals-1: on the go', () => {
   it('every lesson still teaches with Sound and Guitar off', () => {
     for (const l of unit.lessons) {

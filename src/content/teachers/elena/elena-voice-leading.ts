@@ -9,7 +9,8 @@
  * Progressions, and back.
  *
  * Where the lessons differ from the plan (see the report): the triads lesson plays the strings 4 to
- * 2 inversions by microphone and shows Dev's strings 3 to 1 shapes beside them, and its Canon route
+ * 2 inversions by microphone and shows Dev's strings 3 to 1 shapes beside them, playing one of them
+ * (C/E, xxx988) so that both sets are heard (review), and its Canon route
  * on strings 4 to 2 keeps every voice within two frets for one pass (the repeat jumps back to fret
  * 7: the Canon climbs, so no route can come back to where it began in steps of two frets). The
  * major line cliche is taught as one moving voice on string 3 under the C shape, since the engine
@@ -322,6 +323,14 @@ const triadsAcrossStringSets: TeacherLesson = {
         ],
         caption: '{c:C} on strings 3 to 1, the shapes from Dev\'s course.',
       },
+    },
+    {
+      type: 'play-chord',
+      prompt: 'The set above: {c:C/E} on strings 3 to 1, xxx988.',
+      chord: 'C/E',
+      frets: SHAPES.set31['C/E'],
+      explain: '{n:E} on string 3 fret 9, {n:G} and {n:C} at fret 8: the third in the bass, as x-x-2-0-1-x was on the set below.',
+      alternative: { type: 'chord-build', task: 'fingers', chord: 'C/E', frets: SHAPES.set31['C/E'], accept: 'this-shape', prompt: 'Build {c:C/E} on strings 3 to 1.', explain: 'xxx988: {n:E} on string 3 fret 9, {n:G} on string 2 fret 8, {n:C} on string 1 fret 8.' },
     },
     {
       type: 'fretboard-find',
@@ -701,7 +710,7 @@ const reharmonisation: TeacherLesson = {
     {
       type: 'card',
       title: 'Two dependable moves',
-      body: 'One: a secondary dominant before a diatonic chord, {c:D7} for {c:Dm7}. Two: the {t:tritone-substitution|tritone substitution}, the dominant a tritone away, {c:Gb7} for {c:C7}. {c:C7} has {n:E} and {n:Bb}; {c:Gb7} has the same two pitches, spelled {n:Fb} and {n:Bb}.',
+      body: 'One: a secondary dominant before a diatonic chord, {c:D7} before {c:Gm7}, in the bars where {c:Dm7} was. Two: the {t:tritone-substitution|tritone substitution}, the dominant a tritone away, {c:Gb7} for {c:C7}. {c:C7} has {n:E} and {n:Bb}; {c:Gb7} has the same two pitches, spelled {n:Fb} and {n:Bb}.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Fmaj7', 'D7', 'Gm7', 'Gb7', 'Fmaj7'], beats: 4, tempo: 72 }, label: 'Hear it reharmonised' },
     },
     {
@@ -810,7 +819,7 @@ const chordMelody2: TeacherLesson = {
     {
       type: 'card',
       title: 'A full arrangement',
-      body: 'Chord Melody: Jazz Ballad with Reharmonisation is an original 32-bar {t:aaba|AABA} ballad in {k:F major} on {c:Fmaj7}, {c:Dm7}, {c:Gm7} and {c:C7}, with a {c:D7} leading to {c:Gm7} and {c:Gb7} in place of {c:C7}: the two moves of the last lesson. Its bridge adds {c:A7} and {c:G7}.',
+      body: 'The Jazz Ballad with Reharmonisation is an original 32-bar {t:aaba|AABA} ballad in {k:F major} on {c:Fmaj7}, {c:Dm7}, {c:Gm7} and {c:C7}, with a {c:D7} leading to {c:Gm7} and {c:Gb7} in place of {c:C7}: the two moves of the last lesson. Its bridge adds {c:A7} and {c:G7}.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Fmaj7', 'D7', 'Gm7', 'Gb7', 'Fmaj7'], beats: 4, tempo: 60 }, label: 'The reharmonised bars' },
     },
     {
@@ -824,11 +833,11 @@ const chordMelody2: TeacherLesson = {
     {
       type: 'card',
       title: 'The B section must contrast',
-      body: 'Take the voicings higher or thinner there: three strings instead of four, or grips higher on the neck. Balance is the test: the melody sings and the harmony sits beneath it, quieter, in every bar.',
+      body: 'Take the voicings higher or thinner there: three strings instead of four, or grips up the neck. Balance is the test: the melody sings, the harmony sits quieter beneath it, in every bar.',
     },
     {
       type: 'play-phrase',
-      prompt: 'First the melody alone, as a singer would: the phrase from the last lesson, on strings 1 and 2.',
+      prompt: 'First the melody alone, as a singer would: the last lesson\'s phrase, on strings 1 and 2.',
       notes: [...PHRASE_TAB],
       octave: 'exact',
       tempo: 66,
@@ -838,14 +847,15 @@ const chordMelody2: TeacherLesson = {
         prompt: 'Put the notes on beat 1 of bars 1, 3, 5 and 7 in order: the melody the grips carry on top.',
         tiles: ['{n:C}', '{n:C}', '{n:Bb}', '{n:Bb}'],
         distractors: ['{n:A}', '{n:B}'],
-        explain: '{n:C}, {n:C}, {n:Bb}, {n:Bb}, landing on {n:A} with {c:Fmaj7}: the top voice of every grip in the phrase.',
+        explain: '{n:C}, {n:C}, {n:Bb}, {n:Bb}: the top voice of each new chord of the phrase. The {c:Fmaj7} that follows brings it home to {n:A}.',
       },
     },
     {
       type: 'card',
       title: 'Melody on top of every grip',
-      body: 'In drop-2 on strings 4 to 1 the reharmonised bars are {c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656 and {c:Fmaj7} xx3555. Their top voice is the melody, {n:C}, {n:Bb}, {n:Bb}, {n:A}, and the inner voices move by half and whole steps.',
+      body: 'Under that melody, reharmonised, in drop-2 on strings 4 to 1: {c:Fmaj7} xx7968, {c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656, home to {c:Fmaj7} xx3555. The top voice carries {n:C}, {n:C}, {n:Bb}, {n:Bb}, and resolves to {n:A}.',
       figure: { kind: 'chord', symbol: 'D7', frets: SHAPES.phrase.D7, caption: '{c:D7} in drop-2, {n:C} on top.' },
+      tip: 'A stretch: keep the thumb soft; stop at any ache in wrist or palm.',
     },
     {
       type: 'play-chord',
@@ -896,7 +906,7 @@ const chordMelody2: TeacherLesson = {
     }),
     {
       type: 'true-false',
-      statement: 'A voicing whose top note is not the melody note is fine, as long as the chord is right.',
+      statement: 'A voicing without the melody note on top is fine if the chord is right.',
       answer: false,
       explain: 'The right chord with the wrong top note changes the tune. In chord melody the top voice is the melody, always.',
       fact: 'vl-b-section',
@@ -917,7 +927,7 @@ const chordMelody2: TeacherLesson = {
     }),
     {
       type: 'choice',
-      prompt: 'Your B section sounds like the A section played again. What do you change first?',
+      prompt: 'Your B section sounds like the A section again. What do you change first?',
       options: [
         { text: 'The voicings: higher or thinner', correct: true },
         { text: 'The melody', why: 'The melody is the composer\'s. The arranger changes what sits under it.' },
@@ -930,7 +940,7 @@ const chordMelody2: TeacherLesson = {
   facts: [
     { id: 'vl-aaba', front: 'What is 32-bar AABA form?', back: 'Four 8-bar sections: a theme, the theme again, a contrasting bridge (B), and the theme to close.' },
     { id: 'vl-b-section', front: 'How does a chord-melody arrangement make its B section contrast?', back: 'Higher or thinner voicings, with the melody still on top and louder than the harmony.' },
-    { id: 'vl-reharm-drop2', front: 'The reharmonised bars in drop-2, strings 4 to 1?', back: '{c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656, {c:Fmaj7} xx3555: the top voice sings {n:C} {n:Bb} {n:Bb} {n:A}.' },
+    { id: 'vl-reharm-drop2', front: 'The reharmonised bars in drop-2, strings 4 to 1?', back: '{c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656, home to {c:Fmaj7} xx3555: the top voice sings {n:C} {n:Bb} {n:Bb}, then {n:A}.' },
   ],
 };
 

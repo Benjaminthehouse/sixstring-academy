@@ -374,6 +374,22 @@ describe('colour-chords: what the other listening questions play', () => {
   });
 });
 
+describe('colour-chords: fair questions', () => {
+  it('shuffles every choice: none keeps the right answer in a fixed first place', () => {
+    for (const e of ofType<ChoiceExercise>('choice')) expect(e.shuffle, plainText(e.prompt)).not.toBe(false);
+  });
+
+  it('shows the open-A figure with its own question, and only strings 5 and 2 in it', () => {
+    const q = ofType<ChoiceExercise>('choice').find((e) => /which open string is the pedal/.test(plainText(e.prompt)))!;
+    const notes = (q.figure as { kind: string; notes: Array<{ string: number; fret: number }> }).notes;
+    expect(q.figure?.kind).toBe('tab');
+    expect(midiAt(notes[0])).toBe(45); // the open A
+    expect([...new Set(notes.map((x) => x.string))].sort()).toEqual([2, 5]);
+    // The other open strings it offers are not the pedal: string 4 is fretted in every A shape.
+    for (const shape of ['x02220', 'x02230', 'x02200']) expect(shape[2]).toBe('2');
+  });
+});
+
 describe('colour-chords: on the go', () => {
   it('still teaches with the sound off and with the guitar away', () => {
     for (const c of [{ guitar: false, sound: true }, { guitar: false, sound: false }, { guitar: true, sound: false }]) {

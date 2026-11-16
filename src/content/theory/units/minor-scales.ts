@@ -206,7 +206,7 @@ const relativeMinor: Lesson = {
       prompt: 'What is the relative minor of {k:D major}?',
       options: [
         { text: '{k:B minor}', correct: true },
-        { text: '{k:D minor}', why: '{k:D minor} has the same tonic, but not the same notes: {n:F} and {n:C} instead of {n:F#} and {n:C#}.' },
+        { text: '{k:D minor}', why: '{k:D minor} has the same tonic, but not the same notes: {n:F}, {n:Bb} and {n:C} instead of {n:F#}, {n:B} and {n:C#}.' },
         { text: '{k:F# minor}', why: '{n:F#} is degree 3 of {k:D major}, not degree 6.' },
         { text: '{k:E minor}', why: '{n:E} is degree 2 of {k:D major}.' },
       ],
@@ -216,7 +216,7 @@ const relativeMinor: Lesson = {
     {
       type: 'card',
       title: 'Three frets down',
-      body: 'The relative minor\'s tonic is also a {i:m3} below the major tonic: three half steps, three frets down one string. From {n:C} at string 5, fret 3, go down three frets to the open string: {n:A}.',
+      body: 'The relative minor\'s tonic is also a {i:m3} below the major tonic: three half steps, so three frets lower on the same string. From {n:C} at string 5, fret 3, go down three frets to the open string: {n:A}.',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],
@@ -302,7 +302,7 @@ const relativeMinor: Lesson = {
 const parallelMinor: Lesson = {
   id: 'parallel-minor',
   title: 'The parallel minor',
-  teaches: 'Parallel major and minor share a tonic but not their notes; relative keys share notes but not a tonic.',
+  teaches: 'Parallel major and minor share a tonic but not all their notes; relative keys share notes but not a tonic.',
   minutes: 3,
   skill: `theory:${U}:parallel-minor`,
   steps: [

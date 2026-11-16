@@ -69,7 +69,7 @@ export const PIMAMI_DM_BAR: Played[] = [e(4, 0), e(3, 2), e(2, 3), e(1, 1), e(2,
 const harmonicMinorHarmony: TeacherLesson = {
   id: 'harmonic-minor-harmony',
   title: 'The harmony of harmonic minor',
-  teaches: 'Raise the seventh of {k:A minor} to {n:G#}: {r:V} becomes {c:E7}, the seventh chord {c:G#dim7}, and {r:bIII} augmented.',
+  teaches: 'Raise the seventh of {k:A minor} to {n:G#}: {r:V} becomes {c:E7}, {r:vii°7} is {c:G#dim7}, {r:bIII} turns augmented.',
   minutes: 5,
   skill: 'teacher:elena:harmonic-minor-harmony',
   steps: [
@@ -94,7 +94,7 @@ const harmonicMinorHarmony: TeacherLesson = {
       type: 'card',
       title: 'The seven sevenths',
       body: 'In sevenths: {c:AmMaj7}, {c:Bm7b5}, {c:Cmaj7#5}, {c:Dm7}, {c:E7}, {c:Fmaj7}, {c:G#dim7}. Much minor-key music mixes the two forms: natural minor in the melody, harmonic minor at the cadences.',
-      figure: { kind: 'chord', symbol: 'G#dim7', caption: '{c:G#dim7}: {n:G#} {n:B} {n:D} {n:F}, four minor thirds.' },
+      figure: { kind: 'chord', symbol: 'G#dim7', caption: '{c:G#dim7}: {n:G#} {n:B} {n:D} {n:F}, three minor thirds stacked.' },
     },
     {
       type: 'fill-blanks',
@@ -190,7 +190,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
     {
       type: 'card',
       title: 'The fifth mode',
-      body: 'Start {n:A} harmonic minor on its fifth note: {n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}, {t:phrygian-dominant|Phrygian dominant}. Over {c:E} major it sounds instantly Spanish: {n:F} a half step above the root, {n:G#} a major third.',
+      body: 'Start {n:A} harmonic minor on its fifth note: {n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}, {t:phrygian-dominant|Phrygian dominant}. Over {c:E} it sounds instantly Spanish: {n:F} a half step above the root, {n:G#} a major third.',
       figure: { kind: 'fretboard', frets: [0, 4], root: 'E', labels: 'degree', derive: { scale: 'phrygian-dominant', tonic: 'E' }, caption: '{n:E} Phrygian dominant in open position.' },
     },
     {
@@ -207,7 +207,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
     {
       type: 'card',
       title: 'Twelve beats',
-      body: 'The {t:solea|solea} {t:compas|compas} counts 12 beats, accented on 3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2. Clap it before you play it, counting aloud. Here are the accents alone, as two bars of six: two threes, then three twos across them, a {t:hemiola|hemiola}.',
+      body: 'The {t:solea|solea} {t:compas|compas} counts 12 beats, accented on 3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2. Clap it before you play it. Here are the accents alone, as two bars of six: two threes, then three twos across them, a {t:hemiola|hemiola}.',
       figure: { kind: 'rhythm', pattern: SOLEA_ACCENTS, time: '6/4', tempo: 100, caption: 'Counts 3 and 6, then 8, 10 and 12.' },
     },
     {
@@ -233,7 +233,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
     {
       type: 'card',
       title: 'Rasgueado on the accents',
-      body: 'In the study {c:E} (022100) is home and {c:F} (xx3211) pulls back to it on count 10. {t:rasgueado|Rasgueado} on the accents, soft thumb strokes in between.',
+      body: 'In the study {c:E} (022100) is home and {c:F} (xx3211) pulls back to it on count 10. {t:rasgueado|Rasgueado} on the accents, soft thumb strokes between.',
       figure: { kind: 'chord', symbol: 'F', frets: SHAPES.solea.F, caption: '{c:F}: the half step above home.' },
     },
     {
@@ -257,7 +257,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
       title: 'Rasgueado Basics',
       exercise: 'tech-rasgueado',
       minutes: 5,
-      body: 'The four-finger fan, on {c:E}, then {c:Am}: each finger flicks out after the one before, then an upstroke with i. Short sessions; the wrist stays loose.',
+      body: 'The four-finger fan on {c:E}, then {c:Am}: each finger flicks out after the one before, then i strokes up. Keep sessions short.',
       tip: 'An aching wrist or the back of the hand: stop for today. Flick from the finger joints only.',
     }),
     {
@@ -272,7 +272,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
       title: 'Metronome: count the cycle aloud',
       tool: 'metronome',
       minutes: 3,
-      body: 'Set 3/4 at 72 {t:bpm|BPM}: four bars make one cycle of 12. Clap every count, counting aloud, louder on 3, 6, 8, 10 and 12. Five cycles without a slip, then 96.',
+      body: 'Set 3/4 at 72 {t:bpm|BPM}: four bars, one cycle. Clap every count aloud, louder on 3, 6, 8, 10, 12: the end of bars 1 and 2, the middle of bar 3, the start and end of bar 4. Five clean cycles, then 96.',
     }),
     playerTask({
       id: 'solea-study',
@@ -280,7 +280,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
       song: 'st-solea-compas',
       tempo: 75,
       minutes: 6,
-      body: 'At 75 % (81 {t:bpm|BPM}): rasgueado on the accents, thumb strokes in between. When the cycle feels like a wheel, 100 % (108 BPM). Then the falseta at the end, in {n:E} Phrygian.',
+      body: 'At 75 % (81 {t:bpm|BPM}): rasgueado on the accents, thumb between; then 100 % (108 BPM). The closing falseta is plain {n:E} Phrygian, with {n:G} where this lesson\'s mode has {n:G#}: flamenco uses both.',
     }),
     {
       type: 'fretboard-find',
@@ -297,7 +297,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
       tool: 'progressions',
       params: ['flamenco-phrygian-vamp', 'e', 'jam'],
       minutes: 6,
-      body: '{c:E} and {c:F} at 96 {t:bpm|BPM}. Compose a short {t:falseta|falseta} in {n:E} Phrygian dominant: two bars, {n:F} falling to {n:E}, {n:G#} over the {c:E}. Play it the same way three times running.',
+      body: '{c:E} and {c:F} at 96 {t:bpm|BPM}. Compose a short {t:falseta|falseta} in {n:E} Phrygian dominant: two bars, {n:F} falling to {n:E}, {n:G#} over the {c:E}. Play it identically three times.',
     }),
     {
       type: 'choice',
@@ -437,7 +437,7 @@ const minorKeyRepertoire: TeacherLesson = {
     {
       type: 'card',
       title: 'The Habanera',
-      body: 'Bizet\'s Habanera, from Carmen, opens with a chromatic descent from {n:D}: {n:D} {n:C#} {n:C} {n:B} {n:Bb} {n:A}, over a {k:D minor} habanera bass. Its refrain turns to {k:D major}. Check every accidental: four of the six notes carry one or lose one.',
+      body: 'Bizet\'s Habanera, from Carmen, opens with a chromatic descent from {n:D}: {n:D} {n:C#} {n:C} {n:B} {n:Bb} {n:A}, over a {k:D minor} habanera bass. Its refrain turns to {k:D major}. Check every accidental: in six notes, {n:C} and {n:B} each appear in two forms.',
       figure: { kind: 'tab', tempo: 72, notes: [...HABANERA_DESCENT], caption: 'The pitches of the descent, in first position. The rhythm is in your edition.' },
     },
     {
@@ -585,7 +585,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
       chord: 'Am',
       frets: SHAPES.cadence.Am,
       explain: 'The tonic. The next two chords leave it and return.',
-      alternative: { type: 'chord-build', task: 'fingers', chord: 'Am', frets: SHAPES.cadence.Am, accept: 'this-shape', prompt: 'Build open {c:Am}.', explain: 'x02210.' },
+      alternative: { type: 'chord-build', task: 'fingers', chord: 'Am', frets: SHAPES.cadence.Am, accept: 'this-shape', prompt: 'Build open {c:Am}.', explain: 'x02210: fret 2 on strings 4 and 3, fret 1 on string 2, the open {n:A} in the bass.' },
     },
     {
       type: 'play-chord',
@@ -608,6 +608,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
       title: 'The augmented sixth',
       body: 'The German {t:augmented-sixth|augmented sixth} stacks {n:F} {n:A} {n:C} {n:D#}. Its {n:F} and {n:D#} close in on {n:E} from a half step each side. On guitar it sounds exactly like {c:F7} (131211): the same pitches, {n:D#} spelled {n:Eb}.',
       figure: { kind: 'staff', notes: ['F3', 'A3', 'C4', 'D#4'], caption: 'The German sixth of {k:A minor}, low to high.' },
+      tip: 'A barre at fret 1 is the stiffest on the neck. Roll finger 1 onto its bony edge and press only as hard as the notes need; stop if the hand aches.',
     },
     {
       type: 'fill-blanks',
@@ -625,7 +626,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
       options: [
         { text: 'Both to {n:E}, a half step each way', correct: true },
         { text: 'Both to {n:F#}', why: '{n:F#} is not in the cadence. The target is {n:E}, the dominant.' },
-        { text: '{n:F} up to {n:G}, {n:D#} down to {n:D}', why: 'They move toward each other, not apart from the target.' },
+        { text: '{n:F} up to {n:G}, {n:D#} down to {n:D}', why: 'That closes the interval and misses {n:E}. An augmented sixth opens outward: {n:F} falls, {n:D#} rises.' },
       ],
       explain: 'The augmented sixth, {n:F} up to {n:D#}, opens out to an octave {n:E}: {n:F} falls a half step, {n:D#} rises one.',
       fact: 'minor-german-sixth-a',
@@ -644,7 +645,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
       sound: { kind: 'progression', chords: ['Am', 'Bb/D', 'E7', 'Am'], beats: 4, tempo: 66 },
       options: [{ text: 'The Neapolitan, {c:Bb/D}', correct: true }, { text: 'The plain {r:iv}, {c:Dm}' }],
       shuffle: false,
-      explain: 'The second chord was major, with {n:Bb}: a half step above the tonic\'s second note. That darkened, lifted sound is the Neapolitan.',
+      explain: 'The second chord was major, built on {n:Bb}: the second degree lowered, a half step above the tonic. That darkened, lifted sound is the Neapolitan.',
     },
     toolTask({
       id: 'jam-augmented-sixth',
@@ -740,7 +741,7 @@ const bachInMinor: TeacherLesson = {
         { text: '{c:Em}', why: '{c:Em} has {n:G}. This has {n:G#}: the major third.' },
         { text: '{c:G#m}', why: 'The bass is {n:E}, and {n:E} {n:G#} {n:B} is an {c:E} triad from its root.' },
       ],
-      explain: '{c:E} major: the dominant of {k:A minor}, with the raised seventh, {n:G#}. Harmonic minor at the cadence, as always.',
+      explain: '{c:E} major: the dominant of {k:A minor}, with the raised seventh, {n:G#}. Harmonic minor at the cadence, as so often.',
       fact: 'minor-name-the-bar',
     },
     {

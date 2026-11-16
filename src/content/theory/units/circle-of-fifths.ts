@@ -82,7 +82,7 @@ const keySignatures: Lesson = {
     {
       type: 'card',
       title: 'Every F, in every octave',
-      body: 'The sharp sits on one line, but it changes **every** F in the piece, high or low: string 1 at fret 2 and string 4 at fret 4 alike. Only a {t:natural-sign} beside a note cancels it, for the rest of that bar.',
+      body: 'The sharp sits on one line, but it changes **every** F in the piece, high or low: string 1 at fret 2 and string 4 at fret 4 alike. A {t:natural-sign} beside a note cancels it, for the rest of that bar.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: G_MELODY, tempo: 80 }, label: 'Hear the melody' },
     },
     {
@@ -676,7 +676,7 @@ const theCircle: Lesson = {
       options: [
         { text: '{k:Bb major}', correct: true },
         { text: '{k:Ab major}', why: '{k:Ab major} is one step anticlockwise: a fifth down, with one more flat.' },
-        { text: '{k:E major}', why: '{k:E major} is a half step up, not a fifth: it sits right across the circle.' },
+        { text: '{k:E major}', why: '{k:E major} is a half step up, not a fifth: it is five steps away round the circle.' },
         { text: '{k:F major}', why: '{k:F major} is two steps clockwise from {k:Eb major}.' },
       ],
       explain: 'Clockwise is a fifth up: from {n:Eb}, a fifth up is {n:Bb}. {k:Bb major} has two flats, one fewer than {k:Eb major}.',

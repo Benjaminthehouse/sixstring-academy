@@ -10,8 +10,8 @@ import {
 } from '@/core/theory';
 import { buildVoicing, midiAt, noteAt, tryBuildVoicing } from '@/core/guitar';
 import {
-  formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
-  type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
+  formatProblems, isGenerated, plainText, resolveFigure, soundPlan, tokenize, validateCourse,
+  type ChoiceExercise, type ChordBuildExercise, type Exercise, type Figure, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
   type MatchPairsExercise, type PlayChordExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
@@ -350,6 +350,55 @@ describe('extended-chords: what each listening question plays', () => {
 });
 
 describe('extended-chords: on the go', () => {
+  it('keeps every chord-build when the sound is off (no grip is hidden behind an audio figure)', () => {
+    const builds = (steps: readonly Step[]): number =>
+      steps.filter((s) => !isGenerated(s) && s.type === 'chord-build').length;
+    for (const l of unit.lessons) {
+      const quiet = adaptUnit(unit, { guitar: true, sound: false }).lessons.find((x) => x.id === l.id)!;
+      expect(builds(quiet.steps), l.id).toBeGreaterThanOrEqual(builds(l.steps));
+    }
+    // The G7-to-G13 move in particular: still asked, starting from the G7 picture.
+    const quiet = adaptUnit(unit, { guitar: true, sound: false }).lessons.find((x) => x.id === 'thirteenths')!;
+    const move = exercises(quiet.steps).find((e): e is ChordBuildExercise => e.type === 'chord-build' && e.chord === 'G13');
+    expect(move).toBeDefined();
+    expect(move!.figure).toMatchObject({ kind: 'chord', symbol: 'G7', frets: '3x343x' });
+    // And the sound of the move is on the card that describes it.
+    const card = lesson('thirteenths').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.title === 'One finger up');
+    if (!card || isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'audio' || card.figure.sound.kind !== 'progression') throw new Error('expected the G7 to G13 audio');
+    expect(card.figure.sound.chords).toEqual(['G7', 'G13']);
+  });
+
+  // An interactive piano takes 34 px a white key: nine fit a 390 px phone; at 360 px the ninth
+  // scrolls inside the piano's own frame (allowed), a tenth would be cut off at 390 px too.
+  it('keeps every keyboard figure within nine white keys, so none is cropped on a 390 px phone', () => {
+    const boards: Figure[] = [];
+    const walk = (v: unknown): void => {
+      if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') {
+        if ((v as { kind?: string }).kind === 'keyboard') boards.push(v as Figure);
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(unit);
+    expect(boards.length).toBeGreaterThan(0);
+    for (const f of boards) {
+      const r = resolveFigure(f);
+      if (!r || r.kind !== 'keyboard') throw new Error('expected a keyboard');
+      const whites = Array.from({ length: r.to - r.from + 1 }, (_x, i) => r.from + i).filter((m) => ![1, 3, 6, 8, 10].includes(m % 12)).length;
+      expect(whites).toBeLessThanOrEqual(9);
+      // Every labelled key is drawn.
+      for (const k of r.keys) expect(k.midi >= r.from && k.midi <= r.to, k.note).toBe(true);
+    }
+  });
+
+  it('puts the 11th of the Am11 grip a whole step above the minor 3rd, as the card says', () => {
+    const am11 = buildVoicing('Am11', '530000');
+    const third = am11.notes.find((n) => n.degree === 'b3')!;
+    const eleventh = am11.notes.find((n) => n.degree === '11')!;
+    expect(midiAt(eleventh) - midiAt(third)).toBe(2);
+    expect(semitones(intervalBetween(third.note, eleventh.note))).toBe(2);
+  });
+
   it('still teaches with the sound off and with the guitar away', () => {
     for (const c of [{ guitar: false, sound: true }, { guitar: false, sound: false }, { guitar: true, sound: false }]) {
       const adapted = adaptUnit(unit, c);

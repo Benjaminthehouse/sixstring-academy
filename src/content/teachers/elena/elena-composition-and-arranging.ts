@@ -196,7 +196,7 @@ const writingProgressions: TeacherLesson = {
     {
       type: 'card',
       title: 'Four bars away, four home',
-      body: 'Write four bars that leave home and four that return, and play them to someone who knows no theory: if they feel the ending, it works. Build it in the Progressions builder, which offers borrowed and secondary chords beside the key\'s own.',
+      body: 'Write four bars that leave home and four that return, and play them to someone who knows no theory: if they feel the ending, it works. Build it in the Progressions builder, whose More colours switch adds borrowed and secondary chords.',
     },
     toolTask({
       id: 'eight-bars-in-c',
@@ -204,7 +204,7 @@ const writingProgressions: TeacherLesson = {
       tool: 'progressions',
       params: ['builder'],
       minutes: 6,
-      body: 'Set the key to {k:C major} and build eight bars: four away, four home, at least one borrowed chord, and a clear cadence at the end. Play it, change what does not travel, and save it: the next lesson writes a melody over it.',
+      body: 'Key {k:C major}; switch on Sevenths and More colours, where {c:Fm}, {c:Ab} and {c:Bb} live. Build eight bars: four away, four home, at least one borrowed chord, a clear cadence at the end. Play it, change what does not travel, and save it: the next lesson writes a melody over it.',
       tip: 'If it sounds like a list of chords, it has no destination. Decide the last two chords first.',
     }),
     {
@@ -220,7 +220,7 @@ const writingProgressions: TeacherLesson = {
       tool: 'progressions',
       params: ['borrowed-iv-minor', 'c', 'jam'],
       minutes: 4,
-      body: 'The band plays {r:I}, {r:IV}, {r:iv}, {r:I} in {k:C major}; set the tempo to 72 BPM. Over {c:Fm}, aim for {n:Ab} and let it fall to {n:G} as {c:C} returns. That is the minor {r:iv} in context.',
+      body: 'The band plays {r:I}, {r:IV}, {r:iv}, {r:I} in {k:C major}; set the tempo to 72 BPM. Over {c:Fm}, aim for {n:Ab} and let it fall to {n:G} as {c:C} returns: the minor {r:iv} in context.',
     }),
     toolTask({
       id: 'record-progression',
@@ -228,7 +228,7 @@ const writingProgressions: TeacherLesson = {
       tool: 'progressions',
       params: ['builder', 'jam'],
       minutes: 5,
-      body: 'Jam over your own eight bars. Record them on your phone, strummed; then again, improvising a melody over them. Play the second recording to someone who knows no theory, and ask where the music ended.',
+      body: 'Jam over your eight bars and record them on your phone, strummed; then again, improvising a melody over them. Play the second take to someone who knows no theory: where did the music end?',
     }),
     {
       type: 'choice',
@@ -450,8 +450,8 @@ const arrangingForSoloGuitar: TeacherLesson = {
       fallback: {
         tool: 'player',
         params: ['st-chord-melody-1', 'm1-8'],
-        title: 'My First Ballad as a model',
-        body: 'Danny Boy (chord melody) is not in the library yet; take my Chord Melody: First Ballad. Play bars 1 to 8 and name the layers as you hear them: the melody on top, always the highest note; the bass under it; the filling between. Notice where the melody moves alone.',
+        title: 'The First Ballad as a model',
+        body: 'Danny Boy (chord melody) is not in the library yet; take the First Ballad from my chord-melody lessons. Play bars 1 to 8 and name the layers as you hear them: the melody on top, always the highest note; the bass under it; the filling between. Notice where the melody moves alone.',
       },
     }),
     {
@@ -506,7 +506,7 @@ const ragtimeOnGuitar: TeacherLesson = {
     {
       type: 'card',
       title: 'Two hands into one',
-      body: 'Joplin wrote for piano, and a guitar can carry both hands only if the arrangement chooses well: the thumb alternates the bass on the beats, the syncopated melody sits on top, and inner notes go when the hand cannot reach them. My Ragtime Blues in {k:C major} works on that plan. Its thumb, bar 1:',
+      body: 'Joplin wrote for piano, and a guitar can carry both hands only if the arrangement chooses well: the thumb alternates the bass on the beats, the syncopated melody sits on top, and inner notes go when the hand cannot reach them. The Ragtime Blues in {k:C major} works on that plan. Its thumb, bar 1:',
       figure: { kind: 'tab', notes: RAG_THUMB, tempo: 72, caption: 'The thumb: root, string 4, the alternate bass, string 4.' },
     },
     {
@@ -553,7 +553,7 @@ const ragtimeOnGuitar: TeacherLesson = {
     {
       type: 'card',
       title: 'Not fast',
-      body: 'Joplin marked The Entertainer *Not fast*; take him at his word. Ragtime that rushes loses the play between the hands. The Entertainer is not in the library; if you own an edition for guitar, bring it in with Scan & Import and learn its A strain the way you learn my study.',
+      body: 'Joplin marked The Entertainer *Not fast*; take him at his word. Ragtime that rushes loses the play between the hands. The Entertainer is not in the library; if you own an edition for guitar, bring it in with Scan & Import and learn its A strain the way you will learn the Ragtime Blues here.',
     },
     playerTask({
       id: 'rag-first-half',
@@ -562,7 +562,7 @@ const ragtimeOnGuitar: TeacherLesson = {
       mode: 'wait',
       bars: [1, 8],
       minutes: 7,
-      body: 'The Entertainer\'s nearest study here is my Ragtime Blues: the thumb on every beat, a syncopated tune above. Bars 1 to 8 in wait mode; then the same loop at 56 % (56 BPM) and 72 % (72 BPM). Learn the thumb alone on each chord first, then add the tune a bar at a time.',
+      body: 'The Entertainer\'s nearest study here is the Ragtime Blues: the thumb on every beat, a syncopated tune above. Bars 1 to 8 in wait mode; then the same loop at 56 % (56 BPM) and 72 % (72 BPM). Learn the thumb alone on each chord first, then add the tune a bar at a time.',
       tip: 'If the bass turns lumpy, the thumb is waiting for the tune. Let it walk.',
     }),
     {
@@ -654,7 +654,7 @@ const counterpoint: TeacherLesson = {
     {
       type: 'card',
       title: 'The subject',
-      body: 'The Two-Voice Invention states a short {t:subject} in one voice and imitates it in the other. Bar 1, the treble alone: {n:E} up to {n:B}, running down to {n:E}, then {n:D#} and {n:B}, and home to {n:E}.',
+      body: 'It opened your recital in my repertoire unit; now see how it is made. The Two-Voice Invention states a short {t:subject} in one voice and imitates it in the other. Bar 1, the treble alone: {n:E} up to {n:B}, running down to {n:E}, then {n:D#} and {n:B}, and home to {n:E}.',
       figure: { kind: 'staff', key: 'E minor', time: '4/4', notes: staffOf(INVENTION_SUBJECT, 'E minor', { 0: 'subject' }), caption: 'Bar 1: the subject in the treble.' },
     },
     {
@@ -688,7 +688,7 @@ const counterpoint: TeacherLesson = {
       bars: [1, 8],
       tempo: 56,
       minutes: 6,
-      body: 'Bach\'s Bourree is not in the library (scan your edition in); its nearest model is the Baroque duo, whose voices are separate parts. Bars 1 to 8 at about 60 BPM: in Parts, solo the bass line and play it; then the upper voice; then both. Each line should sound finished alone.',
+      body: 'Bach\'s Bourree is not in the library (scan your edition in); its nearest model is the Baroque duo. Bars 1 to 8 at about 60 BPM. In Parts, solo the bass line and play along; then the upper voice; then neither, following each line in turn. Each should sound finished alone.',
     }),
     {
       type: 'true-false',
@@ -704,7 +704,7 @@ const counterpoint: TeacherLesson = {
       mode: 'wait',
       bars: [1, 4],
       minutes: 8,
-      body: 'Now the invention in wait mode: bars 1 to 4, the subject and its imitation. Then set the loop to bars 5 to 6, 7 to 10 (in {k:G major}), 11 to 16, 17 to 21 and 22 to 24. Keep each held note down its full length while the other voice moves.',
+      body: 'Now the whole invention, section by section, in wait mode. Bars 1 to 4, the subject and its imitation, you know. Then set the loop to bars 5 to 6, 7 to 10 (in {k:G major}), 11 to 16, 17 to 21 and 22 to 24. Keep each held note down its full length while the other voice moves.',
     }),
     {
       type: 'choice',
@@ -804,7 +804,7 @@ const fugue: TeacherLesson = {
     {
       type: 'card',
       title: 'The third entry, in the bass',
-      body: 'Bars 7 to 8: the third entry, the subject two octaves down in the bass, from the open low {n:D}; only its last note, the leading note {n:C#}, comes back up an octave, for the guitar has none lower. The piece is in drop D: string 6 down a whole step, so the tonic itself sounds in the bass.',
+      body: 'Bars 7 to 8: the third entry, the subject two octaves down in the bass from the open low {n:D}. Only its last note, the leading note {n:C#}, comes back up an octave: the guitar has none lower. Drop D, string 6 down a whole step, puts the tonic itself in the bass.',
       figure: { kind: 'tab', notes: FUGUE_THIRD_ENTRY, tuning: 'drop-d', tempo: 60, caption: 'Drop D: the third entry, bars 7 and 8.' },
     },
     {
@@ -835,8 +835,7 @@ const fugue: TeacherLesson = {
       mode: 'wait',
       bars: [1, 2],
       minutes: 10,
-      body: 'Tune string 6 down to {n:D} first: the Tuner has drop D. Then the subject alone, bars 1 to 2, in wait mode. Set the loop to 7 to 8, the third entry in the bass; then 3 to 4, the answer with the countersubject above it: two voices together.',
-      tip: 'Sing the voice you are not leading. If you cannot sing it, you are not yet hearing it.',
+      body: 'Tune string 6 down to {n:D} first: the Tuner has drop D. The subject alone: bars 1 to 2, wait mode. The answer and the third entry alone: from my cards, slowly, until each walks by itself. Then two voices: loop bars 3 to 4, the answer with the countersubject above it.',
     }),
     {
       type: 'true-false',
@@ -851,12 +850,12 @@ const fugue: TeacherLesson = {
       bars: [1, 8],
       tempo: 75,
       minutes: 8,
-      body: 'Bars 1 to 8 at about 45 BPM: subject, answer, codetta, third entry. Slow enough that every held note lasts its full length while the others move. The rest of the piece can wait; the exposition is the fugue\'s argument.',
+      body: 'Bars 1 to 8 at about 45 BPM: subject, answer, codetta, third entry, every held note its full length. Hold with the least pressure that sounds; if the hand aches, stop and rest it. The exposition is the fugue\'s argument; the rest can wait.',
     }),
     {
       type: 'card',
       title: 'Away from the guitar',
-      body: 'Away from the guitar, sing the subject until it needs no thought. Then hum it while you play the countersubject: two voices, one musician. A fugue lives in the ear before it lives in the hands.',
+      body: 'Away from the guitar, sing the subject until it needs no thought. Then hum it while you play the countersubject as bars 7 and 8 have it, a fifth lower: the version made to sound with the subject. Two voices, one musician.',
     },
     {
       type: 'order',
@@ -930,6 +929,13 @@ const alternateTunings: TeacherLesson = {
       explain: 'Three, all at fret 4: on strings 6, 4 and 1, the three {n:D} strings. Each {n:D} string has its major third four frets up.',
       fact: 'comp-dadgad-chord',
     },
+    toolTask({
+      id: 'tune-dadgad',
+      title: 'Retune to DADGAD',
+      tool: 'tuner',
+      minutes: 3,
+      body: 'Now retune, before you play a note in it. In the Tuner, change the tuning to DADGAD and bring strings 6, 2 and 1 down a whole step: {n:D}, {n:A}, {n:D}. Go a little below each note and come back up to it, so the string holds its pitch.',
+    }),
     {
       type: 'card',
       title: 'The scale in DADGAD',
@@ -956,13 +962,6 @@ const alternateTunings: TeacherLesson = {
         explain: 'String 4: 0 2 4 5; string 3: 0 2 4; string 2: 0 2 4 5. Open strings carry three of the scale\'s notes.',
       },
     },
-    toolTask({
-      id: 'tune-dadgad',
-      title: 'Retune to DADGAD',
-      tool: 'tuner',
-      minutes: 3,
-      body: 'In the Tuner, change the tuning to DADGAD and bring strings 6, 2 and 1 down a whole step: {n:D}, {n:A}, {n:D}. Go a little below each note and come back up to it, so the string holds its pitch.',
-    }),
     {
       type: 'true-false',
       statement: 'In DADGAD, strings 5 and 2 are both open {n:A}, an octave apart.',

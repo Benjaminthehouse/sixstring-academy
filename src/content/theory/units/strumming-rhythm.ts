@@ -283,14 +283,13 @@ const threeFourTime: Lesson = {
     },
     {
       type: 'match-pairs',
-      prompt: 'Match each part with its meaning.',
+      prompt: 'Match each number of a time signature with its meaning.',
       pairs: [
-        { left: '3/4', right: 'Three beats a bar' },
-        { left: '4/4', right: 'Four beats a bar' },
-        { left: 'The top number', right: 'Beats in each bar' },
+        { left: 'A top 3', right: 'Three beats in each bar' },
+        { left: 'A top 4', right: 'Four beats in each bar' },
         { left: 'A bottom 4', right: 'Each beat is a quarter note' },
       ],
-      explain: 'The top number counts the beats in a bar; a bottom 4 makes each beat a quarter note.',
+      explain: 'The top number counts the beats in a bar: 3/4 has three, 4/4 has four. A bottom 4 makes each beat a quarter note, in both.',
       fact: 'strumming-time-signature',
     },
     {

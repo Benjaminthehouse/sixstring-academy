@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { chordNotes, chordPcs, chroma, scaleNotes } from '@/core/theory';
 import { buildVoicing, cagedShapeOfRoots, chordVoicings, identifyFretted, libraryVoicings, midiAt, noteAt, parseFrets, rootToRoot, scalePatterns } from '@/core/guitar';
 import {
-  findTargets, formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
+  explainOf, findTargets, formatProblems, grade, isGenerated, plainText, soundPlan, tokenize, validateCourse,
   type ChordBuildExercise, type Exercise, type FretboardFindExercise, type FretDot, type Lesson, type ListenChoiceExercise,
   type MatchPairsExercise, type OrderExercise, type PlayChordExercise, type PlayPhraseExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
@@ -186,6 +186,23 @@ describe('caged: barre chords', () => {
     expect(chordNotes('Bb')[2]).toBe('F');
   });
 
+  it('marks a chord-build right only for the shape it names', () => {
+    // Each prompt names a shape ("the D shape", "as an A-shape barre"), so another voicing of the
+    // same chord must not pass: any-voicing would take D/F# (2x0232) or x54232 for "the D shape".
+    const builds = ofType<ChordBuildExercise>('chord-build').filter((e) => e.task === 'fingers');
+    expect(builds.length).toBe(13);
+    for (const e of builds) {
+      expect(e.accept, `${e.chord} ${String(e.frets)}`).toBe('this-shape');
+      expect(grade(e, { type: 'chord-build', frets: frets(e.frets!) }).correct, `${e.chord} ${String(e.frets)}`).toBe(true);
+      // Every other library shape of the same chord is wrong here.
+      const others = chordVoicings(e.chord, { maxResults: 12 }).map((v) => [...v.frets]).filter((f) => f.join() !== frets(e.frets!).join());
+      expect(others.length, e.chord).toBeGreaterThan(0);
+      for (const f of others) expect(grade(e, { type: 'chord-build', frets: f }).correct, `${e.chord} built as ${f.join()}`).toBe(false);
+    }
+    const d = builds.find((e) => e.chord === 'D' && frets(e.frets!).join() === frets('xx0232').join())!;
+    for (const f of ['2x0232', 'x00232', 'x54232']) expect(grade(d, { type: 'chord-build', frets: frets(f) }).correct, f).toBe(false);
+  });
+
   it('drills only chords whose first library shape is the barre the lesson teaches', () => {
     const drill = (id: string) => lesson(id).steps.find((s) => isGenerated(s) && s.generate === 'chord-shape') as { params: { chords: string[] } };
     for (const c of drill('e-shape-barre').params.chords) expect(chordVoicings(c)[0].label, c).toMatch(/^E-shape barre/);
@@ -293,8 +310,17 @@ describe('caged: the major scale in five positions', () => {
     const back = plainText(fact(lesson('major-scale-positions'), 'caged-g-five-positions').back);
     for (const p of patterns) expect(back).toContain(`${p.minFret} to ${p.maxFret} (${p.shape} shape)`);
     expect(eShape.positionName).toBe('2nd position');
+    // "Second position, after the fret your first finger covers."
+    expect([...new Set(eShape.notes.filter((n) => n.finger === 1).map((n) => n.fret))]).toEqual([2]);
     // Neighbouring positions overlap.
     for (let i = 1; i < patterns.length; i++) expect(patterns[i].minFret).toBeLessThanOrEqual(patterns[i - 1].maxFret);
+    // The true-false: the E-shape (2 to 5) and D-shape (4 to 8) positions share the notes at frets 4 and 5.
+    const d = patterns.find((p) => p.shape === 'D')!;
+    const shared = eShape.notes.filter((n) => d.notes.some((m) => pos(m) === pos(n)));
+    expect([...new Set(shared.map((n) => n.fret))].sort()).toEqual([4, 5]);
+    expect(eShape.notes.filter((n) => n.fret >= 4).map(pos).sort()).toEqual(shared.map(pos).sort());
+    const tf = exercises(lesson('major-scale-positions').steps).find((e) => e.type === 'true-false')!;
+    expect(plainText(explainOf(tf))).toContain(`(frets ${eShape.minFret} to ${eShape.maxFret}) and the D-shape position (frets ${d.minFret} to ${d.maxFret}) share the notes at frets 4 and 5`);
   });
 
   it('draws the E-shape position note for note and finger for finger', () => {
@@ -320,6 +346,11 @@ describe('caged: the major scale in five positions', () => {
     expect(up.notes.length).toBe(15);
     const down = exercises(lesson('shapes-inside-scales').steps).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
     expect(down.notes.map((n) => pos(n as { string: number; fret: number }))).toEqual([...climb].reverse().map(pos));
+    // "Every second or third note is a G chord tone", from the high G down to the low G.
+    const toneAt = down.notes.flatMap((n, i) => (chordPcs('G').includes(midiAt(n as { string: number; fret: number }) % 12) ? [i] : []));
+    expect(toneAt[0]).toBe(0);
+    expect(toneAt[toneAt.length - 1]).toBe(down.notes.length - 1);
+    for (let i = 1; i < toneAt.length; i++) expect([2, 3]).toContain(toneAt[i] - toneAt[i - 1]);
     // The tab card shows the same climb.
     const tab = cards(lesson('major-scale-positions'))[1].figure as { notes: Array<{ string: number; fret: number }> };
     expect(tab.notes.map(pos)).toEqual(climb.map(pos));

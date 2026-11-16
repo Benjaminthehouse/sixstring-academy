@@ -284,6 +284,37 @@ describe('circle-of-fifths: the circle and its neighbours', () => {
     expect(major('A').scale.filter((n) => !major('D').scale.includes(n))).toEqual(['G#']);
   });
 
+  it('measures every "N steps clockwise / anticlockwise / away" claim of a wrong option on the real circle', () => {
+    // Slot of each tonic on the circle (the enharmonic names share a slot).
+    const slot = (tonic: string): number => circleOfFifths().findIndex((s) => s.major.some((k) => k.tonic === tonic));
+    const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+    let checked = 0;
+    for (const e of all().filter((x): x is ChoiceExercise => x.type === 'choice')) {
+      const ref = /\{k:([A-G][#b]?) major\}/.exec(String(e.prompt));
+      if (!ref) continue;
+      for (const o of e.options) {
+        const why = String(o.why ?? '');
+        const own = /^\{k:([A-G][#b]?) major\}$/.exec(String(o.text ?? ''));
+        if (!own) continue;
+        const clockwise = (slot(own[1]) - slot(ref[1]) + 12) % 12;
+        const m = /\b(one|two|three|four|five|six) steps? (clockwise|anticlockwise|away)\b/.exec(why);
+        if (m) {
+          const n = words[m[1]];
+          if (m[2] === 'clockwise') expect(clockwise, why).toBe(n);
+          else if (m[2] === 'anticlockwise') expect(12 - clockwise, why).toBe(n);
+          else expect(Math.min(clockwise, 12 - clockwise), why).toBe(n);
+          checked++;
+        }
+        // "Right across the circle" is the key six steps away, and nothing else.
+        if (/across the circle/.test(why)) expect(clockwise, why).toBe(6);
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(9);
+    // The fixed case: E major is five steps from E flat major; the key across from E flat is A.
+    expect(slot('E') - slot('Eb') + 12).toBe(7);
+    expect(circleOfFifths()[(slot('Eb') + 6) % 12].major[0].tonic).toBe('A');
+  });
+
   it('names the dominant key on degree 5 and the subdominant key on degree 4', () => {
     for (const k of ['C', 'G', 'D', 'A', 'F', 'Bb']) {
       expect(neighborKeys(`${k} major`).dominant.tonic).toBe(major(k).scale[4]);

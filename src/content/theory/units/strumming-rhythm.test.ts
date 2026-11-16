@@ -11,6 +11,7 @@ import {
   estimateLessonSeconds, generateExercise, grade, isGenerated, parseRhythm, parseStrum, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type Lesson, type Sound, type Step, type TapRhythmExercise,
 } from '@/lessons';
+import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
 import unit from './strumming-rhythm';
 
 const lesson = (id: string): Lesson => {
@@ -71,6 +72,25 @@ describe('strumming-rhythm: dotted notes', () => {
     const lists = of(everything(), 'match-pairs').filter((e) => /how long it lasts/.test(prompt(e)));
     expect(lists.length).toBe(2);
     for (const e of lists) for (const p of e.pairs) expect(asBeats(plainText(p.right)), plainText(p.left)).toBe(words[plainText(p.left)]);
+  });
+
+  it('matches each number of a time signature with one meaning only', () => {
+    // "4/4 = each beat is a quarter note" is true too, so whole signatures cannot sit beside "a bottom 4".
+    const e = of(exercisesOf(lesson('three-four-time')), 'match-pairs').find((m) => /time signature/.test(prompt(m)))!;
+    const words: Record<string, number> = { Three: 3, Four: 4 };
+    for (const p of e.pairs) {
+      const left = plainText(p.left);
+      const right = plainText(p.right);
+      const m = /^A (top|bottom) (\d)$/.exec(left);
+      expect(m, left).not.toBeNull();
+      if (m![1] === 'top') expect(words[right.split(' ')[0]], left).toBe(Number(m![2]));
+      else {
+        // A bottom 4 is a quarter-note beat: a quarter of a whole note.
+        expect(noteValue('whole')!.ticks / noteValue('quarter')!.ticks).toBe(Number(m![2]));
+        expect(right).toBe('Each beat is a quarter note');
+      }
+    }
+    expect(e.pairs.every((p) => !/\d\/\d/.test(plainText(p.left)))).toBe(true);
   });
 
   it('fills a bar of 3/4 with one dotted half note', () => {
@@ -345,6 +365,25 @@ describe('strumming-rhythm: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^strumming-/);
+  });
+
+  it('still teaches on the go, as the Learn screen adapts it (Sound off and Guitar off)', () => {
+    const quiet = adaptUnit(unit, { guitar: false, sound: false });
+    const noGuitar = adaptUnit(unit, { guitar: false, sound: true });
+    quiet.lessons.forEach((l, i) => {
+      const asked = l.steps.filter((s) => isGenerated(s) || s.type !== 'card');
+      expect(asked.length, l.id).toBeGreaterThanOrEqual(MIN_QUIET_EXERCISES);
+      expect(asked.some((s) => isListeningStep(s)), l.id).toBe(false);
+      expect(asked.some((s) => !isGenerated(s) && /^play-/.test(s.type)), l.id).toBe(false);
+      expect(!isGenerated(l.steps[0]) && l.steps[0].type, l.id).toBe('card');
+      const last = l.steps[l.steps.length - 1];
+      expect(isGenerated(last) || last.type !== 'card', l.id).toBe(true);
+      const kinds = l.steps.map((s) => (!isGenerated(s) && s.type === 'card' ? 'c' : 'q')).join('');
+      expect(kinds, l.id).not.toContain('ccc');
+      expect(noGuitar.lessons[i].steps.length, l.id).toBe(unit.lessons[i].steps.length);
+    });
+    // Rhythm is half the checkpoint's point, yet it stays a test without sound.
+    expect((quiet.checkpoint?.steps ?? []).length).toBeGreaterThanOrEqual(6);
   });
 
   it('uses "downbeat" as the glossary defines it: the first beat of a bar, never beats 1 and 3', () => {

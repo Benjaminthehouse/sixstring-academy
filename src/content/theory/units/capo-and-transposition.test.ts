@@ -144,7 +144,7 @@ describe('capo-and-transposition: transposing', () => {
 describe('capo-and-transposition: the capo', () => {
   it('draws every capo figure as its shape, sounding the chord its caption names', () => {
     const figures = kinds<{ capo?: number; dots: Array<{ string: number; fret: number; note: string }>; caption: RichText }>('fretboard').filter((f) => f.capo);
-    expect(figures.length).toBe(4);
+    expect(figures.length).toBe(5); // the capo-2 G shape is drawn on its card and on the play step
     for (const f of figures) {
       const [shape, sounds] = tagged(f.caption, 'chord');
       const frets = [6, 5, 4, 3, 2, 1].map((string) => f.dots.find((d) => d.string === string)?.fret ?? 'x').join('');
@@ -237,6 +237,13 @@ describe('capo-and-transposition: the capo', () => {
     expect(buildVoicing('A', '320003', { capo: 2 }).midi).toEqual(buildVoicing('A', '542225').midi);
     const alt = play.alternative as ChoiceExercise;
     expect(tagged(correct(alt), 'chord')).toEqual([transposeChordBySemitones('G', 2)]);
+    // The step pictures the G shape behind the capo, and those dots sound the chord box's notes.
+    const pic = play.figure as { kind: string; capo: number; dots: Array<{ string: number; fret: number }> };
+    expect(pic.kind).toBe('fretboard');
+    expect(pic.capo).toBe(2);
+    expect([6, 5, 4, 3, 2, 1].map((s) => pic.dots.find((d) => d.string === s)!.fret).join('')).toBe('320003');
+    expect([6, 5, 4, 3, 2, 1].map((s) => midiAt(pic.dots.find((d) => d.string === s)!, { capo: 2 }))).toEqual(buildVoicing('A', '542225').midi);
+    expect(plainText(play.prompt)).not.toMatch(/wood|bar at fret/);
   });
 
   it('plays the two guitars of the card on one G chord', () => {
@@ -260,8 +267,11 @@ describe('capo-and-transposition: Nashville numbers', () => {
     expect(named.slice(0, 8)).toEqual(chart(CHART, 'G'));
     expect(named.slice(8)).toEqual(chart(CHART, 'D'));
     expect(card.figure.sound.kind === 'progression' && card.figure.sound.chords).toEqual(chart(CHART, 'D'));
-    const first = lesson('nashville-numbers').steps[0] as { figure: { sound: Sound } };
-    expect(first.figure.sound.kind === 'progression' && first.figure.sound.chords).toEqual(chart(CHART, 'G'));
+    // The first card plays what its text reads: 1 4 5 (and home to 1) in G.
+    const first = lesson('nashville-numbers').steps[0] as { body: RichText; figure: { sound: Sound; label: string } };
+    expect(first.figure.sound.kind === 'progression' && first.figure.sound.chords).toEqual(chart('1 4 5 1', 'G'));
+    expect(first.figure.label).toContain('1 4 5 1 in G');
+    expect(tagged(first.body, 'chord')).toEqual(chart('1 4 5', 'G'));
     // Every slash chord of the charts is the 1 chord in first inversion.
     for (const s of ['G/B', 'D/F#']) expect(parseChord(s)!.notes).toContain(parseChord(s)!.bass);
   });
@@ -331,6 +341,28 @@ describe('capo-and-transposition: what each listening question plays', () => {
     expect(notes.slice(0, 6)).toEqual(buildVoicing('G', '320003').midi);
     expect(notes.slice(6)).toEqual(notes.slice(0, 6).map((m) => m + 2));
     expect(plainText(correct(q))).toBe('The second time');
+  });
+});
+
+describe('capo-and-transposition: careful wording', () => {
+  it('says capo tab "usually" counts from the capo: some tab counts from the nut', () => {
+    const all: string[] = [];
+    const walk = (v: unknown): void => {
+      if (typeof v === 'string') all.push(v);
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    walk(unit);
+    const claims = all.filter((t) => /capo tab|tab for capo/i.test(t) && /counts|means/.test(t));
+    expect(claims.length).toBeGreaterThanOrEqual(6);
+    for (const t of claims) expect(t, t).toMatch(/usually|most/);
+  });
+
+  it('keeps a fixed option order only for numbers in order, so the answer is not always first', () => {
+    for (const e of ofType<ChoiceExercise>('choice').filter((x) => x.shuffle === false)) {
+      const nums = e.options.map((o) => Number(/\d+/.exec(plainText(o.text!))?.[0]));
+      expect(nums.every((v, i) => !Number.isNaN(v) && (i === 0 || v > nums[i - 1])), plainText(e.prompt)).toBe(true);
+    }
   });
 });
 

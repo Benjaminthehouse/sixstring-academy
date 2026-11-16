@@ -12,8 +12,8 @@ import {
 } from '@/core/theory';
 import { buildVoicing, tryBuildVoicing } from '@/core/guitar';
 import {
-  formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
-  type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
+  formatProblems, grade, isGenerated, plainText, resolveFigure, soundPlan, tokenize, validateCourse,
+  type ChoiceExercise, type ChordBuildExercise, type Exercise, type Figure, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
   type MatchPairsExercise, type OrderExercise, type PlayChordExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
@@ -359,6 +359,66 @@ describe('secondary-dominants: what each listening question plays', () => {
     const cp = exercises(unit.checkpoint!.steps!).find((e): e is ListenChoiceExercise => e.type === 'listen-choice')!;
     expect(chordsOf(cp)).toEqual(['I', 'vi', 'ii', 'V'].map((r) => romanToChord(r, 'C')));
     expect(tagged(correctOption(cp), 'roman')).toEqual(['I', 'vi', 'ii', 'V']);
+  });
+});
+
+describe('secondary-dominants: teaching order and hedges', () => {
+  it('shows the slash numeral on a card before any question asks for one', () => {
+    const slashed = (step: unknown): boolean => texts(step).some((t) => tagged(t, 'roman').some((r) => r.includes('/')));
+    let taught = false;
+    let asked = 0;
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        if (isGenerated(s)) continue;
+        if (s.type === 'card') {
+          if (slashed(s)) taught = true;
+          continue;
+        }
+        if (slashed(s)) {
+          asked++;
+          expect(taught, `${l.id}: "${plainText(('prompt' in s ? s.prompt : undefined) ?? '')}" asks for a slash numeral no card has shown`).toBe(true);
+        }
+      }
+    }
+    expect(asked).toBeGreaterThan(5);
+  });
+
+  // An interactive piano takes 34 px a white key: nine fit a 390 px phone; at 360 px the ninth
+  // scrolls inside the piano's own frame (allowed), a tenth would be cut off at 390 px too.
+  it('keeps every keyboard figure within nine white keys, so none is cropped on a 390 px phone', () => {
+    const boards: Figure[] = [];
+    const walk = (v: unknown): void => {
+      if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') {
+        if ((v as { kind?: string }).kind === 'keyboard') boards.push(v as Figure);
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(unit);
+    expect(boards.length).toBeGreaterThan(0);
+    for (const f of boards) {
+      const r = resolveFigure(f);
+      if (!r || r.kind !== 'keyboard') throw new Error('expected a keyboard');
+      const whites = Array.from({ length: r.to - r.from + 1 }, (_x, i) => r.from + i).filter((m) => ![1, 3, 6, 8, 10].includes(m % 12)).length;
+      expect(whites).toBeLessThanOrEqual(9);
+      for (const k of r.keys) expect(k.midi >= r.from && k.midi <= r.to, k.note).toBe(true);
+    }
+  });
+
+  it('accepts the target chord as a triad or as the key\'s own seventh chord', () => {
+    const q = ofType<TypeAnswerExercise>('type-answer').find((e) => /target chord of/.test(plainText(e.prompt)))!;
+    const key = keyIn(q.prompt);
+    const target = chordToRoman('F#7', key).targetChord!;
+    const seventh = diatonicChords(key, { sevenths: true }).find((c) => rootOf(c.symbol) === rootOf(target))!.symbol;
+    expect([target, seventh]).toEqual(['Bm', 'Bm7']);
+    for (const text of [target, seventh]) expect(grade(q, { type: 'type-answer', text }).correct, text).toBe(true);
+    for (const text of ['B', 'B7', 'F#m']) expect(grade(q, { type: 'type-answer', text }).correct, text).toBe(false);
+  });
+
+  it('says "usually" where spotting is a rule of thumb', () => {
+    const spotting = lesson('spotting-and-resolving').facts!.find((f) => f.id === 'secondary-spotting')!;
+    expect(plainText(spotting.back)).toMatch(/usually/);
+    expect(plainText(lesson('spotting-and-resolving').teaches ?? '')).toMatch(/usually/);
   });
 });
 

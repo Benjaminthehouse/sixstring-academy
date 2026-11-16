@@ -51,7 +51,7 @@ const fourTriads: Lesson = {
     {
       type: 'card',
       title: 'Four ways to stack',
-      body: '**Major**: a major 3rd, then a minor 3rd. **Minor**: minor, then major. **{t:diminished-chord|Diminished}**: two minor 3rds, so the 5th shrinks to {d:b5}. **{t:augmented-triad|Augmented}**: two major 3rds, so the 5th grows to {d:#5}. On the neck the root stays put; only strings 3 and 2 move.',
+      body: '**Major**: a major 3rd, then a minor 3rd. **Minor**: minor, then major. **{t:diminished-chord|Diminished}**: two minor 3rds, so the 5th shrinks to {d:b5}. **{t:augmented-triad|Augmented}**: two major 3rds, so the 5th grows to {d:#5}. On strings 4-3-2 that gives {c:C} 10-9-8, {c:Cm} 10-8-8, {c:Cdim} 10-8-7 and {c:Caug} 10-9-9.',
       figure: {
         kind: 'audio',
         sound: { kind: 'progression', chords: ['C', 'Cm', 'Cdim', 'Caug'], voicing: 'close', tempo: 60, beats: 2 },
@@ -213,7 +213,8 @@ const triadInversions: Lesson = {
       task: 'fingers',
       chord: 'C/G',
       frets: '332010',
-      accept: 'any-voicing',
+      // Only this shape: any-voicing would also accept open C (x32010) or C/E, which are not second inversion.
+      accept: 'this-shape',
       prompt: 'Build {c:C} in second inversion: open {c:C} with string 6 at fret 3 added.',
       hint: 'Keep the open {c:C} shape and put a finger on string 6, fret 3.',
       explain: 'String 6 at fret 3 is {n:G}, the 5th of {c:C}. With the 5th at the bottom the chord is in second inversion, 332010.',

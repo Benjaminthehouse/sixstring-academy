@@ -5,7 +5,7 @@
  * listening question really plays.
  */
 import { describe, expect, it } from 'vitest';
-import { PPQ, SWING, chordNotes, durationTicks, intervalBetween, parseNote, parseTimeSignature, swingPair, tempoMarking, tempoRange } from '@/core/theory';
+import { PPQ, SWING, chordNotes, durationTicks, intervalBetween, parseNote, parseTimeSignature, progressionToChords, swingPair, tempoMarking, tempoRange } from '@/core/theory';
 import { midiAt, noteAt } from '@/core/guitar';
 import {
   findTargets, formatProblems, parseRhythm, parseStrum, plainText, resolveFigure, soundPlan, tickSeconds, validateCourse, type AudioFigure,
@@ -108,7 +108,13 @@ describe('triplets-swing-syncopation: triplets', () => {
 
   it('draws and plays two eighths then a triplet on each pair of beats, counted 1-trip-let', () => {
     const fig = card('triplets', 'Three in the time of two') as RhythmFigure;
-    const r = rhythm(fig.pattern);
+    // Two beats in 2/4 (it fits a phone), drawn without a count row: mixing eighths and triplets
+    // puts the bar on a six-step grid, where the eighth's "&" would be labelled "ta".
+    expect(fig.time).toBe('2/4');
+    expect(fig.counting).toBe(false);
+    const two = rhythm(fig.pattern, fig.time);
+    expect(two.onsets).toEqual([0, 480, 960, 1280, 1600]);
+    const r = rhythm(`${fig.pattern} ${fig.pattern}`);
     expect(r.onsets).toEqual([0, 480, 960, 1280, 1600, 1920, 2400, 2880, 3200, 3520]);
     const audio = card('triplets', 'Count 1-trip-let') as AudioFigure;
     const plan = soundPlan(audio.sound);
@@ -125,8 +131,11 @@ describe('triplets-swing-syncopation: triplets', () => {
   });
 
   it('splits beats 2 and 4 into three in the listening question', () => {
-    const q = find<ListenChoiceExercise>(exercisesOf(lesson('triplets')), 'listen-choice', 'Eighth notes or triplets');
+    const q = find<ListenChoiceExercise>(exercisesOf(lesson('triplets')), 'listen-choice', 'eighth notes or triplets');
     const onsets = soundPlan(q.sound).events.map((e) => Math.round((e.at * 70 * PPQ) / 60));
+    // "One beat has a single note, the next is split": one note on beats 1 and 3, three on 2 and 4.
+    expect(onsets.filter((t) => t < PPQ)).toEqual([0]);
+    expect(onsets.filter((t) => t >= 2 * PPQ && t < 3 * PPQ)).toEqual([2 * PPQ]);
     expect(onsets.filter((t) => t >= PPQ && t < 2 * PPQ)).toHaveLength(3);
     expect(onsets.filter((t) => t >= 3 * PPQ)).toHaveLength(3);
     expect(right(q)).toBe('Triplets: three per beat');
@@ -204,6 +213,14 @@ describe('triplets-swing-syncopation: swing and the shuffle', () => {
     expect(right(q)).toBe('Straight eighths: even');
     const six = find<FretboardFindExercise>(exercisesOf(lesson('the-shuffle')), 'fretboard-find', 'For E');
     expect(findTargets(six)).toEqual([expect.objectContaining({ string: 5, fret: 4 })]);
+  });
+
+  it('moves the shuffle to D and E: with A, the I, IV and V of a blues in A', () => {
+    expect(progressionToChords('I IV V', 'A major')).toEqual(['A', 'D', 'E']);
+    const c = lesson('the-shuffle').steps.filter(isCard).find((s) => s.title === 'Move it to D and E')!;
+    expect(plainText(c.body)).toContain('the three chords of a blues in A');
+    expect(noteAt({ string: 4, fret: 0 }, { octave: false })).toBe('D');
+    expect(noteAt({ string: 6, fret: 0 }, { octave: false })).toBe('E');
   });
 
   it('fills a 12/8 bar with four long-short beats', () => {
@@ -369,6 +386,21 @@ describe('triplets-swing-syncopation: tempo words', () => {
     expect(soundPlan(accel.sound).events.map((e) => e.midi[0])).toEqual(written);
   });
 
+  it('names rit. and accel. only from the tempo-words lesson on, and never calls them sudden', () => {
+    const texts = (value: unknown): string[] => {
+      if (typeof value === 'string') return [value];
+      if (Array.isArray(value)) return value.flatMap(texts);
+      if (value && typeof value === 'object') return Object.values(value).flatMap(texts);
+      return [];
+    };
+    const words = /accel|ritard|\brit\.|a tempo/i;
+    const before = unit.lessons.slice(0, unit.lessons.findIndex((l) => l.id === 'tempo-words'));
+    for (const l of before) for (const t of texts(l)) expect(words.test(t), `${l.id}: ${t}`).toBe(false);
+    for (const t of texts(unit)) if (/\b(rit|accel)/i.test(t)) expect(t, t).not.toMatch(/sudden/i);
+    const shuffle = find<ChoiceExercise>(checkpoint(), 'choice', 'What is a shuffle');
+    expect(shuffle.options.find((o) => /tempo/.test(String(o.text)))!.text).toBe('A gradual change of tempo');
+  });
+
   it('spreads the notes further apart in the rit. and closer together in the accel.', () => {
     const accel = card('tempo-words', 'Slowing down, speeding up') as AudioFigure;
     const a = soundGaps(accel.sound);
@@ -378,6 +410,13 @@ describe('triplets-swing-syncopation: tempo words', () => {
     const r = soundGaps(q.sound);
     expect(r.every((g, i) => i === 0 || g >= r[i - 1])).toBe(true);
     expect(r.at(-1)!).toBeGreaterThan(r[0]);
-    expect(right(q)).toBe('It slowed down: rit.');
+    expect(right(q)).toBe('It slowed down (rit.)');
+  });
+
+  it('ends no option text on a full stop (the feedback adds its own: "You picked ... .")', () => {
+    for (const e of all()) {
+      if (e.type !== 'choice' && e.type !== 'listen-choice') continue;
+      for (const o of e.options) if (o.text) expect(plainText(o.text), prompt(e)).not.toMatch(/\.$/);
+    }
   });
 });

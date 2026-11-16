@@ -446,7 +446,7 @@ const targetNotes: Lesson = {
     {
       type: 'card',
       title: 'A half step says it all',
-      body: 'Hold {n:C#} at string 3, fret 6 over {c:A7}: its 3rd. When the chord changes to {c:D7}, let it fall one fret to {n:C}, the {d:b7} of {c:D7}. One finger, one fret, and the change is unmistakable.',
+      body: 'The 7th is the other strong target: {c:A7} has no {n:C}, so landing on it says "new chord". Hold {n:C#} at string 3, fret 6 over {c:A7}: its 3rd. As {c:D7} arrives, let it fall one fret to {n:C}, the {d:b7} of {c:D7}. One finger, one fret, and the change is unmistakable.',
       figure: { kind: 'tab', tempo: 80, notes: TARGET_LINE, caption: 'Bar 1 over {c:A7}, bar 2 over {c:D7}: {n:C#} falls to {n:C} on beat 1.' },
     },
     {
@@ -694,7 +694,6 @@ const callAndResponse: Lesson = {
         { text: 'It makes the next phrase louder', why: 'A rest is silence in time; it does not change the volume.' },
         { text: 'Only to rest your hand', why: 'It does help your hand, but mostly it helps the listener follow the solo.' },
       ],
-      shuffle: false,
       explain: 'Rests give the listener time to hear each phrase, and give you time to plan the next one.',
       fact: 'improvising-rests',
     },
@@ -763,6 +762,16 @@ const unit: Unit = {
         frets: [3, 7],
         strings: [5, 4, 3],
         explain: 'String 5 frets 3 and 7, string 4 fret 5, string 3 fret 5: {n:C} {n:E} {n:G} {n:C}.',
+      },
+      {
+        type: 'fretboard-find',
+        prompt: 'Now minor: tap the four notes of the {c:Am} arpeggio on strings 6 to 4, frets 5 to 8.',
+        find: { chord: 'Am' },
+        mode: 'all',
+        octave: 'any',
+        frets: [5, 8],
+        strings: [6, 5, 4],
+        explain: 'String 6 frets 5 and 8, string 5 fret 7, string 4 fret 7: {n:A} {n:C} {n:E} {n:A}. The 3rd, {n:C}, sits a half step below the {n:C#} of {c:A}.',
       },
       {
         type: 'choice',

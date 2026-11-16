@@ -269,6 +269,62 @@ describe('Bach in minor', () => {
   });
 });
 
+describe('review fixes', () => {
+  const stepWith = (l: string, pred: (s: Record<string, unknown>) => boolean) => lesson(l).steps.find((s) => pred(s as unknown as Record<string, unknown>)) as unknown as Record<string, unknown>;
+
+  it('G#dim7 is three minor thirds stacked, as the caption now says', () => {
+    const notes = parseChord('G#dim7')!.notes;
+    expect(notes).toEqual(['G#', 'B', 'D', 'F']);
+    expect([0, 1, 2].map((i) => intervalBetween(notes[i], notes[i + 1]))).toEqual(['m3', 'm3', 'm3']);
+    const card = stepWith('harmonic-minor-harmony', (s) => s.title === 'The seven sevenths') as { figure: { caption: string } };
+    expect(card.figure.caption).toContain('three minor thirds');
+  });
+
+  it('the Habanera descent spells C and B each in two forms, whatever the edition\'s bar lines', () => {
+    const spelled = ['D', 'C#', 'C', 'B', 'Bb', 'A'];
+    expect(HABANERA_DESCENT.map((n) => midiAt(n))).toEqual(spelled.map((n, i) => noteToMidi(`${n}${i < 3 ? 4 : 3}`)));
+    const letters = spelled.map((n) => n[0]);
+    expect(letters.filter((x) => x === 'C').length).toBe(2);
+    expect(letters.filter((x) => x === 'B').length).toBe(2);
+    expect(letters.filter((x) => x !== 'C' && x !== 'B').every((x, i, all) => all.indexOf(x) === i)).toBe(true);
+    const card = stepWith('minor-key-repertoire', (s) => s.title === 'The Habanera') as { body: string };
+    expect(card.body).toContain('{n:C} and {n:B} each appear in two forms');
+  });
+
+  it('the Neapolitan root Bb is a half step above the tonic A (and below B, the second degree)', () => {
+    expect((chroma('Bb') - chroma('A') + 12) % 12).toBe(1);
+    expect((chroma('B') - chroma('Bb') + 12) % 12).toBe(1);
+    const lc = stepWith('neapolitan-and-augmented-sixth', (s) => s.type === 'listen-choice') as { explain: string };
+    expect(lc.explain).toContain('a half step above the tonic');
+    expect(lc.explain).not.toContain('second note');
+  });
+
+  it('the German sixth distractor says why: the interval opens outward, F down and D# up to E', () => {
+    expect(noteToMidi('F3') - 1).toBe(noteToMidi('E3'));
+    expect(noteToMidi('D#4') + 1).toBe(noteToMidi('E4'));
+    const ch = stepWith('neapolitan-and-augmented-sixth', (s) => s.type === 'choice' && String(s.prompt).startsWith('Where do')) as { options: Array<{ text: string; why?: string }> };
+    expect(ch.options.find((o) => o.text.startsWith('{n:F} up'))!.why).toContain('opens outward');
+  });
+
+  it('the Metronome task places the solea accents correctly in four bars of 3/4', () => {
+    const where = [3, 6, 8, 10, 12].map((c) => [Math.ceil(c / 3), ((c - 1) % 3) + 1]);
+    expect(where).toEqual([[1, 3], [2, 3], [3, 2], [4, 1], [4, 3]]);
+    const body = textOf(tasks().find((t) => t.task.id === 'count-the-cycle')!.task.body);
+    expect(body).toContain('the end of bars 1 and 2, the middle of bar 3, the start and end of bar 4');
+  });
+
+  it('the study\'s falseta is plain E Phrygian (G, never G#), as the task now warns, closing on the E chord with G#', async () => {
+    const s = await song('st-solea-compas');
+    expect(s.bars.length).toBe(24);
+    const falseta = [16, 17, 18, 19, 20, 21, 22].flatMap((b) => barPcs(s, 0, b));
+    expect(falseta).toContain(chroma('G'));
+    expect(falseta).not.toContain(chroma('G#'));
+    expect(barPcs(s, 0, 23)).toContain(chroma('G#'));
+    const body = textOf(tasks().find((t) => t.task.id === 'solea-study')!.task.body);
+    expect(body).toContain('plain {n:E} Phrygian, with {n:G}');
+  });
+});
+
 describe('the tasks of unit 8', () => {
   it('name the BPM the Player will play, or carry a fallback for a piece not yet in the library', async () => {
     for (const { lesson: l, task } of tasks()) {

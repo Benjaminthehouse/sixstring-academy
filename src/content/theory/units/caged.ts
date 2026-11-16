@@ -71,7 +71,8 @@ const fiveOpenShapes: Lesson = {
       task: 'fingers',
       chord: 'D',
       frets: 'xx0232',
-      accept: 'any-voicing',
+      // Only this shape: any-voicing would also take D/F# (2x0232) or a D barre, which are not the D shape.
+      accept: 'this-shape',
       prompt: 'Build the D shape: open {c:D}, with its lowest root on the open 4th string.',
       hint: 'Strings 6 and 5 are not played. Fingers on fret 2 of strings 3 and 1, fret 3 of string 2.',
       explain: 'Open {c:D} is xx0232: the open {n:D} on string 4 is the lowest root, and {n:D} on string 2 at fret 3 is the root again, an octave up.',
@@ -100,7 +101,7 @@ const fiveOpenShapes: Lesson = {
     {
       type: 'card',
       title: 'Shapes that move',
-      body: 'An open shape leans on the {t:nut}: its open strings ring from there. Put a finger or a {t:barre} where the nut was and the whole shape is free to slide up the neck. It keeps its fingering and plays the same kind of chord on a new root.',
+      body: 'An open shape leans on the {t:nut}: its open strings ring from there. Put a finger or a {t:barre} where the nut was and the whole shape is free to slide up the neck. It keeps its shape and plays the same kind of chord on a new root.',
       figure: { kind: 'chord', symbol: 'E', frets: '022100', caption: 'The E shape: roots on strings 6, 4 and 1.' },
     },
     {
@@ -617,7 +618,7 @@ const theCagedOrder: Lesson = {
           at(4, 5, 'G', 'target'), at(3, 5, 'C', 'target'), at(2, 5, 'E', 'target'),
           at(6, 8, 'C', 'root'), at(5, 7, 'E'), at(1, 8, 'C', 'root'),
         ],
-        caption: 'A shape (frets 3 to 5) and G shape (5 to 8) share the ringed notes.',
+        caption: 'A shape (frets 3 to 5) and G shape (5 to 8) share the ringed notes at fret 5.',
       },
     },
     {
@@ -812,7 +813,7 @@ const majorScalePositions: Lesson = {
     {
       type: 'card',
       title: 'A scale around a chord',
-      body: 'Around the {c:G} barre at fret 3 (355433) lies a whole {t:scale-position|position} of {k:G major}: every scale note from fret 2 to fret 5, one finger per fret. Its chord is the E shape, so this is the **E-shape position**, also called second position.',
+      body: 'Around the {c:G} barre at fret 3 (355433) lies a whole {t:scale-position|position} of {k:G major}: every scale note from fret 2 to fret 5, one finger per fret. Its chord is the E shape, so this is the **E-shape position**. It is also called second position, after the fret your first finger covers.',
       figure: {
         kind: 'fretboard',
         frets: [1, 6],
@@ -885,13 +886,13 @@ const majorScalePositions: Lesson = {
       type: 'true-false',
       statement: 'Each position of the major scale overlaps the next one, as the chord shapes do.',
       answer: true,
-      explain: 'The E-shape position of {k:G major} ends at fret 5, where the D-shape position begins (frets 4 to 8). Learn them one at a time and they join up.',
+      explain: 'The E-shape position of {k:G major} (frets 2 to 5) and the D-shape position (frets 4 to 8) share the notes at frets 4 and 5. Learn them one at a time and they join up.',
       fact: 'caged-positions-overlap',
     },
     {
       type: 'card',
       title: 'Three notes per string',
-      body: 'Many players also use {t:three-notes-per-string|three-notes-per-string} patterns. From {n:G} on string 6 at fret 3, {k:G major} is frets 3 5 7 on strings 6 and 5, 4 5 7 on strings 4 and 3, and 5 7 8 on strings 2 and 1. Wider stretches, but every string picks the same.',
+      body: 'Many players also use {t:three-notes-per-string|three-notes-per-string} patterns. From {n:G} on string 6 at fret 3, {k:G major} is frets 3 5 7 on strings 6 and 5, 4 5 7 on strings 4 and 3, and 5 7 8 on strings 2 and 1. The stretches are wider, but every string has three notes, so the picking repeats.',
       figure: {
         kind: 'fretboard',
         frets: [2, 9],
@@ -1012,7 +1013,7 @@ const shapesInsideScales: Lesson = {
       notes: [...G_E_CLIMB].reverse(),
       octave: 'exact',
       tempo: 70,
-      explain: 'Fifteen notes down two octaves, from high {n:G} to low {n:G}. Every third note or so lands on a {c:G} chord tone.',
+      explain: 'Fifteen notes down two octaves, from high {n:G} to low {n:G}. Every second or third note is a {c:G} chord tone: {n:G}, {n:D} or {n:B}.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'Tap every note of {k:G major} on strings 3, 2 and 1 in the E-shape position (frets 2 to 5).',

@@ -76,7 +76,8 @@ const beyondTheSeventh: Lesson = {
           { note: 'D5', label: '9', role: 'target' },
         ],
         from: 'C4',
-        to: 'E5',
+        // Ends on the 9th: a tenth white key is cropped at phone width.
+        to: 'D5',
         caption: 'The 9th is the 2nd, an octave higher.',
       },
     },
@@ -296,7 +297,7 @@ const elevenths: Lesson = {
     {
       type: 'card',
       title: 'An 11th on a minor chord',
-      body: 'Play {c:Am11} (530000): {n:A} {n:C} {n:D} {n:G} {n:B} {n:E} from string 6 up. The open {n:D} is the 11th, and it rings sweetly: on a minor chord the 11th sits a whole step above the minor 3rd, so nothing rubs.',
+      body: 'Play {c:Am11} (530000): {n:A} {n:C} {n:D} {n:G} {n:B} {n:E} from string 6 up. The open {n:D} is the 11th, and it rings sweetly: on a minor chord the 11th sits a whole step above the minor 3rd, not a half step, so there is no harsh rub.',
       figure: { kind: 'chord', symbol: 'Am11', frets: '530000', caption: '{c:Am11} (530000): the open {n:D} on string 4 is the 11th.' },
     },
     {
@@ -315,7 +316,7 @@ const elevenths: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Listen: {c:Cmaj7} with an 11th on top, played twice. Which one has the rub: the first or the second?',
+      prompt: 'Listen: {c:Cmaj7} with an 11th on top, in two versions. Which one has the rub: the first or the second?',
       sound: { kind: 'progression', chords: ['Cmaj7#11', 'Cmaj7add11'], voicing: 'close', beats: 4, tempo: 60 },
       options: [{ text: 'The first' }, { text: 'The second', correct: true }],
       shuffle: false,
@@ -342,7 +343,7 @@ const elevenths: Lesson = {
         { text: 'The natural 11, {n:C}', why: '{n:C} sits a minor 9th above the 3rd, {n:B}, and clashes with it.' },
         { text: 'No 11th is possible', why: 'The {d:#11} is common: {c:G7#11} is {n:G} {n:B} {n:D} {n:F} {n:C#}.' },
       ],
-      explain: 'Major and dominant chords have a major 3rd, which clashes with the natural 11. The {d:#11} avoids that: over {n:G} it is {n:C#}.',
+      explain: 'Major and dominant chords have a major 3rd, which clashes with the natural 11. The {d:#11} avoids that: over {n:G} it is {n:C#}. A dominant that keeps the natural 11 usually drops its 3rd: a {t:suspended-chord|sus} chord.',
       fact: 'extended-sharp-eleven',
     },
     {
@@ -352,7 +353,7 @@ const elevenths: Lesson = {
       blanks: ['{n:F#}'],
       bank: ['{n:F}', '{n:Gb}', '{n:D}'],
       spelling: 'exact',
-      explain: 'The 11th of {n:C} is {n:F}; raised a half step it is {n:F#}. It is a kind of 11th, a kind of F, so it is spelled {n:F#}, not {n:Gb}.',
+      explain: 'The 11th of {n:C} is {n:F}; raised a half step it is {n:F#}. An 11th above {n:C} is always some kind of F, so it is spelled {n:F#}, not {n:Gb}.',
       fact: 'extended-sharp-eleven',
     },
     {
@@ -375,7 +376,7 @@ const elevenths: Lesson = {
     {
       id: 'extended-minor-eleven',
       front: 'Which chords take the natural 11 easily? Spell {c:Am11}.',
-      back: 'Minor chords: their 11th sits a whole step above the minor 3rd, so nothing clashes. {c:Am11} is {n:A} {n:C} {n:E} {n:G} {n:B} {n:D}.',
+      back: 'Minor chords: their 11th sits a whole step above the minor 3rd, not a half step, so it does not clash. {c:Am11} is {n:A} {n:C} {n:E} {n:G} {n:B} {n:D}.',
     },
     {
       id: 'extended-sharp-eleven',
@@ -421,7 +422,7 @@ const thirteenths: Lesson = {
       type: 'card',
       title: 'One finger up',
       body: 'Play {c:G7} as 3x343x: root, {d:b7}, 3rd and 5th. Now move the note on string 2 up two frets, from {n:D} to {n:E}. The 5th becomes the 13th, and {c:G7} becomes {c:G13} (3x345x).',
-      figure: { kind: 'chord', symbol: 'G7', frets: '3x343x', caption: '{c:G7} (3x343x): the {n:D} on string 2 is the 5th.' },
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G7', 'G13'], beats: 4, tempo: 60 }, label: 'Hear {c:G7}, then {c:G13}' },
     },
     {
       type: 'chord-build',
@@ -430,7 +431,8 @@ const thirteenths: Lesson = {
       frets: '3x345x',
       accept: 'any-voicing',
       prompt: 'Turn {c:G7} (3x343x) into {c:G13}: move the note on string 2 up two frets.',
-      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G7', 'G13'], beats: 4, tempo: 60 }, label: 'Hear {c:G7}, then {c:G13}' },
+      // A chord picture, not a sound: a step with an audio figure is left out when the sound is off.
+      figure: { kind: 'chord', symbol: 'G7', frets: '3x343x', caption: 'Start from {c:G7} (3x343x): the {n:D} on string 2 is the 5th.' },
       explain: '{c:G13} is 3x345x: {n:G} on string 6, {n:F} on string 4, {n:B} on string 3 and {n:E} at fret 5 of string 2.',
       fact: 'extended-g13-shape',
     },
@@ -700,7 +702,7 @@ const extensionsInAKey: Lesson = {
     {
       type: 'card',
       title: 'Three movable grips',
-      body: 'Three grips with the root on string 5 cover most of the key: {c:Cmaj9} x3243x, {c:Dm9} x5355x and {c:G9} x-10-9-10-10-x. Play {c:Dm9}, {c:G9}, {c:Cmaj9}: a {r:ii}–{r:V}–{r:I} with a 9th on every chord.',
+      body: 'Three movable grips, each with its root on string 5: {c:Cmaj9} x3243x, {c:Dm9} x5355x and {c:G9} x-10-9-10-10-x. Play {c:Dm9}, {c:G9}, {c:Cmaj9}: a {r:ii}–{r:V}–{r:I} with a 9th on every chord, all inside the key.',
       figure: { kind: 'chord', symbol: 'G9', frets: 'x-10-9-10-10-x', caption: '{c:G9} (x-10-9-10-10-x): root on string 5, fret 10.' },
     },
     {

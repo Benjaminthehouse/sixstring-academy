@@ -116,14 +116,15 @@ const whatAnIntervalIs: Lesson = {
     },
     {
       type: 'fretboard-find',
-      prompt: 'The dot is {n:C}, string 5 fret 3. Tap the note a third higher on the same string.',
+      prompt: 'The dot is {n:C}, string 5 fret 3. Tap the natural note (no sharp or flat) a third higher on the same string.',
       find: { note: 'E3' },
       mode: 'one',
       octave: 'exact',
-      frets: [0, 10],
+      // Seven frets fit a phone without scrolling the neck; the answer (fret 7) stays in view.
+      frets: [2, 8],
       strings: [5],
       shown: [dot(5, 3, 'C', { role: 'root', label: '1' })],
-      explain: 'C D E: three letters, so a third above {n:C} is {n:E}, at fret 7 of string 5.',
+      explain: 'C D E: three letters, so the natural note a third above {n:C} is {n:E}, at fret 7 of string 5. {n:Eb} at fret 6 is a third above {n:C} too, a smaller one: the next lesson explains.',
       fact: 'intervals-counting',
     },
   ],
@@ -220,7 +221,7 @@ const secondsAndThirds: Lesson = {
       find: { interval: 'M3', from: { string: 6, fret: 3 } },
       mode: 'one',
       octave: 'exact',
-      frets: [0, 8],
+      frets: [2, 8],
       strings: [6],
       shown: [root(6, 3, 'G')],
       explain: 'A major third is four half steps: four frets up from fret 3 is fret 7, {n:B}.',
@@ -322,7 +323,7 @@ const fourthsFifthsOctaves: Lesson = {
     {
       type: 'card',
       title: 'Fourths between the strings',
-      body: 'Each open string is a perfect fourth above the one below it: {n:E} to {n:A}, {n:A} to {n:D}, {n:D} to {n:G}, and {n:B} to {n:E}. One pair is different: {n:G} to {n:B} is a major third. That is why, on string 3, fret 4 (not fret 5) matches the next open string.',
+      body: 'Most neighbouring open strings are a perfect fourth apart: {n:E} up to {n:A}, {n:A} to {n:D}, {n:D} to {n:G}, and {n:B} to {n:E}. One pair is different: {n:G} to {n:B} is a major third. That is why, on string 3, fret 4 (not fret 5) matches the next open string.',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],
@@ -433,7 +434,7 @@ const sixthsAndSevenths: Lesson = {
       type: 'choice',
       prompt: 'Which interval is {n:C} up to {n:Bb}?',
       options: [
-        { text: 'A minor sixth', why: 'A sixth spans six letters, C to A. {n:Bb} is a seventh letter.' },
+        { text: 'A minor sixth', why: 'A sixth spans six letters, C to A. {n:Bb} sits on B, the seventh letter from C.' },
         { text: 'A major sixth', why: 'That is {n:C} up to {n:A}: nine half steps.' },
         { text: 'A minor seventh', correct: true },
         { text: 'A major seventh', why: 'That is {n:C} up to {n:B}: eleven half steps.' },
@@ -594,7 +595,7 @@ const intervalsByEar: Lesson = {
     {
       type: 'card',
       title: 'A tune for each interval',
-      body: 'Players learn intervals by ear with tunes. Each of these old tunes opens with one:\n{i:M2} Frère Jacques\n{i:M3} When the Saints Go Marching In\n{i:P4} Here Comes the Bride\n{i:P5} Twinkle Twinkle, from its 2nd note to its 3rd\n{i:M6} My Bonnie Lies over the Ocean',
+      body: 'Many players learn intervals by ear with tunes. Each of these old tunes opens with one:\n{i:M2} Frère Jacques\n{i:M3} When the Saints Go Marching In\n{i:P4} Here Comes the Bride\n{i:P5} Twinkle Twinkle, from its 2nd note to its 3rd\n{i:M6} My Bonnie Lies over the Ocean',
       figure: {
         kind: 'fretboard',
         frets: [0, 9],

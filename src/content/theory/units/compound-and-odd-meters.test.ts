@@ -14,6 +14,8 @@ import {
   type RichText, type Step, type TabNote, type TapRhythmExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
+// The pure model behind the drawn rhythm (its counting syllables), read only to check prompts against it.
+import { parseRhythm as viewRhythm, rhythmGrid } from '@/ui/music/rhythm/model';
 import { THEORY_GLOSSARY } from '../glossary';
 import unit, { AM_SIX_EIGHT, AM_THREE_FOUR, E7_TWELVE_EIGHT, RIFF_2_2_3, RIFF_3_2_2, THREE_AGAINST_TWO } from './compound-and-odd-meters';
 
@@ -114,6 +116,21 @@ describe('compound-and-odd-meters: what each time signature is', () => {
     const kinds = ofType<MatchPairsExercise>('match-pairs').filter((e) => /with its kind/.test(plainText(e.prompt)));
     expect(kinds.length).toBe(3);
     for (const p of kinds.flatMap((e) => e.pairs)) expect(plainText(p.right), plainText(p.left)).toBe(kindName(plainText(p.left)));
+  });
+
+  it('teaches every word of the meter kinds on a card of the first lesson before any review asks it', () => {
+    // Review cards come back after lesson 1 alone, so a kind such as "quadruple" must be taught there.
+    const cardText = lesson('simple-and-compound').steps
+      .flatMap((s) => (!isGenerated(s) && s.type === 'card' ? [plainText(s.body).toLowerCase()] : []))
+      .join(' ');
+    const asked = ofType<MatchPairsExercise>('match-pairs').filter((e) => /with its kind/.test(plainText(e.prompt)));
+    const words = new Set(asked.flatMap((e) => e.pairs.flatMap((p) => plainText(p.right).toLowerCase().split(' '))));
+    expect([...words].sort()).toEqual(['compound', 'duple', 'quadruple', 'simple', 'triple']);
+    for (const w of words) expect(cardText, w).toContain(w);
+    // The signatures those reviews use are all met in lesson 1 (12/8 waits for lesson 3).
+    const fact = lesson('simple-and-compound').facts!.find((f) => f.id === 'meters-simple-compound')!;
+    const signatures = (fact.ask as MatchPairsExercise).pairs.map((p) => plainText(p.left));
+    for (const sig of signatures) expect(cardText, sig).toContain(sig);
   });
 
   it('answers every "how many beats" question with the engine\'s beat count', () => {
@@ -285,6 +302,22 @@ describe('compound-and-odd-meters: what the guitar plays', () => {
     expect(tabNotes(polyrhythm).map((n) => n.duration).slice(0, 4)).toEqual(['qt', 'et', 'et', 'qt']);
     expect(correctText(straight)).toBe('Straight eighth notes');
     expect(new Set(tabNotes(straight).map((n) => n.duration))).toEqual(new Set(['e']));
+  });
+
+  it('names the counting labels the tap notation really draws under the notes', () => {
+    // The notation counts compound time "1 & a 2 & a" and odd eighths "1 2 3 4 5 6 7": a prompt that
+    // numbers the steps another way must say what the learner will read under the notes.
+    const drawn = (e: TapRhythmExercise): string[] => {
+      const firstBar = e.rhythm.pattern.split('|')[0].trim();
+      const grid = rhythmGrid(viewRhythm(firstBar).notes, e.rhythm.time);
+      return grid.cells.filter((c) => c.onset !== null).map((c) => c.syllable);
+    };
+    const [combinedTap] = taps(lesson('three-against-two'));
+    expect(drawn(combinedTap)).toEqual(['1', 'a', '2', '&']);
+    expect(plainText(combinedTap.prompt)).toContain('1, a, 2 and &');
+    const [sevenTap] = taps(lesson('odd-meters'));
+    expect(drawn(sevenTap)).toEqual(['1', '3', '5']);
+    expect(plainText(sevenTap.prompt)).toContain('eighths 1, 3 and 5');
   });
 
   it('asks for the beats of 12/8 and the group starts of 7/8 in the taps', () => {

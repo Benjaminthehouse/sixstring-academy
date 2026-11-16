@@ -74,7 +74,7 @@ export const G_ALTERED = [
 
 /** The outside lines: a side-slip over Am7, and the Db7 arpeggio over G7 into Cmaj7. */
 export const OUTSIDE: Record<'sideSlip' | 'db7', Played[]> = {
-  sideSlip: [e(1, 5), e(2, 8), q(2, 5), e(1, 6), e(2, 9), q(2, 6), e(1, 5), e(2, 8), q(2, 5), h(3, 7)],
+  sideSlip: [e(1, 5), e(2, 8), q(2, 5), e(1, 6), e(2, 9), q(2, 6), e(1, 5), e(2, 8), q(2, 5), h(3, 5)],
   db7: [e(5, 4), e(5, 8), e(4, 6), e(3, 4), h(3, 5)],
 };
 
@@ -674,7 +674,7 @@ const alteredDominant: TeacherLesson = {
     {
       type: 'card',
       title: 'One scale holds them all',
-      body: 'The {t:altered-scale|altered scale} holds them all. {n:G} altered is {n:G} {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F}, which is {n:Ab} melodic minor starting on {n:G}. Over {c:G7}: {n:Ab} is the {d:b9}, {n:Bb} the {d:#9}, {n:Cb} the third, {n:Db} the {d:b5}, {n:Eb} the {d:b13}.',
+      body: 'The {t:altered-scale|altered scale} holds them all. {n:G} altered is {n:G} {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F}, which is {n:Ab} {t:melodic-minor|melodic minor} starting on {n:G}. Over {c:G7}: {n:Ab} is the {d:b9}, {n:Bb} the {d:#9}, {n:Cb} the third, {n:Db} the {d:b5}, {n:Eb} the {d:b13}.',
       figure: { kind: 'fretboard', frets: [2, 6], root: 'G', labels: 'degree', dots: [...G_ALTERED], caption: '{n:G} altered in third position, as tensions of {c:G7}.' },
     },
     {
@@ -691,7 +691,7 @@ const alteredDominant: TeacherLesson = {
       prompt: '{n:G} altered has the same notes as which scale?',
       options: [
         { text: '{n:Ab} melodic minor', correct: true },
-        { text: '{n:G} melodic minor', why: '{n:G} melodic minor has {n:A}, {n:D} and {n:E}: no tensions at all over {c:G7}.' },
+        { text: '{n:G} melodic minor', why: '{n:G} melodic minor has {n:Bb} and {n:F#} where {c:G7} has {n:B} and {n:F}: it does not even hold the chord\'s third and seventh.' },
         { text: '{n:Ab} major', why: '{n:Ab} major has {n:C}, which clashes with {c:G7}\'s third. Melodic minor has {n:Cb} instead.' },
       ],
       explain: '{n:Ab} melodic minor is {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F} {n:G}. Start it on {n:G}, its seventh degree: the altered scale.',
@@ -779,7 +779,7 @@ const outsideAndBack: TeacherLesson = {
       type: 'card',
       title: 'Tension needs release',
       body: 'Playing outside only convinces when you come back: tension needs release. The first safe way out: {t:side-slip|side-slip} a phrase a half step up and back. Over {c:Am7}: {n:A} minor pentatonic, the same shape in {n:Bb}, then home.',
-      figure: { kind: 'tab', tempo: 80, notes: [...OUTSIDE.sideSlip], caption: 'A phrase in {n:A}, the same phrase a fret higher, and home.' },
+      figure: { kind: 'tab', tempo: 80, notes: [...OUTSIDE.sideSlip], caption: 'A phrase in {n:A}, the same a fret higher, then home to {n:C}.' },
     },
     {
       type: 'choice',
@@ -794,11 +794,11 @@ const outsideAndBack: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Play the side-slip: three notes in {n:A}, three a fret higher, then home, landing on {n:D}.',
+      prompt: 'Play the side-slip: three notes in {n:A}, three a fret higher, then home, landing on {n:C}.',
       notes: [...OUTSIDE.sideSlip],
       octave: 'exact',
       tempo: 80,
-      explain: '{n:A} {n:G} {n:E}, then {n:Bb} {n:Ab} {n:F}, then {n:A} {n:G} {n:E} and {n:D}. Same fingers, same rhythm: the shape moves, the phrase stays.',
+      explain: '{n:A} {n:G} {n:E}, then {n:Bb} {n:Ab} {n:F}, then {n:A} {n:G} {n:E} and {n:C}, the minor third of {c:Am7}: home is a chord tone. Same fingers, same rhythm: the shape moves, the phrase stays.',
       alternative: {
         type: 'order',
         prompt: 'Put the slipped phrase, one fret above {n:A} {n:G} {n:E}, in order.',
@@ -899,6 +899,7 @@ const unit: TeacherUnit = {
     { id: 'vertical', term: 'vertical playing', definition: 'Improvising from each chord\'s own arpeggio and tensions, so the line spells the harmony.' },
     { id: 'approach-note', term: 'approach note', definition: 'A note a half step below (or above) a chord tone, on a weak beat, leading into it.' },
     { id: 'enclosure', term: 'enclosure', definition: 'Surrounding a target note: a scale step above, a half step below, then the target.' },
+    { id: 'melodic-minor', term: 'melodic minor', definition: 'Natural minor with its sixth and seventh raised: {n:A} {n:B} {n:C} {n:D} {n:E} {n:F#} {n:G#}. Jazz plays it the same going up and down.' },
     { id: 'altered-scale', term: 'altered scale', definition: 'The seventh mode of melodic minor: a dominant\'s root, third and seventh with every tension altered.' },
     { id: 'side-slip', term: 'side-slip', definition: 'Moving a phrase a half step out of the key and back, on purpose.' },
   ],
