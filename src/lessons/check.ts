@@ -556,7 +556,7 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
     case 'play-phrase': {
       if (!checkTuning(c, exercise)) break;
       const notes = Array.isArray(exercise.notes) ? exercise.notes : [];
-      for (const problem of tabProblems(notes, exercise)) c.error('figure.invalid', `Phrase: ${problem}`);
+      for (const problem of tabProblems(notes, { tuning: exercise.tuning, capo: exercise.capo, techniques: false })) c.error('figure.invalid', `Phrase: ${problem}`);
       c.count(phraseMidi({ ...exercise, notes }).length, 'phraseNotes', 'notes in the phrase');
       checkPolicy(c, exercise.octave, 'octave', "'exact' when the phrase must be played at pitch, 'any' when the note names are enough.");
       if (exercise.pass !== undefined && !(exercise.pass > 0 && exercise.pass <= 1)) c.error('exercise.shape', '"pass" must be a share between 0 and 1, such as 0.8.');

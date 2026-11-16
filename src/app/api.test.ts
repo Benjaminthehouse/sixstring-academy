@@ -9,12 +9,17 @@ import * as shell from './shell';
 import * as teachers from './teachers';
 
 describe('src/app/API.md', () => {
-  it('stays under 80 lines', () => {
-    expect(doc.trimEnd().split('\n').length).toBeLessThan(80);
+  // The shell's own part stays under 80 lines; the table of tool addresses lessons link to (one row
+  // per tool, owned by the tools) comes on top of it.
+  it('stays short: under 80 lines before the tool addresses, 120 in all', () => {
+    const lines = doc.trimEnd().split('\n');
+    const tools = lines.findIndex((l) => l.startsWith('## Tool addresses'));
+    expect(tools === -1 ? lines.length : tools).toBeLessThan(80);
+    expect(lines.length).toBeLessThan(120);
   });
 
   it('only names things the shell really exports', () => {
-    const named = ['useImmersive', 'useScreenTitle', 'openStats', 'openOnboarding', 'WeekStrip', 'WIDE_LAYOUT_QUERY', 'TOPBAR_HEIGHT', 'IMMERSIVE_ROUTES', 'DESTINATIONS', 'destinationFor', 'hubRoutes'];
+    const named = ['useImmersive', 'useScreenTitle', 'useRewardHold', 'holdRewards', 'rewardsHeld', 'openStats', 'openOnboarding', 'WeekStrip', 'WIDE_LAYOUT_QUERY', 'TOPBAR_HEIGHT', 'IMMERSIVE_ROUTES', 'DESTINATIONS', 'destinationFor', 'hubRoutes'];
     for (const name of named) {
       expect(doc, name).toContain(name);
       expect((shell as Record<string, unknown>)[name], name).toBeDefined();

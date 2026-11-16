@@ -561,12 +561,16 @@ describe('batch 12: st-strum-funk', () => {
     expect([...new Set(bass.flatMap((b) => b.midis.map(name)))].sort()).toEqual(['E1', 'E2']);
   });
 
-  it('estimates at level 4 against the plan\'s 6: the estimate counts strums, not the left-hand muting between them', async () => {
+  it('estimates 5 against the plan\'s 6: it now sees the left-hand muting between strums', async () => {
     // Every stroke is a strum, which the estimate treats as half as hard as picked notes; the
     // level-6 skill here is switching the fretting hand between pressing and muting 16 times a bar.
+    // Gap note (integration pass 2): this used to estimate 4, with no factor for muting. The
+    // muting factor (muted scratches alternating with ringing strums) and the endurance factor
+    // (about 20 seconds of sixteenths without a break) now lift it to 5, a better estimate.
     const est = estimate(await load('st-strum-funk'), 'Your strum');
-    expect(est.level, est.text).toBeGreaterThanOrEqual(4);
+    expect(est.level, est.text).toBeGreaterThanOrEqual(5);
     expect(est.level, est.text).toBeLessThanOrEqual(6);
+    expect(est.text).toMatch(/"muting":0\.[3-9]/);
   });
 });
 
@@ -657,9 +661,11 @@ describe('batch 12: st-delta-blues-e', () => {
     expect([...new Set(marks)].sort()).toEqual(['i:2', 'i:3', 'm:1', 'p:6']);
   });
 
-  it('estimates at level 4 against the plan\'s 6: the estimate cannot see thumb independence', async () => {
+  it('estimates at level 4 against the plan\'s 6: thumb independence shows only a little', async () => {
     // Note for note this is swung eighths in open position; what makes it level 6 is a thumb that
-    // keeps a steady muted beat while the fingers syncopate above it.
+    // keeps a steady muted beat while the fingers syncopate above it. Gap note (integration pass 2):
+    // the estimate now has a thumb-independence measure (fingers moving off a steady thumb), but
+    // here most finger notes land with the thumb, so it adds little and the estimate stays 4.
     const est = estimate(await load('st-delta-blues-e'), 'Guitar');
     expect(est.level, est.text).toBeGreaterThanOrEqual(4);
     expect(est.level, est.text).toBeLessThanOrEqual(6);

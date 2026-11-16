@@ -18,11 +18,11 @@ import {
 } from '@/core/theory';
 import { COUNT_LIMITS, MAX_FRET } from './limits';
 import { parseDuration, parseRhythm, parseStrum, type ParsedRhythm, type RhythmEvent, type StrumSlot } from './rhythm';
-import { soundPlan, soundProblems, tabProblems, type SoundPlan } from './sound';
+import { hasTechnique, soundPlan, soundProblems, tabProblems, type SoundPlan } from './sound';
 import { inferSpelling, keySpelling, spellPitch, spellingOfName, tabMidi, type SpellContext } from './spelling';
 import type {
   AudioFigure, ChordFigure, CircleFigure, DotRole, Figure, FretboardFigure, FretDot, KeyboardFigure, RhythmFigure,
-  StaffAccidental, StaffFigure, TabFigure,
+  StaffAccidental, StaffFigure, TabFigure, TabTechnique,
 } from './types';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────────────────────
@@ -694,7 +694,7 @@ export interface ResolvedTab {
   time: string;
   tempo: number | null;
   /** Notes and rests in order, with their start in ticks. */
-  notes: Array<{ rest: boolean; string: number | null; fret: number | null; midi: number | null; note: string | null; tick: number; ticks: number; duration: string }>;
+  notes: Array<{ rest: boolean; string: number | null; fret: number | null; midi: number | null; note: string | null; tick: number; ticks: number; duration: string; technique: TabTechnique | null }>;
   totalTicks: number;
   caption: TabFigure['caption'] | null;
 }
@@ -720,10 +720,13 @@ function resolveTab(figure: TabFigure): ResolvedTab {
     const d = parseDuration(n.duration);
     if (!d) continue;
     if ('rest' in n) {
-      notes.push({ rest: true, string: null, fret: null, midi: null, note: null, tick, ticks: d.ticks, duration: n.duration });
+      notes.push({ rest: true, string: null, fret: null, midi: null, note: null, tick, ticks: d.ticks, duration: n.duration, technique: null });
     } else if (!positionProblem(n, figure)) {
       const midi = midiAt(n, { tuning: figure.tuning, capo });
-      notes.push({ rest: false, string: n.string, fret: n.fret, midi, note: spellPitch(midi, context), tick, ticks: d.ticks, duration: n.duration });
+      const { bend, release, vibrato, legato, slideIn, slideOut } = n;
+      const technique: TabTechnique = { bend, release, vibrato, legato, slideIn, slideOut };
+      const written = hasTechnique(n) ? (Object.fromEntries(Object.entries(technique).filter(([, v]) => v !== undefined)) as TabTechnique) : null;
+      notes.push({ rest: false, string: n.string, fret: n.fret, midi, note: spellPitch(midi, context), tick, ticks: d.ticks, duration: n.duration, technique: written });
     }
     tick += d.ticks;
   }

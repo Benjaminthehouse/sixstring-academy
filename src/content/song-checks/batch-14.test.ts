@@ -13,7 +13,7 @@
  * the rhythm the plan asks for, and the difficulty estimate against the plan's level.
  */
 import { describe, expect, it } from 'vitest';
-import { estimateDifficulty, flattenSong, parseSixTab, validateSong, type Song } from '@/core/song';
+import { estimateDifficulty, flattenSong, getTrackStats, parseSixTab, validateSong, type Song } from '@/core/song';
 import { buildVoicing, scalePatterns, type ScalePattern } from '@/core/guitar';
 import { chordPcs, midiToNote, noteToMidi, scalePcs } from '@/core/theory';
 import { loadSongText, songEntry } from '@/content/songs';
@@ -392,13 +392,17 @@ describe('batch 14: st-ragtime-blues-c', () => {
     expect(song.tracks.length).toBe(1);
   });
 
-  it('estimates below the plan (7): the estimate does not see tied syncopation over a steady thumb', async () => {
-    // estimateDifficulty counts an off-beat note as syncopated only when nothing is struck on the
-    // next beat; here the thumb always is, so the 18 syncopations score zero, and the open chords
-    // and moderate tempo leave it at about level 4.
+  it('estimates below the plan (7): tied syncopation over a steady thumb, open chords at a moderate tempo', async () => {
+    // Gap note (integration pass 2): the estimate used to count an off-beat note as syncopated only
+    // when nothing was struck on the next beat, so with the thumb on every beat the tied
+    // syncopations scored zero. It now counts an off-beat note that sounds on through the next beat
+    // (and sees the melody held over the thumb as two voices), so both show in the factors; the open
+    // chords and the moderate tempo still keep it at about level 4.
     const est = estimate(await load('st-ragtime-blues-c'), 'Your part');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);
     expect(est.level).toBeLessThanOrEqual(7);
+    expect(est.factors.voices, JSON.stringify(est)).toBeGreaterThan(0.3);
+    expect(getTrackStats(await load('st-ragtime-blues-c'), 'Your part')!.syncopation).toBeGreaterThan(0.1);
   });
 });
 
@@ -455,16 +459,19 @@ describe('batch 14: st-lick-tapping', () => {
     expect(taps).toEqual(names('E5 F5 G5 E5'));
   });
 
-  it('has the teacher strumming the chords, and estimates high because taps count as hand shifts', async () => {
+  it('has the teacher strumming the chords, and estimates at the plan\'s level (7): taps belong to the picking hand', async () => {
     const song = await load('st-lick-tapping');
     expect(song.tracks.find((t) => t.name === 'Teacher')?.role).toBe('rhythm');
     expect(new Set(hits(song, 'Teacher').filter((h) => h.slash).map((h) => h.bar)).size).toBe(8);
-    // estimateDifficulty's hand-position tracker sees a jump from fret 12 to fret 5 and back on
-    // every beat (the tapping hand is not the fretting hand), so position scores near its maximum
-    // and the lick lands above the plan's 7, about 9. The real demand is level 7.
+    // Gap note (integration pass 2): the hand-position tracker used to take every tapped fret 12 as
+    // the fretting hand jumping there and back (62 shifts), so position scored near its maximum and
+    // the lick rated 9. Tapped notes now belong to the picking hand: the fretting hand stays in its
+    // positions, and the better estimate is the plan's 7, carried by the tapping technique.
     const est = estimate(song, 'Your lick');
-    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(7);
+    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(6);
+    expect(est.level, JSON.stringify(est)).toBeLessThanOrEqual(8);
     expect(est.factors.techniques).toBeGreaterThan(0.75);
+    expect(getTrackStats(song, 'Your lick')!.shifts, 'taps are not hand shifts').toBeLessThanOrEqual(4);
   });
 });
 
@@ -595,7 +602,7 @@ describe('batch 14: st-caged-scale', () => {
 
   it('estimates below the plan (7): the challenge is the map of the neck, not speed', async () => {
     // Eighth notes at 100 bpm with one hand position per section: the estimate sees the frets up to
-    // 13 and five shifts, about level 4.
+    // 13 and four shifts, one into each new position, about level 4.
     const est = estimate(await load('st-caged-scale'), 'Your part');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);
     expect(est.level).toBeLessThanOrEqual(7);
@@ -811,10 +818,11 @@ describe('batch 14: st-jazz-shells', () => {
     for (const h of bs.filter((x) => x.at === 1920)) expect(chordPcs(h.chord!), `bar ${h.bar + 1}: beat 3`).toContain(pc(h.midis[0]));
   });
 
-  it('estimates below the plan (7): it rates the chords by name, as easy open chords', async () => {
-    // estimateDifficulty scores chords by symbol (Dm7, G7 and Cmaj7 count as their open shapes) and
-    // the comping as triplets with staccato, about level 4; the movable shells and the swing feel
-    // are what make it level 7.
+  it('estimates below the plan (7): three-note shells are easy grips, the swing is the hard part', async () => {
+    // Gap note (integration pass 2): the estimate used to score these chords by name (Dm7, G7 and
+    // Cmaj7 as their open shapes). It now scores the shells actually held, which are three-note
+    // grips and still easy to hold, and counts the swung pushes as syncopation: about level 4. The
+    // movable shells and the swing feel are what make it level 7.
     const est = estimate(await load('st-jazz-shells'), 'Your comping');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);
     expect(est.level).toBeLessThanOrEqual(7);
@@ -875,13 +883,16 @@ describe('batch 14: st-bossa-groove', () => {
     expect(up('D7').map((m, i) => m - up('Am7')[i])).toEqual([-1, 0, -2]);
   });
 
-  it('estimates below the plan (7): the estimate does not count chords between steady thumb notes as syncopated', async () => {
-    // As in the ragtime study, the estimate's syncopation measure ignores an off-beat chord when the
-    // thumb strikes the next beat, and Am7 and D7 count as easy chords by name, so it lands near 3;
-    // the independence of thumb and fingers is the level-7 skill.
+  it('estimates below the plan (7): the thumb independence shows, the feel does not', async () => {
+    // Gap note (integration pass 2): it used to land at 3, with the off-beat chords between steady
+    // thumb notes not counted as syncopated and Am7 and D7 scored by name. The estimate now scores
+    // the grips held (5x555x, x5453x), counts the chords held across the beat as syncopation and
+    // sees the fingers moving off the thumb's half-bar pulse (thumb independence): 4, a better
+    // estimate, still below the plan's 7, whose demand is keeping the bossa feel relaxed and even.
     const est = estimate(await load('st-bossa-groove'), 'Your part');
-    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(2);
+    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);
     expect(est.level).toBeLessThanOrEqual(7);
+    expect(est.factors.voices, JSON.stringify(est)).toBeGreaterThan(0.3);
   });
 });
 

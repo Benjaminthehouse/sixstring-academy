@@ -356,8 +356,10 @@ describe('batch 15: st-solea-compas', () => {
   });
 
   it('estimates within two levels below the plan (7): the cycle, not the hands, is the hard part', async () => {
-    // The estimate sees sixteenth-note strokes on E and F (about 5-6); what makes it level 7 is
-    // holding a 12-count cycle whose accents cross the bar lines.
+    // The estimate sees sixteenth-note strokes on E and F (about 5); what makes it level 7 is
+    // holding a 12-count cycle whose accents cross the bar lines. Gap note (integration pass 2): it
+    // used to read 6 because the F was scored by its symbol as the full barre; the core now scores
+    // the small F the song writes (xx3211), the better estimate, 5.
     const est = estimate(await load('st-solea-compas'), 'Your part');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(5);
     expect(est.level).toBeLessThanOrEqual(8);
@@ -766,13 +768,18 @@ describe('batch 15: st-jazz-drop2', () => {
     expect(strongBeatProblems(beats, beats13)).toEqual([]);
   });
 
-  it('estimates well below the plan (8): the estimate rates Dm7, G7 and Cmaj7 as their easy open shapes', async () => {
+  it('estimates below the plan (8): it scores the drop-2 grips played, and the swung pushes', async () => {
+    // Gap note (integration pass 2): the estimate used to rate Dm7, G7 and Cmaj7 as their easy open
+    // shapes (4). It now scores the drop-2 grips the comping holds and counts the Charleston push
+    // held across beat 3 as syncopation: 5, a better estimate. The level-8 demands it still cannot
+    // see are the voice leading between the grips and the swing feel.
     const song = await load('st-jazz-drop2');
     const est = estimate(song, 'Your comping');
-    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);
+    expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(5);
     expect(est.level).toBeLessThanOrEqual(8);
-    // The grips played are harder than the shapes the estimate assumes.
+    // The grips played are harder than the open shapes, and the chord factor now reflects them.
     expect(buildVoicing('Cmaj7', 'xx2413').difficulty).toBeGreaterThan(chordDifficulty('Cmaj7') + 2);
+    expect(est.factors.chords, JSON.stringify(est)).toBeGreaterThan(0.3);
   });
 });
 

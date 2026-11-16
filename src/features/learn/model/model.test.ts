@@ -133,7 +133,8 @@ describe('on the go', () => {
         expect(drill.total).toBeGreaterThan(0);
       }
     }
-  });
+    // Every unit of the path, three times over: about 25 s alone, longer on a shared machine.
+  }, 180_000);
 });
 
 describe('the map over the syllabus', () => {

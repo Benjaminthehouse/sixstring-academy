@@ -469,15 +469,18 @@ describe('batch 16: st-chord-melody-2 (jazz ballad, F major, AABA)', () => {
     expect(Math.min(...frets)).toBe(8);
   });
 
-  it('estimates below the plan (8): the estimate rates the chords as their easy open shapes', async () => {
-    // The estimate sees a slow ballad (60 bpm) of quarter and eighth notes and scores Fmaj7, Dm7,
-    // Gm7 and C7 by their easiest voicings. What makes it level 8 is the grips actually played:
-    // barres at frets 8 and 10, four-fret stretches under a melody, and shifts every bar or two.
+  it('estimates below the plan (8): a slow ballad, but the grips played are scored', async () => {
+    // The estimate sees a slow ballad (60 bpm) of quarter and eighth notes. Gap note (integration
+    // pass 2): it used to score Fmaj7, Dm7, Gm7 and C7 by their easiest voicings (5); it now scores
+    // the grips actually played (barres at frets 8 and 10, four-fret stretches under a melody) and
+    // the shifts every bar or two: 6, a better estimate. What it still cannot see is the singing
+    // melody line held over those grips.
     const song = await load('st-chord-melody-2');
     const est = estimate(song);
-    expect(est.level).toBeGreaterThanOrEqual(4);
+    expect(est.level).toBeGreaterThanOrEqual(5);
     expect(est.level).toBeLessThanOrEqual(8);
     expect(est.factors.position).toBeGreaterThan(0.4);
+    expect(est.factors.chords, JSON.stringify(est)).toBeGreaterThan(0.5);
     for (const grip of ['Dm7=10-x-10-10-10-10', 'Gb7=x-9-8-9-11-x', 'C7=8-x-8-9-8-8']) {
       const [symbol, frets] = grip.split('=');
       expect(buildVoicing(symbol, frets).difficulty, grip).toBeGreaterThanOrEqual(5);

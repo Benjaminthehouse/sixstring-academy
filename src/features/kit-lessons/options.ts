@@ -96,6 +96,32 @@ export const OPTION_FIGURES: Record<string, Figure> = {
   },
   'chord-capo': { kind: 'chord', symbol: 'A', frets: '320003', capo: 2, caption: 'The {c:G} shape at capo 2 sounds as {c:A}.' },
   'tab-a-major': { kind: 'tab', notes: [q(5, 0), q(5, 2), q(5, 4), q(4, 0), q(4, 2), q(4, 4), q(3, 1), q(3, 2)], tempo: 90, caption: 'An {k:A major} line: its notes are named with sharps.' },
+  'tab-techniques': {
+    kind: 'tab',
+    tempo: 80,
+    notes: [
+      q(3, 5),
+      { string: 3, fret: 7, duration: 'e', legato: 'hammer' },
+      { string: 3, fret: 5, duration: 'e', legato: 'pull' },
+      { string: 2, fret: 5, duration: 'q', slideIn: 'below' },
+      { string: 2, fret: 8, duration: 'q', legato: 'slide' },
+      { string: 3, fret: 7, duration: 'h', bend: 2, release: true },
+      { string: 1, fret: 5, duration: 'h', vibrato: true, slideOut: 'down' },
+    ],
+    caption: 'A hammer-on, a pull-off, two slides, a full bend and release, and vibrato: each is heard as written.',
+  },
+  'audio-drone': {
+    kind: 'audio',
+    sound: { kind: 'scale', tonic: 'D3', scale: 'dorian', drone: { root: 'D2', fifth: true } },
+    label: 'Hear the scale over a drone',
+    caption: 'Every degree of {n:D} dorian against a held {n:D}: listen for the bright sixth.',
+  },
+  'audio-over': {
+    kind: 'audio',
+    sound: { kind: 'notes', notes: ['A3', 'C4', 'D4', 'E4', 'G4', 'A4'], tempo: 100, over: { chord: 'Am' } },
+    label: 'Hear the line over {c:Am}',
+    caption: 'The {c:Am} chord is held while the minor pentatonic line plays over it.',
+  },
 };
 
 /** A teaching card whose title uses markup and whose body has punctuation after terms and a hyphenated run. */

@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import { RichText, usePlainText } from '../RichText';
 import { canPlaySlow } from '../logic/sound';
+import { marksNeedHeadroom, tabMarks, tabNoteWords, type TabMarks } from '../logic/tabMarks';
 import { useSoundPlayer } from '../useSound';
 import { dotColor } from './colors';
 import { ScrollHint } from './ScrollHint';
@@ -279,42 +280,89 @@ export function RhythmFigureView({ figure, size = 'md' }: FigureProps<RhythmFigu
 const TAB_GAP = 18;
 const TAB_PAD = 28;
 
-/** A short phrase in tablature (high E on top), with a play button. */
+/** The technique marks of one tab note: bend arrow and size, H/P arc, slide lines, vibrato wave. */
+function TabNoteMarks({ marks, x, y, fromX }: { marks: TabMarks | null; x: number; y: number; fromX: number }) {
+  if (!marks) return null;
+  const parts: ReactNode[] = [];
+  if (marks.legato) {
+    const l = marks.legato;
+    if (l.kind === 'slide') {
+      // A straight line between the two frets, rising or falling with the pitch.
+      parts.push(<line key="slide" x1={fromX + 10} x2={x - 10} y1={y + (l.rising ? 4 : -4)} y2={y + (l.rising ? -4 : 4)} className={styles.tabMark} />);
+    } else {
+      const mid = (fromX + x) / 2;
+      parts.push(<path key="arc" d={`M ${fromX + 4} ${y - 10} Q ${mid} ${y - 19} ${x - 4} ${y - 10}`} className={styles.tabMark} fill="none" />);
+      parts.push(<text key="hp" x={mid} y={y - 18} className={styles.tabMarkText} textAnchor="middle">{l.label}</text>);
+    }
+  }
+  if (marks.slideIn) {
+    const rising = marks.slideIn === 'below';
+    parts.push(<line key="in" x1={x - 20} x2={x - 10} y1={y + (rising ? 5 : -5)} y2={y + (rising ? -1 : 1)} className={styles.tabMark} />);
+  }
+  if (marks.slideOut) {
+    const falling = marks.slideOut === 'down';
+    parts.push(<line key="out" x1={x + 10} x2={x + 20} y1={y + (falling ? -1 : 1)} y2={y + (falling ? 5 : -5)} className={styles.tabMark} />);
+  }
+  if (marks.bend) {
+    // Up from the note to above the string, the size printed at the top; a release comes back down.
+    const peakX = x + 15;
+    const peakY = y - 18;
+    parts.push(<path key="bend" d={`M ${x + 9} ${y} Q ${peakX} ${y} ${peakX} ${peakY + 3}`} className={styles.tabMark} fill="none" />);
+    parts.push(<path key="head" d={`M ${peakX - 3} ${peakY + 5} L ${peakX} ${peakY} L ${peakX + 3} ${peakY + 5}`} className={styles.tabMark} fill="none" />);
+    parts.push(<text key="size" x={peakX} y={peakY - 2} className={styles.tabMarkText} textAnchor="middle">{marks.bend.label}</text>);
+    if (marks.bend.release) {
+      parts.push(<path key="release" d={`M ${peakX + 2} ${peakY + 2} Q ${peakX + 12} ${peakY + 2} ${peakX + 12} ${y - 4}`} className={styles.tabMark} fill="none" strokeDasharray="2 2" />);
+    }
+  }
+  if (marks.vibrato) {
+    const y0 = y - (marks.bend ? 26 : 13);
+    const x0 = marks.bend ? x + 22 : x - 6;
+    parts.push(<path key="vib" d={`M ${x0} ${y0} q 2 -3 4 0 t 4 0 t 4 0 t 4 0`} className={styles.tabMark} fill="none" />);
+  }
+  return <g data-tab-mark="">{parts}</g>;
+}
+
+/** A short phrase in tablature (high E on top), with its techniques drawn, and a play button. */
 export function TabFigureView({ figure, size = 'md' }: FigureProps<TabFigure>) {
   const resolved = useMemo(() => resolveFigure(figure), [figure]);
   const { naming } = useMusicSettings();
   const player = useSoundPlayer();
   const strings = resolved.tuning.stringCount;
+  const marks = useMemo(() => tabMarks(resolved.notes), [resolved]);
+  // Bends, vibrato and H/P sit above their string: give the top string room for them.
+  const top = marksNeedHeadroom(marks) ? 30 : 12;
   const step = 34;
   const width = TAB_PAD + 12 + Math.max(4, resolved.notes.length) * step;
-  const height = (strings - 1) * TAB_GAP + 24;
+  const height = top + (strings - 1) * TAB_GAP + 12;
   const total = Math.max(1, resolved.totalTicks);
   const xOf = (tick: number): number => TAB_PAD + 18 + (tick / total) * (width - TAB_PAD - 30);
+  const yOf = (string: number): number => top + (string - 1) * TAB_GAP;
   const labels = [...resolved.tuning.notes].reverse().map((n) => noteText(n, naming));
-  const words = resolved.notes.map((n) => (n.rest ? 'rest' : `string ${n.string} fret ${n.fret}`)).join(', ');
+  const words = resolved.notes.map(tabNoteWords).join('; ');
   return (
     <figure className={styles.figure}>
       <ScrollHint>
       <div className={styles.tabScroll}>
         <svg className={styles.tab} viewBox={`0 0 ${width} ${height}`} style={{ width: Math.max(width * 1.25, 260) }} role="img" aria-label={`Tab: ${words}`}>
           {labels.map((l, i) => (
-            <text key={`l${i}`} x={6} y={12 + i * TAB_GAP + 4} className={styles.tabLabel}>
+            <text key={`l${i}`} x={6} y={top + i * TAB_GAP + 4} className={styles.tabLabel}>
               {l}
             </text>
           ))}
           {labels.map((_l, i) => (
-            <line key={`s${i}`} x1={TAB_PAD} x2={width - 4} y1={12 + i * TAB_GAP} y2={12 + i * TAB_GAP} className={styles.tabLine} />
+            <line key={`s${i}`} x1={TAB_PAD} x2={width - 4} y1={top + i * TAB_GAP} y2={top + i * TAB_GAP} className={styles.tabLine} />
           ))}
-          <line x1={TAB_PAD} x2={TAB_PAD} y1={12} y2={12 + (strings - 1) * TAB_GAP} className={styles.tabBar} />
+          <line x1={TAB_PAD} x2={TAB_PAD} y1={top} y2={top + (strings - 1) * TAB_GAP} className={styles.tabBar} />
           {resolved.notes.map((n, i) =>
             n.rest || n.string === null ? (
-              <text key={i} x={xOf(n.tick)} y={12 + ((strings - 1) / 2) * TAB_GAP + 4} className={styles.tabRest} textAnchor="middle">
+              <text key={i} x={xOf(n.tick)} y={top + ((strings - 1) / 2) * TAB_GAP + 4} className={styles.tabRest} textAnchor="middle">
                 rest
               </text>
             ) : (
               <g key={i}>
-                <rect x={xOf(n.tick) - 9} y={12 + (n.string - 1) * TAB_GAP - 9} width={18} height={18} rx={4} className={styles.tabKnock} />
-                <text x={xOf(n.tick)} y={12 + (n.string - 1) * TAB_GAP + 5} className={styles.tabFret} textAnchor="middle">
+                <TabNoteMarks marks={marks[i]} x={xOf(n.tick)} y={yOf(n.string)} fromX={marks[i]?.legato ? xOf(resolved.notes[marks[i]!.legato!.from].tick) : 0} />
+                <rect x={xOf(n.tick) - 9} y={yOf(n.string) - 9} width={18} height={18} rx={4} className={styles.tabKnock} />
+                <text x={xOf(n.tick)} y={yOf(n.string) + 5} className={styles.tabFret} textAnchor="middle">
                   {n.fret}
                 </text>
               </g>

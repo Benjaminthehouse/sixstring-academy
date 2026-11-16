@@ -408,11 +408,14 @@ describe('batch 13: st-barre-progression', () => {
   });
 
   it('estimates within two levels below the plan (6): the estimate sees an even strum of known chords', async () => {
-    // estimateDifficulty rates chords by symbol (C, Am and G count as their open shapes) and a
-    // strummed part as one arm motion, so a barre-chord strum study lands near level 4.
+    // Gap note (integration pass 2): the estimate used to rate chords by symbol (each as the
+    // engine's standard shape). It now scores the barre shapes written in the song, which raises
+    // the chord factor (0.43 to 0.51), but it still counts a strummed part as one arm motion, so a
+    // barre-chord strum study at one change a bar lands at about level 4.
     const est = estimate(await load('st-barre-progression'), 'Your strum');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(4);
     expect(est.level).toBeLessThanOrEqual(6);
+    expect(est.factors.chords, JSON.stringify(est)).toBeGreaterThan(0.45);
   });
 });
 

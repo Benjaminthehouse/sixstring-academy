@@ -1,7 +1,7 @@
 # `@/lessons` — the lesson engine
 
 The pure, UI-free heart of the Theory Path (`#learn`) and the teachers' courses (`#teachers`):
-the content format, rich text, figures as data, graders for 17 exercise types, 30 exercise
+the content format, rich text, figures as data, graders for 17 exercise types, 40 exercise
 generators, the session reducer (lesson, checkpoint, practice, review), course map state and
 `validateCourse`. Everything runs in Node; nothing here touches the DOM, Web Audio or the progress
 store directly (effects are handed to `applyEffects`). Import from the barrel only:
@@ -1107,6 +1107,11 @@ guitar engines, so drills never run out and are always right.
 - A generated step can stand anywhere an exercise can: in a lesson, a checkpoint, a play `alternative`, a fact's `ask`.
 - Distractors are plausible (the usual confusions first) and never accidentally right: no enharmonic twin of the
   answer, no duplicate option, and the grader accepts the generated answer (property-tested for every generator).
+- Only the names a lesson has taught: `spelling` (`'sharps'`, the default, or `'flats'`) on `note-on-string`,
+  `step-up` and `higher-lower` names every in-between note, right or wrong, one way. Key drills (`roman-chord`,
+  `diatonic-chord`, `degree-in-key`, `staff-key`) take an explicit `keys` list instead of `maxAccidentals`.
+- A generator refuses params it cannot make sound questions from (a 13th that does not fit the strings given,
+  a numeral `roman-chord` cannot explain), so `validateCourse` reports them before a learner meets them.
 
 <!-- gen:generators -->
 #### `interval-name`
@@ -1541,7 +1546,7 @@ A bar of tab is shown: name its notes, name one of them, or tap where one is pla
 | `length` | `number` | 4 | Notes in the bar, 3 to 8 (quarters up to four, eighths above). |
 | `naturals` | `boolean` | true | Only natural notes (and only natural wrong options). |
 
-Sample (`{ generate: 'tab-read' }`, seed 1): choice, "Which notes does this bar of tab play?" → B E B D
+Sample (`{ generate: 'tab-read' }`, seed 1): choice, "Which notes does this bar of tab play?" → B, E, B, D
 
 #### `tab-play` (microphone)
 
@@ -1566,10 +1571,24 @@ A short passage on the staff that stays in one key and one hand position: name i
 | `ask` | `'notes' \| 'tab'` | 'notes' | Which notes the passage plays; or which tab plays it in the position. |
 | `positions` | `number[]` | [1] | Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings. |
 | `keys` | `string[]` | C major, A minor, G major, E minor, F major, D major | Keys, easiest first. Minor keys use their natural minor notes. |
-| `bars` | `number` | 2 | Bars of 4/4, 1 or 2. |
-| `values` | `('half' \| 'quarter' \| 'eighth')[]` | ['quarter'] | Note values the rhythm may use. |
+| `bars` | `number` | 2 (1 for a tab question) | Bars of 4/4, 1 or 2. |
+| `values` | `('half' \| 'quarter' \| 'eighth')[]` | ['quarter'] | Note values the rhythm may use (quarter among them). |
 
-Sample (`{ generate: 'sight-reading' }`, seed 1): choice, "Which notes does this passage play?" → G G E C B D E G
+Sample (`{ generate: 'sight-reading' }`, seed 1): choice, "Which notes does this passage play?" → G, G, E, C, B, D, E, G
+
+#### `sight-play` (microphone)
+
+Play a short passage from the staff alone (no tab, no names) into the microphone, in one key and one hand position. Falls back to naming its notes. Produces `play-phrase`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `positions` | `number[]` | [1] | Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings. |
+| `keys` | `string[]` | C major, A minor, G major, E minor, F major, D major | Keys, easiest first. |
+| `bars` | `number` | 1 | Bars of 4/4, 1 or 2. |
+| `values` | `('half' \| 'quarter' \| 'eighth')[]` | ['quarter'] | Note values the rhythm may use (quarter among them). |
+| `tempo` | `number` | 60 | Beats per minute, 40 to 120. |
+
+Sample (`{ generate: 'sight-play' }`, seed 1): play-phrase, "Read it and play it in first position (frets 0 to 4). Take your time." → G E D G
 
 #### `staff-key`
 

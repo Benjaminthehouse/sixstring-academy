@@ -311,3 +311,42 @@ describe('statistics and difficulty', () => {
     expect(estimateDifficulty(shred, { tempoPercent: 40 }).level).toBeLessThan(hard.level);
   });
 });
+
+describe('chord labels: the symbol names what the shape sounds', () => {
+  const labels = (text: string) => validateSong(sixTab(text)).filter((i) => i.code === 'chord-voicing-label').map((i) => i.message);
+
+  it('reports a shape whose lowest note is not the root when the symbol names no bass', () => {
+    const [m] = labels(`${header}| "Dm=xx3235" w / |\n`);
+    expect(m).toMatch(/xx3235 at bar 1 sounds Dm\/F, not Dm: its lowest note is not the root/);
+    expect(labels(`${header}| "Dm/F=xx3235" w / |\n`)).toEqual([]);
+    expect(labels(`${header}| "Dm=xx0231" w / |\n`)).toEqual([]);
+  });
+
+  it('checks slash chords too: the bass named must be the lowest note', () => {
+    expect(labels(`${header}| "C/G=x32010" w / |\n`)[0]).toMatch(/sounds C, not C\/G/);
+    expect(labels(`${header}| "C/G=332010" w / |\n`)).toEqual([]);
+    expect(labels(`${header}| "G/B=x20003" w / |\n`)).toEqual([]);
+  });
+
+  it('reports a shape that is another chord (no third)', () => {
+    expect(labels(`${header}| "A=x022xx" w / |\n`)[0]).toMatch(/lacks the 3 of A/);
+  });
+
+  it('keeps the plain name for a triad with its fifth lowest, as charts write the one-finger G', () => {
+    expect(labels(`${header}| "G=xx0003" w / |\n`)).toEqual([]);
+    expect(labels(`${header}| "D=x00232" w / |\n`)).toEqual([]);
+    // A seventh chord with its fifth lowest is an inversion all the same.
+    expect(labels(`${header}| "G7=xx0001" w / |\n`)[0]).toMatch(/sounds G7\/D/);
+  });
+
+  it('keeps the plain name over a bass part that plays the root below the shape', () => {
+    const comp = `${header}track: Comp\nrole: rhythm\n| "Dm7=xx3535" w (4:3 3:5 2:3 1:5) |\ntrack: Bass\nrole: bass\ntuning: bass\n| w 2:0 |\n`;
+    expect(labels(comp)).toEqual([]);
+    const wrongBass = `${header}track: Comp\nrole: rhythm\n| "Dm7=xx3535" w (4:3 3:5 2:3 1:5) |\ntrack: Bass\nrole: bass\ntuning: bass\n| w 2:3 |\n`;
+    expect(labels(wrongBass)[0]).toMatch(/sounds Dm7\/F/);
+  });
+
+  it('judges a shape no hand can hold by its bass alone', () => {
+    expect(labels(`${header}| "C=x3x0x8" w / |\n`)).toEqual([]);
+  });
+});
