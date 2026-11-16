@@ -165,8 +165,8 @@ notes are listed in words. Pure helpers: `parseNotation`, `normaliseItems`, `spl
 `measureAccidentals`, `keySpec`, `vexKey`, `breakLines`, `stretchLine`; `loadVexFlow()` preloads.
 
 **Spelling a line from MIDI** (`spellLine(events, { spellings? })`, used by the tab's staff): each event
-is `{ midi[], key, chord?, tied? }`; a pitch in the key takes the key's name, a chord tone the chord's
-(D7 in C: F♯; B♭7: A♭); otherwise an explicit hint wins (`spellings: ['Bb']`), then the blues (a line
+is `{ midi[], key, chord?, tied? }`; an explicit hint wins over everything (`spellings: ['Bb']`); otherwise a pitch
+in the key takes the key's name, a chord tone the chord's (D7 in C: F♯; B♭7: A♭), then the blues (a line
 using the key's ♭3 and ♭7 and not its leading tone writes ♭3, ♭5 and ♭7 flat: E blues has B♭ even
 where it slides up to B), then, for a black key, the direction the line takes (G G♯ A rises, A A♭ G
 falls), then the key's chromatic scale. A held note keeps its name; white keys keep their natural name.
@@ -202,7 +202,11 @@ a tied note is a second head joined by an arc, accents and tuplet numbers sit in
 tuplets are grouped bar by bar by duration (a bracket unless one beam holds exactly their notes).
 The count runs underneath ("1 e & a", "1 & a" in compound time, "1 trip let" for triplets, numbers
 in odd eighths meters, and with eighths beside triplets "1 ta trip & let ta": an eighth's "&" stays
-"&") with played syllables bold; a beat cut in six shows only beats and played syllables. Bars wrap on phones.
+"&") with played syllables bold; a bar of more than 16 steps (eighths beside triplets in 4/4) shows only beats and played
+syllables, while a 6/8 bar of sixteenths keeps its "& a". Bars wrap on phones, and a bar narrows its steps to fit the
+box it is in (down to a floor where glyphs would collide; `stepWidth`, `rhythmStep`, `strumStep` in `rhythm/fit.ts`), so
+12- and 16-step bars and 16-slot strums fit a 360 px phone's lesson card (294 px) instead of scrolling sideways; on such
+narrow steps "trip" and "let" take a narrower face so they do not run together.
 `StrumPattern`: `pattern`, `time`, `grid?: 'eighth'|'sixteenth'|'triplet'` (default from the slot
 count), `current`, `counting`. Missed strokes are faint dashed arrows: the hand keeps moving.
 Pure: `parseRhythm`, `rhythmGrid`, `gridStep`, `countSyllables(time, step, { triplets? })`, `stepAt(grid, tick)`,
@@ -263,7 +267,8 @@ staff; ties `(5)` with an arc (a note held through several columns shows its fre
 the last held piece of each bar, tied from it; `thinHeldNotes`), hammer-on/pull-off slurs with H/P, legato slides, slides
 in/out, bends with arrow and `full`/`½`/`1½` (release, pre-bend), vibrato, P.M. and let ring spans written once per
 stretch (`holdSpans`: a let-ring note rings until its string is struck again, a rest or the bar's end; a P.M. stretch runs
-from one muted note to the next, across barlines, while no muted string is struck open), natural harmonics `<12>`, A.H., dead `x`, ghost
+from one muted note to the next, across barlines, over notes played away from the palm; an unmuted note on or beside a string
+muted by the last two P.M. notes ends it, so the open power chords between palm-muted gallops are not P.M.), natural harmonics `<12>`, A.H., dead `x`, ghost
 `(5)`, accents, staccato, tapping `T`, left-hand fingers (subscript), p i m a, pick/strum strokes ⊓ V, rhythm slashes
 (muted `x`); chord symbols (capo shapes by default) and optional `xs` chord boxes; lyrics with hyphens; annotations.
 

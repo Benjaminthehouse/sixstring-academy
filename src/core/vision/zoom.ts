@@ -6,7 +6,7 @@
  * screen, so a dot that fits between two strings is about 12 px across and its label is unreadable.
  * The picture cannot get wider, but most of it is not needed: the notes of a shape or a chord sit
  * in four or five frets. `neckCrop` picks the part of the frame (`CropRect`) that holds them, with
- * a fret of context either side, magnified just enough for readable dots (and never more than 3x);
+ * half a fret of context either side, magnified just enough for readable dots (and never more than 4x);
  * `CropFollower` moves that window smoothly and only when the neck really moved, so the picture
  * does not swim with every sway; `videoCropTransform` is the CSS transform that shows the same part
  * of a `<video>`. The overlay takes the crop in its `DisplayView` (`view.crop`), so every

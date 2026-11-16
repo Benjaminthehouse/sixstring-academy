@@ -461,12 +461,23 @@ async function address() {
     };
     const first = await sameShape();
     check('chord page links to the camera on F', /^#camera--chord--f-major(--\d+)?$/.test(first.hash) && first.content && first.content.symbol === 'F', JSON.stringify(first));
-    check('the camera draws the shape the page opened on', first.listed ? first.camera === first.shown : first.content && first.content.voicing === 0, JSON.stringify(first));
+    check('the camera draws the shape the page opened on', first.listed ? first.camera === first.shown : first.content && Number.isInteger(first.content.voicing), JSON.stringify(first));
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(300);
     const same = await sameShape();
-    check('two shapes on, the link follows the shape on screen', same.content && same.content.symbol === 'F' && same.hash !== first.hash && (same.listed ? same.camera === same.shown : same.content.voicing === 0), JSON.stringify(same));
+    check('two shapes on, the link follows the shape on screen', same.content && same.content.symbol === 'F' && same.hash !== first.hash && (same.listed ? same.camera === same.shown : Number.isInteger(same.content.voicing)), JSON.stringify(same));
+    // A new shape number in the address moves the open page to that shape (it used to stay put
+    // when only `--n` changed, e.g. Back and Forward between two lesson links to the same chord).
+    const shownAt = () => page.evaluate(() => document.querySelector('[data-chord-page] [data-voicing]')?.getAttribute('data-voicing') ?? '');
+    await page.evaluate(() => { location.hash = '#chords--f-major--1'; });
+    await page.waitForTimeout(500);
+    const one = await shownAt();
+    await page.evaluate(() => { location.hash = '#chords--f-major--4'; });
+    await page.waitForTimeout(500);
+    const four = await shownAt();
+    const fourth = await page.evaluate(async () => (await import('/src/features/chords/model/voicings.ts')).voicingSet('F', 'standard').all[3]?.id ?? '');
+    check('the address --4 moves the open page to the fourth shape', four === fourth && four !== one, JSON.stringify({ one, four, fourth }));
     await page.click('[data-see-on-guitar]');
     await page.waitForSelector('main[data-route="camera"]', { timeout: 30000 });
     await page.waitForSelector('[data-content]', { timeout: 30000 });

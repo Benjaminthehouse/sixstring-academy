@@ -10,7 +10,8 @@
  */
 import { memo, useMemo, type CSSProperties } from 'react';
 import { parseTimeSignature } from '@/core/theory';
-import { cx } from '@/ui';
+import { cx, useElementSize } from '@/ui';
+import { stepWidth, strumStep } from './fit';
 import { StrokeGlyph } from './glyphs';
 import { parseStrum, strumSlotsPerBeat, strumSyllables, type StrumGridKind, type StrumStep } from './model';
 import styles from './Rhythm.module.css';
@@ -49,9 +50,12 @@ export const StrumPattern = memo(function StrumPattern({ pattern, time = '4/4', 
   const label =
     rest['aria-label'] ??
     `Strumming pattern: ${parsed.steps.map((s, i) => (s.kind === 'ghost' ? `${syllables[i]} miss` : `${syllables[i]} ${KIND_WORDS[s.kind]}${s.dir}`)).join(', ')}.`;
-  const minStep = barLength <= 8 ? '2.4rem' : barLength <= 12 ? '1.9rem' : '1.45rem';
+  // Slots as wide as is comfortable, narrower where a bar would not fit the box (sixteen to a bar on a phone).
+  const [boxRef, { width }] = useElementSize<HTMLDivElement>();
+  const { base, floor } = strumStep(barLength);
+  const minStep = stepWidth(barLength, width, base, floor);
   return (
-    <div className={cx(styles.root, className)} role="group" aria-label={label}>
+    <div ref={boxRef} className={cx(styles.root, className)} role="group" aria-label={label}>
       <div className={styles.bars} aria-hidden="true">
         {bars.map((slots, b) => (
           <div key={b} className={cx(styles.bar, styles.strumBar)} style={{ '--steps': barLength, '--min-step': minStep } as CSSProperties}>

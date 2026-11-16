@@ -7,6 +7,7 @@
  *     a target pulses with an HTML ring (transform/opacity only), never an SVG animation
  *   - rhythm: eighths are beamed (no flags), a tie is a second note head with an arc, the counting
  *     keeps an eighth's "&" beside triplets, and both bars of a swing figure are bracketed alike
+ *   - rhythm and strumming bars fit a phone (steps narrow to a floor instead of scrolling sideways)
  *   - circle of fifths: "1 sharp", never "1 sharps"
  *   - tab: one "let ring" / "P.M." per stretch, held notes shown once per bar
  *   - no console errors, no horizontal page scroll at 360 and 390 px
@@ -93,7 +94,16 @@ async function fretboardChecks(page, label, { phone, theme }) {
   await page.locator(demo('C major across the neck')).getByRole('radio', { name: '0–12' }).click();
 }
 
-async function rhythmChecks(page, label) {
+async function rhythmChecks(page, label, { phone } = {}) {
+  if (phone) {
+    // Every rhythm and strumming bar fits the phone: steps narrow (down to a floor) rather than scroll sideways.
+    const wide = await page.evaluate(() =>
+      [...document.querySelectorAll('[role="group"][aria-label^="Rhythm"], [role="group"][aria-label^="Strumming"]')]
+        .filter((g) => g.scrollWidth - g.clientWidth > 1)
+        .map((g) => `${g.closest('[data-demo]')?.getAttribute('data-demo')}: ${g.scrollWidth - g.clientWidth} px`),
+    );
+    check(wide.length === 0, `${label}: every rhythm and strumming bar fits without sideways scrolling${wide.length ? ` (${wide.join('; ')})` : ''}`);
+  }
   const r = await page.evaluate(() => {
     const q = (t) => document.querySelector(`[data-demo="${t}"]`);
     const eighths = q('Quarters and eighths');
@@ -145,13 +155,37 @@ async function run({ phone, width, theme }) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     check(overflow <= 1, `${label}: no horizontal page scroll (${overflow} px)`);
     await fretboardChecks(page, label, { phone, theme });
-    await rhythmChecks(page, label);
+    await rhythmChecks(page, label, { phone });
     await circleAndTabChecks(page, label);
     check(errors.length === 0, `${label}: no console errors${errors.length ? `:\n    ${errors.join('\n    ')}` : ''}`);
   });
 }
 
+/** A lesson card on a 360 px phone is narrower than the kit's demos: its rhythm figures fit too, with legible counts. */
+async function lessonFigureChecks() {
+  await withApp({ mobile: true, viewport: { width: 360, height: 800 }, theme: 'dark' }, async ({ page, goto, errors }) => {
+    await goto('learn', 'triplets-swing-syncopation', 'swing');
+    await page.waitForSelector('[role="group"][aria-label^="Rhythm"]', { timeout: 30000 });
+    await page.waitForTimeout(800);
+    const r = await page.evaluate(() => {
+      const g = document.querySelector('[role="group"][aria-label^="Rhythm"]');
+      // The ink of each count label (not its grid cell), left to right.
+      const boxes = [...g.querySelectorAll('[class*="count"]')]
+        .filter((c) => c.textContent)
+        .map((c) => { const range = document.createRange(); range.selectNodeContents(c); const b = range.getBoundingClientRect(); return { t: c.textContent, l: b.left, r: b.right }; })
+        .sort((a, b) => a.l - b.l);
+      const touching = [];
+      for (let i = 1; i < boxes.length; i++) if (boxes[i].l - boxes[i - 1].r < 1) touching.push(`${boxes[i - 1].t}|${boxes[i].t}`);
+      return { scroll: g.scrollWidth - g.clientWidth, width: g.clientWidth, touching };
+    });
+    check(r.scroll <= 1, `lesson at 360 px: the swing figure fits its ${r.width} px card (${r.scroll} px sideways)`);
+    check(r.touching.length === 0, `lesson at 360 px: no two counts run together ("trip let", not "triplet")${r.touching.length ? `: ${r.touching.join(', ')}` : ''}`);
+    check(errors.length === 0, `lesson at 360 px: no console errors${errors.length ? `:\n    ${errors.join('\n    ')}` : ''}`);
+  });
+}
+
 (async () => {
+  await lessonFigureChecks();
   await run({ phone: false, theme: 'dark' });
   await run({ phone: false, theme: 'light' });
   await run({ phone: true, width: 390, theme: 'light' });

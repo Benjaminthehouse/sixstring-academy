@@ -13,15 +13,18 @@ The screen is `src/features/progressions/index.tsx`; its model (`model/`) is pur
 
 ### The jam, set up
 
-Options follow `jam`, in any order (`model/address.ts`); one the screen does not know is ignored.
-Tempo, style and times through are set as if chosen by hand, so they are remembered (the tempo
-and style per progression, the times through for every jam); the hidden chart is for this visit.
+Options follow `jam`, in any order, before or after the key (`model/address.ts`); one the screen
+does not know is ignored, and the key is the first param that names one. Tempo and style are set
+as if chosen by hand, so they are remembered for that progression. Times through and the hidden
+chart are for this visit only: a lesson's `x2` never stops the band after two passes in a jam
+the learner opens later (setting Loop or Times through by hand in the band sheet is remembered,
+as always).
 
 | param | means |
 |---|---|
 | `t<bpm>` | tempo, kept inside what the style can play (`t96`) |
-| `<style id>` | band style: `pop-rock` `ballad` `ballad-68` `blues-shuffle` `slow-blues` `funk` `reggae` `bossa` `jazz-swing` `country` `folk` `metal` `latin` `waltz` (`BACKING_STYLE_IDS`) |
-| `x<n>` | play n times through (1–16), then an ending, instead of looping (`x2`) |
+| `<style id>` | band style: any of `BACKING_STYLE_IDS` (`pop-rock` `ballad` `ballad-68` `blues-shuffle` `slow-blues` `funk` `reggae` `bossa` `jazz-swing` `country` `folk` `metal` `latin` `waltz` `rumba` `gospel` `ska` `classical` `tango`) |
+| `x<n>` | play n times through (1–16), then an ending, instead of looping (`x2`); this visit |
 | `hide-chart` | chord names hidden (big chord, next chord, chart, title; the neck shows the key's notes only) until the learner taps "Show the chords": for working the chords out by ear. The band sheet has the same switch. |
 
 ```text

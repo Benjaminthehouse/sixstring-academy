@@ -68,6 +68,20 @@ describe('fretboard drill address', () => {
     expect(drillPlan(drillById('find-the-note')!, defaultSettings(6), { pc: 0, ctx: CTX }).length).toBe(12);
     expect(drillPlan(drillById('play-the-note')!, defaultSettings(6), { pc: 0, ctx: CTX }).length).toBe(10);
 
+    // A note with no place on the learner's strings and frets (string 1, frets 0–3 has no C) would
+    // leave the round with nothing to ask: the strings stay, the frets open to 0–12.
+    const narrow = { ...defaultSettings(6), strings: [1], frets: [0, 3] as [number, number] };
+    for (const id of ['find-the-note', 'find-every-note', 'play-the-note'] as const) {
+      const wide = drillPlan(drillById(id)!, narrow, { pc: 0, ctx: CTX });
+      expect(wide.widenedFrets, id).toBe(true);
+      expect(wide.scope.strings, id).toEqual([1]);
+      expect(wide.scope.frets, id).toEqual([0, 12]);
+      expect(candidatesFor(wide.asks[0].kind, wide.scope, CTX).length, id).toBeGreaterThan(0);
+    }
+    // F on string 1 is fret 1: inside the learner's frets, nothing changes.
+    expect(drillPlan(drillById('find-the-note')!, narrow, { pc: 5, ctx: CTX })).toMatchObject({ scope: { frets: [0, 3] } });
+    expect(drillPlan(drillById('find-the-note')!, narrow, { pc: 5, ctx: CTX }).widenedFrets).toBeUndefined();
+
     // The name drills ignore it.
     const name = drillPlan(drillById('name-the-note')!, defaultSettings(6), { pc: 0 });
     expect(name.scope.pcs).toBeUndefined();

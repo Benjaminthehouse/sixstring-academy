@@ -1,9 +1,9 @@
 /**
- * Spelling a line of sounding pitches for the staff. A pitch in the key takes the key's name; a
- * chord tone of the chord in force takes the chord's name (D7 in C gives F♯, B♭7 gives A♭); the
- * rest are spelled by what the line does with them:
+ * Spelling a line of sounding pitches for the staff. An explicit hint wins over everything
+ * (`spellings: ['Bb']`: every pitch class 10 is B♭, as the lesson text writes it). Otherwise a pitch
+ * in the key takes the key's name; a chord tone of the chord in force takes the chord's name (D7 in
+ * C gives F♯, B♭7 gives A♭); the rest are spelled by what the line does with them:
  *
- *   - an explicit hint wins (`spellings: ['Bb']`: every pitch class 10 is B♭);
  *   - the blues: in a line that uses the key's minor third and minor seventh but not its leading
  *     tone, the minor third, the flat five and the minor seventh are written flat (E blues has B♭,
  *     not A♯, even when it slides up to B);

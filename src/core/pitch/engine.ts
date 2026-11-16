@@ -64,6 +64,13 @@ const GAP_CUT_RATIO = 0.25;
  */
 const GAP_GUARD_S = 0.03;
 const GAP_LOUDER = 2.5;
+/**
+ * An onset that only the high-band flux heard (see `OnsetOptions.fluxThreshold`) is dropped when
+ * the input clipped this recently (seconds): the spectrum of a clipped note changes as it decays
+ * and looks like a new stroke. It is dropped as well near any run of exact zeros the length of a
+ * dropped buffer, even one the gap rule above does not recognise: the sound restarting is a click.
+ */
+const FLUX_CLIP_GUARD_S = 0.06;
 
 /** The streaming analysis engine. Feed it consecutive chunks of mono audio of any size. */
 export class PitchEngine {
@@ -107,6 +114,10 @@ export class PitchEngine {
   private gapStart = -1;
   private gapEnd = -1;
   private gapLevel = 0;
+  // Any zero run of a dropped buffer's length (what the flux guard checks), and the last clipped sample.
+  private dropStart = -1;
+  private dropEnd = -1;
+  private lastClip = -1e9;
 
   constructor(opts: PitchEngineOptions) {
     if (!(opts.sampleRate > 0)) throw new Error('PitchEngine needs a sample rate');
@@ -161,6 +172,9 @@ export class PitchEngine {
     this.zeroRun = 0;
     this.gapStart = -1;
     this.gapEnd = -1;
+    this.dropStart = -1;
+    this.dropEnd = -1;
+    this.lastClip = -1e9;
     this.hpS1 = 0;
     this.hpS2 = 0;
     this.onsets.reset(origin);
@@ -271,12 +285,19 @@ export class PitchEngine {
             this.gapStart = this.gapEnd - zeroRun;
             this.gapLevel = this.cutSlow;
           }
+          if (zeroRun >= gapMin && zeroRun <= gapMax) {
+            this.dropEnd = this.samples + j;
+            this.dropStart = this.dropEnd - zeroRun;
+          }
           zeroRun = 0;
         }
         envFast += kFast * (ax - envFast);
         envSlow += kSlow * (ax - envSlow);
         if (ax > this.peak) this.peak = ax;
-        if (ax >= CLIP_LEVEL) this.clipCount++;
+        if (ax >= CLIP_LEVEL) {
+          this.clipCount++;
+          this.lastClip = this.samples + j;
+        }
         const y = b0 * x + s1;
         s1 = b1 * x - a1 * y + s2;
         s2 = b2 * x - a2 * y;
@@ -295,6 +316,11 @@ export class PitchEngine {
           const at = (o.time - this.origin) * this.sampleRate;
           const inGap = at >= this.gapStart - 0.005 * this.sampleRate && at <= this.gapEnd + GAP_GUARD_S * this.sampleRate;
           if (inGap && envFast < GAP_LOUDER * this.gapLevel) continue;
+        }
+        if (o.fluxOnly) {
+          const at = (o.time - this.origin) * this.sampleRate;
+          const nearDrop = this.dropEnd >= 0 && at >= this.dropStart - 0.005 * this.sampleRate && at <= this.dropEnd + GAP_GUARD_S * this.sampleRate;
+          if (nearDrop || this.samples - this.lastClip <= FLUX_CLIP_GUARD_S * this.sampleRate) continue;
         }
         out.push({ type: 'onset', time: o.time, strength: o.strength, levelDb: o.levelDb });
         this.pendingOnset = o.time;

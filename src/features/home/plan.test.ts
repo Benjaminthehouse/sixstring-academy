@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACTIVITY_KINDS, addDays, createInitialState, type ActivityKind, type RecentItem } from '@/core/progress';
+import { ACTIVITY_KINDS, addDays, createInitialState, dayNumber, type ActivityKind, type RecentItem } from '@/core/progress';
 import type { PlanBlock } from '@/features/practice/model/planner';
 import { suggestPracticePlan } from '@/features/practice/model/signals';
 import { ROUTE_BY_NAME } from '@/app/routes';
@@ -30,6 +30,21 @@ describe('planLength', () => {
 });
 
 describe('the plan matches the daily goal', () => {
+  it('marks the drill and music steps the planner picks (Today holds their place until the practice library is in)', () => {
+    for (const dailyGoalXp of GOALS) {
+      for (const today of days.slice(0, 4)) {
+        const day = slotsFor(dailyGoalXp, dayNumber(today));
+        const plan = buildPlan({ ...base, dailyGoalXp, today });
+        // Every drill (slot 3) or music (slot 4) step is flexible, and nothing else is.
+        expect(plan.filter((s) => s.flexible).length, `${dailyGoalXp} ${today}`).toBe(day.filter((slot) => slot >= 3).length);
+        expect(plan.filter((s) => s.flexible).every((s) => s.id !== 'tune' && s.id !== 'theory' && s.id !== 'teacher' && s.id !== 'review')).toBe(true);
+      }
+    }
+    // With the planner's blocks too, and with due cards in front.
+    const withBlocks = buildPlan({ ...base, dailyGoalXp: 50, dueReviews: 3, practice: suggestPracticePlan(createInitialState({ now: Date.parse('2026-03-02T10:00:00Z'), timeZone: 'UTC', deviceId: 't' }), Date.parse('2026-03-02T10:00:00Z'), 25) });
+    expect(withBlocks.map((s) => !!s.flexible)).toEqual([false, false, false, false, true]);
+  });
+
   it('adds up to about the minutes the goal says and earns at least its XP, every level and day', () => {
     expect(GOALS.map(goalMinutes)).toEqual(DAILY_GOALS.map((g) => g.minutes));
     for (const experience of LEVELS) {

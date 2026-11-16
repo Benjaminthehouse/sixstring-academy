@@ -162,6 +162,9 @@ async function desktop(theme) {
       const cameraOpen = await page.waitForFunction(() => location.hash === '#camera--scale--c--major--3nps-4' && !!document.querySelector('[data-camera-stage]'), null, { timeout: 30000 }).then(() => true).catch(() => false);
       const cameraTitle = cameraOpen ? await page.locator('[data-ui-page][data-mode]').getAttribute('data-content') : null;
       check('and the Live Fretboard opens on it (no camera started)', cameraOpen && cameraTitle === 'scale', `${await page.evaluate(() => location.hash)} ${cameraTitle}`);
+      // Review: it used to show the C shape (only the scale's usual system was built there).
+      const cameraShape = cameraOpen ? await page.waitForFunction(() => /3NPS pattern 4/.test(document.body.innerText), null, { timeout: 10000 }).then(() => true).catch(() => false) : false;
+      check('and it shows that very shape (3NPS pattern 4), not the first CAGED shape', cameraShape, await page.evaluate(() => (document.body.innerText.match(/(3NPS pattern \d|[CAGED] shape)[^\n]*/) || [''])[0]));
 
       await open(page, goto, 'h--nonsense');
       s = await waitState(page, (x) => x.hash.startsWith('#scales--c--major'));

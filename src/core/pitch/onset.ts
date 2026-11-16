@@ -47,7 +47,7 @@ const FLUX_EVERY = 2;
  * is better) before it is reported on its own.
  */
 const FLUX_WAIT = 3;
-/** Share of the earlier level the blocks after a flux trigger must keep (-1.5 dB). */
+/** Share of the earlier energy the blocks after a flux trigger must keep (-5 dB). */
 const FLUX_KEEP = 0.3;
 /** Where in a flux frame the attack sits when the frame first shows it, as a fraction of the frame from its end. */
 const FLUX_LAG = 0.42;
@@ -346,7 +346,7 @@ export class OnsetDetector {
 
   private emit(p: Pending, out: OnsetEvent[]): void {
     if (p.fluxTime !== undefined) {
-      out.push({ time: p.fluxTime, strength: p.strength, levelDb: 10 * Math.log10(Math.max(this.wFull[this.blockIndex % HISTORY], 1e-12)) });
+      out.push({ time: p.fluxTime, strength: p.strength, levelDb: 10 * Math.log10(Math.max(this.wFull[this.blockIndex % HISTORY], 1e-12)), fluxOnly: true });
       return;
     }
     const e = p.treble ? this.eTreble : this.eFull;

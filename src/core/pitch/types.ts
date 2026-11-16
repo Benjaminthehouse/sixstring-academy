@@ -65,6 +65,8 @@ export interface OnsetEvent {
   strength: number;
   /** RMS level just after the attack, in dBFS. */
   levelDb: number;
+  /** Set when only the high-band spectral flux heard it (a light stroke over ringing strings). */
+  fluxOnly?: boolean;
 }
 
 /** Input level meter reading; sent about 30 times a second whether or not anything is playing. */

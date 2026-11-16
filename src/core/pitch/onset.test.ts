@@ -5,7 +5,8 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { renderSequence, strumPlan, type SequenceNote } from '@/core/audio';
 import { midiToFreq } from '@/core/math/pitch-math';
-import { LEAD_S, midiAt, renderNote, singleNoteScene } from './adversarial-kit';
+import { dropouts, hardClip, LEAD_S, mapScene, midiAt, renderNote, singleNoteScene } from './adversarial-kit';
+import { analyze } from './engine';
 import { detectOnsets, OnsetDetector } from './onset';
 import { addHum, addNoise, harmonicTone, mix, pluckedString, seededRandom, silence, strum, whiteNoise } from './signals';
 import type { OnsetEvent } from './types';
@@ -196,6 +197,27 @@ describe('quick upstrokes over a ringing chord', () => {
         }
       }
     }
+  }, 60_000);
+
+  it('the engine passes them on, but not a clipped note decaying or sound coming back after a dropped buffer', () => {
+    const sr = 48000;
+    const onsetsOf = (x: Float32Array, opts = {}) => analyze(x, sr, opts).flatMap((e) => (e.type === 'onset' ? [e.time] : []));
+    const { x, ups } = sixteenthStrumming(90, sr);
+    const heard = onsetsOf(x);
+    expect(ups.filter((t) => heard.some((o) => Math.abs(o - t) < 0.03)).length).toBe(ups.length);
+
+    // The low E struck 12 dB into clipping: as it decays the flat tops shorten, and the high band
+    // changes as if the string were struck again (only the flux hears that).
+    const low = singleNoteScene(renderNote({ string: 6, fret: 0, tone: 'steel', velocity: 0.35, cents: -19, sampleRate: sr }, 0.9), sr, 40, 0, 0.7);
+    const clipped = mapScene(low, (y) => hardClip(y, 12)).samples;
+    expect(detectOnsets(clipped, sr).filter((t) => t.time > LEAD_S + 0.03).length, 'the bare detector').toBeGreaterThan(0);
+    expect(onsetsOf(clipped).filter((t) => t > LEAD_S + 0.03)).toEqual([]);
+
+    // C3 with three 10 ms dropped buffers; the cut of the first falls where the wave is quiet, so the
+    // gap rule does not recognise it, and the restart is a click across the high band.
+    const c3 = singleNoteScene(renderNote({ string: 6, fret: 8, tone: 'steel', velocity: 0.95, cents: 3, sampleRate: sr }, 0.9), sr, 48, 0, 0.7);
+    const dropped = mapScene(c3, (y) => dropouts(y, sr, { count: 3, ms: 10, from: LEAD_S + 0.15, to: LEAD_S + 0.6, seed: 1008 })).samples;
+    expect(onsetsOf(dropped).filter((t) => t > LEAD_S + 0.03)).toEqual([]);
   }, 60_000);
 });
 

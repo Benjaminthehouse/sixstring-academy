@@ -374,6 +374,17 @@ async function address(browser, url) {
     await page.keyboard.press('Enter');
     await page.waitForSelector('[data-passed]', { timeout: 10000 });
     check('address', 'find every F♯: one question, then the summary', (await page.evaluate(() => window.__fb.results.length)) === 1);
+
+    // A note with no place on the stored strings and frets (an earlier lesson stored string 1,
+    // frets 0–3: no C there) must not leave Start doing nothing: the round opens frets 0–12.
+    await s.goto('fretboard--drill--find-the-note--string-1--frets-0-3');
+    await s.goto('fretboard--drill--find-the-note--note-c');
+    const why = (await page.locator('main').innerText()) || '';
+    check('address', 'C not on frets 0–3 of string 1: the intro says the round looks up to fret 12', /C is not on frets 0 to 3 of those strings, so this round looks from fret 0 to fret 12/.test(why), why.slice(0, 500));
+    await page.locator('[data-fb-start]').click();
+    const qc = await waitQuestion(page, 0);
+    check('address', 'C not on the stored frets: Start still asks for C, on string 1', qc.kind === 'find' && qc.pc === 0 && qc.string === 1, JSON.stringify({ kind: qc.kind, pc: qc.pc, string: qc.string }));
+    await page.keyboard.press('Escape');
     const errs = s.takeErrors();
     check('address', 'no console errors', errs.length === 0, errs.join(' | '));
   } finally {

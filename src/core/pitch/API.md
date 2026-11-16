@@ -84,7 +84,7 @@ source you feed yourself — tests replay `analyze()` output through it.
   for full accuracy on low notes, `detector.historyNeeded` samples. `clarity` below ~0.7 is not a note.
 - `detectOnsets(samples, sampleRate, opts?) → OnsetEvent[]` / `class OnsetDetector`. Two energy envelopes (whole
   signal, treble) plus spectral flux between 1 and 8 kHz, which hears a light upstroke while the
-  downstroke still rings (the envelopes barely move).
+  downstroke still rings (the envelopes barely move); such an onset carries `fluxOnly: true`.
 - `computeChroma(samples, sampleRate, {a4?, windowMs?, minMidi?, maxMidi?}) → ChromaFrame {chroma, notes, minMidi, bass, bassMidi, levelDb}` / `class ChromaExtractor`.
 - `class NoteTracker`, `class NoiseGate`, `toDb`, `fromDb`, `isMainsPitch`, `FFT`, `fftPlan`, `hannWindow`, `magnitudeSpectrum`, `nextPow2`.
 
@@ -205,8 +205,8 @@ while it is at least 6 dB louder than that sound (a single-note tracker follows 
 |---|---|---|---|---|---|---|
 | clean, 44.1 or 48 kHz | 100 % | 0 | 0.00 | 0.08 | 0.55 | 0 % |
 | small mic: 4th-order high-pass at 120 / 200 / 300 Hz | 100 % | 0 | 0.00 | 0.08 | 0.63 | 0 % |
-| white noise at 30 / 20 / 10 dB SNR | 100 % | 0 | 0.03 / 0.06 / 0.13 | 0.14 / 0.27 / 0.70 | 0.8 / 2.9 / 9.2 | 0 / 0 / 0.01 % |
-| pink noise at 30 / 20 / 10 dB SNR | 100 % | 0 | 0.05 / 0.09 / 0.24 | 0.23 / 0.59 / 2.0 | 2.0 / 6.7 / 29 | 0 % |
+| white noise at 30 / 20 / 10 dB SNR | 100 % | 0 | 0.03 / 0.06 / 0.13 | 0.14 / 0.27 / 0.70 | 0.8 / 2.9 / 3.0 | 0 % |
+| pink noise at 30 / 20 / 10 dB SNR | 100 % | 0 | 0.05 / 0.09 / 0.23 | 0.23 / 0.59 / 1.6 | 2.0 / 4.7 / 6.3 | 0 % |
 | hum 50 Hz + harmonics, 20 / 10 dB below (126 / 82 notes) | 100 % | 0 | 0.03 / 0.09 | 0.34 / 0.89 | 3.3 / 8.4 | 0 % |
 | hum 60 Hz + harmonics, 20 / 10 dB below (126 / 80 notes) | 100 % | 0 | 0.05 / 0.09 | 0.61 / 1.4 | 4.2 / 6.6 | 0 % |
 | one other string ringing 12 dB below | 100 % | 0 | 0.08 | 0.95 | 10.2 | 0 % |
@@ -221,9 +221,12 @@ while it is at least 6 dB louder than that sound (a single-note tracker follows 
 | very quiet input, 40 dB down (plucks at −55 to −72 dBFS) | 73.8 % | 0 | 0.02 | 0.11 | 0.55 | 0 % |
 | dropped buffers: three 10 ms / two 25 ms gaps per note | 100 % | 0 | 0.01 | 0.13 / 0.26 | 3.0 / 3.1 | 0 % |
 | laptop: HP 200 + reflections + pink 20 dB + a string ringing | 99.2 % | 1 (octave) | 0.14 | 0.77 | 14 | 0.8 % |
-| phone: HP 300 + white 20 dB + clipping | 100 % | 0 | 0.06 | 0.34 | 3.8 | 0 % |
+| phone: HP 300 + white 20 dB + clipping | 100 % | 0 | 0.06 | 0.34 | 3.3 | 0 % |
 
-Dropped buffers also caused 2 and 4 false re-plucks (of 378 and 252 gaps). Readings cover 99–100 %
+Dropped buffers also caused 1 and 4 false re-plucks (of 378 and 252 gaps). The largest errors at
+10 dB noise come from the end of a note fading into it: a reading less clear than 0.7 may confirm
+the pitch but not move it (`unsureCents`), which took the worst pink-noise reading from 29 to 6
+cents and the worst white-noise one from 9 to 3 with no change to the median. Readings cover 99–100 %
 of a clean note, 89 % at 10 dB pink noise, 92 % of a quiet one (it falls below the gate sooner).
 
 | technique | result |
@@ -259,9 +262,9 @@ Open strings plucked twice 1.1 s apart, at 0, ±2, ±6 and +25 cents (36 plucks 
 | clean | 0.00 / 0.05 / 0.11 | 108 of 108, after 560 ms | never | 0 |
 | laptop (HP 200, reflections, pink 25 dB) | 0.03 / 0.19 / 2.0 | 108 of 108, after 560 ms | never | 0 |
 | phone (HP 300, white 20 dB, clipping) | 0.03 / 0.17 / 0.8 | 108 of 108, after 560 ms | never | 0 |
-| noisy room (pink noise 12 dB below the pluck) | 0.11 / 0.91 / 8.3 | 102 of 108 | never | 3 |
+| noisy room (pink noise 12 dB below the pluck) | 0.11 / 0.5–0.8 / 4.5 | 102 of 108 | never | 0 |
 | hum 50 Hz, 15 dB below the pluck | 0.13 / 0.76 / 1.8 | 93 of 108 | never | 0 |
-| hum 60 Hz, 15 dB below the pluck | 0.07 / 0.46 / 9.8 | 77 of 108 | never | 0 |
+| hum 60 Hz, 15 dB below the pluck | 0.07 / 0.3–0.45 / 4.9 | 77 of 108 | never | 0 |
 
 (Under a hum the trebles fade into it before the half second of holding is over: pluck again.)
 Re-plucking a ringing string: needle within 2 cents after 40 ms (median), 110 ms (p95). Turning the peg
@@ -272,12 +275,14 @@ Knocks, squeaks, thumps and scrapes after tuning: no false "in tune", no tick lo
 ### In a browser (`e2e/pitch-live.cjs`, Chromium, fake microphone at 44.1 kHz from a 48 kHz file)
 
 A 22 s session through a laptop-microphone model: six open strings left ringing while the next is
-tuned (readings median within 0.12 cents of the truth, 98–100 % within 3 cents; needle within 2.3;
+tuned (readings median within 0.12 cents of the truth, 98–100 % within 3 cents, and the readings
+the detector was unsure of, clarity under 0.7, barely worse: median −0.6, worst 4.2; needle within 2.3;
 E2 +1.5, D3 0 and B3 −2 confirmed in tune after 560 ms, A2 −6, G3 +8, E4 +12 never), a scale at four
 notes a second (eight note-ons in order, on time to 1 ms, reported after 47 ms) and two strummed
 chords (`waitForChord` on the first strum, each ranked first of ten candidates), then the lifecycle
-checks listed under `PitchTracker`. 48 checks; passed five times in a row on a heavily loaded
-machine. The last string of the tuning section is followed for 1.2 to 1.9 s depending on where the
+checks listed under `PitchTracker`. 49 checks. The 48 older ones passed five times in a row on a
+heavily loaded machine; on a badly overloaded one the chord checks can fail when the capture falls
+behind (seen once while this was written, the session clock 0.9 s off). The last string of the tuning section is followed for 1.2 to 1.9 s depending on where the
 frames fall (the five strings ringing under it raise the noise floor by 3 dB when there is a gap).
 
 - **Speed**: 0.15–0.55 ms per frame (1.3 ms worst case: bass range on pure noise); the whole engine at
@@ -285,9 +290,14 @@ frames fall (the five strings ringing under it raise the noise floor by 3 dB whe
 - **Response** (analysis only): note-on 40 ms after the pluck (50–60 ms for the low E); tuner needle
   within 1 cent by 60 ms on a steady string, and within 2 cents by 140–170 ms (1 cent by 170–230 ms)
   when the string itself starts 12 cents sharp from a hard pluck.
-- **Onsets**: median error 0.5–1.7 ms, worst 7 ms; none missed from silence or with a pick over a
-  ringing string; a soft thumb stroke over an equally loud ringing string is missed about 1 time in 8.
-  Nothing is reported in the first 40 ms of a stream.
+- **Onsets**: median error 0–1.5 ms, worst 5 ms; none missed from silence, nor with a pick or a soft
+  thumb over a ringing string (the thumb used to be missed 1 time in 8). A light upstroke a sixteenth
+  after a downstroke that is still ringing (audio-engine guitar, 70–110 BPM) is heard every time:
+  192 of 192 within 4.5 ms, where the energy envelopes alone hear none of them; so are all 592
+  strokes of the rhythm library's strum patterns, with nothing extra (`features/rhythm`). Such a
+  stroke, heard only by the high-band flux, is reported about 12 ms later than an envelope onset.
+  Flux-only onsets are not passed on by `PitchEngine` while the input clips or around a dropped
+  buffer. Nothing is reported in the first 40 ms of a stream.
 - **Chords**: 20 open and barre chords, each scored against all 20, clean / small mic + noise / soft
   up-strum: 480 of 480 named correctly; C–Am, G–Em, D–Dsus4, E–Em and four similar pairs separated by
   more than 0.15 in score both ways. The six four-note shapes of that set (3 strum styles × 4 takes)
@@ -333,8 +343,12 @@ frames fall (the five strings ringing under it raise the noise floor by 3 dB whe
   lies below the default pitch range: it never becomes a note and is gated like noise, but
   `level.hum` stays false for it. Two strings beating slowly can register as an onset.
 - **Noise.** White noise down to 10 dB SNR costs under a cent. Low rumble (pink noise) at 10 dB SNR
-  leaves the note names right but single readings can be 30 cents out as the note fades into it;
-  readings carry `clarity`, and below about 0.7 one in ten is more than 10 cents off.
+  leaves the note names right; as the note fades into it the raw readings (`rawFreq`, with
+  `clarity` below about 0.7) are one in ten more than 10 cents off, but they only move `freq` when
+  they agree with it, so single readings stay within about 6 cents.
+- **Onsets from handling noise.** A pick scraped along a wound string is a train of clicks that
+  swells for a few hundred ms: it is reported as an onset, and the long loud ones as two (about one
+  scrape in five at a loud level; before the high-band flux it was about one per scrape).
 - **Quiet inputs.** The gate never goes below −68 dBFS. With the loudest pluck at −45 dBFS everything
   works; at −55 dBFS the soft notes are no longer heard. `level.db` and `gateDb` say so.
 - **Dropped audio.** A buffer of exact zeros cutting into a note (an overloaded device) is recognised

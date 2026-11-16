@@ -24,8 +24,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-3) 0;
-  /* Room for the last bar's closing line, which overlaps by its width. */
-  padding-right: 2px;
+  /*
+   * Room for the last bar's closing line, which overlaps by its width, and for the flag of an eighth
+   * on the last step of a narrow bar, which reaches a little past it (no sideways scroll for that).
+   */
+  padding-right: 6px;
 }
 /* Accents and tuplet numbers get a row of their own above the notes. */
 .bars[data-marks] {
@@ -234,8 +237,9 @@
   font-size: var(--text-xs);
   letter-spacing: -0.03em;
 }
-/* Six steps to a beat: "trip" and "let" are two narrow steps apart. */
-.bar[data-sparse] .count[data-long] {
+/* Six steps to a beat: "trip" and "let" are two narrow steps apart; on a phone, one narrow step. */
+.bar[data-sparse] .count[data-long],
+.bar[data-tight] .count[data-long] {
   font-size: 0.66rem;
   letter-spacing: -0.05em;
 }

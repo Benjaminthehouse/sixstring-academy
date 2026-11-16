@@ -9,7 +9,7 @@
  * plain code (`frame-copy.ts`: about 3.5 ms for 1280x720 I420, against 6-8 ms for drawing it on a
  * canvas); a format that code cannot read is drawn on the OffscreenCanvas instead.
  */
-import { canReadRaw, rawToRgba } from './frame-copy';
+import { canReadRaw, copyMatchesPicture, rawToRgba } from './frame-copy';
 import { createVisionHost, type VisionRequest, type VisionResponse } from './protocol';
 import type { Frame } from './types';
 
@@ -55,14 +55,22 @@ function decodeBitmap(bitmap: ImageBitmap | VideoFrame, width: number, height: n
 /** Buffers reused from frame to frame (one frame in flight at a time). */
 let planes: Uint8Array | null = null;
 
-/** The camera frame's planes, copied out and averaged down to the working size; null when its format is not one `rawToRgba` reads. */
+/**
+ * The camera frame's planes, copied out and averaged down to the working size; null when its format
+ * is not one `rawToRgba` reads, or its planes are not the picture as shown (turned or mirrored by
+ * metadata, stretched: `copyMatchesPicture`), so the caller draws it instead.
+ */
 async function copyVideoFrame(frame: VideoFrame, width: number, height: number): Promise<Frame | null> {
   if (!canReadRaw(frame.format) || typeof frame.copyTo !== 'function') return null;
+  const rect = frame.visibleRect;
+  // `rotation` and `flip` are newer than the DOM typings.
+  const turned = frame as VideoFrame & { rotation?: number; flip?: boolean };
+  const geometry = { visibleWidth: rect?.width ?? frame.codedWidth, visibleHeight: rect?.height ?? frame.codedHeight, displayWidth: frame.displayWidth, displayHeight: frame.displayHeight, rotation: turned.rotation, flip: turned.flip };
+  if (!copyMatchesPicture(geometry, width, height)) return null;
   const size = frame.allocationSize();
   if (!planes || planes.length < size) planes = new Uint8Array(size);
   const buffer = planes.length === size ? planes : planes.subarray(0, size);
   const layout = await frame.copyTo(buffer);
-  const rect = frame.visibleRect;
   const data = rawToRgba(
     { format: frame.format, width: rect?.width ?? frame.displayWidth, height: rect?.height ?? frame.displayHeight, data: buffer, layout, matrix: frame.colorSpace?.matrix ?? null, fullRange: frame.colorSpace?.fullRange ?? null },
     width,

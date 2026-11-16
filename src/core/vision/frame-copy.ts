@@ -40,6 +40,36 @@ export function canReadRaw(format: string | null | undefined): boolean {
   return !!format && (YUV.has(format) || RGB.has(format));
 }
 
+/** What a `VideoFrame` says about the shape of its picture (`visibleRect`, display size, `rotation`, `flip`). */
+export interface FrameGeometry {
+  visibleWidth: number;
+  visibleHeight: number;
+  displayWidth: number;
+  displayHeight: number;
+  /** Degrees clockwise the picture is turned when shown (WebCodecs `VideoFrame.rotation`; absent = 0). */
+  rotation?: number | null;
+  /** Mirrored when shown (`VideoFrame.flip`). */
+  flip?: boolean | null;
+}
+
+/**
+ * Do the planes `copyTo` hands out show the picture as the video shows it, at the shape of the
+ * working size asked for? Not when the frame is turned or mirrored by metadata: Chromium keeps
+ * `rotation` / `flip` beside the planes (a phone camera can deliver sensor-oriented planes that
+ * way), `copyTo` gives the planes as stored while drawing the frame applies the turn (checked in
+ * Chromium: a 64x32 frame with rotation 90 draws 32x64, copies 64x32). Not when the display size
+ * stretches the visible pixels (non-square pixels) or the working size has another shape either.
+ * The caller then draws the frame on a canvas, which honours all of these.
+ */
+export function copyMatchesPicture(g: FrameGeometry, outWidth: number, outHeight: number): boolean {
+  const turn = (((g.rotation ?? 0) % 360) + 360) % 360;
+  if (turn !== 0 || g.flip === true) return false;
+  if (!(g.visibleWidth > 0 && g.visibleHeight > 0 && g.displayWidth > 0 && g.displayHeight > 0 && outWidth > 0 && outHeight > 0)) return false;
+  const visible = g.visibleWidth / g.visibleHeight;
+  // 2% for the display size (exact in practice), 5% for the working size (rounded to whole pixels).
+  return Math.abs(Math.log(visible / (g.displayWidth / g.displayHeight))) < 0.02 && Math.abs(Math.log(visible / (outWidth / outHeight))) < 0.05;
+}
+
 /** For each output index, the source range [start, end) it averages (at least one pixel). */
 function spans(source: number, out: number): Int32Array {
   const s = new Int32Array(out * 2);

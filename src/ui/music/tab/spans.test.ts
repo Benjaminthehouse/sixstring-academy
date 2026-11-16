@@ -44,6 +44,23 @@ describe('let ring and palm mute are written once per stretch', () => {
     const riff = buildTabModel(song('| e 6:0{pm} 6:3 6:0{pm} 6:3 h r |')).measures[0];
     expect(riff.columns.map((c) => c.flags.muted)).toEqual([true, false, true, false, false]);
   });
+
+  it('ends the stretch at an unmuted chord beside the muted string (gallops, then accented power chords)', () => {
+    // The library's palm-muted gallop: C5 and D5 on strings 5-3 are played open between the gallops on string 6.
+    const gallop = buildTabModel(
+      song('| e 6:0{pm} s 6:0{pm} 6:0{pm} e 6:0{pm} s 6:0{pm} 6:0{pm} q (5:3 4:5 3:5){ac} (5:5 4:7 3:7){ac} | e 6:0{pm} s 6:0{pm} 6:0{pm} h. (6:0 5:2 4:2) |'),
+    );
+    expect(gallop.measures[0].columns.map((c) => c.flags.muted)).toEqual([true, true, true, true, true, true, false, false]);
+    expect(gallop.measures[1].columns.map((c) => c.flags.muted)).toEqual([true, true, true, false]);
+    const L = layoutTab(gallop, { width: 1200 });
+    expect(texts(drawSystem(L, 0).glyphs, 'spanLabel').map((t) => t.text)).toEqual(['P.M.', 'P.M.']);
+    // A single unmuted note on the string beside the palm ends it too; the melody two strings away does not.
+    expect(buildTabModel(song('| q 6:0{pm} 5:2 6:0{pm} 6:0{pm} |')).measures[0].columns.map((c) => c.flags.muted)).toEqual([true, false, true, true]);
+    expect(buildTabModel(song('| q 6:0{pm} 4:2 6:0{pm} 6:0{pm} |')).measures[0].columns.map((c) => c.flags.muted)).toEqual([true, true, true, true]);
+    // The palm follows the bass: a string muted two chords ago (3, under F) does not stop a melody note on 2 under G7.
+    const moved = buildTabModel(song('| q (4:3{pm} 1:1) (3:2{pm} 1:1) h (4:3{pm} 1:3) | q (6:3{pm} 1:1) 4:0{pm} 2:3 6:3{pm} |'));
+    expect(moved.measures.flatMap((m) => m.columns.map((c) => c.flags.muted))).toEqual([true, true, true, true, true, true, true]);
+  });
 });
 
 describe('held notes', () => {

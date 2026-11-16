@@ -8,7 +8,7 @@ The screen is `src/features/chords/index.tsx`; its model (`model/`) is pure and 
 |---|---|
 | `#chords` | the library: first-chords path, by type, by root, search, mine |
 | `#chords--g-major`, `#chords--g`, `#chords--f-sharp-m7` | a chord page (theory `chordSlug`, or the progress module's skill slugs) |
-| `#chords--f-major--2` | a chord page on its second shape (1-based, in the page's own order) |
+| `#chords--f-major--2` | a chord page on its second shape (1-based, in the page's own order; also when that chord's page is already open) |
 | `#chords--c-major-over-e` | a slash chord |
 | `#chords--trainer[--<chord>...]` | the chord-change trainer on two to four chords (also `--changes`) |
 | `#chords--identify[--x32010]` | name that shape |
@@ -42,8 +42,11 @@ apart from chords (`TRAINER_OPTION` in `model/symbols.ts`). The setup root carri
 
 A chord page links to the Live Fretboard on that chord and the shape on screen:
 `cameraChordParams(symbol, frets, tuning)` (`model/camera.ts`) gives `['chord', 'f-major', '8']`
-(the camera's own shape number, found by the shape's frets; none when the camera does not list
-it). The link is left out for slash chords and in the Claude viewer, where there is no camera.
+(the camera's own shape number, found by the shape's frets). About one page shape in sixteen is
+not in the camera's list (partial shapes such as `320xxx`, shapes past fret 15): the link then
+opens the camera's shape that shares most notes with it, nearest on the neck (`nearestShape`),
+not the open shape at the other end of the neck. The link is left out for slash chords and in
+the Claude viewer, where there is no camera.
 
 ## Practice it reports
 

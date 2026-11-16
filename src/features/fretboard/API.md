@@ -24,7 +24,9 @@ ignored.
 
 Strings, frets and the note set are stored as the drill settings, as if set with "Change" (they
 stay until changed); the single note is for that round only and shows in the title ("Find the
-note: C").
+note: C"). When the note has no place on the learner's strings and frets (an earlier address
+stored string 1, frets 0–3, and the next asks for C), the round keeps the strings and looks from
+fret 0 to 12 instead, and the intro says so (`RoundPlan.widenedFrets`); before, Start did nothing.
 
 ```text
 #fretboard--drill--sprint--string-6--frets-0-3--naturals        "keep only string 6, frets 0 to 3, natural notes"

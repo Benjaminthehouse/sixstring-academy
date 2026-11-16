@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ROUTE_BY_NAME, type RouteProps } from '@/app/routes';
 import { WeekStrip, openOnboarding, openStats } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
@@ -21,7 +21,7 @@ import {
   type QuestView,
   type RecentItem,
 } from '@/core/progress';
-import { AnimatedNumber, Badge, Banner, Button, Card, GemChip, Icon, LinkButton, List, ListItem, Page, ProgressBar, ProgressRing, Section, cx } from '@/ui';
+import { AnimatedNumber, Badge, Banner, Button, Card, GemChip, Icon, LinkButton, List, ListItem, Page, ProgressBar, ProgressRing, Section, Skeleton, cx } from '@/ui';
 import type { ContentItem } from '@/features/practice/model/content';
 import { usePracticeLibrary } from '@/features/practice/model/library-loader';
 import type { PlanBlock } from '@/features/practice/model/planner';
@@ -38,13 +38,13 @@ const QUICK_TOOLS = ['tuner', 'metronome', 'camera', 'scan'] as const;
  * The practice planner's blocks for today, worked out once per day, level, teacher and goal for the
  * life of the page: the drill a step shows must not change under the learner while they work
  * through the plan (finishing it changes what the planner would pick next). The content library
- * (technique exercises, songs, unit drills) arrives as a lazy chunk a moment after the first paint;
- * the plan is worked out once more then, and from then on it stays.
+ * (technique exercises, songs, unit drills) arrives as a lazy chunk a moment after the first paint,
+ * so the plan waits for it (`LIBRARY_WAIT_MS` at most, the drill and music steps shown as
+ * skeletons meanwhile) and is worked out once, with whatever it has by then.
  */
 let plannedToday: { key: string; blocks: PlanBlock[] } | null = null;
 function practiceBlocks(store: ReturnType<typeof useProgressStore>, key: string, minutes: number, library: readonly ContentItem[] | null): PlanBlock[] {
-  const fullKey = `${key}|${library ? 'library' : 'pool'}`;
-  if (plannedToday?.key === fullKey) return plannedToday.blocks;
+  if (plannedToday?.key === key) return plannedToday.blocks;
   let blocks: PlanBlock[] = [];
   try {
     // The learner's focus goals and practice journal steer it too (pinned goals first).
@@ -53,8 +53,26 @@ function practiceBlocks(store: ReturnType<typeof useProgressStore>, key: string,
   } catch {
     blocks = [];
   }
-  plannedToday = { key: fullKey, blocks };
+  plannedToday = { key, blocks };
   return blocks;
+}
+
+/** Longest Today waits for the practice library before planning the drill and the music without it. */
+const LIBRARY_WAIT_MS = 1500;
+
+/**
+ * Whether today's drill and music can be planned: the library has loaded, today's plan was already
+ * made on this page, or the wait ran out (a slow or failed chunk never leaves a skeleton up).
+ */
+function usePlanReady(library: readonly ContentItem[] | null, key: string): boolean {
+  const [waited, setWaited] = useState(false);
+  const ready = !!library || waited || plannedToday?.key === key;
+  useEffect(() => {
+    if (ready) return undefined;
+    const timer = window.setTimeout(() => setWaited(true), LIBRARY_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
+  return ready;
 }
 
 /** Signature features to point a brand-new learner at, beyond what the plan already covers. */
@@ -64,14 +82,16 @@ const FIRST_LOOKS: ReadonlyArray<{ route: string; title: string; text: string }>
   { route: 'scan', title: 'Scan a sheet you own', text: 'A printed page, a photo or a PDF becomes a play-along track.' },
 ];
 
-function Hero({ plan }: { plan: readonly PlanStep[] }) {
+function Hero({ plan, ready }: { plan: readonly PlanStep[]; ready: boolean }) {
   const goal = useDailyGoal();
   const streak = useStreak();
   const week = useWeek();
   const next = nextStep(plan);
   const started = plan.some((s) => s.done);
+  // The next step is today's drill or music, still being picked: hold its place, do not guess.
+  const pending = !ready && !!next?.flexible;
   return (
-    <Card variant="raised" padding="lg" className={styles.hero} data-home-hero="">
+    <Card variant="raised" padding="lg" className={styles.hero} data-home-hero="" aria-busy={pending ? true : undefined}>
       <div className={styles.heroTop}>
         <button type="button" className={styles.ringButton} aria-label={`Daily goal: ${goal.xp} of ${goal.goal} XP. Show details`} onClick={() => openStats('goal')}>
           <ProgressRing value={goal.xp} max={goal.goal} size={116} thickness={11} tone={goal.met ? 'ok' : 'xp'} label="Daily goal">
@@ -96,7 +116,9 @@ function Hero({ plan }: { plan: readonly PlanStep[] }) {
         </div>
       </div>
       <WeekStrip days={week} />
-      {next ? (
+      {pending ? (
+        <Skeleton variant="block" height={52} />
+      ) : next ? (
         <LinkButton variant="primary" size="lg" fullWidth wrap to={next.route} params={next.params} iconRight="ArrowRight" data-home-next="">
           {started ? 'Next' : 'Start'}: {next.title}
         </LinkButton>
@@ -109,44 +131,64 @@ function Hero({ plan }: { plan: readonly PlanStep[] }) {
   );
 }
 
-function PlanList({ plan }: { plan: readonly PlanStep[] }) {
+function PlanList({ plan, ready }: { plan: readonly PlanStep[]; ready: boolean }) {
   const next = nextStep(plan);
   const left = minutesLeft(plan);
   const done = plan.filter((s) => s.done).length;
   return (
     <Section title="Today's plan" description={next ? `${done} of ${plan.length} done · about ${left} ${left === 1 ? 'minute' : 'minutes'} left` : `All ${plan.length} steps done. Nicely played.`}>
-      <List variant="card" data-home-plan="" data-minutes={left}>
-        {plan.map((step, i) => (
-          <ListItem
-            key={step.id}
-            to={step.route}
-            params={step.params}
-            wrap
-            leading={
-              <span className={cx(styles.stepMark, step.done && styles.stepDone, step === next && styles.stepNext)}>
-                {step.done ? <Icon name="Check" size={16} strokeWidth={3} label="Done" /> : <span aria-hidden="true">{i + 1}</span>}
-              </span>
-            }
-            title={
-              <span className={styles.stepTitle}>
-                <span className="sr-only">Step {i + 1}: </span>
-                {step.title}
-                {step === next && (
-                  <Badge tone="accent" variant="solid">
-                    Next
-                  </Badge>
-                )}
-              </span>
-            }
-            subtitle={step.detail}
-            trailing={
-              <span className={styles.stepMeta}>
-                <span>{step.minutes} min</span>
-                <span className={styles.stepXp}>{step.xp} XP</span>
-              </span>
-            }
-          />
-        ))}
+      <List variant="card" data-home-plan="" data-minutes={left} data-ready={ready ? 'true' : 'false'} aria-busy={ready ? undefined : true}>
+        {plan.map((step, i) =>
+          !ready && step.flexible ? (
+            // Today's drill or music, still being picked from the practice library: its place is kept.
+            <ListItem
+              key={step.id}
+              wrap
+              leading={
+                <span className={styles.stepMark}>
+                  <span aria-hidden="true">{i + 1}</span>
+                </span>
+              }
+              title={<Skeleton width="55%" />}
+              subtitle={<Skeleton width="80%" />}
+              trailing={
+                <span className={styles.stepMeta}>
+                  <span>{step.minutes} min</span>
+                </span>
+              }
+            />
+          ) : (
+            <ListItem
+              key={step.id}
+              to={step.route}
+              params={step.params}
+              wrap
+              leading={
+                <span className={cx(styles.stepMark, step.done && styles.stepDone, step === next && styles.stepNext)}>
+                  {step.done ? <Icon name="Check" size={16} strokeWidth={3} label="Done" /> : <span aria-hidden="true">{i + 1}</span>}
+                </span>
+              }
+              title={
+                <span className={styles.stepTitle}>
+                  <span className="sr-only">Step {i + 1}: </span>
+                  {step.title}
+                  {step === next && (
+                    <Badge tone="accent" variant="solid">
+                      Next
+                    </Badge>
+                  )}
+                </span>
+              }
+              subtitle={step.detail}
+              trailing={
+                <span className={styles.stepMeta}>
+                  <span>{step.minutes} min</span>
+                  <span className={styles.stepXp}>{step.xp} XP</span>
+                </span>
+              }
+            />
+          ),
+        )}
       </List>
     </Section>
   );
@@ -317,10 +359,9 @@ export default function Home(_props: RouteProps) {
   const now = store.now();
   const goalMinutes = minutesForGoal(prefs.dailyGoalXp);
   const library = usePracticeLibrary();
-  const practice = useMemo(
-    () => practiceBlocks(store, `${today}|${profile.experience}|${profile.teacher}|${goalMinutes}|${store.getState().profile.createdAt}`, goalMinutes, library),
-    [store, today, profile.experience, profile.teacher, goalMinutes, library],
-  );
+  const planKey = `${today}|${profile.experience}|${profile.teacher}|${goalMinutes}|${store.getState().profile.createdAt}`;
+  const ready = usePlanReady(library, planKey);
+  const practice = useMemo(() => (ready ? practiceBlocks(store, planKey, goalMinutes, library) : undefined), [ready, store, planKey, goalMinutes, library]);
 
   const plan = useMemo(
     () =>
@@ -344,7 +385,7 @@ export default function Home(_props: RouteProps) {
     <Page title={greetingLine(localHour(now, store.timeZone()), profile.name)} subtitle={subtitle}>
       <div className={styles.layout}>
         <div className={styles.primary}>
-          <Hero plan={plan} />
+          <Hero plan={plan} ready={ready} />
           {!profile.onboarded && (
             <Banner
               tone="neutral"
@@ -360,7 +401,7 @@ export default function Home(_props: RouteProps) {
               <span data-home-setup="">{setupLine({ handedness: prefs.handedness, experience: profile.experience, teacherName: teacher.name })}</span>
             </Banner>
           )}
-          <PlanList plan={plan} />
+          <PlanList plan={plan} ready={ready} />
           <ContinueRow recents={recents} now={now} />
         </div>
 

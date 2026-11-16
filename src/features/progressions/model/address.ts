@@ -7,8 +7,8 @@
  *   <id>--<key>--jam            jamming over it with the band (also `<id>--jam`), set up with any of:
  *       t<bpm>                  the tempo (`t96`)
  *       <style>                 a band style id (`waltz`, `blues-shuffle`, `ballad-68` ...)
- *       x<n>                    play n times through and an ending instead of looping (`x2`)
- *       hide-chart              chord names hidden until "Show the chords" (work them out by ear)
+ *       x<n>                    play n times through and an ending instead of looping (`x2`; this visit)
+ *       hide-chart              chord names hidden until "Show the chords" (work them out by ear; this visit)
  *   builder                     the builder, on the working draft
  *   builder--jam                jamming over the draft
  *   builder--<saved id>         open a saved progression in the builder (`my-…`)
@@ -74,7 +74,9 @@ export function parseAddress(params: readonly string[]): Address {
   const jam = rest.includes('jam');
   const options: JamOptions = {};
   const others = rest.filter((r) => r !== 'jam' && !readJamOption(r, options));
-  const tonic = tonicFromParam(p, others[0] ?? null);
+  // The key is the first param that names one: an unknown word before it (a style this version
+  // does not have) must not cost the lesson its key.
+  const tonic = others.map((r) => tonicFromParam(p, r)).find((t): t is string => t !== null) ?? null;
   const view = jam ? 'jam' : 'page';
   // Band options belong to the jam: on the chart page they mean nothing and are dropped.
   const kept = jam ? options : {};

@@ -71,11 +71,12 @@ export function ChordPage({ symbol, initialVoicing, tuning, known, primaryAction
   const [micOpen, setMicOpen] = useState(false);
   const stripRef = useRef<HTMLDivElement | null>(null);
 
-  // A new chord opens on its first shape (or the one the address names).
+  // A new chord opens on its first shape (or the one the address names); a new shape number in the
+  // address (`--4`, Back and Forward between two links to the same chord) moves to that shape.
   useEffect(() => {
     setIndex(startIndex());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, tuning]);
+  }, [symbol, tuning, initialVoicing]);
 
   const v = set.all[index] ?? null;
   const name = displaySymbol(symbol, { system: naming });

@@ -10,7 +10,8 @@
  *                   play-the-note ask only that note (the other drills ignore it)
  *
  * Strings, frets and the note set are stored as the drill's settings, as if set by hand with
- * "Change"; the single note is for this round only.
+ * "Change"; the single note is for this round only (when it has no place on those strings and
+ * frets, `drillPlan` opens frets 0–12 for the round).
  */
 import { noteFromSlug, noteSlug, parseNote } from '@/core/theory';
 import { cleanSettings, type TrainerSettings } from './settings';

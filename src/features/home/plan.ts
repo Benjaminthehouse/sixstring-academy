@@ -31,6 +31,8 @@ export interface PlanStep {
   /** Activity kinds that count as having done this step today. */
   kinds: readonly ActivityKind[];
   done: boolean;
+  /** The drill or music step: the practice planner picks what it is (see `fitToGoal`). */
+  flexible?: boolean;
 }
 
 /** What the plan is built from. */
@@ -275,7 +277,7 @@ function fitToGoal(steps: PlanStep[], slotOf: readonly number[], budget: number)
     const last = k === flexible.length - 1;
     const minutes = Math.max(MIN_FLEX_MINUTES, last ? left : Math.floor(left / (flexible.length - k)));
     left = Math.max(0, left - minutes);
-    return { ...step, minutes, xp: stepXp(step.kinds[0], minutes) };
+    return { ...step, minutes, xp: stepXp(step.kinds[0], minutes), flexible: true };
   });
 }
 

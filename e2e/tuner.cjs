@@ -479,6 +479,19 @@ async function address() {
     check('stopping a guided run part of the way gets partial credit', log.length === 1 && log[0].title === 'Tuned 2 of 6 strings (Standard)', JSON.stringify(log));
     noErrors(errors, 'partial (stopped): no console errors');
   });
+
+  // Leaving the screen in the middle of a guided run (a lesson link, the tab bar) counts the strings tuned too.
+  await open({ recording: shortRec, mobile: true, seed: { guideSeen: false } }, async ({ page, errors }) => {
+    await restart(page);
+    await attr(page, 'mode', 'guide');
+    await page.waitForSelector(`${lib.READOUT}[data-tuned="6,5"]`, { timeout: shortRec.seconds * 1000 + 8000 });
+    await page.evaluate(() => { location.hash = '#home'; });
+    await page.waitForSelector('main[data-route="home"]', { timeout: 15000 });
+    await sleep(300);
+    const log = await tunerLog(page);
+    check('leaving a guided run part of the way gets partial credit', log.length === 1 && log[0].title === 'Tuned 2 of 6 strings (Standard)', JSON.stringify(log));
+    noErrors(errors, 'partial (left): no console errors');
+  });
 }
 
 /**

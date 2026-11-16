@@ -25,6 +25,8 @@ export interface RoundPlan {
   /** Accuracy that passes a step of the method. */
   passAt: number;
   options?: AskOptions;
+  /** A one-note drill whose note is not on the learner's frets: the round uses frets 0–12 instead. */
+  widenedFrets?: boolean;
 }
 
 /** A round in progress. */

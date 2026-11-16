@@ -12,7 +12,8 @@
  *  slide        glides through the frets in between and lands on the new note, no new attack
  *  accent       an accented strum is about 3 dB louder
  *  phrases      "5b7" and "5h7" as a lesson sound plays them (tabPhrase + playPhrase)
- *  song         a SongPlayer playing "3:5b2" and "3:7h" through the voice; its first-beat time
+ *  song         a SongPlayer playing "3:5b2" and "3:7h" through the voice; its first-beat time; a
+ *               hammer-on in a song is 2–6 dB under picking the note (the schedule does not soften it twice)
  *  drone        starts and stops where it was scheduled
  *  line + chord the chord keeps ringing under the line
  *  live         the metronome's first click comes 20 ms after Start (not 80); a backing band changes

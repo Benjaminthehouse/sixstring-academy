@@ -12,8 +12,9 @@
  */
 import { memo, useMemo, type CSSProperties } from 'react';
 import { NOTE_VALUES } from '@/core/theory';
-import { cx } from '@/ui';
+import { cx, useElementSize } from '@/ui';
 import { barMarks } from './engrave';
+import { rhythmStep, stepWidth } from './fit';
 import { NoteGlyph } from './glyphs';
 import { parseRhythm, rhythmGrid, type RhythmGrid, type RhythmNote } from './model';
 import styles from './Rhythm.module.css';
@@ -46,15 +47,19 @@ export function rhythmNoteName(n: RhythmNote): string {
 export const RhythmView = memo(function RhythmView({ rhythm, time = '4/4', current = null, counting = true, className, ...rest }: RhythmViewProps) {
   const grid = useMemo<RhythmGrid>(() => rhythmGrid(typeof rhythm === 'string' ? parseRhythm(rhythm).notes : [...rhythm], time), [rhythm, time]);
   const label = rest['aria-label'] ?? `Rhythm in ${grid.time.text}: ${grid.notes.map(rhythmNoteName).join(', ')}.`;
-  // Six steps to a beat (eighths beside triplets) still fits a phone: notes there are two steps apart at least.
-  const minStep = grid.stepsPerBar <= 8 ? '1.9rem' : grid.stepsPerBar <= 12 ? '1.55rem' : grid.stepsPerBar <= 16 ? '1.3rem' : '0.85rem';
+  // Steps as wide as is comfortable, narrower where a bar would not fit the box (a lesson card on a phone).
+  const [boxRef, { width }] = useElementSize<HTMLDivElement>();
+  const { base, floor } = rhythmStep(grid.stepsPerBar);
+  const minStep = stepWidth(grid.stepsPerBar, width, base, floor);
+  // Steps under about 26 px (a phone's lesson card): "trip" and "let" get a narrower face so they do not run together.
+  const tight = width > 0 && width - 10 < grid.stepsPerBar * 26;
   // A row above the notes for accents and tuplet numbers, when the rhythm has any (the same in every bar, so bars line up).
   const marksRow = grid.notes.some((n) => n.accent || n.triplet);
   return (
-    <div className={cx(styles.root, className)} role="group" aria-label={label}>
+    <div ref={boxRef} className={cx(styles.root, className)} role="group" aria-label={label}>
       <div className={styles.bars} aria-hidden="true" data-marks={marksRow || undefined}>
         {Array.from({ length: grid.bars }, (_unused, bar) => (
-          <Bar key={bar} grid={grid} bar={bar} current={current} counting={counting} minStep={minStep} />
+          <Bar key={bar} grid={grid} bar={bar} current={current} counting={counting} minStep={minStep} tight={tight} />
         ))}
       </div>
     </div>
@@ -70,7 +75,7 @@ function TieArc({ kind, style }: { kind: 'prev' | 'barline' | 'out'; style?: CSS
   );
 }
 
-function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar: number; current: number | null; counting: boolean; minStep: string }) {
+function Bar({ grid, bar, current, counting, minStep, tight }: { grid: RhythmGrid; bar: number; current: number | null; counting: boolean; minStep: string; tight: boolean }) {
   const cells = grid.cells.filter((c) => c.bar === bar);
   const first = bar * grid.stepsPerBar;
   // Segments: each note's stretch of steps inside this bar.
@@ -85,10 +90,11 @@ function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar:
   // Beams, tuplets and ties by the engraving rules, bar by bar (so bar 2 is drawn like bar 1).
   const marks = useMemo(() => new Map(barMarks(grid, bar).map((m) => [m.note, m])), [grid, bar]);
   const local = current !== null && current >= first && current < first + grid.stepsPerBar ? current - first : null;
-  // A beat cut in six has more names than room: say the beats and what is played, not every "ta".
-  const sparse = grid.stepsPerBar / Math.max(1, grid.time.beats) >= 6;
+  // More steps than a phone has room for names (eighths beside triplets cut 4/4 into 24): say the
+  // beats and what is played, not every "ta". A 6/8 bar of sixteenths (12 steps) keeps its "& a".
+  const sparse = grid.stepsPerBar > 16;
   return (
-    <div className={styles.bar} style={style} data-sparse={sparse || undefined}>
+    <div className={styles.bar} style={style} data-sparse={sparse || undefined} data-tight={tight || undefined}>
       {local !== null && <div className={styles.playhead} style={{ gridColumn: `${local + 1} / span 1` }} />}
       {cells.map((c) => (
         <div key={`g${c.step}`} className={styles.gridLine} data-beat={c.beat || undefined} data-first={c.inBar === 0 || undefined} style={{ gridColumn: `${c.inBar + 1} / span 1` }} />

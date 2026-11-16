@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { formatHash, parseHash } from '@/app/router';
-import { PATTERN_SYSTEMS, scalePatterns } from '@/core/guitar';
+import { PATTERN_SYSTEMS, STANDARD_TUNING, scalePatterns } from '@/core/guitar';
 import { SCALES } from '@/core/theory';
-import { parseCameraParams } from '../../camera/model/address';
+import { parseCameraParams, type ScaleContent } from '../../camera/model/address';
+import { scaleNotes } from '../../camera/model/content';
+import { shapesFor, systemsFor } from './neck';
 import { DEFAULT_ADDRESS, arcadeParams, cameraParams, isShapeId, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, systemOfShape } from './address';
 import { rootChoices } from './catalog';
 
@@ -103,6 +105,29 @@ describe('shape ids', () => {
         }
       }
     }
+  });
+
+  it('and the Live Fretboard then shows that very shape, on the frets this screen draws it (every system, not only the usual one)', () => {
+    // Review: the camera used to build only the scale's usual system, so `#camera--scale--c--major--3nps-4`
+    // showed the C shape, and boxes 4 and 5 of a pentatonic sat in open position while this screen
+    // draws them up the neck. Checked at the default 15-fret neck (the camera shows up to fret 15).
+    const key = (n: { string: number; fret: number }) => `${n.string}:${n.fret}`;
+    let checked = 0;
+    for (const s of SCALES) {
+      for (const tonic of ['E', 'C', 'Bb']) {
+        for (const system of systemsFor(s.id)) {
+          for (const shape of shapesFor(tonic, s.id, system, { lastFret: 15 })) {
+            const content = parseCameraParams(parseHash(formatHash('camera', ...cameraParams(tonic, s.id, shape.id))).params);
+            expect(content?.kind, `${tonic} ${s.id} ${shape.id}`).toBe('scale');
+            const shown = scaleNotes(content as ScaleContent, { tuning: STANDARD_TUNING, capo: 0 });
+            expect(shown.shape.id, `${tonic} ${s.id} ${shape.id}`).toBe(shape.id);
+            expect(shown.notes.map(key).sort(), `${tonic} ${s.id} ${shape.id}`).toEqual(shape.notes.map(key).sort());
+            checked++;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(500);
   });
 
   it('hands the Arcade a game, the scale slug and the shape', () => {

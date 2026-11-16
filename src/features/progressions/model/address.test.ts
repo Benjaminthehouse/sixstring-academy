@@ -37,6 +37,9 @@ describe('addresses', () => {
     expect(parseAddress(['pop-axis', 't100', 'g', 'jam'])).toMatchObject({ view: 'jam', tonic: 'G', canonical: ['pop-axis', 'g', 'jam', 't100'] });
     // Out of range or unknown: ignored, never a broken screen.
     expect(parseAddress(['pop-axis', 'g', 'jam', 'x40', 'polka'])).toMatchObject({ view: 'jam', tonic: 'G', options: {} });
+    // An unknown word before the key does not cost the address its key.
+    expect(parseAddress(['pop-axis', 'polka', 'g', 'jam', 't90'])).toMatchObject({ view: 'jam', tonic: 'G', options: { tempo: 90 }, canonical: ['pop-axis', 'g', 'jam', 't90'] });
+    expect(parseAddress(['pop-axis', 'x99', 'f-sharp'])).toMatchObject({ view: 'page', tonic: 'F#', canonical: ['pop-axis', 'f-sharp'] });
     // On the chart page, band options mean nothing.
     expect(parseAddress(['pop-axis', 'g', 't100'])).toMatchObject({ view: 'page', options: {}, canonical: ['pop-axis', 'g'] });
   });

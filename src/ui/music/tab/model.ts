@@ -68,7 +68,7 @@ export interface ColumnFlags {
   letRing: boolean;
   /** A let-ring note is still sounding here: from its column until its string is struck again, a rest, or the bar's end. */
   ringing: boolean;
-  /** Inside a palm-mute stretch: between P.M. notes, while no muted string is struck open again (the thumb muted under a melody). */
+  /** Inside a palm-mute stretch: between P.M. notes, over notes played away from the palm (the thumb muted under a melody); see `holdSpans`. */
   muted: boolean;
   vibrato: boolean;
   accent: boolean;
@@ -358,36 +358,43 @@ function buildColumns(track: Track, bar: number, length: number, measureIndex: n
 /**
  * Where let ring and palm mute last, so each is written once per stretch rather than on every
  * note: a let-ring note rings until its string is struck again (without let ring), a rest, or the
- * end of the bar; a palm-mute stretch runs from one P.M. note to the next, across barlines, while
- * no muted string is struck again unmuted (the thumb muting the bass under a fingered melody).
+ * end of the bar; a palm-mute stretch runs from one P.M. note to the next, across barlines, over
+ * notes played away from the palm (the thumb muting the bass under a fingered melody on the top
+ * strings). The palm is where the last two P.M. notes were (an alternating bass moves it): an
+ * unmuted note on one of those strings or on the string beside one ends the stretch (a muted
+ * string struck open again; the accented power chords between palm-muted gallops are not P.M.).
  */
 export function holdSpans(measures: ReadonlyArray<{ columns: readonly TabColumn[] }>): void {
   const ring = new Set<number>();
-  const mute = new Set<number>();
+  // The muted strings of the last two P.M. columns.
+  let palm: number[][] = [];
+  const nearPalm = (s: number) => palm.some((strings) => strings.some((p) => Math.abs(p - s) <= 1));
   let pending: TabColumn[] = [];
   for (const m of measures) {
     ring.clear();
     for (const c of m.columns) {
       if (c.rest) {
         ring.clear();
-        mute.clear();
+        palm = [];
         pending = [];
         continue;
       }
+      const breaks = !c.flags.palmMute && c.notes.some((n) => !n.tied && !n.note.palmMute && nearPalm(n.string));
       for (const n of c.notes) {
         if (n.tied) continue;
         if (n.note.letRing) ring.add(n.string);
         else ring.delete(n.string);
-        if (n.note.palmMute) mute.add(n.string);
-        else mute.delete(n.string);
       }
       c.flags.ringing = c.flags.letRing || ring.size > 0;
       if (c.flags.palmMute) {
         for (const p of pending) p.flags.muted = true;
         pending = [];
         c.flags.muted = true;
-      } else if (mute.size > 0) pending.push(c);
-      else pending = [];
+        palm = [...palm.slice(-1), c.notes.filter((n) => n.note.palmMute).map((n) => n.string)];
+      } else if (breaks || !palm.length) {
+        palm = [];
+        pending = [];
+      } else pending.push(c);
     }
   }
 }

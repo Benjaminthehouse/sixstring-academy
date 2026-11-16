@@ -5,8 +5,9 @@
  * of passes, count-in, who plays). The shown chord follows `band.onChord`, so it changes when the
  * change is heard. The screen stays awake while this view is open.
  *
- * An address can set the band up (`--t96--waltz--x2`, see model/address.ts) and hide the chord
- * names until the learner reveals them (`--hide-chart`), for working the chords out by ear. A
+ * An address can set the band up (`--t96--waltz--x2`, see model/address.ts; the times through
+ * hold for this visit only) and hide the chord names until the learner reveals them
+ * (`--hide-chart`), for working the chords out by ear. A
  * learner new to the guitar (see `needsPlainWords`) gets plain words: no roman numerals, and a
  * scale or mode named by its notes ("A minor with G♯").
  *
@@ -83,6 +84,12 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const plain = useProgress(needsPlainWords);
   // Chord names hidden until the learner shows them (the address's `hide-chart`, or the band sheet).
   const [hidden, setHidden] = useState(!!address?.hideChart);
+  // Times through from the address (`x2`) hold for this visit only, like the hidden chart: a
+  // lesson's "play it twice" must not stop the band after two passes in every jam after it.
+  // Setting Loop or Times through by hand clears it (and is remembered, as always).
+  const [addressPasses, setAddressPasses] = useState<number | null>(address?.passes ?? null);
+  const loop = addressPasses === null ? settings.loop : false;
+  const choruses = addressPasses ?? settings.choruses;
 
   // ── Feel, tempo, the band's input ───────────────────────────────────────────────────────
   const { suggested, others } = useMemo(() => {
@@ -103,7 +110,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
       const f = chosen ?? feel;
       remember({ ...(chosen ? { style: chosen.backing } : {}), tempo: clampTempo(f.backing, address.tempo ?? defaultTempo(f)) });
     }
-    if (address.passes !== undefined) update({ loop: false, choruses: address.passes });
+    setAddressPasses(address.passes ?? null);
     setHidden(!!address.hideChart);
     // Only when the address changes: later changes are the learner's.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,16 +118,16 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
 
   const setup = useMemo(() => {
     const base = backingFor(p, tonic, { feel, tempo });
-    const end = settings.loop ? undefined : endingChord(base.resolved);
+    const end = loop ? undefined : endingChord(base.resolved);
     return backingFor(p, tonic, {
       feel,
       tempo,
-      loop: settings.loop,
-      choruses: settings.loop ? 1 : settings.choruses,
+      loop,
+      choruses: loop ? 1 : choruses,
       countInBars: settings.countIn,
       ...(end ? { endingChord: end } : {}),
     });
-  }, [p, tonic, feel, tempo, settings.loop, settings.choruses, settings.countIn]);
+  }, [p, tonic, feel, tempo, loop, choruses, settings.countIn]);
   const resolved = setup.resolved;
 
   // ── The band ────────────────────────────────────────────────────────────────────────────
@@ -152,7 +159,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const current: ResolvedChord = chordAt(resolved, pos);
   const endingNow = !!heard?.segment.ending;
   const nowSymbol = endingNow && heard ? heard.segment.chord.symbol : current.symbol;
-  const passesLeft = settings.loop || (heard ? heard.segment.chorus < settings.choruses - 1 : settings.choruses > 1);
+  const passesLeft = loop || (heard ? heard.segment.chorus < choruses - 1 : choruses > 1);
   const next = endingNow ? null : upcoming(resolved, pos, passesLeft);
   const counting = band.status === 'count-in' && band.countBeat !== null;
   const started = heard !== null;
@@ -236,9 +243,9 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
       : band.status === 'paused'
         ? 'Paused'
         : playing
-          ? (settings.loop ? 'Looping' : `Time ${(heard?.segment.chorus ?? 0) + 1} of ${settings.choruses}`)
+          ? (loop ? 'Looping' : `Time ${(heard?.segment.chorus ?? 0) + 1} of ${choruses}`)
           : finished
-            ? finishedText(settings.choruses, tempo)
+            ? finishedText(choruses, tempo)
             : settings.countIn > 0
               ? 'Press play: the band counts you in'
               : 'Press play: the band starts on the first chord';
@@ -260,8 +267,10 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
     </>
   );
 
+  // The heading screen readers hear is the title on screen: no numerals in plain words, and no
+  // "I–V–vi–IV" giving the answer away while the chords are hidden.
   return (
-    <Page title={title} hideHeader width="full" className={styles.page} data-progressions="jam">
+    <Page title={shownTitle} hideHeader width="full" className={styles.page} data-progressions="jam">
       <div
         className={cx(styles.jam, sideways && styles.sideways, wide && styles.wide)}
         data-jam
@@ -406,9 +415,30 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
             <Text weight="semibold" size="sm">Key</Text>
             <KeyPicker progression={p} tonic={tonic} onChange={onTonic} naming={naming} />
           </div>
-          <Switch label="Loop until I stop" description="Off: the band plays a number of times through, then an ending." checked={settings.loop} onChange={(v) => update({ loop: v })} />
+          <Switch
+            label="Loop until I stop"
+            description="Off: the band plays a number of times through, then an ending."
+            checked={loop}
+            onChange={(v) => {
+              setAddressPasses(null);
+              update({ loop: v });
+            }}
+            data-loop
+          />
+          {!loop && (
+            <Stepper
+              label="Times through"
+              min={1}
+              max={16}
+              value={choruses}
+              onChange={(v) => {
+                setAddressPasses(null);
+                update({ loop: false, choruses: v });
+              }}
+            />
+          )}
+          {/* After Times through, which belongs to the Loop switch above it. */}
           <Switch label="Hide the chord names" description="Work the chords out by ear, then show them to check." checked={hidden} onChange={setHidden} data-hide-chords />
-          {!settings.loop && <Stepper label="Times through" min={1} max={16} value={settings.choruses} onChange={(v) => update({ choruses: v })} />}
           <div>
             <Text weight="semibold" size="sm">Count-in</Text>
             <SegmentedControl aria-label="Count-in" options={[{ value: '0', label: 'None' }, { value: '1', label: '1 bar' }, { value: '2', label: '2 bars' }]} value={String(settings.countIn)} onChange={(v) => update({ countIn: Number(v) })} />

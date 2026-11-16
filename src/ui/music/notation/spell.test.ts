@@ -59,6 +59,8 @@ describe('spellLine', () => {
 
   it('lets an explicit hint win and keeps a held note as it began', () => {
     expect(names(line('C', [67, 68, 69]), ['Ab'])).toEqual(['G4', 'Ab4', 'A4']);
+    // Over the key's own name too: the text's spelling is what the learner reads beside the staff.
+    expect(names(line('B', [69, 70, 71]), ['Bb'])).toEqual(['A4', 'Bb4', 'B4']);
     const tied: SpellEvent[] = [
       { midi: [68], key: 'C' },
       { midi: [68], key: 'C', tied: [true] },

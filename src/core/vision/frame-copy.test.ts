@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canReadRaw, rawToRgba, type RawFrame } from './frame-copy';
+import { canReadRaw, copyMatchesPicture, rawToRgba, type RawFrame } from './frame-copy';
 
 const W = 64;
 const H = 36;
@@ -102,5 +102,29 @@ describe('rawToRgba (VideoFrame planes to the working frame)', () => {
     expect(rawToRgba({ ...yuv(false), format: 'I444' }, 32, 18)).toBeNull();
     const short = yuv(false);
     expect(rawToRgba({ ...short, data: short.data.subarray(0, W * H) }, 32, 18)).toBeNull();
+  });
+});
+
+describe('copyMatchesPicture', () => {
+  const camera = { visibleWidth: 1280, visibleHeight: 720, displayWidth: 1280, displayHeight: 720 };
+  it('copies a plain camera frame at its own shape', () => {
+    expect(copyMatchesPicture(camera, 640, 360)).toBe(true);
+    expect(copyMatchesPicture({ ...camera, rotation: 0, flip: false }, 640, 360)).toBe(true);
+    // Rounded working sizes still match.
+    expect(copyMatchesPicture({ ...camera, visibleWidth: 1920, visibleHeight: 1080, displayWidth: 1920, displayHeight: 1080 }, 544, 306)).toBe(true);
+  });
+  it('draws instead when the planes are not the picture as shown (review: a turned phone frame was read sideways)', () => {
+    // Chromium keeps a phone camera's turn beside the planes: a frame stored 1280x720 shows 720x1280,
+    // and copyTo hands out the stored planes. Read as they are, the tracker got a squashed,
+    // sideways picture; drawn, the turn is applied.
+    expect(copyMatchesPicture({ ...camera, displayWidth: 720, displayHeight: 1280, rotation: 90 }, 360, 640)).toBe(false);
+    expect(copyMatchesPicture({ ...camera, displayWidth: 720, displayHeight: 1280, rotation: 270 }, 360, 640)).toBe(false);
+    // Upside down or mirrored by metadata: same size, wrong picture.
+    expect(copyMatchesPicture({ ...camera, rotation: 180 }, 640, 360)).toBe(false);
+    expect(copyMatchesPicture({ ...camera, flip: true }, 640, 360)).toBe(false);
+    // Turned without saying so (a working size of the other shape), or stretched pixels.
+    expect(copyMatchesPicture(camera, 360, 640)).toBe(false);
+    expect(copyMatchesPicture({ ...camera, displayWidth: 960 }, 480, 360)).toBe(false);
+    expect(copyMatchesPicture({ ...camera, visibleWidth: 0 }, 640, 360)).toBe(false);
   });
 });

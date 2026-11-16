@@ -212,7 +212,9 @@ against ground truth; numbers in `API.md`):
   its planes out (`copyTo`, about 1 ms for 1280x720 I420) and averages them down to the working size
   in plain code (`frame-copy.ts`, about 3.5 ms in all). Drawing the frame on an `OffscreenCanvas`
   and reading that back cost 6-8 ms on an idle machine and 17 ms more per frame than bitmaps on a
-  loaded one, so it is only the fallback for formats the copy does not read. The first version shrank it with `createImageBitmap(video, { resizeWidth, resizeHeight,
+  loaded one, so it is only the fallback for formats the copy does not read and for frames whose planes are
+  not the picture as shown (turned or mirrored by `rotation` / `flip` metadata, as a phone camera may
+  deliver them, or stretched: `copyMatchesPicture`; `copyTo` hands out planes unturned). The first version shrank it with `createImageBitmap(video, { resizeWidth, resizeHeight,
   resizeQuality: 'medium' })` instead: that call copies and resizes synchronously on the main thread
   (8-9 ms a frame in headless Chromium, 21% of the main thread in a CPU profile), which the pipeline's
   own statistic did not show (it timed only the grabs made inside the frame callback, a median over

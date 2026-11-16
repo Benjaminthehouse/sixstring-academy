@@ -4,7 +4,7 @@
  * and theory engines, never typed. Frets count from the capo (as tab and the guitar engine do);
  * `toOverlay` moves them onto the wood for the camera, the drawn neck takes the capo itself.
  */
-import { chordVoicings, degreeNumber, scalePatterns, scalePositions, type ScalePattern, type Tuning, type Voicing } from '@/core/guitar';
+import { chordVoicings, degreeNumber, patternSystemsFor, scalePatterns, scalePositions, type PatternSystem, type ScalePattern, type Tuning, type Voicing } from '@/core/guitar';
 import { CHORD_TYPES, formatChord, formatDegree, formatNote, getScale, parseChord, pcName } from '@/core/theory';
 import type { OverlayNote } from '@/core/vision';
 import type { FretMarker } from '@/ui/music';
@@ -60,10 +60,44 @@ export interface ShapeOption {
   where: string;
 }
 
-/** The patterns the camera offers for a scale: the engine's usual system for it. */
-export function scalePatternsFor(c: Pick<ScaleContent, 'tonic' | 'scale'>, setup: NeckSetup): ScalePattern[] {
+/** The pattern system a shape id belongs to (`3nps-4` -> '3nps'); null for `all` or an id of no system. */
+export function shapeSystem(shape: string | null | undefined): PatternSystem | null {
+  if (!shape) return null;
+  if (shape.startsWith('caged-')) return 'caged';
+  if (shape.startsWith('box-')) return 'box';
+  if (shape.startsWith('3nps-')) return '3nps';
+  if (shape.startsWith('position-')) return 'position';
+  if (shape.startsWith('strings-')) return 'two-string';
+  if (shape.startsWith('string-')) return 'single-string';
+  if (shape.startsWith('diagonal-')) return 'diagonal';
+  return null;
+}
+
+/** Systems laid out as one climb up the neck, as `#scales`, the Arcade and the lessons show them (box 4 of A minor pentatonic at the 12th fret, not in open position). */
+const CLIMBING: ReadonlySet<PatternSystem> = new Set(['box', '3nps', 'position', 'diagonal']);
+
+/**
+ * The patterns the camera offers for a scale: those of the system the shape asked for belongs to
+ * (a link from `#scales` with `3nps-4` shows the three-notes-per-string shapes), else the engine's
+ * usual system for the scale; climbing systems laid out up the neck like `#scales` lays them out,
+ * so a shape sits where the learner just saw it (when it fits below `MAX_FRET`). Before, only the
+ * usual system was built, so any other shape quietly became the first shape of the usual system
+ * (C major `3nps-4` showed the C shape), and boxes 4 and 5 sat an octave below where `#scales` drew them.
+ */
+export function scalePatternsFor(c: Pick<ScaleContent, 'tonic' | 'scale'> & { shape?: string }, setup: NeckSetup): ScalePattern[] {
+  const build = (system: PatternSystem): ScalePattern[] =>
+    scalePatterns(c.tonic, c.scale, { tuning: setup.tuning, capo: setup.capo, maxFret: MAX_FRET, system, upTheNeck: CLIMBING.has(system) });
+  const asked = shapeSystem(c.shape);
+  if (asked) {
+    try {
+      const own = build(asked);
+      if (own.some((p) => p.id === c.shape)) return own;
+    } catch {
+      // Not a system this scale has: the usual one below.
+    }
+  }
   try {
-    return scalePatterns(c.tonic, c.scale, { tuning: setup.tuning, capo: setup.capo, maxFret: MAX_FRET });
+    return build(patternSystemsFor(c.scale, setup.tuning)[0]);
   } catch {
     return [];
   }

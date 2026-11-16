@@ -569,12 +569,44 @@ async function address() {
     check('address: tempo 72 and the ballad style', (await attr(page, '[data-jam]', 'data-tempo')) === '72' && (await attr(page, '[data-jam]', 'data-style')) === 'ballad',
       `${await attr(page, '[data-jam]', 'data-tempo')} ${await attr(page, '[data-jam]', 'data-style')}`);
     const stored = await page.evaluate(() => ({ jam: JSON.parse(localStorage.getItem('ssa:progressions.jam') || '{}'), memory: JSON.parse(localStorage.getItem('ssa:progressions.memory') || '{}') }));
-    check('address: two times through instead of looping, remembered like a choice by hand', stored.jam.loop === false && stored.jam.choruses === 2 && stored.memory['classical-minor-cadence']?.tempo === 72, JSON.stringify(stored));
+    check('address: the tempo is remembered for this progression, like a choice by hand', stored.memory['classical-minor-cadence']?.tempo === 72, JSON.stringify(stored));
+    // `x2` is for this visit: the band sheet shows two times through, and nothing is stored, so a
+    // later jam without it still loops (review: it used to turn looping off for every jam after).
+    const bandSheet = async () => {
+      await page.getByRole('button', { name: 'Band', exact: true }).click();
+      await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
+      const out = await page.evaluate(() => {
+        const sw = document.querySelector('[role="dialog"] [data-loop] input, [role="dialog"] input[data-loop], [role="dialog"] [data-loop]');
+        const input = sw && (sw.matches('input') ? sw : sw.querySelector('input,[role="switch"]'));
+        const loopOn = input ? (input.getAttribute('aria-checked') ?? String(input.checked)) === 'true' : null;
+        const times = [...document.querySelectorAll('[role="dialog"] input[role="spinbutton"]')].find((i) => /times through/i.test(document.getElementById(i.getAttribute('aria-labelledby') || '')?.textContent || ''));
+        const text = document.querySelector('[role="dialog"]').textContent;
+        const order = ['Loop until I stop', 'Times through', 'Hide the chord names'].map((t) => text.indexOf(t));
+        return { loopOn, times: times ? times.value : null, order };
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      return out;
+    };
+    const twice = await bandSheet();
+    check('address: x2 plays two times through (Loop off, Times through 2)', twice.loopOn === false && twice.times === '2', JSON.stringify(twice));
+    // Times through sits right under the Loop switch it belongs to (the hide switch used to sit between).
+    check('band sheet: Loop, then Times through, then Hide the chord names', twice.order[0] >= 0 && twice.order[0] < twice.order[1] && twice.order[1] < twice.order[2], JSON.stringify(twice.order));
+    check('address: x2 is not stored as the learner’s loop setting', stored.jam.loop !== false, JSON.stringify(stored.jam));
+    await open(page, url, 'progressions--pop-axis--g--jam', '[data-jam]');
+    await page.waitForTimeout(400);
+    const later = await bandSheet();
+    check('address: a later jam without x2 still loops', later.loopOn === true, JSON.stringify(later));
+    await open(page, url, 'progressions--classical-minor-cadence--e--jam--t72--ballad--x2', '[data-jam]');
+    await page.waitForTimeout(400);
     check('address: kept in the address after the key is read', (await page.evaluate(() => location.hash)) === '#progressions--classical-minor-cadence--e--jam--t72--ballad--x2', await page.evaluate(() => location.hash));
 
     check('plain words: on for a new learner', (await attr(page, '[data-jam]', 'data-plain')) === 'true');
     const title = await page.textContent('[data-jam-title]');
     check('plain words: the title has no roman numerals', title === 'Minor cadence', title);
+    // The heading a screen reader hears says the same (it used to read "Minor cadence (i–iv–V7–i)").
+    const h1 = await page.textContent('main h1');
+    check('plain words: the screen-reader heading has no roman numerals either', h1 === 'Minor cadence', h1);
     const role = (await page.textContent('[data-now-role]')) || '';
     check('plain words: the first chord is called the home chord, not i', role.trim() === 'Home chord', role);
     const chart = (await page.textContent('[data-chart]')) || '';
@@ -604,7 +636,9 @@ async function address() {
       masked: document.querySelector('[data-chart]').getAttribute('data-masked'),
       title: document.querySelector('[data-jam-title]').textContent,
       role: document.querySelector('[data-now-role]').textContent,
+      h1: document.querySelector('main h1').textContent,
     }));
+    check('hide-chart: the screen-reader heading does not give the chords away', hiddenState.h1 === 'Chords by ear', hiddenState.h1);
     check('hide-chart: every chord name hidden', hiddenState.hidden === 'true' && hiddenState.big === '?' && hiddenState.next === '?' && hiddenState.masked === 'true' && !/[A-G]/.test(hiddenState.chart) && hiddenState.title === 'Chords by ear', JSON.stringify(hiddenState));
     check('hide-chart: the bar number instead of the chord', /^Bar 1 of 4$/.test(hiddenState.role.trim()), hiddenState.role);
     await page.locator('[data-play]').click();

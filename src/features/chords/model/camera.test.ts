@@ -4,6 +4,7 @@ import { parseCameraParams } from '@/features/camera/model/address';
 import { chordVoicingsFor, MAX_FRET } from '@/features/camera/model/content';
 import { CAMERA_MAX_FRET, cameraChordParams } from './camera';
 import { chordsOfType } from './catalog';
+import { voicingSet } from './voicings';
 import { CHORD_TYPES } from '@/core/theory';
 
 const SAFE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -36,11 +37,41 @@ describe('See it on your guitar', () => {
     expect(parseCameraParams(params)).toEqual({ kind: 'chord', symbol: 'D', voicing: 2 });
   });
 
-  it('opens on the first shape when the camera does not list the one on screen, and not at all for a slash chord', () => {
+  it('opens on the first shape when none is on screen, and not at all for a slash chord', () => {
     expect(cameraChordParams('G', [3, 2, 0, 0, 0, 3])).toEqual(['chord', 'g-major']);
-    expect(cameraChordParams('G', [null, null, null, null, null, 15])).toEqual(['chord', 'g-major']);
     expect(cameraChordParams('G', null)).toEqual(['chord', 'g-major']);
     expect(cameraChordParams('C/E', [0, 3, 2, 0, 1, 0])).toBeNull();
+  });
+
+  // Review: about one shape in sixteen on the chord pages (partial shapes, shapes past fret 15) is
+  // not in the camera's list, and the link used to open the open shape at the other end of the neck.
+  it('opens on the camera shape nearest to one it does not list', () => {
+    const standard = tuningFor('standard');
+    const at = (frets: ReadonlyArray<number | null>) => {
+      const f = frets.filter((x): x is number => x !== null && x > 0);
+      return f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
+    };
+    const opened = (symbol: string, frets: Array<number | null>) => {
+      const params = cameraChordParams(symbol, frets, standard)!;
+      const content = parseCameraParams(params);
+      return content && content.kind === 'chord' ? chordVoicingsFor(symbol, { tuning: standard, capo: 0 })[content.voicing].frets : null;
+    };
+    // The partial G (bass strings of the open G) opens on the open G.
+    expect(opened('G', [3, 2, 0, null, null, null])).toEqual([3, 2, 0, 0, 0, 3]);
+    // A C up at the 8th fret opens on a C around the 8th fret, not the open C.
+    const c8 = opened('C', [8, 7, 5, null, null, null])!;
+    expect(Math.abs(at(c8) - at([8, 7, 5, null, null, null]))).toBeLessThanOrEqual(3);
+    // A G past the camera's 15th fret opens high on the neck.
+    expect(at(opened('G', [15, 14, 12, 12, 12, 15])!)).toBeGreaterThanOrEqual(9);
+    // Every shape these chord pages show opens on a camera shape at most 5 frets away (the open shape
+    // was up to 12 away). The camera lists no C between x-15-14-12-13-12 and fret 9.
+    for (const symbol of ['C', 'D', 'E', 'F', 'G', 'A', 'Am', 'Em', 'Dm', 'C7', 'G7', 'Bm7']) {
+      for (const v of voicingSet(symbol, 'standard').all) {
+        const f = opened(symbol, [...v.frets]);
+        expect(f, `${symbol} ${v.frets.join(',')}`).not.toBeNull();
+        expect(Math.abs(at(f!) - at(v.frets)), `${symbol} ${v.frets.join(',')} -> ${f!.join(',')}`).toBeLessThanOrEqual(5);
+      }
+    }
   });
 
   it('gives every catalog chord an address the camera reads', () => {

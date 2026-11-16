@@ -101,11 +101,20 @@ export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapIn
     default:
       asks = [{ kind: 'name', weight: 1 }];
   }
+  // The note may not sit on the learner's part of the neck at all (string 1, frets 0–3 has no C,
+  // and a lesson's earlier address may have stored just that): the round would have nothing to
+  // ask and Start would do nothing. Keep the strings and open frets 0–12, where every note sits on
+  // every string (`widenedFrets` lets the screen say so).
+  let widenedFrets = false;
+  if (oneNote && opts.ctx && candidatesFor(asks[0].kind, scope, opts.ctx).length === 0) {
+    scope.frets = [0, 12];
+    widenedFrets = true;
+  }
   // One note on a few strings has only a few places: each about twice (at least four questions),
   // rather than the same two places twelve times over.
   if (oneNote && opts.ctx && length !== null && drill.id !== 'find-every-note') {
     const places = candidatesFor(asks[0].kind, scope, opts.ctx).length;
     length = Math.min(length, Math.max(4, places * 2));
   }
-  return { skillId: drillSkillId(drill.id), title: drill.title, asks, scope, length, seconds, passAt: 0.8 };
+  return { skillId: drillSkillId(drill.id), title: drill.title, asks, scope, length, seconds, passAt: 0.8, ...(widenedFrets ? { widenedFrets } : {}) };
 }

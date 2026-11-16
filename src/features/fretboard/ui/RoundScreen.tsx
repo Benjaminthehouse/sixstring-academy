@@ -357,8 +357,13 @@ function DrillExample({ trainer, drill, plan }: { trainer: Trainer; drill: Drill
 
 function DrillHow({ trainer, drill, plan, onSettings, noteName }: { trainer: Trainer; drill: Drill; plan: RoundPlan; onSettings: () => void; noteName?: string }) {
   const lines: string[] = [drill.how];
-  if (noteName) lines.push(plan.length === 1 ? `One note this round: every ${noteName} on your part of the neck.` : `One note this round: ${noteName}, wherever it sits on the strings you practise. ${plan.length} questions.`);
-  else if (plan.seconds) lines.push('Right answers move straight on. A miss shows the answer for a moment, then the next note comes.');
+  if (noteName) {
+    lines.push(plan.length === 1 ? `One note this round: every ${noteName} on your part of the neck.` : `One note this round: ${noteName}, wherever it sits on the strings you practise. ${plan.length} questions.`);
+    if (plan.widenedFrets) {
+      const [a, b] = trainer.settings.frets;
+      lines.push(`${noteName} is not on ${a === b ? `fret ${a}` : `frets ${a} to ${b}`} of those strings, so this round looks from fret 0 to fret 12.`);
+    }
+  } else if (plan.seconds) lines.push('Right answers move straight on. A miss shows the answer for a moment, then the next note comes.');
   else lines.push(`${plan.length} questions. They lean toward the places you miss most, so the round stays at about four right answers in five.`);
   lines.push('Miss one and you see where it is and how to work it out from the nearest dot.');
   return (

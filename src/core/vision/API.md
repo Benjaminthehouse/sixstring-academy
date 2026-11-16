@@ -34,7 +34,9 @@ pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worke
   WebCodecs the camera frame is wrapped as a `VideoFrame` (about 0.1 ms here) and transferred to the
   module worker (`vision.worker.ts`), which copies its planes out and averages them down to the
   working size (`frame-copy.ts`: I420 / NV12 / RGBA / BGRA, about 3.5 ms for 1280x720; other formats
-  are drawn on a canvas) (`stats.transfer === 'video-frame'`); otherwise `createImageBitmap(video, { resizeWidth, resizeHeight })`
+  are drawn on a canvas, and so is a frame turned or mirrored by metadata (`VideoFrame.rotation` /
+  `flip`, as a phone camera may hand them out: `copyTo` gives the planes unturned, drawing turns
+  them) or stretched (`copyMatchesPicture`)) (`stats.transfer === 'video-frame'`); otherwise `createImageBitmap(video, { resizeWidth, resizeHeight })`
   makes a shrunk bitmap, which is a synchronous copy and resize on the main thread (8-9 ms a frame,
   a fifth to a third of the main thread in headless Chromium), and the bitmap is transferred
   (`'bitmap'`); a worker that cannot read `VideoFrame`s answers once and bitmaps take over. One frame
