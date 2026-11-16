@@ -63,8 +63,7 @@ The shell also calls `installAudioUnlock()` and keeps the engine in line with `p
   `#home`, for a learner who has neither finished nor skipped it; other routes are never interrupted.
 - `<WeekStrip days={useWeek()} size="sm" />` draws the week as Today and the stats sheet do.
 - `DESTINATIONS`, `destinationFor(route)`, `hubRoutes(section)`: the five tabs and what is under them.
-- `@/app/teachers`: `TEACHERS`, `teacherById`, `teacherForLevel` (name, level, welcome line, avatar
-  tone), so the three teachers are named the same way everywhere.
+- `@/app/teachers`: `TEACHERS`, `teacherById`, `teacherForLevel` (name, level, welcome line, avatar tone), so the three teachers are named the same way everywhere.
 
 ## Hubs, search, Today, e2e
 

@@ -10,6 +10,14 @@
  *   - the unit's performance is framed as a show, and finishing it ends the unit with the
  *     teacher's celebration.
  *
+ * The summary also lists the plan's Theory Path lessons behind the lesson; playing along in the
+ * Player's listen mode (which logs nothing by itself) is logged as practice when the learner comes
+ * back and goes on; and the shell's rewards wait for the summary (`useRewardHold`).
+ *
+ * It duplicates the engine's `LessonPlayer` loop (keys, feedback, leave dialog, summary). Folding it
+ * into a custom-step slot of `@/lessons/ui` would remove about 300 lines, but that is the lessons
+ * engine's code; until it offers such a slot, keep the two in step by hand.
+ *
  * Same keys as the Theory Path: number keys pick, Enter checks and continues (opens a task's tool,
  * or continues once back), Space replays or taps, Backspace takes back, Escape asks to leave.
  */

@@ -10,9 +10,11 @@
  *
  * Content: `src/content/teachers` (one lazily loaded file per unit, assembled in plan order). The
  * lesson screen is the lesson engine's session with the teacher present (portrait, name and voice
- * on teaching cards and feedback), task steps that send the learner to the Player, Tuner,
- * Metronome or Technique and pick up where they left off on return, and a unit's milestone
- * performance celebrated by the teacher. Browser check: `node e2e/teachers.cjs`.
+ * on teaching cards and feedback), task steps that send the learner to a tool (the Player, Tuner,
+ * Metronome, Technique, Scan & Import, the Recorder, a Theory Path lesson ...) and pick up where
+ * they left off on return, the plan's Theory Path links on each lesson's summary, and a unit's
+ * milestone performance celebrated by the teacher. While a lesson's steps are on screen the shell's
+ * rewards wait for its summary (`useRewardHold`). Browser check: `node e2e/teachers.cjs`.
  */
 import { useMemo } from 'react';
 import type { RouteProps } from '@/app/routes';
