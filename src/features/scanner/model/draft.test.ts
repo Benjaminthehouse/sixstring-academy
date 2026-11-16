@@ -10,8 +10,9 @@ import { loadFixture } from '@/core/omr/eval/fixtures';
 import { readPngGray } from '@/core/omr/eval/png';
 import { fileURLToPath } from 'node:url';
 import { validateSong } from '@/core/song';
-import { type Draft, LINE_TUNINGS, badBars, buildDraft, checkBar, finalSong, fretChord, viewSong } from './draft';
-import { setValue } from './edit';
+import { type Draft, GUESS, LINE_TUNINGS, badBars, buildDraft, checkBar, finalSong, fretChord, possibleFret, viewSong } from './draft';
+import { setValue, songToSave } from './edit';
+import { isTabEvent } from '@/core/omr/types';
 
 function errors(song: Parameters<typeof validateSong>[0]) {
   return validateSong(song, { notation: false }).filter((i) => i.level === 'error');
@@ -77,6 +78,34 @@ describe('buildDraft', () => {
     expect(notes.every((n) => n.fret <= 5)).toBe(true);
     expect(errors(finalSong(draft).song)).toEqual([]);
   }, 90_000);
+
+  it('turns a fret read past the last fret (two numbers read as one on a photo) into a marked guess, so the song can be saved', async () => {
+    // A phone photo of an unseen tab page read "9" "2" as 92 and "4" "8" as 48: the library refused the song.
+    const fx = loadFixture('linked-ode-bravura-150');
+    const doc = await recognizeDocument([fx.gray]);
+    const tab = doc.pages[0].systems[0].staves.find((st) => st.kind === 'tab')!;
+    const ev = tab.measures[1].events.find((e) => isTabEvent(e) && e.notes.length)!;
+    if (!isTabEvent(ev)) throw new Error('no tab event');
+    ev.notes[0].fret = 92;
+    ev.notes[0].alternatives = [];
+    const draft = buildDraft(doc);
+    const notes = draft.song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes));
+    expect(notes.every((n) => n.fret >= 0 && n.fret <= 24)).toBe(true);
+    const marks = draft.marks.flatMap((b) => b.beats.flatMap((x) => x.notes));
+    const guess = marks.find((m) => m.reasons[0]?.startsWith('Read as 92'));
+    expect(guess).toBeDefined();
+    expect(guess!.confidence).toBeLessThan(GUESS);
+    expect(guess!.altFrets).toEqual([2]);
+    expect(errors(songToSave(draft).song)).toEqual([]);
+    expect(marksInStep(draft)).toBe(true);
+  }, 90_000);
+
+  it('keeps frets on the neck as read and offers the digits of an impossible one', () => {
+    expect(possibleFret(12, [17, 30])).toEqual({ fret: 12, alts: [17], impossible: false });
+    expect(possibleFret(92)).toEqual({ fret: 9, alts: [2], impossible: true });
+    expect(possibleFret(48, [8, 4])).toEqual({ fret: 8, alts: [4], impossible: true });
+    expect(possibleFret(99)).toEqual({ fret: 9, alts: [], impossible: true });
+  });
 
   it('starts a valid empty draft when nothing was read', () => {
     const draft = buildDraft({ pages: [], measures: [], context: {}, warnings: [] });

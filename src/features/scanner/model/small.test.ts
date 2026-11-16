@@ -4,7 +4,7 @@ import { importSong } from '@/core/song';
 import { parseTempoText } from './tempo';
 import { estimateCharWidth, groupLines, layoutText, type TextPiece } from './text-layout';
 import { findPaper, otsu, padBox, shrinkGray } from './paper';
-import { describeLook, movePage, pdfScale, sheetKind, type PageKind, type ScanPage } from './pages';
+import { MUSIC_SHARE, describeLook, hasWork, movePage, pdfScale, readingFraction, sheetKind, worthWarning, type PageKind, type ScanPage } from './pages';
 import { DIGIT_WINDOW_MS, keyCommand, typeDigit } from './keys';
 
 describe('parseTempoText', () => {
@@ -120,6 +120,44 @@ describe('pages', () => {
     expect(pdfScale(a4, { staffSpaceAt1: 6 })).toBeCloseTo(3, 5);
     expect(pdfScale(a4, { staffSpaceAt1: 1 }) * 842).toBeLessThanOrEqual(3400);
     expect(pdfScale(a4, { staffSpaceAt1: 30 })).toBeCloseTo(150 / 72, 5);
+  });
+});
+
+describe('leaving the screen', () => {
+  it('keeps pages and an unsaved reading; a saved song is in the library already', () => {
+    const page = { origin: 'camera' as const };
+    expect(hasWork({ pages: [], history: null, text: null, saved: null })).toBe(false);
+    expect(hasWork({ pages: [page], history: null, text: null, saved: null })).toBe(true);
+    expect(hasWork({ pages: [], history: { past: [] }, text: null, saved: null })).toBe(true);
+    expect(hasWork({ pages: [], history: null, text: { text: 'Am' }, saved: null })).toBe(true);
+    expect(hasWork({ pages: [page], history: { past: [] }, text: null, saved: { id: 'x' } })).toBe(false);
+  });
+
+  it('asks before a reload for the learner's own pages or changes, not for the sample as it came', () => {
+    const sample = { origin: 'sample' as const };
+    expect(worthWarning({ pages: [sample], history: { past: [] }, text: null, saved: null })).toBe(false);
+    expect(worthWarning({ pages: [sample], history: { past: [1] }, text: null, saved: null })).toBe(true);
+    expect(worthWarning({ pages: [{ origin: 'pdf' }], history: null, text: null, saved: null })).toBe(true);
+    expect(worthWarning({ pages: [], history: null, text: { text: '' }, saved: null })).toBe(true);
+    expect(worthWarning({ pages: [{ origin: 'camera' }], history: { past: [1] }, text: null, saved: { id: 'x' } })).toBe(false);
+  });
+});
+
+describe('reading progress', () => {
+  it('never runs backwards when the chord names are read after the music', () => {
+    const steps = [
+      { stage: 'music' as const, fraction: 0 },
+      { stage: 'music' as const, fraction: 0.5 },
+      { stage: 'music' as const, fraction: 1 },
+      { stage: 'words' as const, fraction: 0 },
+      { stage: 'words' as const, fraction: 0.5 },
+      { stage: 'words' as const, fraction: 1 },
+    ].map(readingFraction);
+    for (let i = 1; i < steps.length; i++) expect(steps[i]).toBeGreaterThanOrEqual(steps[i - 1]);
+    expect(steps[2]).toBeCloseTo(MUSIC_SHARE);
+    expect(steps[5]).toBe(1);
+    expect(readingFraction({ stage: 'text', fraction: 0.4 })).toBeCloseTo(0.4);
+    expect(readingFraction(null)).toBe(0);
   });
 });
 
