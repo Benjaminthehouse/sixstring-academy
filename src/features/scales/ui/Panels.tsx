@@ -3,7 +3,7 @@
  * practice exercises as tab, marking a shape learnt, the Arcade hand-off, comparing two scales,
  * and the neck's own options. Each panel only reads props and reports changes.
  */
-import { forwardRef, memo } from 'react';
+import { forwardRef, memo, useMemo } from 'react';
 import { BACKING_STYLES, type BackingStyleId } from '@/core/audio';
 import type { PatternSystem, ScalePattern, SequenceInfo, SequenceKind } from '@/core/guitar';
 import type { SkillView } from '@/core/progress';
@@ -323,12 +323,15 @@ export const ComparePanel = memo(function ComparePanel({ scale, tonicLabel, sugg
     const s = getScale(id);
     return s ? displayScaleName(s) : id;
   };
-  const allOptions = scaleGroups().map((g) => ({
-    group: g.title,
-    options: g.scales.filter((s) => s.id !== scale.id && s.size < 12).map((s) => ({ value: s.id, label: `${tonicLabel} ${displayScaleName(s)}` })),
-  }));
-  const seen = new Set<string>();
-  for (const g of allOptions) g.options = g.options.filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)));
+  const allOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return scaleGroups().map((g) => ({
+      group: g.title,
+      options: g.scales
+        .filter((s) => s.id !== scale.id && s.size < 12 && !seen.has(s.id) && (seen.add(s.id), true))
+        .map((s) => ({ value: s.id, label: `${tonicLabel} ${displayScaleName(s)}` })),
+    }));
+  }, [scale.id, tonicLabel]);
   return (
     <Section title="Compare" description={`Put another scale on the same neck, from ${tonicLabel}, and see exactly which notes change.`}>
       <Stack gap={3}>
@@ -391,7 +394,7 @@ export interface NeckOptionsProps {
 }
 
 /** How much of the neck to draw, the capo, handedness and tuning. */
-export function NeckOptions({ open, onClose, settings, update, lastFret, leftHanded, onLeftHanded, tuningLabel }: NeckOptionsProps) {
+export const NeckOptions = memo(function NeckOptions({ open, onClose, settings, update, lastFret, leftHanded, onLeftHanded, tuningLabel }: NeckOptionsProps) {
   const [from, to] = settings.custom;
   return (
     <Sheet open={open} onClose={onClose} title="Neck options" desktop="drawer" size="sm" footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
@@ -447,4 +450,4 @@ export function NeckOptions({ open, onClose, settings, update, lastFret, leftHan
       </Stack>
     </Sheet>
   );
-}
+});

@@ -13,6 +13,7 @@ import {
   getExercise,
   hasLadder,
   ladderRungs,
+  pairLabel,
   partSixTab,
   partSong,
   songBpm,
@@ -325,5 +326,48 @@ describe('technique content: generated patterns match the plan and the engines',
       }
     }
     expect(getExercise('tech-changes-pairs-1')!.pairs!.map((p) => p.id)).toEqual(['em-g', 'a-d', 'd-a7', 'a-e7', 'em-d']);
+  });
+
+  it('has every chord pair the plan names, in the plan’s order', () => {
+    // "Em-G", and "D with the small F#m (xx4222)" style pairs, read from the plan's own words.
+    const CHORD = '[A-G][#b]?(?:maj7|m7|m|7)?';
+    const named = new RegExp(`(?<![\\w#-])(${CHORD})(?:-(${CHORD})(?![\\w#])| with the (?:open |small )?(${CHORD})(?![\\w#]))`, 'g');
+    for (const id of ['tech-changes-pairs-1', 'tech-changes-pairs-2', 'tech-changes-pairs-3']) {
+      const pattern = PLAN.find((t) => t.id === id)!.pattern.split(':')[0];
+      const want = [...pattern.matchAll(named)].map((m) => `${m[1]}-${m[2] ?? m[3]}`);
+      const have = getExercise(id)!.pairs!.map((p) => `${p.a.symbol}-${p.b.symbol}`);
+      expect(have, id).toEqual(want);
+    }
+    // Two pairs with the same chords are told apart on screen.
+    for (const e of TECHNIQUE_EXERCISES.filter((x) => x.pairs)) {
+      const labels = e.pairs!.map((p) => pairLabel(p));
+      expect(new Set(labels).size, `${e.id}: ${labels.join(', ')}`).toBe(labels.length);
+    }
+    expect(pairLabel(getExercise('tech-changes-pairs-3')!.pairs!.find((p) => p.id === 'd-f-sharp-m')!)).toBe('D – small F♯m');
+  });
+
+  it('names every triad inversion right: the lowest string holds the root, the third or the fifth', () => {
+    let checked = 0;
+    for (const e of TECHNIQUE_EXERCISES) {
+      for (const text of texts(e)) {
+        const claims = ascii(text).matchAll(/([A-G][#b]?) \(((?:x{3}\d{3})|(?:x-){3}\d{1,2}-\d{1,2}-\d{1,2})\),? (root position|first inversion|second inversion)/g);
+        for (const [, root, shape, claim] of claims) {
+          const frets = shape.includes('-') ? shape.split('-').slice(3).map(Number) : shape.slice(3).split('').map(Number);
+          const bottom = (OPEN[3] + frets[0]) % 12;
+          const want = { 'root position': 0, 'first inversion': 4, 'second inversion': 7 }[claim]!;
+          expect((bottom - chroma(root) + 12) % 12, `${e.id}: ${root} (${shape}) ${claim}`).toBe(want);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(9);
+  });
+
+  it('starts the anchored-fingers tab on the pair of strings its steps name first', () => {
+    const e = getExercise('tech-anchored-fingers')!;
+    const first = notesOf(partSong(e, e.parts[0], 60)).slice(0, 2).map((n) => n.string);
+    const steps = e.steps.join(' ');
+    expect(steps).toContain(`(string ${first[0]} to begin with)`);
+    expect(steps).toContain(`next string up (string ${first[1]})`);
   });
 });

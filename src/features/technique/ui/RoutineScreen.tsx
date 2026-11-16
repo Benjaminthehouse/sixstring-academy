@@ -15,11 +15,13 @@ import { tickHealthClock } from '../engine/health-clock';
 import { ExerciseRunner, type RunState } from '../engine/runner';
 import { localDay, readRecord, type TechniqueRecord } from '../model/history';
 import { clampTempo, MAX_TEMPO, MIN_TEMPO, startTempo } from '../model/ladder';
+import { routineGoTo, routineStart, routineTick, routineToggle, type RoutineState } from '../model/routine';
 import { newVisit, visitActivity } from '../model/session';
 import styles from '../Technique.module.css';
 import { Demo } from './Demo';
 import { ownsKeys, SIDEWAYS_QUERY, WIDE_QUERY } from './ExerciseScreen';
 import { HealthNotice } from './HealthNotice';
+import { useRecordOnLeave } from './useExercise';
 import { Coaching, Rungs, SummarySheet, exerciseEyebrow, nextExercise } from './Panels';
 
 /** The routine screen. */
@@ -33,16 +35,19 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   recordRef.current = record;
   const steps = e.routine ?? [];
 
-  const [index, setIndex] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
+  const [routine, setRoutineState] = useState<RoutineState>(() => routineStart(steps));
+  const routineRef = useRef(routine);
+  const setRoutine = useCallback((next: RoutineState) => {
+    routineRef.current = next;
+    setRoutineState(next);
+  }, []);
+  const { index, running, finished, left } = routine;
   const [tempo, setTempo] = useState(() => startTempo(e.tempo, record.best !== null ? record.best + e.tempo.step : null));
   const [guide, setGuide] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [result, setResult] = useState<ActivityResult | null>(null);
   const [runState, setRunState] = useState<RunState>('idle');
   const [current, setCurrent] = useState<{ bar: number; beat: number } | null>(null);
-  const [left, setLeft] = useState(steps[0]?.seconds ?? 0);
   const step = steps[index];
   const part = step?.part !== undefined ? e.parts[step.part] : undefined;
   const song = useMemo(() => (part ? partSong(e, part, tempo) : null), [e, part, tempo]);
@@ -54,6 +59,8 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   if (!runnerRef.current) runnerRef.current = new ExerciseRunner();
   const runner = runnerRef.current;
   const visit = useRef(newVisit(e.id, tempo, Date.now()));
+  /** The routine ran to its end and that has not been recorded yet. */
+  const completedRef = useRef(false);
 
   useEffect(() => runner.setSounds(prefs.sound.clickSound, prefs.sound.guitarTone), [runner, prefs.sound.clickSound, prefs.sound.guitarTone]);
   useEffect(
@@ -89,24 +96,17 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
     const id = window.setInterval(() => {
       visit.current.activeSec += 1;
       tickHealthClock(1, true);
-      setLeft((s) => s - 1);
+      const { state, event } = routineTick(routineRef.current, steps);
+      if (event) runner.stop();
+      if (event === 'next') playUi('countdown');
+      if (event === 'done') {
+        playUi('lessonComplete');
+        completedRef.current = true;
+      }
+      setRoutine(state);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [running]);
-  useEffect(() => {
-    if (!running || left > 0) return;
-    if (index + 1 < steps.length) {
-      playUi('countdown');
-      runner.stop();
-      setIndex(index + 1);
-      setLeft(steps[index + 1].seconds);
-    } else {
-      playUi('lessonComplete');
-      runner.stop();
-      setRunning(false);
-      setFinished(true);
-    }
-  }, [left, running, index, steps, runner]);
+  }, [running, steps, runner, setRoutine]);
   useEffect(() => (running ? keepAwake() : undefined), [running]);
 
   useRafLoop(() => {
@@ -116,40 +116,46 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
 
   const goTo = useCallback(
     (i: number) => {
-      const k = Math.max(0, Math.min(steps.length - 1, i));
       runner.stop();
-      setIndex(k);
-      setLeft(steps[k].seconds);
-      setFinished(false);
+      setRoutine(routineGoTo(routineRef.current, steps, i));
     },
-    [runner, steps],
+    [runner, steps, setRoutine],
   );
+  const toggle = useCallback(() => {
+    runner.stop();
+    setRoutine(routineToggle(routineRef.current, steps));
+  }, [runner, steps, setRoutine]);
 
+  /** Record the visit once: a finished run counts as one clean pass, and only once. */
   const save = useCallback(
     (show: boolean) => {
       const v = visit.current;
-      if (finished) v.passes.push({ tempo, verdict: 'clean', source: 'self', partId: 'routine' });
+      const completed = completedRef.current;
+      if (completed) v.passes.push({ tempo, verdict: 'clean', source: 'self', partId: 'routine' });
       v.tempo = tempo;
       if (noteText.trim()) v.note = noteText.trim();
       const out = visitActivity(e, v, recordRef.current, localDay(Date.now()));
       visit.current = newVisit(e.id, tempo, Date.now());
+      completedRef.current = false;
+      if (show) {
+        setNoteText('');
+        setRoutine(routineStart(steps));
+      }
       if (!out) return;
-      const r = recordActivity({ ...out.input, completed: finished || out.input.completed });
+      const r = recordActivity({ ...out.input, completed: completed || out.input.completed });
       if (show) setResult(r);
     },
-    [e, finished, noteText, tempo],
+    [e, noteText, tempo, steps, setRoutine],
   );
-  const saveRef = useRef(save);
-  saveRef.current = save;
-  // Leaving records what was done.
-  useEffect(() => () => saveRef.current(false), []);
+  // Leaving, closing or reloading the page records what was done.
+  useRecordOnLeave(() => save(false));
 
   useEventListener(window, 'keydown', (ev: KeyboardEvent) => {
     if (ev.defaultPrevented || ownsKeys(ev.target as Element | null)) return;
     const onButton = ev.target instanceof HTMLElement && (ev.target.tagName === 'BUTTON' || ev.target.tagName === 'A');
     if ((ev.key === ' ' || ev.code === 'Space') && !onButton) {
       ev.preventDefault();
-      setRunning((r) => !r);
+      toggle();
     } else if (ev.key === 'ArrowRight') goTo(index + 1);
     else if (ev.key === 'ArrowLeft') goTo(index - 1);
   });
@@ -163,7 +169,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   const controls = (
     <>
       <Tooltip content={<>Start or pause <Kbd>Space</Kbd></>}>
-        <Button variant="primary" size={wide ? 'lg' : 'md'} fullWidth={wide} iconLeft={running ? 'Pause' : 'Play'} onClick={() => setRunning((r) => !r)} data-technique-primary="">
+        <Button variant="primary" size={wide ? 'lg' : 'md'} fullWidth={wide} iconLeft={running ? 'Pause' : finished ? 'RotateCcw' : 'Play'} onClick={toggle} data-technique-primary="">
           {running ? 'Pause' : finished ? 'Again from the top' : index === 0 && left === steps[0]?.seconds ? `Start the ${e.id === 'tech-warm-up' ? 'warm-up' : 'cool-down'}` : 'Carry on'}
         </Button>
       </Tooltip>
@@ -273,7 +279,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
           {controls}
         </ActionBar>
       )}
-      <HealthNotice onPause={() => setRunning(false)} hideCoolDown={e.id === 'tech-cool-down'} />
+      <HealthNotice onPause={() => setRoutine({ ...routineRef.current, running: false })} hideCoolDown={e.id === 'tech-cool-down'} />
       <SummarySheet e={e} result={result} record={record} next={next} onClose={() => setResult(null)} />
     </Page>
   );

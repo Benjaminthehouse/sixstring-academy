@@ -69,6 +69,12 @@ describe('focus', () => {
     expect(normalizeFocus({ tonic: 'C', scale: 'chromatic' }).scale).toBe('minor-pentatonic');
   });
 
+  it('keeps a shape named by the Scales page even outside the drilled systems', () => {
+    expect(normalizeFocus({ tonic: 'A', scale: 'minor-pentatonic', shape: 'string-6' }).shape).toBe('string-6');
+    expect(patternOf({ tonic: 'A', scale: 'minor-pentatonic', shape: 'string-6' }).notes.every((n) => n.string === 6)).toBe(true);
+    expect(normalizeFocus({ tonic: 'A', scale: 'minor-pentatonic', shape: 'nope-9' }).shape).toBe('box-1');
+  });
+
   it('offers the five boxes for pentatonics, CAGED then 3NPS for seven-note scales', () => {
     expect(shapesFor('A', 'minor-pentatonic').map((p) => p.id)).toEqual(['box-1', 'box-2', 'box-3', 'box-4', 'box-5']);
     const major = shapesFor('G', 'major').map((p) => p.id);

@@ -15,6 +15,7 @@ import { SETUP } from './exercises/setup';
 import { SHAPES } from './exercises/shapes';
 import { TONE } from './exercises/tone';
 import { header } from './generate';
+export { pairLabel } from './generate';
 import type { ChordPair, ExercisePart, Hand, SkillGroup, TechniqueExercise } from './types';
 
 export type * from './types';

@@ -72,15 +72,30 @@ export interface TrackerGuidance {
  * the change that brings the view back inside.
  */
 export const OPERATING_LIMITS = {
-  /** Strings closer than this (frame pixels at the working size) are not resolved reliably. */
-  minStringSpacingPx: 4.5,
-  /** Views more oblique than this lose the strings and bend the fret comb. */
-  maxOffNormalDeg: 52,
-  /** Sensor noise (gray levels) above which the picture is too dark to track. */
-  maxNoise: 14,
-  /** Mean brightness below which the picture is too dark even without visible noise. */
-  minBrightness: 28,
-  /** Share of clipped pixels above which the camera is blinded (window or lamp behind the player). */
+  /**
+   * Strings closer than this (frame pixels at the working size) are not resolved reliably: below
+   * about 3 px nothing is found at all; at 3.4 px two scenes in three lock, a little later, and
+   * right (alt sweep "span").
+   */
+  minStringSpacingPx: 3.5,
+  /**
+   * Beyond this the view is too oblique: with markers drawn on the raised strings, cells stayed
+   * 98-100% right up to 62 degrees on the alt sweep "tilt", but nothing beyond was measured and the
+   * angle estimate itself is coarse.
+   */
+  maxOffNormalDeg: 58,
+  /**
+   * Sensor noise (gray levels, robust estimate) above which the picture counts as too dark. Tracking
+   * held at the highest noise the benches produced (about 15 on the alt "dim" scene, a gain-cranked
+   * dim room); this limit sits just beyond anything verified, so it only catches worse cases.
+   */
+  maxNoise: 16,
+  /**
+   * Mean brightness (0..255) below which the picture is too dark: tracking held at 34, failed in half
+   * the scenes at 26 and in all at 21 (alt sweep "light", camera gain capped at 8x).
+   */
+  minBrightness: 30,
+  /** Share of clipped pixels above which the camera is blinded (a window or lamp in the picture). */
   maxClipped: 0.3,
 } as const;
 

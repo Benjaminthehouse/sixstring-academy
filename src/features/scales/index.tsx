@@ -20,12 +20,12 @@
  * Keyboard: ←/→ previous / next shape, ↑/↓ root up / down a semitone, Space play / stop, Esc closes
  * a sheet. Browser check: `node e2e/scales.cjs`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { href, navigate, redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
 import { useImmersive, useScreenTitle } from '@/app/shell';
 import { normalizeTone, pluck, strum, unlockAudio, playUi } from '@/core/audio';
-import { chordVoicings, type FretPosition, type PatternSystem } from '@/core/guitar';
+import { chordVoicings, type FretPosition, type PatternSystem, type SequenceKind } from '@/core/guitar';
 import { markSkill, recordActivity, setPrefs, touchRecent, useProgress, usePrefs, useSkill } from '@/core/progress';
 import { learnerTuning } from '@/core/settings';
 import { chroma, formatDegree, formatNote, getScale, intervalName, noteToMidi, scaleSlug, scaleToneMap, toneAt, withOctaveFor } from '@/core/theory';
@@ -49,7 +49,7 @@ import {
 } from '@/ui';
 import { DegreeLegend, useMusicSettings, type FretCell, type TabViewHandle } from '@/ui/music';
 import { ScalePlayer } from './audio/player';
-import { DEFAULT_ADDRESS, arcadeParams, parseScaleParams, scaleParams, shapeSkillId, systemOfShape, type ScaleAddress } from './model/address';
+import { DEFAULT_ADDRESS, arcadeParams, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, type ScaleAddress } from './model/address';
 import { droneFor, vampFor } from './model/backing';
 import { displayScaleName, rootChoices, scaleTitle, stepRoot } from './model/catalog';
 import {
@@ -58,6 +58,7 @@ import {
   compareSummary,
   connectMarkers,
   neighbourOf,
+  resolveShape,
   shapeBox,
   shapeMarkers,
   shapeRange,
@@ -83,8 +84,23 @@ const LAST_KEY = 'scales.last';
 const WIDE_QUERY = '(min-width: 1080px)';
 /** A phone held sideways: the neck gets the screen. */
 const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 520px)';
-/** Seconds of playing worth logging as practice when the learner leaves. */
-const LOG_AFTER_SEC = 20;
+
+/** The kit's choice controls, memoised: the screen re-renders on every heard note, and they need not. */
+const StableChips = memo(ChipGroup) as typeof ChipGroup;
+const StableSegments = memo(SegmentedControl) as typeof SegmentedControl;
+
+const VIEW_OPTIONS = [
+  { value: 'shape', label: 'Shape' },
+  { value: 'connect', label: 'Connect' },
+  { value: 'all', label: 'All notes' },
+];
+const LABEL_OPTIONS = [
+  { value: 'degree', label: 'Degrees' },
+  { value: 'note', label: 'Notes' },
+  { value: 'finger', label: 'Fingers' },
+];
+/** Fingers belong to a shape: on "All notes" and in a comparison there is no fingering to show. */
+const LABEL_OPTIONS_NO_FINGERS = LABEL_OPTIONS.map((o) => (o.value === 'finger' ? { ...o, disabled: true } : o));
 
 /** The first full sentence of a description (a colon does not end it). */
 function firstSentence(text: string): string {
@@ -157,11 +173,11 @@ export default function ScalesScreen({ params }: RouteProps) {
   const setup: NeckSetup = useMemo(() => ({ tuning, capo, lastFret }), [tuning, capo, lastFret]);
 
   const baseSystems = useMemo(() => systemsFor(scale.id, tuning), [scale.id, tuning]);
-  const linked = address.shape ? systemOfShape(address.shape) : null;
-  const systems = useMemo<PatternSystem[]>(() => (linked && !baseSystems.includes(linked) ? [...baseSystems, linked] : baseSystems), [baseSystems, linked]);
-  const system: PatternSystem = linked ?? systems[0];
-  const shapes = useMemo(() => shapesFor(tonic, scale.id, system, setup), [tonic, scale.id, system, setup]);
-  const shape = shapes.find((s) => s.id === address.shape) ?? shapes[0] ?? null;
+  const { systems, system, shapes, shape } = useMemo(() => resolveShape(tonic, scale.id, address.shape, setup, baseSystems), [tonic, scale.id, address.shape, setup, baseSystems]);
+  // A shape this scale does not have here (an old link, a capo that pushed it off the neck): name the one on screen.
+  useEffect(() => {
+    if (parsed?.shape && parsed.shape !== (shape?.id ?? null)) redirect('scales', ...scaleParams({ ...parsed, shape: shape?.id ?? null }));
+  }, [parsed, shape]);
 
   const [compare, setCompare] = useState<string | null>(null);
   useEffect(() => {
@@ -216,24 +232,28 @@ export default function ScalesScreen({ params }: RouteProps) {
     playerRef.current = player;
     const offStep = player.onStep(setStep);
     const offState = player.onState(setPlaying);
+    // Time played is logged (for the shape played last) when the learner leaves the screen, or the
+    // app: on a phone, switching away or locking it may be the last thing this page ever hears.
+    const logPractice = () => {
+      const played = player.secondsPlayed();
+      const entry = practiceEntry(loggedRef.current, played - loggedSecRef.current);
+      if (!entry) return;
+      recordActivity(entry);
+      loggedSecRef.current = played;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') logPractice();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', logPractice);
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', logPractice);
       offStep();
       offState();
-      const seconds = Math.round(player.secondsPlayed() - loggedSecRef.current);
-      const what = loggedRef.current;
+      logPractice();
       player.dispose();
       playerRef.current = null;
-      // One practice entry per visit, for the shape played last.
-      if (what && seconds >= LOG_AFTER_SEC && what.address.shape) {
-        recordActivity({
-          kind: 'scale-practice',
-          id: shapeSkillId(what.address.tonic, what.address.scale, what.address.shape),
-          durationSec: seconds,
-          title: what.title,
-          route: 'scales',
-          params: scaleParams(what.address),
-        });
-      }
     };
   }, []);
 
@@ -339,7 +359,9 @@ export default function ScalesScreen({ params }: RouteProps) {
   const staff = useMemo(() => staffLine(staffRoot, scale), [staffRoot, scale]);
   const staffMidis = useMemo(() => staff.notes.map((n) => noteToMidi(n)), [staff]);
   const staffDegrees = useMemo(() => [...scale.degrees, '1', ...scale.degrees.slice().reverse()], [scale]);
-  const upMidis = staffMidis.slice(0, staff.top + 1);
+  // Props of the memoised sections stay the same objects while a line plays, so a heard note
+  // re-renders the neck and not the whole page (on a slow phone that cost notes at fast tempos).
+  const upMidis = useMemo(() => staffMidis.slice(0, staff.top + 1), [staffMidis, staff.top]);
   const staffHighlight = useMemo(() => {
     if (!litNote || playingLine?.source !== 'octave') return null;
     const index = settings.direction === 'down' ? staff.top + step : step;
@@ -426,6 +448,26 @@ export default function ScalesScreen({ params }: RouteProps) {
   );
   const moveRoot = useCallback((delta: number) => go({ tonic: stepRoot(tonic, scale, delta), scale: scale.id, shape: shape?.id ?? null }), [go, tonic, scale, shape]);
   const roots = useMemo(() => rootChoices(scale, naming), [scale, naming]);
+  const rootOptions = useMemo(() => roots.map((r) => ({ value: String(r.pc), label: r.label })), [roots]);
+  const onRoot = useCallback((v: string) => go({ tonic: roots[Number(v)].tonic, scale: scale.id, shape: shape?.id ?? null }), [go, roots, scale.id, shape?.id]);
+  const onView = useCallback((v: string) => update({ view: v as ScreenSettings['view'] }), [update]);
+  const onLabel = useCallback((v: string) => update({ label: v as ScreenSettings['label'] }), [update]);
+  const noteContext = useMemo(() => ({ tonic, scale: scale.id }), [tonic, scale.id]);
+  const onSystem = useCallback((s: PatternSystem) => go({ tonic, scale: scale.id, shape: shapesFor(tonic, scale.id, s, setup)[0]?.id ?? null }), [go, tonic, scale.id, setup]);
+  const onShape = useCallback((id: string) => go({ tonic, scale: scale.id, shape: id }), [go, tonic, scale.id]);
+  const onSequence = useCallback((s: SequenceKind) => update({ sequence: s }), [update]);
+  const onPlayExercise = useCallback(() => togglePlay('sequence'), [togglePlay]);
+  const onCompare = useCallback(
+    (id: string | null) => {
+      setCompare(id);
+      if (id && isPhone) document.querySelector('[data-neck]')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    },
+    [isPhone],
+  );
+  const playAlong = useMemo(() => arcadeParams('run-the-scale', tonic, scale.id, shape?.id ?? null), [tonic, scale.id, shape?.id]);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
+  const closeOptions = useCallback(() => setOptionsOpen(false), []);
+  const onLeftHanded = useCallback((left: boolean) => setPrefs({ handedness: left ? 'left' : 'right' }), []);
 
   useEventListener(window, 'keydown', (e: KeyboardEvent) => {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || pickerOpen || optionsOpen) return;
@@ -488,30 +530,15 @@ export default function ScalesScreen({ params }: RouteProps) {
   const viewTools = (
     <>
               {!compare && (
-                <SegmentedControl
-                  aria-label="Show on the neck"
-                  size="sm"
-                  fullWidth={compact}
-                  options={[
-                    { value: 'shape', label: 'Shape' },
-                    { value: 'connect', label: 'Connect' },
-                    { value: 'all', label: 'All notes' },
-                  ]}
-                  value={settings.view}
-                  onChange={(v) => update({ view: v as ScreenSettings['view'] })}
-                />
+                <StableSegments aria-label="Show on the neck" size="sm" fullWidth={compact} options={VIEW_OPTIONS} value={settings.view} onChange={onView} />
               )}
-              <SegmentedControl
+              <StableSegments
                 aria-label="Dot labels"
                 size="sm"
                 fullWidth={compact}
-                options={[
-                  { value: 'degree', label: 'Degrees' },
-                  { value: 'note', label: 'Notes' },
-                  { value: 'finger', label: 'Fingers', disabled: view === 'all' || view === 'compare' },
-                ]}
+                options={view === 'all' || view === 'compare' ? LABEL_OPTIONS_NO_FINGERS : LABEL_OPTIONS}
                 value={view === 'all' || view === 'compare' ? (label === 'finger' ? 'degree' : label) : label}
-                onChange={(v) => update({ label: v as ScreenSettings['label'] })}
+                onChange={onLabel}
               />
     </>
   );
@@ -545,7 +572,7 @@ export default function ScalesScreen({ params }: RouteProps) {
     mood: <MoodSection key="mood" model={model} naming={naming} />,
     staff: <StaffSection key="staff" line={staff} degrees={staffDegrees} highlight={staffHighlight} />,
     intervals: <IntervalsSection key="intervals" model={model} midis={upMidis} onPlayNote={playNote} />,
-    hear: <HearPanel key="hear" settings={settings} update={update} vamp={vamp} playAlong={arcadeParams('run-the-scale', tonic, scale.id, shape?.id ?? null)} />,
+    hear: <HearPanel key="hear" settings={settings} update={update} vamp={vamp} playAlong={playAlong} />,
     practice: (
       <PracticePanel
         key="practice"
@@ -553,10 +580,10 @@ export default function ScalesScreen({ params }: RouteProps) {
         shape={shape}
         exercises={exercises}
         sequence={sequence}
-        onSequence={(s) => update({ sequence: s })}
+        onSequence={onSequence}
         tab={tab}
         playingExercise={playingExercise}
-        onPlayExercise={() => togglePlay('sequence')}
+        onPlayExercise={onPlayExercise}
         skill={shape ? skill : null}
         onMarkLearnt={markLearnt}
         tonic={tonic}
@@ -572,10 +599,7 @@ export default function ScalesScreen({ params }: RouteProps) {
         tonicLabel={formatNote(tonic, { system: naming })}
         suggestions={model.compareWith}
         value={compare}
-        onChange={(id) => {
-          setCompare(id);
-          if (id && isPhone) document.querySelector('[data-neck]')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }}
+        onChange={onCompare}
         summary={summary}
       />
     ),
@@ -616,13 +640,7 @@ export default function ScalesScreen({ params }: RouteProps) {
                 Scale
               </Button>
             )}
-            <ChipGroup
-            aria-label="Root note"
-            options={roots.map((r) => ({ value: String(r.pc), label: r.label }))}
-            value={String(chroma(tonic))}
-            onChange={(v) => go({ tonic: roots[Number(v)].tonic, scale: scale.id, shape: shape?.id ?? null })}
-              className={styles.rootChips}
-            />
+            <StableChips aria-label="Root note" options={rootOptions} value={String(chroma(tonic))} onChange={onRoot} className={styles.rootChips} />
           </div>
           {model.simplerTonic && (
             <Text variant="caption" tone="muted" as="p">
@@ -667,7 +685,7 @@ export default function ScalesScreen({ params }: RouteProps) {
             box={box}
             capo={capo}
             tuning={tuning}
-            noteContext={{ tonic, scale: scale.id }}
+            noteContext={noteContext}
             onCellClick={onCellClick}
             focus={view === 'all' || view === 'compare' || !shape ? null : box ? [box.from, box.to] : null}
             size={sideways ? (veryShort ? 'md' : 'lg') : isPhone ? 'xl' : 'lg'}
@@ -689,7 +707,7 @@ export default function ScalesScreen({ params }: RouteProps) {
 
           {compact && <div className={styles.phoneTools}>{viewTools}</div>}
           {view !== 'all' && view !== 'compare' && (
-            <ShapePicker systems={systems} system={system} onSystem={(s) => go({ tonic, scale: scale.id, shape: shapesFor(tonic, scale.id, s, setup)[0]?.id ?? null })} shapes={shapes} shape={shape} onShape={(id) => go({ tonic, scale: scale.id, shape: id })} learnt={learnt} />
+            <ShapePicker systems={systems} system={system} onSystem={onSystem} shapes={shapes} shape={shape} onShape={onShape} learnt={learnt} />
           )}
         </section>
 
@@ -731,15 +749,15 @@ export default function ScalesScreen({ params }: RouteProps) {
       )}
 
       <Celebration fire={celebrate} intensity="low" />
-      <ScalePicker open={pickerOpen} onClose={() => setPickerOpen(false)} tonic={tonic} scaleId={scale.id} onPick={pickScale} />
+      <ScalePicker open={pickerOpen} onClose={closePicker} tonic={tonic} scaleId={scale.id} onPick={pickScale} />
       <NeckOptions
         open={optionsOpen}
-        onClose={() => setOptionsOpen(false)}
+        onClose={closeOptions}
         settings={settings}
         update={update}
         lastFret={lastFret}
         leftHanded={leftHanded}
-        onLeftHanded={(left) => setPrefs({ handedness: left ? 'left' : 'right' })}
+        onLeftHanded={onLeftHanded}
         tuningLabel={`${tuning.name} (${tuning.label})`}
       />
     </Page>

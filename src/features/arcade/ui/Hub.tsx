@@ -59,7 +59,7 @@ export function Hub() {
             <Button iconLeft="SlidersHorizontal" onClick={() => setSheet(true)} data-arcade-change>
               Change scale or shape
             </Button>
-            <LinkButton to="scales" params={[gameParams('note-hunt', focus)[1]]} variant="ghost" iconRight="ArrowRight">
+            <LinkButton to="scales" params={gameParams('note-hunt', focus).slice(1)} variant="ghost" iconRight="ArrowRight">
               Learn it on the Scales page
             </LinkButton>
           </div>

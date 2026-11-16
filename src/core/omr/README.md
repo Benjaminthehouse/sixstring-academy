@@ -1,10 +1,11 @@
 # `core/omr` — sheet recognition (image side)
 
 Turns a page image (PDF render, scan, phone photo) into a positioned transcription of printed
-tablature and standard notation, in the browser, with no server. This directory currently holds
-the **foundation**: output model, image toolbox, staff / layout analysis, staff-strip extraction,
-ground-truth corpus, degradation model and evaluation harness. The symbol recognizers
-(`tab/`, `notation/`) plug into it through the contract in section 4.
+tablature and standard notation, in the browser, with no server: foundation (output model, image
+toolbox, staff / layout analysis, strips, corpus, degradation, evaluation; sections 1-8), the tab
+and notation recognizers (sections 9-10), and the page pipeline with its worker, page classifier,
+summary, Song converter (section 11), the unseen corpus (section 12) and AI-assisted reading
+(section 13). Digest for users of the module: [API.md](./API.md).
 
 Everything outside `eval/` is DOM-free typed-array code that runs in a Web Worker and in Node.
 Import from `@/core/omr`; `eval/` (Node only: `fs`, `pngjs`) is imported by path from tests/tools.
@@ -19,7 +20,7 @@ luma ─ preprocess() ─────────────▶ normalised page
      ─ assemblePage() ───────────▶ OmrPage (boxes in ORIGINAL page px, confidences, linked staves)
 ```
 
-`analyzePage(gray)` runs the first two stages; `recognizePage(gray, { tab, notation })` runs all.
+`analyzePage(gray)` runs the first two stages; `recognizePage(image, opts)` (pipeline.ts, section 11) runs all.
 
 | Stage | Functions | Notes |
 |---|---|---|
@@ -179,6 +180,8 @@ is what the reader worked out.)
 | Step | File | What happens |
 |---|---|---|
 | ink on lines | `segment.ts` | Components of the strip WITH its lines that stand free are whole numbers (line blanked behind them); what hangs on a line comes from the line-free strip and is `fused`. Stacked pieces of a cut glyph are rejoined; numbers welded to their chord neighbours, to an arc or to a stem are cut out again (`findWeldedBlobs`). Bar lines are re-checked (`barlineSolidity`): a column of stacked numbers the layout took for a bar line does not swallow its numbers. |
+| touching chords | `segment.ts` (`findStackCuts`) | (Added after the unseen corpus, section 12.) Numbers of a chord that touch (digits about as tall as the line spacing, knock-outs that meet) are cut apart first, near the midpoint between two lines on the lightest grey row, when both parts are number-sized and centred on their lines; never in the staff's first space (the clef), never through a straight-sided column (bar line) or a long narrow stroke (a stem through the staff). |
+| stems on the line | `recognize.ts` | (Added after section 12.) A piece on the outer line that reaches out of the staff further than a number could, hardly reaches in, is thin where it meets the line and has no digit beside it is a stem hanging from the line (alphaTab style), not a 1. TAB letters smaller than a space are accepted at the very start of the staff. |
 | digit size, style | `segment.ts`, `numbers.ts` | Median digit height and centre offset of the staff; `lineThroughEvidence` measures how dark the line is inside the glyphs against the bare line (struck through: about 1 or more; blanked: well below). |
 | box | `glyph.ts` | `refineBox`: every box goes to the half-maximum outline of its own ink (sub-pixel). Templates are cut by the same rule, so a soft glyph and a sharp one match in scale. |
 | blur level | `recognize.ts` | Templates exist at five blur levels (`BLUR_LEVELS`); the staff uses the level at which a dozen sample digits correlate best. Samples are cut from two-digit numbers too when lone digits are scarce (a riff at the 12th fret). On a struck staff the samples are compared line-subtracted against struck templates, and the level is held at 2 when the staff is clearly struck (evidence >= 1.05) and level 2 explains the digits within 0.08 of the preferred level: there the extra softness only washes out 0 / 6 / 8 / 9. |
@@ -459,3 +462,111 @@ node scripts/omr-symbol-templates.cjs [--png dir]                               
 node scripts/omr-symbol-templates.cjs --extra                                                  # rebuild notation/fixtures/ (own pages)
 npx vitest run src/core/omr/notation                                                           # 54 tests, about 45 s
 ```
+
+## 11. The page pipeline (`pipeline.ts`, `reconcile.ts`, `classify-page.ts`, `summary.ts`, `worker/`, `to-song.ts`)
+
+One entry point: `recognizePage(image, options)` (grey or RGBA `ImageData`) runs analysis, every
+staff with the built-in recognizers (`options.tab` / `options.notation` replace them, `null` skips
+them), assembly, linking and the checks below, with `onProgress` (stage, fraction, a sentence) and
+`signal` (stops between staves, rejects with an `AbortError`). `recognizeDocument(images)` reads pages
+in order as one piece: key, time and clef carry over (a running context is passed to every staff;
+printed signatures win), the systems are joined into one list of measures (`OmrDocument.measures`).
+
+| Step | File | What happens |
+|---|---|---|
+| context | `pipeline.ts` | Clef / key / time read on a staff (confidence >= 0.5) carry to the next staff and page; each staff gets `timeInForce` / `keyInForce` with their source (`printed`, `carried`, `given`, `assumed` = 4/4 nothing printed). |
+| linking | `reconcile.ts` `linkSystem` | Notation chords and tab columns of a system are aligned by dynamic programming on x, with the bar lines both staves share as anchors (so skew and a different header width do not matter). Note pairs: equal pitch -> both confidences combined; a disagreement one reader listed as its runner-up -> taken, `resolved` (0.5-0.7); else both below 0.5, each with the other's reading as first alternative, `staves-disagree`. Tied-to notes may be missing from the tab; anything else seen on one staff only is `unlinked`. |
+| rhythm | `reconcileRhythm`, `checkMeasures`, `estimateRhythmFromSpacing` | Tab without stems takes the notation's durations (`merged`). Where notation and tab stems disagree, the staff whose measure adds up wins. Every measure is checked against the metre (`ticks`, `expectedTicks`, `addsUp`; first measure of the piece may be a `pickup`, last may complete it; linked tab takes its partner's verdict since it prints no rests). Tab with no rhythm anywhere: durations from spacing (DP over sixteenths to fill the bar exactly; `inferred`, 0.25, `rhythm-estimated` on the measure). |
+| worker | `worker/client.ts`, `protocol.ts`, `omr.worker.ts` | `createOmrWorker()` starts a module worker (Vite bundles it as its own chunk; the client is ~8 kB). Cancel: a `cancel` message, then `terminate()` after `cancelGraceMs` if a staff is still running; a new worker on the next call. A vision model cannot live in the worker: the worker asks the page (`ai-ask` / `ai-answer`). `{ worker: 'inline' }` runs the same protocol in this thread (tests). |
+| classifier | `classify-page.ts` | `classifyPage(image)`: staff finder on a copy reduced to <= 1800 px; staves whose lines are mostly gaps on the line binarisation (text rows that line up) are dropped; six-line "staves" broken into equal dashes are ASCII tab -> `text`; no staves but >= 3 lines of text -> `text`; else `not-music`. |
+| summary | `summary.ts` | `summarizePage` / `summarizeDocument`: verdict, headline, plain sentences (counts read / uncertain, notation-tab agreement, where the rhythm comes from, measures that do not add up, key and time with their source), and the proofreading list ranked by impact (staff kind doubts and key / time guesses first, then measures that do not add up, disagreements, guesses), every item with its box. |
+| Song | `to-song.ts` | `omrToSong(pageOrDoc)`: one guitar track, one bar per measure, tab strings / frets (notation alone: frets low on the neck), durations as read, measures padded / cut to the metre with warnings, chord symbols that were read, ties, dead notes, harmonics; `estimatedRhythm` when spacing was used. Always a valid Song. |
+
+Measured with `node e2e/omr-page.cjs` (three full 1240 x 1754 corpus pages, Chromium, dev server,
+machine under load 8-11): BROWSER_NUMBERS
+
+`classifyPage` over the corpora (`cli.cjs --classify [--corpus unseen]`, expected kind from the
+subset): original corpus 66 / 66 right at clean, scan and photo-good, 60 / 66 at photo-bad (the
+misses are staves the layout stage does not find there, and one notation + tab page whose
+notation staff is lost); unseen corpus 27 / 27, 27 / 27, 27 / 27, 20 / 27. Median 0.15-0.45 s
+per page (reduced copy), max 2.3 s, on the loaded machine. Typed-dash ASCII tab and a page of text
+are recognised as `text` (unit tests); a page whose "staff lines" are rows of words is not taken
+for music.
+
+## 12. The unseen corpus (`fixtures-unseen/`, `scripts/omr-unseen.cjs`)
+
+Everything above was developed on pages from one generator (VexFlow 4). To measure overfitting,
+`scripts/omr-unseen.cjs` engraves 27 pages (8 notation, 11 tab, 8 notation + tab; 82 staves, 877
+heads, 1126 tab numbers, 349 measures; 0.55 MB) independently:
+
+- **Own layout engine** (23 pages): VexFlow's Bravura, Gonville, Petaluma (and Leland once) used as
+  glyph outlines only; staff space 7-24 px; staff lines 0.05-0.22 space thick; spacing 0.7-1.35x;
+  stems 2.7-4.1 spaces; flat / normal / steep beams; cue-size notes (2 pages); triplets with an
+  italic 3; no bar line at the start of single staves; ragged last systems; titles, tempo, chord
+  symbols. Tab numbers in faces no template was drawn from: IPAGothic (slashed 0), WenQuanYi Zen
+  Hei, Unifont (pixel font), Caladea Italic, a synthetic condensed Carlito Bold, a synthetic heavy
+  Liberation Sans, small Liberation Serif digits, stroke-drawn "handwritten" digits with seeded
+  jitter; knocked out of the line or struck through; tab with stems / beams / rests below and a
+  big time signature; small TAB letters.
+- **alphaTab** (4 pages, `ua-`): another engraving program (tab with rhythm stems drawn THROUGH the
+  staff from the numbers, plain tab, score + tab), rendered offline in Chromium with its own Bravura
+  served from node_modules (works; no network).
+
+Truth in the corpus format from the drawing itself (SVG glyph boxes, canvas text metrics, alphaTab's
+bounds lookup), checked against the ink. `node scripts/omr-unseen.cjs [--only id] [--overlay]`
+rebuilds it; `node src/core/omr/eval/cli.cjs --corpus unseen [--mistakes --dump-mistakes]` scores it.
+
+First contact showed, on CLEAN pages: tab recall 86.6 % (tab-only) and 88.9 % (linked) against
+100 % on the original corpus, whole chord columns dropped when their numbers touch; cue-size notes
+never found; alphaTab's stems read as 1s; TAB letters read as 1s; notation recall 91.8 %. Fixes, each
+checked to leave the original corpus unchanged (same mistakes, page for page, at scan and
+photo-good; `tab` unit tests): `findStackCuts` (touching chords), the hanging-stem filter, small
+TAB letters (section 9.1). Fixes to the generator itself (not the reader) where it was unrealistic:
+SVG strokes leaking onto knock-out boxes, header widths that let the first chord overprint the key
+and time signature on Petaluma pages, triplet numbers placed four spaces away from their beam.
+
+UNSEEN_TABLE
+
+Not fixed (documented limits): cue-size notes are treated like grace notes by design (both cue pages
+read nearly empty: notation recall stays near 92 % overall at clean); Petaluma's hand-drawn time
+signature digits printed at two spaces touch and are read as a note head + nothing; a sixteenth
+rest's knob placed tight after a note is read as an augmentation dot (confident, wrong); slashed /
+dotted zeros and Unifont digits are confused more often (mostly below 0.5); at photo-good the
+alphaTab stems still produce extra 1s (28 on one page, all near 0.5 confidence).
+
+## 13. AI-assisted reading (`ai-assist.ts`, `ai-platform.ts`)
+
+Optional: the app works without it. `createPlatformAiClient()` wraps `@/core/platform` `askJson` (tier
+`complex`, pictures as canvases; checks `aiAllowed()` before every request and throws
+`OmrAiUnavailableError` with a sentence to show when it is off, unavailable or cannot see pictures).
+
+- **(a) Page reading**: `readPageWithAi(gray, page, client)` crops each system found by the
+  classical reader (with room for chord symbols), scales it so a staff space is ~14 px (a whole
+  page shrunk to the model's resolution leaves digits a few pixels tall), and sends them in batches
+  of `client.maxImages` (<= 4) with `OMR_SYSTEM_PROMPT` (guitar conventions: top tab line = string
+  1, written treble pitch an octave above sounding, accidentals last to the bar line; never invent
+  notes or "complete" a bar; mark `uncertain`) and `pageReadingPrompt` (exact JSON shape: title,
+  tempo, per system key / time, per measure chords, lyrics, events with rest, duration, dots,
+  triplet, notes {pitch, string, fret, tie}, uncertain, doubts). No staves found: the whole page,
+  reduced to <= 1800 px. `parseAiReading` validates and repairs (unknown pitches, strings, frets > 24,
+  two notes on a string, bad durations dropped and listed in `repairs`; pitch and string / fret that
+  contradict each other mark the event `inconsistent`); an answer unusable as a whole throws so the
+  platform asks once more with the reason.
+- **(b) Fusion**: `fuseAiReading(page, reading, systemMap)` aligns measures (by count, else by
+  content), then events (DP on pitches and durations). Agreement raises confidence (the AI counts
+  as 0.7, 0.35 when it said `uncertain` or contradicted itself). A different pitch or fret is taken
+  only for a guess (< 0.6) that the picture reader also had as an alternative, or that the linked
+  tab confirms, or (frets) for a very weak reading inside a playable span: `resolved`. Otherwise the
+  picture reading stays, gets the AI's as first alternative and `ai-disagree` (and drops below 0.5
+  unless it was >= 0.85). AI durations are taken only where they make a measure that did not add up
+  add up with the same events. Notes only the AI saw are inserted as guesses (0.35, `ai-only`) only
+  where the measure is short of time; else an `ai-only` note on the measure. Chord symbols fill the
+  located text boxes; title / composer / tempo fill page texts. Measures are re-checked.
+- **(c) Measure question**: `measuresToCheck(page)` ranks measures (do not add up, then low
+  confidence); `secondOpinionOnMeasure` crops the measure (both staves of a linked pair), enlarges it
+  (~22 px per space), tells the model what was found and asks for the events (`measureQuestionPrompt`),
+  then fuses that measure only.
+
+Vision models misread dense notation and miscount repeated notes; nothing they say is taken as
+ground truth. All of this is unit-tested with fake answers (good, partial, malformed, contradictory,
+failing); no real model was available in this environment, so its accuracy on real pages is unmeasured.

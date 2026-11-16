@@ -9,7 +9,7 @@ import { loadFixture } from './eval/fixtures';
 import { f1, rate, scorePage } from './eval/metrics';
 import { oracleRecognizers } from './eval/oracle';
 import { type GrayImage, createGray, grayToRgba } from './image/gray';
-import { type OmrProgress, OmrCancelledError, measuresAt, recognizeDocument, recognizePage } from './pipeline';
+import { type OmrProgress, OmrCancelledError, isCancelled, measuresAt, recognizeDocument, recognizePage } from './pipeline';
 import { summarizeDocument, summarizePage } from './summary';
 import { type OmrNotationEvent, type OmrTabEvent, isNotationEvent, isTabEvent } from './types';
 import { createOmrWorker } from './worker/client';
@@ -177,7 +177,8 @@ describe('the worker protocol (in this thread)', () => {
     const omr = createOmrWorker({ worker: 'inline', cancelGraceMs: 200 });
     const ctl = new AbortController();
     const run = omr.recognizePage(gray, { signal: ctl.signal, onProgress: (p) => { if (p.stage === 'staff') ctl.abort(); } });
-    await expect(run).rejects.toBeInstanceOf(OmrCancelledError);
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+    expect(isCancelled(await run.catch((e: unknown) => e))).toBe(true);
     // A model that answers every question with nothing usable: the reading stays as it was.
     const asked: string[] = [];
     const model = { ask: async (_img: unknown, prompt: string) => { asked.push(prompt); return null; } };

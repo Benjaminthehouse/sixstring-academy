@@ -118,7 +118,7 @@ export const SHAPES: TechniqueExercise[] = [
     steps: [
       'Major triads on strings 3, 2 and 1, three shapes for each chord up the neck.',
       'C: C (xxx553) root position, C (xxx988) first inversion (E at the bottom), C (x-x-x-12-13-12) second inversion (G at the bottom).',
-      'F: F (xxx211), F (xxx565), F (x-x-x-10-10-8). G: G (xxx433), G (xxx787), G (x-x-x-12-12-10).',
+      'F: F (xxx211) first inversion, F (xxx565) second inversion, F (x-x-x-10-10-8) root position. G: G (xxx433) first inversion, G (xxx787) second inversion, G (x-x-x-12-12-10) root position.',
       'Strum strings 3 to 1 only, one chord per beat, naming the top note.',
       'Then join C, F, G and C by the nearest shapes, C (xxx553), F (xxx565), G (xxx787), C (xxx988): the top note climbs G, A, B, C while the hand barely moves.',
     ],
@@ -132,7 +132,7 @@ export const SHAPES: TechniqueExercise[] = [
       {
         id: 'three-shapes',
         name: 'Three shapes each',
-        note: 'C, F and G: root position, first inversion, second inversion.',
+        note: 'Each chord’s three shapes, low to high on the neck. C starts in root position; F and G start in first inversion.',
         time: '3/4',
         tab: music([
           '"C=xxx553" q D "C=xxx988" D "C=x-x-x-12-13-12" D',

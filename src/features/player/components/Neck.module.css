@@ -1,0 +1,17 @@
+/*
+ * The fretboard strip: the board in its real materials on the page, scrolled sideways inside
+ * itself when the part needs more frets than fit. A hint (wait mode) gets an accent edge.
+ */
+.neck {
+  position: relative;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
+}
+.hint {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}

@@ -369,7 +369,8 @@ export interface StackCut {
  * eighth of a space of the midpoint, on the lightest row there (grey ink, so a gap that
  * binarisation bridged is found), not through solid ink, each part centred on its own line and,
  * when the staff has free-standing numbers to compare with (`digitHeight`), no taller than they
- * are. Straight-sided columns (bar lines) are left whole. `cc` are the components of the line-free band
+ * are. Straight-sided columns (bar lines) and columns with a long narrow stretch (a stem drawn
+ * through the staff) are left whole. `cc` are the components of the line-free band
  * (row 0 = strip row `dy`); `skip` rules out stretches (header, bar lines, rests).
  */
 export function findStackCuts(cc: Components, dy: number, g: StripGeometry, gray: GrayImage, skip: (x0: number, x1: number) => boolean, digitHeight?: number): StackCut[] {
@@ -408,6 +409,16 @@ export function findStackCuts(cc: Components, dy: number, g: StripGeometry, gray
       if (Math.abs(left[y] - cc.x0[c]) <= 1 && Math.abs(right[y] - cc.x1[c]) <= 1 && count[y] >= right[y] - left[y]) straight++;
     }
     if (straight >= 0.8 * rowsWithInk) continue;
+    // A stem drawn down through the staff from a number is one narrow stroke longer than any digit
+    // (blur can make it as wide as a thin 1); narrow stretches of stacked numbers are short. Leave
+    // stems whole.
+    let run = 0;
+    let longest = 0;
+    for (let y = 0; y < h; y++) {
+      run = count[y] && right[y] - left[y] + 1 <= 0.35 * sp ? run + 1 : 0;
+      if (run > longest) longest = run;
+    }
+    if (longest >= 1.6 * sp) continue;
     const span = (y0: number, y1: number): { h: number; w: number; peak: number; mid: number } => {
       let a = Infinity, b = -1, rows = 0, peak = 0, first = -1, last = -1;
       for (let y = Math.max(0, y0); y < Math.min(h, y1); y++) {

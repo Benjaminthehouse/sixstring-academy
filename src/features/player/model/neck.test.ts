@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { flattenSong, practiceTargets, sixTab } from '@/core/song';
+import { beatSpots, describeSpots, neckMarkers, neckRange, targetSpots } from './neck';
+
+const STANDARD = [40, 45, 50, 55, 59, 64];
+
+describe('fretboard under the score', () => {
+  it('shows the nut for parts near it and a window up the neck otherwise', () => {
+    expect(neckRange([{ fret: 0 }, { fret: 4 }])).toEqual([0, 5]);
+    expect(neckRange([{ fret: 2 }, { fret: 3 }])).toEqual([0, 5]);
+    expect(neckRange([{ fret: 7 }, { fret: 10 }])).toEqual([6, 11]);
+    expect(neckRange([{ fret: 5 }, { fret: 12 }], { maxFret: 15 })).toEqual([4, 13]);
+    expect(neckRange([])).toEqual([0, 5]);
+    // A part that climbs past the learner's last fret still shows its top note.
+    expect(neckRange([{ fret: 0 }, { fret: 17 }], { maxFret: 12 })).toEqual([0, 17]);
+  });
+
+  it('turns beats and targets into spots, with fingers from the score', () => {
+    const song = sixTab(`title: Spots
+tempo: 90
+| "G" q 3:4{3} 3:2{1} (5:3 4:0) 3:x |
+`);
+    const t = flattenSong(song);
+    const beats = t.trackBeats(song.tracks[0].id);
+    expect(beatSpots(beats[0])).toEqual([{ string: 3, fret: 4, finger: 3 }]);
+    expect(beatSpots(beats[3])).toEqual([]); // a dead note is not a place to light up
+    const targets = practiceTargets(t, song.tracks[0].id);
+    expect(targetSpots(targets[1])).toEqual([{ string: 3, fret: 2, finger: 1 }]);
+    expect(beatSpots(null)).toEqual([]);
+  });
+
+  it('lights the notes to play now and dims the next ones, spelled in the key', () => {
+    const m = neckMarkers([{ string: 3, fret: 4, finger: 3 }], [{ string: 3, fret: 2 }, { string: 3, fret: 4 }], { tuning: STANDARD, capo: 0, key: 'G' });
+    expect(m).toEqual([
+      expect.objectContaining({ string: 3, fret: 4, state: 'target', color: 'accent', note: 'B', noteLabel: true, description: 'now, finger 3' }),
+      expect.objectContaining({ string: 3, fret: 2, state: 'ghost', color: 'neutral', note: 'A', description: 'next' }),
+    ]);
+    // Spelled for the key: string 1, fret 6 is B flat in F and A sharp in E.
+    expect(neckMarkers([{ string: 2, fret: 3 }], [], { tuning: STANDARD, capo: 0, key: 'F' })[0].note).toBe('D');
+    expect(neckMarkers([{ string: 1, fret: 6 }], [], { tuning: STANDARD, capo: 0, key: 'F' })[0].note).toBe('Bb');
+    expect(neckMarkers([{ string: 1, fret: 6 }], [], { tuning: STANDARD, capo: 0, key: 'E' })[0].note).toBe('A#');
+  });
+
+  it('counts frets from the capo', () => {
+    // Capo 2, string 3 open sounds A.
+    expect(neckMarkers([{ string: 3, fret: 0 }], [], { tuning: STANDARD, capo: 2 })[0].note).toBe('A');
+  });
+
+  it('says in words where to play', () => {
+    const o = { tuning: STANDARD, capo: 0, key: 'G' };
+    expect(describeSpots([{ string: 3, fret: 4, finger: 3 }], o)).toBe('B on string 3, fret 4 (finger 3)');
+    expect(describeSpots([{ string: 1, fret: 0 }], o)).toBe('E on open string 1');
+    expect(describeSpots([{ string: 5, fret: 0 }, { string: 4, fret: 2 }], o)).toBe('A on open string 5 and E on string 4, fret 2');
+    expect(describeSpots([], o, 'G')).toBe('the G chord');
+  });
+});

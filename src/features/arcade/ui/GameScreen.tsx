@@ -105,7 +105,7 @@ export function GameScreen({ game, focus }: { game: GameDef; focus: Focus }) {
                   to="arcade"
                   params={levelParams(game.id, focus, l.n)}
                   leading={
-                    <span className={open ? styles.levelNum : styles.levelNumLocked} aria-hidden="true">
+                    <span className={open ? styles.levelNum : styles.levelNumLocked} aria-hidden="true" data-arcade-level={l.n} data-locked={open ? undefined : 'true'}>
                       {open ? l.n : <Icon name="Lock" size={16} />}
                     </span>
                   }
@@ -114,8 +114,6 @@ export function GameScreen({ game, focus }: { game: GameDef; focus: Focus }) {
                   trailing={<StarRating value={rec?.stars ?? 0} size={16} label={`${rec?.stars ?? 0} of 3 stars`} />}
                   selected={l.n === next}
                   wrap
-                  data-arcade-level={l.n}
-                  data-locked={open ? undefined : 'true'}
                 />
               );
             })}

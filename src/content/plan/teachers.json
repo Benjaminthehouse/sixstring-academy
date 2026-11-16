@@ -106,7 +106,7 @@
               "title": "Your first tune: Hot Cross Buns",
               "kind": "song",
               "goal": "Press clean notes on string 3 and play Hot Cross Buns from tab, first in wait mode and then in time.",
-              "explain": "Press with the very tip of the finger just behind the fret wire, on the side nearer the body: not on top of the wire and not in the middle of the space. Use just enough pressure for a clear note; if it buzzes, move closer to the wire or press a little harder, and if it sounds muffled, curve the finger so it stands up on its tip. Hot Cross Buns uses three notes on string 3, written in tab, a line for each string with the fret number on it (0 means open): B at fret 4, A at fret 2 and the open G.",
+              "explain": "Press with the very tip of the finger just behind the fret wire, on the side nearer the body: not on top of the wire and not in the middle of the space. Use just enough pressure for a clear note; if it buzzes, move closer to the wire or press a little harder, and if it sounds muffled, curve the finger so it stands up on its tip. Hot Cross Buns uses three notes on string 3, B at fret 4, A at fret 2 and the open G; in tab each string has a line, the numbers on it are the frets to press, and 0 means open.",
               "show": "Tab of Hot Cross Buns (version A), all on string 3: 4 2 0 | 4 2 0 | 0 0 2 2 | 4 2 0, using string 3 fret 4 (B) for finger 3, string 3 fret 2 (A) for finger 1 and the open string 3 (G); a fretboard figure of the hand in second position (finger 1 over fret 2, finger 3 over fret 4). Audio at 72 bpm.",
               "practice": [
                 "Mic (play-note): play each note alone until it rings clearly: string 3 fret 4 (B3) with finger 3, string 3 fret 2 (A3) with finger 1, the open string 3 (G3). Without a microphone: fretboard-find, tap where each note is.",
@@ -764,7 +764,7 @@
               "title": "Dm, and E again",
               "kind": "technique",
               "goal": "Play Dm, and change from Am to Dm and from Am to E.",
-              "explain": "Dm: finger 2 on string 3 fret 2 (A), finger 3 on string 2 fret 3 (D), finger 1 on string 1 fret 1 (F), strummed on strings 4 to 1. From Am to Dm the note on string 3 fret 2 (A) stays, but the finger changes from 3 to 2. E you met in your first week as the Am shape moved one string toward string 6 (finger 2 on string 5 fret 2 (B), finger 3 on string 4 fret 2 (E), finger 1 on string 3 fret 1 (G#)); in A minor it is the chord that leads home to Am.",
+              "explain": "Dm: finger 2 on string 3 fret 2 (A), finger 3 on string 2 fret 3 (D), finger 1 on string 1 fret 1 (F), strummed on strings 4 to 1. From Am to Dm the note on string 3 fret 2 (A) stays, but the finger changes from 3 to 2. E you met in your first week as the Am shape moved one string toward string 6 (finger 2 on string 5 fret 2 (B), finger 3 on string 4 fret 2 (E), finger 1 on string 3 fret 1 (G#)); in songs built around Am, it is the chord that leads back home to Am.",
               "show": "Chord boxes of Am (x02210), Dm (xx0231) and E (022100), with the Am-to-E move shown as the whole shape sliding one string over; audio of E and Em, so you hear one note (G# or G) change the chord from major to minor.",
               "practice": [
                 "Mic (play-chord): Dm, string by string from string 4 and then strummed. Without a microphone: chord-build.",
@@ -832,7 +832,7 @@
               "title": "Wade in the Water",
               "kind": "song",
               "goal": "Play Wade in the Water in E minor with Em, Am and B7, slow and heavy, with every change to B7 on time.",
-              "explain": "This spiritual, printed in 1901, moves between Em, Am and B7, the three main chords of E minor. Strum it slow and heavy with the down-up eighths you already know, leaning on beats 2 and 4, so all your attention can go to the new B7 changes. The song has its own swaying strum too, and it comes back with it in the strumming unit.",
+              "explain": "This spiritual, printed in 1901, moves between Em, Am and B7, the three main chords of E minor. Strum it slow and heavy with the down-up eighths you already know, leaning on beats 2 and 4, so all your attention can go to the new B7 changes. The song has its own swaying strum too: you will learn it, and come back to this song, in the strumming unit.",
               "show": "Chord chart with Em (022000), Am (x02210) and B7 (x21202); a rhythm line of down-up eighths with accents on 2 and 4; audio at 84 bpm.",
               "practice": [
                 "Rhythm: down-up eighths with accents on 2 and 4 along with the trainer at 72 bpm, until the accents feel natural.",

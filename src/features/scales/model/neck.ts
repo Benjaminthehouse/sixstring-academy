@@ -9,6 +9,7 @@
 import { patternSystemsFor, scalePatterns, scalePositions, type NeckTone, type PatternSystem, type ScalePattern, type TuningInput } from '@/core/guitar';
 import { compareScales, formatDegree, getScale } from '@/core/theory';
 import { degreeColor, dotsToMarkers, type FretBox, type FretMarker, type MusicColor } from '@/ui/music';
+import { systemOfShape } from './address';
 
 /** What the neck is showing. */
 export type NeckView = 'shape' | 'all' | 'connect' | 'compare';
@@ -55,6 +56,37 @@ export function shapesFor(tonic: string, scale: string, system: PatternSystem, s
   } catch {
     return [];
   }
+}
+
+/** What the neck shows for an address: the pattern systems on offer, the one in use, its shapes and the shape. */
+export interface ShapeChoice {
+  /** Systems that have at least one shape here (the usual one first; a linked one appended). */
+  systems: PatternSystem[];
+  system: PatternSystem;
+  shapes: ScalePattern[];
+  /** Null only when no system has a shape (then the neck shows every note). */
+  shape: ScalePattern | null;
+}
+
+/**
+ * Resolve the shape an address asks for. A shape id from another system (an Arcade link, an old
+ * bookmark) is honoured when that system really has it; otherwise the screen falls back to a real
+ * shape — the same system's first, else the scale's usual system — so an address never dead-ends
+ * on "no shape". Systems without a shape here (a capo high up a short neck) are left out.
+ */
+export function resolveShape(tonic: string, scale: string, wanted: string | null, setup: NeckSetup, base: readonly PatternSystem[] = systemsFor(scale, setup.tuning)): ShapeChoice {
+  const linked = wanted ? systemOfShape(wanted) : null;
+  const order = linked && !base.includes(linked) ? [...base, linked] : [...base];
+  const all = order.map((system) => ({ system, shapes: shapesFor(tonic, scale, system, setup) }));
+  const offered = all.filter((e) => e.shapes.length > 0 && (base.includes(e.system) || e.shapes.some((s) => s.id === wanted)));
+  const pick = offered.find((e) => e.system === linked) ?? offered[0];
+  if (!pick) return { systems: [...base], system: base[0] ?? 'position', shapes: [], shape: null };
+  return {
+    systems: offered.map((e) => e.system),
+    system: pick.system,
+    shapes: pick.shapes,
+    shape: pick.shapes.find((s) => s.id === wanted) ?? pick.shapes[0],
+  };
 }
 
 /** The index of a shape id in a list (0 when it is not there). */

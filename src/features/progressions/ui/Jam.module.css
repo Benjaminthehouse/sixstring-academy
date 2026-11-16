@@ -22,8 +22,8 @@
     'top top'
     'now neck'
     'chart neck'
-    'chart players';
-  grid-template-rows: auto auto 1fr auto;
+    'transport neck';
+  grid-template-rows: auto auto auto 1fr;
   column-gap: var(--sp-6);
   row-gap: var(--sp-5);
   align-items: start;
@@ -59,9 +59,10 @@
   outline: none;
   box-shadow: var(--focus-ring);
 }
-/* Phones and tablets: the shell's top bar already offers Back. */
+/* Phones and tablets: the shell's top bar already offers Back and the title. */
 @media (max-width: 899.98px) {
-  .back {
+  .back,
+  .title {
     display: none;
   }
 }
@@ -213,14 +214,39 @@
 
 /* ── Chart, players, bar ──────────────────────────────────────────────── */
 
+.transport {
+  grid-area: transport;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+}
+.transportButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 .chartPane {
   grid-area: chart;
   min-width: 0;
+  max-height: 13.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.wide .chartPane {
+  max-height: 19rem;
 }
 .players {
-  grid-area: players;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  align-self: center;
   gap: var(--sp-2);
 }
 .bar {
@@ -231,14 +257,17 @@
 
 .sideways {
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
-  grid-template-areas:
-    'top top'
-    'now neck';
+  grid-template-areas: 'now neck';
   gap: var(--sp-2) var(--sp-4);
 }
 .sideways .chartPane,
-.sideways .players {
+.sideways .players,
+.sideways .scaleHint,
+.sideways .top {
   display: none;
+}
+.sideways .neck {
+  gap: var(--sp-2);
 }
 .sideways .now {
   grid-template-columns: minmax(0, 1fr);
@@ -256,7 +285,7 @@
   gap: var(--sp-2);
 }
 .sideways .big {
-  font-size: clamp(3rem, 12vw, 5.5rem);
+  font-size: clamp(3rem, 9vw, 4.75rem);
 }
 .sideways .nextChord {
   font-size: var(--text-2xl);

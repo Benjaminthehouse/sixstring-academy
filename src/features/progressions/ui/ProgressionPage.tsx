@@ -128,13 +128,13 @@ export function ProgressionPage({ progression: p, tonic }: ProgressionPageProps)
   const nowSymbol = now ? model.resolved.bars[now.bar]?.[now.index]?.symbol ?? null : null;
 
   const jamButton = (
-    <LinkButton to="progressions" params={jamParams} variant="primary" iconLeft="Play" size={isPhone ? 'md' : 'lg'} title={undefined}>
+    <LinkButton to="progressions" params={jamParams} variant="primary" iconLeft="Play" size={isPhone ? 'md' : 'lg'} className={isPhone ? styles.grow : undefined} data-jam-link>
       Jam with the band
     </LinkButton>
   );
   const hearButton = (
-    <Button iconLeft={playing ? 'Square' : 'Volume2'} onClick={hear} pressed={playing}>
-      {playing ? 'Stop' : 'Hear the chords'}
+    <Button iconLeft={playing ? 'Square' : 'Volume2'} onClick={hear} pressed={playing} data-hear>
+      {playing ? 'Stop' : isPhone ? 'Listen' : 'Hear the chords'}
     </Button>
   );
 
@@ -259,7 +259,7 @@ export function ProgressionPage({ progression: p, tonic }: ProgressionPageProps)
       </div>
 
       {isPhone && (
-        <ActionBar>
+        <ActionBar stretchOnMobile={false}>
           {hearButton}
           {jamButton}
         </ActionBar>

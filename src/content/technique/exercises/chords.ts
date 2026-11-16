@@ -1,5 +1,5 @@
 /** Chords: barre strength, fretting-hand muting, one-minute changes and barre changes. */
-import { music, times } from '../generate';
+import { music, pairLabel, times } from '../generate';
 import type { ChordPair, ExercisePart, TechniqueExercise } from '../types';
 
 /** Shapes used here, low string first. */
@@ -20,11 +20,16 @@ const SHAPES: Record<string, string> = {
   Fmaj7: 'xx3210',
   F: 'xx3211',
   'F-barre': '133211',
+  Bm7: 'x20202',
+  'F#m': 'xx4222',
 };
 
-function pair(a: string, b: string, tip: string, id?: string): ChordPair {
+/** A pair of chords; `variant` tells two pairs with the same chords apart ("small", "barre"). */
+function pair(a: string, b: string, tip: string, opts: { id?: string; variant?: string } = {}): ChordPair {
   const sym = (k: string): string => (k === 'F-barre' ? 'F' : k);
-  return { id: id ?? `${a}-${b}`.toLowerCase().replace(/#/g, '-sharp'), a: { symbol: sym(a), shape: SHAPES[a] }, b: { symbol: sym(b), shape: SHAPES[b] }, tip };
+  const out: ChordPair = { id: opts.id ?? `${a}-${b}`.toLowerCase().replace(/#/g, '-sharp'), a: { symbol: sym(a), shape: SHAPES[a] }, b: { symbol: sym(b), shape: SHAPES[b] }, tip };
+  if (opts.variant) out.variant = opts.variant;
+  return out;
 }
 
 /** One bar alternating the two chords, a strum on every beat. */
@@ -33,7 +38,7 @@ function pairPart(p: ChordPair): ExercisePart {
   const B = `"${p.b.symbol}=${p.b.shape}"`;
   return {
     id: p.id,
-    name: `${p.a.symbol} and ${p.b.symbol}`,
+    name: pairLabel(p, ' and '),
     note: p.tip,
     tab: music(times(`q ${A} D ${B} D ${A} D ${B} D`, 2)),
     check: { kind: 'none', why: 'Count your clean changes yourself: your hands are busy, so the screen asks for the number at the end of the minute.' },
@@ -56,13 +61,15 @@ const PAIRS_2: ChordPair[] = [
   pair('Am', 'E', 'The same shape moved one string toward string 6: keep the fingers together and move them across.'),
   pair('Am', 'Dm', 'Watch finger 1: it moves from string 2 to string 1, staying at fret 1.'),
   pair('E', 'B7', 'Finger 2 stays on string 5 fret 2 as an anchor.'),
+  pair('D', 'Bm7', 'Bm7 (x20202) stands in for Bm until barre chords: three fingers at fret 2, on strings 5, 3 and 1, with strings 4 and 2 ringing open.'),
 ];
 const PAIRS_3: ChordPair[] = [
   pair('Am', 'Fmaj7', 'Finger 1 stays on string 2 fret 1; finger 2 goes to string 3 fret 2 and finger 3 to string 4 fret 3.'),
-  pair('C', 'F', 'The small F (xx3211): finger 1 stays at fret 1 and flattens over strings 2 and 1; fingers 2 and 3 each move over one string.'),
+  pair('C', 'F', 'The small F (xx3211): finger 1 stays at fret 1 and flattens over strings 2 and 1; fingers 2 and 3 each move over one string.', { variant: 'small' }),
   pair('Em', 'Am', 'The same pair of fingers moves over one string toward string 1, and finger 1 adds string 2 fret 1.'),
   pair('Em', 'B7', 'Finger 2 stays on string 5 fret 2 as an anchor.'),
-  pair('C', 'F-barre', 'The full barre F: lay finger 1 across fret 1 just as the other fingers land.', 'c-f-barre'),
+  pair('D', 'F#m', 'The small F♯m (xx4222): finger 1 stays at fret 2 and lies flat across strings 3 to 1; finger 3 moves from string 2 fret 3 to string 4 fret 4.', { id: 'd-f-sharp-m', variant: 'small' }),
+  pair('C', 'F-barre', 'The full barre F: lay finger 1 across fret 1 just as the other fingers land.', { id: 'c-f-barre', variant: 'barre' }),
 ];
 
 const CHANGES_STEPS = [

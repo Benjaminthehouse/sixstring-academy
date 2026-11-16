@@ -101,7 +101,10 @@ describe('plan files: ids', () => {
     expect(CHANGES.theory.deleted).toEqual(['the-six-strings/what-a-tuning-is', 'capo-and-transposition/transposing-with-numerals']);
     const exists = { rep: repIds, theory: theoryIds, teacher: teacherIds };
     for (const [space, { deleted, named }] of Object.entries(CHANGES) as [keyof typeof exists, { deleted: string[]; named: string[] }][]) {
-      for (const id of named) expect(exists[space].has(id) || theoryUnits.some((u) => u.id === id), `${space}: ${id} is named but does not exist`).toBe(true);
+      // A change list may name a unit, or a lesson by its slug inside a sentence about its unit.
+      const units = [...theoryUnits.map((u) => u.id), ...courses.flatMap((c) => c.units.map((u) => u.id))];
+      const known = (id: string) => exists[space].has(id) || units.includes(id) || [...exists[space]].some((x) => x.endsWith(`/${id}`));
+      for (const id of named) expect(known(id), `${space}: ${id} is named but does not exist`).toBe(true);
       for (const id of deleted) {
         expect(exists[space].has(id), `${space}: ${id} is listed as deleted but still exists`).toBe(false);
         for (const [file, text] of Object.entries(FILES)) {
@@ -154,7 +157,8 @@ describe('plan files: every reference resolves', () => {
       for (const id of l.music) expect(repIds.has(id), `${l.id}: unknown music ${id}`).toBe(true);
       for (const id of l.theory) expect(theoryIds.has(id), `${l.id}: unknown theory ${id}`).toBe(true);
       for (const step of l.practice) {
-        for (const [, track, key] of step.matchAll(new RegExp(String.raw`jam track (${ID}-${ID})(?: in ([A-G](?:#|b)?))?`, 'g'))) {
+        // Whatever follows "in" must be a key the track offers, so a typo cannot slip past as "no key given".
+        for (const [, track, key] of step.matchAll(new RegExp(String.raw`jam track (${ID}-${ID})(?: in ([^\s,.;:)]+))?`, 'g'))) {
           const p = getProgression(track);
           expect(p, `${l.id}: unknown jam track ${track}`).not.toBeNull();
           if (key) expect(keyChoices(p!), `${l.id}: ${track} in ${key}`).toContain(key);
@@ -174,7 +178,9 @@ describe('plan files: every reference resolves', () => {
       for (const e of byLength) {
         const t = norm(e.title);
         if (!text.includes(t)) continue;
-        expect(l.music, `${l.id} names "${e.title}" but does not link ${e.id}`).toContain(e.id);
+        // Naming a piece is satisfied by linking it or one of its arrangements ("Danny Boy (chord melody)").
+        const linked = l.music.some((id) => id === e.id || repEntries.find((x) => x.id === id)!.title.startsWith(`${e.title} (`));
+        expect(linked, `${l.id} names "${e.title}" but does not link ${e.id}`).toBe(true);
         text = text.split(t).join(' # ');
         named++;
       }

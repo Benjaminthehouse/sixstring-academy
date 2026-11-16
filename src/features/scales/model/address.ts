@@ -11,6 +11,7 @@
  * engine's pattern ids (`caged-e`, `box-1`, `3nps-4`, `position-2`, `string-3`, `strings-6-5`, `diagonal-1`).
  */
 import type { PatternSystem } from '@/core/guitar';
+import type { ActivityInput } from '@/core/progress';
 import { getScale, noteFromSlug, noteSlug, parseScaleSlug, scaleSlug } from '@/core/theory';
 
 /** Where the screen is: a spelled root, a scale id and (optionally) a shape id. */
@@ -61,6 +62,21 @@ export function scaleParams(address: ScaleAddress): string[] {
 /** Skill id for a learnt shape, by the progress conventions: `scale:a-minor-pentatonic:box-1`. */
 export function shapeSkillId(tonic: string, scale: string, shape: string): string {
   return `scale:${scaleSlug(tonic, scale)}:${shape}`;
+}
+
+/** Seconds of playing worth logging as practice. */
+export const LOG_AFTER_SEC = 20;
+
+/**
+ * The practice-log entry for `seconds` of playing on a shape (`played` = the shape played last and
+ * its title), or null when there is too little to log or no shape to log it against.
+ */
+export function practiceEntry(played: { address: ScaleAddress; title: string } | null, seconds: number): ActivityInput | null {
+  const durationSec = Math.round(seconds);
+  const shape = played?.address.shape;
+  if (!played || !shape || !(durationSec >= LOG_AFTER_SEC)) return null;
+  const { tonic, scale } = played.address;
+  return { kind: 'scale-practice', id: shapeSkillId(tonic, scale, shape), durationSec, title: played.title, route: 'scales', params: scaleParams(played.address) };
 }
 
 /** Scale Arcade games this screen hands a scale and shape to, with what each one is for here. */

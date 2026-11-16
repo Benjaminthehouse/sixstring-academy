@@ -75,8 +75,7 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
     if (!running || !q) return;
     shownAt.current = performance.now();
     if (q.kind === 'ear') void play(q.mode, 'question');
-    // Only on a new question.
-  }, [running, index]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [running, index]); // only on a new prompt, on purpose
 
   const finish = useCallback(
     (done: typeof answers, t: typeof tally) => {

@@ -221,6 +221,7 @@ async function tapRounds(browser, url) {
     // Taps are exact for every game but Run the Scale, whose taps are timed by a test script.
     check('taps', `${g.id}: stars on the summary`, g.id === 'run-the-scale' ? stars >= 0 && accuracy >= 40 : stars >= 2, `stars ${stars}, accuracy ${accuracy}%`);
     await page.waitForTimeout(500);
+    await dismissShell(page);
     await page.screenshot({ path: path.join(OUT, `arcade-summary-${g.id}.png`) });
   }
   const stored = await page.evaluate(() => ({ progress: JSON.parse(localStorage.getItem('ssa:progress') || '{}'), arcade: JSON.parse(localStorage.getItem('ssa:arcade') || '{}') }));
@@ -261,6 +262,7 @@ async function tapRounds(browser, url) {
   await page.waitForSelector('[data-arcade-daily-summary]', { timeout: 20000 }).catch(() => (dailyOk = false));
   check('daily', "today's challenge plays three games to one summary", dailyOk);
   await page.waitForTimeout(600);
+  await dismissShell(page);
   await page.screenshot({ path: path.join(OUT, 'arcade-daily-summary.png') });
   const daily = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:arcade') || '{}').daily);
   check('daily', 'the day is recorded as done', daily && daily.done === true, JSON.stringify(daily));
@@ -437,7 +439,9 @@ async function shots(browser, url) {
     await page.waitForTimeout(700);
     await page.screenshot({ path: path.join(OUT, `arcade-landscape-${game}.png`) });
     const fits = await page.evaluate(() => {
-      const b = document.querySelector('[data-arcade-round] svg')?.getBoundingClientRect();
+      // The fretboard is the largest drawing in the round.
+      const svgs = [...document.querySelectorAll('[data-arcade-round] svg')].map((el) => el.getBoundingClientRect());
+      const b = svgs.sort((x, y) => y.width * y.height - x.width * x.height)[0];
       return b ? b.bottom <= window.innerHeight + 2 && b.width >= 480 : false;
     });
     check('layout', `landscape ${game}: the neck is wide and fully on screen`, fits);

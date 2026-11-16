@@ -143,6 +143,8 @@ function heatFromBars(bars: ReadonlyArray<{ bar: number; targets: number; mistak
 /** Context every summary needs. */
 export interface RunContext {
   tempo: number;
+  /** The slowest tempo of the run, when it changed (stars are capped by it). */
+  starsTempo?: number;
   fullSong: boolean;
   durationSec: number;
   barCount: number;
@@ -158,7 +160,7 @@ export function summarizeFlow(result: FlowResult, mode: 'flow' | 'tap', ctx: Run
   return {
     mode,
     accuracy,
-    stars: runStars(accuracy, ctx.tempo, ctx.fullSong),
+    stars: runStars(accuracy, ctx.starsTempo ?? ctx.tempo, ctx.fullSong),
     fullSong: ctx.fullSong,
     tempo: ctx.tempo,
     durationSec: ctx.durationSec,
@@ -294,7 +296,8 @@ export function bestLine(newBest: boolean, previous: BestRun | null, summary: Ru
 /** The one `recordActivity` input for a finished run (or a run left part-way). */
 export function activityFor(summary: RunSummary, song: { id: string; title: string }, opts: { progress: number; data: SongData; reachedEnd: boolean }): ActivityInput {
   const scored = summary.mode !== 'listen' && summary.accuracy !== null && summary.total > 0;
-  const completed = summary.fullSong && opts.reachedEnd;
+  // Listening to the end is logged, but it is not a play-through: no crown for it.
+  const completed = summary.fullSong && opts.reachedEnd && scored;
   const input: ActivityInput = {
     kind: 'song',
     id: `song:${song.id}`,

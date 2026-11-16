@@ -194,7 +194,8 @@ describe('teachers plan: practice steps', () => {
     let checked = 0;
     for (const { lesson: l } of lessons) {
       for (const step of l.practice.filter((s) => s.startsWith('Jam'))) {
-        const tracks = [...step.matchAll(/jam track ([a-z0-9]+(?:-[a-z0-9]+)+)(?: in ([A-G](?:#|b)?))?/g)];
+        // Whatever follows "in" must be an offered key, so a typo cannot pass as "no key given".
+        const tracks = [...step.matchAll(/jam track ([a-z0-9]+(?:-[a-z0-9]+)+)(?: in ([^\s,.;:)]+))?/g)];
         expect(tracks.length, `${l.id}: Jam step without a jam track`).toBeGreaterThan(0);
         for (const m of tracks) {
           const p = getProgression(m[1]);
@@ -246,7 +247,7 @@ describe('teachers plan: links', () => {
   });
 
   it('gives each teacher music at the right level, rising from Mia to Dev to Elena', () => {
-    const level = new Map([...rep.pieces, ...rep.studies, ...rep.technique].map((e) => [e.id, (e as { level: number }).level]));
+    const level = new Map([...rep.pieces, ...rep.studies, ...rep.technique].map((e) => [e.id, (e as unknown as { level: number }).level]));
     const levels = courses.map((c) => c.units.flatMap((u) => u.lessons.flatMap((l) => l.music.map((id) => level.get(id)!))).sort((a, b) => a - b));
     expect(Math.max(...levels[0]), 'mia').toBeLessThanOrEqual(5);
     expect(Math.max(...levels[1]), 'dev').toBeLessThanOrEqual(7);

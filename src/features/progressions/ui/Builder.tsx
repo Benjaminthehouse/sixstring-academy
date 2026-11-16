@@ -14,7 +14,7 @@ import { backingFor, formatSlot, resolveSlot } from '@/content/progressions';
 import { BACKING_STYLES, BACKING_STYLE_IDS, type BackingStyleId } from '@/core/audio';
 import { recordActivity } from '@/core/progress';
 import {
-  ActionBar, Badge, Banner, Button, EmptyState, IconButton, Kbd, LinkButton, List, ListItem, Menu, Modal, Page, PlayButton,
+  ActionBar, Badge, Button, Icon, EmptyState, IconButton, Kbd, LinkButton, List, ListItem, Menu, Modal, Page, PlayButton,
   Section, SegmentedControl, Select, Stepper, Switch, Text, TextField, confirmDialog, cx, toast, useEventListener, useIsMobile,
 } from '@/ui';
 import { useMusicSettings } from '@/ui/music';
@@ -219,7 +219,7 @@ export function Builder({ draft, setDraft }: BuilderProps) {
   return (
     <Page
       title="Build a progression"
-      subtitle="Tap chords to add them. The band plays what you build; the suggestions show where the music wants to go next."
+      subtitle="Tap chords to add them, then play it with the band."
       back={{ to: 'progressions', label: 'All progressions' }}
       data-progressions="builder"
       data-slots={draft.slots.map((s) => s.token).join(' ')}
@@ -239,9 +239,12 @@ export function Builder({ draft, setDraft }: BuilderProps) {
             <div className={styles.keyRow}>
               <Select label="Key" size="sm" value={draft.tonic} onChange={(t) => setDraft((d) => setKey(d, t))} options={keyOptionsList} className={styles.keySelect} />
               <SegmentedControl aria-label="Major or minor" size="sm" options={[{ value: 'major', label: 'Major' }, { value: 'minor', label: 'Minor' }]} value={draft.mode} onChange={(m) => setDraft((d) => setKey(d, d.tonic, m as BuilderMode))} />
-              <span className={styles.transpose} role="group" aria-label="Transpose">
-                <IconButton icon="Minus" label="Transpose down a half step (←)" variant="secondary" onClick={() => transpose(-1)} />
-                <IconButton icon="Plus" label="Transpose up a half step (→)" variant="secondary" onClick={() => transpose(1)} />
+              <span className={styles.transposeField}>
+                <span className={styles.caption} aria-hidden="true">Transpose</span>
+                <span className={styles.transpose} role="group" aria-label="Transpose">
+                  <IconButton icon="Minus" label="Transpose down a half step (←)" variant="secondary" onClick={() => transpose(-1)} />
+                  <IconButton icon="Plus" label="Transpose up a half step (→)" variant="secondary" onClick={() => transpose(1)} />
+                </span>
               </span>
             </div>
 
@@ -296,11 +299,14 @@ export function Builder({ draft, setDraft }: BuilderProps) {
               </div>
             )}
 
-            <div aria-live="polite" className={styles.live}>
+            <div aria-live="polite" className={styles.live} data-cadence-live>
               {latest ? (
-                <Banner tone="info" icon="Sparkles" title={`${latest.cadence.name}: ${latest.cadence.romans.map((r) => formatSlot(r)).join(' → ')}`}>
-                  {latest.cadence.description}
-                </Banner>
+                <p className={styles.cadenceLine}>
+                  <Icon name="Sparkles" size="sm" className={styles.cadenceIcon} />
+                  <span>
+                    <strong>{latest.cadence.name}: {latest.cadence.romans.map((r) => formatSlot(r)).join(' → ')}.</strong> {latest.cadence.description}
+                  </span>
+                </p>
               ) : loopCadence && draft.slots.length > 2 ? (
                 <Text size="sm" tone="muted">Going round again makes a {loopCadence.cadence.name.toLowerCase()}: {loopCadence.cadence.romans.map((r) => formatSlot(r)).join(' → ')}.</Text>
               ) : null}

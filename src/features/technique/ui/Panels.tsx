@@ -1,6 +1,7 @@
 /** The pieces of an exercise screen: ladder, phone bar, take result, history, how-to-play. */
 import { useMemo, type ReactNode } from 'react';
 import { HANDS, SKILL_GROUPS, getExercise, type TechniqueExercise } from '@/content/technique';
+import { href } from '@/app/router';
 import type { ActivityResult } from '@/core/progress';
 import {
   Button,
@@ -23,6 +24,7 @@ import {
   Text,
   Tooltip,
   cx,
+  focusRing,
 } from '@/ui';
 import type { TechniqueRecord } from '../model/history';
 import { climbs, ladderFraction, MAX_TEMPO, MIN_TEMPO, rungCount, rungOf } from '../model/ladder';
@@ -177,7 +179,7 @@ export function LadderPanel({ x, e, withControls }: { x: ExerciseState; e: Techn
         </div>
         <Stepper label="Tempo" hideLabel value={x.tempo} onChange={x.setTempo} min={MIN_TEMPO} max={MAX_TEMPO} step={step} largeStep={e.tempo.step || 4} unit={even ? '♪/min' : 'BPM'} disabled={x.mode === 'take'} />
       </div>
-      <Rungs e={e} tempo={x.tempo} best={x.record.best} />
+      <Rungs e={e} tempo={x.tempo} best={x.best} />
       <CountIn countIn={x.countIn} />
       {withControls && (
         <>
@@ -441,7 +443,11 @@ export function SummarySheet({ e, result, record, next, onClose, extra }: { e: T
           {extra}
           {coolDown && e.id !== coolDown.id && (
             <Text tone="muted" size="sm">
-              Finishing for today? Two minutes of <LinkButton variant="ghost" size="sm" to="technique" params={[coolDown.id]} onClick={onClose}>cool-down</LinkButton> keep your hands happy.
+              Finishing for today? Two minutes of{' '}
+              <a className={cx(styles.inlineLink, focusRing)} href={href('technique', coolDown.id)} onClick={onClose}>
+                cool-down
+              </a>{' '}
+              keep your hands happy.
             </Text>
           )}
           <Heading level={3} size="md">

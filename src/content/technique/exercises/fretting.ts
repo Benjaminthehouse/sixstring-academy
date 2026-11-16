@@ -210,8 +210,8 @@ export const FRETTING: TechniqueExercise[] = [
     teaches: ['finger independence', 'holding notes', 'chord-melody preparation'],
     summary: 'Hold two fingers down while the other two move: the independence that chord melody and fingerstyle need.',
     steps: [
-      'Fingers 1 and 2 press frets 5 and 6 on the lower string of a pair (string 4 first) and stay there.',
-      'Fingers 3 and 4 alternate frets 7 and 8 on the next string up (string 3).',
+      'Fingers 1 and 2 press frets 5 and 6 on the lower string of a pair (string 6 to begin with) and stay there.',
+      'Fingers 3 and 4 alternate frets 7 and 8 on the next string up (string 5).',
       'Then hold 3 and 4 down on the higher string and move 1 and 2 on the lower one.',
       'Repeat on every pair of neighbouring strings, from 6-5 to 2-1.',
     ],

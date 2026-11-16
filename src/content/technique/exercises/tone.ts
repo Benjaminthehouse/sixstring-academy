@@ -139,7 +139,7 @@ export const TONE: TechniqueExercise[] = [
       {
         id: 'squeal',
         name: 'Find the squeal',
-        note: 'P.H. on every note; move the picking point a little each bar.',
+        note: 'Every note is a pinch harmonic (marked P.H.); move the picking point a little each bar.',
         tab: music(['^"P.H." q 3:7 3:7 3:7 3:7', 'q 3:7 3:7 3:7 3:7']),
         check: { kind: 'none', why: 'A pinch harmonic sounds a different overtone each time, so there is no single pitch to check. Listen for the squeal.' },
       },

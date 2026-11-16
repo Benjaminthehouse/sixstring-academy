@@ -120,7 +120,7 @@
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   gap: var(--sp-3);
 }
 @media (max-width: 719.98px) {
@@ -484,4 +484,9 @@
   .kbdLine {
     display: none;
   }
+}
+
+.grow {
+  flex: 1 1 auto;
+  min-width: 0;
 }

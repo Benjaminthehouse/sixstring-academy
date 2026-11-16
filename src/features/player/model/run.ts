@@ -147,6 +147,12 @@ export class FlowRun {
     p.anchor = { audio, time: writtenSec / Math.max(0.05, percent / 100) };
   }
 
+  /** The music went on again after a pause: at `audio` it is at `writtenSec` (written-tempo seconds). */
+  reanchor(audio: number, writtenSec: number): void {
+    const p = this.passes[this.passes.length - 1];
+    p.anchor = { audio, time: writtenSec / Math.max(0.05, p.percent / 100) };
+  }
+
   /** Is there an unjudged target in pass `p` near `time` that this note could be? */
   private fits(p: Pass, time: number, midi: number, freq?: number, cents?: number): number {
     let best = Infinity;
@@ -181,6 +187,15 @@ export class FlowRun {
       }
     }
     return chosen;
+  }
+
+  /**
+   * Would this note be the right pitch for a target due around `audio`? (The screen asks before
+   * passing on very low notes, which are as often a knock on the guitar's body as a played note.)
+   */
+  wants(audio: number, midi: number): boolean {
+    const p = this.route(audio, midi);
+    return this.fits(p, this.timeIn(p, audio), midi) < Infinity;
   }
 
   /** A note was heard at audio time `audio` (latency already taken off). */

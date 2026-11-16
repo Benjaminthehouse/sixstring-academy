@@ -7,6 +7,7 @@ import {
   compareSummary,
   connectMarkers,
   neighbourOf,
+  resolveShape,
   shapeBox,
   shapeIndex,
   shapeMarkers,
@@ -66,6 +67,31 @@ describe('shapes', () => {
     expect(neighbourOf(boxes, boxes[4])?.id).toBe('box-1');
     const high = shapesFor('A', 'minor-pentatonic', 'box', { lastFret: 22 });
     expect(neighbourOf(high, high[4])?.id).toBe('box-4');
+  });
+
+  it('resolves the shape an address asks for, and never dead-ends on a shape that does not exist', () => {
+    const pick = (tonic: string, scale: string, wanted: string | null, setup = NECK) => {
+      const r = resolveShape(tonic, scale, wanted, setup);
+      return { system: r.system, shape: r.shape?.id ?? null, systems: r.systems };
+    };
+    expect(pick('A', 'minor-pentatonic', null)).toMatchObject({ system: 'box', shape: 'box-1' });
+    expect(pick('A', 'minor-pentatonic', 'box-3')).toMatchObject({ system: 'box', shape: 'box-3' });
+    // Found in the browser: 3nps-9 left A minor pentatonic with "No shape" and Play disabled.
+    expect(pick('A', 'minor-pentatonic', '3nps-9').shape).not.toBeNull();
+    // A shape number past the end stays in its own system: the first box.
+    expect(pick('A', 'minor-pentatonic', 'box-9')).toMatchObject({ system: 'box', shape: 'box-1' });
+    // box-9 on the major scale used to add a "Boxes" system showing boxes 2–5; now the usual system wins.
+    const major = pick('A', 'major', 'box-9');
+    expect(major.system).toBe('caged');
+    expect(major.systems).not.toContain('box');
+    expect(pick('A', 'major', 'caged-e-8va')).toMatchObject({ system: 'caged' });
+    expect(pick('A', 'major', 'caged-e').shape).toBe('caged-e');
+    // Every shape id of every system round-trips.
+    for (const system of systemsFor('major')) for (const s of shapesFor('C', 'major', system, NECK)) expect(pick('C', 'major', s.id).shape).toBe(s.id);
+    // A capo on 12 of a 15-fret neck leaves some systems empty: they are not offered, and a shape is still found.
+    const high = resolveShape('A', 'minor-pentatonic', 'diagonal-1', { lastFret: 15, capo: 12 });
+    expect(high.shape).not.toBeNull();
+    expect(high.systems.every((sys) => shapesFor('A', 'minor-pentatonic', sys, { lastFret: 15, capo: 12 }).length > 0)).toBe(true);
   });
 
   it('counts frets from the capo, and draws the box on the wood', () => {

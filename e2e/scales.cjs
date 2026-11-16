@@ -71,12 +71,52 @@ async function waitState(page, fn, timeout = 8000) {
   return s;
 }
 
+/**
+ * Counts which function components React renders while `window.__renders.on` is true, through a
+ * minimal DevTools hook (installed before the app loads). After each commit it walks the fibers React
+ * worked on: a component rendered when its fiber has PerformedWork (flag 1); a subtree React did not
+ * visit keeps its old child pointer and is skipped. Used to prove a heard note re-renders the neck,
+ * not the whole page (that made a slow phone skip lit notes at fast tempos).
+ */
+function renderProbe() {
+  const counts = new Map();
+  window.__renders = { counts, on: false };
+  const nameOf = (t) => {
+    if (!t) return null;
+    if (typeof t === 'function') return t.displayName || t.name || null;
+    if (t.render) return t.render.displayName || t.render.name || null;
+    return t.type ? nameOf(t.type) : null;
+  };
+  const walk = (fiber) => {
+    for (let f = fiber; f; f = f.sibling) {
+      if ([0, 11, 14, 15].includes(f.tag) && f.flags & 1 && window.__renders.on) {
+        const n = nameOf(f.type);
+        if (n) counts.set(n, (counts.get(n) || 0) + 1);
+      }
+      if (f.child && !(f.alternate && f.alternate.child === f.child)) walk(f.child);
+    }
+  };
+  window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+    supportsFiber: true,
+    renderers: new Map(),
+    inject(r) { this.renderers.set(this.renderers.size + 1, r); return this.renderers.size; },
+    onScheduleFiberRoot() {},
+    onCommitFiberRoot(_id, root) { try { walk(root.current.child); } catch { /* never break the app */ } },
+    onCommitFiberUnmount() {},
+    onPostCommitFiberRoot() {},
+    checkDCE() {},
+  };
+}
+/** Sections and controls that must not re-render because a note was heard. */
+const STILL_WHILE_PLAYING = ['HearPanel', 'PracticePanel', 'ComparePanel', 'FormulaSection', 'IntervalsSection', 'ChordsSection', 'RelativesSection', 'MoodSection', 'StaffSection', 'ShapePicker', 'NeckOptions', 'ScalePicker', 'PickerBody', 'ChipGroup', 'SegmentedControl', 'CellLayer'];
+
 /** Cell button of a position (frets counted from the capo, as the board labels them). */
 const cell = (page, string, fret) => page.locator(`[data-neck] button[aria-label^="string ${string}, ${fret === 0 ? 'open' : `fret ${fret},`}"]`).first();
 
 async function desktop(theme) {
   await withApp({ size: 'desktop', theme }, async ({ page, goto, errors }) => {
     await installPageTools(page);
+    await page.addInitScript(renderProbe);
     const dark = theme === 'dark';
 
     // ── deep links ───────────────────────────────────────────────────────────────────────
@@ -115,6 +155,17 @@ async function desktop(theme) {
       await open(page, goto, '');
       s = await waitState(page, (x) => x.hash !== '#scales');
       check('bare #scales reopens the last scale', s.scale === 'major' && s.hash.startsWith('#scales--c--major'), s.hash);
+
+      // Review: a shape id the scale does not have used to leave "No shape" and a disabled Play
+      // (3nps-9 on a pentatonic), or show one shape while the address named another.
+      await open(page, goto, 'a--minor-pentatonic--3nps-9');
+      s = await waitState(page, (x) => x.hash === '#scales--a--minor-pentatonic--box-1');
+      const playOk = await page.locator('[data-play]').first().isEnabled();
+      check('a shape the scale does not have opens a real shape instead (Play works) and the address names it', s.shape === 'box-1' && s.hash === '#scales--a--minor-pentatonic--box-1' && playOk, `${s.hash} shape=${s.shape} play enabled=${playOk}`);
+      await open(page, goto, 'a--major--box-9');
+      s = await waitState(page, (x) => x.hash !== '#scales--a--major--box-9');
+      const boxChip = await page.getByRole('radio', { name: 'Boxes' }).count();
+      check('a pentatonic box id on the major scale falls back to its own shapes (no stray "Boxes")', s.shape.startsWith('caged-') && s.hash === `#scales--a--major--${s.shape}` && boxChip === 0, `${s.hash} Boxes chips: ${boxChip}`);
 
       // ── every scale in the catalog opens (on a black-key root, to stress spelling) ──────
       const sweep = await page.evaluate(async () => {
@@ -189,7 +240,11 @@ async function desktop(theme) {
       });
       s = await waitState(page, (x) => x.playing && x.step >= 0, 6000);
       check('Play starts the shape and lights the first note', s.playing && s.step >= 0 && s.lit !== '', JSON.stringify(s));
+      await page.evaluate(() => { window.__renders.counts.clear(); window.__renders.on = true; });
       await page.waitForTimeout(quick ? 3500 : 6000);
+      const renders = await page.evaluate(() => { window.__renders.on = false; return Object.fromEntries(window.__renders.counts); });
+      const busy = STILL_WHILE_PLAYING.filter((n) => renders[n]).map((n) => `${n} ${renders[n]}x`);
+      check('a heard note re-renders the neck, not the page’s sections and controls', (renders.Neck ?? 0) >= 5 && busy.length === 0, `Neck ${renders.Neck ?? 0}x; ${busy.length ? `also: ${busy.join(', ')}` : 'nothing else from the list'}`);
       const r = await page.evaluate(() => {
         const P = window.__scalesProbe;
         const cap = P.stop();

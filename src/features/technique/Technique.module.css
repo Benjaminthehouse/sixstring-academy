@@ -90,8 +90,9 @@
   color: var(--info-text);
 }
 .level[data-band='3'] {
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  background: var(--surface-3);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 .rowEnd {
   display: inline-flex;
@@ -208,6 +209,7 @@
 }
 .tempoRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
@@ -670,6 +672,18 @@
 }
 
 /* ---------- Summary ---------- */
+.inlineLink {
+  --focus-radius: var(--r-sm);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  border-radius: var(--r-sm);
+}
+.inlineLink:hover {
+  text-decoration-thickness: 2px;
+}
+
 .summary {
   display: flex;
   flex-direction: column;

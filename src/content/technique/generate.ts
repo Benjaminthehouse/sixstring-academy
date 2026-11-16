@@ -3,6 +3,8 @@
  * every string, a scale shape, alternate strokes) are generated rather than typed note by note.
  * Everything here returns SixTab text; `technique.test.ts` parses every result.
  */
+import { formatChord } from '@/core/theory';
+import type { ChordPair } from './types';
 
 /** A note to write: string, fret (or 'x' for a dead note), an optional technique suffix and marks. */
 export interface TabNote {
@@ -111,4 +113,9 @@ export function legatoString(string: number, frets: readonly number[]): TabNote[
 /** The header lines of an exercise part's SixTab. */
 export function header(title: string, bpm: number, time = '4/4'): string {
   return `title: ${title}\ncomposer: Sixstring Academy\nlicence: Original exercise for Sixstring Academy\ntempo: ${Number(bpm.toFixed(2))}\ntime: ${time}\n`;
+}
+
+/** How a chord pair is named on screen: "Em – G", "C – barre F" (`joiner` " and " for sentences). */
+export function pairLabel(p: ChordPair, joiner = ' – '): string {
+  return `${formatChord(p.a.symbol)}${joiner}${p.variant ? `${p.variant} ` : ''}${formatChord(p.b.symbol)}`;
 }

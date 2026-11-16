@@ -15,7 +15,7 @@ import { BACKING_STYLES, type BackingInstrument, type BackingStyleId } from '@/c
 import { recordActivity } from '@/core/progress';
 import {
   ActionBar, Button, ChipGroup, Icon, IconButton, Page, PlayButton, SegmentedControl, Select, Sheet, Stack, Stepper, Switch, Text,
-  cx, useEventListener, useIsMobile, useMediaQuery, useWakeLock,
+  cx, useEventListener, useIsMobile, useMediaQuery, usePrefersReducedMotion, useWakeLock,
 } from '@/ui';
 import { Fretboard, useMusicSettings } from '@/ui/music';
 import { strumChord, stopPreview } from '../audio/preview';
@@ -67,6 +67,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const isPhone = useIsMobile();
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
   const wide = useMediaQuery('(min-width: 1080px)');
+  const reducedMotion = usePrefersReducedMotion();
   useImmersive(true, 'focus');
   useWakeLock(true);
   useScreenTitle(title);
@@ -151,6 +152,17 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const markers = useMemo(() => jamMarkers(nowSymbol, soloScale, { maxFret }), [nowSymbol, soloScale, maxFret]);
   const lines = useMemo(() => chartLines(p, resolved), [p, resolved]);
 
+  // Keep the bar that sounds in view inside the chart's own scroll box (never the page).
+  const chartRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const pane = chartRef.current;
+    const bar = pane?.querySelector<HTMLElement>(`[data-bar="${pos.bar}"]`);
+    if (!pane || !bar || pane.scrollHeight <= pane.clientHeight + 2) return;
+    const top = bar.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
+    const want = Math.max(0, top - pane.clientHeight / 3);
+    if (Math.abs(pane.scrollTop - want) > 4) pane.scrollTo({ top: want, behavior: reducedMotion ? 'auto' : 'smooth' });
+  }, [pos.bar, reducedMotion]);
+
   const scaleOptions = choices.map((c) => ({
     value: c.id,
     label: c.id === 'chord' ? 'Follow the chords' : c.id === 'off' ? 'Chord tones only' : scaleName(c.scale!.tonic, c.scale!.scale, naming),
@@ -196,7 +208,15 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
           : 'Press play: the band counts you in';
 
   const tempoStepper = (
-    <Stepper label="Tempo" hideLabel={isPhone} unit="BPM" min={clampTempo(feel.backing, 0)} max={clampTempo(feel.backing, 999)} step={2} largeStep={10} value={tempo} onChange={setTempo} format={(v) => `${v} beats per minute`} />
+    <Stepper label="Tempo" hideLabel={isPhone || sideways} unit="BPM" min={clampTempo(feel.backing, 0)} max={clampTempo(feel.backing, 999)} step={2} largeStep={10} value={tempo} onChange={setTempo} format={(v) => `${v} beats per minute`} />
+  );
+
+  const transportButtons = (
+    <>
+      {sideways && <IconButton icon="SlidersHorizontal" label="The band: style, key, loop, count-in, players" variant="secondary" onClick={() => setOptionsOpen(true)} />}
+      <IconButton icon="RotateCcw" label="Back to the top" variant="secondary" onClick={band.stop} disabled={band.status === 'idle'} />
+      <PlayButton playing={playing} loading={band.status === 'loading'} onClick={() => void band.toggle()} size={isPhone && !sideways ? 'lg' : wide ? 'lg' : 'md'} label={playing ? 'Pause the band (Space)' : 'Play with the band (Space)'} data-play />
+    </>
   );
 
   return (
@@ -265,37 +285,45 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
 
         <section className={styles.neck} aria-label="On the neck">
           <div className={styles.neckBoard}>
-            <Fretboard frets={[0, maxFret]} markers={markers} size={isPhone && !sideways ? 'sm' : 'md'} aria-label={`${chordName(nowSymbol, naming)} on the neck${soloScale ? `, with ${scaleName(soloScale.tonic, soloScale.scale, naming)}` : ''}`} />
+            <Fretboard frets={[0, maxFret]} markers={markers} size={isPhone || sideways ? 'sm' : wide ? 'lg' : 'md'} aria-label={`${chordName(nowSymbol, naming)} on the neck${soloScale ? `, with ${scaleName(soloScale.tonic, soloScale.scale, naming)}` : ''}`} />
           </div>
           <div className={styles.scaleRow}>
-            <ChipGroup aria-label="Scale to solo with" options={scaleOptions} value={choice.id} onChange={(v) => update({ scale: v })} scroll="auto" />
-            <Text size="sm" tone="muted">
+            <ChipGroup aria-label="Scale to solo with" options={scaleOptions} value={choice.id} onChange={(v) => update({ scale: v })} scroll={sideways ? 'always' : 'auto'} />
+            <Text size="sm" tone="muted" className={styles.scaleHint}>
               {soloScale
-                ? `Over ${chordName(nowSymbol, naming)}: ${scaleName(soloScale.tonic, soloScale.scale, naming)}. Big dots are the chord’s own notes (R = root), small ones the rest of the scale.`
+                ? `Over ${chordName(nowSymbol, naming)}: ${scaleName(soloScale.tonic, soloScale.scale, naming)}. Filled dots are the chord’s own notes (R = root), rings the rest of the scale.`
                 : `The dots are the notes of ${chordName(nowSymbol, naming)}: R is the root, then its third, fifth and so on.`}
             </Text>
           </div>
+          {wide && (
+            <div className={styles.players} role="group" aria-label="Who plays">
+              {PLAYERS.map((pl) => (
+                <Button key={pl.id} size="sm" pressed={!settings.muted[pl.id]} iconLeft={settings.muted[pl.id] ? 'VolumeX' : 'Volume2'} onClick={() => setMuted(pl.id, !settings.muted[pl.id])}>
+                  {pl.label}
+                </Button>
+              ))}
+            </div>
+          )}
         </section>
 
-        <section className={styles.chartPane} aria-label="Chart">
+        <section className={styles.chartPane} aria-label="Chart" ref={chartRef}>
           <Chart lines={lines} naming={naming} now={started && !counting ? pos : null} onTap={tapChord} />
         </section>
 
         {wide && (
-          <section className={styles.players} aria-label="Who plays">
-            {PLAYERS.map((pl) => (
-              <Button key={pl.id} size="sm" pressed={!settings.muted[pl.id]} iconLeft={settings.muted[pl.id] ? 'VolumeX' : 'Volume2'} onClick={() => setMuted(pl.id, !settings.muted[pl.id])}>
-                {pl.label}
-              </Button>
-            ))}
+          <section className={styles.transport} aria-label="Transport">
+            {tempoStepper}
+            <span className={styles.transportButtons}>{transportButtons}</span>
           </section>
         )}
+
       </div>
 
-      <ActionBar stretchOnMobile={false} className={styles.bar} start={tempoStepper}>
-        <IconButton icon="RotateCcw" label="Back to the top" variant="secondary" onClick={band.stop} disabled={band.status === 'idle'} />
-        <PlayButton playing={playing} loading={band.status === 'loading'} onClick={() => void band.toggle()} size={isPhone && !sideways ? 'lg' : 'md'} label={playing ? 'Pause the band (Space)' : 'Play with the band (Space)'} data-play />
-      </ActionBar>
+      {!wide && (
+        <ActionBar stretchOnMobile={false} className={styles.bar} start={tempoStepper}>
+          {transportButtons}
+        </ActionBar>
+      )}
 
       <Sheet open={optionsOpen} onClose={() => setOptionsOpen(false)} title="The band" description="Changes apply at once; a new style or key starts from the top." desktop="drawer">
         <Stack gap={6}>

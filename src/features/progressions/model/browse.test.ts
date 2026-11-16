@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PROGRESSIONS, progression } from '@/content/progressions';
-import { LEVEL_BANDS, STYLE_GROUPS, bandOf, filterProgressions, inGroup, normaliseQuery, numeralLine, previewChords, primaryGroup } from './browse';
+import { LEVEL_BANDS, STYLE_GROUPS, bandOf, filterProgressions, inGroup, normaliseQuery, numeralLine, previewChords, primaryGroup, shelf } from './browse';
 
 describe('style groups', () => {
   it('file every progression under at least one group, and every group has some', () => {
@@ -16,6 +16,16 @@ describe('style groups', () => {
     expect(primaryGroup(progression('blues-12-bar')).id).toBe('blues');
     expect(primaryGroup(progression('flamenco-andalusian')).id).toBe('flamenco');
     expect(primaryGroup(progression('pop-axis')).id).toBe('pop-rock');
+  });
+});
+
+describe('shelves', () => {
+  it('lead with the progressions filed under the group, so shelves rarely repeat', () => {
+    const jazz = shelf(STYLE_GROUPS.find((g) => g.id === 'jazz')!);
+    expect(jazz.length).toBe(4);
+    expect(jazz.every((p) => primaryGroup(p).id === 'jazz')).toBe(true);
+    const shown = STYLE_GROUPS.flatMap((g) => shelf(g).map((p) => p.id));
+    expect(new Set(shown).size).toBeGreaterThan(shown.length * 0.8);
   });
 });
 

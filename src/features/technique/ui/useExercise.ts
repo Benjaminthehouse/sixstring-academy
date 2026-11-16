@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pluck, unlockAudio, audioNow, type ToneName, normalizeTone } from '@/core/audio';
 import { partSong, songBpm, techniqueSkillId, type ExercisePart, type TechniqueExercise } from '@/content/technique';
 import { explainMediaFailure, keepAwake, type MediaFailure } from '@/core/platform';
-import { recordActivity, useProgress, usePrefs, type ActivityResult } from '@/core/progress';
+import { getProgressStore, recordActivity, useProgress, usePrefs, type ActivityResult } from '@/core/progress';
 import type { Song } from '@/core/song';
 import { useLocalState } from '@/ui';
 import { tickHealthClock } from '../engine/health-clock';
@@ -17,7 +17,7 @@ import { localDay, readRecord, type TechniqueRecord } from '../model/history';
 import { afterPass, clampTempo, nudge as nudgeTempo, startTempo, type LadderMove } from '../model/ladder';
 import { analyzeLevels } from '../model/levels';
 import { analyzeBend, analyzePrebend, analyzeVibrato } from '../model/pitchshape';
-import { newVisit, visitActivity, type VisitSession } from '../model/session';
+import { bestClean, newVisit, visitActivity, type VisitSession } from '../model/session';
 import { analyzeTake, expectedFromSong, type Verdict } from '../model/takes';
 
 const OPEN = [0, 64, 59, 55, 50, 45, 40];
@@ -57,6 +57,27 @@ function moveText(verdict: Verdict, move: LadderMove, tempo: number): string {
   if (move === 'fixed') return verdict === 'clean' ? 'Clean. Do it a few more times to make it yours.' : 'Not yet. Listen to the target again and have another go.';
   if (verdict === 'close') return `Nearly. Stay at ${tempo} BPM for another pass.`;
   return `Not yet. Stay at ${tempo} BPM and play it once more, slowly and loose.`;
+}
+
+/**
+ * Call `record` when the learner leaves: when the screen unmounts, and when the page is closed or
+ * reloaded (a reload unmounts nothing, so without this a session in progress was lost). On the way
+ * out of the page the progress store is saved at once, since its own save is still pending.
+ */
+export function useRecordOnLeave(record: () => void): void {
+  const latest = useRef(record);
+  latest.current = record;
+  useEffect(() => {
+    const onHide = (): void => {
+      latest.current();
+      getProgressStore().flush();
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      latest.current();
+    };
+  }, []);
 }
 
 /** Map a microphone failure to the platform's wording. */
@@ -102,6 +123,8 @@ export function useExercise(e: TechniqueExercise) {
   const [analysing, setAnalysing] = useState(false);
   const [note, setNote] = useState<PassNote | null>(null);
   const [passes, setPasses] = useState(0);
+  /** Best clean tempo of this visit, so the ladder shows it before the visit is saved. */
+  const [visitBest, setVisitBest] = useState<number | null>(null);
   const [result, setResult] = useState<ActivityResult | null>(null);
 
   const visit = useRef<VisitSession>(newVisit(e.id, tempo, Date.now()));
@@ -155,17 +178,15 @@ export function useExercise(e: TechniqueExercise) {
     [runner],
   );
 
-  // Leaving the screen: stop the sound, close the microphone, record the visit.
-  useEffect(
-    () => () => {
-      runner.stop();
-      listener.stop();
-      const out = visitActivity(e, visit.current, recordRef.current, localDay(Date.now()));
-      if (out) recordActivity(out.input);
-      visit.current = newVisit(e.id, tempoRef.current, Date.now());
-    },
-    [e, runner, listener],
-  );
+  // Leaving the screen (or the page): stop the sound, close the microphone, record the visit.
+  useRecordOnLeave(() => {
+    runner.stop();
+    listener.stop();
+    const out = visitActivity(e, visit.current, recordRef.current, localDay(Date.now()));
+    if (out) recordActivity(out.input);
+    visit.current = newVisit(e.id, tempoRef.current, Date.now());
+    setVisitBest(null);
+  });
   useEffect(() => () => runner.dispose(), [runner]);
 
   // One tick a second: practice time, the health clock, the strain limit.
@@ -217,6 +238,7 @@ export function useExercise(e: TechniqueExercise) {
       visit.current.tempo = next;
       setTempo(next);
       setPasses((n) => n + 1);
+      setVisitBest(bestClean(visit.current));
       setNote({ verdict, move: r.move, tempo: next, text: moveText(verdict, r.move, next), at: Date.now() });
     },
     [e.tempo, part.id, even],
@@ -375,6 +397,7 @@ export function useExercise(e: TechniqueExercise) {
     const out = visitActivity(e, visit.current, recordRef.current, localDay(Date.now()));
     visit.current = newVisit(e.id, tempoRef.current, Date.now());
     setPasses(0);
+    setVisitBest(null);
     if (!out) return null;
     const r = recordActivity(out.input);
     setResult(r);
@@ -400,6 +423,8 @@ export function useExercise(e: TechniqueExercise) {
     setTempo: changeTempo,
     nudge,
     record,
+    /** The best clean tempo so far, this visit included. */
+    best: record.best === null ? visitBest : visitBest === null ? record.best : Math.max(record.best, visitBest),
     runState,
     activity,
     countIn,

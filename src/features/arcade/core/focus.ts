@@ -4,7 +4,7 @@
  * from the guitar engine (`scalePatterns`) and is a real note of the scale inside the shape.
  */
 import { getScale, parseScaleSlug, scaleSlug, simplestTonic, SCALES, SCALE_FAMILIES, formatScaleName, isNote, type ScaleType } from '@/core/theory';
-import { patternSystemsFor, scalePatterns, STANDARD_TUNING, type PatternNote, type ScalePattern, type Tuning } from '@/core/guitar';
+import { allScalePatterns, patternSystemsFor, scalePatterns, STANDARD_TUNING, type PatternNote, type ScalePattern, type Tuning } from '@/core/guitar';
 
 /** The scale and shape being practised. */
 export interface Focus {
@@ -53,12 +53,31 @@ export function shapesFor(tonic: string, scale: string, tuning: Tuning = STANDAR
   return out.filter((p) => p.notes.length >= 3);
 }
 
+/**
+ * Any shape the guitar engine can build for the scale: the drilled ones first, then the other
+ * systems (one string, two strings, diagonal), so a link from the Scales page keeps its shape.
+ */
+export function findShape(tonic: string, scale: string, id: string | undefined, tuning: Tuning = STANDARD_TUNING): ScalePattern | null {
+  if (!id) return null;
+  const drilled = safeShapes(tonic, scale, tuning).find((p) => p.id === id);
+  if (drilled) return drilled;
+  try {
+    const all = allScalePatterns(tonic, scale, { tuning });
+    for (const list of Object.values(all)) {
+      const hit = list?.find((p) => p.id === id && p.notes.length >= 3);
+      if (hit) return hit;
+    }
+  } catch {
+    /* unknown scale */
+  }
+  return null;
+}
+
 /** A focus with every part valid: unknown scales, tonics or shapes fall back to sensible ones. */
 export function normalizeFocus(input: Partial<Focus> | null | undefined, tuning: Tuning = STANDARD_TUNING): Focus {
   const scale = input?.scale && getScale(input.scale) && input.scale !== 'chromatic' ? getScale(input.scale)!.id : DEFAULT_FOCUS.scale;
   const tonic = input?.tonic && isNote(input.tonic) ? simplestTonic(input.tonic, scale) : scale === DEFAULT_FOCUS.scale ? DEFAULT_FOCUS.tonic : simplestTonic('A', scale);
-  const shapes = safeShapes(tonic, scale, tuning);
-  const shape = shapes.find((p) => p.id === input?.shape)?.id ?? shapes[0]?.id ?? DEFAULT_FOCUS.shape;
+  const shape = findShape(tonic, scale, input?.shape, tuning)?.id ?? safeShapes(tonic, scale, tuning)[0]?.id ?? DEFAULT_FOCUS.shape;
   return { tonic, scale, shape };
 }
 
@@ -72,8 +91,7 @@ function safeShapes(tonic: string, scale: string, tuning: Tuning): ScalePattern[
 
 /** The pattern a focus names (the first shape when its own is missing). */
 export function patternOf(focus: Focus, tuning: Tuning = STANDARD_TUNING): ScalePattern {
-  const shapes = shapesFor(focus.tonic, focus.scale, tuning);
-  const found = shapes.find((p) => p.id === focus.shape) ?? shapes[0];
+  const found = findShape(focus.tonic, focus.scale, focus.shape, tuning) ?? shapesFor(focus.tonic, focus.scale, tuning)[0];
   if (!found) throw new RangeError(`No playable shape for ${focus.tonic} ${focus.scale}`);
   return found;
 }

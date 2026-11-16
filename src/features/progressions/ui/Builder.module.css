@@ -29,6 +29,16 @@
 .keySelect {
   width: 7rem;
 }
+.transposeField {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.caption {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
 .transpose {
   display: inline-flex;
   gap: var(--sp-1);
@@ -130,6 +140,24 @@
 }
 .live:empty {
   display: none;
+}
+.cadenceLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--info);
+  border-radius: var(--r-sm);
+  background: var(--info-soft);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.cadenceIcon {
+  flex: none;
+  margin-top: 0.125rem;
+  color: var(--info-text);
 }
 
 /* Suggestions */

@@ -70,12 +70,14 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
     }, total * 1000);
   }, [lick, stopPlayback]);
 
+  // Each phrase starts fresh: listening, nothing entered, then it plays by itself.
   useEffect(() => {
     if (!running || !lick) return;
     setEntered([]);
     setHeard(0);
+    setPhase('listen');
     void playLick();
-  }, [running, index]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [running, index]); // only on a new prompt, on purpose
 
   const finish = useCallback(
     (all: LickMark[], t: typeof tally) => {

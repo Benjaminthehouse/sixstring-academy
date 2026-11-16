@@ -8,14 +8,15 @@
  *
  * Cancelling (`signal`) asks the worker to stop between staves; if it has not stopped within
  * `cancelGraceMs` (a staff can take a second on a slow phone) the worker is terminated and a new
- * one is started on the next call. Either way the promise rejects with `OmrCancelledError`.
+ * one is started on the next call. Either way the promise rejects with an error named 'AbortError'
+ * (`isCancelled(err)` is true).
  * `ai` (an `OmrVisionModel`) is called on the page thread when a recognizer asks for a second
  * opinion; `createOmrWorker({ worker: 'inline' })` runs everything in this thread (tests, Node).
  */
 import type { PageClassification } from '../classify-page';
-import { type OmrDocument, type OmrImageInput, type OmrProgress, OmrCancelledError } from '../pipeline';
+import type { OmrDocument, OmrImageInput, OmrProgress } from '../pipeline';
 import type { OmrPage, OmrVisionModel } from '../types';
-import { type OmrRequest, type OmrResponse, type WorkerRecognizeOptions, createOmrWorkerHandler } from './protocol';
+import type { OmrRequest, OmrResponse, WorkerRecognizeOptions } from './protocol';
 
 /** The part of `Worker` the client uses (a real Worker, or the inline stand-in). */
 export interface OmrWorkerLike {
@@ -64,19 +65,33 @@ function defaultWorker(): OmrWorkerLike {
   return new Worker(new URL('./omr.worker.ts', import.meta.url), { type: 'module', name: 'omr' }) as unknown as OmrWorkerLike;
 }
 
-/** A stand-in worker that runs the handler on this thread (asynchronously, like a real one). */
+/**
+ * A stand-in worker that runs the handler on this thread (asynchronously, like a real one). The
+ * pipeline is loaded on first use, so a screen that uses the real worker does not ship it twice.
+ */
 function inlineWorker(): OmrWorkerLike {
+  let handler: ((msg: OmrRequest) => void) | null = null;
+  const ready = import('./protocol').then((m) => {
+    handler = m.createOmrWorkerHandler((msg) => setTimeout(() => w.onmessage?.({ data: msg }), 0));
+  });
   const w: OmrWorkerLike = {
     onmessage: null,
     postMessage(msg) {
-      setTimeout(() => handler(msg), 0);
+      void ready.then(() => setTimeout(() => handler?.(msg), 0));
     },
     terminate() {
       w.onmessage = null;
     },
   };
-  const handler = createOmrWorkerHandler((msg) => setTimeout(() => w.onmessage?.({ data: msg }), 0));
   return w;
+}
+
+/** Rejection of a cancelled run (same shape as the pipeline's `OmrCancelledError`, without loading it). */
+class CancelledError extends Error {
+  constructor() {
+    super('Reading the page was cancelled.');
+    this.name = 'AbortError';
+  }
 }
 
 function buffersOf(images: OmrImageInput[]): Transferable[] {
@@ -114,7 +129,7 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
       job.resolve(msg);
     } else if (msg.type === 'error') {
       jobs.delete(msg.id);
-      job.reject(msg.name === 'AbortError' ? new OmrCancelledError() : Object.assign(new Error(msg.message), { name: msg.name }));
+      job.reject(msg.name === 'AbortError' ? new CancelledError() : Object.assign(new Error(msg.message), { name: msg.name }));
     } else if (msg.type === 'ai-ask') {
       const answer = (value: unknown): void => worker?.postMessage({ type: 'ai-answer', id: msg.id, askId: msg.askId, value });
       if (!job.ai) answer(null);
@@ -137,7 +152,7 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
 
   type StartRequest = { type: 'recognize'; images: OmrImageInput[]; document: boolean; options: WorkerRecognizeOptions; ai: boolean } | { type: 'classify'; image: OmrImageInput; maxSide?: number };
   const start = (request: StartRequest, transfer: Transferable[], job: Omit<Job, 'resolve' | 'reject'>): Promise<Extract<OmrResponse, { type: 'result' }>> => {
-    if (job.signal?.aborted) return Promise.reject(new OmrCancelledError());
+    if (job.signal?.aborted) return Promise.reject(new CancelledError());
     const id = nextId++;
     const w = ensure();
     return new Promise((resolve, reject) => {
@@ -151,7 +166,7 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
           // Still busy inside a staff: stop the worker; the next call starts a fresh one.
           jobs.delete(id);
           kill();
-          pending.reject(new OmrCancelledError());
+          pending.reject(new CancelledError());
           failAll(new Error('The sheet reader was restarted.'));
         }, grace);
       };
@@ -180,7 +195,7 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
     },
     terminate() {
       kill();
-      failAll(new OmrCancelledError());
+      failAll(new CancelledError());
     },
   };
 }

@@ -1,0 +1,92 @@
+/*
+ * The score sits on the page surface like a printed part: a calm panel with a hairline edge.
+ * It scrolls inside itself (vertically in wrapped lines, sideways in one line on a phone held
+ * sideways); overlays (count-in, prompts) are positioned over it by the parent.
+ */
+.wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.box {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: var(--sp-3) var(--sp-3) var(--sp-8);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  -webkit-overflow-scrolling: touch;
+  /* The heat strip is drawn under the music inside this box. */
+  isolation: isolate;
+}
+@media (min-width: 720px) {
+  .box {
+    padding: var(--sp-4) var(--sp-5) var(--sp-10);
+  }
+}
+
+/* One line that scrolls sideways: no vertical scroll, the tab takes the height it needs. */
+.boxLine {
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-2) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.picking {
+  border-color: var(--info);
+  box-shadow: inset 0 0 0 1px var(--info);
+}
+
+.tab {
+  min-height: 6rem;
+}
+
+/* ── heat strip: drawn inside the tab's content, under the notes, over the bars that went wrong ── */
+.heat {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.heatCell {
+  position: absolute;
+  border-radius: var(--r-sm);
+  border-top: 4px solid var(--warn);
+  background: color-mix(in srgb, var(--warn-soft) 55%, transparent);
+}
+.heatCell[data-level='1'] {
+  border-top-color: var(--warn);
+  background: color-mix(in srgb, var(--warn-soft) 35%, transparent);
+}
+.heatCell[data-level='2'] {
+  border-top-color: var(--bad);
+  background: color-mix(in srgb, var(--bad-soft) 45%, transparent);
+}
+.heatCell[data-level='3'] {
+  border-top: 6px solid var(--bad);
+  background: color-mix(in srgb, var(--bad-soft) 70%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .heatCell {
+    animation: heatIn var(--dur-3) var(--ease) both;
+  }
+}
+@keyframes heatIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

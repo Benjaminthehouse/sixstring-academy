@@ -5,8 +5,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useImmersive, useScreenTitle } from '@/app/shell';
-import { chordChangeSkillId, partSong, type TechniqueExercise } from '@/content/technique';
+import { chordChangeSkillId, pairLabel, partSong, type TechniqueExercise } from '@/content/technique';
 import { playUi } from '@/core/audio';
+import { formatChord } from '@/core/theory';
 import { keepAwake } from '@/core/platform';
 import { recordActivity, useProgress, usePrefs } from '@/core/progress';
 import { ActionBar, Button, Card, Celebration, ChipGroup, CountdownRing, Icon, Kbd, Page, Section, Stat, Stepper, Text, Tooltip, useEventListener, useIsMobile, useLocalState, useMediaQuery, IconButton } from '@/ui';
@@ -105,7 +106,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
     recordActivity({
       kind: 'chord-change',
       id: chordChangeSkillId(pair),
-      title: `One-minute changes: ${pair.a.symbol} and ${pair.b.symbol}`,
+      title: `One-minute changes: ${pairLabel(pair, ' and ')}`,
       count,
       score: count,
       accuracy: Math.min(1, share),
@@ -151,7 +152,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
       </Button>
     ) : phase === 'saved' ? (
       <Button variant="primary" iconRight="ArrowRight" onClick={() => { setPairId(nextPair.id); setPhase('ready'); setSaved(null); }} data-technique-next-pair="">
-        Next pair: {nextPair.a.symbol} and {nextPair.b.symbol}
+        Next pair: {pairLabel(nextPair, ' and ')}
       </Button>
     ) : (
       <Tooltip content={<>Start the minute <Kbd>Space</Kbd></>}>
@@ -172,7 +173,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
       <div className={styles.layout} data-technique-screen="changes" data-exercise={e.id} data-pair={pair.id} data-phase={phase} data-tempo={tempo} data-best={pairRecord.best}>
         <div className={styles.main}>
           {e.strain && <Text tone="muted" size="sm"><Icon name="TriangleAlert" size="xs" /> {e.strain.text}</Text>}
-          <ChipGroup aria-label="Chord pair" options={pairs.map((p) => ({ value: p.id, label: `${p.a.symbol} – ${p.b.symbol}` }))} value={pair.id} onChange={(v) => { if (v && phase !== 'minute') { setPairId(v); setPhase('ready'); setSaved(null); } }} />
+          <ChipGroup aria-label="Chord pair" options={pairs.map((p) => ({ value: p.id, label: pairLabel(p) }))} value={pair.id} onChange={(v) => { if (v && phase !== 'minute') { setPairId(v); setPhase('ready'); setSaved(null); } }} />
           <Card padding="lg" className={styles.routine}>
             <div className={styles.pairBoxes}>
               <div className={styles.pairBox} data-now={which === 0}>
@@ -194,7 +195,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
                   {(s) => `${s}`}
                 </CountdownRing>
                 <Text size="lg" weight="bold">
-                  {phase === 'count-in' ? 'Get ready…' : which === 0 ? pair.a.symbol : pair.b.symbol}
+                  {phase === 'count-in' ? 'Get ready…' : formatChord(which === 0 ? pair.a.symbol : pair.b.symbol)}
                 </Text>
               </div>
             )}
@@ -242,9 +243,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
                 const best = readPair(skills[chordChangeSkillId(p)]?.data).best;
                 return (
                   <div key={p.id} className={styles.tempoRow}>
-                    <Text>
-                      {p.a.symbol} and {p.b.symbol}
-                    </Text>
+                    <Text>{pairLabel(p, ' and ')}</Text>
                     <Text tone="muted" tabular>
                       {best ? `best ${best}` : 'not yet'}
                     </Text>

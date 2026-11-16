@@ -145,6 +145,8 @@ export function analyzeTake(input: {
   // Pitch: compare the sequence of heard notes with the expected one (octave slips of the detector forgiven).
   let accuracy: number;
   let missed: number[];
+  /** Expected notes heard as a different pitch: a real mistake, unlike a note the microphone missed. */
+  let wrong: number[] = [];
   const noteStates: Record<string, 'hit' | 'miss'> = {};
   let intonation: TakeResult['intonation'] = null;
   if (kind === 'notes') {
@@ -152,6 +154,7 @@ export function analyzeTake(input: {
     const cmp = compareNotes(notes, wanted, { octaves: 'any' });
     accuracy = cmp.accuracy;
     missed = cmp.missed.map((k) => timedIdx[k]);
+    wrong = cmp.alignment.filter((a) => a.kind === 'wrong').map((a) => timedIdx[a.expected]);
     const okIdx = new Set<number>();
     for (const a of cmp.alignment) if (a.kind === 'match') okIdx.add(timedIdx[a.expected]);
     for (const i of timedIdx) noteStates[expected[i].key] = okIdx.has(i) ? 'hit' : 'miss';
@@ -193,7 +196,8 @@ export function analyzeTake(input: {
 
   let verdict: Verdict;
   if (empty) verdict = 'not-yet';
-  else if (accuracy >= 0.9 && evenness === 'even' && tempo === 'steady') verdict = 'clean';
+  // A note the microphone did not catch is forgiven (up to one in ten); a wrong note never is.
+  else if (accuracy >= 0.9 && wrong.length === 0 && evenness === 'even' && tempo === 'steady') verdict = 'clean';
   else if (accuracy < 0.7 || evenness === 'uneven') verdict = 'not-yet';
   else verdict = 'close';
 
@@ -206,13 +210,13 @@ export function analyzeTake(input: {
     else messages.push('Not clean yet. Here is what to work on.');
 
     if (kind === 'notes') {
-      const wrong = missed.length;
-      if (wrong === 0) messages.push(`All ${timedIdx.length} notes were right.`);
-      else {
-        const first = expected[missed[0]];
-        const want = first.midi !== null ? ` (${nameOf(first.midi)})` : '';
-        messages.push(`${wrong} of ${timedIdx.length} notes were missing or wrong; the first at ${where(first)}${want}.`);
-      }
+      const n = timedIdx.length;
+      const notHeard = missed.filter((i) => !wrong.includes(i));
+      const want = (e: ExpectedNote): string => (e.midi !== null ? nameOf(e.midi) : 'the written note');
+      if (missed.length === 0) messages.push(`All ${n} notes were right.`);
+      if (wrong.length === 1) messages.push(`1 of ${n} notes was a different note: ${where(expected[wrong[0]])} should be ${want(expected[wrong[0]])}.`);
+      else if (wrong.length > 1) messages.push(`${wrong.length} of ${n} notes were different notes; the first: ${where(expected[wrong[0]])} should be ${want(expected[wrong[0]])}.`);
+      if (notHeard.length) messages.push(`${notHeard.length} of ${n} notes did not come through; the first at ${where(expected[notHeard[0]])} (${want(expected[notHeard[0]])}).`);
     } else {
       const lost = expected.length - fit.matches.length;
       messages.push(lost === 0 ? `All ${expected.length} strokes came through.` : `${fit.matches.length} of ${expected.length} strokes came through.`);

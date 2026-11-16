@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatHash, parseHash } from '@/app/router';
 import { PATTERN_SYSTEMS, scalePatterns } from '@/core/guitar';
 import { SCALES } from '@/core/theory';
-import { DEFAULT_ADDRESS, arcadeParams, isShapeId, parseScaleParams, scaleParams, shapeSkillId, systemOfShape } from './address';
+import { DEFAULT_ADDRESS, arcadeParams, isShapeId, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, systemOfShape } from './address';
 import { rootChoices } from './catalog';
 
 describe('scale addresses', () => {
@@ -72,6 +72,15 @@ describe('shape ids', () => {
     expect(id).toBe('scale:a-minor-pentatonic:box-1');
     expect(/^scale:([^:]*pentatonic[^:]*):box-([1-5])$/.test(id)).toBe(true);
     expect(shapeSkillId('F#', 'major', 'caged-e')).toBe('scale:f-sharp-major:caged-e');
+  });
+
+  it('logs 20 s or more of playing against the shape played last, and nothing shorter', () => {
+    const played = { address: { tonic: 'F#', scale: 'dorian', shape: 'caged-e' }, title: 'F♯ Dorian, E shape' };
+    expect(practiceEntry(played, 95.4)).toEqual({ kind: 'scale-practice', id: 'scale:f-sharp-dorian:caged-e', durationSec: 95, title: 'F♯ Dorian, E shape', route: 'scales', params: ['f-sharp', 'dorian', 'caged-e'] });
+    expect(practiceEntry(played, 19.4)).toBeNull();
+    expect(practiceEntry(played, Number.NaN)).toBeNull();
+    expect(practiceEntry(null, 300)).toBeNull();
+    expect(practiceEntry({ ...played, address: { ...played.address, shape: null } }, 300)).toBeNull();
   });
 
   it('hands the Arcade a game, the scale slug and the shape', () => {

@@ -244,7 +244,7 @@ export function scaleFor(choice: ScaleChoice | undefined, chordSymbol: string, h
 
 /**
  * Dots for the jam neck: the chord's tones (labelled R 3 5 ♭7, degree colours, the root large)
- * over the scale's other notes as dimmed note names.
+ * over the scale's other notes as dimmed rings with their names.
  */
 export function jamMarkers(chordSymbol: string, scale: ConcreteScale | null, opts: { maxFret?: number } = {}): FretMarker[] {
   const maxFret = opts.maxFret ?? 12;
@@ -258,7 +258,7 @@ export function jamMarkers(chordSymbol: string, scale: ConcreteScale | null, opt
   const taken = new Set(tones.map((m) => `${m.string}:${m.fret}`));
   let rest: FretMarker[] = [];
   try {
-    rest = scaleMarkers(scale.tonic, scale.scale, { maxFret, label: 'note', color: 'neutral', state: 'ghost' }).filter((m) => !taken.has(`${m.string}:${m.fret}`));
+    rest = scaleMarkers(scale.tonic, scale.scale, { maxFret, label: 'note', color: 'neutral', state: 'ghost', shape: 'ring', rootShape: 'ring' }).filter((m) => !taken.has(`${m.string}:${m.fret}`));
   } catch {
     rest = [];
   }

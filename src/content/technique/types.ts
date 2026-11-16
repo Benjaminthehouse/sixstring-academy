@@ -111,6 +111,8 @@ export interface ChordPair {
   b: { symbol: string; shape: string };
   /** What helps this change (an anchor finger, a guide finger). */
   tip: string;
+  /** One word that tells two pairs with the same chords apart, said before the second chord ("small", "barre"). */
+  variant?: string;
 }
 
 /** One timed step of a routine. */

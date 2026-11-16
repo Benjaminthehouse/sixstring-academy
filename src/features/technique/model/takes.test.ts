@@ -77,6 +77,24 @@ describe('analyzeTake on recorded notes', () => {
     expect(r.messages.some((m) => m.includes('rushing: about 67 BPM'))).toBe(true);
   });
 
+  it('never calls a take with a wrong note clean, even with perfect timing', () => {
+    // Found with a real-time take: E played as E flat, everything else perfect, was "Clean" and climbed the ladder.
+    const take = EXPECTED.map((e, i) => note(i === 9 ? e.midi! - 1 : e.midi!, 3 + e.time));
+    const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: take });
+    expect(r.accuracy).toBeGreaterThanOrEqual(0.9);
+    expect(r.timing.evenness).toBe('even');
+    expect(r.verdict).toBe('close');
+    expect(r.messages[0]).toBe('Nearly there.');
+    expect(r.messages).toContain('1 of 16 notes was a different note: bar 2, beat 2 should be C♯4.');
+  });
+
+  it('forgives a note the microphone did not catch, and says so', () => {
+    const take = EXPECTED.filter((_, i) => i !== 9).map((e) => note(e.midi!, 3 + e.time));
+    const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: take });
+    expect(r.verdict).toBe('clean');
+    expect(r.messages).toContain('1 of 16 notes did not come through; the first at bar 2, beat 2 (C♯4).');
+  });
+
   it('reports intonation when asked', () => {
     const take = EXPECTED.map((e) => note(e.midi!, e.time, 0.4, 18));
     const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: take, intonation: true });

@@ -88,7 +88,8 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
       x.clean();
     } else if ((ev.key === 'n' || ev.key === 'N') && !x.micWanted) {
       x.notYet();
-    } else if (ev.key === 'h' || ev.key === 'H') {
+    } else if ((ev.key === 'h' || ev.key === 'H') && (x.mode === 'idle' || x.mode === 'demo')) {
+      // Like the Hear it button: not while the learner is practising or taking a take.
       x.hear();
     }
   });

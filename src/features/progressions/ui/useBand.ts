@@ -47,6 +47,13 @@ export interface Band {
   started: boolean;
 }
 
+let latest: BackingBand | null = null;
+
+/** The band a progressions screen is using right now, if any (browser checks listen to its `onChord`). */
+export function currentBand(): BackingBand | null {
+  return latest;
+}
+
 function signature(setup: BackingSetup | null): string {
   if (!setup) return '';
   const { tempo: _t, ...rest } = setup.options;
@@ -86,6 +93,7 @@ export function useBand(setup: BackingSetup | null, opts: BandOptions): Band {
     if (bandRef.current) return bandRef.current;
     const band = new BackingBand();
     bandRef.current = band;
+    latest = band;
     offs.current.push(
       band.onChord((c) => {
         serial.current += 1;
@@ -229,6 +237,7 @@ export function useBand(setup: BackingSetup | null, opts: BandOptions): Band {
     () => () => {
       runId.current++;
       for (const off of offs.current.splice(0)) off();
+      if (latest === bandRef.current) latest = null;
       bandRef.current?.dispose();
       bandRef.current = null;
     },

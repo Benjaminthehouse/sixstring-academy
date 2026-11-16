@@ -53,6 +53,18 @@ export function inGroup(p: Progression, group: StyleGroup): boolean {
   return p.styles.some((s) => group.styles.includes(s));
 }
 
+/**
+ * The shelf of a group on the browser's front page: the progressions filed first under this
+ * group (easiest first), then those that only visit it, so shelves repeat each other as little
+ * as possible.
+ */
+export function shelf(group: StyleGroup, size = 4): Progression[] {
+  const members = PROGRESSIONS.filter((p) => inGroup(p, group));
+  const own = members.filter((p) => primaryGroup(p).id === group.id).sort((a, b) => a.level - b.level);
+  const visiting = members.filter((p) => primaryGroup(p).id !== group.id).sort((a, b) => a.level - b.level);
+  return [...own, ...visiting].slice(0, size);
+}
+
 /** Level bands for the filter. */
 export interface LevelBand {
   id: 'beginner' | 'intermediate' | 'advanced';

@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { PROGRESSIONS, getProgression, type Progression } from '@/content/progressions';
 import { Button, ChipGroup, EmptyState, Icon, LinkButton, Page, SearchField, Section, Text, useDebounced, useLocalState } from '@/ui';
-import { LEVEL_BANDS, STYLE_GROUPS, bandOf, filterProgressions, inGroup, primaryGroup, styleGroup } from '../model/browse';
+import { LEVEL_BANDS, STYLE_GROUPS, bandOf, filterProgressions, inGroup, primaryGroup, shelf, styleGroup } from '../model/browse';
 import { draftProgression } from '../model/builder';
 import { draftFromSaved, useSavedProgressions } from '../model/saved';
 import { ProgressionCard, keyName, noteName } from './shared';
@@ -127,7 +127,7 @@ export function Browse() {
           </Section>
 
           {STYLE_GROUPS.map((g) => {
-            const all = PROGRESSIONS.filter((p) => inGroup(p, g)).sort((a, b) => a.level - b.level);
+            const all = PROGRESSIONS.filter((p) => inGroup(p, g));
             return (
               <Section
                 key={g.id}
@@ -147,7 +147,7 @@ export function Browse() {
                 }
               >
                 <div className={styles.cards}>
-                  {all.slice(0, SHELF).map((p) => (
+                  {shelf(g, SHELF).map((p) => (
                     <ProgressionCard key={p.id} progression={p} href={href('progressions', p.id)} meta={`Level ${p.level} · ${bandOf(p.level).name} · ${noteName(p.keys[0], naming)}`} />
                   ))}
                 </div>

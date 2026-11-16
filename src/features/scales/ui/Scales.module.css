@@ -229,14 +229,15 @@
 }
 .playButton {
   flex: none;
-  min-width: 7.5rem;
+  /* vw cap: with large text a rem-wide Play would squeeze the shape's name to nothing. */
+  min-width: min(7.5rem, 30vw);
 }
 .actionBar .transport {
   gap: var(--sp-1);
 }
 @media (max-width: 380px) {
   .playButton {
-    min-width: 6rem;
+    min-width: min(6rem, 28vw);
   }
 }
 
@@ -354,7 +355,8 @@
 /* ---- intervals ---- */
 .intervals {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  /* min(): with large text a 13rem column is wider than a phone; it never pushes the page sideways. */
+  grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
   gap: var(--sp-1) var(--sp-3);
   margin: 0;
   padding: 0;
@@ -501,7 +503,7 @@
 }
 .modeList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
   gap: var(--sp-2);
   margin: 0;
   padding: 0;
