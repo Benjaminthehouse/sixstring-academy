@@ -47,7 +47,7 @@ const modalProgressions: Lesson = {
           { string: 2, fret: 0, note: 'B', degree: '6', role: 'target' },
           { string: 1, fret: 3, note: 'G', degree: '4' },
         ],
-        caption: '{c:G} (320003) over {n:D}: both {n:B}s are the 6th, Dorian\'s colour.',
+        caption: '{c:G} (320003) counted from {n:D}: both {n:B}s are the 6th, Dorian\'s colour.',
       },
     },
     {
@@ -168,7 +168,7 @@ const modalProgressions: Lesson = {
         options: [
           { text: '{c:Em} to {c:F}', correct: true },
           { text: '{c:Em} to {c:A}', why: '{c:A} holds {n:C#}, the raised 6th of {n:E}: that is Dorian.' },
-          { text: '{c:Em} to {c:C}', why: '{c:C} is the {r:bVI} of {n:E}: that is Aeolian.' },
+          { text: '{c:Em} to {c:C}', why: '{c:C} is the {r:bVI} of {n:E}, Aeolian\'s colour chord. It has no {n:F}, so nothing in it says Phrygian.' },
         ],
         explain: '{c:F} is the {r:bII} of {n:E}. Its {n:F}, a half step above the tonic, is Phrygian\'s colour.',
       },
@@ -205,7 +205,7 @@ const dronesAndQuartalChords: Lesson = {
     {
       type: 'card',
       title: 'Hear the drone',
-      body: 'Here are the open {n:E} and the fret 5 shape together: the notes of {k:C major} centred on {n:E}, which is {n:E} Phrygian. Other open strings drone too: open string 4 is {n:D}, a home for {n:D} Mixolydian or {n:D} Dorian.',
+      body: 'Here are the open {n:E} and the fret 5 shape together. Every note fits {n:E} Phrygian, the notes of {k:C major} played from {n:E}; an {n:F} in the tune would make it certain. Other open strings drone too: open string 4 is {n:D}, a home for {n:D} Mixolydian or {n:D} Dorian.',
       figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E2', 'D3', 'G3', 'C4'], together: true }, label: 'Hear the drone and shape' },
     },
     {
@@ -389,7 +389,7 @@ const modalInterchange: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'In {k:C major}: was the {r:IV} chord major or minor?',
+      prompt: 'In {k:C major}: was the chord on {n:F} major or minor?',
       sound: { kind: 'progression', chords: ['C', 'Fm', 'C'], beats: 4, tempo: 72 },
       options: [{ text: 'Major: {c:F}' }, { text: 'Minor: {c:Fm}', correct: true }],
       shuffle: false,
@@ -469,7 +469,7 @@ const theMinorFour: Lesson = {
     {
       type: 'card',
       title: 'One note falls',
-      body: 'In {k:C major} play {c:F} (133211), {c:Fm} (133111), {c:C} (x32010). Only string 3 moves: fret 2, fret 1, then open. That is {n:A}, {n:Ab}, {n:G}: one voice falling a half step at a time into the home chord.',
+      body: 'In {k:C major} play {c:F} (133211), {c:Fm} (133111), {c:C} (x32010). From {c:F} to {c:Fm} only string 3 moves, fret 2 to fret 1, and in {c:C} it rings open. That is {n:A}, {n:Ab}, {n:G}: one voice falling a half step at a time into the home chord.',
       figure: {
         kind: 'fretboard',
         frets: [0, 3],
@@ -492,7 +492,7 @@ const theMinorFour: Lesson = {
       prompt: 'The {n:Ab} of {c:Fm} falls a half step. Which note of {c:C} does it reach?',
       options: [
         { text: '{n:G}, the 5th', correct: true },
-        { text: '{n:E}, the 3rd', why: 'From {n:Ab} down to {n:E} is a major 3rd, not a half step.' },
+        { text: '{n:E}, the 3rd', why: 'From {n:Ab} down to {n:E} is four half steps, not one.' },
         { text: '{n:C}, the root', why: 'From {n:Ab} up to {n:C} is a major 3rd.' },
       ],
       explain: '{n:Ab} to {n:G} is a half step down, and {n:G} is the 5th of {c:C}.',
@@ -590,7 +590,7 @@ const theMinorFour: Lesson = {
         options: [
           { text: 'Down a half step to {n:D}', correct: true },
           { text: 'Up a half step to {n:E}', why: '{n:E} is not in {c:G}: {n:Eb} falls to {n:D}, the 5th of {c:G}.' },
-          { text: 'Down to {n:B}', why: 'That is a major 3rd down, not a half step.' },
+          { text: 'Down to {n:B}', why: 'From {n:Eb} down to {n:B} is four half steps, not one.' },
         ],
         explain: '{n:Eb} is the {d:b6} of {k:G major}. It falls a half step to {n:D}, the 5th of {c:G}.',
       },
@@ -944,7 +944,7 @@ const unit: Unit = {
         options: [
           { text: 'Down a half step to {n:G}', correct: true },
           { text: 'Up a half step to {n:A}', why: '{n:A} is not in {c:C}.' },
-          { text: 'Down to {n:E}', why: 'That is a major 3rd down.' },
+          { text: 'Down to {n:E}', why: 'From {n:Ab} down to {n:E} is four half steps, not one.' },
         ],
         explain: '{n:Ab}, the {d:b6}, falls a half step to {n:G}, the 5th of {c:C}.',
       },
@@ -955,6 +955,17 @@ const unit: Unit = {
         blanks: ['{c:C}'],
         bank: ['{c:C#m}', '{c:A}', '{c:Cm}'],
         explain: '{r:bVII} is the major chord a whole step below {n:D}: {c:C}. Then {r:IV}, {c:G}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which chord is the {r:bIII} of {k:G major}, borrowed from {k:G minor}?',
+        options: [
+          { text: '{c:Bb}', correct: true },
+          { text: '{c:Bm}', why: '{c:Bm} is the key\'s own {r:iii}, with no borrowed note.' },
+          { text: '{c:B}', why: '{c:B} has {n:D#}, which is in neither key: it is a secondary dominant.' },
+          { text: '{c:Bbm}', why: '{r:bIII} is a major chord: {n:Bb} {n:D} {n:F}.' },
+        ],
+        explain: 'The 3rd of {k:G major} is {n:B}. Lowered to {n:Bb}, with a major chord on it: {c:Bb}, from {k:G minor}.',
       },
       {
         type: 'fill-blanks',

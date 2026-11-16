@@ -32,7 +32,7 @@ const alteredTensions: Lesson = {
     {
       type: 'card',
       title: 'Tension that leans',
-      body: 'Over a dominant 7th, players often push the 9th and 13th out of the key: the {t:altered-tension|altered tensions} {d:b9}, {d:#9}, {d:#11} and {d:b13}. Play {c:G7} (3x343x), {c:G7b9} (3231xx), then {c:Cmaj7} (x3545x): the {n:Ab} on string 3 slides down a half step to {n:G}.',
+      body: 'Over a dominant 7th, players often push the 9th, 11th and 13th out of the key: the {t:altered-tension|altered tensions} {d:b9}, {d:#9}, {d:#11} and {d:b13}. Play {c:G7} (3x343x), {c:G7b9} (3231xx), then {c:Cmaj7} (x3545x): the {n:Ab} on string 3 falls a half step to {n:G}, on string 4.',
       figure: {
         kind: 'fretboard',
         frets: [0, 5],
@@ -86,7 +86,7 @@ const alteredTensions: Lesson = {
       blanks: ['{n:A#}'],
       bank: ['{n:Bb}', '{n:A}', '{n:Ab}'],
       spelling: 'exact',
-      explain: 'A 9th above {n:G} is {n:A}; raise it: {n:A#}. It sounds like {n:Bb}, but a 9th is always a kind of A.',
+      explain: 'A 9th above {n:G} is {n:A}; raise it: {n:A#}. It sounds like {n:Bb}, but a 9th above {n:G} is always a kind of A.',
       fact: 'altered-g7-spellings',
     },
     {
@@ -241,7 +241,7 @@ const theSharpNineChord: Lesson = {
       sound: { kind: 'chord', chord: 'D7#9', frets: 'x5456x' },
       options: [{ text: 'Plain {c:D7}' }, { text: '{c:D7#9}', correct: true }],
       shuffle: false,
-      explain: 'That was {c:D7#9}, x5456x: on top, the {d:#9} {n:E#} sounds a minor 3rd against the major 3rd {n:F#} below it.',
+      explain: 'That was {c:D7#9}, x5456x. On top, the {d:#9}, {n:E#}, sounds like {n:F}, a minor 3rd, while {n:F#} lower down is the major 3rd.',
     },
     {
       type: 'play-chord',
@@ -520,7 +520,7 @@ const tritoneSubstitution: Lesson = {
       prompt: 'Strum the {c:Db7} shell (x4x46x), the {r:subV7} of {k:C major}.',
       chord: 'Db7',
       frets: 'x4x46x',
-      explain: 'x4x46x: {n:Db}, {n:Cb} and {n:F}. Slide it down one fret to x3x45x and you land on {c:Cmaj7}.',
+      explain: 'x4x46x: {n:Db}, {n:Cb} and {n:F}. Keep string 3 where it is and move the other two fingers down a fret: x3x45x, {c:Cmaj7}.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
@@ -683,7 +683,7 @@ const diminishedAsDominant: Lesson = {
     {
       type: 'card',
       title: 'A dominant without its root',
-      body: '{c:G7b9} is {n:G} {n:B} {n:D} {n:F} {n:Ab}. Take away the {n:G} and what is left, {n:B} {n:D} {n:F} {n:Ab}, is {c:Bdim7}: the {r:vii°7} of {k:C major}. So {c:Bdim7} to {c:C} works like {c:G7b9} to {c:C}.',
+      body: '{c:G7b9} is {n:G} {n:B} {n:D} {n:F} {n:Ab}. Take away the {n:G} and what is left, {n:B} {n:D} {n:F} {n:Ab}, is {c:Bdim7}: the {r:vii°7} of {k:C major}, its {n:Ab} borrowed from {k:C minor}. So {c:Bdim7} to {c:C} works like {c:G7b9} to {c:C}.',
       figure: {
         kind: 'keyboard',
         keys: [{ note: 'G3', role: 'ghost' }, 'B3', 'D4', 'F4', { note: 'Ab4', role: 'target' }],

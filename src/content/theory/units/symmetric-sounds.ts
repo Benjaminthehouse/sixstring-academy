@@ -62,7 +62,7 @@ const dim7Symmetry: Lesson = {
     {
       type: 'card',
       title: 'Four minor thirds',
-      body: 'A {t:diminished-seventh|diminished seventh} chord stacks {t:minor-third|minor thirds}: {c:Bdim7} is {n:B} {n:D} {n:F} {n:Ab}. One more minor third above {n:Ab} lands on {n:B} again. Four equal steps of three half steps fill the octave, so the chord looks the same from every note.',
+      body: 'A {t:diminished-seventh|diminished seventh} chord stacks {t:minor-third|minor thirds}: {c:Bdim7} is {n:B} {n:D} {n:F} {n:Ab}. Three more half steps above {n:Ab} bring you back to {n:B}. Four equal steps of three half steps fill the octave, so the chord looks the same from every note.',
       figure: {
         kind: 'fretboard',
         frets: [1, 12],
@@ -106,7 +106,7 @@ const dim7Symmetry: Lesson = {
         { text: 'A major third: four half steps', why: 'Major thirds stacked up make an augmented triad, not a diminished seventh.' },
         { text: 'A whole step: two half steps', why: 'Whole steps would make a whole-tone scale. {n:B} to {n:D} is three half steps.' },
       ],
-      explain: '{n:B} {n:D} {n:F} {n:Ab}, then {n:B} again: every gap is a minor third, three frets on one string.',
+      explain: '{n:B} to {n:D}, {n:D} to {n:F}, {n:F} to {n:Ab}: minor thirds, three frets each on one string. Three more half steps take {n:Ab} back to {n:B}.',
       fact: 'symmetric-dim7-minor-thirds',
     },
     {
@@ -165,7 +165,7 @@ const dim7Symmetry: Lesson = {
     {
       id: 'symmetric-dim7-three-frets',
       front: 'What happens when you move a dim7 shape up three frets?',
-      back: 'You get the same four notes in a new inversion: {c:Bdim7} x2313x and x5646x sound the same pitches.',
+      back: 'You get the same four notes in a new inversion: {c:Bdim7} x2313x and x5646x use the same four notes.',
       ask: {
         type: 'true-false',
         statement: 'Moving a dim7 shape up three frets gives the same four notes in a new order.',
@@ -264,7 +264,7 @@ const oneDim7FourDominants: Lesson = {
     {
       type: 'card',
       title: 'Same root, new colour',
-      body: 'A dim7 can also decorate a chord on its own root: {c:C}, {c:Cdim7}, {c:C}. The bass {n:C} stays while the other notes step away and come back. This is the {t:common-tone-diminished|common-tone diminished} chord.',
+      body: 'A dim7 can also decorate a chord on its own root: {c:C}, {c:Cdim7}, {c:C}. The bass {n:C} stays while the other notes move away and come back. This is the {t:common-tone-diminished|common-tone diminished} chord.',
       figure: { kind: 'chord', symbol: 'Cdim7', frets: 'x3424x', caption: '{c:Cdim7} keeps {n:C} on string 5, fret 3, like the {c:C} chord.' },
     },
     {

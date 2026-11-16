@@ -52,7 +52,7 @@ function claims(value: unknown, out: string[] = []): string[] {
   }
   return out;
 }
-const frets = (shape: string | Array<number | null>): Array<number | null> => (typeof shape === 'string' ? parseFrets(shape) : shape);
+const frets = (shape: string | ReadonlyArray<number | null>): Array<number | null> => (typeof shape === 'string' ? parseFrets(shape) : [...shape]);
 /** The positions of a shape: string 6 first. */
 const positions = (shape: string | Array<number | null>) =>
   frets(shape).flatMap((f, i) => (f === null ? [] : [{ string: 6 - i, fret: f }]));
@@ -320,7 +320,7 @@ describe('caged: the major scale in five positions', () => {
     expect([...new Set(shared.map((n) => n.fret))].sort()).toEqual([4, 5]);
     expect(eShape.notes.filter((n) => n.fret >= 4).map(pos).sort()).toEqual(shared.map(pos).sort());
     const tf = exercises(lesson('major-scale-positions').steps).find((e) => e.type === 'true-false')!;
-    expect(plainText(explainOf(tf))).toContain(`(frets ${eShape.minFret} to ${eShape.maxFret}) and the D-shape position (frets ${d.minFret} to ${d.maxFret}) share the notes at frets 4 and 5`);
+    expect(plainText(explainOf(tf) ?? '')).toContain(`(frets ${eShape.minFret} to ${eShape.maxFret}) and the D-shape position (frets ${d.minFret} to ${d.maxFret}) share the notes at frets 4 and 5`);
   });
 
   it('draws the E-shape position note for note and finger for finger', () => {

@@ -480,7 +480,7 @@ const shellVoicings: Lesson = {
     {
       type: 'card',
       title: 'A shell two-five-one',
-      body: '{c:Dm7} x5x56x, {c:G7} 3x34xx, {c:Cmaj7} x3x45x. The root hops between strings 5 and 6, and the 3rds and 7ths move by a fret or stay: the guide tones from the last lesson, now with a bass note under them.',
+      body: '{c:Dm7} x5x56x, {c:G7} 3x34xx, {c:Cmaj7} x3x45x. Your hand stays between frets 3 and 6 while the root hops between strings 5 and 6. Watch string 3: {n:C}, {n:B}, {n:B}. The 7th of {c:Dm7} falls a fret to the 3rd of {c:G7}, which stays put as the 7th of {c:Cmaj7}.',
       figure: { kind: 'chord', symbol: 'Dm7', frets: 'x5x56x', caption: '{c:Dm7} shell (x5x56x): {n:D}, {n:C}, {n:F}.' },
     },
     {
@@ -578,7 +578,7 @@ const dropTwoVoicings: Lesson = {
     {
       type: 'card',
       title: 'On four strings',
-      body: 'Now it fits strings 5 to 2: x3545x, {n:C} {n:G} {n:B} {n:E}, with the root in the bass. Drop-2 voicings always sit on four neighbouring strings: 5 to 2, or 4 to 1.',
+      body: 'Now it fits strings 5 to 2: x3545x, {n:C} {n:G} {n:B} {n:E}, with the root in the bass. Drop-2 voicings usually sit on four neighbouring strings: 6 to 3, 5 to 2 or 4 to 1.',
       figure: { kind: 'chord', symbol: 'Cmaj7', frets: 'x3545x', caption: '{c:Cmaj7} drop 2 (x3545x): {n:C} {n:G} {n:B} {n:E}.' },
     },
     {
@@ -700,7 +700,7 @@ const dropThreeVoicings: Lesson = {
     {
       type: 'card',
       title: 'A gap above the bass',
-      body: 'The dropped note leaves a wide gap above the bass, which is why drop-3 shapes skip a string: the bass sits on string 6 or 5 and the next string is muted. Lower one note and {c:Gmaj7} becomes {c:G7} (3x343x) or {c:Gm7} (3x333x).',
+      body: 'The dropped note leaves a wide gap above the bass, which is why drop-3 shapes skip a string: the bass sits on string 6 or 5 and the next string is muted. Lower the 7th a fret and {c:Gmaj7} becomes {c:G7} (3x343x); lower the 3rd too and it is {c:Gm7} (3x333x).',
       figure: { kind: 'chord', symbol: 'Gmaj7', frets: '3x443x', caption: '{c:Gmaj7} drop 3 (3x443x): {n:G}, string 5 muted, {n:F#} {n:B} {n:D}.' },
     },
     {
@@ -722,7 +722,7 @@ const dropThreeVoicings: Lesson = {
         { text: 'The bass string', why: 'The bass string holds the dropped note, usually the root.' },
       ],
       shuffle: false,
-      explain: 'The dropped note sits more than an octave below the next one, so the string just above the bass is skipped: 3x443x mutes string 5.',
+      explain: 'The dropped note lands nearly an octave below the next note up, too far for the next string to reach nearby. So that string is skipped: 3x443x mutes string 5.',
       fact: 'jazz-drop-3-skip-string',
     },
     {
