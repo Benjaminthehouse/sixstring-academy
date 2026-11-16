@@ -9,7 +9,7 @@ export default defineSong({
   style: 'celtic',
   kind: 'study',
   key: 'D major',
-  teaches: ['Retuning to DADGAD and finding notes in it', 'Open-string drones under a tune', 'Ringing notes on neighbouring strings', 'Rolls, slides and a harmonic'],
+  teaches: ['Retuning to DADGAD and finding notes in it', 'Open-string drones under a tune', 'Ringing notes on neighbouring strings', 'Hammer-on and pull-off triplets, slides, a harmonic'],
   skills: ['melody', 'technique'],
   tags: ['dadgad', 'alternate tuning', 'celtic', 'air', 'drones', 'harmonic', 'slide', '3/4'],
   about:

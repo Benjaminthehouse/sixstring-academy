@@ -25,26 +25,29 @@ import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerTask, toolTask } from '../tasks';
 
-const e = (string: number, fret: number): TabNote => ({ string, fret, duration: 'e' });
-const q = (string: number, fret: number): TabNote => ({ string, fret, duration: 'q' });
-const h = (string: number, fret: number): TabNote => ({ string, fret, duration: 'h' });
-const w = (string: number, fret: number): TabNote => ({ string, fret, duration: 'w' });
+/** A sounded tab note (never a rest): what every line of this unit is made of. */
+export type Played = Extract<TabNote, { string: number }>;
+
+const e = (string: number, fret: number): Played => ({ string, fret, duration: 'e' });
+const q = (string: number, fret: number): Played => ({ string, fret, duration: 'q' });
+const h = (string: number, fret: number): Played => ({ string, fret, duration: 'h' });
+const w = (string: number, fret: number): Played => ({ string, fret, duration: 'w' });
 
 /** The three ii-V-I arpeggios in fifth position, root to octave and back (as in the study). */
-export const ARPEGGIOS: Record<'Dm7' | 'G7' | 'Cmaj7', TabNote[]> = {
+export const ARPEGGIOS: Record<'Dm7' | 'G7' | 'Cmaj7', Played[]> = {
   Dm7: [e(5, 5), e(5, 8), e(4, 7), e(3, 5), e(3, 7), e(3, 5), e(4, 7), e(5, 8), q(5, 5)],
   G7: [e(4, 5), e(3, 4), e(3, 7), e(2, 6), e(2, 8), e(2, 6), e(3, 7), e(3, 4), q(4, 5)],
   Cmaj7: [e(6, 8), e(5, 7), e(4, 5), e(3, 4), e(3, 5), e(3, 4), e(4, 5), e(5, 7), q(6, 8)],
 };
 
 /** Two original lines over Dm7 | G7 | Cmaj7 | Cmaj7: one scale throughout, or each chord's own tones. */
-export const LINES: Record<'horizontal' | 'vertical', TabNote[]> = {
+export const LINES: Record<'horizontal' | 'vertical', Played[]> = {
   horizontal: [q(5, 5), q(5, 7), q(5, 8), q(4, 5), q(4, 7), q(3, 4), q(3, 5), q(3, 7), q(2, 5), q(3, 7), q(3, 5), q(3, 4), w(3, 5)],
   vertical: [q(5, 5), q(5, 8), q(4, 7), q(3, 5), q(3, 4), q(3, 7), q(2, 8), q(2, 6), q(2, 5), q(3, 5), q(3, 4), q(4, 5), w(5, 7)],
 };
 
 /** Approaches and enclosures into the thirds: E of Cmaj7, B of G7, F of Dm7. */
-export const ENCLOSURES: Record<'approachE' | 'intoE' | 'approachB' | 'intoB' | 'intoF', TabNote[]> = {
+export const ENCLOSURES: Record<'approachE' | 'intoE' | 'approachB' | 'intoB' | 'intoF', Played[]> = {
   approachE: [e(2, 4), h(2, 5)],
   intoE: [e(2, 6), e(2, 4), h(2, 5)],
   approachB: [e(3, 3), h(3, 4)],
@@ -53,7 +56,7 @@ export const ENCLOSURES: Record<'approachE' | 'intoE' | 'approachB' | 'intoB' | 
 };
 
 /** The arpeggios a third up: Fmaj7 over Dm7, Bm7b5 over G7, Em7 over Cmaj7, up and back. */
-export const THIRD_UP: Record<'Fmaj7' | 'Bm7b5' | 'Em7', TabNote[]> = {
+export const THIRD_UP: Record<'Fmaj7' | 'Bm7b5' | 'Em7', Played[]> = {
   Fmaj7: [e(5, 8), e(4, 7), e(3, 5), e(2, 5), e(3, 5), e(4, 7), q(5, 8)],
   Bm7b5: [e(3, 4), e(3, 7), e(2, 6), e(1, 5), e(2, 6), e(3, 7), q(3, 4)],
   Em7: [e(5, 7), e(4, 5), e(3, 4), e(3, 7), e(3, 4), e(4, 5), q(5, 7)],
@@ -70,7 +73,7 @@ export const G_ALTERED = [
 ] as const;
 
 /** The outside lines: a side-slip over Am7, and the Db7 arpeggio over G7 into Cmaj7. */
-export const OUTSIDE: Record<'sideSlip' | 'db7', TabNote[]> = {
+export const OUTSIDE: Record<'sideSlip' | 'db7', Played[]> = {
   sideSlip: [e(1, 5), e(2, 8), q(2, 5), e(1, 6), e(2, 9), q(2, 6), e(1, 5), e(2, 8), q(2, 5), h(3, 7)],
   db7: [e(5, 4), e(5, 8), e(4, 6), e(3, 4), h(3, 5)],
 };

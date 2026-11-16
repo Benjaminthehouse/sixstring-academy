@@ -15,7 +15,7 @@ export default defineSong({
   skills: ['strumming', 'chords', 'singing'],
   tags: ['new year', 'december', 'scottish', 'burns', 'pickup', 'pentatonic', 'bm7', 'lyrics'],
   about:
-    'A slow, warm song for the turn of the year: let each chord ring and sing gently. Every line starts with a pickup, one sung note before the first strum, so count "4" out loud, sing on it, and strum on the next "1"; strumming on the pickup is the usual slip. In bars 7 and 15 the chord changes halfway, Bm7 to A on beat 3: both shapes sit on fret 2, so get the new one ready during beat 2. In Burns\'s Scots, auld lang syne means "old long since", the days long ago; jo means dear, tak means take and o\' means of.',
+    'A slow, warm song for the turn of the year: let each chord ring and sing gently. Every line starts with a pickup, one sung note before the first strum, so count "4" out loud, sing on it, and strum on the next "1"; strumming on the pickup is the usual slip. The hardest change is A to the open Bm7, under "auld lang" at the end of the verse and again at the end of the chorus: both shapes sit on fret 2, so lift all three fingers together and land them as one, and if Bm7 comes late, practise A to Bm7 and back for a minute on its own. In Burns\'s Scots, auld lang syne means "old long since", the days long ago; jo means dear, tak means take and o\' means of.',
   plan: 'auld-lang-syne',
   added: '2026-11-16',
 });

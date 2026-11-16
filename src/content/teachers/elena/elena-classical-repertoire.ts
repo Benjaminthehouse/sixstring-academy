@@ -137,7 +137,7 @@ const studiesOfTheMasters: TeacherLesson = {
       title: 'The whole study, recorded',
       song: 'st-pimami-3-4',
       minutes: 5,
-      body: 'Then the whole study at 100 % (66 BPM), and record it on your phone. Listen back for one thing: is the melody louder than the accompaniment? Then the same with your scanned Carcassi, in wait mode, then at 72, 88 and 100 BPM.',
+      body: 'Then the whole study at 100 % (66 BPM), and record it on your phone. Listen back for one thing: is the melody louder than the accompaniment? Your scans: Carcassi in wait mode, then at 72, 88 and 100 BPM; Sor in wait mode, then at 60 and 76.',
     }),
     {
       type: 'choice',
@@ -570,7 +570,7 @@ const bachOnGuitar: TeacherLesson = {
     {
       type: 'card',
       title: 'The Gavotte en Rondeau',
-      body: 'The Gavotte en Rondeau comes from Bach\'s third partita for solo violin: a {t:rondo} whose refrain returns between episodes. Guitarists play it here in {k:E major}, with a light bass added. The refrain must be recognisable every time it returns: the same shape, the same voicing.',
+      body: 'The Gavotte en Rondeau comes from Bach\'s third partita for solo violin: a {t:rondo} whose refrain returns between episodes. Here it is in {k:E major}, the violin\'s key, with a light bass added. The refrain must be recognisable every time it returns: the same shape, the same voicing.',
       tip: 'Rondo is one of the forms by letter: A B A C A. The Theory Path\'s "Forms by letter" maps it.',
     },
     {
@@ -849,7 +849,7 @@ const unit: TeacherUnit = {
   milestone: {
     lesson: 'summit-pieces',
     step: 'show',
-    piece: 'Rondo alla Turca',
+    piece: 'the Rondo alla Turca opening',
     song: 'rondo-alla-turca',
     celebrate: 'Mozart\'s turns, cleanly and without stopping: that is a performance. Now you have a summit and twelve weeks to climb it. Record week 1; in week 12 you will hear what deliberate work does.',
   },

@@ -264,20 +264,19 @@ const dronesAndQuartalChords: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Pluck open {n:E}, then the fret 5 shape note by note; then open {n:E} and the fret 7 shape.',
+      prompt: 'Pluck open {n:E} and let it ring. Then play the fret 5 shape note by note, then the fret 7 shape.',
       notes: [
         { string: 6, fret: 0, duration: 'q' },
         { string: 5, fret: 5, duration: 'q' },
         { string: 4, fret: 5, duration: 'q' },
         { string: 3, fret: 5, duration: 'q' },
-        { string: 6, fret: 0, duration: 'q' },
         { string: 5, fret: 7, duration: 'q' },
         { string: 4, fret: 7, duration: 'q' },
-        { string: 3, fret: 7, duration: 'q' },
+        { string: 3, fret: 7, duration: 'h' },
       ],
       octave: 'exact',
       tempo: 80,
-      explain: 'Open {n:E}, {n:D} {n:G} {n:C}; open {n:E}, {n:E} {n:A} {n:D}. Let the low {n:E} ring under both shapes: that is the drone.',
+      explain: 'Open {n:E}, then {n:D} {n:G} {n:C} and {n:E} {n:A} {n:D}. Keep the low {n:E} ringing under both shapes: that is the drone.',
       alternative: {
         type: 'order',
         prompt: 'Put the notes of the fourths shape at fret 7 in order, low to high.',

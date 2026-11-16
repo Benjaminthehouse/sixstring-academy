@@ -110,6 +110,7 @@ const classicalPosition: TeacherLesson = {
       type: 'card',
       title: 'Two strokes',
       body: 'The {t:free-stroke|free stroke} (tirando) plucks the string and clears the next one, finishing in the air. The {t:rest-stroke|rest stroke} (apoyando) plucks through the string and comes to rest on the next one toward string 6: a fuller, louder tone. Arpeggios need free strokes, so the next string keeps ringing; a singing line can take rest strokes.',
+      tip: 'Why one stroke sounds fuller than another is a question of tone colour: the Theory Path\'s Tone colour lesson.',
     },
     {
       type: 'choice',
@@ -230,7 +231,7 @@ const rightHandArpeggios: TeacherLesson = {
       prompt: 'Why do Giuliani\'s studies keep to {c:C} and {c:G7}?',
       options: [
         { text: 'So every fault you hear is the right hand\'s', correct: true },
-        { text: 'Because those chords were all he knew', why: 'He wrote in every key. The restriction is deliberate.' },
+        { text: 'Because those chords were all he knew', why: 'He wrote in many keys. The restriction is deliberate.' },
         { text: 'So the studies can be sight-read', why: 'They can, but that is a side effect. The purpose is the right hand.' },
       ],
       explain: 'Two chords leave the left hand nothing to do, so each study isolates one right-hand pattern, and the ear hears only the right hand.',
@@ -794,8 +795,9 @@ const tremolo: TeacherLesson = {
       title: 'Toward Recuerdos',
       song: 'st-concert-tremolo-etude',
       mode: 'wait',
+      bars: [1, 4],
       minutes: 5,
-      body: 'Tarrega\'s Recuerdos de la Alhambra is not in the library; if you own it, scan it in and loop its first 4 bars at 40 BPM. The library\'s preparation for it is the Concert Tremolo Etude: wait mode first, every group even before the next.',
+      body: 'Tarrega\'s Recuerdos de la Alhambra is not in the library; if you own it, scan it in and loop its first 4 bars at 40 BPM. The library\'s preparation for it is the Concert Tremolo Etude: its first 4 bars in wait mode, every group even before the next.',
       fallback: {
         tool: 'technique',
         params: ['tech-tremolo-pami'],

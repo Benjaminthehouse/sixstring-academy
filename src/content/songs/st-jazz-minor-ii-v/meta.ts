@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['chords', 'fingerpicking', 'rhythm', 'melody'],
   tags: ['jazz', 'bossa nova', 'comping', 'minor ii-v-i', 'half-diminished', 'harmonic minor', 'a minor', 'seventh position'],
   about:
-    'Let the thumb walk steadily on beats 1 and 3 like a heartbeat, and let the three fingers pluck the chord off the beat, short and light, as if brushing a drum. The pattern takes two bars to come round, so count "1 2 3 4, 1 2 3 4" out loud until the off-beat chords stop pulling the thumb out of time. In the melody, every G becomes G# while E7 is sounding and goes back to G over Am7: the usual mistake is a G natural over E7, so put finger 3 on string 2 fret 9 before bars 10 and 14 begin.',
+    'Let the thumb play the bass steadily on beats 1 and 3 like a heartbeat, and let the three fingers answer with the chord, short and light: with the thumb on 1, then on the "and" of 2 and on 4; in the next bar on 2 and the "and" of 3. The pattern takes two bars to come round, so count "1 2 3 4, 1 2 3 4" out loud until the off-beat chords stop pulling the thumb out of time. In the melody, every G becomes G# while E7 is sounding and goes back to G over Am7: the usual mistake is a G natural over E7, so put finger 3 on string 2 fret 9 before bars 10 and 14 begin.',
   plan: 'st-jazz-minor-ii-v',
   added: '2026-11-16',
 });

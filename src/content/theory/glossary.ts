@@ -193,4 +193,14 @@ export const THEORY_GLOSSARY: readonly GlossaryTerm[] = [
   T('neighbour-tone', 'neighbour tone', 'A non-chord tone that steps away from a chord tone and back to it: F in E F E over a C chord.'),
   T('suspension', 'suspension', 'A note held over from the chord before, where it clashes with the new chord, that then resolves down by step.'),
   T('appoggiatura', 'appoggiatura', 'A non-chord tone reached by a leap on a strong beat, which then resolves by step.'),
+  // triads-and-inversions
+  T('root-position', 'root position', 'A chord played with its root as the lowest note, whatever the order of the notes above it.'),
+  T('first-inversion', 'first inversion', 'A chord played with its 3rd as the lowest note, such as C/E: C major with E in the bass.'),
+  T('second-inversion', 'second inversion', 'A chord played with its 5th as the lowest note, such as C/G: C major with G in the bass.'),
+  T('string-set', 'string set', 'A group of neighbouring strings that a shape is played on, such as strings 3, 2 and 1.'),
+  // caged
+  T('caged', 'CAGED system', 'A map of the neck made from the open C, A, G, E and D chord shapes, moved up the neck so that they link together.'),
+  T('barre-chord', 'barre chord', 'A chord with one finger laid across several strings, so that an open shape can move to any fret.'),
+  T('scale-position', 'scale position', 'All the notes of a scale in one area of the neck, about five frets wide, played without moving the hand.'),
+  T('three-notes-per-string', 'three notes per string', 'A scale fingering with exactly three notes on every string. It stretches wider but keeps the same picking on each string.'),
 ];

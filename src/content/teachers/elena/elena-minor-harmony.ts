@@ -31,8 +31,11 @@ import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerTask, techniqueTask, toolTask } from '../tasks';
 
-const e = (string: number, fret: number): TabNote => ({ string, fret, duration: 'e' });
-const q = (string: number, fret: number): TabNote => ({ string, fret, duration: 'q' });
+/** A sounded tab note (never a rest): what every line of this unit is made of. */
+export type Played = Extract<TabNote, { string: number }>;
+
+const e = (string: number, fret: number): Played => ({ string, fret, duration: 'e' });
+const q = (string: number, fret: number): Played => ({ string, fret, duration: 'q' });
 
 /** The shapes the unit teaches, low string first. */
 export const SHAPES = {
@@ -45,13 +48,13 @@ export const SHAPES = {
 export const SOLEA_ACCENTS = 'hr q hr q | qr q qr q qr q';
 
 /** The Habanera's opening descent, as the plan gives its pitches, in first position. */
-export const HABANERA_DESCENT: TabNote[] = [q(2, 3), q(2, 2), q(2, 1), q(2, 0), q(3, 3), q(3, 2)];
+export const HABANERA_DESCENT: Played[] = [q(2, 3), q(2, 2), q(2, 1), q(2, 0), q(3, 3), q(3, 2)];
 
 /** The Mountain King theme's second bar as the library has it: the chromatic A# and F. */
-export const MOUNTAIN_KING_BAR_2: TabNote[] = [e(5, 1), e(6, 2), q(5, 1), e(5, 0), e(6, 1), q(5, 0)];
+export const MOUNTAIN_KING_BAR_2: Played[] = [e(5, 1), e(6, 2), q(5, 1), e(5, 0), e(6, 1), q(5, 0)];
 
 /** An original dominant pedal in D minor: the bass holds A under A, Dm/A and A7, then Dm. */
-export const PEDAL: TabNote[] = [
+export const PEDAL: Played[] = [
   q(5, 0), q(3, 2), q(2, 2), q(1, 0),
   q(5, 0), q(3, 2), q(2, 3), q(1, 1),
   q(5, 0), q(3, 0), q(2, 2), q(1, 0),
@@ -59,7 +62,7 @@ export const PEDAL: TabNote[] = [
 ];
 
 /** A bar of the p i m a m i study: Dm as one even arpeggio over its bass. */
-export const PIMAMI_DM_BAR: TabNote[] = [e(4, 0), e(3, 2), e(2, 3), e(1, 1), e(2, 3), e(3, 2)];
+export const PIMAMI_DM_BAR: Played[] = [e(4, 0), e(3, 2), e(2, 3), e(1, 1), e(2, 3), e(3, 2)];
 
 // ── 1. The harmony of harmonic minor ────────────────────────────────────────────────────────────
 
@@ -99,7 +102,7 @@ const harmonicMinorHarmony: TeacherLesson = {
       text: '{c:AmMaj7}  {c:Bm7b5}  ___  {c:Dm7}  ___  {c:Fmaj7}  ___',
       blanks: ['{c:Cmaj7#5}', '{c:E7}', '{c:G#dim7}'],
       bank: ['{c:Cmaj7}', '{c:Em7}', '{c:G7}'],
-      explain: 'Every chord holding {n:G} in natural minor now holds {n:G#}: {c:Cmaj7} becomes {c:Cmaj7#5}, {c:Em7} becomes {c:E7}, {c:G7} becomes {c:G#dim7}.',
+      explain: 'Every chord holding {n:G} in natural minor now holds {n:G#}: {c:Am7} becomes {c:AmMaj7}, {c:Cmaj7} becomes {c:Cmaj7#5}, {c:Em7} becomes {c:E7}, {c:G7} becomes {c:G#dim7}.',
       fact: 'hm-sevenths',
     },
     {

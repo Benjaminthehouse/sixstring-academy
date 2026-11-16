@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['melody', 'chords'],
   tags: ['modes', 'locrian', 'half-diminished', 'colour note', 'vamp', 'flat fifth', 'a minor', 'fifth position'],
   about:
-    'A Locrian is the darkest of the modes: A Bb C D Eb F G, with a flat second (Bb) and a flat fifth (Eb). Its home chord, Am7b5, is half-diminished, so even "home" sounds uneasy, and that is why songs rarely stay here; enjoy the tension instead of fighting it. Hold the Eb over Am7b5 and the Bb over Bbmaj7 and hear how strange each one sounds. The common slip is playing E or B out of habit: before you start, find Eb on string 3 fret 8 and Bb on string 1 fret 6 and string 4 fret 8, and say "flat" each time you play one.',
+    'A Locrian is the darkest of the modes: A Bb C D Eb F G, with a flat second (Bb) and a flat fifth (Eb). Its home chord, Am7b5, is half-diminished, so even "home" sounds uneasy, and that is why songs rarely stay here; enjoy the tension instead of fighting it. Hold the Eb over Am7b5 and hear the flat fifth, a tritone above the A in the bass; over Bbmaj7 the Bb is the root, a half step above home, and it leans back down to A. The common slip is playing E or B out of habit: before you start, find Eb on string 3 fret 8 and Bb on string 1 fret 6 and string 4 fret 8, and say "flat" each time you play one.',
   plan: 'st-mode-locrian',
   added: '2026-11-16',
 });

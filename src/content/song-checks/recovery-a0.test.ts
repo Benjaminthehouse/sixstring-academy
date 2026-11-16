@@ -269,8 +269,8 @@ const CASES: Case[] = [
     passes: [[0, 17]],
     strong: [0, 2 * PPQ],
     pickup: true,
-    // Bm7 to A on beat 3 of bars 7 and 15: the tune's B leans on the A chord and falls to A at once.
-    resolved: ['bar 7 beat 3: B2 over A resolves to A2', 'bar 15 beat 3: B2 over A resolves to A2'],
+    // Bm7 fills bars 7 and 15 (D, B, B, A are all tones of Bm7), so no strong beat needs an exception.
+    resolved: [],
     chords: ['A', 'Bm7', 'D', 'G'],
     words: [
       "Should auld acquaintance be forgot, And never brought to mind? Should auld acquaintance be forgot, And auld lang syne? For auld lang syne, my jo, For auld lang syne, We'll tak a cup o' kindness yet, For auld lang syne.",
@@ -326,7 +326,7 @@ describe.each(CASES.map((c) => [c.id, c] as [string, Case]))('recovery a0: %s', 
     expect(mismatches).toEqual([]);
   });
 
-  it('puts chord tones on the strong beats (or an accented note that resolves by step at once)', async () => {
+  it('puts chord tones on the strong beats (any exception must resolve by step at once and be named)', async () => {
     const song = await load(id);
     const { problems, resolved } = strongBeats(song, trackNamed(song, c.melody), c.strong, c.pickup);
     expect(problems).toEqual([]);
@@ -444,8 +444,10 @@ describe('recovery a0: auld-lang-syne, the plan details', () => {
     // The chords line by line, beat 1 and beat 3 of every bar.
     const tl = flattenSong(song);
     const byBar = tl.bars.slice(1).map((b) => `${tl.chordAt(b.start)?.symbol} ${tl.chordAt(b.start + 2 * PPQ)?.symbol}`);
-    const half = ['D D', 'A A', 'D D', 'G G', 'D D', 'A A', 'Bm7 A', 'D D'];
+    // One chord a bar, as in Mia's chart for the verse (D A D G, D A Bm D, with the open Bm7).
+    const half = ['D D', 'A A', 'D D', 'G G', 'D D', 'A A', 'Bm7 Bm7', 'D D'];
     expect(byBar).toEqual([...half, ...half]);
+    expect(song.chords.every((ch) => ch.tick === 0), 'no chord changes inside a bar').toBe(true);
     const shapes: Record<string, string> = { D: 'xx0232', A: 'x02220', G: '320003', Bm7: 'x20202' };
     for (const ch of song.chords) expect(shapeText(ch.voicing), `${ch.symbol} shape`).toBe(shapes[ch.symbol]);
     expect(song.sections.map((s) => `${s.name}@${s.start}`)).toEqual(['Verse@0', 'Chorus@9']);

@@ -237,11 +237,25 @@ describe('Elena unit 9: Classical technique', () => {
     expect(durations(GALLOP)).toEqual(['e', 'st', 'st', 'st', 'e', 'st', 'st', 'st']);
     expect(pos(GALLOP)).toEqual(['6:0', '1:0', '1:0', '1:0', '5:0', '1:0', '1:0', '1:0']);
     const etude = task('tremolo-etude');
-    if (!songEntry('st-concert-tremolo-etude')) {
-      expect(etude.fallback).toMatchObject({ tool: 'technique', params: ['tech-tremolo-pami'] });
-      expect(e.parts.map((p) => p.id)).toContain('melody');
-    }
+    expect(etude.fallback).toMatchObject({ tool: 'technique', params: ['tech-tremolo-pami'] });
+    expect(e.parts.map((p) => p.id)).toContain('melody');
     expect((etude.params ?? []).some((p) => /^t\d+$/.test(p))).toBe(false);
+    expect(etude.params).toEqual(['st-concert-tremolo-etude', 'm1-4', 'wait']);
+  });
+
+  it('sends Recuerdos players to an etude that is p-a-m-i tremolo from its first bar, once it is in the library', async () => {
+    if (!songEntry('st-concert-tremolo-etude')) return;
+    const s = await song('st-concert-tremolo-etude');
+    const bar1 = s.tracks[0].measures[0].beats.filter((b) => b.notes.length > 0);
+    // Groups of four: the thumb on a bass string, then a, m and i on one treble note.
+    for (let g = 0; g < bar1.length; g += 4) {
+      const [p, a, m, i] = bar1.slice(g, g + 4).map((b) => b.notes[0]);
+      expect(p.string).toBeGreaterThanOrEqual(3);
+      expect([a, m, i].every((n) => n.midi === a.midi && n.string <= 2)).toBe(true);
+    }
+    expect(bar1[0].notes[0].pluck).toBe('p');
+    expect(bar1.slice(1, 4).map((b) => b.notes[0].pluck)).toEqual(['a', 'm', 'i']);
+    expect(s.bars.length).toBeGreaterThanOrEqual(4);
   });
 
   it('swaps only pieces the library does not hold', () => {

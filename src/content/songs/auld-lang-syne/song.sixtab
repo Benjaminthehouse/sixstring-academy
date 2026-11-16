@@ -5,8 +5,10 @@
 # every line starts with a pickup on beat 4.
 # Your part: D (xx0232), A (x02220), G (320003) and the open Bm7 (x20202), the easier shape to
 # use until barre chords arrive at level 5. The verse strums four quarter downstrokes a bar; the
-# chorus lifts to "down, down-up" on every two beats. Bars 7 and 15 change from Bm7 to A on
-# beat 3. The pickup bar is silent for you: the tune's first note comes before your first strum.
+# chorus lifts to "down, down-up" on every two beats. One chord a bar throughout: Bm7 fills the
+# bar under "auld lang" before each half comes home to D (D, B, B, A are all notes of Bm7), so
+# every note on beats 1 and 3 is a tone of its chord. The pickup bar is silent for you: the
+# tune's first note comes before your first strum.
 # The tune (second track) carries the words, played an octave below the sung pitch, in first
 # position on strings 5 to 2 (finger = fret number).
 title: Auld Lang Syne
@@ -27,11 +29,11 @@ role: rhythm
 [Verse]
 strum: DDDD
 | q r | "D=xx0232" D D D D | "A=x02220" D D D D | "D=xx0232" D D D D | "G=320003" D D D D |
-| "D=xx0232" D D D D | "A=x02220" D D D D | "Bm7=x20202" D D "A=x02220" D D | "D=xx0232" D D D D |
+| "D=xx0232" D D D D | "A=x02220" D D D D | "Bm7=x20202" D D D D | "D=xx0232" D D D D |
 [Chorus]
 strum: D-DUD-DU
 | "D=xx0232" q D e D U q D e D U | "A=x02220" q D e D U q D e D U | "D=xx0232" q D e D U q D e D U | "G=320003" q D e D U q D e D U |
-| "D=xx0232" q D e D U q D e D U | "A=x02220" q D e D U q D e D U | "Bm7=x20202" q D e D U "A=x02220" q D e D U | "D=xx0232" w D ||
+| "D=xx0232" q D e D U q D e D U | "A=x02220" q D e D U q D e D U | "Bm7=x20202" q D e D U q D e D U | "D=xx0232" w D ||
 
 track: Tune
 role: lead

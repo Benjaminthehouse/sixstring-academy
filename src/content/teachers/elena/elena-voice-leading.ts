@@ -28,6 +28,9 @@ import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerTask, toolTask } from '../tasks';
 
+/** A sounded tab note (never a rest): what every line of this unit is made of. */
+export type Played = Extract<TabNote, { string: number }>;
+
 /** The shapes the unit teaches, low string first (two-digit frets hyphenated). */
 export const SHAPES = {
   /** C, Am, F and G as close triads on strings 3 to 1, one hand position. */
@@ -80,7 +83,7 @@ export const PHRASE_MELODY = [
 ] as const;
 
 /** The same melody on strings 1 and 2, around the seventh fret (the hand of the drop-2 grips). */
-export const PHRASE_TAB: TabNote[] = [
+export const PHRASE_TAB: Played[] = [
   { string: 1, fret: 8, duration: 'h' },
   { string: 1, fret: 5, duration: 'h' },
   { string: 2, fret: 8, duration: 'h' },
@@ -98,7 +101,7 @@ export const PHRASE_TAB: TabNote[] = [
 ];
 
 /** The First Ballad's opening tune, bars 1 and 2 (the top notes and the notes between them). */
-export const BALLAD_TUNE: TabNote[] = [
+export const BALLAD_TUNE: Played[] = [
   { string: 1, fret: 0, duration: 'q' },
   { string: 2, fret: 3, duration: 'e' },
   { string: 1, fret: 0, duration: 'e' },
@@ -360,7 +363,7 @@ const triadsAcrossStringSets: TeacherLesson = {
       options: [
         { text: 'x-x-9-7-7-x', correct: true },
         { text: 'x-x-4-4-3-x', why: 'A correct {c:Bm/F#}, but string 4 would move three frets.' },
-        { text: 'x-x-12-11-12-x', why: 'A correct {c:Bm/D}, five frets up the neck.' },
+        { text: 'x-x-12-11-12-x', why: 'A correct {c:Bm/D}, but far up the neck: string 2 would jump seven frets.' },
       ],
       explain: '{n:A} rises to {n:B} (two frets), {n:C#} to {n:D} (one), {n:E} to {n:F#} (two): root-position {c:Bm}, every voice by step.',
       fact: 'triads-canon',
@@ -708,7 +711,7 @@ const reharmonisation: TeacherLesson = {
         { text: 'Reharmonised: {c:D7} and {c:Gb7}', correct: true },
       ],
       shuffle: false,
-      explain: 'The second chord was major ({c:D7}, with {n:F#}), and the fourth slid down to {c:Fmaj7} by half steps: {c:Gb7}.',
+      explain: 'The second chord was major ({c:D7}, with {n:F#}), and the fourth, {c:Gb7}, sat a half step above home instead of a fifth.',
     },
     {
       type: 'listen-choice',
@@ -719,7 +722,7 @@ const reharmonisation: TeacherLesson = {
         { text: 'The fourth: {c:Gb7} for {c:C7}', correct: true },
         { text: 'The third: {c:G7} for {c:Gm7}' },
       ],
-      explain: '{c:Dm7} stayed minor; the last chord was {c:Gb7}. Listen to the bass: it fell {n:G}, {n:Gb}, then {n:F}, by half steps.',
+      explain: '{c:Dm7} stayed minor; the last chord was {c:Gb7}. Listen to the bass: it fell only a half step, {n:G} to {n:Gb}, where {c:C7} would have dropped to {n:C}.',
     },
     {
       type: 'choice',
@@ -752,8 +755,8 @@ const reharmonisation: TeacherLesson = {
       chord: 'Gb7',
       frets: SHAPES.subJam.Gb7,
       accept: 'this-shape',
-      prompt: 'From unit 5\'s drop-2 {c:C7} (xx8988), keep {n:Bb} and {n:E} and move strings 2 and 1 down one fret: build {c:Gb7}.',
-      explain: 'xx8979: {n:Bb}, {n:Fb}, {n:Gb}, {n:Db}. Two notes kept, two moved a half step: that is all a tritone substitution costs.',
+      prompt: 'From unit 5\'s drop-2 {c:C7} (xx8988), keep {n:Bb} and {n:E}, move string 2 down a fret and string 1 up a fret: build {c:Gb7}.',
+      explain: 'xx8979: {n:Bb}, {n:Fb}, {n:Gb}, {n:Db}. Two notes kept, two moved a half step, {n:G} down to {n:Gb} and {n:C} up to {n:Db}: that is all a tritone substitution costs.',
     },
     toolTask({
       id: 'jam-tritone-sub',

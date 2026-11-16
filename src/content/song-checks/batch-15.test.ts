@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, flattenSong, parseSixTab, type Song } from '@/core/song';
-import { buildVoicing, chordDifficulty } from '@/core/guitar';
+import { buildVoicing, checkVoicingFingering, chordDifficulty } from '@/core/guitar';
 import { chordPcs, midiToNote, noteToMidi, scalePcs } from '@/core/theory';
 import { loadSongText, songEntry } from '@/content/songs';
 
@@ -416,7 +416,7 @@ describe('batch 15: st-dadgad-air', () => {
     expect(pc(Math.max(...last.midis))).toBe(2);
   });
 
-  it('uses the ornaments it promises: two rolls, slides and a harmonic at fret 12 sounding D5', async () => {
+  it('uses the ornaments it promises: hammer-on and pull-off triplets, slides and a harmonic at fret 12 sounding D5', async () => {
     const beats = played(await load('st-dadgad-air'), 'Melody').filter((b) => b.midis.length);
     const frets = beats.flatMap((b) => b.frets);
     expect(frets.filter((f) => f.legato === 'hammer').length).toBeGreaterThanOrEqual(3);
@@ -855,5 +855,87 @@ describe('batch 15: st-jazz-minor-ii-v', () => {
       expect(est.level).toBeLessThanOrEqual(8);
     }
     expect(buildVoicing('E7', 'xx2434').difficulty).toBeGreaterThan(chordDifficulty('E7') + 1.5);
+  });
+});
+
+// ---------------------------------------------------------------- review checks (second pass)
+// Added by the independent review of batch 15: what the first pass did not cover, and what the
+// review corrected (a fingering that cut off a drone, three learner texts that said something
+// the music does not do, and an ornament called by the wrong name).
+describe('batch 15 review: st-dadgad-air fingering lets the drones ring', () => {
+  /** Fretted notes of the melody in order, with their let-ring flag and finger. */
+  async function notes() {
+    const song = await load('st-dadgad-air');
+    return played(song, 'Melody').filter((b) => b.midis.length).flatMap((b) => b.frets.map((f) => ({ ...f, bar: b.bar, inBar: b.inBar })));
+  }
+
+  it('never needs a finger that is holding a ringing note on another string (bars 9 and 13: the low B takes finger 2)', async () => {
+    const ns = await notes();
+    const problems: string[] = [];
+    ns.forEach((n, i) => {
+      if (!n.letRing || n.fret === 0 || typeof n.finger !== 'number') return;
+      for (const later of ns.slice(i + 1)) {
+        if (later.bar !== n.bar) break; // the next bar starts a new drone
+        if (later.string === n.string) break; // the ringing note is replaced on its own string
+        if (later.finger === n.finger && later.inBar > n.inBar) problems.push(`bar ${n.bar + 1}: finger ${n.finger} holds ${n.string}:${n.fret} and is needed on ${later.string}:${later.fret}`);
+      }
+    });
+    expect(problems).toEqual([]);
+    const lowB = ns.filter((n) => n.string === 6 && n.fret === 9);
+    expect(lowB.map((n) => `${n.bar + 1}:${n.finger}`)).toEqual(['9:2', '13:2']);
+  });
+
+  it('bar 13 is one Bm grip the hand can hold whole (9-x-x-7-9-9 in DADGAD, fingers 2-1-3-4)', () => {
+    expect(checkVoicingFingering([9, null, null, 7, 9, 9], [2, null, null, 1, 3, 4])).toEqual([]);
+    expect(shapeSounds('9-x-x-7-9-9', midis('D2 A2 D3 G3 A3 D4')).map((m) => midiToNote(m))).toEqual(['B2', 'D4', 'F#4', 'B4']);
+  });
+
+  it('names its ornaments for what they are: hammer-on and pull-off triplets, not Celtic rolls', async () => {
+    const entry = songEntry('st-dadgad-air')!;
+    expect(entry.teaches.join(' ')).not.toMatch(/roll/i);
+    // A roll returns to its main note; these figures move on: F# G F# E then D, and A B A F# then E.
+    const beats = played(await load('st-dadgad-air'), 'Melody').filter((b) => b.midis.length);
+    const tops = (n: number) => beats.filter((b) => b.bar === n - 1).map((b) => midiToNote(Math.max(...b.midis)));
+    expect(tops(2)).toEqual(['F#4', 'G4', 'F#4', 'E4', 'D4']);
+    expect(tops(11)).toEqual(['A4', 'B4', 'A4', 'F#4', 'E4']);
+    for (const n of [2, 11]) expect(beats.filter((b) => b.bar === n - 1 && b.tuplet).length).toBe(3);
+  });
+});
+
+describe('batch 15 review: the learner texts say what the music does', () => {
+  it('st-jazz-drop2: the moving voices step down one or two frets (not "each by one fret")', () => {
+    const fretMoves = (a: string, b: string) => {
+      const fa = a.split('').slice(2).map(Number);
+      const fb = b.split('').slice(2).map(Number);
+      return fb.map((f, i) => f - fa[i]);
+    };
+    // Strings 4, 3, 2, 1.
+    expect(fretMoves('xx3535', 'xx3433')).toEqual([0, -1, 0, -2]); // C to B one fret, A to G two
+    expect(fretMoves('xx3433', 'xx2413')).toEqual([-1, 0, -2, 0]); // F to E one fret, D to C two
+    const about = songEntry('st-jazz-drop2')!.about;
+    expect(about).not.toMatch(/each by one fret/);
+    expect(about).toMatch(/C to B is one fret, A to G two/);
+    expect(about).toMatch(/F to E, D to C/);
+  });
+
+  it('st-mode-locrian: Eb is the flat fifth of Am7b5 and Bb the root of Bbmaj7, a half step above A', () => {
+    expect((chordPcs('Am7b5')[2] - 9 + 12) % 12).toBe(6);
+    expect(chordPcs('Bbmaj7')[0]).toBe(10);
+    expect((10 - 9 + 12) % 12).toBe(1);
+    const about = songEntry('st-mode-locrian')!.about;
+    expect(about).toMatch(/tritone above the A/);
+    expect(about).toMatch(/Bb is the root/);
+    expect(about).not.toMatch(/hear how strange each one sounds/);
+  });
+
+  it('st-jazz-minor-ii-v: the fingers play the chord on 1, the and of 2 and 4, then on 2 and the and of 3', async () => {
+    const beats = played(await load('st-jazz-minor-ii-v'), 'Your comping').filter((b) => b.bar < 15 && b.midis.length >= 3);
+    for (let n = 0; n < 15; n++) {
+      const at = beats.filter((b) => b.bar === n).map((b) => b.inBar / 960 + 1);
+      expect(at, `bar ${n + 1}`).toEqual(n % 2 === 0 ? [1, 2.5, 4] : [2, 3.5]);
+    }
+    const about = songEntry('st-jazz-minor-ii-v')!.about;
+    expect(about).toMatch(/with the thumb on 1, then on the "and" of 2 and on 4; in the next bar on 2 and the "and" of 3/);
+    expect(about).not.toMatch(/pluck the chord off the beat/);
   });
 });

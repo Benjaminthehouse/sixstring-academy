@@ -10,8 +10,9 @@
  *
  * Notes for readers of the code:
  * - The planned fifth-position phrase runs from string 6, fret 5 to string 1, fret 8: seventeen
- *   notes, one more than a play-phrase may hold (16). The phrase here climbs the two full octaves,
- *   A2 to A4 (fifteen notes), and the text adds the last two notes on string 1.
+ *   notes, more than a play-phrase may hold (16), and a play step draws its phrase as tab that
+ *   cannot scroll on its own, so more than six notes push a 360 px phone sideways. The card shows
+ *   the whole climb as tab; the learner plays it in three parts, two strings at a time.
  * - A fretboard figure has one highlight colour (`target`): the shared notes of relative keys, the
  *   lowered notes of C minor, the F to G# gap and the added B and F notes use it, and the captions
  *   name them.
@@ -21,7 +22,7 @@ import type { Lesson, TabNote, Unit } from '@/lessons';
 
 const U = 'minor-scales';
 
-/** A natural minor in fifth position, climbing two octaves from string 6, fret 5 (A2 to A4). */
+/** A natural minor in fifth position, from string 6, fret 5 up to string 1, fret 8 (A2 to C5). */
 const FIFTH_POSITION: TabNote[] = [
   { string: 6, fret: 5, duration: 'q' },
   { string: 6, fret: 7, duration: 'q' },
@@ -37,8 +38,16 @@ const FIFTH_POSITION: TabNote[] = [
   { string: 2, fret: 5, duration: 'q' },
   { string: 2, fret: 6, duration: 'q' },
   { string: 2, fret: 8, duration: 'q' },
-  { string: 1, fret: 5, duration: 'h' },
+  { string: 1, fret: 5, duration: 'q' },
+  { string: 1, fret: 7, duration: 'q' },
+  { string: 1, fret: 8, duration: 'h' },
 ];
+/** The same climb two strings at a time (a play step shows its phrase as tab: six notes fit a phone). */
+const onStrings = (strings: number[]): TabNote[] =>
+  FIFTH_POSITION.filter((n) => 'string' in n && strings.includes(n.string)).map((n) => ({ ...n, duration: 'q' }));
+const STRINGS_6_5 = onStrings([6, 5]);
+const STRINGS_4_3 = onStrings([4, 3]);
+const STRINGS_2_1 = onStrings([2, 1]);
 
 /** D natural minor, then D major, on strings 4 to 2 (the parallel-minor listening question). */
 const D_MINOR_THEN_MAJOR: TabNote[] = [
@@ -798,34 +807,63 @@ const minorInFifthPosition: Lesson = {
     },
     {
       type: 'card',
-      title: 'Up two octaves',
-      body: 'Now climb {n:A} natural minor from string 6, fret 5 to the {n:A} at string 1, fret 5: two octaves, one finger per fret, with the stretch on string 3. To go on, add {n:B} and {n:C} at frets 7 and 8 of string 1.',
-      figure: { kind: 'tab', notes: FIFTH_POSITION, tempo: 80, caption: '{n:A} natural minor in fifth position, from {n:A} to {n:A}.' },
+      title: 'Two strings at a time',
+      body: 'Now climb {n:A} natural minor from string 6, fret 5 to string 1, fret 8: one finger per fret, with the stretch on string 3. Learn it two strings at a time, then join the three parts.',
+      figure: { kind: 'tab', notes: FIFTH_POSITION, tempo: 80, caption: '{n:A} natural minor in fifth position, from {n:A} up to {n:C}.' },
     },
     {
       type: 'play-phrase',
-      prompt: 'Play {n:A} natural minor in fifth position, from string 6, fret 5 up to string 1, fret 5.',
-      notes: FIFTH_POSITION,
+      prompt: 'Strings 6 and 5: play frets 5, 7, 8, then 5, 7, 8.',
+      notes: STRINGS_6_5,
       octave: 'exact',
       tempo: 70,
-      explain: 'Three notes on string 6 (5 7 8), three on string 5 (5 7 8), two on string 4 (5 7), three on string 3 (4 5 7), three on string 2 (5 6 8), then fret 5 of string 1.',
+      explain: '{n:A} {n:B} {n:C} on string 6, then {n:D} {n:E} {n:F} on string 5: fingers 1, 3 and 4 on each string.',
       alternative: {
         type: 'fretboard-find',
-        prompt: 'Tap every note of {n:A} natural minor on strings 3, 2 and 1, frets 4 to 8.',
+        prompt: 'Tap every note of {n:A} natural minor on strings 6 and 5, frets 4 to 8.',
         find: { scale: 'minor', tonic: 'A' },
         mode: 'all',
         octave: 'any',
         frets: [4, 8],
-        strings: [3, 2, 1],
-        explain: 'String 3: frets 4 5 7 ({n:B} {n:C} {n:D}). String 2: frets 5 6 8 ({n:E} {n:F} {n:G}). String 1: frets 5 7 8 ({n:A} {n:B} {n:C}).',
+        strings: [6, 5],
+        explain: 'String 6: frets 5 7 8 ({n:A} {n:B} {n:C}). String 5: frets 5 7 8 ({n:D} {n:E} {n:F}).',
       },
     },
     {
-      type: 'true-false',
-      statement: 'In fifth position, the {n:B} on string 3 is played at fret 4, with a stretch back.',
-      answer: true,
-      explain: 'String 3, fret 4 is {n:B}, one fret below the position. Your first finger reaches back for it.',
-      fact: 'minor-scales-fifth-position-b',
+      type: 'play-phrase',
+      prompt: 'Strings 4 and 3: play frets 5, 7, then 4, 5, 7. Stretch back for fret 4.',
+      notes: STRINGS_4_3,
+      octave: 'exact',
+      tempo: 70,
+      explain: '{n:G} {n:A} on string 4, then {n:B} {n:C} {n:D} on string 3. The {n:B} at fret 4 is the stretch with your first finger.',
+      alternative: {
+        type: 'fretboard-find',
+        prompt: 'Tap every note of {n:A} natural minor on strings 4 and 3, frets 4 to 8.',
+        find: { scale: 'minor', tonic: 'A' },
+        mode: 'all',
+        octave: 'any',
+        frets: [4, 8],
+        strings: [4, 3],
+        explain: 'String 4: frets 5 7 ({n:G} {n:A}). String 3: frets 4 5 7 ({n:B} {n:C} {n:D}).',
+      },
+    },
+    {
+      type: 'play-phrase',
+      prompt: 'Strings 2 and 1: play frets 5, 6, 8, then 5, 7, 8.',
+      notes: STRINGS_2_1,
+      octave: 'exact',
+      tempo: 70,
+      explain: '{n:E} {n:F} {n:G} on string 2, then {n:A} {n:B} {n:C} on string 1. Join all three parts and you have the whole position.',
+      alternative: {
+        type: 'fretboard-find',
+        prompt: 'Tap every note of {n:A} natural minor on strings 2 and 1, frets 4 to 8.',
+        find: { scale: 'minor', tonic: 'A' },
+        mode: 'all',
+        octave: 'any',
+        frets: [4, 8],
+        strings: [2, 1],
+        explain: 'String 2: frets 5 6 8 ({n:E} {n:F} {n:G}). String 1: frets 5 7 8 ({n:A} {n:B} {n:C}).',
+      },
     },
     { generate: 'neck-tones', params: { what: 'scale', scales: ['minor'], tonics: ['A'], strings: [3, 2, 1], span: 5 } },
     { generate: 'scale-notes', params: { scales: ['minor-pentatonic', 'minor'], tonics: ['A', 'E', 'D'], form: 'odd-one-out' } },

@@ -10,9 +10,12 @@
 #   string 6 (D2): 0 D2, 5 G2, 7 A2, 9 B2
 # Open strings are the drones: low D (strings 6 and 4), G (string 3) and A (string 5) under the
 # tune, open A and D ringing beside fretted notes. Let everything ring as long as it can.
-# Bars 1-8 in second position (finger 1 on fret 2), with a slide down from fret 9 in bar 7;
-# bars 9-15 in seventh position (finger 1 on fret 7); the last bar back to the open D chord.
-# Ornaments: a roll in bars 2 and 11 (hammer-on, pull-offs), slides and a harmonic.
+# Bars 1-8 low on the neck (finger 1 on fret 2; the G chord in bar 3 sits a little higher), with
+# a slide down from fret 9 in bar 7; bars 9-15 around seventh position (finger 1 on fret 7); the
+# last bar back to the open D chord. In bars 9 and 13 the low B (string 6 fret 9) takes finger 2,
+# so it can keep ringing while fingers 3 and 4 play the tune at fret 9.
+# Ornaments: hammer-on and pull-off triplets in bars 2 and 11 (the note above, back to the note,
+# then down), slides and a harmonic.
 title: DADGAD Air
 composer: Sixstring Academy
 source: Original air in the Celtic style, in DADGAD tuning
@@ -32,7 +35,7 @@ role: lead
 | "D" q (6:0 2:0){lr} 1:0 1:2{1} | q. (4:0 1:4{3}){lr} e 1:5h{4} q 1:7s{4} |
 | "G" q (3:0 1:9{4}){lr} e 1:7s{4} 1:4{1} "A" q (5:0 2:7{4}){lr} | "D" h. (6:0 4:4{1} 2:0 1:0){lr} ||
 [B]
-| ^"Seventh position" "Bm" q. (6:9{3} 1:9{4}){lr} e 1:7{1} q 2:9{3} | "G" q (3:0 2:10{4}){lr} 1:9{3} ^"Harmonic: touch above fret 12" 1:<12> |
+| ^"Seventh position" "Bm" q. (6:9{2} 1:9{4}){lr} e 1:7{1} q 2:9{3} | "G" q (3:0 2:10{4}){lr} 1:9{3} ^"Harmonic: touch above fret 12" 1:<12> |
 | "D" q (6:0 1:7{1}){lr} e3 1:9h{3} 1:7p{1} 2:9{3} q 2:7p{1} | "A" h. (6:7{2} 3:6{1} 2:7{3}){lr} |
-| "Bm" q (6:9{3} 3:7{1}){lr} 2:9{3} 1:9{4} | "G" q. (3:0 2:10{4}){lr} e 2:9p{3} q 2:7p{1} |
+| "Bm" q (6:9{2} 3:7{1}){lr} 2:9{3} 1:9{4} | "G" q. (3:0 2:10{4}){lr} e 2:9p{3} q 2:7p{1} |
 | "A7" q (5:0{lr} 2:10{4}) 3:9{3} 3:6{1} | "D" h. (6:0 4:4{1} 2:0 1:0){lr} ||

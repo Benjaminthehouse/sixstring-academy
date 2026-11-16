@@ -153,6 +153,52 @@ describe('the tunes of unit 3 are the library\'s', () => {
   });
 });
 
+// Added in review: the claims the review's fixes make, checked against the engine and the songs.
+describe('the review fixes of unit 3', () => {
+  const card = (lessonId: string, title: string) => step<{ body: string }>(lessonId, (s) => s.title === title);
+
+  it('defines a quarter, a half and a whole note before it asks about them', () => {
+    const body = card('tab-and-rhythm', 'Tab shows where, not how long').body;
+    expect(body).toMatch(/\{t:quarter-note\|quarter note\} lasts one beat, a \{t:half-note\|half note\} two and a \{t:whole-note\|whole note\} four/);
+    // One beat is a quarter note (960 ticks): q, h and w are 1, 2 and 4 beats.
+    const beats = (bar: string) => {
+      const parsed = parseRhythm({ pattern: bar, time: '4/4' });
+      expect(parsed.problems, bar).toEqual([]);
+      return parsed.events[0].ticks / 960;
+    };
+    expect(['q q q q', 'h h', 'w'].map(beats)).toEqual([1, 2, 4]);
+    // ...and the card comes before the first step that names a whole note or counts quarter notes.
+    const steps = lesson('tab-and-rhythm').steps.map((s) => JSON.stringify(s));
+    const defined = steps.findIndex((s) => s.includes('Tab shows where, not how long'));
+    const firstUse = steps.findIndex((s, i) => i !== defined && /whole note|quarter notes/.test(s));
+    expect(defined).toBeGreaterThanOrEqual(0);
+    expect(firstUse).toBeGreaterThan(defined);
+  });
+
+  it('says which bars of Mary end on a held note', async () => {
+    const mary = melody(await song('mary-had-a-little-lamb'));
+    const held = mary.measures
+      .map((m, i) => ({ bar: i + 1, last: m.beats.filter((b) => b.notes.length > 0).pop()! }))
+      .filter((x) => x.last.duration >= 1920);
+    expect(held.map((x) => x.bar)).toEqual([2, 3, 4, 8]);
+    const last = held[held.length - 1].last;
+    expect(names([{ string: last.notes[0].string, fret: last.notes[0].fret, duration: 'w' }])).toEqual(['G']);
+    expect(last.duration).toBe(3840);
+    expect(card('mary-had-a-little-lamb', 'The whole tune, and one tricky moment').body).toMatch(/a held note to end bars 2, 3 and 4 and a long \{n:G\} to finish/);
+  });
+
+  it('crosses where the explanations say it does', () => {
+    // Mary: A (string 3, fret 2) goes to the open B (string 2) and back, in bar 1 and into bar 2.
+    const pairs = MARY.slice(1).map((x, i) => [MARY[i], x]).map(([a, b]) => `${'rest' in a ? '' : `${a.string}:${a.fret}`}>${'rest' in b ? '' : `${b.string}:${b.fret}`}`);
+    expect(pairs).toContain('3:2>2:0');
+    expect(pairs).toContain('2:0>3:2');
+    // Ode to Joy: line B ends A (string 3, fret 2), then the low D one string further, the open string 4.
+    expect(ODE_LINE_B.slice(-2)).toEqual([{ string: 3, fret: 2, duration: 'q' }, { string: 4, fret: 0, duration: 'h' }]);
+    const find = step<{ explain: string }>('ode-to-joy', (s) => s.type === 'fretboard-find' && (s as { find?: { note?: string } }).find?.note === 'D3');
+    expect(find.explain).toMatch(/one string past the \{n:A\} on string 3 just before it/);
+  });
+});
+
 describe('the text of unit 3', () => {
   it('names the right note at every position it mentions', () => {
     const text = JSON.stringify(unit).replace(/\\"/g, '"');
@@ -263,6 +309,11 @@ describe('the music the tasks open', () => {
     expect(said).toEqual(own);
     const set = tasks(unit).filter((t) => t.lesson === 'melody-recital' && t.task.tool === 'player' && t.task.id.startsWith('set-'));
     expect(set.map((t) => t.task.params)).toEqual(ids.map((id) => [id, 'flow']));
+  });
+
+  it('tells a learner without a microphone what to choose in the recital', () => {
+    const card = step<{ body: string }>('melody-recital', (s) => s.title === 'Your set list');
+    expect(card.body).toMatch(/No microphone\? Choose Tap along\./);
   });
 
   it('opens the spider at its first rung, in fifth position', () => {

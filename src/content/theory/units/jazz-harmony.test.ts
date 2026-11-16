@@ -39,7 +39,7 @@ const ofType = <T extends Exercise>(type: T['type']): T[] => allExercises().filt
 const correctOption = (e: { options: Array<{ text?: RichText; correct?: boolean }> }): RichText => e.options.find((o) => o.correct)?.text ?? '';
 const listens = (l: Lesson): ListenChoiceExercise[] => exercises(l.steps).filter((e): e is ListenChoiceExercise => e.type === 'listen-choice');
 const findIn = <T extends Exercise>(pool: Exercise[], type: T['type'], text: RegExp): T => {
-  const found = pool.find((e) => e.type === type && text.test(plainText('prompt' in e ? e.prompt : '')));
+  const found = pool.find((e) => e.type === type && text.test(plainText(('prompt' in e ? e.prompt : undefined) ?? '')));
   if (!found) throw new Error(`no ${type} matching ${text}`);
   return found as T;
 };

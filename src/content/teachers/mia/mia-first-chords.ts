@@ -130,7 +130,7 @@ const chordBoxesAndEm: TeacherLesson = {
     },
     {
       type: 'play-chord',
-      prompt: 'Pick {c:Em} one string at a time, string 6 to string 1, letting each ring. Then strum it once.',
+      prompt: 'Pick {c:Em} one string at a time, 6 to 1, letting each ring, then strum it. The box says fingers 1 and 2; your 2 and 3 are fine.',
       chord: 'Em',
       frets: SHAPES.Em.frets,
       explain: 'All six strings ring in {c:Em}. If one sounded dull, arch that finger so it touches only its own string.',
@@ -141,7 +141,6 @@ const chordBoxesAndEm: TeacherLesson = {
       title: 'Four strums in every bar',
       body: 'Now strum {c:Em} with a {t:downstroke} on every beat: four in each {t:bar}, counting 1, 2, 3, 4 out loud. Keep your strumming hand going even if the chord is not perfect yet.',
       figure: { kind: 'audio', sound: { kind: 'strum', chord: 'Em', pattern: 'D-D-D-D-', tempo: 60, repeat: 2 }, label: 'Hear four strums a bar' },
-      tip: 'Fix a buzzing finger while the strumming hand keeps going. The beat comes first.',
     },
     {
       type: 'tap-rhythm',
@@ -157,7 +156,7 @@ const chordBoxesAndEm: TeacherLesson = {
       tool: 'metronome',
       minutes: 4,
       body: 'Set the Metronome to 60 {t:bpm|BPM}, one click a second, and strum {c:Em} on every click: four strums a bar, 4 bars, then again. That is bars 1 to 4 of Strumming: Steady Quarters.',
-      tip: 'If a string buzzes, keep strumming and fix the finger on the next beat.',
+      tip: 'Press only as hard as a clean note needs. Sore fingertips are normal at first; an aching hand or a sharp pain is not: stop and rest.',
     }),
     {
       type: 'choice',
@@ -251,7 +250,8 @@ const eAndAm: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'e-minor', 'e-major'],
       minutes: 1,
-      body: 'Choose Changes in time, 60 {t:bpm|BPM}, 4 beats per chord, and change between {c:Em} and {c:E} for one minute. Only finger 1 moves. With the microphone on, the trainer counts your clean changes.',
+      body: 'Choose Changes in time, 60 {t:bpm|BPM}, 4 beats per chord, and change between {c:Em} and {c:E} for one minute. Only finger 1 moves. With the microphone on, the trainer counts your clean changes; without it, tap when your fingers land.',
+      tip: 'Keep your thumb soft behind the neck. Sore fingertips are normal this week; an aching wrist or thumb is not: stop, shake it out and rest.',
     }),
     {
       type: 'true-false',
@@ -343,7 +343,7 @@ const frereJacquesStrum: TeacherLesson = {
     build('G', 'Build the one-finger {c:G}. Tap above the nut to put an x on strings 6 and 5.', 'Finger 3 on string 1, fret 3, strings 4, 3 and 2 open, and an x on strings 6 and 5.', 'one-finger-g'),
     {
       type: 'play-chord',
-      prompt: 'Strum the one-finger {c:G} four times, strings 4 to 1 only.',
+      prompt: 'Strum the one-finger {c:G} four times, strings 4 to 1 only. The box shows finger 1 on string 1; your finger 3 is fine.',
       chord: 'G',
       frets: SHAPES.G.frets,
       explain: 'Four strings, four notes: {n:D}, {n:G}, {n:B} and {n:G}. If strings 6 and 5 rang, the microphone heard notes that do not belong: start the strum at string 4.',
@@ -442,6 +442,7 @@ const theAChord: TeacherLesson = {
       title: 'A: three fingers in a row',
       body: '{c:A} puts three fingers side by side at fret 2: finger 1 on string 4, finger 2 on string 3, finger 3 on string 2. Squeeze them in so each sits just behind the fret. Strum from string 5, the open {n:A}, and miss string 6.',
       figure: { kind: 'chord', symbol: 'A', frets: SHAPES.A.frets, fingers: SHAPES.A.fingers, caption: '{c:A}: fingers 1, 2 and 3 on strings 4, 3 and 2.' },
+      tip: 'Squeezing three fingers in is hard work at first. Sore fingertips are normal; an aching hand, wrist or thumb is not: stop, shake it out and rest.',
     },
     build('A', 'Build {c:A} on the chord box, with string 6 left out.', '{c:A}: an x on string 6, the open {n:A} on string 5, fret 2 on strings 4, 3 and 2, and string 1 open.', 'a-shape'),
     {
@@ -481,7 +482,7 @@ const theAChord: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'e-minor', 'a-major'],
       minutes: 2,
-      body: 'Choose Changes in time at 60 {t:bpm|BPM} with 4 beats per chord: {c:Em}, then {c:A}, and back, for one minute. Look at the next chord a beat early. With the microphone on, the trainer counts your clean changes.',
+      body: 'Choose Changes in time at 60 {t:bpm|BPM} with 4 beats per chord: {c:Em}, then {c:A}, and back, for one minute. Look at the next chord a beat early. With the microphone on, the trainer counts your clean changes; without it, tap when your fingers land.',
     }),
     {
       type: 'card',
@@ -598,7 +599,7 @@ const aAndE7: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'a-major', 'e-7'],
       minutes: 2,
-      body: 'Choose One-minute changes with {c:A} and {c:E7}, one strum a beat, and count every clean change for a minute. The trainer keeps your score: your first personal best, and the number to beat tomorrow.',
+      body: 'Choose One-minute changes with {c:A} and {c:E7}: change back and forth for a minute, one strum each time a chord lands, and count every clean change. The trainer keeps your score: your first personal best, and the number to beat tomorrow.',
     }),
     {
       type: 'choice',
@@ -645,7 +646,7 @@ const skipToMyLou: TeacherLesson = {
     {
       type: 'card',
       title: 'Two beats in a bar',
-      body: 'Skip to My Lou has two beats in a bar, written 2/4: the top number says two. It uses only {c:A} and {c:E7}, changing every two bars. Strum one downstroke per beat and count 1, 2, 1, 2.',
+      body: 'Skip to My Lou has two beats in a bar, written 2/4: the top number says two. It uses only {c:A} and {c:E7}, changing every two bars, with one quicker change at the very end. Strum one downstroke per beat and count 1, 2, 1, 2.',
       figure: { kind: 'rhythm', pattern: 'q q | q q', time: '2/4', tempo: 80, caption: 'Two bars of 2/4: one downstroke per beat.' },
     },
     {

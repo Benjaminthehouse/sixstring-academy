@@ -122,7 +122,7 @@ const tabAndRhythm: TeacherLesson = {
     {
       type: 'card',
       title: 'Tab shows where, not how long',
-      body: 'Plain tab does not show how long notes last. So the tab in the Player adds stems under the numbers, like sheet music, and here you get the counts. Bar 2 of Au Clair de la Lune is two {t:half-note|half notes}: {n:B} on beats 1 and 2, {n:A} on beats 3 and 4.',
+      body: 'Plain tab does not show how long notes last, so the tab in the Player adds stems under the numbers, like sheet music. A {t:quarter-note|quarter note} lasts one beat, a {t:half-note|half note} two and a {t:whole-note|whole note} four. Bar 2 of Au Clair de la Lune is two half notes: {n:B} on beats 1 and 2, {n:A} on 3 and 4.',
       figure: { kind: 'rhythm', pattern: 'q q q q | h h', tempo: 80, caption: 'Bars 1 and 2: four quarter notes, then two half notes.' },
     },
     {
@@ -144,7 +144,7 @@ const tabAndRhythm: TeacherLesson = {
       prompt: 'The last {n:G} of bar 4 is a whole note. How many beats does it last?',
       options: [{ text: '1' }, { text: '2', why: 'Two beats is a half note, like the {n:B} and {n:A} of bar 2.' }, { text: '3' }, { text: '4', correct: true }],
       shuffle: false,
-      explain: 'A {t:whole-note|whole note} fills the whole bar of 4/4: four beats. Count all four and let it ring.',
+      explain: 'A whole note fills the whole bar of 4/4: four beats. Count all four and let it ring.',
       fact: 'note-lengths',
     },
     playerTask({
@@ -357,7 +357,7 @@ const maryHadALittleLamb: TeacherLesson = {
     {
       type: 'card',
       title: 'The whole tune, and one tricky moment',
-      body: 'Steady {t:quarter-note|quarter notes}, like walking, with a longer note at the end of most bars. The tricky moment is crossing from string 3 to string 2: keep the pick movement small and close to the strings, so it has less distance to travel.',
+      body: 'Steady quarter notes, like walking, with a held note to end bars 2, 3 and 4 and a long {n:G} to finish. The tricky moment is crossing from string 3 to string 2: keep the pick movement small and close to the strings, so it has less distance to travel.',
       figure: { kind: 'tab', tempo: 96, notes: [...MARY], caption: 'All 8 bars. Press Hear it before you read.' },
     },
     {
@@ -446,7 +446,7 @@ const maryHadALittleLamb: TeacherLesson = {
       ask: 'note',
       spelling: 'any',
       options: ['A', 'G', 'B', 'C'],
-      explain: 'String 3, fret 2 is {n:A}, under finger 2: the note you cross back from in Mary.',
+      explain: 'String 3, fret 2 is {n:A}, under finger 2. In Mary you cross from it to the open {n:B} on string 2 and back.',
       fact: 'mary-notes',
     },
   ],
@@ -675,7 +675,7 @@ const odeToJoy: TeacherLesson = {
       mode: 'one',
       octave: 'exact',
       frets: [0, 3],
-      explain: 'The low {n:D} is the open string 4. Aim the pick two strings past string 2 and let it ring for two beats.',
+      explain: 'The low {n:D} is the open string 4, one string past the {n:A} on string 3 just before it. Let it ring for two beats.',
       fact: 'low-d',
     },
     playerTask({
@@ -765,7 +765,7 @@ const melodyRecital: TeacherLesson = {
     {
       type: 'card',
       title: 'Your set list',
-      body: '1. Mary Had a Little Lamb at 96 {t:bpm|BPM}.\n2. Twinkle, Twinkle, Little Star at 92.\n3. Ode to Joy at 96.\nEach one in Flow mode with the band: the microphone listens, and about 8 notes in 10 right and on time is a pass.',
+      body: '1. Mary Had a Little Lamb at 96 {t:bpm|BPM}.\n2. Twinkle, Twinkle, Little Star at 92.\n3. Ode to Joy at 96.\nEach one in Flow mode with the band: the microphone listens, and about 8 notes in 10 right and on time is a pass. No microphone? Choose Tap along.',
     },
     {
       type: 'true-false',

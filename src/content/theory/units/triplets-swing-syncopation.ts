@@ -17,6 +17,8 @@
  *   pairs: the audio and the play step use its moving line on string 4 (the 5 and 6), and the text
  *   says to add the open string under every note. The shape itself is drawn on a fretboard.
  * - Rhythm pictures cannot draw a swing sign or tempo words: the words are given in the text.
+ * - Rhythms offered as answer options are written in 2/4: a phone shows about two beats of an
+ *   option, and the beat that tells them apart must be in view.
  * - Every idea is also asked as a quiet question, so the unit still teaches with Sound off.
  * - `teaches` is shown as plain text on the map, so it carries no music symbols.
  */
@@ -51,8 +53,8 @@ const SWUNG_PHRASE: TabNote[] = onString(2, [1, 3], ['qt', 'et', 'qt', 'et', 'qt
 const A_SHUFFLE_LINE: TabNote[] = onString(4, [2, 2, 4, 4], ['qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et']);
 /** The D shuffle's moving line on string 3, played straight: the listening question's answer is "straight". */
 const D_LINE_STRAIGHT: TabNote[] = onString(3, [2, 2, 4, 4], ['e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'e']);
-/** What the learner plays: one pass of the A shuffle's moving line (8 notes), long-short. */
-const A_SHUFFLE_PLAY: TabNote[] = onString(4, [2, 2, 4, 4], ['qt', 'et', 'qt', 'et', 'qt', 'et', 'qt', 'et']);
+/** What the learner plays: the A shuffle's moving line once (frets 2 2 4 4), long-short. */
+const A_SHUFFLE_PLAY: TabNote[] = onString(4, [2, 2, 4, 4], ['qt', 'et', 'qt', 'et']);
 
 /** The tempo-words line on strings 1 and 2 (an original phrase): B C D E | F E D C | B D C. */
 const ANDANTE_LINE = ['B3', 'C4', 'D4', 'E4', 'F4', 'E4', 'D4', 'C4', 'B3', 'D4', 'C4'];
@@ -214,9 +216,9 @@ const swing: Lesson = {
       type: 'choice',
       prompt: 'Which rhythm shows how swung eighths sound?',
       options: [
-        { figure: { kind: 'rhythm', pattern: SWUNG }, correct: true },
-        { figure: { kind: 'rhythm', pattern: 'et qt et qt et qt et qt' }, why: 'That is short-long. Swing is long-short.' },
-        { figure: { kind: 'rhythm', pattern: 'e e e e e e e e' }, why: 'Those are straight eighths: how swing is written, not how it sounds.' },
+        { figure: { kind: 'rhythm', pattern: 'qt et qt et', time: '2/4' }, correct: true },
+        { figure: { kind: 'rhythm', pattern: 'et qt et qt', time: '2/4' }, why: 'That is short-long. Swing is long-short.' },
+        { figure: { kind: 'rhythm', pattern: 'e e e e', time: '2/4' }, why: 'Those are straight eighths: how swing is written, not how it sounds.' },
       ],
       explain: 'Each beat holds a triplet quarter and a triplet eighth: two thirds of the beat, then one third.',
       fact: 'triplets-swing-ratio',
@@ -459,13 +461,13 @@ const syncopation: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Which rhythm anticipates beat 3?',
+      prompt: 'Which rhythm anticipates beat 2?',
       options: [
-        { figure: { kind: 'rhythm', pattern: 'q e e ~q q' }, correct: true },
-        { figure: { kind: 'rhythm', pattern: 'q e e q q' }, why: 'Here beat 3 is struck on time: nothing arrives early.' },
-        { figure: { kind: 'rhythm', pattern: 'q q q q' }, why: 'Every note here falls on the beat.' },
+        { figure: { kind: 'rhythm', pattern: 'e e ~q', time: '2/4' }, correct: true },
+        { figure: { kind: 'rhythm', pattern: 'e e q', time: '2/4' }, why: 'Here beat 2 is struck on time: nothing arrives early.' },
+        { figure: { kind: 'rhythm', pattern: 'q q', time: '2/4' }, why: 'Both notes fall on the beat.' },
       ],
-      explain: 'In the right rhythm the note on the & of 2 is tied over beat 3: it arrives an eighth note early and holds.',
+      explain: 'In the right rhythm the note on the & of 1 is tied over beat 2: it arrives an eighth note early and holds.',
       fact: 'triplets-anticipation',
     },
     {
@@ -599,9 +601,9 @@ const sixteenthGrooves: Lesson = {
       prompt: 'Every beat of this bar has the same figure. Which one?',
       sound: { kind: 'rhythm', pattern: 's e s s e s s e s s e s', tempo: 70 },
       options: [
-        { figure: { kind: 'rhythm', pattern: 'e s s e s s e s s e s s' } },
-        { figure: { kind: 'rhythm', pattern: 's s e s s e s s e s s e' } },
-        { figure: { kind: 'rhythm', pattern: 's e s s e s s e s s e s' }, correct: true },
+        { figure: { kind: 'rhythm', pattern: 'e s s e s s', time: '2/4' } },
+        { figure: { kind: 'rhythm', pattern: 's s e s s e', time: '2/4' } },
+        { figure: { kind: 'rhythm', pattern: 's e s s e s', time: '2/4' }, correct: true },
       ],
       explain: 'It was "1 e a" on every beat: a short note on the beat, a longer one from the e, and a short one on the a.',
     },

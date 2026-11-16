@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { loadSongText, songEntry } from '@/content/songs';
-import { buildVoicing, checkVoicingFingering, parseFrets, pitchClassAt, type Finger } from '@/core/guitar';
+import { buildVoicing, checkVoicingFingering, parseFrets, pitchClassAt, voicingFromFrets, type Finger } from '@/core/guitar';
 import { parseSixTab, type Song } from '@/core/song';
 import { chroma, parseChord } from '@/core/theory';
 import { parsePlayerParams } from '@/features/player/model/params';
@@ -199,5 +199,70 @@ describe('the music the tasks open', () => {
     const second = jacques.tracks.find((t) => t.name === 'Second voice')!;
     const firstNoteBar = second.measures.findIndex((m) => m.beats.some((b) => b.notes.length > 0));
     expect(firstNoteBar + 1).toBe(11);
+  });
+});
+
+// Added in review: the claims the review's fixes make, checked against the engine and the songs.
+describe('the review fixes of unit 2', () => {
+  const lessonOf = (id: string) => unit.lessons.find((l) => l.id === id)!;
+  const textOf = (t: unknown): string => (typeof t === 'string' ? t : t && typeof t === 'object' && 'text' in t ? String((t as { text: unknown }).text) : '');
+  const playChord = (lesson: string, chord: string) =>
+    lessonOf(lesson).steps.find((s) => (s as { type?: string }).type === 'play-chord' && (s as { chord?: string }).chord === chord) as unknown as { prompt: string; frets: string };
+
+  it('tells the learner what the play-chord box draws where it differs from the fingering taught', () => {
+    // The play step draws its chord box with the engine's own fingering (`PlayView` passes no
+    // fingers), so the prompt names it. If the engine's fingering changes, these prompts are stale.
+    const drawn = (frets: string, as: string) => voicingFromFrets(parseFrets(frets), { as })!.fingers;
+    const em = playChord('chord-boxes-and-em', 'Em');
+    expect(drawn(em.frets, 'Em')).toEqual([0, 1, 2, 0, 0, 0]);
+    expect(SHAPES.Em.fingers).toBe('023000');
+    expect(em.prompt).toMatch(/The box says fingers 1 and 2; your 2 and 3 are fine/);
+    const g = playChord('frere-jacques-strum', 'G');
+    expect(drawn(g.frets, 'G')).toEqual([null, null, 0, 0, 0, 1]);
+    expect(SHAPES.G.fingers).toBe('xx0003');
+    expect(g.prompt).toMatch(/The box shows finger 1 on string 1; your finger 3 is fine/);
+    // Every other play-chord box of the unit draws exactly the fingering the unit teaches, so needs no note.
+    for (const l of unit.lessons) {
+      for (const s of l.steps) {
+        const x = s as unknown as { type?: string; chord?: string; frets?: string; prompt?: string };
+        if (x.type !== 'play-chord' || x.chord === 'Em' || x.chord === 'G') continue;
+        const taught = fingersOf(SHAPES[x.chord as keyof typeof SHAPES].fingers).map((f) => f ?? null);
+        expect(drawn(x.frets!, x.chord!).map((f) => f ?? null), `${l.id}: ${x.chord}`).toEqual(taught);
+      }
+    }
+  });
+
+  it('says what is normal and what is not where the hands work hardest', () => {
+    const hurts = (t: string) => /Sore fingertips are normal/.test(t) && /(aching|sharp pain)/.test(t) && /stop/.test(t);
+    const tips = (id: string) => lessonOf(id).steps.map((s) => textOf((s as { tip?: unknown }).tip));
+    expect(tips('chord-boxes-and-em').some(hurts), 'first chord lesson').toBe(true);
+    expect(tips('e-and-am').some(hurts), 'first chord changes').toBe(true);
+    expect(tips('the-a-chord').some(hurts), 'three fingers squeezed in').toBe(true);
+  });
+
+  it('describes the chord trainer as it works', () => {
+    for (const { lesson, task } of tasks(unit)) {
+      if (task.tool !== 'chords') continue;
+      const body = textOf(task.body);
+      // "Changes in time" has a click; without the microphone the learner taps when the fingers land.
+      if (/Changes in time/.test(body)) {
+        expect(body, `${lesson} > ${task.id}`).toMatch(/without it, tap when your fingers land/);
+        expect(body, `${lesson} > ${task.id}`).toMatch(/60 \{t:bpm\|BPM\}/);
+        expect(body, `${lesson} > ${task.id}`).toMatch(/4 beats per chord/);
+      }
+      // "One-minute changes" has no click: it must not ask for a strum on every beat.
+      if (/One-minute changes/.test(body)) expect(body, `${lesson} > ${task.id}`).not.toMatch(/a beat|per beat|on the beat/);
+    }
+  });
+
+  it('describes when the chords of Skip to My Lou change', async () => {
+    const lou = await song('skip-to-my-lou');
+    const byBar = chordsByBar(lou).map((c) => c.join('/'));
+    const changes = byBar.map((c, i) => (i > 0 && c !== byBar[i - 1] ? i % 8 : -1)).filter((i) => i >= 0);
+    // Every two bars (bars 3, 5, 7 of each verse: 0-based 2, 4, 6), plus one quicker change in bar 8;
+    // the next verse starts on the A that ended the last one, so bar 1 is no change.
+    expect(new Set(changes)).toEqual(new Set([2, 4, 6, 7]));
+    const card = lessonOf('skip-to-my-lou').steps[0] as { body: string };
+    expect(card.body).toMatch(/changing every two bars, with one quicker change at the very end/);
   });
 });

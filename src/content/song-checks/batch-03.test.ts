@@ -6,6 +6,11 @@
  * symbols and the harmony on strong beats, key, scale and range, first-position frets and fingers,
  * the words, the learner's strum or picking part, and the core's difficulty estimate.
  *
+ * Joy to the World began here as its first two lines; it is now the whole carol, written from the
+ * agreed melody of the song recovery, and src/content/song-checks/recovery-a0.test.ts checks its
+ * notes, rhythm, chords and words. This file keeps its plan details (first phrase, counting tip,
+ * estimate) and the wrong-fret check.
+ *
  * Batch 3 in the plan also lists go-tell-it-on-the-mountain, down-by-the-riverside,
  * swing-low-sweet-chariot, go-down-moses and wade-in-the-water. They are not written: their tunes
  * (and so where their chords change) could not be given note for note with certainty.
@@ -102,22 +107,6 @@ const SONGS: Expected[] = [
     words: [
       'Si-lent night, ho-ly night, All is calm, all is bright, Round yon Vir-gin Mo-ther and Child, Ho-ly In-fant so ten-der and mild, Sleep in heav-en-ly peace, Sleep in heav-en-ly peace.',
       'Stil-le Nacht, hei-li-ge Nacht, Al-les schläft, ein-sam wacht nur das trau-te hoch-hei-li-ge Paar. Hol-der Kna-be im lo-cki-gen Haar, schlaf in himm-li-scher Ruh, Schlaf in himm-li-scher Ruh.',
-    ],
-  },
-  {
-    id: 'joy-to-the-world',
-    melody: 'Melody',
-    // The D major scale stepping down an octave, then the climb back up in long-short pairs.
-    notes: 'D4 C#4 B3 | A3 G3 | F#3 E3 | D3 A3 | B3 B3 | C#4 C#4 | D4 | D4 C#4 B3 | A3 G3 | F#3 E3 | D3 A3 | B3 B3 | C#4 C#4 | D4',
-    rhythm: 'q e. s | q. e | q q | q. e | q. e | q. e | h | q e. s | q. e | q q | q. e | q. e | q. e | h',
-    chords: '1:D 3.2:A7 4:D 5:G 6:A7 7:D 10.2:A7 11:D 12:G 13:A7 14:D',
-    key: 'D major',
-    scale: ['D', 'major'],
-    range: ['D3', 'D4'],
-    strong: TWO,
-    words: [
-      'Joy to the world! the Lord is come; Let earth re-ceive her King;',
-      'Joy to the earth! the Sav-iour reigns; Let men their songs em-ploy;',
     ],
   },
   {
@@ -419,6 +408,14 @@ describe('batch 3: the plan details', () => {
     expect(words).toEqual(['Sakura, sakura', 'yayoi no sora wa', 'miwatasu kagiri', 'kasumi ka kumo ka', 'nioi zo izuru', 'iza ya, iza ya', 'mi ni yukan']);
   });
 
+  it('joy-to-the-world: the estimate stays within its documented gap', () => {
+    const id = 'joy-to-the-world';
+    const yours = estimateDifficulty(load(id), { track: 0 });
+    const gap = ESTIMATE_GAPS[id];
+    expect(yours.level).toBeGreaterThanOrEqual(gap.min ?? songEntry(id)!.level - 1);
+    expect(yours.level, yours.reasons.join(' ')).toBeLessThanOrEqual(gap.max!);
+  });
+
   it('coming-round-the-mountain lands near its level in the estimate', () => {
     const id = 'coming-round-the-mountain';
     const est = estimateDifficulty(load(id));
@@ -468,7 +465,6 @@ const REVIEW: Array<{ id: string; track: string; home: string; degrees: string }
       )
       .join(' | '),
   },
-  { id: 'joy-to-the-world', track: 'Melody', home: 'D3', degrees: "1' 7 6 | 5 4 | 3 2 | 1 5 | 6 6 | 7 7 | 1' | 1' 7 6 | 5 4 | 3 2 | 1 5 | 6 6 | 7 7 | 1'" },
   {
     // The in scale on E: 1 b2 4 5 b6 (E F A B C).
     id: 'sakura',
@@ -504,7 +500,7 @@ describe('batch 3: the cross-check catches a wrong fret', () => {
     const text = readFileSync(new URL('../songs/joy-to-the-world/song.sixtab', import.meta.url), 'utf8');
     const broken = parseSixTab(text.replace('4:4{4}', '4:3{3}')).song!;
     const bar3 = broken.tracks[0].measures[2].beats.flatMap((b) => struck(b).map((n) => name(n.midi)));
-    expect(bar3).not.toEqual(bars(SONGS.find((s) => s.id === 'joy-to-the-world')!.notes)[2]);
+    expect(bar3).not.toEqual(['F#3', 'E3']);
     expect(bar3[0]).toBe('F3');
     expect(scalePcs('D', 'major')).not.toContain(broken.tracks[0].measures[2].beats[0].notes[0].midi % 12);
   });

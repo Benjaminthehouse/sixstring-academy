@@ -42,7 +42,7 @@ const correctOption = (e: { options: Array<{ text?: RichText; correct?: boolean 
 const listens = (l: Lesson): ListenChoiceExercise[] => exercises(l.steps).filter((e): e is ListenChoiceExercise => e.type === 'listen-choice');
 const find = <T extends Exercise>(l: Lesson | null, type: T['type'], text: RegExp): T => {
   const pool = l ? [...exercises(l.steps), ...exercises((l.facts ?? []).map((f) => f.ask))] : exercises(unit.checkpoint!.steps!);
-  const found = pool.find((e) => e.type === type && text.test(plainText('prompt' in e ? e.prompt : '')));
+  const found = pool.find((e) => e.type === type && text.test(plainText(('prompt' in e ? e.prompt : undefined) ?? '')));
   if (!found) throw new Error(`no ${type} matching ${text}`);
   return found as T;
 };
@@ -241,7 +241,7 @@ describe('modal-harmony-and-borrowing: the drone and the fourths', () => {
     expect(at(q.find.from.string, q.find.from.fret)).toBe(52); // E3
     expect(at(4, 7)).toBe(52 + 5); // A3, the same fret on the next string
     const phrase = exercises(lesson('drones-and-quartal-chords').steps).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
-    expect(phrase.notes.map((n) => ('fret' in n ? at(n.string, n.fret) : 0))).toEqual([40, 50, 55, 60, 40, 52, 57, 62]);
+    expect(phrase.notes.map((n) => ('fret' in n ? at(n.string, n.fret) : 0))).toEqual([40, 50, 55, 60, 52, 57, 62]);
     const order = phrase.alternative as OrderExercise;
     expect(order.tiles.map((t) => tagged(t, 'note')[0])).toEqual(['E', 'A', 'D']);
   });
