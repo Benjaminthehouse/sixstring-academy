@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, flattenSong, parseSixTab, validateSong, type Beat, type Song, type Track } from '@/core/song';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
-import { checkVoicingFingering, identifyFretted } from '@/core/guitar';
+import { checkVoicingFingering, identifyFretted, voicingFromFrets } from '@/core/guitar';
 import { songEntry } from '@/content/songs';
 
 const PPQ = 960;
@@ -491,8 +491,11 @@ describe('batch 4 review', () => {
     expect(checkVoicingFingering([null, 3, 2, 0, 1, 0], [null, 3, 2, 0, 1, 0])).toEqual([]);
     expect(checkVoicingFingering([3, 2, 0, 0, 0, 1], [3, 2, 0, 0, 0, 1])).toEqual([]);
     const song = load('st-change-g-c-c-g7');
-    const notes = song.tracks[0].measures.flatMap((m, bar) => m.beats.map((b) => ({ bar, ann: song.annotations.filter((a) => a.bar === bar).map((a) => a.text) })));
-    expect(notes.some((n) => n.ann.some((t) => /3, 2 and 4/.test(t)))).toBe(true);
+    // The score's chord diagrams finger G the everyday way (2, 1, 3); the first annotation and the
+    // about text say so, because SixTab cannot give a chord its own fingering.
+    expect(voicingFromFrets('320003', { as: 'G' })?.fingers).toEqual([2, 1, 0, 0, 0, 3]);
+    expect(song.annotations.find((a) => a.bar === 0)?.text).toBe("G with fingers 3, 2 and 4, not the diagram's 2, 1, 3");
+    expect(songEntry('st-change-g-c-c-g7')!.about).toContain('instead of the 2, 1 and 3 the chord diagrams show');
   });
 
   it('o-come-all-ye-faithful: each slurred figure carries one syllable, the next note the next one', () => {

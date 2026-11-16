@@ -356,26 +356,57 @@ export function splitBar(draft: Draft, bar: number): EditResult {
   return ok(d);
 }
 
+/** Do the beats of a too-long bar meet every bar line inside it (a bar line the reader missed)? */
+export function missedBarLine(song: Song, bar: number): boolean {
+  const info = song.bars[bar];
+  const beats = beatsOf(song, bar);
+  if (!info || !beats) return false;
+  const need = barCapacity(info.time);
+  const total = beats.reduce((s, b) => s + b.duration, 0);
+  if (need <= 0 || total <= need) return false;
+  const onsets = new Set<number>();
+  let at = 0;
+  for (const b of beats) {
+    onsets.add(at);
+    at += b.duration;
+  }
+  for (let line = need; line < total; line += need) if (!onsets.has(line)) return false;
+  return true;
+}
+
 /**
- * The song to save. A bar that runs at least half a bar long holds a bar line the reader missed:
- * it is split into bars first, so no note that was read is thrown away; then `finalSong` fills
- * short bars with a rest and trims what little still runs past a bar line. Each change is said.
+ * The song to save, with every note the reader found. A too-long bar is mended before `finalSong`
+ * makes the song valid (it fills short bars with a rest and trims what still runs past a bar line):
+ * a bar whose beats meet the bar lines inside it is split there (a bar line was missed); otherwise
+ * the lengths were misread (a missed stem reads as a whole note), so its notes share the bar
+ * equally when they can, else it is split so nothing is lost. Each change is said.
  */
 export function songToSave(draft: Draft): { song: Song; warnings: string[] } {
   let d = draft;
-  const splits: string[] = [];
+  const fixes: string[] = [];
   // From the end, so the bar numbers still to visit do not move.
   for (let bar = d.song.bars.length - 1; bar >= 0; bar--) {
     const c = checkBar(d.song, bar);
-    if (c.need <= 0 || c.diff * 2 < c.need) continue;
-    const r = splitBar(d, bar);
-    if (!r.ok) continue;
-    const pieces = r.draft.song.bars.length - d.song.bars.length + 1;
-    d = r.draft;
-    splits.unshift(`Bar ${bar + 1} held more than one bar (a bar line was probably missed), so it was split into ${pieces} bars.`);
+    if (c.ok || c.diff < 0 || c.need <= 0) continue;
+    const split = (why: string, then = ''): boolean => {
+      const r = splitBar(d, bar);
+      if (!r.ok) return false;
+      fixes.unshift(`Bar ${bar + 1} ${why}, so it was split into ${r.draft.song.bars.length - d.song.bars.length + 1} bars.${then}`);
+      d = r.draft;
+      return true;
+    };
+    if (missedBarLine(d.song, bar) && split('held more than one bar (a bar line was probably missed)')) continue;
+    // Plain lengths only: five notes as a quintuplet would be a guess no printed sheet suggested.
+    const even = evenBar(d, bar);
+    if (even.ok && !beatsOf(even.draft.song, bar)?.some((b) => b.value?.tuplet)) {
+      d = even.draft;
+      fixes.unshift(`Bar ${bar + 1} was too long, so its notes were given equal lengths. Check its rhythm by ear.`);
+      continue;
+    }
+    if (c.diff * 2 >= c.need) split('was much too long', ' Check its rhythm by ear.');
   }
   const out = finalSong(d);
-  return { song: out.song, warnings: [...splits, ...out.warnings] };
+  return { song: out.song, warnings: [...fixes, ...out.warnings] };
 }
 
 /** Give every beat of a bar the same length so it adds up (when the bar can be split evenly). */

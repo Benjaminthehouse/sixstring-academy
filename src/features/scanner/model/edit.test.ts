@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { sixTab, validateSong } from '@/core/song';
 import { type Draft, type NoteMark, checkBar, finalSong, viewSong } from './draft';
-import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, songToSave, splitBar, transposeSymbol } from './edit';
+import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, missedBarLine, songToSave, splitBar, transposeSymbol } from './edit';
 import { commit, firstSelection, itemsToCheck, moveSelection, nextToCheck, redo, startHistory, undo } from './select';
 
 /** A draft over a SixTab song, every note read with confidence 0.9 except the ones listed (0.3). */
@@ -141,15 +141,30 @@ time: 4/4
       'Bar 1 held more than one bar (a bar line was probably missed), so it was split into 2 bars.',
       'Bar 3 held more than one bar (a bar line was probably missed), so it was split into 3 bars.',
     ]);
-    // A bar only a little too long is still trimmed at the bar line, and says so.
-    const long = draftOf(`title: Long
+    // Lengths misread (a missed stem reads as a whole note): the notes share the bar equally.
+    const oneBar = (beats: number[]) => {
+      const dr = draftOf(`title: One
 time: 4/4
 | q 2:0 2:0 2:1 2:3 |`);
-    long.song.tracks[0].measures[0].beats.push({ start: 3840, duration: 960, notes: [{ string: 2, fret: 5, midi: 64 }] });
-    long.marks[0].beats.push({ ...long.marks[0].beats[0] });
-    const trimmed = songToSave(long);
-    expect(trimmed.song.bars).toHaveLength(1);
-    expect(trimmed.warnings).toEqual(['Bar 1 was a quarter too long; what ran past the bar line was cut.']);
+      let at = 0;
+      dr.song.tracks[0].measures[0].beats = beats.map((duration, i) => ({ start: (at += duration) - duration, duration, notes: [{ string: 2, fret: i, midi: 59 + i }] }));
+      dr.marks[0].beats = beats.map(() => ({ ...dr.marks[0].beats[0] }));
+      return dr;
+    };
+    const stem = songToSave(oneBar([960, 3840, 960, 960]));
+    expect(stem.song.tracks[0].measures[0].beats.map((b) => [b.duration, b.notes[0]?.fret])).toEqual([[960, 0], [960, 1], [960, 2], [960, 3]]);
+    expect(stem.warnings).toEqual(['Bar 1 was too long, so its notes were given equal lengths. Check its rhythm by ear.']);
+    // Much too long and the notes cannot share it: split, so none is lost.
+    const much = songToSave(oneBar([480, 3840, 960, 960, 960]));
+    expect(notesOf(much.song)).toHaveLength(5);
+    expect(much.warnings[0]).toBe('Bar 1 was much too long, so it was split into 3 bars. Check its rhythm by ear.');
+    // Only a little too long, off the beat: trimmed at the bar line, as before.
+    const little = songToSave(oneBar([1920, 960, 1440]));
+    expect(little.song.bars).toHaveLength(1);
+    expect(little.warnings).toEqual(['Bar 1 was an eighth too long; what ran past the bar line was cut.']);
+    for (const r of [stem, much, little]) expect(validateSong(r.song, { notation: false }).filter((i) => i.level === 'error')).toEqual([]);
+    expect(missedBarLine(d.song, 0)).toBe(true);
+    expect(missedBarLine(oneBar([960, 3840, 960, 960]).song, 0)).toBe(false);
   });
 
   it('deletes notes and beats, adds notes and beats, keeping the marks in step', () => {
