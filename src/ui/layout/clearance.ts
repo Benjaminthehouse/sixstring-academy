@@ -80,6 +80,21 @@ export function currentBottomClearance(): number {
   return Math.max(0, ...claims.values());
 }
 
+/**
+ * The bottom controls on screen that the kit knows about (every ActionBar, every
+ * `useBottomClearance`), stuck at the bottom right now or not. While there is at least one, `<html>`
+ * carries `data-ui-bottom-controls`: the shell then knows the screen keeps toasts clear of its own
+ * controls, and a full-screen tool without it gets its toasts out of the way elsewhere.
+ */
+const known = new Set<object>();
+
+function markKnown(owner: object, on: boolean): void {
+  if (on) known.add(owner);
+  else known.delete(owner);
+  if (typeof document === 'undefined') return;
+  document.documentElement.toggleAttribute('data-ui-bottom-controls', known.size > 0);
+}
+
 // --- measuring --------------------------------------------------------------------------------
 
 let probe: HTMLDivElement | null = null;
@@ -148,6 +163,7 @@ export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: b
     const el = ref.current;
     if (!active || !el || typeof window === 'undefined') return undefined;
     const owner = {};
+    markKnown(owner, true);
     let frame = 0;
     const measure = () => {
       frame = 0;
@@ -169,6 +185,7 @@ export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: b
       window.removeEventListener('resize', later);
       window.removeEventListener('scroll', later);
       claimBottomClearance(owner, 0);
+      markKnown(owner, false);
     };
   }, [ref, active, stickyOnly]);
 }

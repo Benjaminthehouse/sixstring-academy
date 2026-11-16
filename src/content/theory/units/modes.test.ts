@@ -6,11 +6,11 @@
  * the sound off.
  */
 import { describe, expect, it } from 'vitest';
-import { chordNotes, chordPcs, getScale, scaleModes, scaleMidi, scaleNotes, scalePcs } from '@/core/theory';
+import { chordNotes, chordPcs, getScale, parseChord, scaleModes, scaleMidi, scaleNotes, scalePcs } from '@/core/theory';
 import { midiAt, positionsForNote, scalePositions } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
-  type Exercise, type FretboardFigure, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
+  type ChoiceExercise, type Exercise, type FretboardFigure, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
   type OrderExercise, type PlayPhraseExercise, type RichText, type Step, type TabNote, type TypeAnswerExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
@@ -143,7 +143,7 @@ describe('modes: characteristic notes, parents and vamps', () => {
   it('types the characteristic note of each mode it asks', () => {
     // Which degree each mode is asked for, by the word in the prompt.
     const asked = ofType<TypeAnswerExercise>('type-answer');
-    expect(asked.length).toBe(10);
+    expect(asked.length).toBe(11);
     for (const e of asked) {
       const prompt = plainText(e.prompt);
       const mode = ['Dorian', 'Mixolydian', 'Lydian', 'Phrygian'].find((m) => prompt.includes(m))!.toLowerCase();
@@ -199,6 +199,45 @@ describe('modes: characteristic notes, parents and vamps', () => {
     // The chords the vamp cards play.
     const vamps = unit.lessons.flatMap((l) => l.steps).flatMap((s) => (!isGenerated(s) && s.type === 'card' && s.figure?.kind === 'audio' && s.figure.sound.kind === 'progression' ? [s.figure.sound.chords] : []));
     expect(vamps).toEqual([['Am7', 'D', 'Am7', 'D'], ['A', 'G', 'A', 'G'], ['D', 'E', 'D', 'E'], ['F', 'Em', 'F', 'Em']]);
+  });
+
+  it('answers every "which vamp suggests" question: only the right pair stays inside the mode', () => {
+    const fits = (chords: string[], tonic: string, mode: string): boolean =>
+      chords.every((c) => chordPcs(c).every((pc) => scalePcs(tonic, mode).includes(pc)));
+    const ids: Record<string, string> = { Dorian: 'dorian', Mixolydian: 'mixolydian', Lydian: 'lydian', Phrygian: 'phrygian' };
+    const vamps = allExercises().filter((e): e is ChoiceExercise => e.type === 'choice' && /suggests? \{n:/.test(JSON.stringify(e.prompt)));
+    expect(vamps.length).toBe(5); // D Dorian, G Mixolydian, and the checkpoint's A Mixolydian, E Dorian, C Lydian
+    for (const e of vamps) {
+      const prompt = plainText(e.prompt);
+      const tonic = tagged(e.prompt, 'note')[0];
+      const mode = ids[Object.keys(ids).find((m) => prompt.includes(m))!];
+      for (const o of e.options) {
+        const chords = tagged(o.text!, 'chord');
+        expect(chords.length, prompt).toBe(2);
+        expect(fits(chords, tonic, mode), `${prompt} ${chords.join(' to ')}`).toBe(!!o.correct);
+        // The right pair moves from the tonic chord.
+        if (o.correct) expect(parseChord(chords[0])!.root, prompt).toBe(tonic);
+      }
+    }
+    // The checkpoint's Lydian question and the modes its wrong answers are said to belong to.
+    expect(fits(['C', 'D'], 'C', 'lydian')).toBe(true);
+    expect(fits(['C', 'Bb'], 'C', 'mixolydian')).toBe(true);
+    expect(fits(['C', 'F'], 'C', 'major')).toBe(true);
+    expect(fits(['Cm', 'F'], 'C', 'dorian')).toBe(true);
+    expect(scaleNotes('C', 'lydian')[3]).toBe('F#');
+    expect(scaleNotes('E', 'mixolydian')[6]).toBe('D');
+    expect(chordNotes('E7')[3]).toBe('D');
+  });
+
+  it('covers the planned checkpoint: a vamp for each of four modes, and their characteristic notes', () => {
+    const cp = JSON.stringify(unit.checkpoint!.steps);
+    for (const pair of ['{c:A} to {c:G}', '{c:Em} to {c:A}', '{c:F} to {c:Em}', '{c:C} to {c:D}']) expect(cp, pair).toContain(pair);
+    const typed = exercises(unit.checkpoint!.steps!).filter((e): e is TypeAnswerExercise => e.type === 'type-answer').map((e) => plainText(e.prompt));
+    for (const mode of ['Dorian', 'Lydian', 'Mixolydian']) expect(typed.some((p) => p.includes(mode)), mode).toBe(true);
+    // Phrygian's b2 is the F of the F to Em question.
+    expect(scaleNotes('E', 'phrygian')[1]).toBe('F');
+    // And nothing in the unit says Locrian "never" settles while also saying it is "rarely" home.
+    expect(JSON.stringify(unit)).not.toMatch(/never settles/);
   });
 
   it('fits the seventh chords it pairs with Mixolydian and Locrian', () => {
@@ -335,6 +374,10 @@ describe('modes: the phrases', () => {
     const pitches = mixo.notes.map(midiOf);
     expect(pitches[0]).toBe(45);
     expect(pitches.slice(1)).toEqual(scaleMidi(57, 'mixolydian'));
+    // The open A is a real drone on the guitar: it keeps ringing because no later note uses string 5.
+    expect(mixo.notes[0]).toMatchObject({ string: 5, fret: 0 });
+    for (const n of mixo.notes.slice(1)) if ('string' in n) expect(n.string).toBeLessThan(5);
+    expect(plainText(mixo.prompt)).toMatch(/let it ring/);
     const order = mixo.alternative as OrderExercise;
     expect(order.tiles.map((t) => tagged(t, 'note')[0])).toEqual(scaleNotes('A', 'mixolydian'));
     expect(scalePcs('A', 'mixolydian')).not.toContain(8); // no G#

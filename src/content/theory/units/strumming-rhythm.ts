@@ -75,7 +75,7 @@ const dottedNotes: Lesson = {
     {
       type: 'card',
       title: 'Strum it',
-      body: 'Strum {c:Em} on beat 1 and let it ring through 2 and 3. Strum again on 4. Count out loud: "**ONE** two three **FOUR**". Keep your hand swinging down and up the whole time, just missing the strings.',
+      body: 'Count "1 2 3 4" out loud. Strum {c:Em} on 1 and let it ring through 2 and 3; strum again on 4. Keep your hand swinging down and up the whole time, just missing the strings in between.',
       figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'h. q | h. q', tempo: 70 }, label: 'Hear dotted half, quarter' },
     },
     {
@@ -89,7 +89,7 @@ const dottedNotes: Lesson = {
     {
       type: 'card',
       title: 'A dotted quarter and an eighth',
-      body: 'A dotted quarter is often followed by an eighth note: 1½ beats plus ½ a beat makes **2 beats**. Count **1** (2) **&**: the eighth note falls on the & of 2.',
+      body: 'A dotted quarter is often followed by an eighth note: 1½ beats plus ½ a beat makes **2 beats**. Count "1 & 2 &": the dotted quarter starts on 1 and holds through 2, and the eighth note falls on the & of 2.',
       figure: { kind: 'rhythm', pattern: 'q. e h | q. e h', tempo: 70, caption: 'Dotted quarter, eighth, half: taps on 1, the & of 2, and 3.' },
     },
     {
@@ -108,7 +108,8 @@ const dottedNotes: Lesson = {
       show: 'both',
       explain: 'Tap on 1, on the & of 2, and on 3. The dotted quarter holds through beat 2.',
     },
-    { generate: 'note-value-math', params: { ask: 'beats', values: ['quarter', 'half', 'eighth'], dotted: true } },
+    // Only quarters and halves: with eighths in the pool the drill also asks for a dotted eighth (¾ of a beat), which this lesson never teaches.
+    { generate: 'note-value-math', params: { ask: 'beats', values: ['quarter', 'half'], dotted: true } },
     { generate: 'note-value-math', params: { ask: 'fit', values: ['quarter', 'half', 'eighth'], dotted: true } },
   ],
   facts: [
@@ -175,7 +176,7 @@ const ties: Lesson = {
     {
       type: 'card',
       title: 'Across the bar line',
-      body: 'A dot can only lengthen a note inside its own bar. A tie can carry a sound **across the bar line**. Try it: strum {c:Am} on beat 4, let it ring through beat 1 of the next bar, and strum again on beat 2.',
+      body: 'A dot can only lengthen a note inside its own bar. A tie can carry a sound **across the bar line**. Try it: strum {c:Am} (or {c:Em}) on beat 4, let it ring through beat 1 of the next bar, and strum again on beat 2.',
       figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'h q q | ~q q h', tempo: 70 }, label: 'Hear the tied rhythm' },
       tip: 'Count beat 1 out loud even though you do not strum it. Your hand still swings down there, just missing the strings.',
     },
@@ -765,7 +766,7 @@ const accentsAndMutedStrums: Lesson = {
       type: 'choice',
       prompt: 'The backbeat stresses which beats of a 4/4 bar?',
       options: [
-        { text: 'Beats 1 and 3', why: 'Those are the downbeats. The backbeat leans the other way.' },
+        { text: 'Beats 1 and 3', why: 'Those are the strong beats of a 4/4 bar. The backbeat leans on the other two.' },
         { text: 'Beats 2 and 4', correct: true },
         { text: 'Only beat 1', why: 'Beat 1 is the downbeat, not the backbeat.' },
       ],
@@ -779,7 +780,7 @@ const accentsAndMutedStrums: Lesson = {
       sound: { kind: 'strum', chord: 'E', pattern: 'D-X-DUX-', tempo: 70 },
       options: [{ text: 'On beats 2 and 4', correct: true }, { text: 'On beats 1 and 3' }],
       shuffle: false,
-      explain: 'Full strums on 1 and on 3 &, chicks on 2 and 4: the muted strums put the stress on the backbeat.',
+      explain: 'A full strum on 1, a chick on 2, down-up on 3, a chick on 4. The chicks land on 2 and 4, so they give the pattern its backbeat.',
     },
     {
       type: 'tap-rhythm',
@@ -815,7 +816,7 @@ const accentsAndMutedStrums: Lesson = {
       ask: {
         type: 'choice',
         prompt: 'Which beats of a 4/4 bar does the backbeat stress?',
-        options: [{ text: 'Beats 2 and 4', correct: true }, { text: 'Beats 1 and 3', why: 'Those are the downbeats.' }],
+        options: [{ text: 'Beats 2 and 4', correct: true }, { text: 'Beats 1 and 3', why: 'Those are the strong beats of a 4/4 bar, not the backbeat.' }],
         shuffle: false,
         explain: 'The backbeat is on 2 and 4.',
       },
@@ -942,6 +943,16 @@ const unit: Unit = {
         statement: 'A muted strum is a percussive chick, played with the fretting hand resting lightly on the strings.',
         answer: true,
         explain: 'Resting lightly stops the strings ringing, so you hear only the hit.',
+      },
+      {
+        type: 'choice',
+        prompt: 'An accent mark (>) sits over a strum. How do you play it?',
+        options: [
+          { text: 'Louder than the strums around it', correct: true },
+          { text: 'As a muted chick', why: 'A muted strum is written with an x note head, not an accent.' },
+          { text: 'Held for twice as long', why: 'An accent changes how loud a note is, not how long.' },
+        ],
+        explain: 'An accent mark means: play that note louder than the notes around it.',
       },
       {
         type: 'choice',

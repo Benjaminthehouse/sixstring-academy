@@ -4,7 +4,7 @@ export default defineSong({
   title: 'Mo Li Hua (Jasmine Flower)',
   composer: 'Traditional Chinese (Jiangsu)',
   origin:
-    'Jiangsu folk song of the 18th century, printed in Europe by 1804. The melody is given as it is commonly sung or played today; older printings vary. This is the first half of the verse.',
+    'Folk song of the 18th century, printed in Europe by 1804. The melody is given as it is commonly sung or played today; older printings vary. This is the first half of the verse.',
   publicDomain:
     'A traditional Chinese folk tune from Jiangsu with no known composer, sung in the 18th century and printed in Europe by 1804. It is played here without words: the Chinese words most often sung today come from a version made in 1957. Puccini quoted the tune in Turandot (1926); this arrangement follows the folk tune, not Puccini, and was written for Sixstring Academy.',
   level: 4,

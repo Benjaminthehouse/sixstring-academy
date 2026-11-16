@@ -311,6 +311,25 @@ describe('strumming-rhythm: drills', () => {
     }
   });
 
+  it('asks only the dotted lengths the lesson teaches (no dotted eighth)', () => {
+    const lengths = new Set<string>();
+    for (const step of lesson('dotted-notes').steps.filter(isGenerated)) {
+      run(step, (e) => {
+        const p = prompt(e);
+        expect(p, p).not.toMatch(/dotted (eighth|sixteenth|whole)/);
+        if (e.type === 'choice') {
+          const m = /how long does an? (.+?) note last/.exec(p);
+          if (m) {
+            lengths.add(m[1]);
+            const value = m[1].replace('dotted ', '') as 'half' | 'quarter';
+            expect(asBeats(correct(e)), p).toBe(m[1].startsWith('dotted') ? dotted(value) : plain(value));
+          }
+        }
+      });
+    }
+    expect([...lengths].sort()).toEqual(['dotted half', 'dotted quarter', 'half', 'quarter']);
+  });
+
   it('times every lesson close to its planned minutes', () => {
     for (const l of unit.lessons) expect(Math.abs(estimateLessonSeconds(l) / 60 - l.minutes), l.id).toBeLessThanOrEqual(1.5);
   });
@@ -326,6 +345,37 @@ describe('strumming-rhythm: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^strumming-/);
+  });
+
+  it('uses "downbeat" as the glossary defines it: the first beat of a bar, never beats 1 and 3', () => {
+    const all: string[] = [];
+    const collect = (v: unknown): void => {
+      if (typeof v === 'string') all.push(v);
+      else if (Array.isArray(v)) v.forEach(collect);
+      else if (v && typeof v === 'object') Object.values(v).forEach(collect);
+    };
+    collect(unit);
+    for (const t of all) expect(t, t).not.toMatch(/downbeats/i);
+  });
+
+  it('asks about accents in the checkpoint, as the syllabus lists them', () => {
+    const accent = choiceIn(checkpoint(), /accent mark/);
+    expect(correct(accent)).toMatch(/^Louder/);
+  });
+
+  it('describes the muted-strum pattern stroke by stroke as it plays', () => {
+    const [q] = of(exercisesOf(lesson('accents-and-muted-strums')), 'listen-choice');
+    if (q.sound.kind !== 'strum') throw new Error('strum');
+    const slots = parseStrum(q.sound.pattern).slots.filter((s) => s.stroke);
+    // "A full strum on 1, a chick on 2, down-up on 3, a chick on 4."
+    expect(slots.map((s) => `${s.count}:${s.stroke}`)).toEqual(['1:down', '2:mute', '3:down', '&:up', '4:mute']);
+    expect(plainText(q.explain)).toMatch(/full strum on 1, a chick on 2, down-up on 3, a chick on 4/);
+  });
+
+  it('offers Em to a learner who meets the tie before A minor', () => {
+    // The ties lesson only requires dotted-notes, which only requires unit 4 (where Em was taught).
+    const card = lesson('ties').steps.find((s) => !isGenerated(s) && s.type === 'card' && /Am/.test(plainText(s.body)));
+    expect(card && !isGenerated(card) && card.type === 'card' ? plainText(card.body) : '').toMatch(/Am \(or Em\)/);
   });
 
   it('still asks at least three quiet questions with Sound off (play steps run as their tapping alternatives)', () => {

@@ -310,7 +310,7 @@ const theFiveFormulas: Lesson = {
 const seventhsInAKey: Lesson = {
   id: 'sevenths-in-a-key',
   title: 'The seventh chords of a major key',
-  teaches: 'A major key gives seven seventh chords: maj7, minor 7, minor 7, maj7, dominant 7, minor 7, half-diminished.',
+  teaches: 'A major key\'s seventh chords run major 7, minor 7, minor 7, major 7, dominant 7, minor 7, half-diminished.',
   minutes: 3,
   skill: `theory:${U}:sevenths-in-a-key`,
   steps: [
@@ -429,7 +429,7 @@ const seventhsInAKey: Lesson = {
 const seventhsInAMinorKey: Lesson = {
   id: 'sevenths-in-a-minor-key',
   title: 'The seventh chords of a minor key',
-  teaches: 'Minor-key sevenths come from natural minor, and harmonic minor\'s raised 7th adds a dominant 7 and a dim7.',
+  teaches: 'Natural minor gives a minor key\'s sevenths; harmonic minor\'s raised 7th adds a dominant 7 and a diminished 7.',
   minutes: 4,
   skill: `theory:${U}:sevenths-in-a-minor-key`,
   steps: [
@@ -473,7 +473,7 @@ const seventhsInAMinorKey: Lesson = {
     {
       type: 'card',
       title: 'The raised 7th',
-      body: 'Raise the 7th of {n:A} minor from {n:G} to {n:G#} (harmonic minor) and two chords change. {c:Em7} becomes {c:E7}, the dominant {r:V7} that pulls home. The chord on {n:G#} becomes {c:G#dim7}, the {r:vii°7}: {n:G#} {n:B} {n:D} {n:F}.',
+      body: 'Raise the 7th of {n:A} minor from {n:G} to {n:G#} (harmonic minor) and every chord that holds a {n:G} changes. Two matter most. {c:Em7} becomes {c:E7}, the dominant {r:V7} that pulls home. The chord on {n:G#} becomes {c:G#dim7}, the {r:vii°7}: {n:G#} {n:B} {n:D} {n:F}.',
       figure: { kind: 'chord', symbol: 'E7', frets: '020100', caption: '{c:E7}, 020100: the {n:G#} is string 3, fret 1.' },
       tip: 'In {c:E7} the {n:G#} sits on string 3, fret 1, a half step under {n:A}. Play {c:Am} (x02210) next and that string rises to {n:A} at fret 2.',
     },
@@ -536,7 +536,18 @@ const seventhsInAMinorKey: Lesson = {
       id: 'sevenths-harmonic-v7',
       front: 'In {k:A minor}, what does the raised 7th ({n:G#}) do to the chords on degrees 5 and 7?',
       back: '{c:Em7} becomes the dominant 7 {c:E7} ({r:V7}), and the chord on {n:G#} becomes the diminished 7 {c:G#dim7} ({r:vii°7}).',
-      ask: { generate: 'diatonic-chord', params: { sevenths: true, modes: ['minor'], maxAccidentals: 3 } },
+      // The diatonic-chord drill asks natural minor only, so it cannot test the raised 7th: ask it here.
+      ask: {
+        type: 'choice',
+        prompt: 'In {k:D minor}, raise the 7th to {n:C#}. Which chord is now on degree 5?',
+        options: [
+          { text: '{c:A7}', correct: true },
+          { text: '{c:Am7}', why: '{c:Am7} has {n:C}, the natural-minor 7th. The raised 7th turns it into {n:C#}.' },
+          { text: '{c:Amaj7}', why: 'Only the chord\'s 3rd changes. Its 7th stays {n:G}, a minor 7th.' },
+          { text: '{c:C#dim7}', why: 'That is the chord on degree 7, the new {r:vii°7}.' },
+        ],
+        explain: '{n:A} {n:C#} {n:E} {n:G}: a major triad with a minor 7th, the dominant {c:A7}, {r:V7} of {k:D minor}.',
+      },
     },
     {
       id: 'sevenths-minor-major',
@@ -556,7 +567,7 @@ const openSeventhShapes: Lesson = {
     {
       type: 'card',
       title: 'Lift a finger',
-      body: 'Many open chords turn into seventh chords with one small move. Play {c:Am} (x02210) and lift the finger off string 3: the open {n:G}, a minor 7th above {n:A}, gives {c:Am7} (x02010). {c:C} to {c:Cmaj7} works the same way on string 2.',
+      body: 'Many open chords turn into seventh chords with one small move. Play {c:Am} (x02210) and lift the finger off string 3: the open {n:G}, a minor 7th above {n:A}, gives {c:Am7} (x02010). {c:C} to {c:Cmaj7} (x32000) works the same way on string 2.',
       figure: {
         kind: 'fretboard',
         frets: [0, 3],
@@ -580,7 +591,7 @@ const openSeventhShapes: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Open {c:F} is xx3211. Which change gives {c:Fmaj7}?',
+      prompt: 'The small {c:F} shape is xx3211. Which change gives {c:Fmaj7}?',
       options: [
         { text: 'Lift the finger off string 1: open {n:E}', correct: true },
         { text: 'Lift the finger off string 2: open {n:B}', why: 'That drops the 5th, {n:C}, for {n:B}, which is not in {c:Fmaj7}.' },
@@ -631,19 +642,6 @@ const openSeventhShapes: Lesson = {
       fact: 'sevenths-open-dom7',
     },
     {
-      type: 'match-pairs',
-      prompt: 'Match each open shape with its chord.',
-      pairs: [
-        { left: 'x32000', right: '{c:Cmaj7}' },
-        { left: 'xx3210', right: '{c:Fmaj7}' },
-        { left: '022030', right: '{c:Em7}' },
-        { left: 'xx0211', right: '{c:Dm7}' },
-        { left: '320001', right: '{c:G7}' },
-      ],
-      explain: 'Read each shape from string 6 to string 1. Each one is its plain open chord with one finger lifted, moved or added.',
-      fact: 'sevenths-open-m7',
-    },
-    {
       type: 'card',
       title: 'One to learn as a shape',
       body: '{c:B7} (x21202) has no easy open {c:B} to start from, so learn it as a shape of its own: four fingers, string 6 silent. {c:Em7} has two common shapes: 022030 adds {n:D} on string 2, and 020000 lifts the finger off string 4.',
@@ -655,6 +653,19 @@ const openSeventhShapes: Lesson = {
       answer: true,
       explain: 'x21202: string 5 fret 2 {n:B}, string 4 fret 1 {n:D#}, string 3 fret 2 {n:A}, open {n:B}, string 1 fret 2 {n:F#}.',
       fact: 'sevenths-open-dom7',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each open shape with its chord.',
+      pairs: [
+        { left: 'x32000', right: '{c:Cmaj7}' },
+        { left: 'xx3210', right: '{c:Fmaj7}' },
+        { left: '022030', right: '{c:Em7}' },
+        { left: 'xx0211', right: '{c:Dm7}' },
+        { left: '320001', right: '{c:G7}' },
+      ],
+      explain: 'Read each shape from string 6 to string 1. Each one is its plain open chord with one finger lifted, moved or added.',
+      fact: 'sevenths-open-m7',
     },
     {
       type: 'play-chord',
@@ -712,7 +723,7 @@ const barreSeventhShapes: Lesson = {
     {
       type: 'card',
       title: 'The E shape, as a seventh',
-      body: 'The E-shape {t:barre} chord at fret 1 is {c:F} (133211), root {n:F} on string 6. Lift the finger off string 4 and the barre plays {n:Eb}, the minor 7th: {c:F7}, 131211. Lift the string 3 finger too for {c:Fm7}, 131111.',
+      body: 'The E-shape {t:barre} chord at fret 1 is {c:F} (133211), root {n:F} on string 6. Lift the finger off string 4 and the barre plays {n:Eb}, the minor 7th: {c:F7}, 131211. Lift the string 3 finger too for {c:Fm7}, 131111. {c:Fmaj7} drops the barre: 1x221x, with the major 7th, {n:E}, on string 4.',
       figure: { kind: 'chord', symbol: 'F7', frets: '131211', caption: '{c:F7}, 131211: root {n:F} on string 6, fret 1.' },
       tip: 'Slide the same grip up and the root on string 6 names the chord: at fret 3 it is {c:G7}, 353433.',
     },
@@ -1146,6 +1157,17 @@ const unit: Unit = {
           { text: '{c:Emaj7}', why: 'The raised 7th makes the 3rd {n:G#}, but the 7th stays {n:D}.' },
         ],
         explain: 'With {n:G#}, degree 5 gives {n:E} {n:G#} {n:B} {n:D}: the dominant 7, {c:E7}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'In {k:E minor} with the raised 7th ({n:D#}), which chord is {r:vii°7}?',
+        options: [
+          { text: '{c:D#dim7}', correct: true },
+          { text: '{c:D7}', why: 'That is {r:bVII7} of natural minor, with {n:D} instead of {n:D#}.' },
+          { text: '{c:D#m7b5}', why: 'That needs {n:C#}. {k:E minor} keeps {n:C}, so the 7th is {n:C}: diminished 7.' },
+          { text: '{c:F#m7b5}', why: 'That is {r:iiø7}, on degree 2.' },
+        ],
+        explain: 'Stacking {k:E minor} notes from {n:D#} gives {n:D#} {n:F#} {n:A} {n:C}: three minor thirds, {c:D#dim7}.',
       },
       {
         type: 'choice',

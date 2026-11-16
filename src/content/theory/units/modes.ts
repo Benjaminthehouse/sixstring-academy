@@ -70,7 +70,7 @@ const modesAsRotations: Lesson = {
     {
       type: 'card',
       title: 'Same notes, new home',
-      body: 'Play the {n:C} major scale up string 5 from fret 3: C D E F G A B C. Now play the very same notes from {n:D} up to {n:D}. Only the starting note changed, yet it sounds new. That new scale is a {t:mode}: {n:D} Dorian.',
+      body: 'Play the {n:C} major scale up string 5 from fret 3: C D E F G A B C. Now play the very same notes from {n:D} up to {n:D}, and hear {n:D} as home. No note changed, only home, yet it sounds new. That new scale is a {t:mode}: {n:D} Dorian.',
       figure: {
         kind: 'fretboard',
         frets: [3, 15],
@@ -396,7 +396,7 @@ const dorian: Lesson = {
         { text: '{c:Dm} to {c:G}', correct: true },
         { text: '{c:Dm} to {c:Gm}', why: '{c:Gm} has {n:Bb}, the {d:b6} of {n:D}: that is plain natural minor, Aeolian.' },
         { text: '{c:D} to {c:G}', why: 'A major tonic chord: that points to a major mode, not Dorian.' },
-        { text: '{c:Dm} to {c:A}', why: '{c:A} has {n:C#}, the raised 7th of harmonic minor, not Dorian\'s {n:B}.' },
+        { text: '{c:Dm} to {c:A}', why: '{c:A} has {n:C#}, the raised 7th of harmonic minor. {n:D} Dorian keeps {n:C}.' },
       ],
       explain: '{c:G} is the major {r:IV} of {n:D}, and its {n:B} is the raised 6th of {n:D} Dorian.',
       fact: 'modes-dorian-vamp',
@@ -411,7 +411,7 @@ const dorian: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Over {c:Am7} to {c:D}, play this phrase in fifth position. It leans on {n:F#}.',
+      prompt: 'Play this {n:A} Dorian phrase in fifth position, the kind of line that fits {c:Am7} to {c:D}. It leans on {n:F#}.',
       notes: [
         { string: 4, fret: 7, duration: 'q' },
         { string: 3, fret: 4, duration: 'q' },
@@ -626,7 +626,7 @@ const lydian: Lesson = {
     {
       type: 'card',
       title: 'Its characteristic note',
-      body: 'The {d:#4} is Lydian\'s characteristic note. It sits a {t:tritone} above the tonic, which gives the floating feeling: {n:G#} in {n:D} Lydian, {n:B} in {n:F} Lydian, {n:C#} in {n:G} Lydian.',
+      body: 'The {d:#4} is Lydian\'s characteristic note: {n:G#} in {n:D} Lydian, {n:B} in {n:F} Lydian, {n:C#} in {n:G} Lydian. It sits a {t:tritone} above the tonic, and unlike a plain 4th it does not lean down onto the 3rd. That is the floating feeling.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: overDrone(OPEN_D, D4, 'lydian'), tempo: 110 }, label: 'Hear {n:D} Lydian' },
     },
     {
@@ -785,7 +785,7 @@ const phrygianAndLocrian: Lesson = {
     {
       type: 'card',
       title: 'Locrian: the unsettled one',
-      body: 'Lower the 5th as well and you get Locrian: {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished ({n:B} {n:D} {n:F} in {n:B} Locrian), so it never settles: it rarely works as a home key. It fits {t:half-diminished} chords such as {c:Bm7b5} instead.',
+      body: 'Lower the 5th as well and you get Locrian: {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished ({n:B} {n:D} {n:F} in {n:B} Locrian), so home itself sounds unsettled: it rarely works as a home key. It fits {t:half-diminished} chords such as {c:Bm7b5} instead.',
       figure: { kind: 'chord', symbol: 'Bm7b5', frets: 'x2323x', caption: '{c:Bm7b5}: the seventh chord on the tonic of {n:B} Locrian.' },
     },
     {
@@ -824,7 +824,7 @@ const phrygianAndLocrian: Lesson = {
     {
       id: 'modes-locrian',
       front: 'Why is Locrian rarely a home key, and what does it fit?',
-      back: 'Locrian is {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished, so it never settles, but it fits half-diminished chords such as {c:Bm7b5}.',
+      back: 'Locrian is {d:1} {d:b2} {d:b3} {d:4} {d:b5} {d:b6} {d:b7}. Its tonic chord is diminished, so home sounds unsettled, but it fits half-diminished chords such as {c:Bm7b5}.',
     },
   ],
 };
@@ -897,11 +897,11 @@ const hearingTheModes: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Pluck the open {n:A} string, then play {n:A} Mixolydian up from {n:A} on string 3 and end on {n:A}.',
+      prompt: 'Pluck the open {n:A} string and let it ring as your drone. Then play {n:A} Mixolydian up from {n:A} on string 3 and end on {n:A}.',
       notes: [{ ...OPEN_A, duration: 'h' }, ...line(A3, 'mixolydian').map((n) => ('string' in n ? { ...n, duration: 'q' as const } : n))],
       octave: 'exact',
       tempo: 70,
-      explain: 'Open {n:A}, then {n:A} {n:B} {n:C#} {n:D} {n:E} {n:F#} {n:G} {n:A}. The {n:G} at string 1, fret 3 is the {d:b7}; end on the {n:A} at fret 5.',
+      explain: 'The open {n:A} keeps ringing under {n:A} {n:B} {n:C#} {n:D} {n:E} {n:F#} {n:G} {n:A}: a real drone. The {n:G} at string 1, fret 3 is the {d:b7}; end on the {n:A} at fret 5.',
       alternative: {
         type: 'order',
         prompt: 'Put the notes of {n:A} Mixolydian in order, starting on {n:A}.',
@@ -1011,6 +1011,24 @@ const unit: Unit = {
         explain: '{c:G} is the {r:bVII} of {n:A}: its {n:G} is Mixolydian\'s {d:b7}.',
       },
       {
+        type: 'type-answer',
+        prompt: 'Type the {d:b7} of {n:E} Mixolydian.',
+        answer: { kind: 'note', value: 'D', spelling: 'exact' },
+        input: 'keypad',
+        explain: '{n:E} major has {n:D#}; Mixolydian lowers the 7th to {n:D}, the 7th of {c:E7}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which vamp suggests {n:C} Lydian?',
+        options: [
+          { text: '{c:C} to {c:D}', correct: true },
+          { text: '{c:C} to {c:Bb}', why: '{c:Bb} is the {r:bVII} of {n:C}: that is the Mixolydian vamp.' },
+          { text: '{c:C} to {c:F}', why: '{c:F} holds the plain 4th, {n:F}: that is {k:C major}, Ionian.' },
+          { text: '{c:Cm} to {c:F}', why: 'A minor tonic chord and a major {r:IV}: that is the Dorian vamp.' },
+        ],
+        explain: '{c:D} is the major chord a whole step above {n:C}. Its {n:F#} is the {d:#4} of {n:C} Lydian.',
+      },
+      {
         type: 'choice',
         prompt: 'Which vamp suggests {n:E} Dorian?',
         options: [
@@ -1034,7 +1052,7 @@ const unit: Unit = {
         type: 'true-false',
         statement: 'Locrian is rarely used as a home key because its tonic chord is diminished.',
         answer: true,
-        explain: 'With a {d:b3} and a {d:b5}, Locrian\'s tonic chord never settles. It fits half-diminished chords instead.',
+        explain: 'With a {d:b3} and a {d:b5}, Locrian\'s tonic chord is diminished and sounds unsettled. It fits half-diminished chords instead.',
       },
       {
         type: 'choice',

@@ -93,7 +93,9 @@ Conventions that hold for the whole kit:
 - Bottom clearance: `--action-bar-h` on `<html>` is the room taken, above `--sticky-bottom`, by
   controls that sit at the bottom of the screen *right now* (a stuck `ActionBar`, or anything passed
   to `useBottomClearance`). A bar that ends mid-screen publishes nothing. Toasts add it; so must any
-  screen-made fixed bottom layer.
+  screen-made fixed bottom layer. While at least one of them is mounted, stuck or not, `<html>` also
+  carries `data-ui-bottom-controls` (the shell moves toasts to the top of an immersive phone screen
+  that has none, so they cannot land on its unregistered bottom controls).
 - Breakpoints: `useIsMobile()` is `< 720 px` (`BREAKPOINTS.mobile`); `BREAKPOINTS.wide` is 1080.
 - Toasts sit above `--nav-h` on phones (the shell sets it to 0 while an immersive screen hides its
   tab bar). Layers: modal/sheet 200 < popover/menu 250 < toast 300 < tooltip 400 < celebration 500
@@ -214,7 +216,9 @@ At most three toasts show at once (`MAX_TOASTS`): a new one pushes the oldest of
 never pushes another off but waits its turn, and **while a Modal or Sheet is open it waits** and
 shows when the last one closes (news already on screen steps aside and comes back with at least 3 s
 left). Toasts that are replies to a tap still show while a dialog is open, at the top edge, clear of
-a bottom sheet's buttons. `useDialogOpen()` tells you whether any kit dialog is open.
+a bottom sheet's buttons; over a dialog that reaches the top (a tall sheet, a drawer) they go just
+under its header instead, so its title and Close stay clear. `useDialogOpen()` tells you whether
+any kit dialog is open.
 
 Toasts are announced (a polite live region; `warn` / `error` as alerts). From the keyboard, **Alt+T**
 moves focus to the newest toast (its action first), which also pauses the countdowns; Escape there
@@ -236,9 +240,10 @@ dismisses it and focus returns to where it was. Never make a toast the only way 
 marked in `history.state`); Back pops it and calls `onClose` (a dialog with `dismissable={false}`
 stays, and so does the screen). Closed any other way, the entry is taken off again, so the next Back
 leaves the screen as before. Nothing to do in a screen; it also copes with a link inside a sheet
-(the left-behind entry is skipped) and with a sheet opened from the address that `redirect()`s when
-it closes (`#songs--add`: Back never brings the sheet back). It switches off where a sandboxed host
-refuses `pushState`.
+(the left-behind entry is skipped, after a reload too) and with a sheet opened from the address that
+`redirect()`s when it closes (`#songs--add`: Back never brings the sheet back). It switches off where
+a sandboxed host refuses `pushState`. Closing a dialog by its button steps history back by one a
+moment later: a screen that reloads the page right after a dialog closes waits for that step.
 
 ```tsx
 if (await confirmDialog({ title: 'Delete this song?', description: 'This cannot be undone.', confirmLabel: 'Delete song', tone: 'danger' })) remove();

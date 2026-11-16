@@ -13,8 +13,8 @@
  * and the drop-3 lesson comps with the root-on-5 Cmaj7 (x3x453), which stays under the hand after
  * G7 (3x343x), while the plan's root-on-6 Cmaj7 (8x998x) is taught as the grip five frets away.
  * The guide-tone lesson's no-microphone way is an in-lesson exercise, not the Player's wait mode
- * (which listens too). Voicings that leave a tone of their symbol out (the shells, {c:Dm9}, {c:G13},
- * the bossa {c:D7}) are checked by the microphone picked string by string (`picked`), not strummed:
+ * (which listens too). Voicings that leave a tone of their symbol out (the shells, the ninths and
+ * the thirteenth, the bossa {c:D7}) are checked by the microphone picked string by string (`picked`), not strummed:
  * the strum check scores a strum against every tone of the symbol, so it cannot pass them reliably
  * (the test simulates it). Full four-note grips are strummed.
  *
@@ -124,7 +124,7 @@ const shellsIiVI: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Fret the {c:Dm7} shell, x535xx, and pick strings 5, 4 and 3 in turn. Every finger must ring. Then strum the three.',
+      prompt: 'The {c:Dm7} shell, x535xx: pick strings 5, 4 and 3 in turn, then strum them.',
       notes: picked(SHAPES.shells.Dm7),
       octave: 'exact',
       tempo: 60,
@@ -133,7 +133,7 @@ const shellsIiVI: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Now the {c:G7} shell, 3x34xx: root on string 6, string 5 muted. Pick strings 6, 4 and 3 in turn.',
+      prompt: 'Now the {c:G7} shell, 3x34xx, string 5 muted: strings 6, 4 and 3 in turn.',
       notes: picked(SHAPES.shells.G7),
       octave: 'exact',
       tempo: 60,
@@ -155,15 +155,6 @@ const shellsIiVI: TeacherLesson = {
       body: 'Comp first in short quarter notes: squeeze for the chord, relax at once, so each one stops before the next, like a soft drum. Then the {t:charleston|Charleston}: beat 1 and the and of 2, then silence. In the study it swings, so that second chord comes late and lazy.',
       figure: { kind: 'rhythm', pattern: 'q. e hr', tempo: 100, caption: 'The Charleston: beat 1 and the and of 2.' },
     },
-    {
-      type: 'tap-rhythm',
-      prompt: 'Tap two bars of the Charleston with the click.',
-      rhythm: { pattern: 'q. e hr | q. e hr' },
-      tempo: 100,
-      show: 'both',
-      explain: 'Beat 1, then the and of 2, then rest through beats 3 and 4. Straight here; swung in the study, the second chord falls on the last third of beat 2.',
-      fact: 'jazz-charleston',
-    },
     playerTask({
       id: 'shells-quarters',
       title: 'Shells four to the bar',
@@ -174,14 +165,12 @@ const shellsIiVI: TeacherLesson = {
       body: 'Bars 1 to 8 of the shell study at 83 % (100 {t:bpm|BPM}): short quarter notes, every chord stopped before the next. Watch how little the hand moves while the walking bass does the travelling.',
     }),
     {
-      type: 'choice',
-      prompt: 'In the Charleston, where does the second chord fall?',
-      options: [
-        { text: 'On the and of 2', correct: true },
-        { text: 'On beat 3', why: 'Beat 3 is silent in the Charleston.' },
-        { text: 'On the and of 4', why: 'That is an anticipation, a different comping rhythm.' },
-      ],
-      explain: 'Beat 1 and the and of 2: a short-long figure, then two beats of space for the soloist.',
+      type: 'tap-rhythm',
+      prompt: 'Tap two bars of the Charleston with the click.',
+      rhythm: { pattern: 'q. e hr | q. e hr' },
+      tempo: 100,
+      show: 'both',
+      explain: 'Beat 1, then the and of 2, then rest through beats 3 and 4. Straight here; swung in the study, the second chord falls on the last third of beat 2.',
       fact: 'jazz-charleston',
     },
     playerTask({
@@ -215,7 +204,7 @@ const shellsIiVI: TeacherLesson = {
 const guideTones: TeacherLesson = {
   id: 'guide-tones',
   title: 'Guide tones',
-  teaches: 'Through a two-five-one each seventh falls a half step to the next third, and each third stays as the next seventh.',
+  teaches: 'In a two-five-one each seventh falls a half step to the next third, and each third stays as the next seventh.',
   minutes: 5,
   skill: 'teacher:elena:guide-tones',
   steps: [
@@ -684,10 +673,11 @@ const extendedVoicings: TeacherLesson = {
       alternative: { type: 'chord-build', task: 'fingers', chord: 'G13', frets: SHAPES.extended.G13, accept: 'this-shape', prompt: 'Build {c:G13}: the {c:G7} shell plus string 2 fret 5.', explain: '3x345x: {n:G} {n:F} {n:B} and {n:E} on string 2 fret 5.' },
     },
     {
-      type: 'play-chord',
-      prompt: '{c:Cmaj9}: x3243x.',
-      chord: 'Cmaj9',
-      frets: SHAPES.extended.Cmaj9,
+      type: 'play-phrase',
+      prompt: '{c:Cmaj9}: x3243x. Strings 5 to 2 in turn, then strum, and hear the top voice step down.',
+      notes: picked(SHAPES.extended.Cmaj9),
+      octave: 'exact',
+      tempo: 60,
       explain: '{n:C} {n:E} {n:B} {n:D}: root, third, seventh, ninth. The top voice stepped down from {n:E} to {n:D}.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'Cmaj9', frets: SHAPES.extended.Cmaj9, accept: 'this-shape', prompt: 'Build {c:Cmaj9}: the {c:Cmaj7} shell plus string 2 fret 3.', explain: 'x3243x: {n:C} {n:E} {n:B} and {n:D} on string 2 fret 3.' },
     },

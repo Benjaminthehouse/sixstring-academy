@@ -65,4 +65,14 @@ describe('useBottomClearance', () => {
     act(() => root!.render(<Controls active={false} />));
     expect(document.documentElement.style.getPropertyValue('--action-bar-h')).toBe('');
   });
+
+  it('marks <html> while the screen has bottom controls the kit knows about, stuck at the bottom or not', () => {
+    // Mid-screen: no clearance claimed, but the screen still manages its bottom controls itself.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 390, height: 60, top: 200, bottom: 260, left: 0, right: 390, x: 0, y: 200, toJSON: () => ({}) });
+    mount(<Controls />);
+    expect(currentBottomClearance()).toBe(0);
+    expect(document.documentElement.hasAttribute('data-ui-bottom-controls')).toBe(true);
+    act(() => root!.render(<Controls active={false} />));
+    expect(document.documentElement.hasAttribute('data-ui-bottom-controls')).toBe(false);
+  });
 });

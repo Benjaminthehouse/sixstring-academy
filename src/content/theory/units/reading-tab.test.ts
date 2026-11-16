@@ -302,7 +302,7 @@ describe('reading-tab: what a phone shows', () => {
         expect(at, plainText(e.prompt)).toBeGreaterThanOrEqual(0);
         expect(at, plainText(e.prompt)).toBeLessThan(PHONE_TAB_NOTES);
       } else {
-        expect(notes.length, plainText(e.type === 'true-false' ? e.statement : e.prompt)).toBeLessThanOrEqual(PHONE_TAB_NOTES);
+        expect(notes.length, plainText(e.type === 'true-false' ? e.statement : 'prompt' in e ? e.prompt : '')).toBeLessThanOrEqual(PHONE_TAB_NOTES);
       }
     }
   });

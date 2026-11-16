@@ -254,7 +254,7 @@ const theBoxAtFret5: Lesson = {
       type: 'card',
       title: 'Box 1',
       body: 'On strings **6, 2 and 1** the box uses frets **5 and 8**. On strings **5, 4 and 3** it uses frets **5 and 7**. Many players call it **box 1** (or position 1). Its lowest note, string 6 at fret 5, is the tonic {n:A}.',
-      figure: { kind: 'tab', tempo: 80, notes: BOX_UP, caption: 'Box 1 from its lowest note to its highest.' },
+      figure: { kind: 'tab', tempo: 80, notes: BOX_UP, caption: 'Box 1 from its lowest note to its highest. Slide it to see all twelve.' },
     },
     {
       type: 'choice',
@@ -531,8 +531,8 @@ const movingTheBox: Lesson = {
       explain: 'Same shape, new place: every note moves down two frets, so the tonic moves from {n:A} to {n:G}.',
       fact: 'first-scale-move-box',
     },
-    // The tap drill spans the box's tonics G to D (frets 3 to 10), all on a phone screen at once.
-    { generate: 'note-on-string', params: { strings: [6], frets: [3, 10], naturals: true, ask: 'find' } },
+    // The tap drill spans the box tonics G to C (frets 3 to 9): the seven frets a phone shows at once.
+    { generate: 'note-on-string', params: { strings: [6], frets: [3, 9], naturals: true, ask: 'find' } },
     { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'name' } },
   ],
   facts: [

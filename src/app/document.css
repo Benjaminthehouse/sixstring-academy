@@ -75,6 +75,34 @@ body:has([data-practice-bar]) ol[aria-label='Notifications'][aria-live]:not([dat
 }
 
 /*
+ * An immersive phone screen that has told the kit nothing about its bottom controls (no ActionBar,
+ * no useBottomClearance: <html> lacks data-ui-bottom-controls) is a one-screen tool whose controls
+ * sit in the thumb zone, like the player's transport. Toasts there go to the top, under the slim
+ * top bar, instead of over Play: with --nav-h at 0 they would otherwise sit on the bottom edge.
+ */
+@media (max-width: 719.98px) {
+  :root:not([data-ui-bottom-controls]):has([data-layout='phone'][data-immersive='focus']) ol[aria-label='Notifications'][aria-live]:not([data-over-dialog]) {
+    top: calc(52px + env(safe-area-inset-top, 0px) + var(--sp-2));
+    bottom: auto;
+    translate: none;
+  }
+  :root:not([data-ui-bottom-controls]):has([data-layout='phone'][data-immersive='bare']) ol[aria-label='Notifications'][aria-live]:not([data-over-dialog]) {
+    top: calc(env(safe-area-inset-top, 0px) + var(--sp-3));
+    bottom: auto;
+    translate: none;
+  }
+  :root:not([data-ui-bottom-controls]):has([data-layout='phone']:is([data-immersive='focus'], [data-immersive='bare'])) ol[aria-label='Notifications'][aria-live]:not([data-over-dialog]) > li {
+    animation-name: ssa-toast-from-top;
+  }
+}
+@keyframes ssa-toast-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+/*
  * A phone held sideways has very little height. The tab bar drops its labels there (see
  * Shell.module.css), and everything that measures itself against --nav-h follows.
  */

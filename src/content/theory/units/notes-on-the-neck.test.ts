@@ -40,6 +40,13 @@ const pos = (list: Array<{ string: number; fret: number }>) => list.map(({ strin
 const NATURAL = new Set(['C', 'D', 'E', 'F', 'G', 'A', 'B']);
 const naturalsOn = (string: number) => Array.from({ length: 13 }, (_u, fret) => fret).filter((fret) => NATURAL.has(nameAt(string, fret)));
 const correctText = (e: ChoiceExercise): string => plainText(e.options.find((o) => o.correct)!.text!);
+/**
+ * What a 390 px phone shows of a tap-the-neck question without scrolling (measured: each tappable
+ * fret is at least 44 px): the open strings and frets 1 to 6, or seven frets higher up. The rest
+ * scrolls inside the neck with no cue, and a generated step cannot carry a hint.
+ */
+const lastInView = ([lo]: [number, number]): number => (lo === 0 ? 6 : lo + 6);
+const fitsPhone = (frets: [number, number]): boolean => frets[1] <= lastInView(frets);
 
 /** This unit alone, as the registry assembles it; prerequisites outside it are theory.test.ts's to check. */
 function unitCourse() {
@@ -268,8 +275,8 @@ describe('notes-on-the-neck: octave shapes', () => {
     expect(drills.length).toBe(3);
     let offShape = 0;
     for (const step of drills) {
-      const [lo, hi] = step.params!.frets as [number, number];
-      expect(hi - lo, 'frets a phone shows at once').toBeLessThanOrEqual(8);
+      const [lo, hi] = (step.params as { frets: [number, number] }).frets;
+      expect(fitsPhone([lo, hi]), 'frets a phone shows at once').toBe(true);
       for (let seed = 1; seed <= 300; seed++) {
         const ex = generateExercise(step, { seed, difficulty: (seed % 11) / 10, level: 'beginner' }) as FretboardFindExercise;
         if (!('interval' in ex.find)) throw new Error('not an interval find');
@@ -282,8 +289,8 @@ describe('notes-on-the-neck: octave shapes', () => {
         if (!targets.some((t) => same(t, s))) offShape++;
       }
     }
-    // The off-edge case is the exception, not the rule.
-    expect(offShape / 900).toBeLessThan(0.3);
+    // The off-edge case is the exception (about a quarter of draws), not the rule.
+    expect(offShape / 900).toBeLessThan(0.35);
   });
 
   it('strings 6 and 1 at one fret are two octaves apart', () => {
@@ -341,26 +348,23 @@ describe('notes-on-the-neck: what the listening questions play', () => {
 });
 
 describe('notes-on-the-neck: what a phone shows', () => {
-  /** A 390 px phone shows about nine frets of a tap-the-neck question; the rest scrolls, with no cue. */
-  const PHONE_FRETS = 9;
   const TAP_DRILLS = new Set(['note-on-string:find', 'play-note', 'interval-on-neck:find']);
 
   it('every generated tap drill fits on the screen', () => {
     const drills = unit.lessons.flatMap((l) => l.steps.filter((s): s is GeneratedStep => 'generate' in s));
     for (const d of drills) {
-      const kind = d.generate === 'play-note' ? 'play-note' : `${d.generate}:${String(d.params?.ask ?? '')}`;
+      const kind = d.generate === 'play-note' ? 'play-note' : `${d.generate}:${String((d.params as { ask?: string } | undefined)?.ask ?? '')}`;
       if (!TAP_DRILLS.has(kind)) continue;
-      const [lo, hi] = d.params!.frets as [number, number];
-      expect(hi - lo + 1, `${kind} ${JSON.stringify(d.params)}`).toBeLessThanOrEqual(PHONE_FRETS);
+      const [lo, hi] = (d.params as { frets: [number, number] }).frets;
+      expect(fitsPhone([lo, hi]), `${kind} ${JSON.stringify(d.params)}`).toBe(true);
     }
   });
 
   it('an authored find wider than a phone keeps its answers in view, or says to slide the neck', () => {
     const finds = everyExercise().filter((e): e is FretboardFindExercise => e.type === 'fretboard-find');
     for (const f of finds) {
-      const [lo, hi] = f.frets;
-      if (hi - lo + 1 <= PHONE_FRETS) continue;
-      const inView = findTargets(f).every((t) => t.fret < lo + PHONE_FRETS);
+      if (fitsPhone(f.frets)) continue;
+      const inView = findTargets(f).every((t) => t.fret <= lastInView(f.frets));
       expect(inView || /slide the neck/.test(plainText(f.hint ?? '')), plainText(f.prompt)).toBe(true);
     }
   });

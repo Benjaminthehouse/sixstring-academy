@@ -11,13 +11,14 @@ import { describe, expect, it } from 'vitest';
 import { getProgression, keyChoices } from '@/content/progressions';
 import { loadSongText, songEntry } from '@/content/songs';
 import { getExercise, ladderRungs, partSong } from '@/content/technique';
-import { fretDistance, identifyFretted, midiAt, pitchClassAt, retuneSteps, tuning } from '@/core/guitar';
+import { fretDistance, identifyFretted, midiAt, pitchClassAt, retuneSteps, scalePatterns, tuning } from '@/core/guitar';
 import { parseSixTab, type Note, type Song } from '@/core/song';
 import { chordPcs, chroma, noteToMidi, scalePcs } from '@/core/theory';
 import { parsePlayerParams } from '@/features/player/model/params';
 import type { TabNote } from '@/lessons';
 import { isTaskStep, type TaskStep, type TeacherLesson } from '../index';
 import unit, { LEGATO_BAR, LEGATO_OCTAVE, OPEN_G_CHORDS, TAP_AM_BAR } from './elena-legato-and-tapping';
+import unitOne from './elena-practice-and-precision';
 
 const lesson = (id: string): TeacherLesson => unit.lessons.find((l) => l.id === id)!;
 const tasks = (): Array<{ lesson: string; task: TaskStep }> => unit.lessons.flatMap((l) => l.steps.filter(isTaskStep).map((task) => ({ lesson: l.id, task })));
@@ -242,5 +243,39 @@ describe('the tasks of unit 4', () => {
       if (!(task.id in said)) continue;
       expect(getExercise(task.params![0])!.tempo.start, task.id).toBe(said[task.id]);
     }
+  });
+});
+
+// ── Review of batch 11: what the review fixed ─────────────────────────────────────────────────
+
+describe('the corrected claims of unit 4', () => {
+  it('the legato run is pattern 1 of the first unit, and the glossary shares its term', () => {
+    const run = exerciseNotes('tech-legato-3nps').slice(0, 18).map((n) => `${n.string}:${n.fret}`);
+    const p1 = scalePatterns('G', 'major', { system: '3nps' }).find((x) => x.id === '3nps-1')!;
+    expect(new Set(run)).toEqual(new Set(p1.notes.map((n) => `${n.string}:${n.fret}`)));
+    // One id for "three notes per string" across the course: unit 1's.
+    const ids = (u: typeof unit) => (u.glossary ?? []).map((g) => g.id);
+    expect(ids(unitOne)).toContain('three-notes-per-string');
+    expect(ids(unit)).toContain('three-notes-per-string');
+    expect(ids(unit)).not.toContain('three-nps');
+    expect(JSON.stringify(unit)).not.toContain('{t:three-nps');
+  });
+
+  it('the ladder task asks for the exercise as written: up the six strings, then back down', () => {
+    const midis = exerciseNotes('tech-legato-3nps').map((n) => midiAt(n));
+    expect(midis.length).toBe(36);
+    for (let i = 1; i < 18; i++) expect(midis[i], `up, note ${i}`).toBeGreaterThan(midis[i - 1]);
+    for (let i = 19; i < 36; i++) expect(midis[i], `down, note ${i}`).toBeLessThan(midis[i - 1]);
+    const body = textOf(tasks().find((t) => t.task.id === 'ladder-60')!.task.body);
+    expect(body).toMatch(/back down as written/);
+    expect(body).not.toMatch(/then down three times/);
+  });
+
+  it('keeps the bending inside the exercises\' strain limits', () => {
+    const minutes = Object.fromEntries(tasks().filter((t) => t.lesson === 'wide-bends').map((t) => [t.task.id, t.task.minutes]));
+    expect(minutes['bend-minor-third']).toBeLessThanOrEqual(getExercise('tech-bend-minor-third')!.strain!.maxMinutes);
+    expect(minutes['vibrato-bend']).toBeLessThanOrEqual(getExercise('tech-vibrato-bend')!.strain!.maxMinutes);
+    // The whole lesson stays near the plan's 12 minutes of bending (engine part plus tasks).
+    expect(Object.values(minutes).reduce((a, b) => a + b, 0) + lesson('wide-bends').minutes).toBeLessThanOrEqual(15);
   });
 });

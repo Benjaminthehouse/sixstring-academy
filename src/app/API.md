@@ -22,7 +22,7 @@ when only its params change. Unknown addresses are redirected to `#home`.
 - `<main>` sets `--sticky-top` and `--sticky-bottom`: use `top: var(--sticky-top, 0px)` /
   `bottom: var(--sticky-bottom, 0px)` for sticky parts and they clear the bars (`ActionBar` does).
 - The shell's bars are `z-index: 30`: above sticky page parts (20), below dialogs (200). Toasts are kept clear of the tab bar at every width, and below 900 px the document has `scroll-padding` for both bars, so keyboard focus and `scrollIntoView` never land underneath them. While an immersive screen hides the tab bar, `--nav-h` is `0px` document-wide, so nothing keeps clear of a bar that is not there (a `bare` screen drops the top-bar padding too).
-- Bottom controls: an `ActionBar` stuck at the bottom publishes `--action-bar-h` and toasts sit above it; bottom controls that are not an ActionBar use the kit's `useBottomClearance(ref)`. Toasts also move up clear of the practice session bar while it shows.
+- Bottom controls: an `ActionBar` stuck at the bottom publishes `--action-bar-h` and toasts sit above it; bottom controls that are not an ActionBar use the kit's `useBottomClearance(ref)`. Toasts also move up clear of the practice session bar while it shows. An immersive phone screen with neither (the kit has not marked `<html data-ui-bottom-controls>`) gets its toasts at the top, under the slim top bar, so they never sit on a transport it keeps at the bottom: call `useBottomClearance` on your bottom controls to keep toasts at the bottom, above them.
 - At a large text size the phone top bar gives way instead of running off its edge: the repeated title first, then the brand mark, the chips' padding, the gems chip (`shell/topbarFit.ts`).
 
 ## Screen title

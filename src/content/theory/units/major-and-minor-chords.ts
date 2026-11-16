@@ -38,7 +38,7 @@ function degreeDots(shape: Array<[number, number, string, string]>): FretDot[] {
 const whatAChordIs: Lesson = {
   id: 'what-a-chord-is',
   title: 'What a chord is',
-  teaches: 'A chord is several notes played together, named after its root; its shape is six frets, string 6 first.',
+  teaches: 'A chord is several notes at once, named after its root; a shape is written as six frets, string 6 first.',
   minutes: 3,
   skill: `theory:${U}:what-a-chord-is`,
   steps: [
@@ -103,6 +103,7 @@ const whatAChordIs: Lesson = {
         dots: EM.map(([s, f, n]) => digit(s, f, n)),
         caption: '022000, read from string 6 (at the bottom) up to string 1.',
       },
+      tip: 'In tab, {c:Em} is a column: 0 0 0 2 2 0 from the top line down. Read it from the bottom line up and you get 022000.',
     },
     {
       type: 'choice',
@@ -357,7 +358,7 @@ const rootThirdFifth: Lesson = {
     {
       type: 'card',
       title: 'Three notes, three jobs',
-      body: 'The simplest chord is a {t:triad}: three notes. The **root** names it. On top go a **third** and a **fifth**, found by counting letter names up from the root. Here is {c:C}, with each note marked R, 3 or 5.',
+      body: 'A {t:triad} is a chord of three different notes. The **root** names it. On top go a **third** and a **fifth**, found by counting letter names up from the root. Here is {c:C}, with each note marked R, 3 or 5.',
       figure: {
         kind: 'fretboard',
         frets: [0, 3],
@@ -695,7 +696,7 @@ const eAndEMinor: Lesson = {
         root: 'E',
         labels: 'degree',
         dots: degreeDots([[6, 0, 'E2', '1'], [5, 2, 'B2', '5'], [4, 2, 'E3', '1'], [3, 0, 'G3', 'b3'], [2, 0, 'B3', '5'], [1, 0, 'E4', '1']]),
-        caption: '{c:Em}: the ♭3 on string 3 is the open {n:G}.',
+        caption: '{c:Em}: the {d:b3} on string 3 is the open {n:G}.',
       },
       answer: true,
       explain: 'A major third lowered by a half step is a minor third, and the chord turns minor: {n:G#} to {n:G} turns {c:E} into {c:Em}.',
@@ -787,14 +788,14 @@ const aAmDDm: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'What does the small m in {c:Dm} stand for?',
+      prompt: 'What does the small m in {c:Am} stand for?',
       options: [
         { text: 'Minor', correct: true },
-        { text: 'Major', why: 'A major chord has no letter after the root: plain {c:D}.' },
+        { text: 'Major', why: 'A major chord has no letter after the root: plain {c:A}.' },
         { text: 'Muted', why: 'Nothing is muted. The m means the chord has a minor third.' },
       ],
       shuffle: false,
-      explain: 'A small m after the root means minor: {c:Am}, {c:Dm}, {c:Em}. A plain letter, such as {c:D}, is a major chord.',
+      explain: 'A small m after the root means minor: {c:Am}, {c:Dm}, {c:Em}. A plain letter, such as {c:A}, is a major chord.',
       fact: 'chords-small-m',
     },
     {
@@ -802,6 +803,7 @@ const aAmDDm: Lesson = {
       title: '{c:D} and {c:Dm}',
       body: 'Open {c:D} is **xx0232**, strings 4 to 1 only. Its third, {n:F#}, is on string 1 at fret 2. Lower it to fret 1, {n:F}, and you get {c:Dm}: **xx0231**. Same change, new chord.',
       figure: { kind: 'chord', symbol: 'D', frets: 'xx0232', caption: '{c:D}: {n:D} {n:F#} {n:A}. The third is on string 1, fret 2.' },
+      tip: 'For {c:Dm} the fingers swap round: index on string 1, middle on string 3, ring stays on string 2.',
     },
     {
       type: 'chord-build',
@@ -1054,6 +1056,7 @@ const powerChords: Lesson = {
       title: 'Root and fifth, no third',
       body: 'A {t:power-chord|power chord} keeps only the root and the fifth. {c:G5} is {n:G} and {n:D}: string 6 at fret 3, string 5 at fret 5, and string 4 at fret 5 doubles the {n:G} an octave up. Strings 3, 2 and 1 stay silent.',
       figure: { kind: 'chord', symbol: 'G5', frets: '355xxx', caption: '{c:G5} (355xxx): {n:G}, {n:D}, {n:G}.' },
+      tip: 'The top {n:G} is optional: strings 6 and 5 alone, 35xxxx, are a {c:G5} too.',
     },
     {
       type: 'chord-build',
@@ -1068,7 +1071,7 @@ const powerChords: Lesson = {
     {
       type: 'card',
       title: 'Neither major nor minor',
-      body: 'The third makes a chord major or minor, and a power chord has none, so it is **neither**. Listen: {c:G5}, then {c:G} (major, with {n:B}), then {c:Gm} (minor, with {n:Bb}). The power chord sits in between: plain and solid.',
+      body: 'The third makes a chord major or minor, and a power chord has none, so it is **neither**. Listen: {c:G5}, {c:G} (major, with {n:B}), {c:G5} again, then {c:Gm} (minor, with {n:Bb}). The power chord sounds plain and solid between them.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G5', 'G', 'G5', 'Gm'], beats: 3, tempo: 90 }, label: 'Hear {c:G5}, {c:G}, {c:G5}, {c:Gm}' },
       tip: 'That is one reason power chords fit both major and minor songs, and why rock guitarists play them so often.',
     },
@@ -1196,6 +1199,16 @@ const unit: Unit = {
           { text: 'Any note on string 6', why: 'A chord is several notes at once, on any strings.' },
         ],
         explain: 'A chord is several different notes sounding together, usually three or more.',
+      },
+      {
+        type: 'choice',
+        prompt: '{c:Dm} is {n:D}, {n:F} and {n:A}. Which note is its root?',
+        options: [
+          { text: '{n:D}', correct: true },
+          { text: '{n:F}', why: '{n:F} is the third of {c:Dm}: the note that makes it minor.' },
+          { text: '{n:A}', why: '{n:A} is the fifth of {c:Dm}.' },
+        ],
+        explain: 'A chord is named after its root: {c:Dm} is built on {n:D}.',
       },
       {
         type: 'choice',

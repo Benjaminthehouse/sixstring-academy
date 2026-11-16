@@ -219,9 +219,28 @@ async function clearance(browser, url) {
   check(group, 'a practice session bar at the bottom: toasts sit above it, not on it', space.space > 40 && st && st.bottom <= space.nav - 8 - 60 + 1, JSON.stringify({ ...space, toast: st && st.bottom }));
   await phone.page.evaluate(() => document.querySelector('[data-practice-bar]')?.remove());
 
-  await phone.goto('play--hot-cross-buns', 'main[data-route="play"]', 1500);
+  // A lesson: immersive, with its ActionBar at the bottom.
+  await phone.goto('learn--sound-and-pitch--a-sound-is-a-vibration', '[data-ui-action-bar]', 1500);
   const imm = await phone.page.evaluate(() => ({ immersive: document.querySelector('[data-immersive]').dataset.immersive, nav: getComputedStyle(document.documentElement).getPropertyValue('--nav-h').trim(), bottom: parseFloat(getComputedStyle(document.querySelector('ol[aria-label="Notifications"]')).bottom), bar: parseFloat(document.documentElement.style.getPropertyValue('--action-bar-h')) || 0 }));
-  check(group, 'immersive screen: toasts are not lifted for the tab bar it hides', imm.immersive !== 'none' && imm.nav === '0px' && imm.bottom <= imm.bar + 20, JSON.stringify(imm));
+  check(group, 'immersive screen: toasts are not lifted for the tab bar it hides', imm.immersive !== 'none' && imm.nav === '0px' && imm.bar > 0 && imm.bottom <= imm.bar + 20, JSON.stringify(imm));
+
+  // The player: immersive, its transport at the bottom is not an ActionBar. Toasts go to the top,
+  // under the slim top bar, instead of over Play.
+  await phone.goto('play--hot-cross-buns', 'main[data-route="play"] [data-ui-primary]', 1500);
+  await reply(phone.page, 'Loop set');
+  await phone.page.waitForTimeout(600);
+  const player = await phone.page.evaluate(() => {
+    const t = document.querySelector('[data-toast]')?.getBoundingClientRect();
+    const header = document.querySelector('header')?.getBoundingClientRect();
+    const covered = [...document.querySelectorAll('main button, main [role="radio"]')]
+      .filter((b) => b.getClientRects().length)
+      .map((b) => ({ b: b.getBoundingClientRect(), name: (b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 24) }))
+      .filter(({ b }) => t && Math.min(b.right, t.right) - Math.max(b.left, t.left) > 4 && Math.min(b.bottom, t.bottom) - Math.max(b.top, t.top) > 4)
+      .map(({ name }) => name);
+    return { toast: t && [Math.round(t.top), Math.round(t.bottom)], header: header && Math.round(header.bottom), covered, marked: document.documentElement.hasAttribute('data-ui-bottom-controls') };
+  });
+  check(group, 'player (no ActionBar): a toast goes under the top bar and covers none of its controls', player.toast && !player.marked && player.toast[0] >= (player.header || 0) && player.covered.length === 0, JSON.stringify(player));
+  await phone.shot('player-toast-phone');
   check(group, 'no console errors', phone.errors.length === 0, phone.errors.slice(0, 2).join(' | '));
   await phone.close();
 }

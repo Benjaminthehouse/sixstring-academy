@@ -116,8 +116,10 @@ const string6Naturals: Lesson = {
       fact: 'neck-shapes-named-by-root',
     },
     { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'name' } },
-    // Tap drills stay within the frets a phone shows at once (a "name" drill centres on its fret).
-    { generate: 'note-on-string', params: { strings: [6], frets: [0, 8], naturals: true, ask: 'find' } },
+    // A tap-the-neck question shows about seven frets on a phone (six beside the open strings), and
+    // a generated step cannot carry a hint: the tap drill takes the upper half, B C D E, in one view.
+    // The "name" drill centres on its fret, so it keeps the whole string.
+    { generate: 'note-on-string', params: { strings: [6], frets: [6, 12], naturals: true, ask: 'find' } },
   ],
   facts: [
     {
@@ -226,7 +228,7 @@ const string5Naturals: Lesson = {
         find: { note: 'E3' },
         mode: 'one',
         octave: 'exact',
-        frets: [0, 12],
+        frets: [3, 9],
         strings: [5],
         explain: 'String 5, fret 7 is {n:E}: two frets above {n:D} at fret 5.',
       },
@@ -245,7 +247,8 @@ const string5Naturals: Lesson = {
       fact: 'neck-sharp-up-flat-down',
     },
     { generate: 'note-on-string', params: { strings: [5], frets: [0, 12], naturals: true, ask: 'name' } },
-    { generate: 'play-note', params: { strings: [5], frets: [0, 8], naturals: true } },
+    // Its tapping version spans the open string to the top fret: kept to what a phone shows.
+    { generate: 'play-note', params: { strings: [5], frets: [0, 6], naturals: true } },
   ],
   facts: [
     {
@@ -406,7 +409,7 @@ const dotsAsLandmarks: Lesson = {
       find: { note: 'E3' },
       mode: 'one',
       octave: 'exact',
-      frets: [0, 12],
+      frets: [3, 9],
       strings: [5],
       explain: 'String 5 at the 7th-fret dot is {n:E}.',
       fact: 'neck-dots-string-5',
@@ -561,7 +564,7 @@ const sameNoteManyPlaces: Lesson = {
       shuffle: false,
       explain: 'Fret 12 of string 5 is an octave above the open string 5, so it is an octave above string 6, fret 5 as well: the same name, {n:A}, but higher.',
     },
-    { generate: 'play-note', params: { strings: [6, 5], frets: [0, 8], naturals: true } },
+    { generate: 'play-note', params: { strings: [6, 5], frets: [0, 6], naturals: true } },
   ],
   facts: [
     {
@@ -697,9 +700,10 @@ const octaveShapes6And5: Lesson = {
       },
     },
     // The drill draws its root anywhere in its range, and the range is the picture: kept to the
-    // frets a phone shows at once. A root near the top has its octave by the card above.
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 8] } },
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 8] } },
+    // frets a phone shows at once (the open strings and frets 1 to 6). A root near the top has its
+    // octave by the card above.
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 6] } },
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 6] } },
   ],
   facts: [
     {
@@ -833,7 +837,7 @@ const octaveShapes4And3: Lesson = {
       explain: 'Strings 6 and 1 are both {n:E} strings, two octaves apart, so fret 5 is {n:A} on both, two octaves apart.',
       fact: 'neck-6-and-1-two-octaves',
     },
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [4, 3], frets: [0, 8] } },
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [4, 3], frets: [0, 6] } },
   ],
   facts: [
     {

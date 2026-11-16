@@ -63,10 +63,12 @@ const SHAPES: Record<string, string> = {
 };
 const shape = (frets: ReadonlyArray<number | null>): string => frets.map((f) => (f === null ? 'x' : String(f))).join('');
 const thirdOf = (symbol: string): string => chordTones(symbol).find((t) => t.role === 'third')!.note;
+/** Other shapes the text names in passing: the two-string G5, which the power-chord drill explains with. */
+const ALSO: Record<string, string> = { G5: '35xxxx' };
 
 describe('major-and-minor-chords: the shapes', () => {
   it('spells every shape so that it sounds its chord, with the right bass', () => {
-    for (const [symbol, frets] of Object.entries(SHAPES)) {
+    for (const [symbol, frets] of [...Object.entries(SHAPES), ...Object.entries(ALSO)]) {
       expect(identifyFretted(frets).symbol, frets).toBe(symbol);
       expect(buildVoicing(symbol, frets).chord, frets).toBe(symbol);
     }
@@ -76,7 +78,7 @@ describe('major-and-minor-chords: the shapes', () => {
 
   it('quotes no shape the table does not hold, and each next to its own chord', () => {
     const quoted = new Set(texts().flatMap((t) => t.match(/\b[x0-9]{6}\b/g) ?? []));
-    for (const s of quoted) expect(Object.values(SHAPES), s).toContain(s);
+    for (const s of quoted) expect([...Object.values(SHAPES), ...Object.values(ALSO)], s).toContain(s);
     // "{c:Am} (x02210)": a shape in brackets right after a chord symbol belongs to that chord.
     for (const t of texts()) {
       for (const m of t.matchAll(/\{c:([^}]+)\}\s*\(([x0-9]{6})\)/g)) expect(SHAPES[m[1]], t).toBe(m[2]);
@@ -126,6 +128,29 @@ describe('major-and-minor-chords: the shapes', () => {
     expect(fingersOf('Am')).toEqual({ 4: 2, 3: 3, 2: 1 });
     // A is fingered differently from Am, as the tip says ("your fingers rearrange").
     expect(fingersOf('A')).not.toEqual({ 4: 2, 3: 3, 2: 1 });
+    // D to Dm: "index on string 1, middle on string 3, ring stays on string 2" (D has index on string 3).
+    expect(fingersOf('D')).toEqual({ 3: 1, 2: 3, 1: 2 });
+    expect(fingersOf('Dm')).toEqual({ 1: 1, 3: 2, 2: 3 });
+    const dCard = lesson('a-am-d-dm').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.figure?.kind === 'chord' && s.figure.symbol === 'D');
+    expect(dCard && !isGenerated(dCard) && dCard.type === 'card' ? plainText(dCard.tip ?? '') : '').toMatch(/index on string 1, middle on string 3, ring stays on string 2/);
+  });
+
+  it('reads the Em tab column from the bottom line up as 022000', () => {
+    const card = lesson('what-a-chord-is').steps.find((s) => !isGenerated(s) && s.type === 'card' && /^In tab/.test(String(s.tip ?? '')));
+    if (!card || isGenerated(card) || card.type !== 'card') throw new Error('tab tip');
+    const column = /column: ([0-9 ]+) from the top line down/.exec(String(card.tip))![1].trim().split(' ');
+    // Tab's top line is string 1: reversed, the column is the spelling from string 6.
+    expect(column.length).toBe(6);
+    expect([...column].reverse().join('')).toBe(SHAPES.Em);
+    expect(String(card.tip)).toContain(`you get ${SHAPES.Em}`);
+  });
+
+  it('explains the power-chord drill with the two-string G5 the lesson mentions', () => {
+    // The chord library's first G5 is strings 6 and 5 only, so the drill's answer shows that shape.
+    expect(shape(chordVoicings('G5')[0].frets)).toBe(ALSO.G5);
+    const tip = lesson('power-chords').steps.map((s) => (!isGenerated(s) && s.type === 'card' ? String(s.tip ?? '') : '')).join(' ');
+    expect(tip).toContain(ALSO.G5);
+    expect(chordNotes('G5')).toEqual([...new Set(buildVoicing('G5', ALSO.G5).notes.map((n) => pcName(n.note)))]);
   });
 });
 
@@ -212,6 +237,28 @@ describe('major-and-minor-chords: roots, thirds and fifths', () => {
     expect(parseChord('C')!.root).toBe('C');
     // A C E is A minor.
     expect(correct(of(exercisesOf(lesson('hearing-major-and-minor')), 'choice').find((e) => /make which chord/.test(prompt(e)))!)).toBe('Am');
+    // The checkpoint asks the root of Dm, from its three notes.
+    const root = of(checkpoint(), 'choice').find((e) => /Which note is its root/.test(prompt(e)))!;
+    expect(chordNotes('Dm')).toEqual(['D', 'F', 'A']);
+    expect(correct(root)).toBe(parseChord('Dm')!.root);
+    expect(prompt(root)).toContain(chordNotes('Dm').join(', ').replace(/, (?=[^,]*$)/, ' and '));
+  });
+
+  it('asks about the small m of a chord the lesson has already shown', () => {
+    const l = lesson('a-am-d-dm');
+    const at = l.steps.findIndex((s) => !isGenerated(s) && s.type === 'choice' && /small m/.test(plainText(s.prompt)));
+    const symbol = /small m in ([A-G][#b]?m)/.exec(plainText((l.steps[at] as Exercise & { prompt: string }).prompt))![1];
+    const shownBefore = l.steps.slice(0, at).some((s) => !isGenerated(s) && s.type === 'card' && s.figure?.kind === 'chord' && s.figure.symbol === symbol);
+    expect(shownBefore, symbol).toBe(true);
+  });
+
+  it('describes the G5, G, G5, Gm sound in the order it plays', () => {
+    const card = lesson('power-chords').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.figure?.kind === 'audio');
+    if (!card || isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'audio' || card.figure.sound.kind !== 'progression') throw new Error('progression card');
+    const said = [...String(card.body).matchAll(/\{c:([^}]+)\}/g)].map((m) => m[1]).slice(-4);
+    expect(said).toEqual(card.figure.sound.chords);
+    expect(chordNotes('G')).toContain('B');
+    expect(chordNotes('Gm')).toContain('Bb');
   });
 });
 
@@ -331,6 +378,16 @@ describe('major-and-minor-chords: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^chords-/);
+  });
+
+  it('tags every accidental and degree, so speech and the naming setting see them', () => {
+    // A typed ♭ or ♯ is read aloud as a symbol and escapes the learner's note names: use {n:}, {d:}.
+    for (const t of texts()) expect(t, t).not.toMatch(/[♭♯𝄪𝄫]/);
+  });
+
+  it('never calls a triad the simplest chord (a power chord has two notes)', () => {
+    for (const t of texts()) expect(t, t).not.toMatch(/simplest chord/i);
+    expect(chordNotes('G5').length).toBe(2);
   });
 
   it('still asks at least three quiet questions with Sound off (play steps run as their tapping alternatives)', () => {

@@ -10,7 +10,7 @@ import { pcName, scaleNotes, scalePcs } from '@/core/theory';
 import {
   findTargets, formatProblems, plainText, resolveFigure, soundPlan, validateCourse,
   type CardStep, type ChoiceExercise, type Exercise, type FillBlanksExercise, type FretboardFigure, type FretboardFindExercise,
-  type Lesson, type ListenChoiceExercise, type OrderExercise, type PlayPhraseExercise, type Step, type TabFigure, type TabNote, type TypeAnswerExercise,
+  type GeneratedStep, type Lesson, type ListenChoiceExercise, type OrderExercise, type PlayPhraseExercise, type Step, type TabFigure, type TabNote, type TypeAnswerExercise,
 } from '@/lessons';
 import { assembleTheory } from '../index';
 import unit from './first-scale';
@@ -294,6 +294,39 @@ describe('first-scale: what the tunes and phrases play', () => {
     const play = exercises(l).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
     expect(play.notes).toEqual([...first, ...second]);
     expect(pos(findTargets(play.alternative as FretboardFindExercise))).toEqual(pos(BOX1.roots));
+  });
+});
+
+describe('first-scale: what a phone shows', () => {
+  it('a card tab too long for a phone (over 7 notes) says it slides', () => {
+    const long = unit.lessons.flatMap(cards).filter((c) => c.figure?.kind === 'tab' && c.figure.notes.length > 7);
+    expect(long.length).toBe(2);
+    for (const c of long) expect(plainText((c.figure as TabFigure).caption ?? ''), c.title).toMatch(/Slide/);
+  });
+
+  it('every find keeps its answers in what a phone shows (open strings + frets 1-6, or 7 frets), or says to slide the neck', () => {
+    const lastInView = ([lo]: [number, number]): number => (lo === 0 ? 6 : lo + 6);
+    const finds = [
+      ...unit.lessons.flatMap((l) => [
+        ...exercises(l),
+        ...exercises(l).flatMap((e) => ('alternative' in e && !('generate' in e.alternative) ? [e.alternative as Exercise] : [])),
+        ...(l.facts ?? []).flatMap((f) => (f.ask && !('generate' in f.ask) ? [f.ask as Exercise] : [])),
+      ]),
+      ...checkpoint(),
+    ].filter((e): e is FretboardFindExercise => e.type === 'fretboard-find');
+    expect(finds.length).toBeGreaterThanOrEqual(10);
+    for (const f of finds) {
+      const inView = findTargets(f).every((t) => t.fret <= lastInView(f.frets));
+      expect(inView || /slide the neck/.test(plainText(f.hint ?? '')), plainText(f.prompt)).toBe(true);
+    }
+  });
+
+  it('the moving-the-box tap drill spans the box tonics G to C, on one phone screen (seven frets)', () => {
+    const drill = lesson('moving-the-box').steps.find((s): s is GeneratedStep => 'generate' in s && s.generate === 'note-on-string' && (s.params as { ask?: string } | undefined)?.ask === 'find')!;
+    const [lo, hi] = (drill.params as { frets: [number, number] }).frets;
+    expect(hi - lo + 1).toBeLessThanOrEqual(7);
+    const naturals = Array.from({ length: hi - lo + 1 }, (_u, i) => lo + i).map((f) => nameAt(6, f)).filter((n) => /^[A-G]$/.test(n));
+    expect(naturals).toEqual(['G', 'A', 'B', 'C']);
   });
 });
 

@@ -9,7 +9,7 @@ import { chordNotes, chordPcs, diatonicChords, getChordType, intervalBetween, pa
 import { buildVoicing, identifyFretted, moveVoicing, noteAt, tryBuildVoicing } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
-  type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
+  type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
   type PlayChordExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
@@ -199,6 +199,53 @@ describe('seventh-chords: the sevenths of a key', () => {
     expect(symbols('A minor')[4]).toBe('Em7');
   });
 
+  it('says truthfully which chords the raised 7th changes', () => {
+    // Raising G to G# changes every chord that holds a G (i, bIII, v and bVII), not just two.
+    const natural = symbols('A minor');
+    const harmonic = symbols('A minor', 'harmonic');
+    const changed = natural.filter((c, i) => c !== harmonic[i]);
+    expect(changed).toEqual(natural.filter((c) => chordNotes(c).includes('G')));
+    expect(changed).toEqual(['Am7', 'Cmaj7', 'Em7', 'G7']);
+    const card = lesson('sevenths-in-a-minor-key').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.title === 'The raised 7th') as { body: RichText };
+    const said = plainText(card.body);
+    expect(said).not.toMatch(/two chords change/);
+    expect(said).toMatch(/every chord that holds a G changes/);
+  });
+
+  it('answers every raised-7th question from harmonic minor', () => {
+    const raised = ofType<ChoiceExercise>('choice').filter((e) => /raise/.test(plainText(e.prompt)));
+    expect(raised.length).toBe(4);
+    for (const e of raised) {
+      const key = tagged(e.prompt, 'key')[0];
+      const harmonic = symbols(key, 'harmonic');
+      const prompt = plainText(e.prompt);
+      const numeral = tagged(e.prompt, 'roman')[0];
+      const degree = /degree (\d)/.exec(prompt)?.[1];
+      const root = /built on/.test(prompt) ? tagged(e.prompt, 'note')[0] : undefined;
+      const want = numeral ? romanToChord(numeral, key)! : degree ? harmonic[Number(degree) - 1] : harmonic.find((c) => parseChord(c)!.root === root)!;
+      expect(harmonic, prompt).toContain(want);
+      expect(tagged(e.options.find((o) => o.correct)!.text!, 'chord')[0], prompt).toBe(want);
+      // Every wrong option is some other chord: never the one asked for.
+      for (const o of e.options.filter((x) => !x.correct)) expect(tagged(o.text!, 'chord')[0], prompt).not.toBe(want);
+    }
+    // The review card of the raised 7th asks D minor: A7 on degree 5, C#dim7 on degree 7.
+    expect(symbols('D minor', 'harmonic')[4]).toBe('A7');
+    expect(symbols('D minor', 'harmonic')[6]).toBe('C#dim7');
+    expect(symbols('D minor')[4]).toBe('Am7');
+    expect(chordNotes('Amaj7')).toContain('G#');
+    // The checkpoint's vii°7 in E minor, and why its wrong options are wrong.
+    expect(symbols('E minor', 'harmonic')[6]).toBe('D#dim7');
+    expect(chordNotes('D#dim7')).toEqual(['D#', 'F#', 'A', 'C']);
+    expect(romanToChord('bVII7', 'E minor')).toBe('D7');
+    expect(chordNotes('D#m7b5')).toContain('C#');
+    expect(romanToChord('iiø7', 'E minor')).toBe('F#m7b5');
+  });
+
+  it('asks the raised 7th in review, not the natural-minor drill', () => {
+    const fact = lesson('sevenths-in-a-minor-key').facts!.find((f) => f.id === 'sevenths-harmonic-v7')!;
+    expect(fact.ask && isGenerated(fact.ask)).toBe(false);
+  });
+
   it('fills every key blank with the chord of that degree, and banks only outsiders', () => {
     const fills = ofType<FillBlanksExercise>('fill-blanks').filter((x) => /seventh chords of/.test(plainText(x.prompt)));
     expect(fills.length).toBe(4);
@@ -239,6 +286,32 @@ describe('seventh-chords: the sevenths of a key', () => {
   });
 });
 
+describe('seventh-chords: taught before asked', () => {
+  it('shows every shape a match asks for earlier in the same lesson', () => {
+    for (const l of unit.lessons) {
+      l.steps.forEach((s, i) => {
+        if (isGenerated(s) || s.type !== 'match-pairs') return;
+        const before = texts(l.steps.slice(0, i)).join(' ');
+        for (const p of s.pairs) {
+          const shape = plainText(p.left);
+          if (/^[x0-9]{6}$/.test(shape)) expect(before, `${l.id}: ${shape} is asked before it is shown`).toContain(shape);
+        }
+      });
+    }
+  });
+
+  it('writes every lesson summary in words, since the map shows it as plain text', () => {
+    for (const l of unit.lessons) expect(l.teaches, l.id).not.toMatch(/\b(maj7|dim7|m7b5|m7)\b/);
+  });
+
+  it('covers the planned checkpoint: V7, vii°7 and the minor-major 7th from harmonic minor', () => {
+    const asked = exercises(unit.checkpoint!.steps!).map((e) => JSON.stringify(e));
+    expect(asked.some((t) => t.includes('{r:V7}') && t.includes('E7'))).toBe(true);
+    expect(asked.some((t) => t.includes('{r:vii°7}') && t.includes('D#dim7'))).toBe(true);
+    expect(asked.some((t) => t.includes('AmMaj7'))).toBe(true);
+  });
+});
+
 describe('seventh-chords: what each string plays', () => {
   const at = (string: number, fret: number, chord: string): string => noteAt({ string, fret }, { context: { chord }, octave: false });
 
@@ -270,6 +343,11 @@ describe('seventh-chords: what each string plays', () => {
     expect(at(2, 1, 'Am7')).toBe('C');
     expect(at(3, 1, 'Amaj7')).toBe('G#');
     expect(at(4, 1, 'Am7b5')).toBe('Eb');
+    // Fmaj7 1x221x: "the major 7th, E, on string 4".
+    expect(at(4, 2, 'Fmaj7')).toBe('E');
+    expect(identifyFretted('1x221x').symbol).toBe('Fmaj7');
+    // "The small F shape is xx3211."
+    expect(identifyFretted('xx3211').symbol).toBe('F');
     // The wrong moves of the Fmaj7 question really break the chord.
     expect(identifyFretted('xx3201').symbol).not.toBe('Fmaj7');
     expect(identifyFretted('xx3011').symbol).not.toBe('Fmaj7');

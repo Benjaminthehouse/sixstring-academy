@@ -11,12 +11,15 @@ import { describe, expect, it } from 'vitest';
 import plan from '@/content/plan/teachers.json';
 import { getProgression, keyChoices, progressionInKey } from '@/content/progressions';
 import { loadSongText, songEntry } from '@/content/songs';
-import { buildVoicing, parseFrets, pitchClassAt, positionsForPitchClass, voicingProblem } from '@/core/guitar';
+import { buildVoicing, midiAt, parseFrets, pitchClassAt, positionsForPitchClass, voicingProblem } from '@/core/guitar';
+import { midiToFreq } from '@/core/math/pitch-math';
+import { addNoise, computeChroma, matchChord, seededRandom, strum } from '@/core/pitch';
 import { parseSixTab, type Song } from '@/core/song';
-import { chordTones, chroma, harmonizeScale, parseChord, scaleNotes } from '@/core/theory';
+import { chordPcs, chordTones, chroma, harmonizeScale, parseChord, scaleNotes } from '@/core/theory';
 import { parsePlayerParams } from '@/features/player/model/params';
+import { chordWaitArgs, type PlayChordExercise, type TabNote } from '@/lessons';
 import { isTaskStep, type TaskStep, type TeacherLesson } from '../index';
-import unit, { GUIDE_LINES, SHAPES } from './elena-jazz-harmony';
+import unit, { GUIDE_LINES, SHAPES, picked } from './elena-jazz-harmony';
 
 const lesson = (id: string): TeacherLesson => unit.lessons.find((l) => l.id === id)!;
 const tasks = (): Array<{ lesson: string; task: TaskStep }> => unit.lessons.flatMap((l) => l.steps.filter(isTaskStep).map((task) => ({ lesson: l.id, task })));
@@ -319,5 +322,116 @@ describe('the tasks of unit 5', () => {
   it('end the drop-3 lesson by building the moved grips', () => {
     const builds = lesson('drop-3').steps.filter((s) => (s as { type?: string }).type === 'chord-build') as Array<{ chord: string; frets: string }>;
     expect(builds.map((b) => [b.chord, b.frets])).toEqual([['Gm7', SHAPES.drop3F.Gm7], ['C7', SHAPES.drop3F.C7], ['Fmaj7', SHAPES.drop3F.Fmaj7]]);
+  });
+});
+
+// ── Review of batch 11: what the review fixed ─────────────────────────────────────────────────
+
+type AnyStep = { type?: string; id?: string; chord?: string; frets?: string; notes?: TabNote[]; alternative?: { type?: string; frets?: string; chord?: string }; body?: unknown };
+const stepsOf = (id: string) => lesson(id).steps as AnyStep[];
+const allSteps = () => unit.lessons.flatMap((l) => (l.steps as AnyStep[]).map((s) => ({ lesson: l.id, s })));
+
+/** A strummed voicing as the microphone hears it (the pitch module's own strum model). */
+function strummedChroma(midis: number[], seed: number, style: 'clean' | 'noisy' | 'up') {
+  const sr = 44100;
+  const rand = seededRandom(seed * 131 + midis[0]);
+  let freqs = midis.map((m) => midiToFreq(m) * Math.pow(2, ((rand() - 0.5) * 16) / 1200));
+  let levels = midis.map(() => 0.6 + 0.4 * rand());
+  if (style === 'up') {
+    freqs = freqs.reverse();
+    levels = levels.reverse().map((l, i, all) => l * (i >= all.length - 2 ? 0.45 : 1));
+  }
+  let x = strum({ freqs, levels, sampleRate: sr, duration: 0.5, startTime: 0.05, strumMs: 8 + 10 * rand(), seed, attackNoise: 0.2, inharmonicity: 5e-5, pluckPosition: 0.12 + 0.12 * rand(), ...(style === 'clean' ? {} : { highpassHz: 180, highpassOrder: 2 }) });
+  if (style !== 'clean') x = addNoise(x, 25, seed);
+  return computeChroma(x.subarray(0, Math.round(0.37 * sr)), sr);
+}
+
+describe('the microphone checks of unit 5 can be passed by a right answer', () => {
+  it('strums only grips that sound every tone of their symbol; sparser voicings are picked string by string', () => {
+    const plays = allSteps().filter(({ s }) => s.type === 'play-chord');
+    expect(plays.length).toBeGreaterThanOrEqual(8);
+    for (const { lesson: l, s } of plays) {
+      const sounded = new Set(buildVoicing(s.chord!, s.frets!).notes.map((n) => n.midi % 12));
+      expect([...sounded].sort(), `${l}: ${s.chord} ${s.frets} sounds every tone of the symbol`).toEqual([...chordPcs(s.chord!)].sort());
+    }
+    // The shells, the ninths, the thirteenth and the bossa D7 leave a tone out, so they are phrases.
+    const phrases = allSteps().filter(({ s }) => s.type === 'play-phrase' && s.alternative?.type === 'chord-build');
+    expect(phrases.map(({ s }) => s.alternative!.chord)).toEqual(['Dm7', 'G7', 'Cmaj7', 'Dm9', 'G13', 'Cmaj9', 'D7']);
+    for (const { lesson: l, s } of phrases) {
+      // The phrase is the alternative's very shape, low string to high, and that shape leaves a tone out.
+      const shape = parseFrets(s.alternative!.frets!);
+      const want = shape.flatMap((f, i) => (f === null ? [] : [{ string: 6 - i, fret: f }]));
+      expect(s.notes!.map((n) => ('string' in n ? { string: n.string, fret: n.fret } : null)), `${l}: ${s.alternative!.chord}`).toEqual(want);
+      const sounded = new Set(want.map((p) => midiAt(p) % 12));
+      expect(chordPcs(s.alternative!.chord!).some((pc) => !sounded.has(pc)), `${l}: ${s.alternative!.chord} is sparse`).toBe(true);
+    }
+    expect(picked('x-10-x-10-11-10')).toEqual([{ string: 5, fret: 10, duration: 'q' }, { string: 3, fret: 10, duration: 'q' }, { string: 2, fret: 11, duration: 'q' }, { string: 1, fret: 10, duration: 'q' }]);
+  });
+
+  it('every strummed grip clears the chord check with room to spare', () => {
+    const score = (symbol: string, frets: string) => {
+      const midis = buildVoicing(symbol, frets).notes.map((n) => n.midi);
+      const { chord, options } = chordWaitArgs({ type: 'play-chord', prompt: 'p', chord: symbol, frets, explain: 'e', alternative: { type: 'true-false', statement: 's', answer: true, explain: 'e' } } as PlayChordExercise);
+      let min = 1;
+      for (const style of ['clean', 'noisy', 'up'] as const) {
+        for (let seed = 1; seed <= 4; seed++) {
+          const frame = strummedChroma(midis, seed, style);
+          const m = matchChord(frame, chord);
+          for (const rival of options.rivals ?? []) expect(matchChord(frame, rival).score, `${symbol} ${frets}: a rival wins`).toBeLessThan(m.score);
+          min = Math.min(min, m.score);
+        }
+      }
+      return min;
+    };
+    for (const { lesson: l, s } of allSteps().filter(({ s }) => s.type === 'play-chord')) expect(score(s.chord!, s.frets!), `${l}: ${s.chord} ${s.frets}`).toBeGreaterThan(0.7);
+    // (Under the same model the strummed G13 3x345x never reached the 0.6 pass mark and the Dm7 shell
+    // x535xx only now and then, which is why those voicings are picked string by string.)
+  });
+});
+
+describe('the corrected claims of unit 5', () => {
+  it('guide tones: each seventh falls a half step to the next third, and each third stays as the next seventh', () => {
+    const tone = (symbol: string, role: string) => chordTones(symbol).find((t) => t.role === role)!.note;
+    const chain = ['Dm7', 'G7', 'Cmaj7'];
+    for (let i = 0; i + 1 < chain.length; i++) {
+      const [a, b] = [chain[i], chain[i + 1]];
+      expect((chroma(tone(a, 'seventh')) - chroma(tone(b, 'third')) + 12) % 12, `${a} 7th to ${b} 3rd`).toBe(1);
+      expect(chroma(tone(a, 'third')), `${a} 3rd stays as ${b} 7th`).toBe(chroma(tone(b, 'seventh')));
+    }
+    // The lines are named by number, as on the cards, not as a "sevenths" or "thirds" line (each alternates).
+    expect(JSON.stringify(lesson('guide-tones'))).not.toMatch(/sevenths line|thirds line|or stays to become/);
+  });
+
+  it('drop-3: B stays at string 3 fret 4 from G7 to Cmaj7, under finger 4 and then finger 3', () => {
+    const cards = stepsOf('drop-3').filter((s) => s.type === 'card') as Array<{ figure?: { frets?: string; fingers?: string } }>;
+    const fingers = (frets: string) => cards.find((c) => c.figure?.frets === frets)!.figure!.fingers!;
+    // Low string first: index 3 is string 3.
+    expect(fingers(SHAPES.drop3.G7)[3]).toBe('4');
+    // Cmaj7 x3x453 takes the Dm7 grip's fingering (x2x341), two frets lower: finger 3 on string 3.
+    expect(fingers(SHAPES.drop3.Dm7)[3]).toBe('3');
+    expect(parseFrets(SHAPES.drop3.G7)[3]).toBe(parseFrets(SHAPES.drop3.Cmaj7)[3]);
+    expect(JSON.stringify(lesson('drop-3'))).not.toMatch(/under the same finger/);
+  });
+
+  it('the jams name the chords the band really plays', () => {
+    const quoted = ['jam-drop2-f', 'jam-minor-swing', 'jam-minor-bossa', 'jam-bossa-vamp'];
+    for (const { task } of tasks().filter(({ task }) => quoted.includes(task.id))) {
+      const [id, key] = task.params!;
+      const named = new Set([...textOf(task.body).matchAll(/\{c:([^}]+)\}/g)].map((m) => m[1]));
+      for (const c of new Set(progressionInKey(id, key.toUpperCase()).bars.flat().map((x) => x.symbol))) expect(named.has(c), `${task.id} names ${c}`).toBe(true);
+    }
+  });
+
+  it('the turnaround card: Am7 is the G7 shell two frets up with its third a fret lower, and the bass alternates strings 5 and 6', () => {
+    const g = parseFrets(SHAPES.shells.G7);
+    const a = parseFrets(SHAPES.shells.Am7);
+    expect(a).toEqual(g.map((f, i) => (f === null ? null : f + 2 - (i === 3 ? 1 : 0))));
+    expect(voiced('Am7', SHAPES.shells.Am7).degrees).toEqual(['1', 'b7', 'b3']);
+    const lowest = (frets: string) => 6 - parseFrets(frets).findIndex((f) => f !== null);
+    expect([SHAPES.shells.Cmaj7, SHAPES.shells.Am7, SHAPES.shells.Dm7, SHAPES.shells.G7].map(lowest)).toEqual([5, 6, 5, 6]);
+    // Two chords a bar, as the card and the task say.
+    expect(progressionInKey('jazz-i-vi-ii-v', 'C').bars.every((b) => b.length === 2)).toBe(true);
+    const card = stepsOf('comping-and-bossa').find((s) => s.type === 'card' && (s as { figure?: { frets?: string } }).figure?.frets === SHAPES.shells.Am7);
+    expect(card, 'the turnaround card shows the new Am7 shell').toBeTruthy();
   });
 });
