@@ -206,4 +206,39 @@ describe('Dev unit 3: Lead guitar techniques', () => {
       if (id) expect(songEntry(id), id).toBeTruthy();
     }
   });
+
+  // ── Added by the independent review ──────────────────────────────────────────────────────────
+
+  it('counts the hammer-ons the legato prompt promises', () => {
+    const trill = lesson('legato').steps.find((s) => (s as { type?: string }).type === 'play-phrase') as PlayPhraseExercise;
+    const midi = phraseMidi(trill);
+    const ups = midi.slice(1).filter((m, i) => m > midi[i]).length;
+    const downs = midi.slice(1).filter((m, i) => m < midi[i]).length;
+    expect([midi.length, ups, downs]).toEqual([16, 8, 7]);
+    expect(plain(trill.prompt)).toContain('eight hammers, one pick');
+    expect(plain(trill.prompt)).not.toMatch(/eight times/);
+  });
+
+  it('never says a bend or a vibrato can take the pitch below the fretted note', () => {
+    const text = JSON.stringify(unit);
+    // Bending a string, whichever way it is pushed or pulled, only raises its pitch.
+    expect(text).not.toMatch(/wrong way|below the note would|bend[a-z]* (it )?down below/i);
+    const below = unit.lessons.flatMap((l) => l.steps).find((s) => (s as { type?: string; statement?: RichText }).type === 'true-false' && /dips below/.test(plain((s as { statement: RichText }).statement))) as { answer: boolean; explain: RichText };
+    expect(below.answer).toBe(false);
+    expect(plain(below.explain)).toMatch(/can only raise its pitch/);
+    // The vibrato exercise and the lick say the same: up from the note, never below.
+    expect(getExercise('tech-vibrato-bend')!.steps.join(' ')).toMatch(/never below/);
+  });
+
+  it('never sends the learner to compare a vibrato with an example the app cannot sound', () => {
+    // The audio engine plays a tab's notes without vibrato, so the Technique demo of the exercise is a plain G.
+    const vib = lesson('vibrato').steps.find((s) => (s as { type?: string }).type === 'play-note') as { alternative: { prompt: RichText } };
+    expect(plain(vib.alternative.prompt)).toMatch(/Record it on your phone and listen back/);
+    expect(JSON.stringify(unit)).not.toMatch(/Technique example|Dev's example/);
+  });
+
+  it('names the strings the picking palm mutes as the Technique exercise does', () => {
+    expect(getExercise('tech-picking-hand-mute')!.steps[0]).toContain('strings 4 to 6');
+    expect(plain(task('picking-hand-mute').body)).toContain('strings 4 to 6 while you play on 3 to 1');
+  });
 });

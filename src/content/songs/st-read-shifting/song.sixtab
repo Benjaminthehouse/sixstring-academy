@@ -4,12 +4,13 @@
 #   bars 9-14   F minor (4 flats), 3/4, position V    (finger 1 on fret 5)
 #   bars 15-20  C major, 6/8, position VII            (finger 1 on fret 7)
 #   bars 21-26  A major (3 sharps), 3/4, position IX  (finger 1 on fret 9)
-#   bars 27-32  E major again, 4/4, position XII      (the first section an octave higher)
+#   bars 27-32  E major again, 4/4, position XII      (the opening, shortened, an octave higher)
 # The keys move by major thirds and their neighbours: E to F minor through the common note
 # G# = Ab, F minor ends on its dominant C, which becomes the new tonic; C turns to A minor and
 # its dominant E, then A major, whose last chord B7 leads home to E.
 # Every shift has a way in: an open string (bars 8, 26), the same note on a new string
-# (bars 14-15) or a finger that changes on a held note (bar 20). Fingerings are given only at
+# (bars 14-15) or the same note under a new finger (bars 19-20: the G#, first with finger 3,
+# then with finger 1). Fingerings are given only at
 # the shifts. The eighth note keeps its speed through every change of meter.
 title: Reading: Shifting Through the Neck
 composer: Sixstring Academy
@@ -47,7 +48,7 @@ key: A
 time: 4/4
 key: E
 [Position XII: E major, 4/4]
-| ^"Twelfth position: the first section an octave higher" q 1:12{1} e. 2:16{4} s 1:12 q 2:12 e 3:13 4:14 | q 3:14 e 2:14 1:12 q. 1:14 e 1:12 |
+| ^"Twelfth position: the opening an octave higher" q 1:12{1} e. 2:16{4} s 1:12 q 2:12 e 3:13 4:14 | q 3:14 e 2:14 1:12 q. 1:14 e 1:12 |
 | s 3:13 2:12 1:12 2:12 q 1:16 e3 1:14 1:12 2:16 q 1:12 | q. 3:14 e 2:14 q 2:16 e 1:14 3:14 |
 | q 3:13 e 2:12 1:12 h 1:16 | w (6:12 5:14 4:14 3:13 2:12 1:12) ||
 

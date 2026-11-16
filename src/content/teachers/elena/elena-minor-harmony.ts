@@ -88,7 +88,7 @@ const harmonicMinorHarmony: TeacherLesson = {
         { text: '{c:Emaj7}', why: '{c:Emaj7} needs {n:D#}, which the key does not have.' },
       ],
       explain: '{n:E} {n:G#} {n:B} {n:D}: the {n:G#} makes the triad major, the {n:D} gives it a minor seventh. A dominant seventh, pulling home to {c:Am}.',
-      fact: 'hm-changes',
+      fact: 'minor-hm-changes',
     },
     {
       type: 'card',
@@ -103,7 +103,7 @@ const harmonicMinorHarmony: TeacherLesson = {
       blanks: ['{c:Cmaj7#5}', '{c:E7}', '{c:G#dim7}'],
       bank: ['{c:Cmaj7}', '{c:Em7}', '{c:G7}'],
       explain: 'Every chord holding {n:G} in natural minor now holds {n:G#}: {c:Am7} becomes {c:AmMaj7}, {c:Cmaj7} becomes {c:Cmaj7#5}, {c:Em7} becomes {c:E7}, {c:G7} becomes {c:G#dim7}.',
-      fact: 'hm-sevenths',
+      fact: 'minor-hm-sevenths',
     },
     {
       type: 'fretboard-find',
@@ -143,7 +143,7 @@ const harmonicMinorHarmony: TeacherLesson = {
       statement: 'The turn that opens the Rondo alla Turca theme, {n:B} {n:A} {n:G#} {n:A}, uses the raised seventh of {k:A minor}.',
       answer: true,
       explain: '{n:G#} is the leading tone, a half step below {n:A}: the turn circles the tonic from above and below.',
-      fact: 'hm-changes',
+      fact: 'minor-hm-changes',
     },
     playerTask({
       id: 'hungarian-dance',
@@ -168,13 +168,13 @@ const harmonicMinorHarmony: TeacherLesson = {
         { left: '{r:iv7}', right: '{c:Dm7}' },
       ],
       explain: 'The chords on the fifth and seventh degrees hold {n:G#}; {c:Bm7b5} and {c:Dm7} do not, so they are the same as in natural minor.',
-      fact: 'hm-sevenths',
+      fact: 'minor-hm-sevenths',
     },
   ],
   facts: [
-    { id: 'hm-changes', front: 'What does raising the seventh of {k:A minor} change?', back: 'The fifth-degree chord becomes {c:E7}, the seventh-degree chord {c:G#dim7}, and {c:C} becomes {c:Caug}.' },
-    { id: 'hm-sevenths', front: 'The seventh chords of {n:A} harmonic minor?', back: '{c:AmMaj7} {c:Bm7b5} {c:Cmaj7#5} {c:Dm7} {c:E7} {c:Fmaj7} {c:G#dim7}' },
-    { id: 'hm-mix', front: 'How does minor-key music often mix the two forms?', back: 'Natural minor in the melody, harmonic minor at the cadences.' },
+    { id: 'minor-hm-changes', front: 'What does raising the seventh of {k:A minor} change?', back: 'The fifth-degree chord becomes {c:E7}, the seventh-degree chord {c:G#dim7}, and {c:C} becomes {c:Caug}.' },
+    { id: 'minor-hm-sevenths', front: 'The seventh chords of {n:A} harmonic minor?', back: '{c:AmMaj7} {c:Bm7b5} {c:Cmaj7#5} {c:Dm7} {c:E7} {c:Fmaj7} {c:G#dim7}' },
+    { id: 'minor-hm-mix', front: 'How does minor-key music often mix the two forms?', back: 'Natural minor in the melody, harmonic minor at the cadences.' },
   ],
 };
 
@@ -202,22 +202,22 @@ const phrygianDominantAndSolea: TeacherLesson = {
         { text: '{n:E} harmonic minor', why: 'That starts on {n:E} but has {n:F#} and {n:G}, not {n:F} and {n:G#}.' },
       ],
       explain: '{n:A} {n:B} {n:C} {n:D} {n:E} {n:F} {n:G#}, started on {n:E}. Its chord is the {c:E} of the minor cadence: Phrygian dominant is the dominant\'s own mode.',
-      fact: 'pd-e',
+      fact: 'minor-pd-e',
     },
     {
       type: 'card',
       title: 'Twelve beats',
-      body: 'The {t:solea|solea} {t:compas|compas} counts 12 beats with accents on 3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2. Clap it before you play it, counting aloud. Here are the accents alone, as two bars of six.',
+      body: 'The {t:solea|solea} {t:compas|compas} counts 12 beats, accented on 3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2. Clap it before you play it, counting aloud. Here are the accents alone, as two bars of six: two threes, then three twos across them, a {t:hemiola|hemiola}.',
       figure: { kind: 'rhythm', pattern: SOLEA_ACCENTS, time: '6/4', tempo: 100, caption: 'Counts 3 and 6, then 8, 10 and 12.' },
     },
     {
       type: 'tap-rhythm',
-      prompt: 'Count the 12 beats aloud and tap only the accents: 3, 6, 8, 10, 12.',
+      prompt: 'Count 1 to 12 aloud, six to a bar, and tap only the accents: 3, 6, 8, 10, 12.',
       rhythm: { pattern: SOLEA_ACCENTS, time: '6/4' },
       tempo: 100,
       show: 'both',
       explain: 'Two groups of three, then three of two: the accent comes round faster in the second half. That acceleration is the solea\'s tension.',
-      fact: 'solea-accents',
+      fact: 'minor-solea-accents',
     },
     {
       type: 'choice',
@@ -228,7 +228,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
         { text: '2, 2, 2, 3, 3', why: 'The long groups come first: the accents on 3 and 6, then every second count.' },
       ],
       explain: 'Accents on 3, 6, 8, 10 and 12: each closes a group, three counts, three, then two, two, two.',
-      fact: 'solea-accents',
+      fact: 'minor-solea-accents',
     },
     {
       type: 'card',
@@ -265,7 +265,7 @@ const phrygianDominantAndSolea: TeacherLesson = {
       statement: 'In {n:E} Phrygian dominant, {n:F} sits a half step above the root.',
       answer: true,
       explain: 'The flat second, {n:F}, string 6 fret 1, leans down onto {n:E}. With {n:G#} above it, that half step is the Spanish sound.',
-      fact: 'pd-e',
+      fact: 'minor-pd-e',
     },
     toolTask({
       id: 'count-the-cycle',
@@ -308,12 +308,12 @@ const phrygianDominantAndSolea: TeacherLesson = {
         { text: '{n:B}, the fifth', why: '{n:B} is the fifth of {c:E}, not part of {c:F}.' },
       ],
       explain: '{c:F} is built on the mode\'s second note: the half step above home. Its pull back down to {c:E} is the cadence of flamenco.',
-      fact: 'pd-e',
+      fact: 'minor-pd-e',
     },
   ],
   facts: [
-    { id: 'pd-e', front: '{n:E} Phrygian dominant, and where it comes from?', back: '{n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}: the fifth mode of {n:A} harmonic minor.' },
-    { id: 'solea-accents', front: 'The accents of the 12-beat solea cycle?', back: '3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2.' },
+    { id: 'minor-pd-e', front: '{n:E} Phrygian dominant, and where it comes from?', back: '{n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}: the fifth mode of {n:A} harmonic minor.' },
+    { id: 'minor-solea-accents', front: 'The accents of the 12-beat solea cycle?', back: '3, 6, 8, 10 and 12: groups of 3, 3, 2, 2 and 2.' },
   ],
 };
 
@@ -339,7 +339,7 @@ const melodicMinorHarmony: TeacherLesson = {
       blanks: ['{n:F#}', '{n:G#}'],
       bank: ['{n:F}', '{n:G}'],
       explain: 'The sixth and seventh raised: {n:F#} and {n:G#}. Only the third, {n:C}, still says minor.',
-      fact: 'mm-a',
+      fact: 'minor-mm-a',
     },
     {
       type: 'card',
@@ -357,7 +357,7 @@ const melodicMinorHarmony: TeacherLesson = {
         { left: '{r:V7}', right: '{c:E7}' },
       ],
       explain: '{n:F#} turns {c:Bm7b5} into {c:Bm7} and {c:Dm7} into {c:D7}; {n:G#} gives {c:AmMaj7} and {c:E7}.',
-      fact: 'mm-sevenths',
+      fact: 'minor-mm-sevenths',
     },
     {
       type: 'play-chord',
@@ -388,7 +388,7 @@ const melodicMinorHarmony: TeacherLesson = {
       statement: 'In jazz, melodic minor comes down with {n:G} and {n:F}, as in classical theory.',
       answer: false,
       explain: 'Jazz keeps {n:F#} and {n:G#} both ways. The descending form with {n:G} and {n:F} is simply natural minor.',
-      fact: 'mm-a',
+      fact: 'minor-mm-a',
     },
     toolTask({
       id: 'scales-melodic',
@@ -415,13 +415,13 @@ const melodicMinorHarmony: TeacherLesson = {
         { text: 'Melodic minor is only for ascending lines', why: 'Not in jazz: it is the same both ways.' },
       ],
       explain: '{n:A} Dorian and {n:A} melodic minor differ in one note: {n:G} or {n:G#}. Follow the chord: {n:G#} over {c:AmMaj7}, {n:G} over {c:Am7}.',
-      fact: 'mm-over-line',
+      fact: 'minor-mm-over-line',
     },
   ],
   facts: [
-    { id: 'mm-a', front: '{n:A} melodic minor, as jazz uses it?', back: '{n:A} {n:B} {n:C} {n:D} {n:E} {n:F#} {n:G#}, the same going up and down.' },
-    { id: 'mm-sevenths', front: 'The seventh chords of {n:A} melodic minor?', back: '{c:AmMaj7} {c:Bm7} {c:Cmaj7#5} {c:D7} {c:E7} {c:F#m7b5} {c:G#m7b5}' },
-    { id: 'mm-over-line', front: 'Melodic minor or Dorian over the minor line cliche?', back: 'Melodic minor over {c:AmMaj7} (its {n:G#}), Dorian over {c:Am7} and {c:Am6} (their {n:G} and {n:F#}).' },
+    { id: 'minor-mm-a', front: '{n:A} melodic minor, as jazz uses it?', back: '{n:A} {n:B} {n:C} {n:D} {n:E} {n:F#} {n:G#}, the same going up and down.' },
+    { id: 'minor-mm-sevenths', front: 'The seventh chords of {n:A} melodic minor?', back: '{c:AmMaj7} {c:Bm7} {c:Cmaj7#5} {c:D7} {c:E7} {c:F#m7b5} {c:G#m7b5}' },
+    { id: 'minor-mm-over-line', front: 'Melodic minor or Dorian over the minor line cliche?', back: 'Melodic minor over {c:AmMaj7} (its {n:G#}), Dorian over {c:Am7} and {c:Am6} (their {n:G} and {n:F#}).' },
   ],
 };
 
@@ -450,7 +450,7 @@ const minorKeyRepertoire: TeacherLesson = {
         { text: 'A minor third', why: 'A minor third is three half steps. These move by one.' },
       ],
       explain: 'Six notes, five half steps, from {n:D} down to {n:A}: the whole space between the tonic and the fifth, filled in chromatically.',
-      fact: 'habanera',
+      fact: 'minor-habanera',
     },
     {
       type: 'play-phrase',
@@ -474,7 +474,7 @@ const minorKeyRepertoire: TeacherLesson = {
       options: [{ text: '{k:D minor}' }, { text: '{k:D major}', correct: true }],
       shuffle: false,
       explain: '{n:F#} instead of {n:F}: {k:D major}, the parallel major. The same tonic, a different third, a different mood.',
-      fact: 'habanera',
+      fact: 'minor-habanera',
     },
     {
       type: 'card',
@@ -491,7 +491,7 @@ const minorKeyRepertoire: TeacherLesson = {
         { text: '{n:D#} and {n:C#}', why: 'Neither appears in this theme.' },
       ],
       explain: 'The thirds {n:A#}–{n:F#} and then {n:A}–{n:F} creep down by half steps. Grieg wrote them; play them proudly.',
-      fact: 'mountain-king',
+      fact: 'minor-mountain-king',
     },
     playerTask({
       id: 'mountain-king',
@@ -506,7 +506,7 @@ const minorKeyRepertoire: TeacherLesson = {
       statement: 'The {n:A#} in the Mountain King theme is a misprint, to be played as {n:A}.',
       answer: false,
       explain: 'It is the composer\'s note: {n:A#} then {n:A}, a chromatic step that makes the theme creep. Correct it and you have a different, duller tune.',
-      fact: 'mountain-king',
+      fact: 'minor-mountain-king',
     },
     playerTask({
       id: 'habanera',
@@ -547,8 +547,8 @@ const minorKeyRepertoire: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'habanera', front: 'How does Bizet\'s Habanera open, and where does its refrain go?', back: 'A chromatic descent from {n:D}: {n:D} {n:C#} {n:C} {n:B} {n:Bb} {n:A}, over a {k:D minor} bass. The refrain turns to {k:D major}.' },
-    { id: 'mountain-king', front: 'What does the Mountain King theme do as it repeats?', back: 'It gets faster and louder each time; its chromatic notes ({n:A#} and {n:F} in {k:E minor}) belong to the tune.' },
+    { id: 'minor-habanera', front: 'How does Bizet\'s Habanera open, and where does its refrain go?', back: 'A chromatic descent from {n:D}: {n:D} {n:C#} {n:C} {n:B} {n:Bb} {n:A}, over a {k:D minor} bass. The refrain turns to {k:D major}.' },
+    { id: 'minor-mountain-king', front: 'What does the Mountain King theme do as it repeats?', back: 'It gets faster and louder each time; its chromatic notes ({n:A#} and {n:F} in {k:E minor}) belong to the tune.' },
   ],
 };
 
@@ -577,7 +577,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
         { text: '{c:F/A}', why: 'That is {r:bVI} in first inversion, a diatonic chord.' },
       ],
       explain: '{n:Bb} {n:D} {n:F} with {n:D} in the bass: {r:bII} in first inversion, hence "sixth" ({n:D} up to {n:Bb} is a sixth).',
-      fact: 'neapolitan-a',
+      fact: 'minor-neapolitan-a',
     },
     {
       type: 'play-chord',
@@ -617,7 +617,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
       bank: ['{n:Eb}', '{n:D}'],
       spelling: 'exact',
       explain: '{n:D#}, not {n:Eb}: it rises to {n:E}, so it is spelled as a raised {n:D}. Played alone, the same pitch is the {n:Eb} of {c:F7}.',
-      fact: 'german-sixth-a',
+      fact: 'minor-german-sixth-a',
     },
     {
       type: 'choice',
@@ -628,7 +628,7 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
         { text: '{n:F} up to {n:G}, {n:D#} down to {n:D}', why: 'They move toward each other, not apart from the target.' },
       ],
       explain: 'The augmented sixth, {n:F} up to {n:D#}, opens out to an octave {n:E}: {n:F} falls a half step, {n:D#} rises one.',
-      fact: 'german-sixth-a',
+      fact: 'minor-german-sixth-a',
     },
     toolTask({
       id: 'jam-neapolitan',
@@ -664,8 +664,8 @@ const neapolitanAndAugmentedSixth: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'neapolitan-a', front: 'The Neapolitan sixth in {k:A minor}?', back: '{c:Bb/D} (xx0331): {r:bII} in first inversion. Its {n:Bb} falls toward the {n:G#} and {n:A} of the cadence.' },
-    { id: 'german-sixth-a', front: 'The German sixth in {k:A minor}, and its guitar grip?', back: '{n:F} {n:A} {n:C} {n:D#}: {n:F} and {n:D#} close in on {n:E}. It sounds like {c:F7} (131211).' },
+    { id: 'minor-neapolitan-a', front: 'The Neapolitan sixth in {k:A minor}?', back: '{c:Bb/D} (xx0331): {r:bII} in first inversion. Its {n:Bb} falls toward the {n:G#} and {n:A} of the cadence.' },
+    { id: 'minor-german-sixth-a', front: 'The German sixth in {k:A minor}, and its guitar grip?', back: '{n:F} {n:A} {n:C} {n:D#}: {n:F} and {n:D#} close in on {n:E}. It sounds like {c:F7} (131211).' },
   ],
 };
 
@@ -693,7 +693,7 @@ const bachInMinor: TeacherLesson = {
         { text: 'Find the highest note', why: 'Useful later. First the chord: it tells the fingers where everything is.' },
       ],
       explain: 'A bar is a chord spread out in time. Name it and the hand forms it; the arpeggio then plays itself.',
-      fact: 'name-the-bar',
+      fact: 'minor-name-the-bar',
     },
     { generate: 'chord-tones', params: { types: ['minor', 'major', '7', 'dim7'], roots: ['D', 'A', 'G', 'Bb', 'C#', 'E'], ask: 'name' } },
     {
@@ -707,7 +707,7 @@ const bachInMinor: TeacherLesson = {
       statement: 'In a dominant pedal in {k:D minor}, the bass holds {n:A} while the chords above it change.',
       answer: true,
       explain: '{n:A} is the fifth of {k:D minor}, its dominant. The chords move over it; the held bass builds the tension that {c:Dm} releases.',
-      fact: 'dominant-pedal',
+      fact: 'minor-dominant-pedal',
     },
     {
       type: 'type-answer',
@@ -715,7 +715,7 @@ const bachInMinor: TeacherLesson = {
       answer: { kind: 'note', value: 'A', spelling: 'any' },
       input: 'keypad',
       explain: 'The dominant is the fifth note of the key: {n:D} {n:E} {n:F} {n:G} {n:A}. On the open string 5, conveniently.',
-      fact: 'dominant-pedal',
+      fact: 'minor-dominant-pedal',
     },
     playerTask({
       id: 'bach-two-bars',
@@ -741,7 +741,7 @@ const bachInMinor: TeacherLesson = {
         { text: '{c:G#m}', why: 'The bass is {n:E}, and {n:E} {n:G#} {n:B} is an {c:E} triad from its root.' },
       ],
       explain: '{c:E} major: the dominant of {k:A minor}, with the raised seventh, {n:G#}. Harmonic minor at the cadence, as always.',
-      fact: 'name-the-bar',
+      fact: 'minor-name-the-bar',
     },
     {
       type: 'card',
@@ -788,13 +788,13 @@ const bachInMinor: TeacherLesson = {
         { text: 'Anywhere, as long as it sounds', why: 'Its place is fixed: on each downbeat. That regularity is the piece\'s pulse.' },
       ],
       explain: 'A bass on each downbeat, the arpeggio above it: name the chord, place the bass, let the fingers follow.',
-      fact: 'bwv999',
+      fact: 'minor-bwv999',
     },
   ],
   facts: [
-    { id: 'bwv999', front: 'Bach\'s Prelude BWV 999: what is it, and in which key here?', back: 'A lute prelude, moved from {k:C minor} to {k:D minor}: one continuous arpeggio over a bass on each downbeat.' },
-    { id: 'name-the-bar', front: 'How do you memorise an arpeggio prelude quickly?', back: 'Name each bar\'s chord before you play it.' },
-    { id: 'dominant-pedal', front: 'What is a dominant pedal?', back: 'The bass holding the dominant ({n:A} in {k:D minor}) while the harmony moves above it.' },
+    { id: 'minor-bwv999', front: 'Bach\'s Prelude BWV 999: what is it, and in which key here?', back: 'A lute prelude, moved from {k:C minor} to {k:D minor}: one continuous arpeggio over a bass on each downbeat.' },
+    { id: 'minor-name-the-bar', front: 'How do you memorise an arpeggio prelude quickly?', back: 'Name each bar\'s chord before you play it.' },
+    { id: 'minor-dominant-pedal', front: 'What is a dominant pedal?', back: 'The bass holding the dominant ({n:A} in {k:D minor}) while the harmony moves above it.' },
   ],
 };
 
@@ -812,6 +812,7 @@ const unit: TeacherUnit = {
     { id: 'falseta', term: 'falseta', definition: 'A short melodic passage a flamenco guitarist plays between sections of strumming.' },
     { id: 'neapolitan', term: 'Neapolitan', definition: 'A major chord on the flattened second degree, usually in first inversion: {c:Bb/D} in {k:A minor}.' },
     { id: 'augmented-sixth', term: 'augmented sixth chord', definition: 'A chromatic chord whose outer notes, an augmented sixth apart, move out by half steps to the dominant.' },
+    { id: 'hemiola', term: 'hemiola', definition: 'Three groups of two heard across two groups of three, or the reverse: the accents shift while the bar keeps its length.' },
     { id: 'pedal-point', term: 'pedal point', definition: 'A bass note held or repeated while the harmony changes above it.' },
   ],
 };

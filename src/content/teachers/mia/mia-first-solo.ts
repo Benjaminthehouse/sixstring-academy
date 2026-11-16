@@ -200,14 +200,14 @@ const LICK_ANSWER = LICK_ASK_ANSWER.slice(12);
 const box1Licks: TeacherLesson = {
   id: 'box-1-licks',
   title: 'Phrases that ask and answer',
-  teaches: 'An answering phrase sounds finished when it lands on a note of the chord underneath: A, C, E or G.',
+  teaches: 'A phrase sounds finished on a note of the chord underneath, A, C, E or G, and most finished on A, home.',
   minutes: 5,
   skill: 'teacher:mia:box-1-licks',
   steps: [
     {
       type: 'card',
       title: 'Sentences made of notes',
-      body: 'A scale becomes music when you play {t:phrase|phrases}: short ideas with a beginning and an end, like sentences. In {t:call-and-response|call and response}, one phrase asks and the next answers. An answer sounds most finished on {n:A}, {n:C}, {n:E} or {n:G}: the notes of the {c:Am7} chord underneath.',
+      body: 'A scale becomes music when you play {t:phrase|phrases}: short ideas with a beginning and an end, like sentences. In {t:call-and-response|call and response}, one phrase asks and the next answers. An answer sounds finished on {n:A}, {n:C}, {n:E} or {n:G}, the notes of the {c:Am7} chord underneath, and most finished of all on {n:A}, home.',
       figure: {
         kind: 'fretboard',
         frets: [5, 8],
@@ -225,14 +225,14 @@ const box1Licks: TeacherLesson = {
     {
       type: 'card',
       title: 'An ask and an answer',
-      body: 'The first four bars of the Pentatonic Box 1 Lick. Phrase 1 asks: it stops on {n:G}, string 2, fret 8, a door left open. Phrase 2 answers and comes home to {n:A}, string 4, fret 7.',
+      body: 'The first four bars of the Pentatonic Box 1 Lick. Phrase 1 asks: it stops on {n:G}, string 2, fret 8. {n:G} is a chord note, so it sounds good, but it is not home: the door stays open. Phrase 2 answers and comes home to {n:A}, string 4, fret 7.',
       figure: { kind: 'tab', tempo: 84, notes: [...LICK_ASK_ANSWER], caption: 'Bars 1 to 4: the ask stops on {n:G}, the answer lands on {n:A}.' },
     },
     {
       type: 'listen-choice',
       prompt: 'Does this phrase sound finished, or open?',
       sound: { kind: 'tab', tempo: 84, notes: [{ string: 3, fret: 5, duration: 'e' }, { string: 3, fret: 7, duration: 'e' }, { string: 2, fret: 5, duration: 'q' }, { string: 3, fret: 7, duration: 'q' }, { string: 3, fret: 5, duration: 'q' }, { string: 4, fret: 7, duration: 'h' }] },
-      options: [{ text: 'Finished: it lands on a chord note', correct: true }, { text: 'Open: it is still asking' }],
+      options: [{ text: 'Finished: it comes home', correct: true }, { text: 'Open: it is still asking' }],
       shuffle: false,
       explain: 'It ends on {n:A}, string 4 fret 7: the home note, and a note of {c:Am7}. That sounds finished.',
     },
@@ -240,7 +240,7 @@ const box1Licks: TeacherLesson = {
       type: 'listen-choice',
       prompt: 'And this one: finished, or open?',
       sound: { kind: 'tab', tempo: 84, notes: [{ string: 2, fret: 5, duration: 'e' }, { string: 2, fret: 8, duration: 'e' }, { string: 2, fret: 5, duration: 'q' }, { string: 3, fret: 5, duration: 'q' }, { string: 2, fret: 5, duration: 'q' }, { string: 3, fret: 7, duration: 'h' }] },
-      options: [{ text: 'Finished: it lands on a chord note' }, { text: 'Open: it is still asking', correct: true }],
+      options: [{ text: 'Finished: it comes home' }, { text: 'Open: it is still asking', correct: true }],
       shuffle: false,
       explain: 'It ends on {n:D}, string 3 fret 7, which is not in {c:Am7}. It hangs in the air, waiting for an answer.',
     },
@@ -300,7 +300,7 @@ const box1Licks: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'am7-chord-tones', front: 'Over {c:Am7}, which notes of the box sound most finished to end on?', back: '{n:A}, {n:C}, {n:E} and {n:G}: the notes of the chord. {n:D} sounds open.' },
+    { id: 'am7-chord-tones', front: 'Over {c:Am7}, which notes of the box sound most finished to end on?', back: '{n:A}, {n:C}, {n:E} and {n:G}: the notes of the chord, and {n:A}, home, most of all. {n:D} sounds open.' },
     { id: 'call-response', front: 'What is call and response?', back: 'One phrase asks a question and the next one answers it.' },
   ],
 };
@@ -359,7 +359,7 @@ const firstImprovisation: TeacherLesson = {
     {
       type: 'card',
       title: 'Play, then rest',
-      body: 'Play a short phrase, then leave a rest as long as the phrase. Rests are not empty: they let your phrase sink in and give you time to think of the next one. Here is one of mine with the three notes: two bars of phrase, then two bars of silence.',
+      body: 'Play a short phrase, then leave a rest as long as the phrase. Rests are not empty: they let your phrase sink in and give you time to think of the next one. Here is one of mine with the three notes, two bars long. After it, I would leave two bars of silence.',
       figure: { kind: 'audio', sound: { kind: 'tab', tempo: 90, notes: [...MIA_PHRASE] }, label: 'Hear Mia\'s phrase' },
     },
     {
@@ -466,7 +466,7 @@ const pentatonicOverTheBlues: TeacherLesson = {
       sound: { kind: 'progression', chords: ['A', 'A', 'D', 'D'], beats: 4, tempo: 100 },
       options: [{ text: 'To {c:D}, as in bar 5', correct: true }, { text: 'To {c:E}, as in bar 9' }],
       shuffle: false,
-      explain: 'That was {c:A} to {c:D}: the change in bar 5. {c:D} sits a little lower and softer than {c:E}.',
+      explain: 'That was {c:A} to {c:D}: the change in bar 5. In bar 9 the band goes to {c:E} first, and {c:D} comes one bar later.',
     },
     {
       type: 'listen-choice',
@@ -797,7 +797,7 @@ const unit: TeacherUnit = {
     lesson: 'blues-solo-milestone',
     step: 'show',
     piece: 'Blues in A',
-    celebrate: 'You played rhythm, took a solo and landed on {n:A} in bar 11, so the band knew you were done. That is what guitarists do in a band. Next: playing with others, and a practice habit for life.',
+    celebrate: 'You climbed through box 1 and landed on {n:A} in bar 11, right where a solo hands back to the band. Rhythm, a solo, then hand back: that is what guitarists do. Next: playing with others, and a practice habit for life.',
   },
   glossary: [
     { id: 'phrase', term: 'phrase', definition: 'A short musical idea with a beginning and an end, like a sentence.' },

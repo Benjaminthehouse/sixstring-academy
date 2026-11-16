@@ -34,7 +34,7 @@ const TRILL: TabNote[] = [
   { string: 3, fret: 5, duration: 'q' },
 ];
 
-/** Eight hammer-ons and eight pull-offs between C and D on string 3. */
+/** C and D on string 3, sixteen notes from one pick: eight hammer-ons with a pull-off between each. */
 const EIGHT_TIMES: TabNote[] = Array.from({ length: 8 }, () => [
   { string: 3, fret: 5, duration: 'e' },
   { string: 3, fret: 7, duration: 'e' },
@@ -78,7 +78,7 @@ const legato: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Pick {n:C} once, then hammer to {n:D} and pull back to {n:C}, eight times. Every note as loud as the first.',
+      prompt: 'Pick {n:C} once, then hammer {n:D}, pull back to {n:C}, and keep going: eight hammers, one pick. Every note as loud as the first.',
       notes: [...EIGHT_TIMES],
       octave: 'exact',
       tempo: 60,
@@ -176,7 +176,7 @@ const slides: TeacherLesson = {
     {
       type: 'card',
       title: 'Keep it pressed, let it glide',
-      body: 'A {t:slide} moves the fretting finger along the string while it stays pressed, so the pitch glides to the new fret. Lick: Slides has three: string 3 fret 7 ({n:D}) to fret 9 ({n:E}), string 2 fret 8 ({n:G}) to fret 10 ({n:A}), and a long one on string 4, fret 5 ({n:G}) to fret 10 ({n:C}).',
+      body: 'A {t:slide} moves the fretting finger along the string while it stays pressed, so the pitch glides to the new fret. Lick: Slides is built on three: string 3 fret 7 ({n:D}) to fret 9 ({n:E}), string 2 fret 8 ({n:G}) to fret 10 ({n:A}), and a long one on string 4, fret 5 ({n:G}) to fret 10 ({n:C}).',
       figure: {
         kind: 'tab',
         tempo: 72,
@@ -265,7 +265,7 @@ const slides: TeacherLesson = {
       song: 'st-lick-slide',
       tempo: 78,
       minutes: 4,
-      body: 'Play it at about 72 BPM, then at 100 % (92 BPM). All three slides with finger 3; the hand comes home to box 1 in the rests at the ends of bars 2 and 4.',
+      body: 'Play it at about 72 BPM, then at 100 % (92 BPM). Every slide with finger 3, the slide back down in bar 7 too; the hand comes home to box 1 in the rests at the ends of bars 2 and 4.',
     }),
     {
       type: 'choice',
@@ -359,7 +359,7 @@ const bendsInTune: TeacherLesson = {
       options: [
         { text: 'Fret 10', correct: true },
         { text: 'Fret 9', why: 'Fret 9 is a half step: the target of a half-step bend.' },
-        { text: 'Fret 12', why: 'Four frets would be a two-step bend.' },
+        { text: 'Fret 12', why: 'Four frets is two whole steps: far more than this bend.' },
       ],
       explain: 'A whole step is two frets: string 2 fret 10, {n:A}.',
       fact: 'lead-bend-target',
@@ -403,7 +403,7 @@ const bendsInTune: TeacherLesson = {
       title: 'Picking-Hand Muting',
       exercise: 'tech-picking-hand-mute',
       minutes: 2,
-      body: 'Rest the side of your picking palm on the strings below the one you play, so they stay silent while you bend. Stop picking and listen: silence, not a hum.',
+      body: 'Rest the side of your picking palm on the thicker strings (strings 4 to 6 while you play on 3 to 1), so they stay silent while you bend. Stop picking and listen: silence, not a hum.',
     }),
     {
       type: 'choice',
@@ -413,7 +413,7 @@ const bendsInTune: TeacherLesson = {
         { text: 'Bend more slowly', why: 'Speed is not the problem: the strings you are not playing are left free.' },
         { text: 'Pick harder', why: 'That makes the other strings ring more.' },
       ],
-      explain: 'The side of the picking palm keeps the strings below silent, and the underside of finger 1 can touch the strings above.',
+      explain: 'The side of the picking palm keeps the thicker strings silent, and the underside of finger 1 can lightly touch the thinner ones.',
     },
     playerTask({
       id: 'lick-bends',
@@ -466,7 +466,7 @@ const vibrato: TeacherLesson = {
       type: 'true-false',
       statement: 'Bending vibrato dips below the note as well as rising above it.',
       answer: false,
-      explain: 'It only bends up from the note and comes back to it. Below the note would mean pulling the string the wrong way.',
+      explain: 'It only bends up from the note and comes back to it. Push or pull, bending a string can only raise its pitch, so the fretted note is the bottom of every wave.',
       fact: 'lead-vibrato-up',
     },
     {
@@ -508,7 +508,7 @@ const vibrato: TeacherLesson = {
       exercise: 'tech-vibrato-bend',
       minutes: 5,
       body: 'String 2 fret 8 ({n:G}), finger 3: two waves per beat at 60 BPM, then three, then four. The microphone checks the speed against the click, the evenness, and that the waves rise from {n:G}, never below.',
-      tip: 'Narrow and slow first: a quarter tone wide. Widen it only when it stays even.',
+      tip: 'Narrow and slow first: a quarter tone wide. Widen it only when it stays even. A tired hand or wrist means rest.',
     }),
     {
       type: 'play-note',
@@ -519,7 +519,7 @@ const vibrato: TeacherLesson = {
       explain: 'The microphone heard {n:A} start in tune. On string 1, pull the string toward the floor for each wave: it still goes up, never below.',
       alternative: {
         type: 'choice',
-        prompt: 'No microphone? Record it on your phone and compare it with the Technique example. What should match?',
+        prompt: 'No microphone? Record it on your phone and listen back with the click in your head. What should you hear?',
         options: [
           { text: 'Even waves, in time, never below the note', correct: true },
           { text: 'As wide and fast as possible', why: 'Wide and fast is hard to keep even. Even and in time comes first.' },
@@ -825,7 +825,7 @@ const phraseLikeASinger: TeacherLesson = {
   ],
   facts: [
     { id: 'lead-phrase-voice', front: 'How do you make a guitar phrase sound like a voice?', back: 'Slide into notes, bend them, hold them with vibrato and leave space to breathe: one technique per phrase at first.' },
-    { id: 'lead-ask-answer', front: 'A phrase that asks and one that answers: how do they end?', back: 'An asking phrase stops away from home (on {n:C} or {n:E} in {n:A} minor); an answer comes home to the root, {n:A}.' },
+    { id: 'lead-ask-answer', front: 'A phrase that asks and one that answers: how do they end?', back: 'An asking phrase stops away from home (on {n:C} or {n:E} in {k:A minor}); an answer comes home to the root, {n:A}.' },
   ],
 };
 

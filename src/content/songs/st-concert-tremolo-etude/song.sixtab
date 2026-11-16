@@ -10,7 +10,8 @@
 # Coda (bars 33-40): the opening in major once more, a last B flat from D minor, and a rise to
 # a held F# over D major.
 # Positions: V (finger 1 on fret 5), IX and X, and XII for the high G. Most shifts happen while
-# the thumb plays an open string (A or D), which gives the hand its moment to move. Left-hand
+# the thumb plays an open string (A, D or G), which gives the hand its moment to move. Every
+# let-ring bass can be held under the whole bar (in bar 13 that is why the G is the open string). Left-hand
 # fingers are marked only at the shifts; p a m i only in bars 1 and 17.
 title: Concert Tremolo Etude
 composer: Sixstring Academy
@@ -37,7 +38,7 @@ role: lead
 | "Gm/D" /32 5:5{lr} 1:6 1:6 1:6 4:5 1:6 1:6 1:6 3:7 1:6 1:6 1:6 4:5 1:6 1:6 1:6 3:7 1:5 1:5 1:5 4:5 1:5 1:5 1:5 |
 | "A7" /32 5:0{lr} 2:8 2:8 2:8 4:5 2:8 2:8 2:8 3:6 2:6 2:6 2:6 4:5 2:6 2:6 2:6 3:6 2:5 2:5 2:5 4:5 2:5 2:5 2:5 |
 | "Dm7" /32 5:5{lr} 2:6 2:6 2:6 4:7 2:6 2:6 2:6 3:7 1:5 1:5 1:5 4:7 1:5 1:5 1:5 3:7 1:8 1:8 1:8 4:7 1:8 1:8 1:8 |
-| ^"Shift up to twelfth position for the high G" "Gm" /32 5:10{lr} 2:11 2:11 2:11 4:12 2:11 2:11 2:11 3:0 1:10 1:10 1:10 4:12 1:10 1:10 1:10 3:0 1:15{4} 1:15 1:15 4:12 1:15 1:15 1:15 |
+| ^"Shift up to twelfth position for the high G" "Gm" /32 3:0{lr} 2:11 2:11 2:11 4:12 2:11 2:11 2:11 3:0 1:10 1:10 1:10 4:12 1:10 1:10 1:10 3:0 1:15{4} 1:15 1:15 4:12 1:15 1:15 1:15 |
 | "Em7b5" /32 6:12{lr} 1:15{4} 1:15 1:15 5:13 1:15 1:15 1:15 4:12 1:15 1:15 1:15 5:13 1:13 1:13 1:13 4:12 1:12 1:12 1:12 5:13 1:12 1:12 1:12 |
 | "A7" /32 5:0{lr} 1:12{4} 1:12 1:12 4:11 1:12 1:12 1:12 3:9 1:10 1:10 1:10 4:11 1:10 1:10 1:10 3:12 1:9 1:9 1:9 4:11 1:9 1:9 1:9 |
 | "Dm" /32 4:0{lr} 1:10 1:10 1:10 5:12 1:10 1:10 1:10 3:10 1:10 1:10 1:10 5:12 1:10 1:10 1:10 3:10 1:10 1:10 1:10 5:12 1:10 1:10 1:10 ||

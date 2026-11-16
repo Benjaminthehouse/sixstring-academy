@@ -14,6 +14,8 @@ import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, harmonizeScale, scaleNotes } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, phraseMidi, validateCourse, type FretboardFindExercise, type PlayPhraseExercise } from '@/lessons';
 import { parseAddress } from '@/features/progressions/model/address';
+import { drillById, drillPlan } from '@/features/fretboard/core/drills';
+import { defaultSettings } from '@/features/fretboard/core/settings';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherLesson, TeacherUnit } from '../types';
 import unit from './dev-caged';
@@ -276,6 +278,33 @@ describe('Dev unit 2: CAGED', () => {
       const t = tasks(unit).find((x) => taskSong(x) === id2)!;
       if (!songEntry(id2)) expect(t.fallback, id2).toBeTruthy();
     }
+  });
+
+  // ── Added by the independent review ──────────────────────────────────────────────────────────
+
+  it('explains slash-chord names before the first one appears', () => {
+    const steps = unit.lessons.flatMap((l) => l.steps.map((s) => ({ lesson: l.id, text: JSON.stringify(s) })));
+    const first = steps.find((s) => /\{c:[A-G][#b]?m?\/[A-G][#b]?\}/.test(s.text));
+    expect(first?.lesson).toBe('triads-on-top');
+    expect(first?.text).toContain('The slash names the bass: {c:C/E} is {c:C} with {n:E} lowest.');
+    // And the claim is the engine's: in C/E the lowest note is E.
+    expect(identifyFretted('xxx988').notes[0].note).toBe('E');
+  });
+
+  it('describes the Find every one round as long as the Fretboard screen makes it', () => {
+    const t = task('find-every-note');
+    expect(t.params).toEqual(['drill', 'find-every-note']);
+    const drill = drillById(t.params?.[1]);
+    expect(drill).toBeTruthy();
+    const plan = drillPlan(drill!, defaultSettings());
+    expect(plan.length).toBe(5);
+    expect(plan.seconds).toBeNull();
+    expect(plain(t.body)).toContain('five notes');
+    expect(plain(t.body)).not.toMatch(/one minute/i);
+  });
+
+  it('celebrates what the unit taught: the system, any major chord in five places', () => {
+    expect(plain(unit.milestone!.celebrate)).toContain('You can find any major chord in five places');
   });
 });
 

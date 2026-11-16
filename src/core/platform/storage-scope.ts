@@ -98,15 +98,30 @@ export interface DataItem {
   label: string;
   /** Singular and plural of what is counted. */
   unit: readonly [string, string];
+  /** What the stored value is: a list, or an object. Any other value is a damaged entry. */
+  shape: 'list' | 'object';
+  /** For an object: the list inside it that this item counts (it must be a list when present). */
+  field?: string;
+  /** Most the feature keeps (it drops the rest when it reads the value): counts never go above it. */
+  max?: number;
+  /** A draft: merged by taking the copy changed last whole, never by joining what is inside. */
+  whole?: true;
   /** How many there are in a stored value (0 for anything unreadable). */
   count(value: unknown): number;
 }
 
 type Rec = Record<string, unknown>;
 const isRec = (value: unknown): value is Rec => typeof value === 'object' && value !== null && !Array.isArray(value);
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+/** The objects in a list (a damaged item is not counted: the feature drops it when it reads the list). */
+const list = (value: unknown): unknown[] => (Array.isArray(value) ? value.filter(isRec) : []);
 const own = (value: unknown): unknown[] => list(value).filter((item) => isRec(item) && item.builtIn !== true);
 const field = (value: unknown, name: string): unknown => (isRec(value) ? value[name] : undefined);
+const atMost = (n: number, max: number): number => Math.min(n, max);
+
+// The features' own limits (practice/model/journal.ts MAX_JOURNAL, practice/model/routines.ts
+// MAX_ROUTINES): a merge can join more than that, and the feature keeps only the newest / first.
+const MAX_JOURNAL = 400;
+const MAX_ROUTINES = 30;
 
 function arcadeLevels(value: unknown): number {
   let n = 0;
@@ -121,22 +136,23 @@ function arcadeLevels(value: unknown): number {
 
 /** The learner's own things, in the order the Your data screen lists them. */
 export const DATA_ITEMS: readonly DataItem[] = [
-  { id: 'journal', key: 'practice.data', label: 'Practice journal', unit: ['entry', 'entries'], count: (v) => list(field(v, 'journal')).length },
-  { id: 'routines', key: 'practice.data', label: 'Practice routines', unit: ['routine', 'routines'], count: (v) => own(field(v, 'routines')).length },
-  { id: 'goals', key: 'practice.data', label: 'Practice goals', unit: ['goal', 'goals'], count: (v) => list(field(v, 'goals')).length },
-  { id: 'arcade', key: 'arcade', label: 'Arcade records', unit: ['level played', 'levels played'], count: arcadeLevels },
-  { id: 'progressions', key: 'progressions.saved', label: 'Saved progressions', unit: ['progression', 'progressions'], count: (v) => list(v).length },
-  { id: 'progression-draft', key: 'progressions.draft', label: 'Progression in the builder', unit: ['draft', 'drafts'], count: (v) => (isRec(v) && list(v.slots).length > 0 ? 1 : 0) },
-  { id: 'patterns', key: 'rhythm.patterns', label: 'Strumming patterns', unit: ['pattern', 'patterns'], count: (v) => list(v).length },
+  { id: 'journal', key: 'practice.data', label: 'Practice journal', unit: ['entry', 'entries'], shape: 'object', field: 'journal', max: MAX_JOURNAL, count: (v) => atMost(list(field(v, 'journal')).length, MAX_JOURNAL) },
+  { id: 'routines', key: 'practice.data', label: 'Practice routines', unit: ['routine', 'routines'], shape: 'object', field: 'routines', max: MAX_ROUTINES, count: (v) => atMost(own(field(v, 'routines')).length, MAX_ROUTINES) },
+  { id: 'goals', key: 'practice.data', label: 'Practice goals', unit: ['goal', 'goals'], shape: 'object', field: 'goals', count: (v) => list(field(v, 'goals')).length },
+  { id: 'arcade', key: 'arcade', label: 'Arcade records', unit: ['level played', 'levels played'], shape: 'object', count: arcadeLevels },
+  { id: 'progressions', key: 'progressions.saved', label: 'Saved progressions', unit: ['progression', 'progressions'], shape: 'list', count: (v) => list(v).length },
+  { id: 'progression-draft', key: 'progressions.draft', label: 'Progression in the builder', unit: ['draft', 'drafts'], shape: 'object', whole: true, count: (v) => (isRec(v) && list(v.slots).length > 0 ? 1 : 0) },
+  { id: 'patterns', key: 'rhythm.patterns', label: 'Strumming patterns', unit: ['pattern', 'patterns'], shape: 'list', count: (v) => list(v).length },
   {
     id: 'calibration',
     key: 'rhythm.calibration',
     label: 'Rhythm calibration',
     unit: ['measurement', 'measurements'],
+    shape: 'object',
     count: (v) => (typeof field(v, 'tapMs') === 'number' ? 1 : 0) + (typeof field(v, 'micMs') === 'number' ? 1 : 0),
   },
-  { id: 'presets', key: 'metronome.presets', label: 'Metronome presets', unit: ['preset', 'presets'], count: (v) => own(v).length },
-  { id: 'tunings', key: 'tuner.tunings', label: 'Custom tunings', unit: ['tuning', 'tunings'], count: (v) => list(v).length },
+  { id: 'presets', key: 'metronome.presets', label: 'Metronome presets', unit: ['preset', 'presets'], shape: 'list', count: (v) => own(v).length },
+  { id: 'tunings', key: 'tuner.tunings', label: 'Custom tunings', unit: ['tuning', 'tunings'], shape: 'list', count: (v) => list(v).length },
 ];
 
 const RECORD_KEYS = new Set(DATA_ITEMS.map((item) => item.key));
@@ -144,6 +160,29 @@ const RECORD_KEYS = new Set(DATA_ITEMS.map((item) => item.key));
 /** True for learner data the learner made or earned; false for settings (kept by "keep my settings"). */
 export function isRecordKey(key: string): boolean {
   return classifyKey(key) === 'learner' && RECORD_KEYS.has(key);
+}
+
+/** True for a record that merges as a whole (a draft): the copy changed last is taken, nothing inside is joined. */
+export function isWholeRecord(key: string): boolean {
+  return DATA_ITEMS.some((item) => item.key === key && item.whole === true);
+}
+
+/**
+ * True when a stored record has the wrong shape for its key: not a list where the feature keeps a
+ * list, not an object where it keeps an object, or a list inside it that is not a list. Such an entry
+ * in a file or another copy is damaged: it must never take the place of a good one. Settings are
+ * never called damaged here (their screens check them when they read them).
+ */
+export function isDamagedRecord(key: string, entry: DataEntry): boolean {
+  const items = DATA_ITEMS.filter((item) => item.key === key);
+  if (items.length === 0 || classifyKey(key) !== 'learner') return false;
+  if (typeof entry.raw === 'string') return true;
+  const value = entry.value;
+  for (const item of items) {
+    if (item.shape === 'list' ? !Array.isArray(value) : !isRec(value)) return true;
+    if (item.field !== undefined && isRec(value) && value[item.field] !== undefined && !Array.isArray(value[item.field])) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -179,12 +218,18 @@ export function entryFromText(text: string, at: number): DataEntry {
 
 /**
  * A data set from a file or the cloud, checked entry by entry: keys that are not learner data, and
- * entries that are damaged, are left out and named in `skipped`. Never throws.
+ * entries that are damaged, are left out and named in `skipped`. With `records`, a record of the
+ * wrong shape (`isDamagedRecord`: a journal that is not a list ...) counts as damaged too, and its key
+ * is also named in `damaged`, so an import leaves this device's copy of it as it is. Never throws.
  */
-export function sanitizeDataSet(input: unknown, { only = (key: string) => classifyKey(key) === 'learner' }: { only?: (key: string) => boolean } = {}): { data: DataSet; skipped: string[] } {
+export function sanitizeDataSet(
+  input: unknown,
+  { only = (key: string) => classifyKey(key) === 'learner', records = false }: { only?: (key: string) => boolean; records?: boolean } = {},
+): { data: DataSet; skipped: string[]; damaged: string[] } {
   const data: DataSet = {};
   const skipped: string[] = [];
-  if (!isRec(input)) return { data, skipped };
+  const damaged: string[] = [];
+  if (!isRec(input)) return { data, skipped, damaged };
   for (const [key, entry] of Object.entries(input)) {
     if (!key || key.length > 200 || !only(key)) {
       skipped.push(key);
@@ -192,12 +237,19 @@ export function sanitizeDataSet(input: unknown, { only = (key: string) => classi
     }
     if (!isRec(entry) || (entry.value === undefined && typeof entry.raw !== 'string')) {
       skipped.push(key);
+      damaged.push(key);
       continue;
     }
     const at = typeof entry.at === 'number' && Number.isFinite(entry.at) && entry.at >= 0 ? entry.at : 0;
-    data[key] = typeof entry.raw === 'string' ? { at, raw: entry.raw } : { at, value: entry.value };
+    const clean: DataEntry = typeof entry.raw === 'string' ? { at, raw: entry.raw } : { at, value: entry.value };
+    if (records && isDamagedRecord(key, clean)) {
+      skipped.push(key);
+      damaged.push(key);
+      continue;
+    }
+    data[key] = clean;
   }
-  return { data, skipped };
+  return { data, skipped, damaged };
 }
 
 /** FNV-1a over the UTF-16 code units: cheap, and enough to notice that a value changed. */

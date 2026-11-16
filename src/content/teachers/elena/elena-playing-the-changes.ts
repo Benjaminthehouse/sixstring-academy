@@ -116,7 +116,7 @@ const seventhArpeggios: TeacherLesson = {
         { left: '{c:Bm7b5}', right: '{n:B} {n:D} {n:F} {n:A}' },
       ],
       explain: 'Each stacks thirds from the scale: every other letter from the root. No sharps, no flats: they are all {k:C major}.',
-      fact: 'sevenths-c',
+      fact: 'chg-sevenths-c',
     },
     {
       type: 'card',
@@ -207,7 +207,7 @@ const seventhArpeggios: TeacherLesson = {
       statement: '{c:Bm7b5} is the only half-diminished seventh chord in {k:C major}.',
       answer: true,
       explain: 'Only the chord on the seventh degree has a flat fifth: {n:B} to {n:F}. The others are major seventh, minor seventh or dominant.',
-      fact: 'sevenths-c',
+      fact: 'chg-sevenths-c',
     },
     toolTask({
       id: 'jam-arpeggios-only',
@@ -226,12 +226,12 @@ const seventhArpeggios: TeacherLesson = {
         { text: '{c:Dm7} and {c:Am7}', why: 'Minor triads with minor sevenths: minor seventh chords.' },
       ],
       explain: 'On {r:I} and {r:IV}: {c:Cmaj7} ({n:B}) and {c:Fmaj7} ({n:E}), each with a major seventh above a major triad.',
-      fact: 'sevenths-c',
+      fact: 'chg-sevenths-c',
     },
   ],
   facts: [
-    { id: 'sevenths-c', front: 'The seven diatonic sevenths of {k:C major}?', back: '{c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7} {c:Am7} {c:Bm7b5}.' },
-    { id: 'arpeggio-path', front: 'Why practise seventh arpeggios?', back: 'They are the shortest path from chords to lines: the chord\'s own notes, ready under the fingers.' },
+    { id: 'chg-sevenths-c', front: 'The seven diatonic sevenths of {k:C major}?', back: '{c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7} {c:Am7} {c:Bm7b5}.' },
+    { id: 'chg-arpeggio-path', front: 'Why practise seventh arpeggios?', back: 'They are the shortest path from chords to lines: the chord\'s own notes, ready under the fingers.' },
   ],
 };
 
@@ -259,7 +259,7 @@ const verticalAndHorizontal: TeacherLesson = {
         { text: '{n:G}, the root', why: '{n:G} ended the {c:Dm7} bar, on beat 4.' },
       ],
       explain: 'The scale simply carries on: {n:A} on beat 1, then {n:B}, {n:C}, {n:D}. Correct in {k:C major}, but the arrival of {c:G7} goes unheard.',
-      fact: 'horizontal-vertical',
+      fact: 'chg-horizontal-vertical',
     },
     {
       type: 'card',
@@ -274,7 +274,7 @@ const verticalAndHorizontal: TeacherLesson = {
       blanks: ['{n:D}', '{n:B}', '{n:E}'],
       bank: ['{n:A}', '{n:C}'],
       explain: 'The root of {c:Dm7}, then the thirds of {c:G7} and {c:Cmaj7}: the notes that tell the ear the chord has changed.',
-      fact: 'horizontal-vertical',
+      fact: 'chg-horizontal-vertical',
     },
     {
       type: 'listen-choice',
@@ -314,7 +314,7 @@ const verticalAndHorizontal: TeacherLesson = {
       strings: [4, 3, 2],
       frets: [4, 7],
       explain: '{n:G#} on string 4 fret 6, {n:B} and {n:D} on string 3 at frets 4 and 7, {n:E} on string 2 fret 5.',
-      fact: 'when-vertical',
+      fact: 'chg-when-vertical',
     },
     playerTask({
       id: 'study-tune',
@@ -338,7 +338,7 @@ const verticalAndHorizontal: TeacherLesson = {
       statement: 'Over {c:E7} in {k:C major}, the {k:C major} scale has every note of the chord.',
       answer: false,
       explain: '{c:E7} is {n:E} {n:G#} {n:B} {n:D}. The scale has {n:G}, which clashes with the chord\'s third: go vertical there.',
-      fact: 'when-vertical',
+      fact: 'chg-when-vertical',
     },
     toolTask({
       id: 'jam-v-of-vi',
@@ -357,12 +357,12 @@ const verticalAndHorizontal: TeacherLesson = {
       ],
       shuffle: false,
       explain: 'A long stretch in one key is horizontal country: the scale, phrased well. Vertical thinking earns its keep where the chords move.',
-      fact: 'horizontal-vertical',
+      fact: 'chg-horizontal-vertical',
     },
   ],
   facts: [
-    { id: 'horizontal-vertical', front: 'Horizontal or vertical playing?', back: 'Horizontal: one scale for a whole passage. Vertical: each chord\'s own arpeggio and tensions, so the harmony is audible.' },
-    { id: 'when-vertical', front: 'When do you go vertical?', back: 'Where the harmony moves or leaves the key: over {c:E7} in {k:C major}, for its {n:G#}.' },
+    { id: 'chg-horizontal-vertical', front: 'Horizontal or vertical playing?', back: 'Horizontal: one scale for a whole passage. Vertical: each chord\'s own arpeggio and tensions, so the harmony is audible.' },
+    { id: 'chg-when-vertical', front: 'When do you go vertical?', back: 'Where the harmony moves or leaves the key: over {c:E7} in {k:C major}, for its {n:G#}.' },
   ],
 };
 
@@ -401,7 +401,7 @@ const approachNotesAndEnclosures: TeacherLesson = {
         { text: '{n:G}', why: '{n:G} is the root, a third below.' },
       ],
       explain: '{n:A#}, string 3 fret 3, rises a half step to {n:B} at fret 4. Put it on the and, the target on the beat.',
-      fact: 'approach-note',
+      fact: 'chg-approach-note',
     },
     {
       type: 'card',
@@ -446,7 +446,7 @@ const approachNotesAndEnclosures: TeacherLesson = {
       blanks: ['{n:G}', '{n:E}'],
       bank: ['{n:F#}', '{n:Eb}'],
       explain: '{n:G} is the scale step above; {n:E} is a half step below, and in {k:C major} it is also the scale step. Then {n:F}.',
-      fact: 'enclosure',
+      fact: 'chg-enclosure',
     },
     {
       type: 'listen-choice',
@@ -470,7 +470,7 @@ const approachNotesAndEnclosures: TeacherLesson = {
       statement: 'An approach note belongs on the strong part of the beat, with the target after it.',
       answer: false,
       explain: 'The other way round: the approach on the weak part (the and), the target on the beat. Then the tension resolves where the ear expects it.',
-      fact: 'approach-note',
+      fact: 'chg-approach-note',
     },
     {
       type: 'match-pairs',
@@ -481,13 +481,13 @@ const approachNotesAndEnclosures: TeacherLesson = {
         { left: '{n:F}, third of {c:Dm7}', right: '{n:G} {n:E} {n:F}' },
       ],
       explain: 'Above by a scale step, below by a half step, then the third. Three chords, three targets.',
-      fact: 'enclosure',
+      fact: 'chg-enclosure',
     },
   ],
   facts: [
-    { id: 'approach-note', front: 'What is a chromatic approach note?', back: 'A note a half step below a chord tone, on the weak part of a beat, leading into it on the beat.' },
-    { id: 'enclosure', front: 'What is an enclosure?', back: 'A scale step above the target, a half step below it, then the target: {n:F} {n:D#} {n:E} into {n:E}.' },
-    { id: 'enclosure-targets', front: 'Which notes do approaches and enclosures aim at first?', back: 'The thirds: {n:F} of {c:Dm7}, {n:B} of {c:G7}, {n:E} of {c:Cmaj7}.' },
+    { id: 'chg-approach-note', front: 'What is a chromatic approach note?', back: 'A note a half step below a chord tone, on the weak part of a beat, leading into it on the beat.' },
+    { id: 'chg-enclosure', front: 'What is an enclosure?', back: 'A scale step above the target, a half step below it, then the target: {n:F} {n:D#} {n:E} into {n:E}.' },
+    { id: 'chg-enclosure-targets', front: 'Which notes do approaches and enclosures aim at first?', back: 'The thirds: {n:F} of {c:Dm7}, {n:B} of {c:G7}, {n:E} of {c:Cmaj7}.' },
   ],
 };
 
@@ -528,7 +528,7 @@ const arpeggioSubstitution: TeacherLesson = {
         { text: 'The eleventh', why: 'The eleventh would be {n:F}, which is not in {c:Em7}.' },
       ],
       explain: '{n:D} is a ninth above {n:C}: the extension the plain {c:Cmaj7} arpeggio never reaches.',
-      fact: 'third-up-rule',
+      fact: 'chg-third-up-rule',
     },
     {
       type: 'card',
@@ -558,7 +558,7 @@ const arpeggioSubstitution: TeacherLesson = {
         { left: '{c:Am7}', right: '{c:Cmaj7}' },
       ],
       explain: 'Each arpeggio starts on the chord\'s third and runs to its ninth. In one key the substitutes are simply the diatonic sevenths a third up.',
-      fact: 'third-up-c',
+      fact: 'chg-third-up-c',
     },
     {
       type: 'choice',
@@ -570,7 +570,7 @@ const arpeggioSubstitution: TeacherLesson = {
         { text: '{c:G7}', why: '{c:G7} has {n:B} but also {n:F}, a clash with the chord\'s fifth.' },
       ],
       explain: '{c:Cmaj7} is {n:C} {n:E} {n:G} {n:B}: over {c:Am7} that is the flat third, fifth, flat seventh and ninth.',
-      fact: 'third-up-rule',
+      fact: 'chg-third-up-rule',
     },
     {
       type: 'play-phrase',
@@ -639,12 +639,12 @@ const arpeggioSubstitution: TeacherLesson = {
       statement: 'Over {c:G7}, the {c:Bm7b5} arpeggio holds the ninth, {n:A}.',
       answer: true,
       explain: '{n:B} {n:D} {n:F} {n:A}: the {n:A} is a ninth above {n:G}. The root is left to the bass.',
-      fact: 'third-up-c',
+      fact: 'chg-third-up-c',
     },
   ],
   facts: [
-    { id: 'third-up-rule', front: 'Arpeggio substitution: which arpeggio over a seventh chord?', back: 'The seventh arpeggio built on its third: it gives the 3, 5, 7 and 9.' },
-    { id: 'third-up-c', front: 'Arpeggios a third up for {c:Dm7}, {c:G7}, {c:Cmaj7}?', back: '{c:Fmaj7}, {c:Bm7b5}, {c:Em7}.' },
+    { id: 'chg-third-up-rule', front: 'Arpeggio substitution: which arpeggio over a seventh chord?', back: 'The seventh arpeggio built on its third: it gives the 3, 5, 7 and 9.' },
+    { id: 'chg-third-up-c', front: 'Arpeggios a third up for {c:Dm7}, {c:G7}, {c:Cmaj7}?', back: '{c:Fmaj7}, {c:Bm7b5}, {c:Em7}.' },
   ],
 };
 
@@ -684,7 +684,7 @@ const alteredDominant: TeacherLesson = {
       blanks: ['{n:Bb}', '{n:Eb}'],
       bank: ['{n:A}', '{n:E}'],
       explain: 'Everything that can be altered is: flat and sharp nine ({n:Ab}, {n:Bb}), flat five ({n:Db}), flat thirteen ({n:Eb}). Only the root, third and seventh stay.',
-      fact: 'g-altered',
+      fact: 'chg-g-altered',
     },
     {
       type: 'choice',
@@ -695,7 +695,7 @@ const alteredDominant: TeacherLesson = {
         { text: '{n:Ab} major', why: '{n:Ab} major has {n:C}, which clashes with {c:G7}\'s third. Melodic minor has {n:Cb} instead.' },
       ],
       explain: '{n:Ab} melodic minor is {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F} {n:G}. Start it on {n:G}, its seventh degree: the altered scale.',
-      fact: 'g-altered',
+      fact: 'chg-g-altered',
     },
     {
       type: 'card',
@@ -724,7 +724,7 @@ const alteredDominant: TeacherLesson = {
         { left: '{n:Db}, the {d:b5}', right: '{n:C}, the root' },
       ],
       explain: 'Each moves a half step: {n:Ab} down, {n:Eb} up, {n:Db} down. The tension and its release are next door to each other.',
-      fact: 'altered-resolve',
+      fact: 'chg-altered-resolve',
     },
     toolTask({
       id: 'ear-dominant-colours',
@@ -756,13 +756,13 @@ const alteredDominant: TeacherLesson = {
       statement: 'Over {c:G7} resolving to {c:Cmaj7}, the {n:Eb} resolves up a half step to {n:E}, the third of {c:Cmaj7}.',
       answer: true,
       explain: 'The {d:b13} of {c:G7}, {n:Eb}, rises to {n:E}. The {d:b9}, {n:Ab}, falls to {n:G}.',
-      fact: 'altered-resolve',
+      fact: 'chg-altered-resolve',
     },
   ],
   facts: [
-    { id: 'altered-tensions', front: 'The altered tensions of a dominant seventh?', back: 'The {d:b9}, {d:#9}, {d:b5} and {d:#5} (also called the {d:b13}).' },
-    { id: 'g-altered', front: '{n:G} altered, and its parent scale?', back: '{n:G} {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F}: {n:Ab} melodic minor starting on {n:G}.' },
-    { id: 'altered-resolve', front: 'How do the tensions of {c:G7alt} resolve into {c:C}?', back: 'By step: {n:Ab} to {n:G}, {n:Eb} to {n:E}, {n:Db} to {n:C}.' },
+    { id: 'chg-altered-tensions', front: 'The altered tensions of a dominant seventh?', back: 'The {d:b9}, {d:#9}, {d:b5} and {d:#5} (also called the {d:b13}).' },
+    { id: 'chg-g-altered', front: '{n:G} altered, and its parent scale?', back: '{n:G} {n:Ab} {n:Bb} {n:Cb} {n:Db} {n:Eb} {n:F}: {n:Ab} melodic minor starting on {n:G}.' },
+    { id: 'chg-altered-resolve', front: 'How do the tensions of {c:G7alt} resolve into {c:C}?', back: 'By step: {n:Ab} to {n:G}, {n:Eb} to {n:E}, {n:Db} to {n:C}.' },
   ],
 };
 
@@ -790,7 +790,7 @@ const outsideAndBack: TeacherLesson = {
         { text: '{n:A} Dorian', why: 'Still inside {c:Am7}. A side-slip leaves the key on purpose.' },
       ],
       explain: 'One fret up, the same shape: {n:Bb} {n:Db} {n:Eb} {n:F} {n:Ab}. Almost every note clashes with {c:Am7}, which is the point, as long as you come back.',
-      fact: 'side-slip',
+      fact: 'chg-side-slip',
     },
     {
       type: 'play-phrase',
@@ -823,7 +823,7 @@ const outsideAndBack: TeacherLesson = {
         { left: '{n:Cb}', right: 'the third, {n:B}' },
       ],
       explain: 'Two guide tones ({n:F} and {n:B}) and two altered tensions: {c:Db7} is outside only in name.',
-      fact: 'db7-over-g7',
+      fact: 'chg-db7-over-g7',
     },
     {
       type: 'play-phrase',
@@ -857,7 +857,7 @@ const outsideAndBack: TeacherLesson = {
       statement: 'Outside notes sound wrong mainly when they are played timidly and left unresolved.',
       answer: true,
       explain: 'Commit to the phrase, keep the rhythm strong, and land on a chord tone of the next chord. Hesitation is what the ear punishes.',
-      fact: 'outside-rule',
+      fact: 'chg-outside-rule',
     },
     toolTask({
       id: 'jam-db7',
@@ -876,13 +876,13 @@ const outsideAndBack: TeacherLesson = {
         { text: 'On the outside scale\'s root', why: 'That stays outside. The release is a chord tone of the harmony you came back to.' },
       ],
       explain: 'Tension needs release: a chord tone of the next chord, on a strong beat.',
-      fact: 'outside-rule',
+      fact: 'chg-outside-rule',
     },
   ],
   facts: [
-    { id: 'outside-rule', front: 'When does playing outside convince?', back: 'When it comes back: commit to it, keep the rhythm strong, and land on a chord tone of the next chord.' },
-    { id: 'side-slip', front: 'What is a side-slip?', back: 'A phrase moved a half step up or down and back: {n:A} minor pentatonic to {n:Bb} minor pentatonic, and home.' },
-    { id: 'db7-over-g7', front: 'Why does {c:Db7} work over {c:G7}?', back: 'It is the tritone substitute: over {n:G} its notes are the flat five, flat seven, flat nine and third.' },
+    { id: 'chg-outside-rule', front: 'When does playing outside convince?', back: 'When it comes back: commit to it, keep the rhythm strong, and land on a chord tone of the next chord.' },
+    { id: 'chg-side-slip', front: 'What is a side-slip?', back: 'A phrase moved a half step up or down and back: {n:A} minor pentatonic to {n:Bb} minor pentatonic, and home.' },
+    { id: 'chg-db7-over-g7', front: 'Why does {c:Db7} work over {c:G7}?', back: 'It is the tritone substitute: over {n:G} its notes are the flat five, flat seven, flat nine and third.' },
   ],
 };
 

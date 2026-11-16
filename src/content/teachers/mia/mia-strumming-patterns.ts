@@ -261,14 +261,18 @@ const downByTheRiverside: TeacherLesson = {
       figure: { kind: 'audio', sound: { kind: 'strum', chord: 'G', pattern: `${FOLK_PATTERN}|${FOLK_PATTERN}`, tempo: 96 }, label: 'The folk pattern at 96 BPM' },
     },
     {
+      // The chord box draws its name above it, so the boxes cannot be the options: the learner reads
+      // this one and compares it with the D they know.
+      id: 'd-to-d7',
       type: 'choice',
-      prompt: 'Which chord box is {c:D7}?',
+      prompt: 'Here is {c:D7}. What is different from the {c:D} you know?',
+      figure: { kind: 'chord', symbol: 'D7', frets: 'xx0212', fingers: 'xx0213' },
       options: [
-        { figure: { kind: 'chord', symbol: 'D7', frets: 'xx0212', fingers: 'xx0213' }, correct: true },
-        { figure: { kind: 'chord', symbol: 'D', frets: 'xx0232', fingers: 'xx0132' }, why: 'This is {c:D}: string 2 at fret 3. In {c:D7} that finger moves to fret 1 ({n:C}).' },
-        { figure: { kind: 'chord', symbol: 'C', frets: 'x32010', fingers: 'x32010' }, why: 'This is {c:C}, strummed from string 5.' },
+        { text: 'String 2 is at fret 1, not fret 3', correct: true },
+        { text: 'String 1 is at fret 3, not fret 2', why: 'String 1 is at fret 2 in both chords. Look at string 2: fret 1 here, fret 3 in {c:D}.' },
+        { text: 'String 4 is fretted, not open', why: 'String 4 stays open in both: it is the {n:D} both chords are named after.' },
       ],
-      explain: '{c:D7}: string 3 fret 2, string 2 fret 1, string 1 fret 2, strummed from the open string 4.',
+      explain: '{c:D} has string 2 at fret 3 ({n:D}); {c:D7} has it at fret 1 ({n:C}). Strings 3 and 1 stay at fret 2, and both are strummed from the open string 4.',
     },
     {
       type: 'card',
@@ -403,10 +407,15 @@ const accentsAndChucks: TeacherLesson = {
       fact: 'chuck-how',
     },
     {
+      id: 'hear-chucks',
       type: 'listen-choice',
-      prompt: 'Mia strums {c:G}. Did you hear chucks on 2 and 4?',
+      prompt: 'Mia strums {c:G} with two chucks in every bar. On which beats do the clicks fall?',
       sound: { kind: 'strum', chord: 'G', pattern: 'DUXUDUXU', tempo: 80 },
-      options: [{ text: 'Yes: clicks on 2 and 4', correct: true }, { text: 'No: every strum rang' }],
+      options: [
+        { text: 'Beats 2 and 4', correct: true },
+        { text: 'Beats 1 and 3', why: 'Beats 1 and 3 rang as chords. Count along: the clicks answer on 2 and 4.' },
+        { text: 'On every &', why: 'The & strums were light upstrokes that rang. The clicks fell on 2 and 4.' },
+      ],
       shuffle: false,
       explain: 'Beats 2 and 4 were clicks, not chords: the fingers relaxed for those two strums and pressed again for the rest.',
     },
@@ -533,7 +542,7 @@ const sixEightTime: TeacherLesson = {
       tempo: 79,
       minutes: 4,
       body: 'Play it at 79 % (44 big beats a minute): {c:Em}, {c:C}, {c:D} and {c:Em}, four bars each, counting one big beat per group of three. Then 100 % (56 big beats a minute).',
-      tip: 'The teacher\'s bass plays on 1 and 4. Let it tell you where the big beats are.',
+      tip: 'The teacher\'s bass plays on 1 and 4: let it show you the big beats. The Player counts quarter notes, so it says 66, then 84 bpm.',
     }),
     {
       type: 'listen-choice',
@@ -564,7 +573,7 @@ const sixEightTime: TeacherLesson = {
       title: 'Greensleeves: strum on 1 and 4',
       song: 'greensleeves-melody',
       minutes: 4,
-      body: 'In Options, under Parts, mute the Teacher part: the app plays the tune and you strum at 54 big beats a minute, once on 1 and once on 4. {c:Am}, {c:G}, {c:E} and {c:C}, mostly one a bar; the cadence bars go {c:Am} to {c:E}.',
+      body: 'In Options, under Parts, mute the Teacher part: the app plays the tune and you strum at 54 big beats a minute, once on 1 and once on 4. {c:Am}, {c:G}, {c:E} and {c:C}, mostly one a bar; the cadence bars go {c:Am} to {c:E}. Wait through the one-note pickup.',
     }),
     {
       type: 'listen-choice',
@@ -633,7 +642,7 @@ const silentNight: TeacherLesson = {
     {
       type: 'card',
       title: 'Your first fingerpicking',
-      body: 'Now pick it instead, with your thumb and fingers: {t:fingerpicking}. Each has a letter: the thumb is p, the index i, the middle finger m and the ring finger a. The thumb plays a bass note on counts 1 and 4, and i, m and a pluck strings 3, 2 and 1 in between.',
+      body: 'Now put the pick down and pick it with your thumb and fingers: {t:fingerpicking}. Each has a letter: the thumb is p, the index i, the middle finger m and the ring finger a. The thumb plays a bass note on counts 1 and 4, and i, m and a pluck strings 3, 2 and 1 in between.',
       figure: { kind: 'tab', tempo: 75, time: '6/8', notes: [...PICKING_G], caption: 'One bar on {c:G}: p i m, then p a m.' },
       tip: 'The letters come from Spanish: pulgar, índice, medio, anular.',
     },
@@ -949,7 +958,7 @@ const strumSongbook: TeacherLesson = {
       song: 'amazing-grace',
       mode: 'flow',
       minutes: 3,
-      body: 'The waltz at 84 BPM in Flow mode: the microphone listens to your chords, and about 8 bars in 10 clean and on time is a pass. Keep going through any mistake.',
+      body: 'The waltz at 84 BPM in Flow mode: the microphone listens to your chords, and about 8 bars in 10 clean and on time is a pass. Where the chart says {c:G7}, play plain {c:G}, as before. Keep going through any mistake.',
     }),
     {
       type: 'true-false',
@@ -968,7 +977,7 @@ const strumSongbook: TeacherLesson = {
     {
       type: 'card',
       title: 'Your encore',
-      body: 'One more, for me: Oh! Susanna in boom-chick, its first two lines and the chorus at 92 {t:bpm|BPM}. The screen shows your bass notes, one a bar; the strum on beat 2 is up to you. Wait through the pickup, and keep going through any mistake.',
+      body: 'One more, for me: Oh! Susanna in boom-chick, its first two lines and the chorus at 92 {t:bpm|BPM}. The screen shows your bass notes, one a bar, on beat 1; the strum on beat 2 is up to you. Count "1 2" once to yourself, start on the bass, and keep going through any mistake.',
     },
     {
       type: 'play-phrase',
@@ -978,7 +987,7 @@ const strumSongbook: TeacherLesson = {
       octave: 'any',
       tempo: 92,
       pass: 0.8,
-      explain: 'Lines 1 and 2 on {c:G} with {c:D7} at their ends, then the chorus from {c:C}: bass on 1, strum on 2. About 8 bass notes in 10 is a pass.',
+      explain: 'Line 1 on {c:G}, ending on {c:D7}; line 2 on {c:G}, with {c:D7} on beat 2 of its third bar; then the chorus from {c:C}: bass on 1, strum on 2. About 8 bass notes in 10 is a pass.',
       alternative: {
         type: 'order',
         prompt: 'Put the four chord lines of your encore in order.',

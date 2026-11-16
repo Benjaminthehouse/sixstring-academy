@@ -818,7 +818,7 @@ const majorScalePositions: Lesson = {
         frets: [1, 6],
         labels: 'finger',
         dots: G_E_POSITION.map(([s, f, note, finger]) => at(s, f, note, note === 'G' ? 'root' : undefined, finger)),
-        caption: 'G major, E-shape position. Numbers are fingers; roots are coloured.',
+        caption: '{k:G major}, E-shape position. Numbers are fingers; the roots are ringed.',
       },
     },
     {

@@ -341,4 +341,69 @@ describe('Mia unit 7: Strumming patterns', () => {
   it('names every tempo as the Player will play it', async () => {
     expect(await tempoProblems(unit)).toEqual([]);
   });
+
+  // ── review fixes ──────────────────────────────────────────────────────────────────────────────
+
+  it('never offers chord boxes as the options of a question (each box draws its own name)', () => {
+    for (const l of unit.lessons) {
+      for (const s of l.steps as Array<{ type?: string; options?: Array<{ figure?: { kind: string } }> }>) {
+        if (s.type !== 'choice' && s.type !== 'listen-choice') continue;
+        expect(s.options!.filter((o) => o.figure?.kind === 'chord'), l.id).toEqual([]);
+      }
+    }
+  });
+
+  it('asks what turns D into D7 with the one difference the two shapes really have', () => {
+    const q = lesson('down-by-the-riverside').steps.find((s) => (s as { id?: string }).id === 'd-to-d7') as {
+      figure: { frets: string };
+      options: Array<{ text: string; correct?: boolean }>;
+    };
+    const d = shape('D').frets;
+    const d7 = shape('D7').frets;
+    expect(q.figure.frets).toBe(d7);
+    // Strings low to high: only string 2 (index 4) differs, fret 3 in D and fret 1 in D7.
+    const diff = [...d].flatMap((f, i) => (f !== d7[i] ? [{ string: 6 - i, d: f, d7: d7[i] }] : []));
+    expect(diff).toEqual([{ string: 2, d: '3', d7: '1' }]);
+    expect(q.options.find((o) => o.correct)!.text).toBe('String 2 is at fret 1, not fret 3');
+    // The wrong options are wrong: string 1 is at fret 2 in both, string 4 is open in both.
+    expect([d[5], d7[5]]).toEqual(['2', '2']);
+    expect([d[2], d7[2]]).toEqual(['0', '0']);
+  });
+
+  it('asks where the chucks fell, with the clicks really on beats 2 and 4', () => {
+    const q = lesson('accents-and-chucks').steps.find((s) => (s as { id?: string }).id === 'hear-chucks') as {
+      sound: { pattern: string };
+      options: Array<{ text: string; correct?: boolean }>;
+    };
+    const muted = parseStrum(q.sound.pattern).slots.filter((s) => s.stroke === 'mute').map((s) => s.count);
+    expect(muted).toEqual(['2', '4']);
+    expect(q.options.find((o) => o.correct)!.text).toBe('Beats 2 and 4');
+  });
+
+  it('starts the encore on the bass, with no pickup to wait for in the show itself', async () => {
+    const steps = lesson('strum-songbook').steps;
+    const card = steps[steps.length - 2] as { type: string; body: string };
+    expect(card.type).toBe('card');
+    expect(card.body).not.toMatch(/pickup/i);
+    // The show's first note is G on string 6, fret 3: the bass of bar 1, on its beat 1.
+    expect(pos(SUSANNA_BASS[0])).toBe('6:3');
+  });
+
+  it('tells the learner to play G for the G7 in Amazing Grace, as unit 5 did', async () => {
+    const grace = await song('amazing-grace');
+    expect(new Set(grace.chords.map((c) => c.symbol))).toContain('G7');
+    const task = lesson('strum-songbook').steps.find((s) => (s as { id?: string }).id === 'set-grace') as { body: string };
+    expect(task.body).toMatch(/\{c:G7\}, play plain \{c:G\}/);
+  });
+
+  it('puts the pick down before the first fingerpicking', () => {
+    const card = lesson('silent-night').steps.find((s) => (s as { title?: string }).title === 'Your first fingerpicking') as { body: string };
+    expect(card.body).toMatch(/put the pick down/);
+  });
+
+  it('says Greensleeves starts with a one-note pickup, as the library has it', async () => {
+    const s = await song('greensleeves-melody');
+    expect(s.bars[0].length).toBe(480);
+    expect(track(s, 'Melody').measures[0].beats.filter((b) => b.notes.length > 0)).toHaveLength(1);
+  });
 });

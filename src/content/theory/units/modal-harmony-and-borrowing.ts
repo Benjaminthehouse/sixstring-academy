@@ -231,7 +231,7 @@ const dronesAndQuartalChords: Lesson = {
       type: 'card',
       title: 'Chords in fourths',
       body: 'Most chords stack thirds. A {t:quartal-voicing} stacks fourths: x555xx is {n:D} {n:G} {n:C}, each a perfect fourth above the last. On strings 5, 4 and 3 a fourth is the same fret on the next string, so one finger can hold it.',
-      figure: { kind: 'chord', frets: 'x555xx', caption: 'x555xx: {n:D} {n:G} {n:C}, stacked in fourths.' },
+      figure: { kind: 'chord', symbol: 'Gsus4/D', frets: 'x555xx', caption: 'x555xx: {n:D} {n:G} {n:C}, stacked in fourths, with no 3rd.' },
     },
     {
       type: 'chord-build',

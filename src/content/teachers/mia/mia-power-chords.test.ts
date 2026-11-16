@@ -158,6 +158,30 @@ describe('Mia unit 9: Power chords and the blues', () => {
     expect(bar1.join(' ')).toBe('e e er e e er e er');
   });
 
+  it('asks lesson 1 to play only the shapes taught so far, and leaves the movable ones to the Player', async () => {
+    // Lesson 1 teaches E5, A5 and D5; G5 and C5 (the movable shape) come in lesson 2.
+    const taught = ['E5', 'A5', 'D5'];
+    const task = lesson('power-chords').steps.find((s) => isTaskStep(s) && s.id === 'open-riff-1-4');
+    expect(task && isTaskStep(task)).toBe(true);
+    if (!task || !isTaskStep(task)) return;
+    expect(task.params).toEqual(['st-power-chords-open', 'm1-4', 't87']);
+    const bars = chordsByBar(await song('st-power-chords-open')).slice(0, 4);
+    // Where the body says each taught shape is.
+    expect(bars[0]).toEqual(['E5']);
+    expect(bars[2]).toEqual(['E5']);
+    expect(bars[1][1]).toBe('D5'); // the second half of bar 2
+    expect(bars[3][0]).toBe('A5'); // the first half of bar 4
+    const untaught = [...new Set(bars.flat())].filter((c) => !taught.includes(c)).sort();
+    expect(untaught).toEqual(['C5', 'G5']);
+    const body = plain(task.body);
+    for (const c of untaught) expect(body, c).toContain(`{c:${c}}`);
+    expect(body).toMatch(/come next lesson/);
+    expect(body).toMatch(/let the Player play them/);
+    // The movable shapes really are taught in lesson 2.
+    const next = JSON.stringify(lesson('movable-power-chords').steps);
+    for (const c of untaught) expect(next, c).toContain(`symbol":"${c}"`);
+  });
+
   it('teaches the 12-bar form and the shuffle figure as the library\'s study plays them', async () => {
     const twelve = ['A', 'A', 'A', 'A', 'D', 'D', 'A', 'A', 'E', 'D', 'A', 'E'];
     const blues = await song('st-blues-shuffle-a');

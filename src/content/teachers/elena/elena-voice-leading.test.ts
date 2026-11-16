@@ -341,6 +341,29 @@ describe('reharmonisation: the phrase in F', () => {
   });
 });
 
+describe('the Jazz Ballad in the library', () => {
+  it('is 32 bars of AABA at 60 BPM: D7 for Dm7 from bar 10, a bridge of A7, D7 and G7, Gb7 for C7 in bar 31', async () => {
+    const s = await song('st-chord-melody-2');
+    expect(s.bars.length).toBe(32);
+    expect(s.tempo[0].bpm).toBe(60);
+    const inBar = (bar: number) => new Set(s.chords.filter((c) => c.bar === bar - 1).map((c) => c.symbol));
+    expect(inBar(2).has('Dm7')).toBe(true);
+    expect(inBar(10).has('D7')).toBe(true);
+    expect(inBar(26).has('D7')).toBe(true);
+    expect(inBar(31).has('Gb7')).toBe(true);
+    expect(inBar(31).has('C7')).toBe(false);
+    expect(inBar(4).has('C7')).toBe(true);
+    const bridge = new Set([17, 18, 19, 20, 21, 22, 23, 24].flatMap((b) => [...inBar(b)]));
+    for (const c of ['A7', 'D7', 'G7']) expect(bridge.has(c), c).toBe(true);
+    const all = new Set(s.chords.map((c) => c.symbol));
+    for (const c of ['Fmaj7', 'Dm7', 'Gm7', 'C7', 'D7', 'Gb7']) expect(all.has(c), c).toBe(true);
+    // Its own Gb7 keeps C7's E and Bb on top, as the lesson says the substitution does.
+    const gb = s.chords.find((c) => c.symbol === 'Gb7' && c.voicing)!.voicing!;
+    expect(chordPcs('Gb7').filter((p) => chordPcs('C7').includes(p)).sort()).toEqual([chroma('E'), chroma('Bb')].sort());
+    expect(gb.filter((f) => f !== null).length).toBe(4);
+  });
+});
+
 describe('the tasks of unit 6', () => {
   it('name the BPM the Player will play, or carry a fallback for a piece not yet in the library', async () => {
     for (const { lesson: l, task } of tasks()) {

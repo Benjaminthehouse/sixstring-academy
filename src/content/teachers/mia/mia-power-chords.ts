@@ -135,8 +135,8 @@ const powerChords: TeacherLesson = {
       bars: [1, 4],
       tempo: 87,
       minutes: 5,
-      body: 'Loop bars 1 to 4 at about 80 BPM: eighth-note downstrokes on {c:E5}, then the new shapes bar 2 and 4 bring in. Use each gap to move to the next shape, so the next hit lands on time.',
-      tip: 'Chords ringing through the gaps? Ease the finger pressure off on each rest, keeping the fingers on the strings.',
+      body: 'Loop bars 1 to 4 at about 80 BPM, in downstrokes. You know three of its shapes: {c:E5} in bars 1 and 3, {c:D5} late in bar 2, {c:A5} early in bar 4. {c:C5} and {c:G5} come next lesson: rest your hand there and let the Player play them, then come back in on time.',
+      tip: 'Use each gap to move to the next shape. Chords ringing through the gaps? Ease the pressure off on each rest.',
     }),
     {
       type: 'choice',
@@ -325,7 +325,7 @@ const palmMuting: TeacherLesson = {
       prompt: 'Your muted chord rings almost like an open one. What do you do?',
       options: [
         { text: 'Move the hand a little toward the neck', correct: true },
-        { text: 'Press the palm down hard', why: 'Pressing hard bends the strings out of tune. Rest the hand, and move it instead.' },
+        { text: 'Press the palm down hard', why: 'Pressing hard chokes the note and pushes it out of tune. Rest the hand lightly, and move it instead.' },
         { text: 'Lift the hand off', why: 'Then nothing mutes the strings at all.' },
       ],
       explain: 'Ringing means the hand is too far back, on or behind the bridge. Slide it a centimetre toward the neck and try again.',

@@ -7,7 +7,8 @@
 # the bass (bar 9), then in the treble (bar 10). Bars 11-16: back to E minor over a falling bass,
 # ending on a pedal on low B. Bar 17: the subject in E minor in the treble with the
 # countersubject below it (the two lines swap places, and every interval still works); bar 18
-# and bar 21 put it in the bass again; bar 23 states it over the open low E. It ends on E major.
+# and bar 21 put it in the bass again; bar 23 states it over the open low E, reached from the
+# leading note D# (bar 22) while the bass falls B to E. It ends on E major.
 # Positions: VII (finger 1 on fret 7) for most of it; V (finger 1 on fret 5) in bars 5-6,
 # 11-12 and 22; open position for the last chord. A held note is written as a tie (string:-):
 # keep that finger down so the note lasts its full length while the other voice moves.
@@ -53,6 +54,6 @@ key: Em
 | "Em" s (5:7 2:8) (5:- 2:10) (5:- 1:7) (5:- 2:8) "Am" (5:0 1:8) (5:- 1:7) (5:- 2:10) (5:- 1:8) "B7" e (6:7 1:7) (6:- 1:11) (6:- 2:10) (6:- 2:7) |
 | ^"Last entry: the subject in the bass" "Em" e (5:7 2:8) (4:9 2:-) "Am" s (4:7 1:8) (5:10 1:-) (5:9 2:10) (5:7 2:-) "B7" (6:11 1:7) (6:- 2:10) (6:7 2:8) (6:- 2:7) "Em" e (5:7 2:8) (5:- 1:7) ||
 [Coda]
-| ^"Fifth position" "Am" s (5:0 1:8{4}) (5:- 1:7) (6:8 1:5) (6:- 2:8) (5:7 2:5) (5:- 2:7) (6:8 2:8) (6:- 1:5) "B7" q (6:7 1:7) (6:- 1:5) |
+| ^"Fifth position" "Am" s (5:0 1:8{4}) (5:- 1:7) (6:8 1:5) (6:- 2:8) (5:7 2:5) (5:- 2:7) (6:8 2:8) (6:- 1:5) "B7" q (6:7 1:7) (6:- 3:8) |
 | ^"Seventh position, over the open low E" "Em" e (6:0 3:9) (6:- 1:7) s (6:- 2:10) (6:- 2:8) (6:- 2:7) (6:- 3:9) "B7/E" e (6:- 3:8) (6:- 4:9) "Em" q (6:- 3:9) |
 | ^"E major to finish" "E=022100" w (6:0 5:2 4:2 3:1 2:0 1:0) ||

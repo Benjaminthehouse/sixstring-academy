@@ -14,11 +14,12 @@
  * Hammer-Ons and Lick: Pull-Offs (80), Deck the Halls (108), Joy to the World (72), Eine kleine
  * Nachtmusik (96) and Für Elise (60 quarters, 120 eighth-note counts). The Rakes of Mallow is not
  * in the library yet: its tasks name it and fall back to the G major picking exercise (the notes
- * the tune is made of, picked down-up in eighths) and to the tune of Oh! Susanna (a 2/4 tune in
- * G, first position), at the repertoire plan's tempo (80). The library's Für Elise has no
- * left-hand part, so the learner plays it with the click; its Joy to the World holds only the
- * carol's first two lines. `mia-riffs-and-melodies.test.ts` checks every phrase against the
- * library and every "string N, fret M" against the neck.
+ * the tune is made of, picked down-up in eighths) and to the tune of Drunken Sailor (a 2/4 tune
+ * of quarters and straight eighths, every note on a beat or an &, which the learner strummed in
+ * unit 4), at the repertoire plan's tempo (80). The library's Für Elise has no left-hand part, so
+ * the learner plays it with the click; its Joy to the World is the whole carol, verses 1 and 2.
+ * `mia-riffs-and-melodies.test.ts` checks every phrase against the library and every
+ * "string N, fret M" against the neck.
  */
 import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
@@ -173,7 +174,7 @@ const lowStringNotes: TeacherLesson = {
     {
       type: 'card',
       title: 'One fret apart, again',
-      body: 'Look at the frets: again, {n:E} to {n:F} and {n:B} to {n:C} are only one fret apart, the two natural {t:half-step|half steps}. Every other pair of neighbouring letters is two frets apart: {n:D} to {n:E} on string 4, {n:A} to {n:B} on string 5, {n:F} to {n:G} on string 6.',
+      body: 'Look at the frets: again, {n:E} to {n:F} and {n:B} to {n:C} are only one fret apart. A one-fret step is a {t:half-step|half step}, and these two are the only half steps between neighbouring letters. Every other pair is two frets apart: {n:D} to {n:E} on string 4, {n:A} to {n:B} on string 5, {n:F} to {n:G} on string 6.',
       tip: 'That is why string 6 has {n:F} at fret 1 but string 4 has {n:E} at fret 2.',
     },
     {
@@ -253,7 +254,7 @@ const lowStringNotes: TeacherLesson = {
   ],
   facts: [
     { id: 'low-string-notes', front: 'The first notes on strings 4, 5 and 6?', back: 'String 4: {n:D} {n:E} {n:F} (open, 2, 3). String 5: {n:A} {n:B} {n:C} (open, 2, 3). String 6: {n:E} {n:F} {n:G} (open, 1, 3).' },
-    { id: 'low-half-steps', front: 'On the low strings, which neighbouring notes are one fret apart?', back: '{n:E} to {n:F} and {n:B} to {n:C}: the two natural half steps. Every other pair is two frets apart.' },
+    { id: 'low-half-steps', front: 'On the low strings, which neighbouring notes are one fret apart?', back: '{n:E} to {n:F} and {n:B} to {n:C}: the only half steps between neighbouring letters. Every other pair is two frets apart.' },
     { id: 'riff-defined', front: 'What is a riff?', back: 'A short pattern repeated through a song, often on the low strings.' },
   ],
 };
@@ -345,7 +346,7 @@ const hammerOnsAndPullOffs: TeacherLesson = {
       song: 'st-lick-pull-off',
       tempo: 75,
       minutes: 3,
-      body: 'Play it at 60 BPM. Pick only the fretted note; the finger plucks the open note as it leaves. Bars 5 to 7 join a hammer-on and a pull-off over and over: one pick for the whole bar.',
+      body: 'Play it at 60 BPM. Pick only the fretted note; the finger plucks the open note as it leaves. Bars 5 to 7 chain hammer-ons and pull-offs on one string: pick once, and let the fingers do the rest.',
     }),
     {
       type: 'match-pairs',
@@ -484,12 +485,17 @@ const deckTheHalls: TeacherLesson = {
       tip: 'Line 3 has two more sharps: {n:C#} at string 2, fret 2, and {n:F#} at string 1, fret 2. Same rule: one fret up.',
     }),
     {
+      // Two pairs, so the ear has something to compare: F# to G first, then F to G.
+      id: 'hear-f-sharp',
       type: 'listen-choice',
-      prompt: 'Mia plays two notes rising to {n:G}. Was the first one {n:F#} or {n:F}?',
-      sound: { kind: 'notes', notes: ['F#3', 'G3'], tempo: 60 },
-      options: [{ text: '{n:F#}: one fret below {n:G}', correct: true }, { text: '{n:F}: two frets below {n:G}' }],
+      prompt: 'Mia plays two pairs of notes, each rising to {n:G}. Which pair starts on {n:F#}?',
+      sound: { kind: 'notes', notes: ['F#3', 'G3', 'F3', 'G3'], tempo: 60 },
+      options: [
+        { text: 'The first pair', correct: true },
+        { text: 'The second pair', why: 'The second pair was the wider step: {n:F} to {n:G}, two frets. The first was the small one.' },
+      ],
       shuffle: false,
-      explain: 'It was {n:F#}, right next to {n:G}: it leans in and settles. {n:F} is two frets lower, and its step up sounds wider.',
+      explain: 'The first pair was {n:F#} to {n:G}, one fret: a small step that leans in and settles. The second was {n:F} to {n:G}, two frets, and its step up sounds wider.',
     },
     playerTask({
       id: 'fa-la-la-loop',
@@ -611,8 +617,9 @@ const joyToTheWorld: TeacherLesson = {
       title: 'Joy to the World with the chords',
       song: 'joy-to-the-world',
       tempo: 83,
-      minutes: 3,
-      body: 'Both lines at about 60 BPM with the teacher\'s chords, {c:D}, {c:G} and {c:A7}: the scale walking down, then the second line climbing back up in pairs. Then 100 % (72 BPM), and on into verse 2.',
+      minutes: 4,
+      body: 'Now the whole carol at about 60 BPM with the teacher\'s chords, {c:D}, {c:G} and {c:A7}: the scale walking down, line 2 climbing back up in pairs, then the quick notes of "heaven and nature sing". Then 100 % (72 BPM), and on into verse 2.',
+      tip: 'The refrain repeats {n:F#} at string 4, fret 4, then {n:E} at fret 2: keep finger 4 hovering over fret 4.',
     }),
     {
       type: 'true-false',
@@ -664,7 +671,7 @@ const rakesOfMallow: TeacherLesson = {
     {
       type: 'card',
       title: 'Fiddle tunes',
-      body: '{t:fiddle-tune|Fiddle tunes} are melodies for dancing, and guitarists {t:flatpick} them, one note at a time with the pick. The Rakes of Mallow is an Irish polka with two 8-bar parts, A and B, each played twice: A A B B. It moves mostly by step and repeats its notes: the perfect first one.',
+      body: '{t:fiddle-tune|Fiddle tunes} are melodies for dancing, and guitarists {t:flatpick} them, one note at a time with the pick. The Rakes of Mallow is an Irish polka, a lively dance in 2/4, with two 8-bar parts, A and B, each played twice: A A B B. It moves mostly by step and repeats its notes: the perfect first one.',
     },
     {
       type: 'order',
@@ -754,9 +761,9 @@ const rakesOfMallow: TeacherLesson = {
       body: 'The whole tune, A A B B, at 80 BPM, while the app plays backup chords, {c:G}, {c:D} and {c:C}. Keep going through any slip: dancers do not stop.',
       fallback: {
         tool: 'player',
-        params: ['oh-susanna', 't87'],
+        params: ['drunken-sailor', 't83'],
         title: 'A tune you know, flatpicked',
-        body: 'The Rakes of Mallow is not in the Songs library yet, so flatpick a 2/4 tune you know: Oh! Susanna. In Options, pick the Tune part, and play it at 80 BPM, down on every beat, up on every &.',
+        body: 'The Rakes of Mallow is not in the Songs library yet, so flatpick a lively 2/4 tune you know: Drunken Sailor. In Options, under Parts, tap Tune so it is your part, and play it at 83 % (80 BPM): down on every beat, up on every &, while the app strums {c:Em} and {c:D}.',
       },
     }),
     {
@@ -875,6 +882,7 @@ const furElise: TeacherLesson = {
       tempo: 67,
       minutes: 4,
       body: 'Turn on the Click in Options and play the whole section at 67 % (80 eighth-note counts a minute). Then 100 % (120 eighth-note counts a minute). When it holds together, play it for someone.',
+      tip: 'The Player counts quarter notes, so it says 40, then 60 bpm: one of its beats for every two of your counts.',
     }),
     {
       type: 'true-false',

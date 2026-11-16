@@ -172,6 +172,64 @@ describe('Mia unit 11: Your first scale and your first solo', () => {
     expect(show.alternative.tiles.flatMap(notesOf)).toEqual(struck(show.notes).map((n) => at(n.string, n.fret)));
   });
 
+  it('explains that the lick\'s ask stops on a chord note that is not home, so the rule and the lick agree', async () => {
+    // The lick's own asks stop on G and E: notes of Am7. So "finished" cannot simply mean "a chord
+    // note": the lesson says A, home, is the most finished, and that G is a chord note left open.
+    const lick = await song('st-pent-box-1');
+    const lastOf = (bar: number) => lick.tracks[0].measures[bar].beats.flatMap((b) => b.notes).slice(-1)[0];
+    const askEnds = [1, 5].map((b) => at(lastOf(b).string, lastOf(b).fret));
+    const answerEnds = [3, 7].map((b) => at(lastOf(b).string, lastOf(b).fret));
+    expect(askEnds).toEqual(['G', 'E']);
+    expect(answerEnds).toEqual(['A', 'A']);
+    for (const n of askEnds) expect(chordNotes('Am7').includes(n), n).toBe(true);
+    const sentences = lesson('box-1-licks').steps.filter((s) => (s as { type?: string }).type === 'card').map((s) => (s as { body: string }).body);
+    expect(sentences[0]).toMatch(/most finished of all on \{n:A\}, home/);
+    expect(sentences[1]).toMatch(/\{n:G\} is a chord note, so it sounds good, but it is not home/);
+    expect(lesson('box-1-licks').teaches).toMatch(/most finished on A, home/);
+    // The listening question marked "finished" ends on A, the one marked "open" on D (not in Am7).
+    const ear = stepsOf<{ options: Array<{ text: string; correct?: boolean }>; sound: { notes: TabNote[] } }>('box-1-licks', 'listen-choice');
+    const ends = ear.map((e) => struck(e.sound.notes).slice(-1)[0]).map((n) => at(n.string, n.fret));
+    expect(ends).toEqual(['A', 'D']);
+    expect(ear[0].options.find((o) => o.correct)?.text).toMatch(/comes home/);
+    expect(chordNotes('Am7').includes('D')).toBe(false);
+  });
+
+  it('describes Mia\'s example phrase at its real length: two bars, the silence after it', () => {
+    const play = stepsOf<{ notes: TabNote[] }>('first-improvisation', 'play-phrase')[0];
+    const beats: Record<string, number> = { q: 1, h: 2, w: 4, e: 0.5 };
+    expect(play.notes.reduce((t, n) => t + beats[n.duration], 0)).toBe(8);
+    const card = lesson('first-improvisation').steps.find((s) => (s as { title?: string }).title === 'Play, then rest') as unknown as { body: string; figure: { sound: { notes: TabNote[] } } };
+    expect(card.figure.sound.notes).toEqual(play.notes);
+    // The audio is the two bars; the two bars of silence come after it, as the card says.
+    expect(card.body).toMatch(/two bars long\. After it, I would leave two bars of silence/);
+    const tap = stepsOf<{ rhythm: { pattern: string } }>('first-improvisation', 'tap-rhythm')[0];
+    expect(tap.rhythm.pattern.replace(' | ', ' ')).toBe(play.notes.map((n) => ('rest' in n ? `${n.duration}r` : n.duration)).join(' '));
+  });
+
+  it('hears the bar-5 change and the bar-9 order as the blues form has them', () => {
+    const form = progressionInKey('blues-12-bar', 'A').bars.map((b) => b[0].symbol.replace('7', ''));
+    expect([form[4], form[8], form[9]]).toEqual(['D', 'E', 'D']);
+    const ear = stepsOf<{ sound: { chords: string[] }; explain: string }>('pentatonic-over-the-blues', 'listen-choice');
+    expect(ear[0].sound.chords).toEqual(['A', 'A', form[4], form[5]]);
+    expect(ear[1].sound.chords.slice(2)).toEqual([form[8], form[9]]);
+    // No claim that D "sits lower" than E: on the guitar, E's bass (the open string 6) is the lower.
+    expect(ear[0].explain).not.toMatch(/lower/);
+    expect(midiAt({ string: 6, fret: 0 })).toBeLessThan(midiAt({ string: 4, fret: 0 }));
+  });
+
+  it('celebrates only what the show plays: the ending of the solo, landing on A in bar 11', () => {
+    const show = lesson('blues-solo-milestone').steps.find((s) => (s as { id?: string }).id === 'show') as { notes: TabNote[] };
+    const beats: Record<string, number> = { q: 1, h: 2, w: 4, e: 0.5 };
+    // Bars 9 to 11: the last note starts in bar 11 (beats 8 to 12 of the three bars) and is A.
+    const startOfLast = show.notes.slice(0, -1).reduce((t, n) => t + beats[n.duration], 0);
+    expect(startOfLast).toBeGreaterThanOrEqual(8);
+    const last = struck(show.notes).slice(-1)[0];
+    expect(at(last.string, last.fret)).toBe('A');
+    const words = unit.milestone!.celebrate;
+    expect(words).toMatch(/landed on \{n:A\} in bar 11/);
+    expect(words).not.toMatch(/You played rhythm/);
+  });
+
   it('teaches the open E minor box as the engine lays it out, and again at fret 12', () => {
     expect(scaleNotes('E', 'minor-pentatonic')).toEqual(['E', 'G', 'A', 'B', 'D']);
     const open = openE.find((p) => p.id === 'box-1')!;

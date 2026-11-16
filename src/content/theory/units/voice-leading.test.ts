@@ -11,7 +11,7 @@ import { buildVoicing, identifyFretted, midiAt, tryBuildVoicing } from '@/core/g
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
   type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
-  type PlayChordExercise, type RichText, type Step,
+  type PlayChordExercise, type PlayPhraseExercise, type RichText, type Step,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
 import { THEORY_GLOSSARY } from '../glossary';
@@ -173,7 +173,7 @@ describe('voice-leading: common tones', () => {
     const d = heard(jumpy);
     for (let i = 0; i + 1 < d.length; i++) expect(d[i + 1].map((m, j) => Math.abs(m - d[i][j]))).toEqual([9, 8, 9]); // every voice leaps a sixth
     expect(plainText(correct(jumpy)[0])).toBe('Jumpy');
-    expect(shared(heard(smooth)).every((n) => n >= 3)).toBe(true);
+    expect(shared(heard(smooth))).toEqual([3, 3, 2]); // open C, Am, Fmaj7, C: two or three notes kept at every change
     expect(plainText(correct(smooth)[0])).toBe('Smooth');
   });
 });
@@ -286,9 +286,9 @@ describe('voice-leading: parallel fifths, thirds and sixths', () => {
     const entry = plan.course.stages.flatMap((s) => s.units).find((u) => u.id === 'voice-leading')!.lessons.find((l) => l.id.endsWith('/parallel-fifths'))!;
     const idea = entry.exercises.find((e) => e.type === 'play-phrase')!.idea;
     const planned = [...idea.matchAll(/(\d+)-(\d+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
-    const phrase = exercises(lesson('parallel-fifths').steps).find((e) => e.type === 'play-phrase');
-    if (phrase?.type !== 'play-phrase') throw new Error('expected a phrase');
-    const notes = phrase.notes.filter((n): n is { string: number; fret: number; duration: 'e' } => 'string' in n);
+    const phrases = exercises(lesson('parallel-fifths').steps).filter((e): e is PlayPhraseExercise => e.type === 'play-phrase');
+    expect(phrases.length).toBe(2);
+    const notes = phrases.flatMap((p) => p.notes).filter((n): n is { string: number; fret: number; duration: 'e' } => 'string' in n);
     const played: number[][] = [];
     for (let i = 0; i < notes.length; i += 2) {
       expect([notes[i].string, notes[i + 1].string]).toEqual([3, 1]);
@@ -304,9 +304,11 @@ describe('voice-leading: parallel fifths, thirds and sixths', () => {
       expect([8, 9]).toContain(h - low[i]); // a minor or major sixth
     }
     expect(scaleNotes('G', 'major')).toEqual(['G', 'A', 'B', 'C', 'D', 'E', 'F#']);
-    if (phrase.alternative && !isGenerated(phrase.alternative) && phrase.alternative.type === 'order') {
-      expect(phrase.alternative.tiles.map((t) => plainText(t))).toEqual(planned.map(([a, b]) => `${a}-${b}`));
-    }
+    expect(played.filter(([a, b]) => a !== b)).toEqual([[4, 3], [9, 8], [11, 10]]);
+    // Same fret on strings 3 and 1 is a major sixth; one fret lower on string 1 is a minor sixth.
+    played.forEach(([a, b], i) => expect(high[i] - low[i] === 8, `${a}-${b}`).toBe(a !== b));
+    const tiles = phrases.flatMap((p) => (!isGenerated(p.alternative) && p.alternative.type === 'order' ? p.alternative.tiles.map((t) => plainText(t)) : []));
+    expect(tiles).toEqual(planned.map(([a, b]) => `${a}-${b}`));
     const fig = card(lesson('parallel-fifths'), 4).figure;
     if (fig?.kind !== 'fretboard') throw new Error('expected a fretboard');
     expect(fig.dots!.map((d) => `${d.string}:${d.fret}`).sort()).toEqual(played.flatMap(([a, b]) => [`3:${a}`, `1:${b}`]).sort());

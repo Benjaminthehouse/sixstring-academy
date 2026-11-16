@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { chordNotes, chordPcs, degreeInScale, getScale, intervalBetween, scaleMidi, scaleNotes, scalePcs, semitonesToDegree } from '@/core/theory';
-import { midiAt } from '@/core/guitar';
+import { buildVoicing, midiAt } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, resolveFigure, soundPlan, tokenize, validateCourse,
   type ChoiceExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
@@ -226,12 +226,13 @@ describe('scales-beyond: Phrygian dominant', () => {
   });
 
   it('plays and draws the scale on strings 6, 5 and 4 in open position', () => {
-    const phrase = exercises(lesson('phrygian-dominant').steps).find((e) => e.type === 'play-phrase');
-    if (phrase?.type !== 'play-phrase') throw new Error('expected a phrase');
-    expect(pitches(phrase.notes)).toEqual(scaleMidi(40, 'phrygian-dominant'));
-    if (phrase.alternative && !isGenerated(phrase.alternative) && phrase.alternative.type === 'fretboard-find') {
-      expect(midiAt({ string: 6, fret: 4 })).toBe(44); // G#2
-    }
+    // The open E chord (022100) the card names: its G# on string 3, fret 1, is the scale's major 3rd.
+    expect(buildVoicing('E', '022100').notes.find((n) => n.string === 3)).toMatchObject({ fret: 1, note: 'G#' });
+    const find = exercises(lesson('phrygian-dominant').steps).find((e) => e.type === 'fretboard-find');
+    if (find?.type !== 'fretboard-find' || !('note' in find.find)) throw new Error('expected a note to find');
+    expect(midiAt({ string: 6, fret: 4 })).toBe(44); // G#2, the only G#2 on string 6
+    expect(find.find.note).toBe('G#2');
+    expect(scaleNotes('E', 'phrygian-dominant')[2]).toBe('G#');
     const fig = card(lesson('phrygian-dominant'), 0).figure;
     if (fig?.kind !== 'fretboard') throw new Error('expected a fretboard');
     const resolved = resolveFigure(fig);

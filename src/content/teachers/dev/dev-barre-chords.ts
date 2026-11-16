@@ -74,14 +74,14 @@ const devWelcome: TeacherLesson = {
       tool: 'chords',
       params: ['trainer', 'a-minor', 'f-major'],
       minutes: 2,
-      body: 'Same deal with {c:Am} to the full {c:F} barre (133211). Under 30? Mia\'s lesson The full F barre fixes it. Rest your hand between minutes.',
+      body: 'Same deal with {c:Am} to the full {c:F} barre (133211). Under 30? Mia\'s lesson The full F barre fixes it. Rest your hand between minutes, and stop if the thumb or wrist aches.',
     }),
     {
       type: 'play-chord',
       prompt: 'Check 2: strum the full {c:F} barre once, then pick it string by string, 6 to 1.',
       chord: 'F',
       frets: '133211',
-      explain: '{c:F} is {n:F}, {n:A} and {n:C}. A dead string means finger 1 needs rolling onto its bony edge, closer to the fret, not a harder squeeze.',
+      explain: '{c:F} is {n:F}, {n:A} and {n:C}. A dead string means finger 1 needs rolling onto its bony edge, closer to the fret, not a harder squeeze. Fewer than six ringing? Mia\'s lesson The full F barre fixes it.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
@@ -91,22 +91,6 @@ const devWelcome: TeacherLesson = {
         prompt: 'Build the full {c:F} barre. Then, on your guitar, pick it string by string and count the strings that ring.',
         explain: 'Finger 1 across fret 1, finger 2 on string 3 fret 2, fingers 3 and 4 on strings 5 and 4 at fret 3. Six ringing strings is a pass.',
       },
-    },
-    toolTask({
-      id: 'box-1-metronome',
-      title: 'Check 4: box 1 at 80 BPM',
-      tool: 'metronome',
-      minutes: 3,
-      body: 'Set 80 BPM. {n:A} minor pentatonic box 1, frets 5 to 8, two notes per click, from string 6 up to string 1 and back down, three times without a stop. Shaky? Mia\'s lesson A minor pentatonic, box 1.',
-    }),
-    {
-      type: 'fretboard-find',
-      prompt: 'Box 1, from memory: tap every note of {n:A} minor pentatonic between frets 5 and 8.',
-      find: { scale: 'minor-pentatonic', tonic: 'A' },
-      mode: 'all',
-      octave: 'any',
-      frets: [5, 8],
-      explain: 'Two notes per string: frets 5 and 8 on strings 6, 2 and 1, frets 5 and 7 on strings 5, 4 and 3. {n:A} {n:C} {n:D} {n:E} {n:G}, twelve notes in all.',
     },
     toolTask({
       id: 'folk-strum',
@@ -125,11 +109,27 @@ const devWelcome: TeacherLesson = {
       explain: 'A down on 1 that rings through its "and", down-up on 2, nothing on 3, then up on its "and" and down-up on 4.',
     },
     toolTask({
+      id: 'box-1-metronome',
+      title: 'Check 4: box 1 at 80 BPM',
+      tool: 'metronome',
+      minutes: 3,
+      body: 'Set 80 BPM. {n:A} minor pentatonic box 1, frets 5 to 8, two notes per click, from string 6 up to string 1 and back down, three times without a stop. Shaky? Mia\'s lesson A minor pentatonic, box 1.',
+    }),
+    {
+      type: 'fretboard-find',
+      prompt: 'Box 1, from memory: tap every note of {n:A} minor pentatonic between frets 5 and 8.',
+      find: { scale: 'minor-pentatonic', tonic: 'A' },
+      mode: 'all',
+      octave: 'any',
+      frets: [5, 8],
+      explain: 'Two notes per string: frets 5 and 8 on strings 6, 2 and 1, frets 5 and 7 on strings 5, 4 and 3. {n:A} {n:C} {n:D} {n:E} {n:G}, twelve notes in all.',
+    },
+    toolTask({
       id: 'thirty-minutes',
       title: 'Your 30-minute evening',
       tool: 'practice',
       minutes: 2,
-      body: 'Plan 30 minutes my way: 5 warm-up, 8 technique, 7 the new skill of the lesson, 6 songs, 4 a jam. Save it as a routine. That is your evening for this course.',
+      body: 'Pick 30 minutes, then shape the blocks my way with Swap, Add a block and the minute steppers: Warm-up 5, Technique 8, Chords and changes 7 (the lesson\'s new skill), Songs 6, Free play 4 (a jam track). Save it as a routine. That is your evening for this course.',
     }),
     {
       type: 'choice',
@@ -232,7 +232,7 @@ const eShapeBarres: TeacherLesson = {
     {
       type: 'card',
       title: 'String 6 is your map',
-      body: 'The natural notes on string 6: {n:F} at fret 1, {n:G} at 3, {n:A} at 5, {n:B} at 7, {n:C} at 8, {n:D} at 10 and {n:E} at 12. Learn them and you can find any E-shape barre.',
+      body: 'The natural notes on string 6: {n:F} at fret 1, {n:G} at 3, {n:A} at 5, {n:B} at 7, {n:C} at 8, {n:D} at 10 and {n:E} at 12.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -255,7 +255,7 @@ const eShapeBarres: TeacherLesson = {
       tool: 'fretboard',
       params: ['stage', 'string-6-naturals'],
       minutes: 5,
-      body: 'One minute of naming notes on string 6, as fast as you can stay right. Aim for 20. This is the map every E-shape barre lives on.',
+      body: 'A round of The low E string: twelve natural notes on string 6. Aim for all twelve at about 3 seconds an answer, 20 a minute: the map every E-shape barre lives on.',
     }),
     {
       type: 'play-chord',
@@ -315,7 +315,8 @@ const eShapeBarres: TeacherLesson = {
       bars: [1, 6],
       tempo: 75,
       minutes: 4,
-      body: 'Bars 1 to 6 at 60 BPM: {c:F}, {c:G}, {c:A}, then {c:Fm}, {c:Gm}, {c:Am}, four steady down-strums each. Say the root out loud on every first strum. When it feels easy, 100 % is 80 BPM.',
+      body: 'Bars 1 to 6 at 60 BPM: {c:F}, {c:G}, {c:A}, then {c:Fm}, {c:Gm}, {c:Am}, four down-strums each. Say each root aloud on its first strum. Easy? 100 % is 80 BPM.',
+      tip: 'Shake the hand out between rounds. An aching thumb or wrist means stop for today.',
     }),
     {
       type: 'choice',
@@ -386,7 +387,7 @@ const aShapeBarres: TeacherLesson = {
       title: 'Three fingers, or one',
       body: 'Strings 4, 3 and 2 two frets up: fingers 2, 3 and 4, or one finger 3 flattened across all three. With the flat finger, string 1 often goes quiet. That is fine: strum strings 5 to 2 and nobody will miss it.',
       figure: { kind: 'chord', symbol: 'Bb', frets: 'x13331', caption: '{c:Bb}: the A shape with the barre at fret 1.' },
-      tip: 'Flat finger 3 hurts at the knuckle? Use three fingers. There is always another way.',
+      tip: 'Flat finger 3 hurts at the knuckle? Stop and use three fingers. There is always another way.',
     },
     {
       type: 'fretboard-find',
@@ -438,7 +439,7 @@ const aShapeBarres: TeacherLesson = {
       tool: 'fretboard',
       params: ['stage', 'string-5-naturals'],
       minutes: 5,
-      body: 'One minute of naming notes on string 5. Beat yesterday\'s string 6 score if you can. Together the two strings are where every barre root lives.',
+      body: 'A round of The A string: twelve natural notes on string 5, as fast as you can stay right. Beat your string 6 time per answer: these two strings hold every barre root.',
     }),
     {
       type: 'fretboard-find',
@@ -468,7 +469,7 @@ const aShapeBarres: TeacherLesson = {
       bars: [7, 11],
       tempo: 75,
       minutes: 4,
-      body: 'Bars 7 to 11 at 60 BPM: {c:Bb}, {c:B}, {c:C}, then {c:Bm}, {c:Cm}. Say each root aloud on the first strum: it is the note under finger 1 on string 5. Then play the whole study at 100 % (80 BPM).',
+      body: 'Bars 7 to 11 at 60 BPM: {c:Bb}, {c:B}, {c:C}, then {c:Bm}, {c:Cm}. Say each root, the note under finger 1 on string 5, on its first strum. Then the whole study at 100 % (80 BPM).',
     }),
     {
       type: 'play-chord',
@@ -657,6 +658,7 @@ const barreProgressions: TeacherLesson = {
       params: ['trainer', 'a-major', 'f-sharp-minor'],
       minutes: 2,
       body: 'One minute of {c:A} to the barre {c:F#m} (244222), one strum per beat. Then one minute of {c:F} to {c:G}: the same shape, two frets apart.',
+      tip: 'Rest the hand between the two minutes. Sore fingertips are normal; an aching thumb or wrist is not, so stop.',
     }),
     {
       type: 'choice',
@@ -875,6 +877,7 @@ const barreSongs: TeacherLesson = {
       tempo: 86,
       minutes: 5,
       body: 'Play it at about 72 BPM, then at 100 % (84 BPM). Keep the dotted rhythm of the tune: long-short, like a lilt. Open {c:D}, {c:G}, {c:A} and {c:Em}, barre {c:Bm}.',
+      tip: 'Two songs of barres is a workout. Rest between them, and stop at any ache in the thumb or wrist.',
       fallback: {
         tool: 'progressions',
         params: ['fifties-i-vi-iv-v', 'd', 'jam'],
@@ -911,7 +914,7 @@ const barreSongs: TeacherLesson = {
       prompt: 'Play {c:Bm} as a barre, the way it goes in both songs.',
       chord: 'Bm',
       frets: 'x24432',
-      explain: '{c:Bm} at fret 2: {n:B}, {n:D}, {n:F#}. Coming from the open {c:D}, keep finger 3 near fret 4 and lay the barre down as the others land.',
+      explain: '{c:Bm} at fret 2: {n:B}, {n:D}, {n:F#}. Coming from the open {c:D}, finger 1 is already at fret 2: flatten it into the barre as fingers 2, 3 and 4 land.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',

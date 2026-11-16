@@ -570,8 +570,8 @@ const dropTwoVoicings: Lesson = {
       figure: {
         kind: 'keyboard',
         keys: ['G3', 'B3', { note: 'C4', label: 'drop', role: 'target' }, 'E4'],
-        from: 'C3',
-        to: 'E4',
+        from: 'G3',
+        to: 'F4',
         caption: 'Close {c:Cmaj7}: {n:G} {n:B} {n:C} {n:E}. The {n:C} drops an octave.',
       },
     },
@@ -692,8 +692,8 @@ const dropThreeVoicings: Lesson = {
       figure: {
         kind: 'keyboard',
         keys: ['F#3', { note: 'G3', label: 'drop', role: 'target' }, 'B3', 'D4'],
-        from: 'G2',
-        to: 'D4',
+        from: 'F3',
+        to: 'E4',
         caption: 'Close {c:Gmaj7}: {n:F#} {n:G} {n:B} {n:D}. The {n:G} drops an octave.',
       },
     },

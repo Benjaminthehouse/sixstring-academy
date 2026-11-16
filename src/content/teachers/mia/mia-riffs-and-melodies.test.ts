@@ -232,9 +232,21 @@ describe('Mia unit 8: Riffs and melodies', () => {
     const tap = step<{ rhythm: { pattern: string } }>('joy-to-the-world', (s) => s.type === 'tap-rhythm');
     expect(tap.rhythm.pattern).toBe(`${JOY_PHRASE.slice(0, 3).map((n) => n.duration).join(' ')} | ${JOY_PHRASE.slice(3, 5).map((n) => n.duration).join(' ')}`);
     expect(new Set(joy.chords.map((c) => c.symbol))).toEqual(new Set(['D', 'G', 'A7']));
-    // The library holds two lines (seven bars) for each of two verses; line 2 climbs B B, C# C#, D.
-    expect(joy.bars).toHaveLength(14);
-    expect(names(bars(melody(joy), 4, 6))).toEqual(['B', 'B', 'C#', 'C#', 'D']);
+    // The library holds the whole carol, 19 bars, for verses 1 and 2 (so the whole-carol task can
+    // send the learner through it); each verse opens with the same scale, and line 2 climbs back up
+    // in pairs, a long note and a short one: B B, C# C#, D D.
+    expect(joy.bars).toHaveLength(38);
+    expect(copy(JOY_PHRASE)).toEqual(bars(melody(joy), 19, 22));
+    expect(names(bars(melody(joy), 4, 6))).toEqual(['B', 'B', 'C#', 'C#', 'D', 'D']);
+    expect(bars(melody(joy), 4, 6).map((n) => n.duration)).toEqual(['q.', 'e', 'q.', 'e', 'q.', 'e']);
+    // The refrain repeats F# on string 4, fret 4 (bar 12), then E on string 4, fret 2 (bar 14), as the tip says.
+    const pos = (xs: TabNote[]) => xs.filter((n) => !('rest' in n)).map((n) => `${(n as { string: number }).string}:${(n as { fret: number }).fret}`);
+    expect(pos(bars(melody(joy), 11, 11)).slice(0, 4)).toEqual(['4:4', '4:4', '4:4', '4:4']);
+    expect(pos(bars(melody(joy), 13, 13)).slice(0, 4)).toEqual(['4:2', '4:2', '4:2', '4:2']);
+    const whole = step<{ body: string; params: string[] }>('joy-to-the-world', (s) => s.id === 'joy-whole');
+    expect(whole.params).toEqual(['joy-to-the-world', 't83']);
+    expect(whole.body).toMatch(/whole carol/);
+    expect(whole.body).not.toMatch(/Both lines/);
   });
 
   it('leaps through the G chord in Eine kleine Nachtmusik, rests included', async () => {
@@ -277,12 +289,85 @@ describe('Mia unit 8: Riffs and melodies', () => {
     const scale = getExercise('tech-alternate-scale-g')!;
     expect(scale.steps.join(' ')).toMatch(/G major in first position/);
     expect(scale.tempo.start).toBe(60);
-    const susanna = await song('oh-susanna');
-    expect(susanna.tracks.map((t) => t.name)).toContain('Tune');
-    expect(susanna.bars[1].time).toEqual({ numerator: 2, denominator: 4 });
-    expect(songEntry('oh-susanna')!.key).toBe('G major');
+    // The whole-tune fallback is Drunken Sailor's tune (unit 4's song), in 2/4, with Em and D. Every
+    // note starts on a beat or an & (a multiple of an eighth), so "down on every beat, up on every &"
+    // picks all of it: no dotted-eighth-and-sixteenth pair, as in Oh! Susanna, the first fallback.
+    const sailor = await song('drunken-sailor');
+    const tune = sailor.tracks.find((t) => t.name === 'Tune')!;
+    expect(tune.role).toBe('lead');
+    expect(sailor.bars.every((b) => b.time.numerator === 2 && b.time.denominator === 4)).toBe(true);
+    expect(new Set(sailor.chords.map((c) => c.symbol))).toEqual(new Set(['Em', 'D']));
+    let onsets = 0;
+    for (const [bar, m] of tune.measures.entries()) {
+      let tick = 0;
+      for (const b of m.beats) {
+        if (b.notes.length > 0) {
+          onsets++;
+          expect(tick % 480, `bar ${bar + 1} tick ${tick}`).toBe(0);
+        }
+        tick += b.duration;
+      }
+    }
+    expect(onsets).toBeGreaterThan(40);
+    // Its sharps, C# and F#, are the ones the learner met in Deck the Halls and Joy to the World.
+    const sharps = new Set(tune.measures.flatMap((m) => m.beats.flatMap((b) => b.notes)).map((n) => PC[midiAt(n) % 12]).filter((x) => x.includes('#')));
+    expect(sharps).toEqual(new Set(['C#', 'F#']));
+    const whole = step<{ fallback: { params: string[] } }>('rakes-of-mallow', (s) => s.id === 'rakes-whole');
+    expect(whole.fallback.params).toEqual(['drunken-sailor', 't83']);
+    expect(lesson('rakes-of-mallow').id).toBe('rakes-of-mallow');
+    expect(unit.lessons.findIndex((l) => l.id === 'rakes-of-mallow')).toBeGreaterThan(unit.lessons.findIndex((l) => l.id === 'joy-to-the-world'));
     const rakes = songEntry('rakes-of-mallow');
     if (rakes) expect(rakes.level).toBeLessThanOrEqual(3);
+  });
+
+  // ── review fixes ──────────────────────────────────────────────────────────────────────────────
+
+  it('lets the ear compare F# and F, each rising to G', () => {
+    const q = step<{ sound: { notes: string[] }; options: Array<{ text: string; correct?: boolean }> }>('deck-the-halls', (s) => s.id === 'hear-f-sharp');
+    const midi = q.sound.notes.map((n) => Number(parseNote(n)!.midi));
+    // First pair F#3 to G3 (string 4, fret 4 to the open string 3), one fret; then F3 to G3
+    // (string 4, fret 3 to the open string 3), two frets.
+    const fSharp = midiAt({ string: 4, fret: 4 });
+    const g = midiAt({ string: 3, fret: 0 });
+    const f = midiAt({ string: 4, fret: 3 });
+    expect(midi).toEqual([fSharp, g, f, g]);
+    expect([midi[1] - midi[0], midi[3] - midi[2]]).toEqual([1, 2]);
+    expect(q.options.find((o) => o.correct)!.text).toBe('The first pair');
+  });
+
+  it('chains hammer-ons and pull-offs on one string in bars 5 to 7 of the pull-off lick, one pick each', async () => {
+    const pull = melody(await song('st-lick-pull-off'));
+    for (const i of [4, 5, 6]) {
+      const notes = pull.measures[i].beats.flatMap((b) => b.notes);
+      // Each run on one string starts with a picked note; every later note of the run is a hammer or a pull.
+      const runs: Array<typeof notes> = [];
+      for (const n of notes) {
+        if (runs.length && runs[runs.length - 1][0].string === n.string) runs[runs.length - 1].push(n);
+        else runs.push([n]);
+      }
+      const chain = runs[0];
+      expect(chain.length, `bar ${i + 1}`).toBeGreaterThanOrEqual(6);
+      expect(chain[0].legato ?? null, `bar ${i + 1}`).toBeNull();
+      expect(chain.slice(1).every((n) => n.legato === 'hammer' || n.legato === 'pull'), `bar ${i + 1}`).toBe(true);
+    }
+  });
+
+  it('defines a half step before it calls E-F and B-C the only ones between neighbouring letters', () => {
+    const card = step<{ body: string }>('low-string-notes', (s) => s.title === 'One fret apart, again');
+    expect(card.body).toMatch(/A one-fret step is a \{t:half-step\|half step\}/);
+    expect(card.body).not.toMatch(/natural/);
+    // E-F and B-C are the only neighbouring natural letters one half step apart.
+    const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const halves = letters.flatMap((l, i) => {
+      const next = letters[(i + 1) % 7];
+      return (chroma(next) - chroma(l) + 12) % 12 === 1 ? [`${l}-${next}`] : [];
+    });
+    expect(halves).toEqual(['E-F', 'B-C']);
+  });
+
+  it('defines the polka where it first names it', () => {
+    const card = step<{ body: string }>('rakes-of-mallow', (s) => s.title === 'Fiddle tunes');
+    expect(card.body).toMatch(/polka, a lively dance in 2\/4/);
   });
 
   it('names every tempo as the Player will play it', async () => {

@@ -175,6 +175,8 @@ export interface ReadBackupOk {
   songCount: number;
   /** What was left out because it is damaged or does not belong in a backup. */
   skipped: string[];
+  /** Keys of learner data whose entry in the file is damaged: an import leaves this device's copy of them as it is. */
+  damaged?: string[];
 }
 
 /** Read a backup (text or parsed). Nothing is imported. */
@@ -194,12 +196,12 @@ export function readBackup(input: unknown, env: { now: number; timeZone?: string
     if (v > BACKUP_VERSION) return { ok: false, reason: 'newer-version', detail: `backup version ${v}` };
     const decoded = decodeState(parsed.progress, env);
     if (!decoded.ok) return decoded;
-    const { data, skipped } = sanitizeDataSet(parsed.data);
+    const { data, skipped, damaged } = sanitizeDataSet(parsed.data, { records: true });
     const songs = Array.isArray(parsed.songs) ? parsed.songs : null;
     const songCount = songs ? songs.filter(looksLikeSong).length : 0;
     if (songs && songCount < songs.length) skipped.push(`${songs.length - songCount} ${songs.length - songCount === 1 ? 'song' : 'songs'}`);
     const exportedAt = typeof parsed.exportedAt === 'number' ? parsed.exportedAt : decoded.savedAt;
-    return { ok: true, format: 'full', version: decoded.version, exportedAt, progress: parsed.progress, state: decoded.state, data, songs, songCount, skipped };
+    return { ok: true, format: 'full', version: decoded.version, exportedAt, progress: parsed.progress, state: decoded.state, data, songs, songCount, skipped, damaged };
   }
   const decoded = decodeState(parsed, env);
   if (!decoded.ok) return decoded;
@@ -265,10 +267,24 @@ export interface BackupPreview {
   dataChanges: number;
 }
 
-/** The learner data plan of an import (scope: learner data only). */
+/**
+ * The learner data plan of an import (scope: learner data only). An entry the file holds damaged
+ * leaves this device's copy as it is, with Replace too: a damaged file never costs a journal.
+ */
 export function planBackupData(local: DataSet, read: ReadBackupOk, strategy: MergeStrategy): DataPlan | null {
   if (!read.data) return null;
-  return planDataImport(local, read.data, strategy === 'replace' ? 'replace' : 'merge', isLearner);
+  return planDataImport(local, read.data, strategy === 'replace' ? 'replace' : 'merge', isLearner, (read.damaged ?? []).filter(isLearner));
+}
+
+/** Names of the damaged parts of a file, in the learner's words ("Practice journal"), for the preview. */
+export function damagedLabels(read: ReadBackupOk): string[] {
+  const out: string[] = [];
+  for (const key of (read.damaged ?? []).filter(isLearner)) {
+    const labels = DATA_ITEMS.filter((item) => item.key === key).map((item) => item.label);
+    const label = labels.length > 1 ? 'Practice journal, routines and goals' : (labels[0] ?? 'A screen setting');
+    if (!out.includes(label)) out.push(label);
+  }
+  return out;
 }
 
 /** Preview an import. `local.songs` lists the learner's songs here (null when unknown). */
@@ -432,9 +448,14 @@ export type ApplyResult =
       /** Damaged entries in the file that were left out. */
       skipped: string[];
     }
-  | { ok: false; reason: ImportFailure; detail?: string };
+  | { ok: false; reason: ImportFailure | 'no-room'; detail?: string };
 
-/** Import a file that `readBackup` read. */
+/**
+ * Import a file that `readBackup` read. A `replace` that could not first store its copy for Undo
+ * (the browser's storage is full) changes nothing and fails with `no-room`: Replace removes what
+ * only this device has, and the learner was promised Undo. A merge loses nothing, so it goes ahead
+ * (`undo: false` says there is no Undo).
+ */
 export async function applyBackup(read: ReadBackupOk, strategy: MergeStrategy, deps?: BackupDeps): Promise<ApplyResult> {
   const r = resolve(deps);
   const before: UndoStash = {
@@ -448,6 +469,10 @@ export async function applyBackup(read: ReadBackupOk, strategy: MergeStrategy, d
   };
   // The copy for Undo goes first, so even an import that fails half-way can be taken back.
   let undo = writeStash(r, before);
+  if (!undo && strategy === 'replace') {
+    r.data.remove(UNDO_KEY); // a half-written copy, or an older one that no longer matches
+    return { ok: false, reason: 'no-room', detail: 'the copy for Undo could not be stored' };
+  }
   const progress = r.store.importData(read.progress, strategy);
   if (!progress.ok) {
     if (undo) r.data.remove(UNDO_KEY);

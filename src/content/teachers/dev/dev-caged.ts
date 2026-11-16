@@ -304,7 +304,7 @@ const cEverywhere: TeacherLesson = {
       tool: 'fretboard',
       params: ['drill', 'find-every-note'],
       minutes: 3,
-      body: 'One minute of Find every one: the app names a note and you tap every place it lives. Every new note you can find fast is another chord you can find in five places.',
+      body: 'A round of Find every one: five notes, and for each one you tap every place it lives on the neck, as fast as you can stay right. Every note you can find fast is another chord you can find in five places.',
     }),
     {
       type: 'true-false',
@@ -499,7 +499,7 @@ const triadsOnTop: TeacherLesson = {
     {
       type: 'card',
       title: 'Three notes, three shapes',
-      body: 'A {t:triad} is a chord\'s three notes: root, third and fifth. On the top three strings each triad has three shapes, named by the lowest note: {t:root-position}, first {t:inversion} (third in the bass) and second inversion (fifth in the bass). They cut through a band where full chords get muddy.',
+      body: 'A {t:triad} is a chord\'s three notes: root, third and fifth. On the top three strings each triad has three shapes, named by the lowest note: {t:root-position}, first {t:inversion} (third in the bass) and second inversion (fifth in the bass). The slash names the bass: {c:C/E} is {c:C} with {n:E} lowest.',
       figure: {
         kind: 'fretboard',
         frets: [3, 13],
@@ -576,7 +576,7 @@ const triadsOnTop: TeacherLesson = {
     {
       type: 'card',
       title: 'A tune on top',
-      body: 'Between frets 3 and 8: {c:G/B} (xxx433), {c:C} (xxx553), {c:D} (xxx775) and {c:G/D} (xxx787). Listen to the top note climb {n:G}, {n:G}, {n:A}, {n:B}. These little shapes are the pieces CAGED chords are made of.',
+      body: 'Between frets 3 and 8: {c:G/B} (xxx433), {c:C} (xxx553), {c:D} (xxx775) and {c:G/D} (xxx787). Listen to the top note climb {n:G}, {n:G}, {n:A}, {n:B}. These little shapes are the pieces CAGED chords are made of, and they cut through a band where full chords get muddy.',
       figure: { kind: 'tab', tempo: 72, notes: [...TOP_SET], caption: '{c:G/B}, {c:C}, {c:D}, {c:G/D}, each picked low to high.' },
     },
     {
@@ -905,7 +905,7 @@ const unit: TeacherUnit = {
     lesson: 'caged-review',
     step: 'show',
     piece: 'the high second-guitar part',
-    celebrate: 'That was a second guitar part, three shapes up the neck, and you kept it going. You now know every major chord in five places. Next we make those shapes talk: slides, bends and vibrato.',
+    celebrate: 'That was a second guitar part, three shapes up the neck, and you kept it going. You can find any major chord in five places now. Next we make those shapes talk: slides, bends and vibrato.',
   },
   glossary: [
     { id: 'caged', term: 'CAGED', definition: 'The five open major shapes, C A G E D, moved up the neck so one chord can be played in five places, always in that order.' },

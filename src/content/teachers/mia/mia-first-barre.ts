@@ -9,15 +9,15 @@
  * alternative) or tasks that send the learner to the Player, Technique, the chord trainer or a jam
  * track and back.
  *
- * Music from the song library: Change: Am-Fmaj7 and C-F (`st-change-am-fmaj7-c-f`, 72 BPM) and
- * First Barre: F (`st-barre-f`, 72 BPM). La Cucaracha and Auld Lang Syne are not in the library
- * yet: their tasks name the planned song and fall back until it lands, to the nearest library study
- * (Change: G-C and C-G7, bars 9 to 16, for La Cucaracha's new change) or a jam on the same chords
- * (`folk-i-iv-i-v` in C for C, F and G7; `fifties-i-vi-iv-v` in D for D, Bm, G and A). The chord
- * chart of Auld Lang Syne's verse is this course's own arrangement (D A D G | D A Bm D); the
- * performance follows its bass notes. `mia-first-barre.test.ts` checks the shapes, fingers and
- * notes, the keys, the BPM of every Player task and the library's studies, and compares the verse
- * with the library's Auld Lang Syne once that song lands.
+ * Music from the song library: Change: Am-Fmaj7 and C-F (`st-change-am-fmaj7-c-f`, 72 BPM), First
+ * Barre: F (`st-barre-f`, 72 BPM) and Auld Lang Syne (`auld-lang-syne`, 80 BPM, verse and chorus on
+ * D A D G | D A Bm7 D). The song's chart uses the open Bm7 (x20202) for learners without a barre;
+ * this unit's milestone asks for the barre Bm in its place (same root, and every note of Bm is in
+ * Bm7), and the performance follows the verse's bass notes. La Cucaracha is not in the library
+ * yet: its tasks name the planned song and fall back until it lands, to the nearest library study
+ * (Change: G-C and C-G7, bars 9 to 16, for its new change) or a jam on the same chords
+ * (`folk-i-iv-i-v` in C for C, F and G7). `mia-first-barre.test.ts` checks the shapes, fingers and
+ * notes, the keys, the BPM of every Player task, the library's studies and Auld Lang Syne's chords.
  */
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerParams, playerTask, techniqueTask, toolTask } from '../tasks';
@@ -473,7 +473,7 @@ const fInTheKeyOfC: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Strum {c:C}, {c:Am}, the barre {c:F} and {c:G}, two beats each. The microphone hears the bass: string 5 fret 3, open 5, string 6 fret 1 and 3.',
+      prompt: 'One strum each, two beats long: {c:C}, {c:Am}, the barre {c:F}, {c:G}. The microphone hears the bass: string 5 fret 3, open 5, string 6 frets 1, 3.',
       notes: [
         { string: 5, fret: 3, duration: 'h' },
         { string: 5, fret: 0, duration: 'h' },
@@ -715,8 +715,8 @@ const auldLangSyne: TeacherLesson = {
     },
     {
       type: 'card',
-      title: 'My chart for the verse',
-      body: 'Here is my {t:chord-chart} for the verse, one chord a bar: {c:D} {c:A} {c:D} {c:G}, then {c:D} {c:A} {c:Bm} {c:D}. The {c:Bm} in bar 7 is your milestone: it must land on time, even if it is not perfect yet.',
+      title: 'The chords, one a bar',
+      body: 'The verse goes {c:D} {c:A} {c:D} {c:G}, then {c:D} {c:A} {c:Bm} {c:D}, one chord a bar, and the chorus uses the same eight. The song\'s {t:chord-chart} shows {c:Bm7}, an easier open shape: play your barre {c:Bm} there instead. That {c:Bm} is your milestone: it must land on time, even if it is not perfect yet.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: [...VERSE_CHORDS], beats: 4, tempo: 80 }, label: 'Hear the verse chords' },
     },
     {
@@ -749,18 +749,13 @@ const auldLangSyne: TeacherLesson = {
       song: 'auld-lang-syne',
       tempo: 83,
       minutes: 6,
-      body: 'Play it at about 66 BPM with the folk pattern or down-up eighths, then at 100 % (80 BPM). Count yourself in through each pickup. If you can, record one take on your phone, listen back, and choose one thing to improve.',
-      fallback: {
-        tool: 'progressions',
-        params: ['fifties-i-vi-iv-v', 'd', 'jam'],
-        title: 'Jam on D, B minor, G and A',
-        body: 'Auld Lang Syne is not in the Songs library yet, so practise its four chords with the band: {c:D}, {c:Bm}, {c:G}, {c:A}, a bar each. At 66 BPM, then 80, with down-up eighths. Make every {c:Bm} land on the beat.',
-      },
+      body: 'About 66 BPM, then 100 % (80 BPM). Strum as the chart shows, or down-up eighths. Where it says {c:Bm7}, play your barre {c:Bm}. Count yourself in through each pickup. If you can, record one take on your phone, listen back, and choose one thing to improve.',
+      tip: 'The barre not ready in time? Keep the beat and play the open {c:Bm7} this time round.',
     }),
     {
       type: 'card',
       title: 'Your show',
-      body: 'The verse of Auld Lang Syne at 80 BPM, from my chart. Count yourself in, let the pickup go by, and strum each chord on beat 1. The microphone follows your bass notes, one a bar. Keep going through any mistake, and land the {c:Bm} on time.',
+body: 'The verse of Auld Lang Syne at 80 BPM, with the barre {c:Bm}. Count yourself in, let the pickup go by, and strum each chord once, on beat 1, and let it ring. The microphone follows your bass notes, one a bar. Keep going through any mistake, and land the {c:Bm} on time.',
     },
     {
       type: 'play-phrase',
@@ -797,7 +792,8 @@ const unit: TeacherUnit = {
     lesson: 'auld-lang-syne',
     step: 'show',
     piece: 'Auld Lang Syne',
-    celebrate: 'You played Auld Lang Syne with a barre chord in it, and the {c:Bm} landed on time. A few weeks ago {c:F} was the famous hurdle; now you have two barre chords. Next: your first scale, and your first solo.',
+    song: 'auld-lang-syne',
+    celebrate: 'You played the verse of Auld Lang Syne with a barre chord in it. A few weeks ago {c:F} was the famous hurdle; now you have two barre chords. Next: your first scale, and your first solo.',
   },
   glossary: [
     { id: 'pickup', term: 'pickup', definition: 'A note or two before the first full bar of a song. You wait through it and come in on the next beat 1.' },

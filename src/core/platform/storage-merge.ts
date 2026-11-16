@@ -1,7 +1,8 @@
 /**
  * Merging two copies of the learner's data (`DataSet`, see `storage-scope.ts`). Pure.
  *
- * ONE KEY, TWO COPIES (`mergeEntry`):
+ * ONE KEY, TWO COPIES (`mergeEntry`). Only the records (`DATA_ITEMS`: what the learner made or earned)
+ * are joined:
  *   - lists of things with an `id` (journal entries, routines, goals, saved progressions, custom
  *     tunings, presets) are joined: everything from both sides, and where both have the same id the
  *     copy changed last (its own `updatedAt` / `at` / `endedAt` ..., else the newer side's);
@@ -10,17 +11,22 @@
  *     the newer side;
  *   - the arcade's records keep the best of both (stars, scores, plays); a rhythm calibration keeps
  *     each measurement from the side that measured last;
- *   - anything else (a setting) is taken whole from the side that changed it last.
+ *   - a damaged copy (`isDamagedRecord`: a journal that is not a list ...) never wins over a good
+ *     one, and an item in a list that is not an object is dropped, not allowed to spoil the list.
+ * Everything else is taken whole from the side that changed it last: every setting (whatever it
+ * holds, so a screen's remembered view or plan is never stitched together from two), and a draft
+ * (`whole`: the progression in the builder).
  *
  * IMPORT (`planDataImport`): `merge` merges every key both sides have and takes the rest from
- * whichever side has it; `replace` makes the learner data equal to the file's.
+ * whichever side has it; `replace` makes the learner data equal to the file's, except the keys
+ * named in `keep` (the file's entry was damaged), which stay as they are here.
  *
  * SYNC (`planDataSync`): three-way, against what both sides had when they last agreed (`base`,
  * a checksum per key). A key only one side changed is taken from that side, so a deletion or an
  * undone change travels too; a key both changed is merged as above (newest change wins for
  * settings, both kept for lists); a key one side deleted and the other changed is kept.
  */
-import { entrySum, entryText, type DataEntry, type DataSet } from './storage-scope';
+import { entrySum, entryText, isDamagedRecord, isRecordKey, isWholeRecord, type DataEntry, type DataSet } from './storage-scope';
 
 type Rec = Record<string, unknown>;
 const isRec = (value: unknown): value is Rec => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -41,9 +47,12 @@ export function canonicalJson(value: unknown): string {
 // Values
 // ---------------------------------------------------------------------------------------------
 
-/** A list whose items are all objects (an empty list counts). */
-function isObjectList(value: unknown): value is Rec[] {
-  return Array.isArray(value) && value.every(isRec);
+/**
+ * A list of objects (an empty list counts). Items that are not objects are tolerated here and
+ * dropped by `joinLists`: one damaged item must not make the whole list lose to the other side.
+ */
+function isObjectList(value: unknown): value is unknown[] {
+  return Array.isArray(value) && (value.length === 0 || value.some(isRec));
 }
 
 function identity(item: Rec): string {
@@ -64,9 +73,9 @@ function itemStamp(item: Rec): number | null {
   return best;
 }
 
-/** Join two lists of objects; `bNewer` says which side changed last. */
-function joinLists(a: Rec[], b: Rec[], bNewer: boolean): Rec[] {
-  const [first, second] = bNewer ? [b, a] : [a, b];
+/** Join two lists of objects (items that are not objects are dropped); `bNewer` says which side changed last. */
+function joinLists(a: unknown[], b: unknown[], bNewer: boolean): Rec[] {
+  const [first, second] = bNewer ? [b.filter(isRec), a.filter(isRec)] : [a.filter(isRec), b.filter(isRec)];
   const out = new Map<string, Rec>();
   for (const item of first) if (!out.has(identity(item))) out.set(identity(item), item);
   for (const item of second) {
@@ -96,8 +105,18 @@ export function mergeJson(a: unknown, b: unknown, bNewer: boolean): unknown {
     for (const field of fields) {
       const inA = field in a;
       const inB = field in b;
-      if (inA && inB) out[field] = isObjectList(a[field]) && isObjectList(b[field]) ? joinLists(a[field] as Rec[], b[field] as Rec[], bNewer) : bNewer ? b[field] : a[field];
-      else out[field] = inA ? a[field] : b[field];
+      if (!inA || !inB) {
+        out[field] = inA ? a[field] : b[field];
+        continue;
+      }
+      const listA = isObjectList(a[field]);
+      const listB = isObjectList(b[field]);
+      if (listA && listB) out[field] = joinLists(a[field] as unknown[], b[field] as unknown[], bNewer);
+      // A list on one side and something that is not a list at all on the other: the list is the
+      // good copy, whichever side changed last.
+      else if (listA && !Array.isArray(b[field])) out[field] = a[field];
+      else if (listB && !Array.isArray(a[field])) out[field] = b[field];
+      else out[field] = bNewer ? b[field] : a[field];
     }
     return out;
   }
@@ -188,19 +207,28 @@ const ONLY_GROW = new Set(['arcade']);
 /** How a tie in change times is settled: keep this device's copy, or (sync) the same choice on every device. */
 export type TieBreak = 'local' | 'stable';
 
-/** Merge two copies of one key. Never throws: a merge that fails takes the newer copy whole. */
+/**
+ * Merge two copies of one key. Records are joined (see the header); a setting or a draft is taken
+ * whole from the copy changed last. Never throws: a merge that fails takes the newer copy whole.
+ */
 export function mergeEntry(key: string, local: DataEntry, incoming: DataEntry, tie: TieBreak = 'local'): DataEntry {
   const localText = entryText(local);
   const incomingText = entryText(incoming);
   const at = Math.max(local.at, incoming.at);
   if (localText === incomingText) return { ...local, at };
   const incomingNewer = incoming.at > local.at || (incoming.at === local.at && tie === 'stable' && entrySum(incoming) > entrySum(local));
-  if (typeof local.raw === 'string' || typeof incoming.raw === 'string') return { ...(incomingNewer ? incoming : local), at };
+  const newer = (): DataEntry => ({ ...(incomingNewer ? incoming : local), at });
+  if (!isRecordKey(key) || isWholeRecord(key)) return newer();
+  // A damaged copy of a record never takes the place of a good one, however recent it claims to be.
+  const localDamaged = isDamagedRecord(key, local);
+  const incomingDamaged = isDamagedRecord(key, incoming);
+  if (localDamaged !== incomingDamaged) return { ...(localDamaged ? incoming : local), at };
+  if (typeof local.raw === 'string' || typeof incoming.raw === 'string') return newer();
   try {
     const merge = MERGERS[key] ?? mergeJson;
     return { at, value: merge(local.value, incoming.value, incomingNewer) };
   } catch {
-    return { ...(incomingNewer ? incoming : local), at };
+    return newer();
   }
 }
 
@@ -224,14 +252,17 @@ function finish(local: DataSet, result: DataSet): DataPlan {
 
 /**
  * Import a file's learner data. `merge`: every key either side has, merged where both have it.
- * `replace`: exactly the file's. Only keys `scope` accepts are looked at or touched.
+ * `replace`: exactly the file's, except the keys in `keep` (the file's copy was damaged and left
+ * out), which stay as they are here rather than being removed. Only keys `scope` accepts are looked
+ * at or touched.
  */
-export function planDataImport(local: DataSet, incoming: DataSet, strategy: 'merge' | 'replace', scope: (key: string) => boolean = () => true): DataPlan {
+export function planDataImport(local: DataSet, incoming: DataSet, strategy: 'merge' | 'replace', scope: (key: string) => boolean = () => true, keep: readonly string[] = []): DataPlan {
   const mine: DataSet = {};
   for (const [key, entry] of Object.entries(local)) if (scope(key)) mine[key] = entry;
   const result: DataSet = {};
   if (strategy === 'replace') {
     for (const [key, entry] of Object.entries(incoming)) if (scope(key)) result[key] = entry;
+    for (const key of keep) if (mine[key] && !result[key]) result[key] = mine[key];
     return finish(mine, result);
   }
   for (const key of new Set([...Object.keys(mine), ...Object.keys(incoming)])) {

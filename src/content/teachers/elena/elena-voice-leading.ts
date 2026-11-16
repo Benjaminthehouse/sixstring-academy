@@ -18,9 +18,11 @@
  * strings 4 to 1 so that the top voice of every grip is the melody note. The plan's Record step is
  * a phone recording, since the app has no recorder.
  *
- * Music from the library: Chord Melody: First Ballad (`st-chord-melody-1`, 66 BPM) and Canon in D
- * (`canon-in-d`). Danny Boy (chord melody) and Chord Melody: Jazz Ballad with Reharmonisation
- * (`danny-boy-chord-melody`, `st-chord-melody-2`) carry fallbacks until they are in the library.
+ * Music from the library: Chord Melody: First Ballad (`st-chord-melody-1`, 66 BPM), Chord Melody:
+ * Jazz Ballad with Reharmonisation (`st-chord-melody-2`, 60 BPM: the plan's 66 would be faster than
+ * the piece, so the lesson goes to 56 and then 60) and Canon in D (`canon-in-d`). Danny Boy (chord
+ * melody, `danny-boy-chord-melody`) needs a printed source and carries a fallback to Greensleeves
+ * (fingerstyle); the Jazz Ballad's tasks keep theirs in case it is ever renamed.
  * `elena-voice-leading.test.ts` cross-checks every shape, voice, route, top note, melody note,
  * tempo and chart against the engines and the library.
  */
@@ -272,7 +274,7 @@ const triadsAcrossStringSets: TeacherLesson = {
         { left: 'x-x-2-0-1-x', right: '{c:C/E}: third in the bass' },
       ],
       explain: 'The lowest string names the family: {n:C} at string 4 fret 10, {n:G} at fret 5, {n:E} at fret 2.',
-      fact: 'triads-c-4-2',
+      fact: 'vl-triads-c-4-2',
     },
     {
       type: 'play-chord',
@@ -330,7 +332,7 @@ const triadsAcrossStringSets: TeacherLesson = {
       strings: [4, 3, 2],
       frets: [0, 10],
       explain: 'Nine notes, three shapes: x-x-2-2-1-x ({c:Am/E}), x-x-7-5-5-x ({c:Am}) and x-x-10-9-10-x ({c:Am/C}).',
-      fact: 'triads-string-set',
+      fact: 'vl-triads-string-set',
     },
     {
       type: 'card',
@@ -366,7 +368,7 @@ const triadsAcrossStringSets: TeacherLesson = {
         { text: 'x-x-12-11-12-x', why: 'A correct {c:Bm/D}, but far up the neck: string 2 would jump seven frets.' },
       ],
       explain: '{n:A} rises to {n:B} (two frets), {n:C#} to {n:D} (one), {n:E} to {n:F#} (two): root-position {c:Bm}, every voice by step.',
-      fact: 'triads-canon',
+      fact: 'vl-triads-canon',
     },
     toolTask({
       id: 'jam-canon-4-2',
@@ -382,13 +384,13 @@ const triadsAcrossStringSets: TeacherLesson = {
       statement: 'On strings 4 to 2, x-x-2-0-1-x has the third of {c:C}, {n:E}, in the bass.',
       answer: true,
       explain: 'String 4 fret 2 is {n:E}; the open {n:G} and {n:C} at string 2 fret 1 sit above it: {c:C/E}, first inversion.',
-      fact: 'triads-c-4-2',
+      fact: 'vl-triads-c-4-2',
     },
   ],
   facts: [
-    { id: 'triads-string-set', front: 'How many shapes does a triad have on one string set?', back: 'Three: root, third or fifth in the bass. Learn them as families by the bass note.' },
-    { id: 'triads-c-4-2', front: '{c:C} in its three inversions on strings 4 to 2?', back: 'x-x-10-9-8-x (root), x-x-2-0-1-x ({c:C/E}), x-x-5-5-5-x ({c:C/G}).' },
-    { id: 'triads-canon', front: 'The rule for voice-leading the Canon on one string set?', back: 'One set, no voice moving more than two frets: {c:D/A} 7-7-7, {c:A} 7-6-5, {c:Bm} 9-7-7 on strings 4 to 2.' },
+    { id: 'vl-triads-string-set', front: 'How many shapes does a triad have on one string set?', back: 'Three: root, third or fifth in the bass. Learn them as families by the bass note.' },
+    { id: 'vl-triads-c-4-2', front: '{c:C} in its three inversions on strings 4 to 2?', back: 'x-x-10-9-8-x (root), x-x-2-0-1-x ({c:C/E}), x-x-5-5-5-x ({c:C/G}).' },
+    { id: 'vl-triads-canon', front: 'The rule for voice-leading the Canon on one string set?', back: 'One set, no voice moving more than two frets: {c:D/A} 7-7-7, {c:A} 7-6-5, {c:Bm} 9-7-7 on strings 4 to 2.' },
   ],
 };
 
@@ -417,7 +419,7 @@ const lineCliches: TeacherLesson = {
         { text: '{n:B}', why: '{n:B} is the ninth, not part of the line.' },
       ],
       explain: '{n:G#} is a major seventh above {n:A}: a minor triad with a major seventh. The root, {n:A}, has stepped down a half step.',
-      fact: 'cliche-minor',
+      fact: 'vl-cliche-minor',
     },
     {
       type: 'card',
@@ -473,7 +475,7 @@ const lineCliches: TeacherLesson = {
       tiles: ['{n:A}', '{n:G#}', '{n:G}', '{n:F#}'],
       distractors: ['{n:F}', '{n:B}'],
       explain: 'Half step by half step: {n:A}, {n:G#}, {n:G}, {n:F#}. Root, major seventh, minor seventh, sixth.',
-      fact: 'cliche-minor',
+      fact: 'vl-cliche-minor',
     },
     toolTask({
       id: 'jam-line-minor',
@@ -508,7 +510,7 @@ const lineCliches: TeacherLesson = {
       blanks: ['{n:G#}', '{n:Bb}'],
       bank: ['{n:F#}', '{n:B}'],
       explain: 'Half steps up from the fifth: {n:G}, {n:G#} (the augmented fifth), {n:A} (the sixth), {n:Bb} (the flat seventh).',
-      fact: 'cliche-major',
+      fact: 'vl-cliche-major',
     },
     toolTask({
       id: 'jam-line-major',
@@ -524,13 +526,13 @@ const lineCliches: TeacherLesson = {
       statement: 'In a line cliche the whole chord slides down a fret at a time.',
       answer: false,
       explain: 'Only one voice moves; the rest of the chord holds still. That contrast is the whole effect.',
-      fact: 'cliche-def',
+      fact: 'vl-cliche-def',
     },
   ],
   facts: [
-    { id: 'cliche-def', front: 'What is a line cliche?', back: 'A chord held while one voice moves by half steps.' },
-    { id: 'cliche-minor', front: 'The minor line cliche in A, open position?', back: '{c:Am} x02210, {c:AmMaj7} x02110, {c:Am7} x02010, {c:Am6} x02212: {n:A} {n:G#} {n:G} {n:F#}.' },
-    { id: 'cliche-major', front: 'The major line cliche on {c:C}?', back: '{c:C}, {c:Caug}, {c:C6}, {c:C7}: the fifth rises {n:G}, {n:G#}, {n:A}, {n:Bb}.' },
+    { id: 'vl-cliche-def', front: 'What is a line cliche?', back: 'A chord held while one voice moves by half steps.' },
+    { id: 'vl-cliche-minor', front: 'The minor line cliche in A, open position?', back: '{c:Am} x02210, {c:AmMaj7} x02110, {c:Am7} x02010, {c:Am6} x02212: {n:A} {n:G#} {n:G} {n:F#}.' },
+    { id: 'vl-cliche-major', front: 'The major line cliche on {c:C}?', back: '{c:C}, {c:Caug}, {c:C6}, {c:C7}: the fifth rises {n:G}, {n:G#}, {n:A}, {n:Bb}.' },
   ],
 };
 
@@ -558,7 +560,7 @@ const chordMelody1: TeacherLesson = {
         { text: 'Anywhere, if it is in the chord', why: 'Inside the chord the tune is lost. It must be the highest note.' },
       ],
       explain: 'The melody must always be the highest and loudest note. Everything else sits beneath it.',
-      fact: 'cm-rule',
+      fact: 'vl-cm-rule',
     },
     {
       type: 'card',
@@ -576,7 +578,7 @@ const chordMelody1: TeacherLesson = {
         { left: '{c:G7} 32303x', right: '{n:D}' },
       ],
       explain: 'String 1 fret 3 is {n:G}, fret 5 {n:A}, fret 1 {n:F}; in {c:G7} 32303x string 1 is silent and string 2 fret 3, {n:D}, is the top.',
-      fact: 'cm-top-notes',
+      fact: 'vl-cm-top-notes',
     },
     {
       type: 'play-chord',
@@ -659,13 +661,13 @@ const chordMelody1: TeacherLesson = {
         { text: 'The bass takes the tune', why: 'The tune stays on top throughout.' },
       ],
       explain: 'Chords under the melody\'s strong beats; between them, single notes. The ear fills in the harmony.',
-      fact: 'cm-strong-beats',
+      fact: 'vl-cm-strong-beats',
     },
   ],
   facts: [
-    { id: 'cm-rule', front: 'The one rule of chord melody?', back: 'The melody is always the highest and loudest note: choose each voicing by its top note.' },
-    { id: 'cm-strong-beats', front: 'Where do the chords go in chord melody?', back: 'Under the melody\'s notes on the strong beats; between them the melody runs alone.' },
-    { id: 'cm-top-notes', front: 'Top notes of the First Ballad\'s {c:C} x32013, {c:Am} x07555, {c:F} xx3211, {c:G7} 32303x?', back: '{n:G}, {n:A}, {n:F}, {n:D}.' },
+    { id: 'vl-cm-rule', front: 'The one rule of chord melody?', back: 'The melody is always the highest and loudest note: choose each voicing by its top note.' },
+    { id: 'vl-cm-strong-beats', front: 'Where do the chords go in chord melody?', back: 'Under the melody\'s notes on the strong beats; between them the melody runs alone.' },
+    { id: 'vl-cm-top-notes', front: 'Top notes of the First Ballad\'s {c:C} x32013, {c:Am} x07555, {c:F} xx3211, {c:G7} 32303x?', back: '{n:G}, {n:A}, {n:F}, {n:D}.' },
   ],
 };
 
@@ -694,7 +696,7 @@ const reharmonisation: TeacherLesson = {
         { text: '{c:Db7}', why: 'That is the tritone substitute of {c:G7}, a different move.' },
       ],
       explain: '{c:D7} is the {r:V} of {n:G}, so it pulls to {c:Gm7}: {r:V7/ii}. Its {n:F#} leads up a half step to {n:G}.',
-      fact: 'reharm-secondary',
+      fact: 'vl-reharm-secondary',
     },
     {
       type: 'card',
@@ -734,7 +736,7 @@ const reharmonisation: TeacherLesson = {
         { text: '{c:Ab7}', why: 'A half step up, not a tritone. {c:Ab7} substitutes for {c:D7}.' },
       ],
       explain: '{n:G} up a tritone is {n:Db}. {c:G7} has {n:B} and {n:F}; {c:Db7} has {n:F} and {n:Cb}: the same tritone, its two notes swapping roles.',
-      fact: 'reharm-tritone',
+      fact: 'vl-reharm-tritone',
     },
     {
       type: 'card',
@@ -747,8 +749,17 @@ const reharmonisation: TeacherLesson = {
       statement: 'Over {c:Gb7}, the melody\'s {n:E} in bar 7 is the chord\'s seventh, spelled {n:Fb}.',
       answer: true,
       explain: '{c:Gb7} is {n:Gb} {n:Bb} {n:Db} {n:Fb}. {n:Fb} sounds as {n:E}: over {c:C7} it was the third, over {c:Gb7} it is the seventh.',
-      fact: 'reharm-tritone',
+      fact: 'vl-reharm-tritone',
     },
+    playerTask({
+      id: 'study-two-moves',
+      title: 'Both moves in the Jazz Ballad',
+      song: 'st-chord-melody-2',
+      bars: [25, 32],
+      tempo: 93,
+      minutes: 4,
+      body: 'The Jazz Ballad\'s last A section, bars 25 to 32, at 93 % (56 {t:bpm|BPM}): {c:D7} for {c:Dm7} in bar 26, {c:Gb7} for {c:C7} in bar 31. The tune does not change; listen to the colour under it.',
+    }),
     {
       type: 'chord-build',
       task: 'fingers',
@@ -777,13 +788,13 @@ const reharmonisation: TeacherLesson = {
         { left: '{c:A7}', right: '{c:Eb7}' },
       ],
       explain: 'Each root moves a tritone, six half steps. Third and seventh trade places: {c:C7}\'s {n:E} and {n:Bb} are {c:Gb7}\'s {n:Fb} and {n:Bb}.',
-      fact: 'reharm-tritone',
+      fact: 'vl-reharm-tritone',
     },
   ],
   facts: [
-    { id: 'reharm-rule', front: 'What does reharmonising keep, and what does it change?', back: 'It keeps the melody and changes the chords. Test every new chord against the melody note.' },
-    { id: 'reharm-secondary', front: 'In {k:F major}, which chord leads to {c:Gm7}, and why?', back: '{c:D7}: it is the {r:V} of {n:G}, {r:V7/ii}.' },
-    { id: 'reharm-tritone', front: 'Why can {c:Gb7} replace {c:C7}?', back: 'They share their tritone: {n:E} and {n:Bb} in {c:C7}, {n:Fb} and {n:Bb} in {c:Gb7}. The roots are a tritone apart.' },
+    { id: 'vl-reharm-rule', front: 'What does reharmonising keep, and what does it change?', back: 'It keeps the melody and changes the chords. Test every new chord against the melody note.' },
+    { id: 'vl-reharm-secondary', front: 'In {k:F major}, which chord leads to {c:Gm7}, and why?', back: '{c:D7}: it is the {r:V} of {n:G}, {r:V7/ii}.' },
+    { id: 'vl-reharm-tritone', front: 'Why can {c:Gb7} replace {c:C7}?', back: 'They share their tritone: {n:E} and {n:Bb} in {c:C7}, {n:Fb} and {n:Bb} in {c:Gb7}. The roots are a tritone apart.' },
   ],
 };
 
@@ -799,7 +810,7 @@ const chordMelody2: TeacherLesson = {
     {
       type: 'card',
       title: 'A full arrangement',
-      body: 'Chord Melody: Jazz Ballad with Reharmonisation is an original 32-bar {t:aaba|AABA} ballad in {k:F major} on {c:Fmaj7}, {c:Dm7}, {c:Gm7} and {c:C7}, with a {c:D7} leading to {c:Gm7} and {c:Gb7} in place of {c:C7}: the two moves of the last lesson.',
+      body: 'Chord Melody: Jazz Ballad with Reharmonisation is an original 32-bar {t:aaba|AABA} ballad in {k:F major} on {c:Fmaj7}, {c:Dm7}, {c:Gm7} and {c:C7}, with a {c:D7} leading to {c:Gm7} and {c:Gb7} in place of {c:C7}: the two moves of the last lesson. Its bridge adds {c:A7} and {c:G7}.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Fmaj7', 'D7', 'Gm7', 'Gb7', 'Fmaj7'], beats: 4, tempo: 60 }, label: 'The reharmonised bars' },
     },
     {
@@ -808,7 +819,7 @@ const chordMelody2: TeacherLesson = {
       tiles: ['A: bars 1-8', 'A: bars 9-16', 'B: bars 17-24', 'A: bars 25-32'],
       distractors: ['B: bars 9-16'],
       explain: 'Eight bars each: the theme, the theme again, a contrasting bridge, and the theme to close.',
-      fact: 'aaba',
+      fact: 'vl-aaba',
     },
     {
       type: 'card',
@@ -875,7 +886,7 @@ const chordMelody2: TeacherLesson = {
       mode: 'wait',
       bars: [1, 8],
       minutes: 8,
-      body: 'The first A section, bars 1 to 8, in wait mode. Then the B section, bars 17 to 24: its voicings sit higher or thinner. Keep the melody louder than the grips.',
+      body: 'The first A section, bars 1 to 8, in wait mode. Then the bridge, bars 17 to 24, through three secondary dominants, {c:A7}, {c:D7} and {c:G7}: make it contrast, lighter in touch, the melody louder than the grips.',
       fallback: {
         tool: 'player',
         params: ['st-chord-melody-1', 'wait'],
@@ -888,14 +899,15 @@ const chordMelody2: TeacherLesson = {
       statement: 'A voicing whose top note is not the melody note is fine, as long as the chord is right.',
       answer: false,
       explain: 'The right chord with the wrong top note changes the tune. In chord melody the top voice is the melody, always.',
-      fact: 'b-section',
+      fact: 'vl-b-section',
     },
     playerTask({
       id: 'ballad-whole',
       title: 'The Jazz Ballad, all 32 bars',
       song: 'st-chord-melody-2',
+      tempo: 93,
       minutes: 10,
-      body: 'All 32 bars at about 56 BPM, then 66. Then record yourself on your phone and listen as I would: is the melody on top, and do the voices move cleanly through {c:D7} and {c:Gb7}?',
+      body: 'All 32 bars at 93 % (56 {t:bpm|BPM}), then 100 % (60 BPM). Then record yourself on your phone and listen as I would: is the melody on top, and do the voices move cleanly through {c:D7} and {c:Gb7}?',
       fallback: {
         tool: 'progressions',
         params: ['jazz-tritone-sub', 'f', 'jam'],
@@ -912,13 +924,13 @@ const chordMelody2: TeacherLesson = {
         { text: 'The tempo, much faster', why: 'A ballad\'s bridge keeps the tempo. Contrast comes from colour and register.' },
       ],
       explain: 'Contrast in an arrangement comes from register and texture: lift the grips up the neck or drop a voice, and the bridge sounds new.',
-      fact: 'b-section',
+      fact: 'vl-b-section',
     },
   ],
   facts: [
-    { id: 'aaba', front: 'What is 32-bar AABA form?', back: 'Four 8-bar sections: a theme, the theme again, a contrasting bridge (B), and the theme to close.' },
-    { id: 'b-section', front: 'How does a chord-melody arrangement make its B section contrast?', back: 'Higher or thinner voicings, with the melody still on top and louder than the harmony.' },
-    { id: 'reharm-drop2', front: 'The reharmonised bars in drop-2, strings 4 to 1?', back: '{c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656, {c:Fmaj7} xx3555: the top voice sings {n:C} {n:Bb} {n:Bb} {n:A}.' },
+    { id: 'vl-aaba', front: 'What is 32-bar AABA form?', back: 'Four 8-bar sections: a theme, the theme again, a contrasting bridge (B), and the theme to close.' },
+    { id: 'vl-b-section', front: 'How does a chord-melody arrangement make its B section contrast?', back: 'Higher or thinner voicings, with the melody still on top and louder than the harmony.' },
+    { id: 'vl-reharm-drop2', front: 'The reharmonised bars in drop-2, strings 4 to 1?', back: '{c:D7} xx7778, {c:Gm7} xx5766, {c:Gb7} xx4656, {c:Fmaj7} xx3555: the top voice sings {n:C} {n:Bb} {n:Bb} {n:A}.' },
   ],
 };
 

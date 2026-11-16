@@ -108,13 +108,13 @@ const fourTriads: Lesson = {
     },
     {
       type: 'fretboard-name',
-      prompt: 'The root (R) is {n:C} on string 4. Which degree is the dot on string 2, fret 7?',
-      position: { string: 2, fret: 7 },
+      prompt: 'The root (R) is {n:C} on string 4. Which degree is the dot on string 3, fret 8?',
+      position: { string: 3, fret: 8 },
       root: { string: 4, fret: 10 },
       ask: 'degree',
       spelling: 'any',
-      options: ['b5', '5', '#5', 'b3'],
-      explain: 'String 2 at fret 7 is six half steps above {n:C}: the {d:b5}, {n:Gb}. With the {d:b3} on string 3 (fret 8) it makes {c:Cdim}, 10-8-7 on strings 4-3-2.',
+      options: ['b3', '3', '2', '4'],
+      explain: 'String 3 at fret 8 is {n:Eb}, three half steps above {n:C}: the {d:b3}. Minor and diminished both use it; diminished also lowers the 5th, to string 2 at fret 7: {c:Cdim} is 10-8-7.',
       fact: 'triads-formulas',
     },
     {
@@ -853,7 +853,7 @@ const theKeyOnOneStringSet: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Pick the first three triads of {k:C major} up strings 3-2-1: {c:C} 5-5-3, {c:Dm} 7-6-5, {c:Em} 9-8-7.',
+      prompt: 'Pick the first three triads of {k:C major} on strings 3, 2 and 1: {c:C} 5-5-3, {c:Dm} 7-6-5, {c:Em} 9-8-7.',
       notes: triadPhrase(['C', 'Dm', 'Em']),
       octave: 'exact',
       tempo: 70,

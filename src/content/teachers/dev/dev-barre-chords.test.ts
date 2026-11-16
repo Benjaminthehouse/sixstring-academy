@@ -14,8 +14,12 @@ import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, harmonizeScale, progressionToChords, scaleNotes, semitones, intervalBetween } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, phraseMidi, validateCourse, type PlayPhraseExercise } from '@/lessons';
 import { viewFromParams } from '@/features/chords/model/symbols';
+import { stageById } from '@/features/fretboard/core/path';
+import { AREA_INFO } from '@/features/practice/model/areas';
 import { parseAddress } from '@/features/progressions/model/address';
+import { assignFingers, parseFrets } from '@/core/guitar';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
+import { OUTLINE } from '../outline';
 import type { RichText, TaskStep, TeacherLesson, TeacherUnit } from '../types';
 import unit from './dev-barre-chords';
 
@@ -220,6 +224,73 @@ describe('Dev unit 1: Barre chords that move', () => {
       if (songEntry(taskSong(t)!)) continue;
       expect(t.fallback, id).toBeTruthy();
     }
+  });
+
+  // ── Added by the independent review ──────────────────────────────────────────────────────────
+
+  it('runs the four checks in the order the checklist numbers them, each weak one linked to a real Mia lesson', () => {
+    const welcome = lesson('dev-welcome');
+    const numbers = welcome.steps
+      .map((s) => plain(((s as { title?: RichText }).title ?? (s as { prompt?: RichText }).prompt ?? '') as RichText).match(/^Check (\d)/))
+      .filter((m): m is RegExpMatchArray => !!m)
+      .map((m) => Number(m[1]));
+    expect(numbers).toEqual([1, 1, 2, 3, 4]);
+    const miaTitles = new Set(OUTLINE.find((c) => c.id === 'mia')!.units.flatMap((u) => u.lessons.map((l) => l[1])));
+    const named = [...JSON.stringify(welcome.steps).matchAll(/Mia's lesson (.+?)(?: fixes it|\.)/g)].map((m) => m[1].replace(/\\'/g, "'"));
+    expect(named.length).toBeGreaterThanOrEqual(4);
+    for (const title of named) expect(miaTitles.has(title), `Mia has a lesson called "${title}"`).toBe(true);
+  });
+
+  it('describes the Fretboard rounds as long as the Fretboard screen really makes them', () => {
+    const words: Record<number, string> = { 5: 'five', 10: 'ten', 12: 'twelve' };
+    // In standard tuning the Fretboard screen titles these steps "The low E string" and "The A string".
+    for (const [id, string, title] of [['string-6-names', 6, 'The low E string'], ['string-5-names', 5, 'The A string']] as const) {
+      const t = task(id);
+      expect(t.params?.[0], id).toBe('stage');
+      const stage = stageById(t.params?.[1]);
+      expect(stage, id).toBeTruthy();
+      expect(plain(t.body), `${id}: names the round's length`).toContain(`${words[stage!.length!]} natural notes on string ${string}`);
+      expect(plain(t.body), `${id}: names the step as the screen does`).toContain(`A round of ${title}:`);
+      expect(stage!.id).toBe(`string-${string}-naturals`);
+    }
+    // 20 a minute is 3 seconds an answer.
+    expect(plain(task('string-6-names').body)).toMatch(/3 seconds an answer, 20 a minute/);
+  });
+
+  it("plans the 30-minute evening with the Practice Plan's own blocks", () => {
+    const body = plain(task('thirty-minutes').body);
+    const labels = new Set(Object.values(AREA_INFO).map((a) => a.label));
+    const list = body.slice(body.indexOf('steppers:'));
+    const blocks = [...list.matchAll(/([A-Z][a-z-]+(?: and [a-z]+| [a-z]+)?) (\d+)/g)].map((m) => ({ label: m[1], minutes: Number(m[2]) }));
+    expect(blocks.map((b) => b.label)).toEqual(['Warm-up', 'Technique', 'Chords and changes', 'Songs', 'Free play']);
+    for (const b of blocks) expect(labels.has(b.label), b.label).toBe(true);
+    expect(blocks.reduce((a, b) => a + b.minutes, 0)).toBe(30);
+    expect(body).toMatch(/^Pick 30 minutes/);
+  });
+
+  it('tells the learner when to rest or stop in every lesson that loads the hand with barres', () => {
+    for (const l of unit.lessons) {
+      const text = JSON.stringify(l.steps);
+      expect(/\b(rest|stop)\b/i.test(text) && /\b(ache|aches|aching|pain|hurts)\b/i.test(text), `${l.id}: says when to rest and what is not normal`).toBe(true);
+    }
+  });
+
+  it('fingers every barre the way the words say', () => {
+    const fingersOf = (frets: string) => assignFingers(parseFrets(frets))!;
+    // F (133211): finger 1 across fret 1, finger 2 on string 3, fingers 3 and 4 on strings 5 and 4.
+    const f = fingersOf('133211');
+    expect(f.barres[0]).toMatchObject({ fret: 1, finger: 1, fromString: 6, toString: 1 });
+    expect([f.fingers[3], f.fingers[1], f.fingers[2]]).toEqual([2, 3, 4]);
+    // Bm (x24432) and Dm (x-5-7-7-6-5): barre from string 5, fingers 3 and 4 on strings 4 and 3, finger 2 on string 2.
+    for (const [frets, fret] of [['x24432', 2], ['x-5-7-7-6-5', 5]] as const) {
+      const v = fingersOf(frets);
+      expect(v.barres[0], frets).toMatchObject({ fret, finger: 1, fromString: 5 });
+      expect([v.fingers[2], v.fingers[3], v.fingers[4]], frets).toEqual([3, 4, 2]);
+    }
+    // From the open D (xx0232) to the barre Bm: finger 1 is already on fret 2, the barre's fret.
+    const d = fingersOf('xx0232');
+    expect(parseFrets('xx0232')[d.fingers.indexOf(1)]).toBe(2);
+    expect(plain(lesson('barre-songs').steps.map((s) => JSON.stringify(s)).join(' '))).toContain('finger 1 is already at fret 2');
   });
 });
 

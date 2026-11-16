@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, parseSixTab, type Song } from '@/core/song';
-import { buildVoicing } from '@/core/guitar';
+import { buildVoicing, checkVoicingFingering, simultaneousCost } from '@/core/guitar';
 import { chordPcs, midiToNote, noteToMidi, parseChord, scalePcs } from '@/core/theory';
 import { loadSongText, songEntry } from '@/content/songs';
 
@@ -234,6 +234,62 @@ describe('batch 16: every song', () => {
       expect(song.meta.title).toBe(entry.title);
       expect(entry.composer).toBe('Sixstring Academy');
     }
+  });
+
+  it('can be fingered at every moment: everything sounding together fits one hand (the guitar engine agrees)', async () => {
+    const problems: string[] = [];
+    for (const id of IDS) {
+      const song = await load(id);
+      song.tracks[0].measures.forEach((m, bar) =>
+        m.beats.forEach((b) => {
+          const pos = b.notes.map((n) => ({ string: n.string, fret: n.fret }));
+          if (pos.length > 1 && !Number.isFinite(simultaneousCost(pos, { tuning: song.tuning }))) problems.push(`${id} bar ${bar + 1} tick ${b.start}`);
+        }),
+      );
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('keeps every held note under the same finger until it ends (invention, fugue, chord melody)', async () => {
+    // For each beat, every fingering the guitar engine accepts; then a walk through the piece
+    // in which a tied note never changes finger. A held note that has to be re-fingered in
+    // mid-air is a note the learner cannot actually hold.
+    type Fingering = Map<number, number>;
+    const problems: string[] = [];
+    for (const id of ['st-two-voice-invention', 'st-fugue-exposition', 'st-chord-melody-2']) {
+      const song = await load(id);
+      const beats = song.tracks[0].measures.flatMap((m, bar) => m.beats.map((b) => ({ bar, b })));
+      const options = beats.map(({ b }): Fingering[] => {
+        const fretted = b.notes.filter((n) => n.fret > 0);
+        const out: Fingering[] = [];
+        const walk = (k: number, chosen: number[]) => {
+          if (k === fretted.length) {
+            const frets: Array<number | null> = Array(6).fill(null);
+            const fingers: Array<number | null> = Array(6).fill(null);
+            for (const n of b.notes) {
+              frets[6 - n.string] = n.fret;
+              if (n.fret === 0) fingers[6 - n.string] = 0;
+            }
+            fretted.forEach((n, i) => (fingers[6 - n.string] = chosen[i]));
+            if (!checkVoicingFingering(frets, fingers as Array<0 | 1 | 2 | 3 | 4 | null>).length) out.push(new Map(fretted.map((n, i) => [n.string, chosen[i]])));
+            return;
+          }
+          for (const f of [1, 2, 3, 4]) walk(k + 1, [...chosen, f]);
+        };
+        walk(0, []);
+        return out;
+      });
+      let reach = options[0].map(() => true);
+      for (let i = 1; i < beats.length; i++) {
+        const held = beats[i].b.notes.filter((n) => n.tie && n.fret > 0).map((n) => n.string);
+        const next = options[i].map((o) => options[i - 1].some((p, k) => reach[k] && held.every((s) => p.get(s) === o.get(s))));
+        if (!next.some(Boolean)) {
+          problems.push(`${id} bar ${beats[i].bar + 1} tick ${beats[i].b.start}`);
+          reach = options[i].map(() => true);
+        } else reach = next;
+      }
+    }
+    expect(problems).toEqual([]);
   });
 });
 
@@ -558,7 +614,7 @@ describe('batch 16: st-two-voice-invention (E minor, two voices)', () => {
     's E4 F#4 G4 A4 e B4 G4 s A4 G4 F#4 E4 e D#4 F#4', 's F#4 G4 A4 B4 e C5 A4 s B4 A4 G4 F#4 q D#4',
     SUBJECT, CS,
     's E4 G4 C5 G4 s E4 A4 C5 A4 s F#4 A4 C5 A4 s D#4 F#4 B4 A4', 's G4 A4 B4 G4 s C5 B4 A4 C5 e B4 D#5 e A4 F#4',
-    'q G4 e C5 A4 s B4 A4 G4 F#4 e G4 B4', 's C5 B4 A4 G4 s E4 F#4 G4 A4 q B4 q A4',
+    'q G4 e C5 A4 s B4 A4 G4 F#4 e G4 B4', 's C5 B4 A4 G4 s E4 F#4 G4 A4 q B4 q D#4',
     SUBJECT, 'w (E2 B2 E3 G#3 B3 E4)',
   ];
   const B = [
@@ -624,6 +680,19 @@ describe('batch 16: st-two-voice-invention (E minor, two voices)', () => {
 
   it('has no parallel fifths or octaves between the voices', () => {
     expect(parallels(voiceNotes(T.slice(0, 23), 3840), voiceNotes(B.slice(0, 23), 3840), 'treble/bass')).toEqual([]);
+  });
+
+  it('leads into the last entry with the leading note: D#4 rises to E4 while the bass falls B to E', async () => {
+    // Not the seventh A4 leaping down to E4 in the same direction as the bass, which made
+    // hidden octaves and left the seventh hanging.
+    const song = await load('st-two-voice-invention');
+    const t = midis(T[21]);
+    expect(name(t.at(-1)!)).toBe('D#4');
+    expect(name(midis(T[22])[0])).toBe('E4');
+    expect(name(midis(B[21]).at(-1)!)).toBe('B2');
+    expect(name(midis(B[22])[0])).toBe('E2');
+    const beat4 = actualBar(song, 21).find((b) => b.start === 2880)!;
+    expect([beat4.strings[0], beat4.frets[0]]).toEqual([3, 8]);
   });
 
   it('goes from E minor to G major and back, and ends on E major', async () => {
@@ -744,6 +813,18 @@ describe('batch 16: st-concert-tremolo-etude (p a m i, D minor and D major)', ()
       const others = m.beats.filter((_, k) => k > 0 && k % 4 === 0).map((b) => b.notes[0]);
       expect(others.some((n) => n.string === bass.string && n.midi !== bass.midi)).toBe(false);
     }
+    // ... and the hand can keep it: the let-ring bass, held down with every other note of its
+    // bar, always fits one hand. (Bar 13 once had G3 at string 5 fret 10 under G5 at fret 15.)
+    const stuck: string[] = [];
+    bars.forEach((m, bar) => {
+      const bass = m.beats[0].notes[0];
+      for (const b of m.beats) {
+        const pos = [bass, ...b.notes.filter((n) => n.string !== bass.string)].map((n) => ({ string: n.string, fret: n.fret }));
+        if (!Number.isFinite(simultaneousCost(pos, { tuning: song.tuning }))) stuck.push(`bar ${bar + 1} tick ${b.start}: ${pos.map((p) => `${p.string}:${p.fret}`).join(' ')}`);
+      }
+    });
+    expect(stuck).toEqual([]);
+    expect([bars[12].beats[0].notes[0].string, bars[12].beats[0].notes[0].fret]).toEqual([3, 0]);
   });
 
   it('has the planned chords, and every thumb note is a tone of its chord', async () => {
@@ -818,20 +899,25 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
   const CS = ['q C4 q F4 q E4 q A4', 'q C5 q A4 q F4 q D4'];
   const BASS_SUBJECT = ['q D2 e. D2 s E2 q F2 e. F2 s G2', 'q A2 e Bb2 A2 e G2 F2 e E2 C#3'];
   const CS_LOW = ['q F3 q Bb3 q A3 q D4', 'q F4 q D4 q Bb3 q G3'];
+  /** The countersubject above the fourth entry: the bars 3-4 pair moved up a fourth, note for note. */
+  const CS_HIGH = ['q F4 q Bb4 q A4 q D5', 'q F5 q D5 q Bb4 q G4'];
   const S = [
     ...SUBJECT, ...CS,
     'q A4 e. A4 s G4 q F4 e. F4 s E4', 'q F4 e Bb4 A4 e E4 G4 q F4',
     'q A4 q G4 h r', 'h r q D4 q E4',
     'q A4 e. A4 s G4 q F4 e. F4 s E4', 'h F4 h Bb4', 'q Bb4 e. Bb4 s A4 q G4 e. G4 s F4', 'q A4 q G4 h E4',
     'q r q E4 e. E4 s F4 q G4', 'q A4 q F4 q G4 q E4', 'q D5 e. D5 s E5 q F5 e. F5 s G5', 'q F5 e E5 D5 e C#5 E5 q A4',
+    ...CS_HIGH,
     'q F4 e. F4 s G4 q A4 e. A4 s Bb4', 'q Bb4 q A4 q G4 q E4', 'q F4 q Bb4 q A4 q G4', 'w (D2 D3 A3 D4 F#4)',
   ];
   const A = [
     'w r', 'w r', ...ANSWER,
     'q A3 h D4 q C#4', 'h D4 q C#4 q D4',
     ...CS_LOW,
-    'h. D4 q C#4', 'q D4 e. D4 s E4 q F4 e. F4 s G4', 'h D4 h C#4', 'h D4 h C#4',
+    // Bar 9: the seventh of A7 (G3) falls to F3, so the episode starts on a full D minor chord.
+    'h F3 q D4 q C#4', 'q D4 e. D4 s E4 q F4 e. F4 s G4', 'h D4 h C#4', 'h D4 h C#4',
     'q A3 e. A3 s Bb3 q C#4 e. C#4 s D4', 'h D4 h C#4', 'h F4 q A4 q r', 'q A4 q Bb4 q G4 q E4',
+    ...SUBJECT,
     'h D4 h F4', 'h D4 h C#4', 'h D4 h C#4', 'w r',
   ];
   const B = [
@@ -839,15 +925,16 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
     ...BASS_SUBJECT,
     'h D3 q G2 q A2', 'h D3 h Bb2', 'h Bb2 h A2', 'q D3 q G2 h A2',
     'w A2', 'w A2', 'w A2', 'w A2',
-    'w D2', 'w D2', 'q Bb2 q G2 h A2', 'w r',
+    'w D2', 'w D2', 'w D2', 'w D2', 'q Bb2 q G2 h A2', 'w r',
   ];
+  const LAST = S.length - 1;
   const midis = (text: string[]) => text.flatMap((t) => line(t).flatMap((e) => e.midis));
   const durs = (text: string[]) => text.flatMap((t) => line(t).map((e) => e.dur));
 
   it('is in drop D and plays exactly the three voices written out for it', async () => {
     const song = await load('st-fugue-exposition');
     expect(song.tuning).toEqual(DROP_D);
-    expect(song.bars.length).toBe(20);
+    expect(song.bars.length).toBe(22);
     expect(compareAll(song, { S, A, B }, () => 3840)).toEqual([]);
   });
 
@@ -875,8 +962,8 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
     expect(A.slice(6, 8)).toEqual(CS_LOW);
     expect(midis(CS_LOW)).toEqual(midis(CS).map((m) => m - 7));
     // Invertible at the octave: on every beat it sounds a third, a sixth or an octave from the
-    // entry it accompanies, whether it lies above it (both times here) or below it.
-    for (const [cs, entry] of [[CS, ANSWER], [CS_LOW, BASS_SUBJECT]]) {
+    // entry it accompanies, whether it lies above it (all three times here) or below it.
+    for (const [cs, entry] of [[CS, ANSWER], [CS_LOW, BASS_SUBJECT], [CS_HIGH, SUBJECT]]) {
       for (let bar = 0; bar < 2; bar++) for (const t of [0, 960, 1920, 2880]) {
         const at = (text: string) => line(text).find((e) => e.start <= t && t < e.start + e.dur)!.midis[0];
         expect([3, 4, 8, 9, 0], `bar ${bar + 1} beat at ${t}`).toContain(pc(at(cs[bar]) - at(entry[bar])));
@@ -884,18 +971,45 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
     }
   });
 
+  it('brings the subject back in the middle voice over the low D pedal (bars 17-18), countersubject above', () => {
+    // A fourth entry, in the tonic: the subject at its first pitch, and above it the
+    // countersubject exactly as over the answer (bars 3-4), a fourth higher.
+    expect(A.slice(16, 18)).toEqual(SUBJECT);
+    expect(S.slice(16, 18)).toEqual(CS_HIGH);
+    expect(midis(CS_HIGH)).toEqual(midis(CS).map((m) => m + 5));
+    expect(midis(SUBJECT)).toEqual(midis(ANSWER).map((m) => m + 5));
+    expect(B.slice(16, 18)).toEqual(['w D2', 'w D2']);
+    // It ends on the leading note C#4, which rises to D4 as the close begins, while the top
+    // voice's G4 falls to F4: the tritone of A7 resolving inwards.
+    expect(name(midis([A[17]]).at(-1)!)).toBe('C#4');
+    expect(name(midis([A[18]])[0])).toBe('D4');
+    expect(name(midis([S[17]]).at(-1)!)).toBe('G4');
+    expect(name(midis([S[18]])[0])).toBe('F4');
+    // About 24 bars, as the plan asks.
+    expect(S.length).toBe(22);
+  });
+
+  it('resolves the seventh of A7 into the episode (bar 8 -> 9) and starts it on a full D minor chord', async () => {
+    const song = await load('st-fugue-exposition');
+    // The countersubject ends on G3, the seventh of A7, which falls a step to F3.
+    expect(name(midis([A[7]]).at(-1)!)).toBe('G3');
+    expect(name(midis([A[8]])[0])).toBe('F3');
+    const first = actualBar(song, 8)[0];
+    expect(new Set(first.struck.map(pc))).toEqual(new Set(chordPcs('Dm')));
+  });
+
   it('has a chord-tone or passing note on every strong beat, in every voice', async () => {
     const song = await load('st-fugue-exposition');
     const problems = [
-      ...strongBeatProblems(song, voiceNotes(S.slice(0, 19), 3840), [0, 1920], 'top'),
-      ...strongBeatProblems(song, voiceNotes(A.slice(0, 19), 3840), [0, 1920], 'middle'),
-      ...strongBeatProblems(song, voiceNotes(B.slice(0, 19), 3840), [0, 1920], 'bass'),
+      ...strongBeatProblems(song, voiceNotes(S.slice(0, LAST), 3840), [0, 1920], 'top'),
+      ...strongBeatProblems(song, voiceNotes(A.slice(0, LAST), 3840), [0, 1920], 'middle'),
+      ...strongBeatProblems(song, voiceNotes(B.slice(0, LAST), 3840), [0, 1920], 'bass'),
     ];
     expect(problems).toEqual([]);
   });
 
   it('has no parallel fifths or octaves between any two voices', () => {
-    const v = { top: voiceNotes(S.slice(0, 19), 3840), middle: voiceNotes(A.slice(0, 19), 3840), bass: voiceNotes(B.slice(0, 19), 3840) };
+    const v = { top: voiceNotes(S.slice(0, LAST), 3840), middle: voiceNotes(A.slice(0, LAST), 3840), bass: voiceNotes(B.slice(0, LAST), 3840) };
     expect([...parallels(v.top, v.middle, 'top/middle'), ...parallels(v.top, v.bass, 'top/bass'), ...parallels(v.middle, v.bass, 'middle/bass')]).toEqual([]);
   });
 
@@ -903,10 +1017,10 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
     const song = await load('st-fugue-exposition');
     expect(song.key).toMatch(/^Dm|^D minor/);
     const allowed = new Set([...scalePcs('D', 'minor'), ...['C#', 'B', 'G#'].map((n) => pc(noteToMidi(`${n}4`)))]);
-    for (let b = 0; b < 19; b++) for (const m of [...midis([S[b]]), ...midis([A[b]]), ...midis([B[b]])]) expect(allowed.has(pc(m)), `bar ${b + 1}: ${name(m)}`).toBe(true);
+    for (let b = 0; b < LAST; b++) for (const m of [...midis([S[b]]), ...midis([A[b]]), ...midis([B[b]])]) expect(allowed.has(pc(m)), `bar ${b + 1}: ${name(m)}`).toBe(true);
     expect(B.slice(12, 16).every((t) => t === 'w A2')).toBe(true);
-    expect(B.slice(16, 18).every((t) => t === 'w D2')).toBe(true);
-    expect(chordAt(song, 19, 0)).toBe('D');
+    expect(B.slice(16, 20).every((t) => t === 'w D2')).toBe(true);
+    expect(chordAt(song, LAST, 0)).toBe('D');
     // The pedals are the open strings: A (string 5) and the low D (string 6, tuned down).
     expect(actualBar(song, 12)[0].frets).toContain(0);
     expect(actualBar(song, 16)[0].strings).toContain(6);

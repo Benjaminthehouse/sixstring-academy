@@ -3,8 +3,10 @@
  * every shape and the note under each finger the cards name, the fingerings of the chord library,
  * the fingers that stay or move between Am and Fmaj7, C and the small F, C and G7, the full F as the
  * E shape one fret up and Bm as the Am shape two frets up, the chords of C major and D major, the
- * verse of Auld Lang Syne and its bass notes (and, once the library has the song, its chords), the
- * change studies, the jam fallbacks, the chord trainer addresses and the BPM of every Player task.
+ * verse of Auld Lang Syne and its bass notes against the library's song (whose chart has the open
+ * Bm7 where the lesson asks for the barre Bm), the strum-once rule of the bass-following
+ * microphone steps, the change studies, the jam fallback, the chord trainer addresses and the BPM
+ * of every Player task.
  * Run with `npx vitest run src/content/teachers/mia/mia-first-barre.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
@@ -192,17 +194,61 @@ describe('Mia unit 10: Your first barre chord', () => {
     const show = l.steps.find((s) => (s as { id?: string }).id === 'show') as { notes: TabNote[]; alternative: { tiles: string[] } };
     expect(show.notes.map((n) => ('rest' in n ? '' : at(n.string, n.fret)))).toEqual(verse.map((ch) => chordNotes(ch)[0]));
     expect(show.alternative.tiles.flatMap(symbols)).toEqual(verse);
-    const chart = l.steps.find((s) => (s as { title?: string }).title === 'My chart for the verse') as { body: string };
+    const chart = l.steps.find((s) => (s as { title?: string }).title === 'The chords, one a bar') as { body: string };
     expect(symbols(chart.body).slice(0, 8)).toEqual(verse);
     const blanks = stepsOf<{ text: string; blanks: string[] }>('auld-lang-syne', 'fill-blanks')[0];
     let i = 0;
     const filled = blanks.text.replace(/___/g, () => blanks.blanks[i++]);
     expect(symbols(filled)).toEqual(verse);
-    // Once the library has the song, its first eight full bars must be this verse.
-    if (songEntry('auld-lang-syne')) {
-      const s = await song('auld-lang-syne');
-      const full = chordsByBar(s).filter((_, b) => s.bars[b].length === undefined);
-      expect(full.slice(0, 8).map((b) => b[0]), 'the library\'s Auld Lang Syne').toEqual(verse);
+  });
+
+  it('follows the library\'s Auld Lang Syne, with the barre Bm where its chart has the open Bm7', async () => {
+    expect(songEntry('auld-lang-syne')).toBeTruthy();
+    const s = await song('auld-lang-syne');
+    expect(s.tempo[0].bpm).toBe(80);
+    // The pickup bar is silent for the strummer; then verse and chorus, one chord a bar.
+    const full = chordsByBar(s).filter((_, b) => s.bars[b].length === undefined);
+    expect(full.length).toBe(16);
+    const chart = full.map((b) => b[0]);
+    const verse = ['D', 'A', 'D', 'G', 'D', 'A', 'Bm', 'D'];
+    const asTaught = chart.map((c) => (c === 'Bm7' ? 'Bm' : c));
+    expect(asTaught.slice(0, 8), 'the verse').toEqual(verse);
+    expect(asTaught.slice(8), 'the chorus uses the same eight chords').toEqual(verse);
+    // Bm fits wherever the chart has Bm7: the same root, and every note of Bm is in Bm7.
+    expect(chordNotes('Bm')[0]).toBe(chordNotes('Bm7')[0]);
+    expect(chordNotes('Bm').every((n) => chordNotes('Bm7').includes(n))).toBe(true);
+    const shapes = new Set(s.chords.filter((c) => c.symbol === 'Bm7' && c.voicing).map((c) => (c.voicing as Array<number | null>).map((f) => (f === null ? 'x' : String(f))).join('')));
+    expect([...shapes]).toEqual(['x20202']);
+    // The lesson says so where the learner meets the chart, and in the Player task.
+    const l = lesson('auld-lang-syne');
+    const chartCard = l.steps.find((st) => (st as { title?: string }).title === 'The chords, one a bar') as { body: string };
+    expect(symbols(chartCard.body).slice(0, 8)).toEqual(verse);
+    expect(chartCard.body).toContain('{c:Bm7}');
+    expect(chartCard.body).toMatch(/play your barre \{c:Bm\} there instead/);
+    const task = l.steps.find((st) => isTaskStep(st) && st.id === 'auld-lang-syne-play');
+    expect(task && isTaskStep(task) && task.params?.[0]).toBe('auld-lang-syne');
+    if (!task || !isTaskStep(task)) return;
+    expect(plain(task.body)).toMatch(/Where it says \{c:Bm7\}, play your barre \{c:Bm\}/);
+    // The song is in the library, so the task needs no stand-in, and the unit's show links it.
+    expect(task.fallback).toBeUndefined();
+    expect(unit.milestone?.song).toBe('auld-lang-syne');
+    // The celebration claims only what the microphone heard: the verse's bass, not its timing.
+    expect(unit.milestone?.celebrate).toMatch(/the verse of Auld Lang Syne/);
+    expect(unit.milestone?.celebrate).not.toMatch(/on time/);
+  });
+
+  it('asks for one strum per chord wherever the microphone follows the bass of a strummed chord', () => {
+    // The phrase listener stops once it hears clearly more notes than the phrase has, so a
+    // learner strumming every beat would fail: each such step says to strum each chord once.
+    const once = /one strum each|strum each chord once/i;
+    for (const l of unit.lessons) {
+      const steps = l.steps;
+      steps.forEach((s, i) => {
+        const ex = s as { type?: string; octave?: string; prompt?: string };
+        if (ex.type !== 'play-phrase' || ex.octave !== 'any') return;
+        const before = steps[i - 1] as { body?: string } | undefined;
+        expect(once.test(ex.prompt ?? '') || once.test(before?.body ?? ''), `${l.id} > step ${i}`).toBe(true);
+      });
     }
   });
 
@@ -232,10 +278,9 @@ describe('Mia unit 10: Your first barre chord', () => {
     }
   });
 
-  it('falls back to jams on the same chords while La Cucaracha and Auld Lang Syne are missing', () => {
+  it('falls back to a jam on the same chords while La Cucaracha is missing', () => {
     const chords = (id: string, key: string) => [...new Set(progressionInKey(id, key).bars.flat().map((ch) => ch.symbol))];
     expect(chords('folk-i-iv-i-v', 'C')).toEqual(['C', 'F', 'G']);
-    expect(chords('fifties-i-vi-iv-v', 'D')).toEqual(['D', 'Bm', 'G', 'A']);
     expect(chords('fifties-i-vi-iv-v', 'C')).toEqual(['C', 'Am', 'F', 'G']);
     // G7 is G with one note added, so it fits where the band plays G.
     expect(chordNotes('G7').slice(0, 3)).toEqual(chordNotes('G'));

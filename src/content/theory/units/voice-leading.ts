@@ -43,6 +43,14 @@ const C_CLICHE = ['x32010', 'x32110', 'x32210', 'x32310'];
 const TWO_FIVE_ONE = ['x5756x', 'x5546x', 'x3545x'];
 /** The same chords with the G7 an octave position away: every voice leaps. */
 const TWO_FIVE_ONE_JUMPY = ['x5756x', 'x-10-12-10-12-x', 'x3545x'];
+/** Pairs of sixths picked one note after the other: string 3, then string 1. */
+function sixthsPhrase(pairs: Array<[number, number]>): TabNote[] {
+  return pairs.flatMap(([low, high]) => [
+    { string: 3, fret: low, duration: 'e' as const },
+    { string: 1, fret: high, duration: 'e' as const },
+  ]);
+}
+
 /** G major in sixths on strings 3 and 1, pair by pair: [string 3 fret, string 1 fret]. */
 const G_SIXTHS: Array<[number, number]> = [[0, 0], [2, 2], [4, 3], [5, 5], [7, 7], [9, 8], [11, 10], [12, 12]];
 
@@ -127,7 +135,7 @@ const whatVoiceLeadingIs: Lesson = {
       sound: { kind: 'progression', chords: ['C', 'Am', 'Fmaj7', 'C'], tempo: 70 },
       options: [{ text: 'Smooth', correct: true }, { text: 'Jumpy' }],
       shuffle: false,
-      explain: 'Open {c:C}, {c:Am}, {c:Fmaj7} and {c:C} share most of their notes, so at each change only one or two voices move, by a step: smooth.',
+      explain: 'Open {c:C}, {c:Am}, {c:Fmaj7} and {c:C} share most of their notes, so at each change most notes stay and the others move only a little: smooth.',
     },
     {
       type: 'choice',
@@ -492,7 +500,7 @@ const parallelFifths: Lesson = {
     {
       type: 'card',
       title: 'Thirds and sixths are welcome',
-      body: 'Parallel thirds and sixths keep two voices distinct and sound sweet, so nearly every style uses them: they are the sound of harmonised guitar lines. Play {k:G major} in sixths on strings 3 and 1. Most pairs share a fret; where the scale has a half step, string 1 is one fret lower.',
+      body: 'Parallel thirds and sixths keep two voices distinct and sound sweet, so nearly every style uses them: they are the sound of harmonised guitar lines. Play {k:G major} in sixths on strings 3 and 1. Most pairs share a fret, a major sixth apart; where the sixth is minor, string 1 is one fret lower.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -505,21 +513,40 @@ const parallelFifths: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Play {k:G major} in sixths, pair by pair: string 3, then string 1.',
-      notes: G_SIXTHS.flatMap(([low, high]) => [
-        { string: 3, fret: low, duration: 'e' as const },
-        { string: 1, fret: high, duration: 'e' as const },
-      ]),
+      prompt: 'Play the lower four sixths of {k:G major}, pair by pair: string 3, then string 1.',
+      notes: sixthsPhrase(G_SIXTHS.slice(0, 4)),
       octave: 'exact',
       tempo: 80,
-      explain: 'Frets 0-0, 2-2, 4-3, 5-5, 7-7, 9-8, 11-10, 12-12: {n:G} under {n:E}, {n:A} under {n:F#}, {n:B} under {n:G}, and so on up to {n:G} under {n:E}.',
+      explain: 'Frets 0-0, 2-2, 4-3, 5-5: {n:G} under {n:E}, {n:A} under {n:F#}, {n:B} under {n:G}, {n:C} under {n:A}.',
       fact: 'voice-parallel-sixths',
       alternative: {
         type: 'order',
-        prompt: 'Put the {k:G major} sixths in order up the neck (string 3 fret, then string 1 fret).',
-        tiles: G_SIXTHS.map(([low, high]) => `${low}-${high}`),
-        explain: '0-0, 2-2, 4-3, 5-5, 7-7, 9-8, 11-10, 12-12: string 3 plays {k:G major}, and string 1 stays a sixth above.',
+        prompt: 'Put the lower four {k:G major} sixths in order up the neck (string 3 fret, then string 1 fret).',
+        tiles: G_SIXTHS.slice(0, 4).map(([low, high]) => `${low}-${high}`),
+        explain: '0-0, 2-2, 4-3, 5-5: string 3 climbs {k:G major} from {n:G}, and string 1 stays a sixth above.',
       },
+    },
+    {
+      type: 'play-phrase',
+      prompt: 'Now the upper four, from fret 7 to fret 12: string 3, then string 1.',
+      notes: sixthsPhrase(G_SIXTHS.slice(4)),
+      octave: 'exact',
+      tempo: 80,
+      explain: 'Frets 7-7, 9-8, 11-10, 12-12: {n:D} under {n:B}, {n:E} under {n:C}, {n:F#} under {n:D}, and {n:G} under {n:E} an octave up.',
+      fact: 'voice-parallel-sixths',
+      alternative: {
+        type: 'order',
+        prompt: 'Put the upper four {k:G major} sixths in order up the neck (string 3 fret, then string 1 fret).',
+        tiles: G_SIXTHS.slice(4).map(([low, high]) => `${low}-${high}`),
+        explain: '7-7, 9-8, 11-10, 12-12: string 3 finishes the scale on {n:G} at fret 12, with {n:E} a sixth above.',
+      },
+    },
+    {
+      type: 'true-false',
+      statement: 'In {k:G major} in sixths on strings 3 and 1, every pair uses the same fret on both strings.',
+      answer: false,
+      explain: 'Three pairs do not: 4-3, 9-8 and 11-10. Those sixths are minor, a half step smaller, so string 1 is one fret lower.',
+      fact: 'voice-parallel-sixths',
     },
     {
       type: 'listen-choice',
@@ -539,17 +566,6 @@ const parallelFifths: Lesson = {
       ],
       explain: 'Voices moving in parallel perfect fifths or octaves sound like one voice, which weakens the independence of the parts.',
       fact: 'voice-parallel-fifths-rule',
-    },
-    {
-      type: 'choice',
-      prompt: 'Which parallel intervals are welcome in almost every style?',
-      options: [
-        { text: 'Thirds and sixths', correct: true },
-        { text: 'Fifths and octaves', why: 'These are the ones classical part writing avoids.' },
-        { text: 'Seconds and sevenths', why: 'In parallel, these dissonant intervals are rare outside special effects.' },
-      ],
-      explain: 'Parallel thirds and sixths keep two distinct voices and sound sweet: the sound of harmonised guitar lines.',
-      fact: 'voice-parallel-sixths',
     },
   ],
   facts: [
@@ -780,7 +796,7 @@ const nonChordTones: Lesson = {
       prompt: 'Play {c:Dsus4} (xx0233): string 1 stays at fret 3, where it was in {c:G}.',
       chord: 'Dsus4',
       frets: 'xx0233',
-      explain: 'The {n:G} on string 1 is the suspension. Now lift your little finger and let it fall to fret 2, {n:F#}: {c:D}.',
+      explain: 'The {n:G} on string 1 is the suspension. Now move string 1 down to fret 2, {n:F#}, and you have {c:D}.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
@@ -903,12 +919,12 @@ const voiceLedTwoFiveOne: Lesson = {
         frets: [3, 7],
         dots: [
           { string: 5, fret: 5, note: 'D' },
-          { string: 5, fret: 3, note: 'C', role: 'root' },
+          { string: 5, fret: 3, note: 'C' },
           { string: 4, fret: 7, note: 'A' },
           { string: 4, fret: 5, note: 'G' },
-          { string: 3, fret: 5, note: 'C', role: 'root' },
-          { string: 3, fret: 4, note: 'B', role: 'target' },
-          { string: 2, fret: 6, note: 'F', role: 'target' },
+          { string: 3, fret: 5, note: 'C' },
+          { string: 3, fret: 4, note: 'B' },
+          { string: 2, fret: 6, note: 'F' },
           { string: 2, fret: 5, note: 'E' },
         ],
         caption: 'Each string is one voice: {n:D}-{n:D}-{n:C}, {n:A}-{n:G}-{n:G}, {n:C}-{n:B}-{n:B}, {n:F}-{n:F}-{n:E}.',
@@ -936,7 +952,7 @@ const voiceLedTwoFiveOne: Lesson = {
       prompt: 'Play {c:Dm7}: x5756x, strings 5 to 2.',
       chord: 'Dm7',
       frets: 'x5756x',
-      explain: '{n:D} {n:A} {n:C} {n:F}, from string 5 up. Mute strings 6 and 1 with spare fingers.',
+      explain: '{n:D} {n:A} {n:C} {n:F}, from string 5 up. Mute strings 6 and 1 with the edges of your fretting fingers.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
