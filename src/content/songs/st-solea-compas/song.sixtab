@@ -1,0 +1,37 @@
+# Flamenco Rhythm: the 12-Beat Cycle (repertoire plan: st-solea-compas). An original study in
+# the rhythm of solea: a cycle of 12 counts with accents on 3, 6, 8, 10 and 12, written as four
+# bars of 3/4 (counts 1-3, 4-6, 7-9, 10-12). E (022100) is home; F (xx3211) on counts 7-9 pulls
+# back down to E on count 10, where every cycle comes to rest.
+# Your right hand: each accented count is a four-finger rasgueado, four sixteenth-note
+# downstrokes (little, ring, middle, index), the first one strong (written as the full chord with
+# an accent mark); every other count is one soft downstroke with the side of the thumb.
+# Four cycles of compas (bars 1-16), then a closing falseta of two cycles (bars 17-24): a short
+# melody in E Phrygian (E F G A B C D), every note a thumb rest stroke, accents still on 3, 6, 8,
+# 10 and 12, closing on an E chord on count 10.
+# The key signature is that of A minor: E Phrygian uses the same notes, centred on E.
+title: Flamenco Rhythm: the 12-Beat Cycle
+composer: Sixstring Academy
+source: Original study in the rhythm of solea
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: flamenco, solea, compas, rasgueado, phrygian, accents, 12 beats
+tempo: 100
+time: 3/4
+key: Am
+
+track: Your part
+role: rhythm
+[Compas]
+| ^"Count 1: thumb" "E=022100" q D D ^"3: rasgueado" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D | q D D ^"6" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| "F=xx3211" q D ^"8" s (4:3 3:2 2:1 1:1){ac dn} D D D q D | ^"10" "E=022100" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D q D ^"12" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D | q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| "F=xx3211" q D s (4:3 3:2 2:1 1:1){ac dn} D D D q D | "E=022100" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D q D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D | q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| "F=xx3211" q D s (4:3 3:2 2:1 1:1){ac dn} D D D q D | "E=022100" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D q D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D | q D D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D |
+| "F=xx3211" q D s (4:3 3:2 2:1 1:1){ac dn} D D D q D | "E=022100" s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D q D s (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} D D D ||
+[Falseta]
+| ^"Falseta: thumb rest strokes" e 4:2{2 P} 4:3{3} 3:0 4:3 q 4:2{ac} | e 4:0 4:2 4:3 4:2 q 5:2{2 ac} |
+| "F=xx3211" q 6:1{1} e 5:0{ac} 5:3{3} q 4:3{3} | "E=022100" q 4:2{2 ac} e 4:3{3} 4:2{2} q 5:2{2 ac} |
+| e 4:2 3:0 3:2{2} 3:0 q 2:0{ac} | e 2:1{1} 2:0 3:2{2} 3:0 q 4:2{2 ac} |
+| "F=xx3211" q 4:3{3} e 3:2{2 ac} 3:0 q 4:3{3} | ^"Close on 10" "E=022100" h. (6:0 5:2 4:2 3:1 2:0 1:0){ac dn} ||

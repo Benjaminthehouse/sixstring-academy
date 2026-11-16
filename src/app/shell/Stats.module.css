@@ -34,6 +34,15 @@
   border-radius: var(--r-md);
   box-shadow: var(--focus-ring);
 }
+/* The top bar is short of room (large text, a narrow phone): less padding, and maybe one chip less. */
+.chipsCompact .chip {
+  padding: 0 var(--sp-1);
+}
+.chipAside {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
 .chipsSide {
   justify-content: space-between;
   width: 100%;

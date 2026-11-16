@@ -4,6 +4,8 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { useLatest } from '../hooks/useLatest';
 import { cx } from '../util/cx';
+import { registerBackClose } from './dialogHistory';
+import { registerDialog } from './overlays';
 import { Portal } from './Portal';
 import styles from './Dialog.module.css';
 
@@ -67,6 +69,19 @@ function Dialog({ open, onClose, title, hideTitle, description, footer, size = '
   const active = mounted && !closing;
   useScrollLock(mounted);
   useFocusTrap(panelRef, active);
+
+  // Toasts treat the screen as covered until the exit animation is over.
+  useEffect(() => (mounted ? registerDialog() : undefined), [mounted]);
+
+  // The phone's Back gesture closes the dialog rather than the screen behind it.
+  useEffect(() => {
+    if (!active) return undefined;
+    return registerBackClose(() => {
+      if (!dismissableRef.current) return false;
+      onCloseRef.current();
+      return true;
+    });
+  }, [active, dismissableRef, onCloseRef]);
 
   useEffect(() => {
     if (!active) return;

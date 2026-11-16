@@ -366,7 +366,7 @@ const goDownMoses: TeacherLesson = {
         tool: 'progressions',
         params: ['classical-minor-cadence', 'a', 'jam'],
         title: 'Jam on A minor, D minor and E seven',
-        body: 'Go Down, Moses is not in the Songs library yet, so jam on its three chords with the band: {c:Am}, {c:Dm}, {c:E7}, {c:Am}, over and over. One heavy downstrum per beat, around 60 to 72 BPM. Listen for {c:E7} turning back home to {c:Am}.',
+        body: 'Go Down, Moses is not in the Songs library yet, so jam on its three chords with the band: {c:Am}, {c:Dm}, {c:E7}, {c:Am}, over and over. One heavy downstrum per beat, with the band at 60 to 72 BPM. Listen for {c:E7} turning back home to {c:Am}.',
       },
     }),
     {
@@ -775,7 +775,7 @@ const majorOrMinor: TeacherLesson = {
         tool: 'progressions',
         params: ['minor-i-bvi-biii-bvii', 'e', 'jam'],
         title: 'Jam: E minor turning bright',
-        body: 'We Three Kings is not in the Songs library yet, so jam on {c:Em}, {c:C}, {c:G} and {c:D} with the band. It starts dark on {c:Em} and brightens on {c:G}, the home chord of the relative major. Pick the waltz feel if it is offered and count "1 2 3".',
+        body: 'We Three Kings is not in the Songs library yet, so jam on {c:Em}, {c:C}, {c:G} and {c:D} with the band. It starts dark on {c:Em} and brightens on {c:G}, the home chord of the relative major. Under Band, pick the waltz feel and count "1 2 3".',
       },
     }),
     {

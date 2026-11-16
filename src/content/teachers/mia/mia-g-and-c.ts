@@ -200,7 +200,7 @@ const michaelRow: TeacherLesson = {
       fallback: {
         ...MICHAEL_FALLBACK,
         title: 'Jam on D, G and A',
-        body: 'Michael, Row is not in the Songs library yet, so jam on its three chords with the band: {c:D}, {c:G}, {c:D}, {c:A}, {c:D}, {c:G}, {c:A}, {c:D}. Four downstrums a bar, around 80 BPM, and aim each first strum at the chord\'s lowest string.',
+        body: 'Michael, Row is not in the Songs library yet, so jam on its three chords with the band: {c:D}, {c:G}, {c:D}, {c:A}, {c:D}, {c:G}, {c:A}, {c:D}. Turn the band down to about 80 BPM with the minus button, play four downstrums a bar, and aim each first strum at the chord\'s lowest string.',
       },
     }),
     {
@@ -708,7 +708,7 @@ const amazingGrace: TeacherLesson = {
       title: "Your encore: Brahms' Lullaby",
       song: 'brahms-lullaby',
       minutes: 5,
-      body: 'Same three chords, same 3/4, at 72 BPM. In Options, pick the Teacher part and strum {c:G}, {c:D7} and {c:C} under the melody. Then pick the Melody and play the tune, from the open string 3 ({n:G}) up to string 1, fret 3 ({n:G}).',
+      body: 'Same three chords, same 3/4, at 72 BPM. In Options, pick the Teacher part: bass, strum, strum on {c:G}, {c:D7} and {c:C} under the melody. Then pick the Melody and play the tune, from the open string 3 ({n:G}) up to string 1, fret 3 ({n:G}).',
     }),
     {
       type: 'card',

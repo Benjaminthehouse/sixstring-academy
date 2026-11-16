@@ -9,7 +9,7 @@ export default defineSong({
   style: 'folk',
   kind: 'study',
   key: 'A major',
-  teaches: ['Reading in second position: finger 1 on fret 2', 'A major and F# minor, no open strings', 'E# in F# minor', 'Low notes on strings 6 to 4'],
+  teaches: ['Reading in second position: finger 1 on fret 2', 'A major and F# minor, no open strings', 'E# in F# minor', 'Low notes on strings 6 to 3'],
   skills: ['melody', 'rhythm'],
   tags: ['reading', 'second position', 'no open strings', 'a major', 'f# minor', 'relative minor', 'key signature'],
   about:

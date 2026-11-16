@@ -194,3 +194,91 @@
   font-size: var(--text-sm);
   color: var(--fg-muted);
 }
+
+.statusSongs {
+  display: block;
+  margin-top: var(--sp-2);
+}
+
+/* ---------- What a backup holds ---------- */
+.included {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+}
+@media (min-width: 900px) {
+  .included {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: var(--sp-8);
+  }
+}
+.includedColumn {
+  min-width: 0;
+}
+.includedTitle {
+  font-size: var(--text-lg);
+}
+.includedLead {
+  margin-top: var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.lines {
+  margin-top: var(--sp-3);
+  padding: 0;
+  list-style: none;
+}
+.line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.line:last-child {
+  border-bottom: 0;
+}
+.lineIcon {
+  grid-row: span 2;
+  align-self: start;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--fg-muted);
+}
+.lineLabel {
+  font-weight: 600;
+}
+.lineDetail {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.later {
+  margin-top: var(--sp-3);
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+@media (min-width: 480px) {
+  /* Label and count on one line when there is room. */
+  .included .includedColumn:first-child .line {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .included .includedColumn:first-child .lineIcon {
+    grid-row: auto;
+  }
+  .included .includedColumn:first-child .lineDetail {
+    text-align: right;
+    max-width: 22rem;
+  }
+}
+
+.previewGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.previewHeading {
+  font-size: var(--text-md);
+}

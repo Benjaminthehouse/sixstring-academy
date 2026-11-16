@@ -90,9 +90,14 @@ Conventions that hold for the whole kit:
   screen built on `Page` from a bare element.
 - `ActionBar` is `position: sticky; bottom: var(--sticky-bottom, 0px)`. If the phone tab bar is
   `position: fixed`, set `--sticky-bottom` on `<main>` to its height so the bar sits above it.
+- Bottom clearance: `--action-bar-h` on `<html>` is the room taken, above `--sticky-bottom`, by
+  controls that sit at the bottom of the screen *right now* (a stuck `ActionBar`, or anything passed
+  to `useBottomClearance`). A bar that ends mid-screen publishes nothing. Toasts add it; so must any
+  screen-made fixed bottom layer.
 - Breakpoints: `useIsMobile()` is `< 720 px` (`BREAKPOINTS.mobile`); `BREAKPOINTS.wide` is 1080.
-- Toasts sit above `--nav-h` on phones. Layers: modal/sheet 200 < popover/menu 250 < toast 300 <
-  tooltip 400 < celebration 500 (`LAYERS`).
+- Toasts sit above `--nav-h` on phones (the shell sets it to 0 while an immersive screen hides its
+  tab bar). Layers: modal/sheet 200 < popover/menu 250 < toast 300 < tooltip 400 < celebration 500
+  (`LAYERS`). Toasts never cover an open dialog: see "Toasts" below.
 
 ---
 
@@ -102,7 +107,7 @@ Conventions that hold for the whole kit:
 |---|---|---|
 | `Page` | `title`, `subtitle?`, `eyebrow?`, `back?: string \| { to?, params?, label?, onClick? }`, `actions?`, `width?: 'content' \| 'prose' \| 'full'` [content], `gap?` [8], `hideHeader?` | Screen wrapper. `back="songs"` renders a real link; name the destination with `label`. |
 | `Section` | `title?`, `description?`, `eyebrow?`, `actions?`, `level?: 2 \| 3`, `divided?`, `gap?` [4] | Titled block; no card. |
-| `ActionBar` | `start?`, `stretchOnMobile?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`. While mounted it publishes its height as `--action-bar-h` on `<html>`; toasts already add it, and any other fixed bottom layer should too. |
+| `ActionBar` | `start?`, `stretchOnMobile?` [true], `clearance?` [true], children (the buttons) | Sticks to the bottom of the screen while content scrolls: a lesson's "Check" / "Continue". Last child of a `Page`, primary button last (the shell's "Jump to actions" link focuses it). While it sits at the bottom of the screen it publishes its height as `--action-bar-h` on `<html>`; ended mid-screen (a short page, made static beside the content on wide screens) it publishes nothing. Toasts add it, and any other fixed bottom layer should too. `clearance={false}` opts out. |
 | `Stack` | `gap?` [4], `align?`, `justify?`, `as?` | Vertical flow. |
 | `Row` | `gap?` [3], `align?`, `justify?`, `wrap?`, `stackOnMobile?`, `as?` | One line, centred vertically. |
 | `Cluster` | `gap?` [2], `align?`, `justify?`, `as?` | Wrapping group of small things. |
@@ -166,8 +171,8 @@ All take `label` (required), `hideLabel?`, `hint?`, `error?` (also marks the con
 | `TextArea` | `value`, `onChange(value)`, `autoGrow?`, `rows?` [3], `maxLength?` (adds a counter), `mono?` | |
 | `Select` | `value`, `onChange(value)`, `options: Array<string \| { value, label, disabled? } \| { group, options }>`, `placeholder?`, `prefix?` (icon), `size?` | Native select. |
 | `SearchField` | `value`, `onChange(value)`, `onSubmit?`, `label?` [Search, hidden], `showLabel?`, `placeholder?`, `size?` | Escape or the cross clears. |
-| `SegmentedControl` | `options: Array<T \| { value, label, icon?, ariaLabel?, disabled? }>`, `value`, `onChange`, `aria-label`, `size?`, `fullWidth?` | 2–5 short choices. Radio group. |
-| `Tabs` | `items: Array<{ id, label, icon?, badge?, disabled?, content? }>`, `value?`, `defaultValue?`, `onChange?`, `aria-label`, `variant?: 'underline' \| 'pills'`, `fitted?`, `keepMounted?` | Renders the panels. Leave out every `content` to get just the strip. |
+| `SegmentedControl` | `options: Array<T \| { value, label, icon?, ariaLabel?, disabled? }>`, `value`, `onChange`, `aria-label`, `size?`, `fullWidth?` | 2–5 short choices. Radio group. Labels are never cut short: segments that do not fit one row (a narrow phone, 200 % text) wrap onto a second row. |
+| `Tabs` | `items: Array<{ id, label, icon?, badge?, disabled?, content? }>`, `value?`, `defaultValue?`, `onChange?`, `aria-label`, `variant?: 'underline' \| 'pills'`, `fitted?`, `keepMounted?` | Renders the panels. Leave out every `content` to get just the strip. Underline tabs scroll sideways inside their strip when they do not fit; pills wrap onto a second row. |
 | `Switch` | `checked`, `onChange(checked)`, `label?`, `description?`, `side?: 'start' \| 'end'` [end] | Immediate settings. Bare: pass `aria-label`. |
 | `Checkbox` | `checked`, `onChange(checked)`, `label?`, `description?`, `indeterminate?` | |
 | `RadioGroup` | `label`, `options: Array<T \| { value, label, description?, disabled? }>`, `value`, `onChange`, `variant?: 'list' \| 'cards'`, `orientation?`, `minCardWidth?` | |
@@ -202,7 +207,14 @@ toast({ title: 'Removed from your library', action: { label: 'Undo', onClick: re
 `toast(options | string)`, `toast.ok / .info / .warn / .error(title, options?)`, `toast.dismiss(id)`,
 `toast.clear()`; `useToast()` returns the same object. Options: `title`, `description?`, `tone?`,
 `icon?`, `duration?` (ms; 0 = sticky; default 4 s, 6 s for warn/error, 8 s with an action),
-`action?: { label, onClick }`, `id?` (reuse to replace in place).
+`action?: { label, onClick }`, `id?` (reuse to replace in place), `news?` (see below).
+
+At most three toasts show at once (`MAX_TOASTS`): a new one pushes the oldest off. A toast with
+`news: true` is something the learner did not just ask for (the shell's rewards, a sync result): it
+never pushes another off but waits its turn, and **while a Modal or Sheet is open it waits** and
+shows when the last one closes (news already on screen steps aside and comes back with at least 3 s
+left). Toasts that are replies to a tap still show while a dialog is open, at the top edge, clear of
+a bottom sheet's buttons. `useDialogOpen()` tells you whether any kit dialog is open.
 
 Toasts are announced (a polite live region; `warn` / `error` as alerts). From the keyboard, **Alt+T**
 moves focus to the newest toast (its action first), which also pauses the countdowns; Escape there
@@ -212,13 +224,21 @@ dismisses it and focus returns to where it was. Never make a toast the only way 
 
 | Component | Props | Notes |
 |---|---|---|
-| `Modal` | `open`, `onClose`, `title`, `hideTitle?`, `description?`, `footer?`, `size?: 'sm' \| 'md' \| 'lg' \| 'full'`, `dismissable?` [true], `flush?`, `phone?: 'sheet' \| 'center' \| 'full'` [sheet] | Focus trap, Escape, scroll lock, focus returns. Mark the first control with `data-autofocus`. |
-| `Sheet` | Modal's props + `desktop?: 'modal' \| 'drawer'` [modal] | Bottom sheet on phones (swipe down closes). |
+| `Modal` | `open`, `onClose`, `title`, `hideTitle?`, `description?`, `footer?`, `size?: 'sm' \| 'md' \| 'lg' \| 'full'`, `dismissable?` [true], `flush?`, `phone?: 'sheet' \| 'center' \| 'full'` [sheet] | Focus trap, Escape, scroll lock, focus returns. Mark the first control with `data-autofocus`. The phone's Back gesture (and the browser's Back) calls `onClose` instead of leaving the screen (see below). |
+| `Sheet` | Modal's props + `desktop?: 'modal' \| 'drawer'` [modal] | Bottom sheet on phones (swipe down closes). Back closes it, as for `Modal`. |
 | `ConfirmDialog` | `open`, `title`, `description?`, `confirmLabel?`, `cancelLabel?`, `tone?: 'default' \| 'danger'`, `busy?`, `onConfirm`, `onCancel` | Declarative form. |
 | `confirmDialog(options)` | `{ title, description?, confirmLabel?, cancelLabel?, tone? }` → `Promise<boolean>` | The replacement for `window.confirm`. `useConfirm()` returns it. |
 | `Tooltip` | `content`, `placement?` [top], `delay?`, `disabled?`, one child element | Hover / keyboard focus only. |
 | `Popover` | `trigger` (element), `aria-label`, `placement?` [bottom], `align?` [start], `open?`, `onOpenChange?`, `flush?`, children or `({ close }) => node` | A few controls anchored to a button. |
 | `Menu` | `trigger`, `items: Array<{ label, icon?, onSelect?, danger?, disabled?, checked?, hint?, to?, params?, href? } \| 'separator' \| { heading }>`, `aria-label?`, `placement?`, `align?` [end] | Arrow keys, typeahead, Enter, Escape. |
+
+**Back closes the dialog.** While a Modal or Sheet is open it owns one history entry (same address,
+marked in `history.state`); Back pops it and calls `onClose` (a dialog with `dismissable={false}`
+stays, and so does the screen). Closed any other way, the entry is taken off again, so the next Back
+leaves the screen as before. Nothing to do in a screen; it also copes with a link inside a sheet
+(the left-behind entry is skipped) and with a sheet opened from the address that `redirect()`s when
+it closes (`#songs--add`: Back never brings the sheet back). It switches off where a sandboxed host
+refuses `pushState`.
 
 ```tsx
 if (await confirmDialog({ title: 'Delete this song?', description: 'This cannot be undone.', confirmLabel: 'Delete song', tone: 'danger' })) remove();
@@ -277,7 +297,7 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 | `StreakChip` | `days`, `active?` [true], `size?`, `pill?` | `active={false}` until today counts. |
 | `HeartsChip` | `value`, `max?` [5], `pips?`, `size?`, `pill?` | |
 | `GemChip` | `value`, `size?`, `pill?`, `compact?` | |
-| `LevelBadge` | `level`, `size?` [40], `muted?`, `label?` | The level on a guitar pick. |
+| `LevelBadge` | `level`, `size?` [40], `muted?`, `label?` | The level on a guitar pick. From 10,000 the pick shows a compact count ("12k"); the accessible name keeps the full number. |
 | `AnimatedNumber` | `value`, `duration?` [700], `from?`, `format?` | Counts to the new value. |
 | `CountdownRing` | `seconds`, `running?` [true], `resetKey?`, `onDone?`, `onSecond?`, `size?` [72], `tone?`, `urgentBelow?` [3], `label?`, children `(secondsLeft) => node` | |
 | `Celebration` | `fire` (bursts when it changes to a truthy value), `intensity?: 'low' \| 'medium' \| 'high'`, `origin?: { x, y }`, `contained?`, `onDone?` | Confetti canvas. Nothing moves under reduced motion. |
@@ -305,6 +325,8 @@ if (!res.ok) return <MediaBlocked reason={res.reason} device="microphone" onRetr
 | `useLatest(value)` | Ref that always holds the newest value. |
 | `useDebounced(value, ms?)`, `useDebouncedCallback(fn, ms?)` | The latter has `.cancel()` and `.flush()`. |
 | `useWakeLock(active)` → `{ supported, held }` | Keeps the screen on; tolerant of refusal. |
+| `useBottomClearance(ref, active?)` | For bottom controls that are not an `ActionBar` (a one-screen tool's Start and tempo buttons): while they sit at the bottom of the screen, toasts and other bottom layers stay above them (`--action-bar-h`). Re-measures on scroll and resize. `bottomClearance(box, floor, viewportHeight, zone)` is the pure rule. |
+| `useDialogOpen()` | True while any kit Modal or Sheet is open. |
 | `useControllableState(value, defaultValue, onChange?)` | Controlled-or-uncontrolled state for your own components. |
 | `useFocusTrap(ref, active)`, `useScrollLock(active)`, `useDismiss(refs, active, onDismiss)`, `usePressHold(action, opts?)` | The building blocks of the overlays and the Stepper. |
 | `cx(...parts)` | Class joiner: strings, falsy values, `{ name: condition }`, arrays. |

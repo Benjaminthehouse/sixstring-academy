@@ -133,6 +133,8 @@ export function Section({ title, description, eyebrow, actions, level = 2, divid
   );
 }
 
+const STICKY_ONLY = { stickyOnly: true } as const;
+
 /** Props for `<ActionBar>`. */
 export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
   /** Content at the start of the bar: feedback text, a progress note, a secondary link. */
@@ -156,9 +158,9 @@ export interface ActionBarProps extends HTMLAttributes<HTMLDivElement> {
  */
 export function ActionBar({ start, stretchOnMobile = true, clearance = true, className, children, ...rest }: ActionBarProps) {
   const el = useRef<HTMLDivElement | null>(null);
-  // Only while it is really at the bottom: a bar that ends mid-screen (a short page, a layout that
-  // makes it static on wide screens) must not lift the toasts or put them over itself.
-  useBottomClearance(el, clearance);
+  // Only while it is really at the bottom: a bar that ends mid-screen (a short page) or that a layout
+  // made static beside the content (the tuner on wide screens) must not lift the toasts.
+  useBottomClearance(el, clearance, STICKY_ONLY);
   return (
     <div ref={el} className={cx(styles.actionBar, stretchOnMobile && styles.actionBarStretch, className)} data-ui-action-bar="" {...rest}>
       {start != null && <div className={styles.actionBarStart}>{start}</div>}

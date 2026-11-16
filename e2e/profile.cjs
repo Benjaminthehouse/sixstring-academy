@@ -20,7 +20,8 @@
  *  shop      trying on, buying and equipping a cosmetic, failing kindly to afford another, buying
  *            a helper, and the accent taking over the app
  *  data      storage and sync status, export to a file, reset behind the typed word, import with
- *            a preview, and the same progress back; a file that is not a backup is refused
+ *            a preview, and the same progress back; a file that is not a backup is refused. The
+ *            rest of the learner's data and songs: node e2e/portability.cjs
  *  ai        a made-up API key is refused with the bad-key message, is not kept, and is never
  *            printed; a key Anthropic accepts shows only its hint; inside Claude there is no field.
  *            Requests to api.anthropic.com are answered by this script: nothing leaves the machine
@@ -825,7 +826,8 @@ async function data(browser, url, seeds) {
   const file = path.join(dir, fileName);
   await download.saveAs(file);
   const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
-  check(group, 'export: a .json file named after the learner and the day, holding the whole state', /^sixstring-progress-robin-\d{4}-\d\d-\d\d\.json$/.test(fileName) && exported.app === 'sixstring-academy' && exported.kind === 'progress-export' && exported.state.xp.total === seeds.rich.state.xp.total && fingerprint(exported.state) === fingerprint(before), `${fileName} xp=${exported.state?.xp?.total}`);
+  const exportedState = exported.progress && exported.progress.state;
+  check(group, 'export: a .json backup named after the learner and the day, holding the whole progress (version 3, with data and songs)', /^sixstring-backup-robin-\d{4}-\d\d-\d\d\.json$/.test(fileName) && exported.app === 'sixstring-academy' && exported.kind === 'backup' && exported.v === 3 && exported.data && typeof exported.data === 'object' && Array.isArray(exported.songs) && exportedState && exportedState.xp.total === seeds.rich.state.xp.total && fingerprint(exportedState) === fingerprint(before), `${fileName} kind=${exported.kind} xp=${exportedState?.xp?.total}`);
 
   // --- reset behind the typed word
   await page.locator('[data-card="reset"]').getByRole('button', { name: 'Reset everything' }).click();
@@ -876,7 +878,7 @@ async function data(browser, url, seeds) {
   await dialog.locator('[data-import-confirm]').click();
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), null, { timeout: 5000 }).catch(() => undefined);
   const restored = await ctx.savedState();
-  check(group, 'export, reset, import (replace): the same progress is back', /Replace my progress/.test(replaceLabel) && fingerprint(restored) === fingerprint(before), `xp=${restored.xp.total} achievements=${Object.keys(restored.achievements).length}`);
+  check(group, 'export, reset, import (replace): the same progress is back', /Replace my data/.test(replaceLabel) && fingerprint(restored) === fingerprint(before), `xp=${restored.xp.total} achievements=${Object.keys(restored.achievements).length}`);
   await ctx.goto('profile', 'overview');
   const overviewName = await page.locator('[data-profile-name]').innerText();
   check(group, 'after the import the overview shows the learner again', overviewName === 'Robin', overviewName);

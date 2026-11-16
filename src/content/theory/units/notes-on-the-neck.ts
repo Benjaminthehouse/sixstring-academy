@@ -475,7 +475,7 @@ const sameNoteManyPlaces: Lesson = {
     {
       type: 'card',
       title: 'Five frets back',
-      body: 'Each string is tuned **five frets** above the one below it: the fifth-fret rule you tune with. So to play a pitch on the next **thinner** string, go **five frets lower**. The one exception: from string 3 to string 2, go **four** frets lower.',
+      body: 'Most strings are tuned **five frets** above the one below them: the fifth-fret rule you tune with. So to play a pitch on the next **thinner** string, go **five frets lower**. The one exception: from string 3 to string 2, go **four** frets lower.',
       figure: {
         kind: 'fretboard',
         frets: [0, 7],

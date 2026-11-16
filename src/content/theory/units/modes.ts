@@ -41,7 +41,10 @@ function overDrone(drone: Spot, tonic: number, scale: string): TabNote[] {
 const OPEN_A: Spot = { string: 5, fret: 0 };
 const OPEN_D: Spot = { string: 4, fret: 0 };
 const OPEN_E: Spot = { string: 6, fret: 0 };
+/** The low C a guitarist can let ring under C major: string 5, fret 3. */
+const LOW_C: Spot = { string: 5, fret: 3 };
 const A3 = 57;
+const C4 = 60;
 const D4 = 62;
 
 /** The six modes asked by ear over an A drone, with the names a learner picks from. */
@@ -88,8 +91,12 @@ const modesAsRotations: Lesson = {
       type: 'card',
       title: 'Seven notes, seven modes',
       body: 'Start the major scale on each of its seven notes and you get seven modes: Ionian (from degree 1), Dorian (2), Phrygian (3), Lydian (4), Mixolydian (5), Aeolian (6) and Locrian (7). Ionian is the major scale itself.',
-      figure: { kind: 'audio', sound: { kind: 'tab', notes: overDrone(OPEN_D, D4, 'dorian'), tempo: 110 }, label: 'Hear {n:D} Dorian' },
-      tip: 'The low {n:D} that keeps coming back in the audio is a {t:drone}: it tells your ear where home is.',
+      figure: {
+        kind: 'audio',
+        sound: { kind: 'tab', notes: [...overDrone(LOW_C, C4, 'major'), ...overDrone(OPEN_D, D4, 'dorian')], tempo: 110 },
+        label: 'Hear {n:C} Ionian, then {n:D} Dorian',
+      },
+      tip: 'The low note that keeps coming back in the audio, {n:C} and then {n:D}, is a {t:drone}: it tells your ear where home is.',
     },
     {
       type: 'order',

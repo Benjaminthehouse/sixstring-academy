@@ -314,18 +314,35 @@ export interface LevelBadgeProps {
 }
 
 /**
+ * What the pick shows for a level: the number itself up to 9999, then a compact count ("12k",
+ * "1.2M"), so it never has more than four characters to fit. The accessible name keeps the full number.
+ */
+export function levelBadgeText(level: number): string {
+  if (!Number.isFinite(level)) return '?';
+  const n = Math.max(0, Math.round(level));
+  // Past 999 billion (no learner gets there) it stays at the largest four-character count.
+  return n < 10_000 ? String(n) : formatCount(Math.min(n, 999e9));
+}
+
+/** Font size for the pick's number, as a share of the badge height: smaller as the text gets longer. */
+export function levelBadgeFontScale(text: string): number {
+  const chars = text.length;
+  return chars <= 1 ? 0.46 : chars === 2 ? 0.38 : chars === 3 ? 0.3 : 0.25;
+}
+
+/**
  * The player's level, on a guitar pick. `<LevelBadge level={7} />`
  */
 export function LevelBadge({ level, size = 40, muted, label, className }: LevelBadgeProps) {
   const width = Math.round(size * 0.9);
-  const digits = String(level).length;
+  const text = levelBadgeText(level);
   return (
     <span className={cx(styles.level, muted && styles.levelMuted, className)} style={{ width, height: size }} role="img" aria-label={label ?? `Level ${level}`}>
       <svg className={styles.levelShape} width={width} height={size} viewBox="0 0 45 50" aria-hidden="true">
         <path d="M22.5 48.5C17 43 2 28.5 2 15.6 2 6.6 11.2 1.5 22.5 1.5S43 6.6 43 15.6C43 28.5 28 43 22.5 48.5Z" strokeWidth="2" strokeLinejoin="round" />
       </svg>
-      <span className={styles.levelNumber} style={{ fontSize: size * (digits >= 3 ? 0.3 : digits === 2 ? 0.38 : 0.46) }} aria-hidden="true">
-        {level}
+      <span className={styles.levelNumber} style={{ fontSize: size * levelBadgeFontScale(text) }} aria-hidden="true">
+        {text}
       </span>
     </span>
   );

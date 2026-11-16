@@ -7,9 +7,11 @@
 # F (xx3211) string 4 fret 3, string 3 fret 2.
 # The tune is on strings 1 and 2 only: m plucks string 1, i plucks string 2. A tune note on a beat
 # is pinched with the thumb; a tune note on an "and" falls between two thumb notes (syncopated).
-# At the ends of bars 4 and 8 the tune arrives half a beat early, on the "and" of 4, and rings into
-# the next bar while the thumb carries on. D on string 2 fret 3 and G on string 1 fret 3 are
-# played by finger 4 on top of the chord shape; B is string 2 open (lift finger 1).
+# At the ends of bars 4 and 8 the tune arrives half a beat early, on the "and" of 4, and is tied
+# over the bar line: C on string 2 fret 1 keeps ringing through beat 1 of the next bar (it belongs
+# to the Am and F shapes too, so finger 1 just stays down) while the thumb carries on.
+# D on string 2 fret 3 and G on string 1 fret 3 are played by finger 4 on top of the chord shape;
+# B is string 2 open (lift finger 1).
 title: Travis Picking with a Melody
 composer: Sixstring Academy
 source: Original fingerstyle study
@@ -26,10 +28,10 @@ role: lead
 | "C=x32010" q (5:3{P 3 pm} 1:0{M}) e 4:2{P 2 pm} 1:3{M 4} q 6:3{P 3 pm} (4:2{P pm} 1:0{M}) | q (5:3{P pm} 2:3{I 4}) (4:2{P pm} 2:1{I 1}) 6:3{P pm} 4:2{P pm} |
 | "F=xx3211" q (4:3{P 3 pm} 1:1{M 1}) e 3:2{P 2 pm} 1:3{M 4} q 4:3{P pm} (3:2{P pm} 1:1{M}) | "C" q (5:3{pm} 1:0{M}) 4:2{pm} 6:3{pm} ^"tune arrives early" e 4:2{pm} 2:1{I 1} |
 [Phrase 2]
-| "Am=x02210" q 5:0{pm} e 4:2{pm} 1:0{M} q 5:0{pm} (4:2{pm} 2:3{I 4}) | q (5:0{pm} 2:1{I 1}) (4:2{pm} 2:0{I}) 5:0{pm} 4:2{pm} |
+| "Am=x02210" q (5:0{pm} 2:-) e 4:2{pm} 1:0{M} q 5:0{pm} (4:2{pm} 2:3{I 4}) | q (5:0{pm} 2:1{I 1}) (4:2{pm} 2:0{I}) 5:0{pm} 4:2{pm} |
 | "G7=320001" q (6:3{3 pm} 2:3{I 4}) e 4:0{pm} 1:1{M 1} q 6:3{pm} (4:0{pm} 2:3{I 4}) | q (6:3{pm} 2:0{I}) 4:0{pm} 6:3{pm} e 4:0{pm} 2:1{I 1} |
 [Phrase 3]
-| "F" q 4:3{3 pm} e 3:2{2 pm} 1:1{M 1} q 4:3{pm} (3:2{pm} 1:3{M 4}) | "C" q (5:3{3 pm} 1:0{M}) (4:2{pm} 2:3{I 4}) (6:3{3 pm} 2:1{I 1}) 4:2{pm} |
+| "F" q (4:3{3 pm} 2:-) e 3:2{2 pm} 1:1{M 1} q 4:3{pm} (3:2{pm} 1:3{M 4}) | "C" q (5:3{3 pm} 1:0{M}) (4:2{pm} 2:3{I 4}) (6:3{3 pm} 2:1{I 1}) 4:2{pm} |
 | "F" q (4:3{pm} 1:1{M}) e 3:2{pm} 1:3{M 4} q 4:3{pm} (3:2{pm} 1:1{M}) | "G7" q (6:3{pm} 1:3{M 4}) e 4:0{pm} 1:1{M 1} q 6:3{pm} (4:0{pm} 2:3{I 4}) |
 [Phrase 4]
 | "C" q (5:3{pm} 1:0{M}) e 4:2{pm} 1:3{M 4} q 6:3{pm} (4:2{pm} 1:0{M}) | "Am" q (5:0{pm} 2:1{I 1}) e 4:2{pm} 1:0{M} q 5:0{pm} (4:2{pm} 2:3{I 4}) |

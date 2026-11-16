@@ -1,0 +1,39 @@
+# Ragtime Blues in C (repertoire plan: st-ragtime-blues-c). An original fingerpicked study on the
+# ragtime cycle of dominant sevenths, C | C | A7 | A7 | D7 | D7 | G7 | G7, played twice (bars 1-16),
+# with a one-bar ending on C (bar 17) so the piece comes home instead of stopping on G7.
+# The thumb (P) plays every beat and alternates two bass strings in the same order on every chord:
+# root, the next string up, the alternate bass, the next string up again.
+#   C (x32010):  string 5 fret 3, string 4 fret 2, string 6 fret 3, string 4 fret 2 (finger 3 hops from string 5 to 6)
+#   A7 (x02020): string 5 open, string 4 fret 2, string 6 open, string 4 fret 2
+#   D7 (xx0212): string 4 open, string 3 fret 2, string 5 open, string 3 fret 2
+#   G7 (320001): string 6 fret 3, string 4 open, string 5 fret 2, string 4 open
+# The tune is on strings 1-3 (strings 1-2 in the D7 bars, where the thumb uses string 3). It is
+# syncopated: many tune notes fall on the "and" and are tied over the next beat while the thumb
+# carries on underneath. The guide tones move by half steps across the chords: C# (A7) to C (D7)
+# to B (G7) to C, and bars 8 and 16 climb D, D# to the E that starts the next bar.
+# Extra notes above the shapes: finger 4 takes string 1 fret 3 (G) and string 2 fret 3 (D), and
+# string 2 fret 4 (D#) in bars 8 and 16; finger 3 takes string 1 fret 2 (F#) over A7 and D7.
+title: Ragtime Blues in C
+composer: Sixstring Academy
+source: Original fingerstyle study on the ragtime progression
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: ragtime, fingerstyle, alternating bass, syncopation, dominant sevenths
+tempo: 100
+time: 4/4
+key: C
+
+track: Your part
+role: lead
+[Ragtime cycle]
+| "C=x32010" e (5:3{P 3} 1:0{M}) 1:3{M 4} (4:2{P 2} 1:-) 1:0{M} q (6:3{P 3} 2:1{I 1}) e (4:2{P} 2:3{I 4}) 1:0{M} | q (5:3 1:3) e (4:2 1:0) 2:1 (6:3 2:-) 3:0{I} (4:2 2:1) 1:0 |
+| "A7=x02020" e (5:0{P} 1:3{M 4}) 1:0{M} (4:2{P 1} 2:2{I 2}) 1:0{M} (6:0{P} 1:-) 1:3{4} (4:2 1:0) 2:2 | q (5:0 1:0) e (4:2 1:-) 2:2 (6:0 2:-) 1:0 (4:2 1:3) 1:2{3} |
+| "D7=xx0212" e (4:0{P} 1:-) 2:3{I 4} (3:2{P 2} 2:1{I 1}) 2:3{4} (5:0{P} 2:-) 1:2{M 3} (3:2 1:0) 2:1 | e (4:0 2:3) 1:2 (3:2 1:-) 2:3 (5:0 2:1) 1:0 (3:2 2:1) 2:0 |
+| "G7=320001" e (6:3{P 3} 2:-) 2:3{I 4} (4:0{P} 1:1{M 1}) 2:3{4} (5:2{P 2} 2:-) 2:0{I} (4:0 3:0{I}) 2:0 | q (6:3 1:1) e (4:0 2:3) 2:0 (5:2 2:-) 3:0 (4:0 2:3) 2:4{4} |
+[Second time]
+| "C=x32010" e (5:3 1:0) 1:3 (4:2 1:0) 1:3 (6:3 1:-) 1:0 (4:2 2:3) 2:1 | q (5:3 2:1) e (4:2 1:0) 1:3 (6:3 1:-) 1:0 (4:2 2:1) 2:2{3} |
+| "A7=x02020" e (5:0 2:-) 1:0 q (4:2 1:3) e (6:0 1:0) 2:2 (4:2 2:0) 2:2 | q (5:0 1:0) e (4:2 1:3) 1:0 (6:0 1:-) 2:2 (4:2 1:0) 2:2 |
+| "D7=xx0212" e (4:0 2:1) 1:2 (3:2 1:-) 2:3 q (5:0 1:2) e (3:2 1:0) 2:3 | q (4:0 2:1) e (3:2 2:3) 1:2 (5:0 1:-) 2:3 (3:2 2:1) 2:0 |
+| "G7=320001" e (6:3 2:-) 2:3 (4:0 1:3) 1:1 (5:2 1:-) 2:3 (4:0 2:0) 2:3 | e (6:3 1:1) 2:3 (4:0 2:0) 3:0 (5:2 2:0) 2:1 (4:0 2:3) 2:4{4} |
+[Ending]
+| "C=x32010" q (5:3 1:0) (4:2 2:1) h (5:3 4:2 3:0 2:1 1:0){lr} ||

@@ -1039,7 +1039,7 @@ const seventhsAndFunction: Lesson = {
     {
       id: 'sevenths-maj7-function',
       front: 'What job do major 7 chords usually do?',
-      back: 'They usually rest, as tonic ({r:Imaj7}) or subdominant ({r:IVmaj7}) chords.',
+      back: 'They usually act as tonic ({r:Imaj7}) or subdominant ({r:IVmaj7}) chords: stable colours, with no pull to resolve.',
     },
     {
       id: 'sevenths-dominant-resolves',

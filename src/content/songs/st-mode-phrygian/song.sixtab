@@ -1,0 +1,40 @@
+# Mode Study: A Phrygian (repertoire plan: st-mode-phrygian). An original 16-bar melody over a
+# two-chord vamp: Am (x02210) for two bars, then Bb (x13331) for two. Bb, the flat second, is the
+# colour of Phrygian: a minor scale whose second step is only a half step above the root, which
+# gives it its Spanish sound. A Phrygian: A Bb C D E F G.
+# The melody lands on Bb on a strong beat in bars 3, 6, 7 (twice), 10, 11, 12 and 15 (twice):
+# over the Bb chord it is the root; over Am (bars 6 and 10) it is a sigh that falls straight to A.
+# The last bars change faster (Bb in bar 15, Am in bar 16), so the tune ends Bb to A: the
+# Phrygian cadence. Hammer-on and pull-off turns (A Bb A, E F E) are the half steps of the mode.
+# Fifth position: finger 1 on fret 5, finger 2 on fret 6 (Bb on string 1), finger 4 on fret 8
+# (Bb on string 4). The same place on the neck as the Aeolian study: only B becomes Bb.
+# The backing strums in 3+3+2 (dotted quarter, dotted quarter, quarter).
+title: Mode Study: A Phrygian
+composer: Sixstring Academy
+source: Original study on the Phrygian mode
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: modes, phrygian, colour note, vamp, spanish
+tempo: 96
+time: 4/4
+key: Am
+
+track: Your melody
+role: lead
+[Vamp]
+| "Am=x02210" q 1:5{1} e 1:6h{2} 1:5p{1} q 2:5{1} e 2:6h{2} 2:5p{1} | q 1:8{4} e 1:6{2} 1:5p{1} h 2:5~{1} |
+| "Bb=x13331" q 1:6{2} e 1:5{1} 2:8{4} q 2:6{2} e 2:8{4} 1:5{1} | q 2:6{2} e 2:8h{4} 2:6p{2} h 3:7~{3} |
+| "Am=x02210" q 2:5 e 2:6h 2:5p q 3:5{1} e 3:7{3} 2:5{1} | q 1:6{2} e 1:5p{1} 2:8{4} h 1:5~{1} |
+| "Bb=x13331" q 4:8{4} e 3:7{3} 2:6{2} q 1:6{2} e 1:5p{1} 2:8{4} | q 2:6 e 2:5p 3:7 h 2:6~ |
+| "Am=x02210" q 2:5 e 1:5 1:8{4} h 1:5~ | q 1:6 e 1:5p 2:8 q 2:6 e 2:5p 3:7 |
+| "Bb=x13331" h 1:6~ q 2:6 e 2:8 1:5 | q 1:6 e 1:8h{4} 1:6p{2} q 2:6 e 3:7 2:6 |
+| "Am=x02210" q 1:5 e 2:8 2:6 q 2:5 e 3:7 3:5 | q 3:5 e 3:7h 2:5 h 4:7~{3} |
+| "Bb=x13331" q 4:8{4} e 3:7{3} 2:6{2} q 1:6{2} e 1:8h{4} 1:6p{2} | "Am=x02210" w 1:5~{1} ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| q. D D q D | q. D D q D | q. D D q D | q. D D q D |
+| q. D D q D | q. D D q D | q. D D q D | q. D D q D |
+| q. D D q D | q. D D q D | q. D D q D | q. D D q D |
+| q. D D q D | q. D D q D | q. D D q D | w D ||

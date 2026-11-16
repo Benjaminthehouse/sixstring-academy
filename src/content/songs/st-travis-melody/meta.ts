@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['fingerpicking', 'melody', 'chords', 'rhythm'],
   tags: ['travis picking', 'alternating bass', 'fingerstyle', 'melody', 'syncopation', 'pinch', 'thumb independence'],
   about:
-    'The thumb is the clock and the tune floats on top: hum the tune first (it lives on strings 1 and 2 only), then play the thumb part alone until it runs by itself, then put them together. When a tune note falls on a beat, pluck it with the thumb at the same moment; when it falls between beats, it slips in between two thumb notes. The usual problem is the thumb stopping or hurrying to meet a syncopated note: slow right down, count "1 and 2 and" aloud, and keep the bass soft and muted so the tune stands out.',
+    'The thumb is the clock and the tune floats on top: hum the tune first (it lives on strings 1 and 2 only), then play the thumb part alone until it runs by itself, then put them together. When a tune note falls on a beat, pluck it with the thumb at the same moment; when it falls between beats, it slips in between two thumb notes. At the ends of bars 4 and 8 the C arrives half a beat early and is held over the bar line, so let it ring instead of plucking it again on beat 1. The usual problem is the thumb stopping or hurrying to meet a syncopated note: slow right down, count "1 and 2 and" aloud, and keep the bass soft and muted so the tune stands out.',
   plan: 'st-travis-melody',
   added: '2026-11-16',
 });

@@ -7,7 +7,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActions, createProgressStore, memoryStorage, setProgressStore, type ProgressActions, type ProgressStore } from '@/core/progress';
-import { UIProvider, toast } from '@/ui';
+import { Sheet, UIProvider, toast } from '@/ui';
 import { statsSheet } from '../shell/stats';
 import { GlobalFeedback } from './GlobalFeedback';
 
@@ -87,28 +87,28 @@ describe('XP', () => {
 });
 
 describe('goal and level', () => {
-  it('says the goal is met in one toast, XP included', async () => {
+  it('says the goal is met on one card, XP and the rest of the moment included', async () => {
     await act(async () => {
       actions.setPrefs({ dailyGoalXp: 10 });
       actions.awardXp(10, 'test');
     });
     await moment();
-    const ids = toasts().map((t) => t.id);
-    expect(ids).toContain('shell-goal');
-    expect(ids).not.toContain('shell-xp');
-    const goal = toasts().find((t) => t.id === 'shell-goal');
-    expect(goal?.text).toContain('Daily goal met');
-    expect(goal?.text).toContain('+10 XP');
-    expect(goal?.text).toContain('1 day streak');
+    // The goal leads; anything else the moment earned (a first achievement) is a line under it.
+    expect(toasts()).toHaveLength(1);
+    const card = toasts()[0];
+    expect(['shell-goal', 'shell-reward']).toContain(card.id);
+    expect(card.text).toContain('Daily goal met');
+    expect(card.text).toContain('+10 XP');
+    expect(card.text).toContain('1 day streak');
   });
 
-  it('opens the stats sheet from the goal toast', async () => {
+  it('opens the stats sheet from the goal card', async () => {
     await act(async () => {
       actions.setPrefs({ dailyGoalXp: 10 });
       actions.awardXp(10, 'test');
     });
     await moment();
-    const view = Array.from(document.querySelectorAll('[data-toast="shell-goal"] button')).find((b) => b.textContent === 'View') as HTMLButtonElement;
+    const view = Array.from(document.querySelectorAll('[data-toast] button')).find((b) => b.textContent === 'View') as HTMLButtonElement;
     await act(async () => {
       view.click();
     });
@@ -131,7 +131,53 @@ describe('goal and level', () => {
     });
     await moment(400);
     expect(dialog()).toBeNull();
-    expect(toasts().map((t) => t.id)).toContain('shell-goal');
+    expect(toasts().some((t) => t.text.includes('Daily goal met'))).toBe(true);
+  });
+});
+
+describe('a moment that earns a lot', () => {
+  it('puts its rewards on one card instead of a stack that would bury the summary', async () => {
+    await act(async () => {
+      actions.setPrefs({ dailyGoalXp: 50 });
+      actions.recordActivity({ kind: 'theory-lesson', id: 'theory:unit-1:lesson-1', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240 });
+    });
+    await moment();
+    const shown = toasts();
+    expect(shown.length).toBeLessThanOrEqual(3);
+    const card = shown.find((t) => t.id === 'shell-reward');
+    expect(card?.text).toMatch(/\+\d+ XP/);
+    // Each further piece of news is a line of the card, not a toast of its own.
+    expect(document.querySelectorAll('[data-toast="shell-reward"] li').length).toBeGreaterThanOrEqual(1);
+    expect(shown.map((t) => t.id)).not.toContain('shell-xp');
+  });
+
+  it('keeps the card off an open sheet: it waits, and shows once the sheet has closed', async () => {
+    const sheet = document.createElement('div');
+    document.body.appendChild(sheet);
+    const sheetRoot = createRoot(sheet);
+    await act(async () => {
+      sheetRoot.render(
+        <Sheet open onClose={() => undefined} title="Results">
+          Three stars
+        </Sheet>,
+      );
+    });
+    await act(async () => {
+      actions.awardXp(12, 'song');
+    });
+    await moment();
+    expect(toasts()).toEqual([]);
+    await act(async () => {
+      sheetRoot.render(
+        <Sheet open={false} onClose={() => undefined} title="Results">
+          Three stars
+        </Sheet>,
+      );
+    });
+    await moment(400);
+    expect(toasts().map((t) => t.text).join(' ')).toContain('+12 XP');
+    await act(async () => sheetRoot.unmount());
+    sheet.remove();
   });
 });
 

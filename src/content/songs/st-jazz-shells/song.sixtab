@@ -1,0 +1,43 @@
+# Jazz Comping: Shell Voicings on ii-V-I (repertoire plan: st-jazz-shells). An original 16-bar
+# comping study in C: Dm7 | G7 | Cmaj7 | Cmaj7, four times. Three-note shells, root, third and
+# seventh only, on strings 6 to 3:
+#   Dm7 (x535xx): D, F, C      G7 (3x34xx): G, F, B      Cmaj7 (x324xx): C, E, B
+# Two notes hardly move: F stays put from Dm7 to G7 (string 4 fret 3) and falls to E for Cmaj7;
+# C on string 3 falls to B for G7 and stays there for Cmaj7.
+# Bars 1-8: four short chords a bar, on every beat. Bars 9-16: the Charleston rhythm, beat 1 and
+# the "and" of 2. Swing feel: the "and" is the last third of the beat, written as a triplet
+# (a rest of two thirds, then the chord). Muted strings: the fingers touch the strings they do
+# not press, and the picking hand strums only the three strings of the shell.
+# The teacher walks a bass line in quarter notes, root on beat 1.
+title: Jazz Comping: Shell Voicings on ii-V-I
+composer: Sixstring Academy
+source: Original comping study on the ii-V-I progression
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: jazz, comping, shell voicings, ii-v-i, swing
+tempo: 120
+time: 4/4
+key: C
+
+track: Your comping
+role: rhythm
+[Four to the bar]
+| "Dm7=x535xx" ^"short: release after each chord" q (5:5{3} 4:3{1} 3:5{4}){st} (5:5 4:3 3:5){st} (5:5 4:3 3:5){st} (5:5 4:3 3:5){st} | "G7=3x34xx" (6:3{1} 4:3{2} 3:4{3}){st} (6:3 4:3 3:4){st} (6:3 4:3 3:4){st} (6:3 4:3 3:4){st} |
+| "Cmaj7=x324xx" (5:3{2} 4:2{1} 3:4{3}){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} | (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} |
+| "Dm7=x535xx" (5:5 4:3 3:5){st} (5:5 4:3 3:5){st} (5:5 4:3 3:5){st} (5:5 4:3 3:5){st} | "G7=3x34xx" (6:3 4:3 3:4){st} (6:3 4:3 3:4){st} (6:3 4:3 3:4){st} (6:3 4:3 3:4){st} |
+| "Cmaj7=x324xx" (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} | (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} (5:3 4:2 3:4){st} ||
+[Charleston]
+| "Dm7=x535xx" ^"Charleston: 1 and the and of 2" q (5:5 4:3 3:5){st} q3 r e3 (5:5 4:3 3:5) h r | "G7=3x34xx" q (6:3 4:3 3:4){st} q3 r e3 (6:3 4:3 3:4) h r |
+| "Cmaj7=x324xx" q (5:3 4:2 3:4){st} q3 r e3 (5:3 4:2 3:4) h r | q (5:3 4:2 3:4){st} q3 r e3 (5:3 4:2 3:4) h r |
+| "Dm7=x535xx" q (5:5 4:3 3:5){st} q3 r e3 (5:5 4:3 3:5) h r | "G7=3x34xx" q (6:3 4:3 3:4){st} q3 r e3 (6:3 4:3 3:4) h r |
+| "Cmaj7=x324xx" q (5:3 4:2 3:4){st} q3 r e3 (5:3 4:2 3:4) h r | q (5:3 4:2 3:4){st} q3 r e3 (5:3 4:2 3:4){lr} h r ||
+
+track: Walking bass
+role: bass
+tuning: bass
+[Four to the bar]
+| q 2:0 2:2 2:3 1:2 | 1:0 2:3 2:0 3:2 | 3:3 2:2 1:0 2:2 | 3:3 2:0 2:2 3:4 |
+| 2:0 3:3 3:0 4:1 | 4:3 3:0 3:2 2:0 | 3:3 2:2 1:0 1:2 | 1:5 1:4 1:0 q3 2:3 e3 2:1 ||
+[Charleston]
+| q 2:0 2:3 1:2 1:5 | 1:0 2:3 2:0 3:4 | 3:3 2:0 2:2 1:0 | 1:5 1:0 2:2 q3 2:0 e3 3:4 |
+| q 2:0 2:2 2:3 2:4 | 1:0 2:0 3:2 3:4 | 3:3 2:2 1:0 1:4 | 3:3 4:3 h 3:3 ||

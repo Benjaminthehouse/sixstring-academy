@@ -34,6 +34,19 @@
  * Nothing is imported or written when the cloud copy and the local state hold the same progress
  * (only bookkeeping differs), which also keeps two tabs of one browser from echoing each other.
  *
+ * THE REST OF THE LEARNER'S DATA travels in the same copy (`data`): every key `syncsKey` accepts
+ * (the practice journal, arcade records, saved progressions, presets, settings ...; see
+ * `storage-scope.ts`). It is merged per key, three-way against what both sides had when they last
+ * agreed: a key only one side changed comes from that side (so deletions travel), a key both
+ * changed is merged by `mergeEntry` (newest change wins for a setting, lists are joined, arcade
+ * bests kept). A reset or "replace" restore elsewhere takes over the keys that were synced before.
+ *
+ * THE LEARNER'S OWN SONGS ride along when they fit the database's limits (at most
+ * `SONG_SYNC_LIMITS.songs` songs, each under `songBytes`, all together under `bytes`): one document
+ * per song (`song.<id>`, written only when that song changed) and their list in the copy. They are
+ * merged the same three-way, song by song. When they do not fit they stay on each device and the
+ * status says why (`songs.reason`).
+ *
  * WRITING is debounced and rate-limited, one write at a time, only when something changed, and
  * never before the cloud copy has been read (a fresh device must not overwrite a full one).
  * Transient failures back off exponentially; nothing here ever reloads the page. A document
@@ -42,6 +55,8 @@
  */
 import { claudeCapability, host as currentHost, type Host } from './env';
 import { readJSON, writeJSON } from './storage';
+import { planDataSync } from './storage-merge';
+import { announceStorageChange, entryText, getLearnerData, sanitizeDataSet, startDataTracker, syncsKey, textSum, type LearnerData } from './storage-scope';
 
 // ---------------------------------------------------------------------------------------------
 // Public types
@@ -71,20 +86,57 @@ export interface SyncStatus {
   lastSyncedAt: number | null;
   /** True while local changes are waiting to be written. */
   pending: boolean;
+  /** Whether the learner's own songs sync, once that is known. */
+  songs: SongSyncInfo | null;
 }
 
-/** The slice of the progress store that sync needs. `getProgressStore()` provides all of it. */
+/** Most the learner's songs may take to travel with the progress (the database is shared by every viewer). */
+export const SONG_SYNC_LIMITS = { songs: 50, bytes: 2_000_000, songBytes: 180_000 } as const;
+
+/** Whether the learner's own songs sync. */
+export interface SongSyncInfo {
+  synced: boolean;
+  count: number;
+  bytes: number;
+  /** Why not: more than `songs` songs, one over `songBytes`, all over `bytes`, or another device's songs do not fit. */
+  reason: 'count' | 'size' | 'total' | 'elsewhere' | null;
+}
+
+/** The slice of the progress store (and the rest of the learner's data) that sync needs. */
 export interface SyncProgressPort {
-  /** Everything as one JSON-serialisable object with its change-stamp. */
-  exportData(): { stamp: string; state: unknown };
-  /** Import an export object: `newest-wins` merges per item, `replace` overwrites. */
-  importData(data: unknown, strategy: 'replace' | 'newest-wins'): { ok: true } | { ok: false; reason: string; detail?: string };
+  /** Everything as one JSON-serialisable object with its change-stamp (and the learner data under `data`). */
+  exportData(): { stamp: string; state: unknown; data?: unknown };
+  /**
+   * Import a cloud copy: `newest-wins` merges per item, `replace` overwrites. `base` is the checksum
+   * per data key of the copy both sides last agreed on, for the three-way merge of `data`.
+   */
+  importData(data: unknown, strategy: 'replace' | 'newest-wins', base?: Readonly<Record<string, string>> | null): { ok: true } | { ok: false; reason: string; detail?: string };
+  /** The checksum per data key of a copy (null when it carries no data: an older app wrote it). */
+  dataSums?(body: unknown): Record<string, string> | null;
+  /** Look for data changes features made since the last look (before reading or writing). */
+  refresh?(): void;
+  /** The learner's own songs, when this port syncs them. */
+  songs?: SyncSongs;
   /** Changes whenever the state changes. */
   changeStamp(): string;
   /** Call `listener` after every state change. Returns the unsubscribe function. */
   subscribe(listener: () => void): () => void;
   /** Call `handler` when the learner reset or replaced their data. Returns the unsubscribe function. */
   onReplaced(handler: () => void): () => void;
+}
+
+/** What sync needs from the song library (`songSyncPort` in `@/core/library` provides it). */
+export interface SyncSongs {
+  ready(): Promise<void>;
+  /** Changes whenever one of the learner's songs changes. Cheap and synchronous. */
+  stamp(): string;
+  /** The learner's songs: content fingerprint, size in bytes, when saved. */
+  index(): Promise<Record<string, { sum: string; bytes: number; u: number }>>;
+  read(id: string): Promise<{ listing: unknown; json: string } | null>;
+  /** Store a song from the cloud with its own id; false when it is not a readable song. */
+  write(item: unknown): Promise<boolean>;
+  remove(id: string): Promise<void>;
+  subscribe(listener: () => void): () => void;
 }
 
 /** Timers the service uses; tests pass fakes. */
@@ -290,6 +342,57 @@ export function materialKey(state: unknown): string {
   return canonical(rest);
 }
 
+/** What a copy's data and songs amount to, for comparing two copies (change times left out). */
+function extrasKey(body: Rec, songs: boolean): string {
+  const data: Rec = {};
+  if (isRec(body.data)) {
+    for (const [key, entry] of Object.entries(body.data)) if (isRec(entry)) data[key] = typeof entry.raw === 'string' ? entry.raw : canonical(entry.value);
+  }
+  const head = songs ? parseSongsHead(body.songs) : null;
+  const list: Rec = {};
+  if (head?.carried) for (const [id, item] of Object.entries(head.items)) list[id] = item.sum;
+  return canonical({ data: isRec(body.data) ? data : null, songs: songs ? (head?.carried ? list : 'off') : null });
+}
+
+/**
+ * Everything in a cloud copy (or a local one built the same way) that matters to the learner: the
+ * progress without its bookkeeping, the data values, and, when `songs`, the list of songs.
+ */
+export function bodyKey(body: unknown, songs = true): string {
+  if (!isRec(body)) return canonical(body);
+  return `${materialKey(body.state)}\n${extrasKey(body, songs)}`;
+}
+
+/** The song list a copy carries. */
+interface SongsHead {
+  carried: boolean;
+  items: Record<string, { sum: string; bytes: number; u: number }>;
+  reason: SongSyncInfo['reason'];
+  count: number;
+  bytes: number;
+}
+
+function parseSongsHead(value: unknown): SongsHead | null {
+  if (!isRec(value) || typeof value.carried !== 'boolean') return null;
+  const items: SongsHead['items'] = {};
+  if (value.carried && isRec(value.items)) {
+    for (const [id, item] of Object.entries(value.items)) {
+      if (!/^my-[a-z0-9-]{1,120}$/.test(id) || !isRec(item) || typeof item.sum !== 'string') continue;
+      items[id] = { sum: item.sum, bytes: num(item.bytes) ?? 0, u: num(item.u) ?? 0 };
+    }
+  }
+  const reason = value.reason === 'count' || value.reason === 'size' || value.reason === 'total' ? value.reason : null;
+  return { carried: value.carried, items, reason, count: num(value.count) ?? Object.keys(items).length, bytes: num(value.bytes) ?? 0 };
+}
+
+/** Do the learner's songs fit what cloud sync may carry? */
+export function songCarry(index: Readonly<Record<string, { bytes: number }>>): { synced: boolean; count: number; bytes: number; reason: 'count' | 'size' | 'total' | null } {
+  const items = Object.values(index);
+  const bytes = items.reduce((n, item) => n + item.bytes, 0);
+  const reason = items.length > SONG_SYNC_LIMITS.songs ? 'count' : items.some((item) => item.bytes > SONG_SYNC_LIMITS.songBytes) ? 'size' : bytes > SONG_SYNC_LIMITS.bytes ? 'total' : null;
+  return { synced: reason === null, count: items.length, bytes, reason };
+}
+
 /** FNV-1a over the UTF-16 code units: cheap, and enough to notice a damaged or mismatched body. */
 export function checksum(text: string): string {
   let hash = 0x811c9dc5;
@@ -398,11 +501,24 @@ interface LocalMeta {
   syncedAt: number | null;
   /** Part documents to delete: replaced saves, and saves that were interrupted half-way. */
   trash: Array<{ gen: string; parts: number }>;
+  /** What the cloud copy held when this device and it last agreed: a checksum per data key and per song. */
+  base: { data: Record<string, string> | null; songs: Record<string, string> | null };
+  /** The song documents in the cloud, as far as this device knows: id -> content fingerprint. */
+  songDocs: Record<string, string>;
+}
+
+function sumsOf(value: unknown): Record<string, string> | null {
+  if (!isRec(value)) return null;
+  const out: Record<string, string> = {};
+  for (const [key, sum] of Object.entries(value)) if (typeof sum === 'string') out[key] = sum;
+  return out;
 }
 
 function readMeta(raw: unknown): LocalMeta {
-  const meta: LocalMeta = { uid: null, gen: null, parts: 0, stamp: null, sum: null, epoch: 0, syncedAt: null, trash: [] };
+  const meta: LocalMeta = { uid: null, gen: null, parts: 0, stamp: null, sum: null, epoch: 0, syncedAt: null, trash: [], base: { data: null, songs: null }, songDocs: {} };
   if (!isRec(raw)) return meta;
+  if (isRec(raw.base)) meta.base = { data: sumsOf(raw.base.data), songs: sumsOf(raw.base.songs) };
+  meta.songDocs = sumsOf(raw.songDocs) ?? {};
   if (typeof raw.uid === 'string') meta.uid = raw.uid;
   if (typeof raw.gen === 'string') meta.gen = raw.gen;
   if (typeof raw.stamp === 'string') meta.stamp = raw.stamp;
@@ -473,10 +589,71 @@ export function progressStorePort(store: SyncableStore): SyncProgressPort {
   };
 }
 
+/**
+ * The progress store, the learner's other data (every key `syncsKey` accepts) and, when given, the
+ * learner's songs, as one port. Synced data written here is announced to the page as `storage`
+ * events, so features that follow other tabs pick it up at once.
+ */
+export function appDataPort(store: SyncableStore, data: LearnerData, songs: SyncSongs | null = null): SyncProgressPort {
+  const progress = progressStorePort(store);
+  const stamp = (): string => `${store.changeStamp()}|${data.digest(syncsKey)}|${songs ? textSum(songs.stamp()) : '-'}`;
+  return {
+    exportData: () => ({ ...store.exportData(), stamp: stamp(), data: data.snapshot(syncsKey) }),
+    importData(remote, strategy, base) {
+      const result = store.importData(remote, strategy);
+      if (!result.ok || !isRec(remote) || !isRec(remote.data)) return result;
+      // A copy without `data` was written by an older app: it says nothing about the data.
+      const { data: incoming } = sanitizeDataSet(remote.data, { only: syncsKey });
+      const plan = planDataSync(data.snapshot(syncsKey), incoming, base ?? null, strategy === 'replace' ? 'replace' : 'merge');
+      const changed: string[] = [];
+      for (const key of plan.write) {
+        try {
+          data.write(key, plan.result[key]);
+          changed.push(key);
+        } catch {
+          /* this device is full: the key stays as it was and is merged again next time */
+        }
+      }
+      for (const key of plan.remove) {
+        data.remove(key);
+        changed.push(key);
+      }
+      if (changed.length) announceStorageChange(changed);
+      return result;
+    },
+    dataSums(body) {
+      if (!isRec(body) || !isRec(body.data)) return null;
+      const { data: set } = sanitizeDataSet(body.data, { only: syncsKey });
+      const out: Record<string, string> = {};
+      for (const [key, entry] of Object.entries(set)) out[key] = textSum(entryText(entry));
+      return out;
+    },
+    refresh: () => {
+      data.notice();
+    },
+    changeStamp: stamp,
+    subscribe(listener) {
+      const offs = [store.subscribe(listener), data.subscribe(listener), ...(songs ? [songs.subscribe(listener)] : [])];
+      return () => {
+        for (const off of offs) off();
+      };
+    },
+    onReplaced: (handler) => progress.onReplaced(handler),
+    ...(songs ? { songs } : {}),
+  };
+}
+
 async function defaultProgressPort(): Promise<SyncProgressPort> {
   // Loaded on demand: the platform layer must not pull the whole progress module in at import time.
   const progress = await import('@/core/progress');
-  return progressStorePort(progress.getProgressStore());
+  let songs: SyncSongs | null = null;
+  try {
+    const library = await import('@/core/library');
+    songs = library.songSyncPort(library.getLibrary());
+  } catch {
+    songs = null; // no song library in this build: progress and data still sync
+  }
+  return appDataPort(progress.getProgressStore(), getLearnerData(), songs);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -503,15 +680,18 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     ...overrides,
   };
 
-  let snapshot: SyncStatus = { state: 'off', issue: 'standalone', message: ISSUE_MESSAGES.standalone, lastSyncedAt: null, pending: false };
+  let snapshot: SyncStatus = { state: 'off', issue: 'standalone', message: ISSUE_MESSAGES.standalone, lastSyncedAt: null, pending: false, songs: null };
   const listeners = new Set<() => void>();
+  /** Whether the songs travel, as last worked out. */
+  let songInfo: SongSyncInfo | null = null;
   const publish = (state: SyncState, issue: SyncIssue | null, pending: boolean): void => {
-    const next: SyncStatus = { state, issue, message: issue ? ISSUE_MESSAGES[issue] : MESSAGES[state], lastSyncedAt: meta.syncedAt, pending };
+    const next: SyncStatus = { state, issue, message: issue ? ISSUE_MESSAGES[issue] : MESSAGES[state], lastSyncedAt: meta.syncedAt, pending, songs: state === 'off' ? null : songInfo };
     if (
       next.state === snapshot.state &&
       next.issue === snapshot.issue &&
       next.pending === snapshot.pending &&
-      next.lastSyncedAt === snapshot.lastSyncedAt
+      next.lastSyncedAt === snapshot.lastSyncedAt &&
+      JSON.stringify(next.songs) === JSON.stringify(snapshot.songs)
     ) {
       return;
     }
@@ -663,6 +843,31 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     return body.length === head.chars && checksum(body) === head.sum ? body : null;
   }
 
+  const songRef = (id: string): DocRef => (db as Database).doc(`data/users/${uid}/song.${id}`);
+
+  /**
+   * This device's copy, built the way a cloud copy is: the progress and data, plus the song list
+   * when the songs fit (else why they stay here). `index` is the song list, or null when not carried.
+   */
+  async function localBody(): Promise<{ body: Rec; stamp: string; index: Record<string, { sum: string; bytes: number; u: number }> | null }> {
+    const p = port as SyncProgressPort;
+    const sp = p.songs;
+    // A library that cannot be read must not stop the progress from syncing: the copy then says
+    // nothing about songs, which other devices take as "leave them as they are".
+    const songsReady = sp ? await sp.ready().then(() => true, () => false) : false;
+    p.refresh?.();
+    const exported = p.exportData() as Rec & { stamp: string };
+    const index = sp && songsReady ? await sp.index().catch(() => null) : null;
+    if (!sp || !index) return { body: exported, stamp: exported.stamp, index: null };
+    const carry = songCarry(index);
+    if (!(songInfo?.reason === 'elsewhere' && carry.synced)) songInfo = { synced: carry.synced, count: carry.count, bytes: carry.bytes, reason: carry.reason };
+    const songs = carry.synced ? { carried: true, items: index } : { carried: false, reason: carry.reason, count: carry.count, bytes: carry.bytes };
+    return { body: { ...exported, songs }, stamp: exported.stamp, index: carry.synced ? index : null };
+  }
+
+  /** True when both copies carry their songs, so the song lists are compared and merged. */
+  const bothCarry = (a: Rec, b: Rec): boolean => parseSongsHead(a.songs)?.carried === true && parseSongsHead(b.songs)?.carried === true;
+
   function guard(before: unknown, remote: unknown): void {
     const p = port as SyncProgressPort;
     const exported = p.exportData();
@@ -675,7 +880,80 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const patched: Rec = { ...state };
     if (repair && isRec(state.streak)) patched.streak = { ...state.streak, ...repair };
     if (xpLow && isRec(state.xp)) patched.xp = { ...state.xp, total: floor };
-    p.importData({ ...exported, state: patched }, 'replace');
+    // Only the progress is patched: the data was merged a moment ago and must not be touched again.
+    p.importData({ ...exported, state: patched, data: undefined }, 'replace');
+  }
+
+  /**
+   * Bring the cloud's songs into the library, song by song, three-way against the list both had
+   * when they last agreed. A song whose document is not readable yet is left for the next copy.
+   */
+  async function mergeSongs(remote: Rec, replace: boolean): Promise<void> {
+    const sp = (port as SyncProgressPort).songs;
+    const head = parseSongsHead(remote.songs);
+    if (!sp || !head) return; // a copy from an app that does not sync songs says nothing about them
+    let local: Record<string, { sum: string; bytes: number; u: number }>;
+    try {
+      await sp.ready();
+      local = await sp.index();
+    } catch {
+      return; // the library cannot be read right now: songs wait for the next copy
+    }
+    const carry = songCarry(local);
+    if (!head.carried || !carry.synced) {
+      // One side's songs do not fit: they stay on each device, and nothing is deleted anywhere.
+      meta.base.songs = null;
+      songInfo = { synced: false, count: carry.count, bytes: carry.bytes, reason: carry.synced ? 'elsewhere' : carry.reason };
+      return;
+    }
+    const base = meta.base.songs;
+    const agreed: Record<string, string> = {};
+    for (const [id, item] of Object.entries(head.items)) agreed[id] = item.sum;
+    const keepBase = (id: string): void => {
+      if (base && base[id] !== undefined) agreed[id] = base[id];
+      else delete agreed[id];
+    };
+    for (const id of new Set([...Object.keys(local), ...Object.keys(head.items), ...Object.keys(base ?? {})])) {
+      const l = local[id];
+      const r = head.items[id];
+      const b = base ? base[id] : undefined;
+      if (l?.sum === r?.sum) continue;
+      let take = false;
+      let drop = false;
+      if (replace) {
+        take = !!r;
+        drop = !r && !!l && b !== undefined;
+      } else {
+        const localChanged = l?.sum !== b;
+        const remoteChanged = r?.sum !== b;
+        if (!remoteChanged) continue;
+        if (!localChanged) {
+          take = !!r;
+          drop = !r;
+        } else take = !!r && (!l || r.u > l.u); // both changed: the later save; deleted here but changed there: keep the change
+      }
+      if (take && r) {
+        const snap = await songRef(id).get();
+        const doc = snap.exists ? snap.data() : undefined;
+        if (!doc || doc.sum !== r.sum || typeof doc.json !== 'string') {
+          keepBase(id); // its document is still being written elsewhere
+          continue;
+        }
+        let stored = false;
+        try {
+          stored = await sp.write({ listing: doc.listing, json: doc.json });
+        } catch {
+          stored = false; // no room here: tried again with the next copy
+        }
+        if (!stored) keepBase(id);
+      } else if (drop && l) {
+        await sp.remove(id).catch(() => keepBase(id));
+      }
+    }
+    meta.songDocs = {};
+    for (const [id, item] of Object.entries(head.items)) meta.songDocs[id] = item.sum;
+    meta.base.songs = agreed;
+    songInfo = { synced: true, count: carry.count, bytes: carry.bytes, reason: null };
   }
 
   /** Bring one cloud copy into the local state. Throws only for transient database errors. */
@@ -695,6 +973,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       meta.gen = null;
       meta.parts = 0;
       meta.sum = null;
+      meta.base = { data: null, songs: null };
       needPush = true;
       persist();
       return;
@@ -738,7 +1017,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const remoteState = isRec(remote) ? remote.state : undefined;
     const dirtyBefore = isDirty();
 
-    if (remote === undefined || head.epoch < meta.epoch) {
+    if (!isRec(remote) || head.epoch < meta.epoch) {
       // Damaged, or from before a reset made on this device: not merged, and replaced by ours.
       acknowledge(head);
       needPush = true;
@@ -746,7 +1025,8 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       return;
     }
 
-    const local = p.exportData();
+    const localNow = await localBody();
+    const local = localNow.body;
     const before = local.state;
     // Three cases take the cloud copy over instead of merging:
     //  - a reset elsewhere, seen by a device that synced before it (a device that never synced
@@ -755,23 +1035,27 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     //    learner's hearts, quests and streak freezes with a blank slate;
     //  - local data that belongs to another account and is already safe there.
     const replace = adoptRemote || (head.epoch > meta.epoch && meta.syncedAt !== null) || (meta.syncedAt === null && isPristine(before));
-    const remoteKey = materialKey(remoteState);
-    if (!replace && isRec(remoteState) && remoteKey === materialKey(before)) {
+    const songsToo = bothCarry(local, remote);
+    const remoteKey = bodyKey(remote, songsToo);
+    const agreedData = p.dataSums?.(remote) ?? meta.base.data;
+    if (!replace && isRec(remoteState) && remoteKey === bodyKey(local, songsToo)) {
       // The same progress already (another tab of this browser saved it, or our own save came
       // back): importing it would only churn the bookkeeping.
       meta.epoch = Math.max(meta.epoch, head.epoch);
       acknowledge(head);
       needPush = false;
-      meta.stamp = local.stamp;
-      meta.sum = checksum(remoteKey);
+      meta.stamp = localNow.stamp;
+      meta.sum = checksum(bodyKey(local));
       meta.syncedAt = deps.now();
+      meta.base.data = agreedData;
+      await mergeSongs(remote, false);
       persist();
       return;
     }
     let result: { ok: true } | { ok: false; reason: string; detail?: string };
     applying = true;
     try {
-      result = p.importData(remote, replace ? 'replace' : 'newest-wins');
+      result = p.importData(remote, replace ? 'replace' : 'newest-wins', meta.base.data);
       if (result.ok && !replace) guard(before, remoteState);
     } finally {
       applying = false;
@@ -786,13 +1070,15 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       persist();
       return;
     }
+    meta.base.data = agreedData;
+    await mergeSongs(remote, replace);
 
     adoptRemote = false;
     meta.epoch = Math.max(meta.epoch, head.epoch);
     acknowledge(head);
-    const after = p.exportData();
-    const afterKey = materialKey(after.state);
-    let ahead = afterKey !== remoteKey;
+    const afterNow = await localBody();
+    const songsAfter = bothCarry(afterNow.body, remote);
+    let ahead = bodyKey(afterNow.body, songsAfter) !== bodyKey(remote, songsAfter);
     // What was local before a take-over is gone, so only a merge can have unsaved local changes.
     const unsaved = dirtyBefore && !replace;
     if (ahead && !unsaved) {
@@ -802,8 +1088,8 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     }
     needPush = unsaved || ahead;
     if (!needPush) {
-      meta.stamp = after.stamp;
-      meta.sum = checksum(afterKey);
+      meta.stamp = afterNow.stamp;
+      meta.sum = checksum(bodyKey(afterNow.body));
       meta.syncedAt = deps.now();
     }
     persist();
@@ -835,11 +1121,11 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     }
     if (!isDirty()) return;
 
-    const exported = p.exportData();
-    const sum = checksum(materialKey(exported.state));
+    const { body: exported, stamp, index } = await localBody();
+    const sum = checksum(bodyKey(exported));
     if (!needPush && meta.sum !== null && sum === meta.sum && latest.exists) {
       // Only bookkeeping moved (a day tick, another tab's echo): nothing worth a write.
-      meta.stamp = exported.stamp;
+      meta.stamp = stamp;
       persist();
       return;
     }
@@ -852,6 +1138,21 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const now = deps.now();
     const gen = `${Math.floor(now).toString(36)}${Math.floor(deps.random() * 0xffffff).toString(36).padStart(4, '0')}`;
     const parts = pieces.length > 1 ? pieces.length : 0;
+
+    // Each song that changed gets its own document first, so a copy never names a song that is not there.
+    const sp = p.songs;
+    if (sp && index) {
+      for (const [id, item] of Object.entries(index)) {
+        if (meta.songDocs[id] === item.sum) continue;
+        const song = await sp.read(id).catch(() => null);
+        if (!song || !running) continue;
+        const doc = { app: APP_ID, kind: 'song', id, sum: item.sum, at: now, listing: song.listing, json: song.json };
+        if (JSON.stringify(doc).length > 250_000) continue; // escapes made it too big for one document
+        await songRef(id).set(doc);
+        meta.songDocs[id] = item.sum;
+        persist();
+      }
+    }
 
     if (parts > 0) {
       // Remember the half-written save first: if the page dies now, the next visit removes it.
@@ -869,7 +1170,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       kind: 'progress-sync',
       v: FORMAT,
       gen,
-      stamp: exported.stamp,
+      stamp,
       epoch: meta.epoch,
       at: now,
       chars: json.length,
@@ -885,15 +1186,27 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     if (previous) meta.trash.push(previous);
     meta.gen = gen;
     meta.parts = parts;
-    meta.stamp = exported.stamp;
+    meta.stamp = stamp;
     meta.sum = sum;
     meta.syncedAt = now;
+    const songSums: Record<string, string> = {};
+    if (index) for (const [id, item] of Object.entries(index)) songSums[id] = item.sum;
+    meta.base = { data: p.dataSums?.(exported) ?? null, songs: index ? songSums : null };
     needPush = false;
     quotaFull = false;
     lastPushAt = now;
     persist();
     try {
       await emptyTrash();
+      if (index) {
+        // Songs deleted here: their documents go once the copy no longer names them.
+        for (const id of Object.keys(meta.songDocs)) {
+          if (id in index) continue;
+          await songRef(id).delete();
+          delete meta.songDocs[id];
+          persist();
+        }
+      }
     } catch {
       /* tidying can wait for the next save */
     }
@@ -1115,9 +1428,12 @@ const instance = (): CloudSync => (shared ??= createCloudSync());
 /**
  * Start cloud sync. The app shell calls this once at startup; it does nothing (and resolves with
  * `state: 'off'`) outside a Claude artifact that was published with the `db` and `user`
- * capabilities. Never throws.
+ * capabilities, apart from starting the learner data's change ledger (`startDataTracker`), which
+ * every host needs. Never throws.
  */
 export function startCloudSync(): Promise<SyncStatus> {
+  // The change ledger runs in every host: imports merge by it even where nothing syncs.
+  startDataTracker();
   return instance().start();
 }
 

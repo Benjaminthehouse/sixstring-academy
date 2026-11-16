@@ -775,7 +775,7 @@ const firstTabTune: Lesson = {
       type: 'true-false',
       statement: 'Many melodies are built from four-bar phrases.',
       answer: true,
-      explain: 'Four bars is the most common phrase length. The first phrase of *Ode to Joy* is four bars long, and so is each phrase after it.',
+      explain: 'Four bars is a very common phrase length. The first phrase of *Ode to Joy* is four bars long, and so is each phrase after it.',
       fact: 'tab-phrase',
     },
     {

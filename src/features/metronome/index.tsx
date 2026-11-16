@@ -55,7 +55,7 @@ import { BeatStrip } from './components/BeatStrip';
 import { SubdivisionPicture } from './components/NoteGlyphs';
 import { MeterPanel, PracticePanel, PresetsPanel, RhythmPanel, SoundPanel, soundLabel } from './components/Panels';
 import { TempoDial } from './components/TempoDial';
-import { useToastClearance } from './components/useToastClearance';
+import { useBottomClearance } from '@/ui';
 import { COMMON_METERS, meterChoice, meterLabel, meterOf, normalizeMeterKey, tempoBeatNote, tempoForRegrouping } from './model/meters';
 import { MetronomeSession, practiceToCredit, timerRemaining } from './model/session';
 import {
@@ -465,7 +465,7 @@ export default function MetronomeScreen(_props: RouteProps) {
   // Below the two-pane width the tempo buttons and Start sit where toasts appear: keep toasts above them.
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const navProbeRef = useRef<HTMLSpanElement | null>(null);
-  useToastClearance(controlsRef, navProbeRef, !twoPane);
+  useBottomClearance(controlsRef, !twoPane);
 
   const stage = (
     <section className={styles.stage} aria-label="Metronome">

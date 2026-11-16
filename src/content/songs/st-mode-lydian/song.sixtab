@@ -1,0 +1,39 @@
+# Mode Study: A Lydian (repertoire plan: st-mode-lydian). An original 16-bar melody over a
+# two-chord vamp: A (x02220) for two bars, then B (x24442) for two. D#, the raised fourth, is the
+# colour of Lydian: a major scale with one note lifted, which gives it its floating, dreamy sound.
+# A Lydian: A B C# D# E F# G#. The B major chord carries the D#.
+# The melody lands on D# on a strong beat in bars 2, 3, 6, 8, 11, 12 and 15: over B it is the
+# chord's third; over A (bars 2 and 6) it floats above the chord and then rises a half step to E.
+# The last bars change faster (B in bar 15, A in bar 16) so the tune can come home to A.
+# Fourth position, one finger per fret: finger 1 on fret 4 (D# on string 2, G# on string 1),
+# finger 4 on fret 7. The same place on the neck as the Ionian study: only D becomes D#.
+# The backing lets two strums a bar ring.
+title: Mode Study: A Lydian
+composer: Sixstring Academy
+source: Original study on the Lydian mode
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: modes, lydian, colour note, vamp, raised fourth
+tempo: 84
+time: 4/4
+key: A
+
+track: Your melody
+role: lead
+[Vamp]
+| "A=x02220" q 2:5{2} e 2:7{4} 1:4{1} h 1:5~{2} | q 1:7{4} e 1:5{2} 2:7{4} q 2:4{1} 2:5h{2} |
+| "B=x24442" h 2:4~{1} q 2:7{4} 1:7{4} | q 1:7{4} e 1:5{2} 1:4{1} q 2:7{4} e 2:5{2} 2:4{1} |
+| "A=x02220" h 2:5~{2} q 3:6{3} e 3:4{1} 3:6h{3} | h 2:4~{1} q 2:5h{2} 3:6{3} |
+| "B=x24442" q 2:7{4} e 2:4{1} 2:7{4} q 1:7{4} e 1:5{2} 1:4{1} | h 2:4~{1} q 3:6{3} 2:4{1} |
+| "A=x02220" q 1:5{2} e 1:4{1} 1:5h{2} q 2:5{2} e 3:6{3} 2:5{2} | q 1:7{4} e 1:5{2} 1:4{1} h 1:5h~{2} |
+| "B=x24442" q 2:4{1} e 2:5h{2} 2:7h{4} q 1:7{4} e 1:5{2} 2:7{4} | h 2:4~{1} q 2:5h{2} 2:7h{4} |
+| "A=x02220" q 1:5{2} e 1:7h{4} 1:5p{2} q 2:5{2} e 2:7h{4} 2:5p{2} | q 3:6{3} e 2:4{1} 2:5h{2} h 1:5~{2} |
+| "B=x24442" q 1:7{4} e 1:5{2} 2:7{4} q 2:4{1} e 2:7{4} 1:4{1} | "A=x02220" w 1:5~{2} ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| h D D | D D | D D | D D |
+| D D | D D | D D | D D |
+| D D | D D | D D | D D |
+| D D | D D | D D | w D ||

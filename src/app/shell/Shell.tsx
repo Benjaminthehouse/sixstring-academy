@@ -29,6 +29,25 @@ function RouteAnnouncer({ title }: { title: string }) {
 }
 
 /**
+ * Focus the screen's main action: the last enabled control of the last ActionBar in `<main>` (the
+ * kit puts the primary button last). Returns false when the screen has none.
+ */
+export function focusMainAction(): boolean {
+  const bars = document.querySelectorAll<HTMLElement>('#main [data-ui-action-bar]');
+  const bar = bars[bars.length - 1];
+  if (!bar) return false;
+  const controls = Array.from(bar.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled])')).filter((el) => el.getClientRects().length > 0);
+  const target = controls[controls.length - 1];
+  if (target) {
+    target.focus();
+    return true;
+  }
+  bar.tabIndex = -1;
+  bar.focus();
+  return true;
+}
+
+/**
  * The frame around every screen: phone top bar and tab bar, or the wide-screen sidebar, and the
  * `<main>` the current screen renders into. Also owns the document title, scroll position and the
  * redirect for unknown addresses.
@@ -66,12 +85,20 @@ export function Shell() {
     event.preventDefault();
     document.getElementById('main')?.focus();
   };
+  const skipToActions = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    focusMainAction();
+  };
 
   return (
     <div className={cx(styles.shell, wide ? styles.wide : styles.phone)} data-layout={wide ? 'wide' : 'phone'} data-immersive={immersion}>
       {/* Worded "Jump", not "Skip": the first-run flow has a "Skip for now" button, and scripts that click by text should find that one. */}
       <a className={styles.skip} href="#main" onClick={skipToContent}>
         Jump to content
+      </a>
+      {/* Only there while the screen has an ActionBar (CSS :has): its primary button is the thing the screen is for. */}
+      <a className={cx(styles.skip, styles.skipActions)} href="#main" onClick={skipToActions} data-skip="actions">
+        Jump to actions
       </a>
       {wide ? <Sidebar def={def} rail={immersion !== 'none'} /> : immersion !== 'bare' && <TopBar def={def} params={params} title={title} immersion={immersion} />}
       <main id="main" data-route={def.name} tabIndex={-1} className={styles.main}>

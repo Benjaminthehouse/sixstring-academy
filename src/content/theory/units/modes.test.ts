@@ -271,18 +271,27 @@ describe('modes: what every "over a drone" sound plays', () => {
     return out;
   };
 
+  /** A drone passage: 16 notes, the even ones all the drone. Returns its drone and mode, or null. */
+  const droneMode = (pitches: number[]): { drone: number; mode: string } | null => {
+    if (pitches.length !== 16 || !pitches.filter((_m, i) => i % 2 === 0).every((m) => m === pitches[0])) return null;
+    const melody = pitches.filter((_m, i) => i % 2 === 1);
+    const mode = MODES.find((m) => scaleMidi(melody[0], m).join() === melody.join());
+    return mode && melody[0] % 12 === pitches[0] % 12 ? { drone: pitches[0], mode } : null;
+  };
+
   it('strikes the drone, then the next note of one mode, sixteen times', () => {
     const sounds = tabSounds();
     expect(sounds.length).toBe(14);
     for (const { notes, answer } of sounds) {
       const pitches = notes.map(midiOf);
-      if (pitches.length === 16 && pitches.filter((_m, i) => i % 2 === 0).every((m) => m === pitches[0])) {
-        const drone = pitches[0];
-        const melody = pitches.filter((_m, i) => i % 2 === 1);
-        expect(melody[0] % 12, 'the scale starts on the drone note').toBe(drone % 12);
-        const mode = MODES.find((m) => scaleMidi(melody[0], m).join() === melody.join());
-        expect(mode, `a mode from ${melody[0]}`).toBeDefined();
-        if (answer) expect(answer.startsWith(NAME[mode!]), `${answer} is ${mode}`).toBe(true);
+      const one = droneMode(pitches);
+      if (one) {
+        if (answer) expect(answer.startsWith(NAME[one.mode]), `${answer} is ${one.mode}`).toBe(true);
+      } else if (pitches.length === 32) {
+        // Same notes, new home: C Ionian over a low C, then D Dorian over the open D.
+        expect(droneMode(pitches.slice(0, 16))).toEqual({ drone: 48, mode: 'major' });
+        expect(droneMode(pitches.slice(16))).toEqual({ drone: 50, mode: 'dorian' });
+        expect(scaleSet('C', 'major')).toBe(scaleSet('D', 'dorian'));
       } else {
         // The bright-to-dark card: Lydian up, then Phrygian up, from A3.
         expect(pitches).toEqual([...scaleMidi(57, 'lydian'), ...scaleMidi(57, 'phrygian')]);
@@ -290,12 +299,15 @@ describe('modes: what every "over a drone" sound plays', () => {
     }
   });
 
-  it('plays the drone on an open string, an octave or two under the scale', () => {
+  it('plays each drone where a guitarist can let it ring: an open string, or the low C at string 5, fret 3', () => {
     for (const { notes } of tabSounds()) {
+      const pitches = notes.map(midiOf);
+      if (!droneMode(pitches.slice(0, 16))) continue;
       const first = notes[0];
       if (!('string' in first)) throw new Error('a rest');
-      const pitches = notes.map(midiOf);
-      if (pitches[1] - pitches[0] === 12 || pitches[1] - pitches[0] === 24) expect(first.fret).toBe(0);
+      expect(first.fret === 0 || (first.string === 5 && first.fret === 3), JSON.stringify(first)).toBe(true);
+      // The melody stays on thinner strings than the drone, so the drone string is free to ring.
+      for (const n of notes.slice(0, 16).filter((_n, i) => i % 2 === 1)) if ('string' in n) expect(n.string).toBeLessThan(first.string);
     }
     // And soundPlan plays it as written.
     const q = allExercises().find((x): x is ListenChoiceExercise => x.type === 'listen-choice')!;

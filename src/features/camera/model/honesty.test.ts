@@ -18,6 +18,18 @@ describe('honesty: were the drawn dots where the neck was?', () => {
     expect(drawnOffset(nudgePose(p, { acrossStrings: 0.1 }), p)).toBeLessThan(OFF_GHOST);
   });
 
+  it('measures where the notes are: a turn about their frets does not count against them', () => {
+    const p = pose();
+    // nudgePose turns about the middle of the frets in view.
+    const mid = Math.round((p.visibleFrets.min + p.visibleFrets.max) / 2);
+    const turned = nudgePose(p, { rotateDeg: 1.5 });
+    const there = [{ string: 6, fret: mid }, { string: 1, fret: mid + 1 }];
+    const away = [{ string: 6, fret: 1 }, { string: 1, fret: 2 }];
+    expect(drawnOffset(turned, p, away)).toBeGreaterThan(2 * drawnOffset(turned, p, there));
+    // No notes: the board in view, so at least as far off as anywhere the notes could be.
+    expect(drawnOffset(turned, p, [])).toBeGreaterThanOrEqual(drawnOffset(turned, p, there));
+  });
+
   it('a pose numbered a fret off is far off; a different working size is not', () => {
     const p = pose();
     expect(drawnOffset(shiftNumbering(p, 1), p)).toBeGreaterThan(1);

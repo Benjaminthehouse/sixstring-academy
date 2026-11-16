@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, type ProgressEvent } from '@/core/progress';
-import { MAX_TOASTS_PER_BURST, XpTally, digest, xpToastDetail } from './digest';
+import { MAX_TOASTS_PER_BURST, REWARD_CARD_ID, REWARD_CARD_MAX_MS, XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail } from './digest';
 
 const at = 1_000_000;
 const xp = (amount: number): ProgressEvent => ({ type: 'xp-gained', at, amount, base: amount, multiplier: 1, source: 'theory-lesson', tag: 'theory', total: 100 + amount });
@@ -157,5 +157,50 @@ describe('xpToastDetail', () => {
     expect(xpToastDetail({ xp: 12, goal: 20, met: false, remaining: 8 }, false)).toBe("8 XP to go for today's goal.");
     expect(xpToastDetail({ xp: 25, goal: 20, met: true, remaining: 0 }, false)).toBe('25 XP today. Goal met.');
     expect(xpToastDetail({ xp: 25, goal: 20, met: true, remaining: 0 }, true)).toContain('boost');
+  });
+});
+
+describe('the reward card', () => {
+  const lesson = digest([
+    xp(15),
+    achievement('bronze', 'first-steps'),
+    achievement('silver', 'no-mistakes'),
+    { type: 'skill-levelled-up', at, id: 'theory:unit-1', from: 0, to: 1, title: 'A sound is a vibration' },
+  ]);
+
+  it('keeps warnings and a lost streak apart from the rewards', () => {
+    expect(isAlertToast({ id: 'shell-save', title: 'x', icon: 'CloudOff', tone: 'warn' })).toBe(true);
+    expect(isAlertToast({ id: 'shell-streak-end', title: 'x', icon: 'Flame', tone: 'neutral' })).toBe(true);
+    expect(lesson.toasts.some(isAlertToast)).toBe(false);
+  });
+
+  it("puts a lesson's XP, achievements and crown on one card: XP as the headline, a line for each of the rest", () => {
+    const items = mergeRewardItems([], xpItem(15, '5 XP to go.'), lesson.toasts);
+    const card = rewardCard(items)!;
+    expect(card.id).toBe(REWARD_CARD_ID);
+    expect(card.title).toBe('+15 XP');
+    expect(card.lines.map((l) => l.title)).toEqual(['2 achievements unlocked', 'Crown 1 of 5']);
+    expect(card.duration).toBeLessThanOrEqual(REWARD_CARD_MAX_MS);
+  });
+
+  it('leads with the goal, which already names the XP', () => {
+    const plan = digest([xp(15), goal, extended(4), quest('tune')]);
+    const card = rewardCard(mergeRewardItems([{ ...xpItem(5, '') }], null, plan.toasts))!;
+    expect(card.title).toBe('Daily goal met');
+    expect(card.action).toBe('streak');
+    expect(card.lines.map((l) => l.id)).toEqual(['shell-quest']);
+  });
+
+  it('shows a single piece of news as itself', () => {
+    expect(rewardCard([xpItem(5, "15 XP to go for today's goal.")])).toMatchObject({ id: 'shell-xp', title: '+5 XP', lines: [] });
+    expect(rewardCard([])).toBeNull();
+  });
+
+  it('lets news that arrives a moment later join the card on screen, the newest XP total replacing the old', () => {
+    const first = mergeRewardItems([], xpItem(10, ''), digest([quest('a')]).toasts);
+    const later = mergeRewardItems(first, xpItem(25, ''), digest([achievement('bronze', 'b')]).toasts);
+    expect(later.map((t) => t.id)).toEqual(['shell-xp', 'shell-quest', 'shell-ach-b']);
+    expect(later[0].title).toBe('+25 XP');
+    expect(mergeRewardItems(later, null, []).length).toBeLessThanOrEqual(MAX_TOASTS_PER_BURST + 1);
   });
 });

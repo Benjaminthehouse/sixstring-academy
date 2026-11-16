@@ -68,7 +68,7 @@ const whatAScaleIs: Lesson = {
     {
       type: 'card',
       title: 'The home note',
-      body: 'Every scale has a **home note**, its {t:tonic}. Tunes made from the scale feel finished when they end there. The scale is named after its tonic: this one starts and ends on {n:A}, so it is an {n:A} scale.',
+      body: 'Every scale has a **home note**, its {t:tonic}. Tunes made from the scale usually feel finished when they end there. The scale is named after its tonic: this one starts and ends on {n:A}, so it is an {n:A} scale.',
       figure: { kind: 'audio', sound: { kind: 'scale', tonic: 'A2', scale: 'minor-pentatonic', direction: 'up-down', tempo: 100 }, label: 'Hear it up and down' },
     },
     {

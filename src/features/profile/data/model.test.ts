@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { emptyFixture, richFixture } from '../testing/fixtures';
-import { MAX_IMPORT_BYTES, RESET_WORD, confirmsReset, diffRows, exportFileName, importFailureText, previewImport, progressFingerprint, readBackup, rejectionReason, storageStatus, summarise } from './model';
+import { createBackup, previewBackup } from '@/core/progress';
+import { createLearnerData, memoryKv } from '@/core/platform/storage-scope';
+import { SONG_SYNC_LIMITS } from '@/core/platform';
+import {
+  MAX_IMPORT_BYTES,
+  RESET_WORD,
+  confirmsReset,
+  dataDiffRows,
+  dataImportNote,
+  diffRows,
+  exportFileName,
+  importFailureText,
+  includedLines,
+  previewImport,
+  progressFingerprint,
+  readBackup,
+  rejectionReason,
+  sizeText,
+  songSyncText,
+  staysLines,
+  storageStatus,
+  summarise,
+} from './model';
 
 const NOW = Date.parse('2026-11-15T19:10:00Z');
 const ENV = { now: NOW, timeZone: 'UTC' };
@@ -170,9 +192,9 @@ describe('export, reset, import', () => {
 describe('small things', () => {
   it('names the export file after the learner and the day', () => {
     const at = new Date(2026, 10, 15, 12).getTime();
-    expect(exportFileName('Robin', at)).toBe('sixstring-progress-robin-2026-11-15.json');
-    expect(exportFileName('', at)).toBe('sixstring-progress-2026-11-15.json');
-    expect(exportFileName('José  Ñandú / <b>', at)).toBe('sixstring-progress-jose-nandu-b-2026-11-15.json');
+    expect(exportFileName('Robin', at)).toBe('sixstring-backup-robin-2026-11-15.json');
+    expect(exportFileName('', at)).toBe('sixstring-backup-2026-11-15.json');
+    expect(exportFileName('José  Ñandú / <b>', at)).toBe('sixstring-backup-jose-nandu-b-2026-11-15.json');
     expect(exportFileName('x'.repeat(80), at).length).toBeLessThan(60);
   });
 
@@ -197,5 +219,69 @@ describe('small things', () => {
     expect(storageStatus({ ...fine, report: { source: 'saved', corrupt: false, newer: true } }).tone).toBe('warn');
     // Whatever the state, the advice to keep a backup or the way to get one is there.
     for (const status of [storageStatus(fine), storageStatus({ ...fine, persistent: false }), storageStatus({ ...fine, saveFailed: true })]) expect(status.text).toMatch(/backup/i);
+  });
+});
+
+describe('the rest of your data', () => {
+  async function backupWith(entries: Record<string, unknown>) {
+    const f = richFixture(NOW, 'UTC');
+    const kv = memoryKv();
+    for (const [key, value] of Object.entries(entries)) kv.write(key, JSON.stringify(value));
+    const data = createLearnerData(kv, () => NOW);
+    const file = await createBackup({ store: f.store, data, songs: null, now: () => NOW });
+    return { f, data, text: JSON.stringify(file) };
+  }
+
+  it('reads a full backup and previews "12 entries now, 15 after" for the journal', async () => {
+    const journal = (n: number, from = 0) => Array.from({ length: n }, (_, i) => ({ id: `e${i + from}`, endedAt: i + from }));
+    const { text } = await backupWith({ 'practice.data': { v: 1, journal: journal(15), routines: [], goals: [] }, 'metronome.settings': { bpm: 90 } });
+    const read = readBackup(text, ENV);
+    expect(read.ok && read.backup.format).toBe('full');
+    if (!read.ok) return;
+    const target = emptyFixture(NOW, 'UTC');
+    const kv = memoryKv({ 'practice.data': JSON.stringify({ v: 1, journal: journal(12), routines: [], goals: [] }) });
+    const local = createLearnerData(kv, () => NOW).snapshot();
+    const preview = previewBackup(read.backup, { state: target.store.getState(), data: local, songs: [{ id: 'my-a' }] }, 'newest-wins', NOW);
+    const rows = dataDiffRows(preview);
+    expect(rows.find((r) => r.key === 'data-journal')).toMatchObject({ label: 'Practice journal', before: '12 entries', after: '15 entries', change: 'up' });
+    expect(rows.find((r) => r.key === 'settings')).toMatchObject({ before: '0 settings', after: '1 setting' });
+    expect(rows.find((r) => r.key === 'songs')).toBeUndefined(); // this file holds no songs
+    expect(dataImportNote(preview)).toMatch(/Lists are joined/);
+    expect(dataImportNote({ ...preview, strategy: 'replace' })).toMatch(/exactly what the file holds/);
+    expect(dataImportNote({ ...preview, songs: { before: 2, after: 3, inBoth: 1 } })).toMatch(/1 song is in both: the copy changed last is kept\. Importing never deletes a song\./);
+  });
+
+  it('tells an older progress-only file apart and says what stays', () => {
+    const read = readBackup(JSON.stringify(richFixture(NOW, 'UTC').actions.exportProgress()), ENV);
+    expect(read.ok && read.backup.format).toBe('progress-only');
+    expect(dataImportNote({ strategy: 'replace', progressOnly: true, songs: null })).toMatch(/older version of the app and holds only your progress/);
+  });
+
+  it('lists what a backup holds, with counts, and what stays on this device', () => {
+    const { lines, later } = includedLines({
+      progress: summarise(richFixture(NOW, 'UTC').store.getState()),
+      counts: { items: [{ id: 'journal', label: 'Practice journal', unit: ['entry', 'entries'], count: 3 }, { id: 'arcade', label: 'Arcade records', unit: ['level played', 'levels played'], count: 0 }], settings: 4 },
+      songs: { count: 2, bytes: 24_000 },
+    });
+    expect(lines.map((l) => l.id)).toEqual(['progress', 'journal', 'settings', 'songs']);
+    expect(lines.find((l) => l.id === 'journal')).toMatchObject({ detail: '3 entries', empty: false, icon: 'NotebookPen' });
+    // What the learner has none of yet is named once, so a beginner sees what will travel without a wall of "none".
+    expect(later).toEqual(['arcade records']);
+    expect(lines.find((l) => l.id === 'songs')?.detail).toBe('2 songs, 24 KB');
+    expect(lines.find((l) => l.id === 'progress')?.detail).toMatch(/^level \d+, [\d,]+ XP, a 12-day streak/);
+    expect(includedLines({ progress: summarise(emptyFixture(NOW, 'UTC').store.getState()), counts: { items: [], settings: 0 }, songs: { count: 0, bytes: 0 } }).later).toEqual(['screen settings', 'your own songs']);
+    expect(staysLines({ hasApiKey: true })[0].label).toBe('Your API key');
+    expect(staysLines({ hasApiKey: false }).some((l) => l.id === 'key')).toBe(false);
+  });
+
+  it('says whether songs sync, and why not', () => {
+    expect(songSyncText(null, SONG_SYNC_LIMITS)).toBeNull();
+    expect(songSyncText({ synced: true, count: 3, bytes: 1, reason: null }, SONG_SYNC_LIMITS)).toBe('Your 3 songs sync too.');
+    expect(songSyncText({ synced: false, count: 51, bytes: 1, reason: 'count' }, SONG_SYNC_LIMITS)).toMatch(/up to 50 songs and you have 51\. Export a backup/);
+    expect(songSyncText({ synced: false, count: 3, bytes: 3_000_000, reason: 'total' }, SONG_SYNC_LIMITS)).toMatch(/3 MB and cloud sync carries up to 2 MB/);
+    expect(songSyncText({ synced: false, count: 3, bytes: 1, reason: 'elsewhere' }, SONG_SYNC_LIMITS)).toMatch(/another of your devices/);
+    expect(sizeText(840)).toBe('840 B');
+    expect(sizeText(12_400)).toBe('12 KB');
+    expect(sizeText(3_400_000)).toBe('3.4 MB');
   });
 });

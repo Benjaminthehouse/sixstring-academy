@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { selectDailyGoal, shouldReduceMotion, useProgress, useProgressStore, xpBoostOf, type ProgressEvent } from '@/core/progress';
 import { Button, Celebration, Icon, LevelBadge, Modal, toast } from '@/ui';
 import { openStats } from '../shell/stats';
-import { XpTally, digest, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast } from './digest';
+import { XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast, type RewardCard } from './digest';
 import { applySoundSettings, applySoundSettingsWhenReady, playShellSound, prepareShellSounds } from './sounds';
 import { noteShellToast } from './toasts';
 import styles from './Feedback.module.css';
@@ -110,18 +110,62 @@ export function GlobalFeedback() {
     }, MODAL_EXIT_MS);
   }, [showNext]);
 
-  const showToast = useCallback((t: PlannedToast) => {
+  const showToast = useCallback((t: PlannedToast | RewardCard) => {
     noteShellToast(t.id);
+    const lines = 'lines' in t ? t.lines : [];
     toast({
       id: t.id,
       title: t.title,
-      description: t.description,
-      icon: t.icon,
+      description:
+        lines.length > 0 ? (
+          <>
+            {t.description != null && <span className={styles.cardDetail}>{t.description}</span>}
+            <ul className={styles.cardLines}>
+              {lines.map((line) => (
+                <li key={line.id} className={styles.cardLine}>
+                  <span className={line.id === 'shell-xp' ? styles.xpIcon : styles.cardLineIcon}>
+                    <Icon name={line.icon} size={14} strokeWidth={2} />
+                  </span>
+                  <span className={styles.cardLineText}>
+                    <strong>{line.title}</strong>
+                    {line.description ? ` · ${line.description}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          t.description
+        ),
+      icon:
+        t.icon === 'Zap' ? (
+          <span className={styles.xpIcon}>
+            <Icon name="Zap" size={20} strokeWidth={2} />
+          </span>
+        ) : (
+          t.icon
+        ),
       tone: t.tone,
       duration: t.duration ?? (t.action ? 7000 : undefined),
       action: t.action === 'hearts' ? { label: 'Options', onClick: () => openStats('hearts') } : t.action === 'streak' ? { label: 'View', onClick: () => openStats('streak') } : undefined,
+      // News, not a reply: it never covers an open sheet or a summary dialog, and waits its turn.
+      news: true,
     });
   }, []);
+
+  // What the reward card on screen carries, so news a moment later joins it instead of stacking.
+  const card = useRef<{ id: string; items: PlannedToast[]; until: number } | null>(null);
+  const showRewards = useCallback(
+    (items: PlannedToast[]) => {
+      const next = rewardCard(items);
+      if (!next) return;
+      const previous = card.current;
+      if (previous && previous.id !== next.id) toast.dismiss(previous.id);
+      card.current = { id: next.id, items, until: Date.now() + (next.duration ?? 4000) };
+      showToast(next);
+    },
+    [showToast],
+  );
 
   const apply = useCallback(
     (plan: FeedbackPlan) => {
@@ -133,27 +177,20 @@ export function GlobalFeedback() {
         if (behindDialog) deferred.current.push(show);
         else show();
       };
+      let xp: PlannedToast | null = null;
       if (plan.xp > 0) {
         const total = tally.current.add(plan.xp, now);
-        const detail = xpToastDetail(selectDailyGoal(state), xpBoostOf(state, now).active);
-        if (!plan.xpInToast) {
-          noteShellToast('shell-xp');
-          emit(() =>
-            toast({
-              id: 'shell-xp',
-              title: `+${total} XP`,
-              description: detail,
-              icon: (
-                <span className={styles.xpIcon}>
-                  <Icon name="Zap" size={20} strokeWidth={2} />
-                </span>
-              ),
-              duration: 3200,
-            }),
-          );
-        }
+        if (!plan.xpInToast) xp = xpItem(total, xpToastDetail(selectDailyGoal(state), xpBoostOf(state, now).active));
       }
-      for (const t of plan.toasts) emit(() => showToast(t));
+      // Warnings stay toasts of their own; the rewards of the moment share one card.
+      for (const t of plan.toasts.filter(isAlertToast)) emit(() => showToast(t));
+      const rewards = plan.toasts.filter((t) => !isAlertToast(t));
+      if (xp || rewards.length > 0) {
+        emit(() => {
+          const onCard = card.current && Date.now() < card.current.until ? card.current.items : [];
+          showRewards(mergeRewardItems(onCard, xp, rewards));
+        });
+      }
       if (plan.modals.length > 0) {
         queue.current.push(...plan.modals);
         if (!activeRef.current) showNext();
@@ -165,7 +202,7 @@ export function GlobalFeedback() {
         setHeartFlash((h) => ({ shot: (h?.shot ?? 0) + 1, left }));
       }
     },
-    [showNext, showToast, store],
+    [showNext, showRewards, showToast, store],
   );
 
   useEffect(() => {

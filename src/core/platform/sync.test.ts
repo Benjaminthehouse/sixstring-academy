@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActions, createProgressStore, memoryStorage, type ProgressActions, type ProgressState, type ProgressStore } from '@/core/progress';
+import { createLibrary, memoryStore, songSyncPort, type Library } from '@/core/library';
+import { CAMPFIRE_GROOVE, ODE_TO_JOY, sixTab } from '@/core/song';
+import { createLearnerData, memoryKv, type LearnerData } from './storage-scope';
 import {
+  SONG_SYNC_LIMITS,
+  appDataPort,
+  bodyKey,
   checksum,
   createCloudSync,
   isPristine,
   materialKey,
   progressStorePort,
+  songCarry,
   splitBody,
   strongerStreak,
   type CloudSync,
@@ -1141,5 +1148,253 @@ describe('document helpers', () => {
     createActions(() => fresh).awardXp(5, 'test');
     expect(isPristine(fresh.getState())).toBe(false);
     expect(isPristine(null)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The rest of the learner's data, and the learner's songs
+// ---------------------------------------------------------------------------------------------
+
+interface DataDevice extends Device {
+  kv: ReturnType<typeof memoryKv>;
+  data: LearnerData;
+  lib: Library;
+  /** A feature writes a key (and the tracker notices it). */
+  write(key: string, value: unknown): void;
+  read(key: string): unknown;
+}
+
+function dataDevice(db: FakeDb | null, name: string, options: Partial<SyncDeps> & { uid?: string | null } = {}): DataDevice {
+  const kv = memoryKv();
+  const data = createLearnerData(kv, () => Date.now());
+  let seed = name.length + 3;
+  const lib = createLibrary({ store: memoryStore(), broadcast: false, random: () => ((seed = (seed * 16807) % 2147483647) / 2147483647) });
+  const store = createProgressStore({ clock: { now: () => Date.now(), timeZone: 'UTC' }, storage: memoryStorage(), deviceId: name });
+  const port = appDataPort(store, data, songSyncPort(lib));
+  const d = device(db, name, { store, progress: () => port, ...options } as Partial<SyncDeps> & { uid?: string | null; store: ProgressStore });
+  return Object.assign(d, {
+    kv,
+    data,
+    lib,
+    write(key: string, value: unknown) {
+      kv.write(key, JSON.stringify(value));
+      data.notice();
+    },
+    read(key: string): unknown {
+      const raw = kv.read(key);
+      return raw === null ? null : (JSON.parse(raw) as unknown);
+    },
+  });
+}
+
+function remoteBody(db: FakeDb, uid = 'u_ana'): { data?: Record<string, { at: number; value?: unknown }>; songs?: { carried: boolean; items?: Record<string, unknown>; reason?: string } } {
+  return remoteExport(db, uid) as unknown as ReturnType<typeof remoteBody>;
+}
+
+const songDoc = (id: string, uid = 'u_ana'): string => `data/users/${uid}/song.${id}`;
+
+describe('the rest of the learner’s data', () => {
+  it('travels to another device, but not the calibration, the AI key or device notes', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    laptop.write('practice.data', { v: 1, journal: [{ id: 'j1', endedAt: 5 }], routines: [], goals: [] });
+    laptop.write('metronome.settings', { bpm: 96 });
+    laptop.write('rhythm.calibration', { v: 1, tapMs: 40, tapAt: 1 });
+    laptop.kv.write('ai.anthropic-key', 'sk-ant-secret');
+    laptop.kv.write('player.micNotice', 'true');
+    await laptop.sync.start();
+    await pass(200);
+    const body = remoteBody(db);
+    expect(Object.keys(body.data ?? {}).sort()).toEqual(['metronome.settings', 'practice.data']);
+    expect(JSON.stringify(body)).not.toContain('sk-ant');
+
+    const phone = dataDevice(db, 'phone');
+    await phone.sync.start();
+    await pass(200);
+    expect(phone.read('practice.data')).toEqual(laptop.read('practice.data'));
+    expect(phone.read('metronome.settings')).toEqual({ bpm: 96 });
+    expect(phone.kv.read('rhythm.calibration')).toBeNull();
+    expect(phone.kv.read('ai.anthropic-key')).toBeNull();
+    expect(phone.kv.read('player.micNotice')).toBeNull();
+    expect(phone.status().state).toBe('synced');
+  });
+
+  it('a change made on either device reaches the other, key by key, and a deletion too', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    laptop.write('metronome.settings', { bpm: 96 });
+    laptop.write('progressions.saved', [{ id: 'my-blues', updatedAt: 1 }]);
+    await laptop.sync.start();
+    await pass(200);
+    const phone = dataDevice(db, 'phone');
+    await phone.sync.start();
+    await pass(200);
+    expect(phone.read('progressions.saved')).toEqual([{ id: 'my-blues', updatedAt: 1 }]);
+
+    await pass(30_000);
+    phone.write('metronome.settings', { bpm: 120 });
+    await pass(60_000);
+    expect(laptop.read('metronome.settings')).toEqual({ bpm: 120 });
+
+    laptop.kv.remove('progressions.saved');
+    laptop.data.notice();
+    await pass(60_000);
+    expect(phone.read('progressions.saved')).toBeNull();
+    expect(phone.read('metronome.settings')).toEqual({ bpm: 120 });
+    expect(laptop.status().state).toBe('synced');
+    expect(phone.status().state).toBe('synced');
+  });
+
+  it('two devices that both added journal entries while apart keep them all; the newer setting wins', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    laptop.write('practice.data', { v: 1, journal: [{ id: 'a', endedAt: 1 }], routines: [], goals: [] });
+    await laptop.sync.start();
+    await pass(200);
+    const phone = dataDevice(db, 'phone');
+    await phone.sync.start();
+    await pass(200);
+    phone.sync.stop(); // the phone goes offline
+
+    await pass(30_000);
+    phone.write('practice.data', { v: 1, journal: [{ id: 'a', endedAt: 1 }, { id: 'phone', endedAt: 2 }], routines: [], goals: [] });
+    phone.write('chords.dots', 'notes');
+    await pass(30_000);
+    laptop.write('practice.data', { v: 1, journal: [{ id: 'a', endedAt: 1 }, { id: 'laptop', endedAt: 3 }], routines: [], goals: [] });
+    laptop.write('chords.dots', 'fingers');
+    await pass(60_000);
+
+    const back = phone.restart(); // back online
+    await back.sync.start();
+    await pass(90_000);
+    const ids = (value: unknown) => ((value as { journal: Array<{ id: string }> }).journal ?? []).map((e) => e.id).sort();
+    expect(ids(phone.read('practice.data'))).toEqual(['a', 'laptop', 'phone']);
+    expect(ids(laptop.read('practice.data'))).toEqual(['a', 'laptop', 'phone']);
+    expect(phone.read('chords.dots')).toBe('fingers');
+    expect(laptop.read('chords.dots')).toBe('fingers');
+  });
+
+  it('a reset on one device takes the synced data away on the other, but not what was never synced', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    laptop.write('practice.data', { v: 1, journal: [{ id: 'a', endedAt: 1 }], routines: [], goals: [] });
+    await laptop.sync.start();
+    await pass(200);
+    const phone = dataDevice(db, 'phone');
+    await phone.sync.start();
+    await pass(200);
+    expect(phone.read('practice.data')).not.toBeNull();
+    phone.sync.stop();
+    phone.write('tuner.tunings', [{ id: 'dadgad' }]); // made while offline: never synced
+    const back = phone.restart();
+
+    await pass(30_000);
+    laptop.actions.resetProgress();
+    laptop.kv.remove('practice.data');
+    laptop.data.notice();
+    await pass(60_000); // the reset reaches the cloud before the phone is back
+    await back.sync.start();
+    await pass(90_000);
+    expect(phone.read('practice.data')).toBeNull();
+    expect(phone.state().xp.total).toBe(0);
+    expect(phone.read('tuner.tunings')).toEqual([{ id: 'dadgad' }]);
+  });
+
+  it('a cloud copy written by an older app, without the data, leaves the data alone and gets it back', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    laptop.write('metronome.settings', { bpm: 96 });
+    await laptop.sync.start();
+    await pass(200);
+    await pass(30_000);
+    // An older app on another device saves over it with progress only.
+    const old = JSON.stringify({ ...laptop.store.exportData(), stamp: 'old-app' });
+    const epoch = (db.docs.get(head()) as { epoch: number }).epoch;
+    const written = db.doc(head()).set({ app: 'sixstring-academy', kind: 'progress-sync', v: 1, gen: 'oldapp1', stamp: 'old-app', epoch, at: Date.now(), chars: old.length, sum: checksum(old), parts: 0, body: old });
+    await pass(100);
+    await written;
+    expect(remoteBody(db).data).toBeUndefined();
+    await pass(60_000);
+    expect(laptop.read('metronome.settings')).toEqual({ bpm: 96 });
+    expect(remoteBody(db).data?.['metronome.settings']?.value).toEqual({ bpm: 96 });
+  });
+});
+
+describe('the learner’s songs', () => {
+  it('travel with their ids, one document each; an edit and a deletion travel too', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    const song = await laptop.lib.save(sixTab(ODE_TO_JOY));
+    await laptop.sync.start();
+    await pass(500);
+    expect(db.docs.has(songDoc(song.id))).toBe(true);
+    expect(remoteBody(db).songs).toMatchObject({ carried: true });
+    expect(laptop.status().songs).toMatchObject({ synced: true, count: 1, reason: null });
+
+    const phone = dataDevice(db, 'phone');
+    await phone.sync.start();
+    await pass(500);
+    expect((await phone.lib.get(song.id))?.title).toBe('Ode to Joy');
+
+    await pass(30_000);
+    await phone.lib.update(song.id, { notes: 'Slow down in bar 3' });
+    await pass(60_000);
+    expect((await laptop.lib.get(song.id))?.notes).toBe('Slow down in bar 3');
+    const songWrites = db.writes(/song\./).length;
+
+    // Progress alone changing does not upload the songs again.
+    practise(laptop);
+    await pass(60_000);
+    expect(db.writes(/song\./).length).toBe(songWrites);
+
+    await laptop.lib.remove(song.id);
+    await pass(60_000);
+    expect(await phone.lib.get(song.id)).toBeNull();
+    expect(db.docs.has(songDoc(song.id))).toBe(false);
+  });
+
+  it('songs that do not fit stay on each device, nothing is deleted, and the status says why', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop');
+    practise(laptop);
+    for (let i = 0; i <= SONG_SYNC_LIMITS.songs; i++) await laptop.lib.save(sixTab(ODE_TO_JOY));
+    await laptop.sync.start();
+    await pass(1000);
+    expect(remoteBody(db).songs).toMatchObject({ carried: false, reason: 'count' });
+    expect(db.writes(/song\./)).toEqual([]);
+    expect(laptop.status().songs).toMatchObject({ synced: false, reason: 'count', count: SONG_SYNC_LIMITS.songs + 1 });
+
+    const phone = dataDevice(db, 'phone');
+    const own = await phone.lib.save(sixTab(CAMPFIRE_GROOVE));
+    await phone.sync.start();
+    await pass(1000);
+    expect((await phone.lib.list({ scope: 'mine' })).map((s) => s.id)).toEqual([own.id]);
+    expect(phone.status().songs).toMatchObject({ synced: false, reason: 'elsewhere' });
+    expect((await laptop.lib.list({ scope: 'mine' })).length).toBe(SONG_SYNC_LIMITS.songs + 1);
+  });
+});
+
+describe('song and data helpers', () => {
+  it('songCarry names the limit a library goes over', () => {
+    const songs = (n: number, bytes: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`my-s-${i}`, { bytes }]));
+    expect(songCarry(songs(3, 10_000))).toEqual({ synced: true, count: 3, bytes: 30_000, reason: null });
+    expect(songCarry(songs(SONG_SYNC_LIMITS.songs + 1, 10))).toMatchObject({ synced: false, reason: 'count' });
+    expect(songCarry(songs(1, SONG_SYNC_LIMITS.songBytes + 1))).toMatchObject({ synced: false, reason: 'size' });
+    expect(songCarry(songs(20, 150_000))).toMatchObject({ synced: false, reason: 'total' });
+  });
+
+  it('bodyKey ignores change times and bookkeeping, and sees data values and the song list', () => {
+    const body = { state: { xp: { total: 1 }, meta: { rev: 1 } }, data: { 'chords.dots': { at: 5, value: 'notes' } }, songs: { carried: true, items: { 'my-a': { sum: 'x', bytes: 1, u: 1 } } } };
+    const later = { ...body, state: { ...body.state, meta: { rev: 9 } }, data: { 'chords.dots': { at: 99, value: 'notes' } } };
+    expect(bodyKey(later)).toBe(bodyKey(body));
+    expect(bodyKey({ ...body, data: { 'chords.dots': { at: 5, value: 'fingers' } } })).not.toBe(bodyKey(body));
+    expect(bodyKey({ ...body, songs: { carried: true, items: {} } })).not.toBe(bodyKey(body));
+    expect(bodyKey({ ...body, songs: { carried: true, items: {} } }, false)).toBe(bodyKey(body, false));
   });
 });

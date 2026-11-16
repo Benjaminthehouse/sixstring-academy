@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { IconButton, cx } from '@/ui';
 import { Brand, BrandMark } from '../brand/Brand';
 import { href, navigate } from '../router';
@@ -8,6 +8,7 @@ import { TOPBAR_HEIGHT } from './layout';
 import { APP_NAME, upTarget } from './nav';
 import { hasAppHistory } from './scroll';
 import { StatChips } from './StatChips';
+import { topBarFit, type TopBarFit } from './topbarFit';
 import styles from './Shell.module.css';
 
 /**
@@ -49,6 +50,44 @@ function useHeadingOutOfView(routeKey: string, barHeight: number): boolean {
   return out;
 }
 
+/**
+ * Keep the bar's row inside the bar: measure what the brand, the title and the chips need and give
+ * way in order (see `topbarFit.ts`). Re-measures when the bar, the chips or the text size change.
+ */
+function useTopBarFit(bar: RefObject<HTMLElement | null>, active: boolean, title: boolean, routeKey: string): TopBarFit {
+  const [fit, setFit] = useState<TopBarFit>('all');
+  const brandWidth = useRef(44);
+  useLayoutEffect(() => {
+    const el = bar.current;
+    if (!active || !el) return undefined;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const style = getComputedStyle(el);
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const available = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const brand = el.querySelector<HTMLElement>('[data-topbar-brand]');
+      // The brand is not measurable while it is hidden: keep the width it had when it showed.
+      if (brand && brand.offsetParent !== null) brandWidth.current = brand.getBoundingClientRect().width;
+      const chips = Array.from(el.querySelectorAll<HTMLElement>('[data-chip] > :first-child')).map((c) => c.getBoundingClientRect().width);
+      const next = topBarFit({ available, gap: parseFloat(style.columnGap) || rem * 0.5, brand: brandWidth.current, titleMin: rem * 5, title, chips, pad: rem * 0.5, tightPad: rem * 0.25, tap: 44 });
+      setFit((previous) => (previous === next ? previous : next));
+    };
+    const later = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(later);
+    ro?.observe(el);
+    el.querySelectorAll('[data-chip] > :first-child').forEach((c) => ro?.observe(c));
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      ro?.disconnect();
+    };
+  }, [bar, active, title, routeKey]);
+  return active ? fit : 'all';
+}
+
 /** Props for `<TopBar>`. */
 export interface TopBarProps {
   def: RouteDef;
@@ -68,6 +107,9 @@ export function TopBar({ def, params, title, immersion }: TopBarProps) {
   const headingGone = useHeadingOutOfView(routeKey, TOPBAR_HEIGHT);
   const isHome = def.name === 'home';
   const focus = immersion === 'focus';
+  const barRef = useRef<HTMLElement | null>(null);
+  const titleShown = headingGone && !isHome;
+  const fit = useTopBarFit(barRef, !focus, titleShown, routeKey);
 
   const goBack = () => {
     if (hasAppHistory()) window.history.back();
@@ -75,11 +117,11 @@ export function TopBar({ def, params, title, immersion }: TopBarProps) {
   };
 
   return (
-    <header className={cx(styles.topbar, focus && styles.topbarFocus)}>
+    <header ref={barRef} className={cx(styles.topbar, focus && styles.topbarFocus)} data-fit={focus ? undefined : fit}>
       {focus ? (
         <IconButton className={styles.topbarBack} icon="ArrowLeft" label="Back" noTooltip onClick={goBack} />
       ) : (
-        <a className={styles.topbarBrand} href={href('home')} aria-label={isHome ? APP_NAME : `${APP_NAME}: go to Today`}>
+        <a className={styles.topbarBrand} href={href('home')} aria-label={isHome ? APP_NAME : `${APP_NAME}: go to Today`} data-topbar-brand="">
           {isHome ? <Brand compact size={28} /> : <BrandMark size={28} />}
         </a>
       )}
@@ -91,7 +133,7 @@ export function TopBar({ def, params, title, immersion }: TopBarProps) {
       ) : (
         <span className={styles.topbarSpacer} />
       )}
-      {!focus && <StatChips variant="bar" />}
+      {!focus && <StatChips variant="bar" density={fit === 'core' ? 'core' : fit === 'compact' ? 'compact' : 'normal'} />}
     </header>
   );
 }

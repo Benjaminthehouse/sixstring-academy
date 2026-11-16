@@ -1,0 +1,33 @@
+# Bossa-Style Groove (repertoire plan: st-bossa-groove). An original 16-bar fingerstyle comp on
+# Am7 (5x555x) and D7 (x5453x), two bars each, four times, with a one-bar ending on Am7.
+# The thumb (P) plays the root on beats 1 and 3: string 6 fret 5 (A) for Am7, string 5 fret 5 (D)
+# for D7. The fingers (i, m, a on strings 4, 3 and 2) pluck the upper three notes together in a
+# two-bar syncopated pattern, counted in straight eighths:
+#   first bar:  beat 1 (with the thumb), the "and" of 2, beat 4
+#   second bar: the "and" of 1, beat 3 (with the thumb), the "and" of 3
+# Am7 is a first-finger barre at fret 5 with string 5 left unplucked; D7 is fingers 3, 2, 4 and 1
+# on strings 5, 4, 3 and 2 (frets 5, 4, 5 and 3). Am7 to D7 is the i-IV7 vamp of A Dorian: in
+# the fingers' three notes C stays on string 3 while G falls to F# and E falls to D.
+title: Bossa-Style Groove
+composer: Sixstring Academy
+source: Original fingerstyle comping study
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: bossa, latin, fingerstyle, syncopation, seventh chords
+tempo: 116
+time: 4/4
+key: Am
+
+track: Your part
+role: lead
+[Groove]
+| "Am7=5x555x" ^"thumb on 1 and 3" q. (6:5{P 1} 4:5{I 1} 3:5{M 1} 2:5{A 1}) e (4:5{I} 3:5{M} 2:5{A}) q 6:5{P} (4:5{I} 3:5{M} 2:5{A}) | e 6:5{P} q. (4:5{I} 3:5{M} 2:5{A}) e (6:5{P} 4:5{I} 3:5{M} 2:5{A}) q. (4:5{I} 3:5{M} 2:5{A}) |
+| "D7=x5453x" q. (5:5{P 3} 4:4{I 2} 3:5{M 4} 2:3{A 1}) e (4:4 3:5 2:3) q 5:5 (4:4 3:5 2:3) | e 5:5 q. (4:4 3:5 2:3) e (5:5 4:4 3:5 2:3) q. (4:4 3:5 2:3) |
+| "Am7=5x555x" q. (6:5 4:5 3:5 2:5) e (4:5 3:5 2:5) q 6:5 (4:5 3:5 2:5) | e 6:5 q. (4:5 3:5 2:5) e (6:5 4:5 3:5 2:5) q. (4:5 3:5 2:5) |
+| "D7=x5453x" q. (5:5 4:4 3:5 2:3) e (4:4 3:5 2:3) q 5:5 (4:4 3:5 2:3) | e 5:5 q. (4:4 3:5 2:3) e (5:5 4:4 3:5 2:3) q. (4:4 3:5 2:3) |
+| "Am7=5x555x" q. (6:5 4:5 3:5 2:5) e (4:5 3:5 2:5) q 6:5 (4:5 3:5 2:5) | e 6:5 q. (4:5 3:5 2:5) e (6:5 4:5 3:5 2:5) q. (4:5 3:5 2:5) |
+| "D7=x5453x" q. (5:5 4:4 3:5 2:3) e (4:4 3:5 2:3) q 5:5 (4:4 3:5 2:3) | e 5:5 q. (4:4 3:5 2:3) e (5:5 4:4 3:5 2:3) q. (4:4 3:5 2:3) |
+| "Am7=5x555x" q. (6:5 4:5 3:5 2:5) e (4:5 3:5 2:5) q 6:5 (4:5 3:5 2:5) | e 6:5 q. (4:5 3:5 2:5) e (6:5 4:5 3:5 2:5) q. (4:5 3:5 2:5) |
+| "D7=x5453x" q. (5:5 4:4 3:5 2:3) e (4:4 3:5 2:3) q 5:5 (4:4 3:5 2:3) | e 5:5 q. (4:4 3:5 2:3) e (5:5 4:4 3:5 2:3) q. (4:4 3:5 2:3) |
+[Ending]
+| "Am7=5x555x" w (6:5 4:5 3:5 2:5){lr} ||

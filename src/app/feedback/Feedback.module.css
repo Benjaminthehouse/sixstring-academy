@@ -7,6 +7,45 @@
   fill: color-mix(in srgb, currentColor 30%, transparent);
 }
 
+/* ---------- The reward card: one headline, a line for each other piece of news ---------- */
+.cardDetail {
+  display: block;
+}
+.cardLines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cardLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.cardLineIcon,
+.cardLine .xpIcon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 0.2em;
+  color: var(--ok);
+}
+.cardLine .xpIcon {
+  color: var(--xp);
+}
+.cardLineText {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.cardLineText strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
 /* ---------- The big moments (level, streak milestone, rare achievement) ---------- */
 .moment {
   display: flex;

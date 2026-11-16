@@ -427,6 +427,19 @@ describe('display', () => {
     expect(el.lastElementChild?.tagName).toBe('DIV');
   });
 
+  it('LevelBadge fits any level on the pick: four characters at most, smaller type as it grows', () => {
+    const shown = (level: number) => {
+      const { el } = mount(<LevelBadge level={level} size={40} />);
+      const number = el.querySelector('[aria-hidden="true"]:not(svg)') as HTMLElement;
+      return { text: number.textContent, font: parseFloat(number.style.fontSize), label: el.firstElementChild?.getAttribute('aria-label') };
+    };
+    expect(shown(7)).toMatchObject({ text: '7', font: 18.4 });
+    expect(shown(4321)).toMatchObject({ text: '4321', font: 10 });
+    expect(shown(123456)).toMatchObject({ text: '123k', font: 10, label: 'Level 123456' });
+    expect(shown(2_500_000).text).toBe('2.5M');
+    for (const level of [9, 99, 999, 9999, 10_000, 999_999, 12_345_678, 1e12]) expect(shown(level).text!.length).toBeLessThanOrEqual(4);
+  });
+
   it('ListItem rows live in a list and link through the router', () => {
     const { el } = mount(
       <List>
@@ -506,8 +519,14 @@ describe('the gallery', () => {
 });
 
 describe('ActionBar', () => {
-  it('publishes its height as --action-bar-h so toasts sit above it, and clears it on unmount', () => {
-    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 390, height: 72.4, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) });
+  const rectAt = (top: number, height: number) => ({ width: 1024, height, top, bottom: top + height, left: 0, right: 1024, x: 0, y: top, toJSON: () => ({}) });
+  // jsdom applies no CSS modules: give the bar its sticky position, as Page.module.css does.
+  const sticky = () => vi.spyOn(window, 'getComputedStyle').mockImplementation(((el: Element) => ({ position: el.hasAttribute('data-ui-action-bar') ? 'sticky' : 'static', getPropertyValue: () => '', fontSize: '16px' }) as unknown as CSSStyleDeclaration) as typeof window.getComputedStyle);
+
+  it('publishes its height as --action-bar-h while it sits at the bottom, and clears it on unmount', () => {
+    // jsdom's window is 768 px tall: a 72 px bar stuck to the bottom.
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rectAt(768 - 72.4, 72.4));
+    const style = sticky();
     const root = document.documentElement;
     const { rerender } = mount(
       <ActionBar>
@@ -518,5 +537,43 @@ describe('ActionBar', () => {
     rerender(<p>no bar</p>);
     expect(root.style.getPropertyValue('--action-bar-h')).toBe('');
     spy.mockRestore();
+    style.mockRestore();
+  });
+
+  it('publishes nothing while it ends mid-screen (a short page)', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rectAt(300, 72));
+    const style = sticky();
+    mount(
+      <ActionBar>
+        <Button>Start</Button>
+      </ActionBar>,
+    );
+    expect(document.documentElement.style.getPropertyValue('--action-bar-h')).toBe('');
+    spy.mockRestore();
+    style.mockRestore();
+  });
+
+  it('publishes nothing when a layout made it static, even low on the screen (the tuner beside its meter)', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rectAt(768 - 90, 52));
+    mount(
+      <ActionBar>
+        <Button>Start tuning</Button>
+      </ActionBar>,
+    );
+    expect(document.documentElement.style.getPropertyValue('--action-bar-h')).toBe('');
+    spy.mockRestore();
+  });
+
+  it('can opt out', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rectAt(768 - 72, 72));
+    const style = sticky();
+    mount(
+      <ActionBar clearance={false}>
+        <Button>Done</Button>
+      </ActionBar>,
+    );
+    expect(document.documentElement.style.getPropertyValue('--action-bar-h')).toBe('');
+    spy.mockRestore();
+    style.mockRestore();
   });
 });

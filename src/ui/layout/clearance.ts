@@ -16,23 +16,35 @@ import { useEffect, type RefObject } from 'react';
 export const MAX_CLEARANCE_SHARE = 0.6;
 /** How close (in rem) above the bottom edge an element's lower edge must be to count as "at the bottom". */
 export const BOTTOM_ZONE_REM = 6;
+/** From this width toasts stack in a column at the bottom right (see Toast.module.css). */
+const TOAST_COLUMN_FROM_PX = 720;
 
-/** The edges of an element on screen, in px from the top of the viewport. */
+/** The edges of an element on screen, in px from the top (and left) of the viewport. */
 export interface VerticalBox {
   top: number;
   bottom: number;
+  left?: number;
+  right?: number;
+}
+
+/** Where toasts appear across the screen: the full width on phones, a column at the right from 720 px. */
+export interface ToastColumn {
+  left: number;
+  right: number;
 }
 
 /**
  * The room an element needs kept free above the bottom edge (`floor`: the top of the shell's bottom
  * bar, or the screen's bottom where there is none). 0 when the element is empty, below the floor,
- * or ends higher than `zone` px above it: then a toast at the bottom cannot touch it. Never more than
- * 60 % of the screen, so a tall block scrolled near the top does not send toasts off screen.
+ * ends higher than `zone` px above it, or (given `column`) lies beside the column toasts use: then a
+ * toast cannot touch it. Never more than 60 % of the screen, so a tall block scrolled near the top
+ * does not send toasts off screen.
  */
-export function bottomClearance(box: VerticalBox, floor: number, viewportHeight: number, zone: number): number {
+export function bottomClearance(box: VerticalBox, floor: number, viewportHeight: number, zone: number, column?: ToastColumn): number {
   if (![box.top, box.bottom, floor, viewportHeight, zone].every(Number.isFinite)) return 0;
   if (viewportHeight <= 0 || box.bottom - box.top < 1) return 0;
   if (box.top >= floor || box.bottom < floor - Math.max(0, zone)) return 0;
+  if (column && box.left !== undefined && box.right !== undefined && (box.right <= column.left || box.left >= column.right)) return 0;
   return Math.round(Math.max(0, Math.min(viewportHeight * MAX_CLEARANCE_SHARE, floor - box.top)));
 }
 
@@ -98,13 +110,29 @@ function remPx(): number {
   return Number.isFinite(size) && size > 0 ? size : 16;
 }
 
-/** Measure `el` once: the clearance it needs right now. */
-export function measureBottomClearance(el: Element): number {
+/** The strip of the screen toasts use: all of it on phones, a 26rem column 1.5rem from the right edge from 720 px. */
+export function toastColumn(viewportWidth: number, rem: number): ToastColumn {
+  if (viewportWidth < TOAST_COLUMN_FROM_PX) return { left: 0, right: viewportWidth };
+  const right = viewportWidth - 1.5 * rem;
+  return { left: Math.max(0, right - 26 * rem), right };
+}
+
+/**
+ * Measure `el` once: the clearance it needs right now. With `stickyOnly`, an element that a layout
+ * made static (an ActionBar placed beside the content on a wide screen) is part of the page, not a
+ * bar at the bottom, and claims nothing.
+ */
+export function measureBottomClearance(el: Element, stickyOnly = false): number {
   if (typeof window === 'undefined') return 0;
+  if (stickyOnly) {
+    const position = getComputedStyle(el).position;
+    if (position !== 'sticky' && position !== 'fixed') return 0;
+  }
   const rect = el.getBoundingClientRect();
   const viewport = window.innerHeight;
   const floor = viewport - stickyBottomPx(el);
-  return bottomClearance(rect, floor, viewport, BOTTOM_ZONE_REM * remPx());
+  const rem = remPx();
+  return bottomClearance(rect, floor, viewport, BOTTOM_ZONE_REM * rem, toastColumn(document.documentElement.clientWidth || window.innerWidth, rem));
 }
 
 /**
@@ -114,7 +142,8 @@ export function measureBottomClearance(el: Element): number {
  *   useBottomClearance(controls);            // or useBottomClearance(controls, !twoPane)
  * Re-measures on scroll, resize and when the element or the page changes size.
  */
-export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: boolean = true): void {
+export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: boolean = true, options: { stickyOnly?: boolean } = {}): void {
+  const stickyOnly = !!options.stickyOnly;
   useEffect(() => {
     const el = ref.current;
     if (!active || !el || typeof window === 'undefined') return undefined;
@@ -122,7 +151,7 @@ export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: b
     let frame = 0;
     const measure = () => {
       frame = 0;
-      claimBottomClearance(owner, el.isConnected ? measureBottomClearance(el) : 0);
+      claimBottomClearance(owner, el.isConnected ? measureBottomClearance(el, stickyOnly) : 0);
     };
     const later = () => {
       if (!frame) frame = requestAnimationFrame(measure);
@@ -141,5 +170,5 @@ export function useBottomClearance(ref: RefObject<HTMLElement | null>, active: b
       window.removeEventListener('scroll', later);
       claimBottomClearance(owner, 0);
     };
-  }, [ref, active]);
+  }, [ref, active, stickyOnly]);
 }

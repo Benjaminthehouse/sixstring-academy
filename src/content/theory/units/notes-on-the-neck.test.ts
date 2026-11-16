@@ -301,3 +301,28 @@ describe('notes-on-the-neck: what the listening questions play', () => {
     expect(answer(wrong)).toMatch(/^No/);
   });
 });
+
+describe('notes-on-the-neck: on the go (Sound off, Guitar off)', () => {
+  const EAR_DRILLS = new Set(['higher-lower', 'interval-ear', 'chord-quality-ear', 'scale-ear', 'cadence-ear', 'rhythm-ear', 'rhythm-tap']);
+  const listening = (s: Step): boolean =>
+    'generate' in s
+      ? EAR_DRILLS.has(String(s.generate))
+      : s.type === 'listen-choice' || s.type === 'tap-rhythm' || (s.type !== 'card' && 'figure' in s && s.figure?.kind === 'audio');
+  /** The questions left when listening steps are dropped and play steps become their tapping versions. */
+  const quiet = (l: Lesson): Step[] =>
+    l.steps.flatMap((s): Step[] => {
+      if (!('generate' in s) && s.type === 'card') return [];
+      if ('generate' in s && s.generate === 'play-note') return [{ generate: 'note-on-string', params: { ask: 'find' } }];
+      const tap = !('generate' in s) && (s.type === 'play-note' || s.type === 'play-chord' || s.type === 'play-phrase') ? s.alternative : s;
+      return listening(tap) ? [] : [tap];
+    });
+
+  it('every lesson keeps at least four questions, and every play step has a tapping version that does not need sound', () => {
+    for (const l of unit.lessons) {
+      expect(quiet(l).length, l.id).toBeGreaterThanOrEqual(4);
+      for (const s of l.steps) {
+        if (!('generate' in s) && (s.type === 'play-note' || s.type === 'play-chord' || s.type === 'play-phrase')) expect(listening(s.alternative), l.id).toBe(false);
+      }
+    }
+  });
+});

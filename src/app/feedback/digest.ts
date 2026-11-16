@@ -213,6 +213,79 @@ export function digest(events: readonly ProgressEvent[]): FeedbackPlan {
   return plan;
 }
 
+// --- The reward card ---------------------------------------------------------------------------
+
+/** One line of the reward card, under its headline. */
+export interface RewardLine {
+  id: string;
+  icon: string;
+  title: string;
+  description?: string;
+}
+
+/** The toast that tells the learner what a moment earned: one headline and, below it, the rest. */
+export interface RewardCard extends PlannedToast {
+  lines: RewardLine[];
+}
+
+/** Id of the card when it carries more than one piece of news. */
+export const REWARD_CARD_ID = 'shell-reward';
+/** The longest the card stays up, however much it carries. */
+export const REWARD_CARD_MAX_MS = 8000;
+
+/** Alerts stay toasts of their own (a warning, a streak that ended); everything else is a reward. */
+export function isAlertToast(t: PlannedToast): boolean {
+  return t.tone === 'warn' || t.id === 'shell-streak-end';
+}
+
+/** The XP gained so far, as an item of the card ("+15 XP", "5 XP to go for today's goal."). */
+export function xpItem(total: number, detail: string): PlannedToast {
+  return { id: 'shell-xp', title: `+${total} XP`, description: detail, icon: 'Zap', tone: 'neutral', duration: 3200 };
+}
+
+/**
+ * Join what is still on the card with the news of a new moment: the newest version of each item
+ * wins, the XP item is replaced by the newest total, and the order stays goal, XP, then the rest as
+ * they arrived. At most `MAX_TOASTS_PER_BURST + 1` items, so the card stays small.
+ */
+export function mergeRewardItems(onCard: readonly PlannedToast[], xp: PlannedToast | null, news: readonly PlannedToast[]): PlannedToast[] {
+  const byId = new Map<string, PlannedToast>();
+  for (const t of [...onCard, ...news]) byId.set(t.id, t);
+  if (xp) byId.set(xp.id, xp);
+  // The goal toast names the XP already ("+20 XP. 1 day streak"): no separate XP line then.
+  if (byId.has('shell-goal') && xp === null) byId.delete('shell-xp');
+  const all = [...byId.values()];
+  const rank = (t: PlannedToast) => (t.id === 'shell-goal' ? 0 : t.id === 'shell-xp' ? 1 : 2);
+  return all
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => rank(a.t) - rank(b.t) || a.i - b.i)
+    .map((x) => x.t)
+    .slice(0, MAX_TOASTS_PER_BURST + 1);
+}
+
+/**
+ * One card for a moment's rewards instead of a stack of toasts that would bury a screen's own
+ * summary: a single item is shown as itself; several get one headline (the goal, else the XP, else
+ * the first) and a line each for the rest.
+ */
+export function rewardCard(items: readonly PlannedToast[]): RewardCard | null {
+  if (items.length === 0) return null;
+  const [head, ...rest] = items;
+  if (rest.length === 0) return { ...head, lines: [] };
+  const durations = items.map((t) => (t.duration === undefined ? 4000 : t.duration)).filter((d) => d > 0);
+  const longest = durations.length ? Math.max(...durations) : 4000;
+  return {
+    id: REWARD_CARD_ID,
+    title: head.title,
+    description: head.description,
+    icon: head.icon,
+    tone: 'ok',
+    duration: Math.min(REWARD_CARD_MAX_MS, longest + 1500 * (rest.length - 1)),
+    action: items.find((t) => t.action)?.action,
+    lines: rest.map((t) => ({ id: t.id, icon: t.icon, title: t.title, description: t.description })),
+  };
+}
+
 /**
  * Adds up XP gains that arrive close together, so the learner sees one counter grow ("+5", then
  * "+15") instead of a stack of toasts.

@@ -4,15 +4,37 @@
  */
 
 /*
+ * The phone tab bar grows with the learner's text size: an icon (30 px) over a label of
+ * 0.75rem x 1.2, with room to breathe. 60 px at the normal size, about 73 px at 200 %, so the labels
+ * are never cut off at the bottom of the screen.
+ *
+ * While an immersive screen hides the tab bar, there is no bar: --nav-h is 0 for everything that
+ * keeps clear of it (toasts, scroll padding, the practice session bar), so nothing is lifted for a
+ * bar that is not there.
+ */
+@media (max-width: 899.98px) {
+  :root {
+    --nav-h: max(60px, calc(44px + 0.9rem));
+  }
+  :root:has([data-layout='phone']:not([data-immersive='none'])) {
+    --nav-h: 0px;
+  }
+}
+
+/*
  * Phones and tablets have a bar fixed to each end of the screen. When the browser scrolls
  * something into view (keyboard focus moving down a list, a link to a heading), it has to stop
  * short of them, or the focused control ends up underneath the tab bar (WCAG 2.4.11).
- * 60 px covers the 52 px top bar; the bottom follows the tab bar's own height.
+ * 60 px covers the 52 px top bar; the bottom follows the tab bar's own height (0 while an
+ * immersive screen hides it). A bare immersive screen has no top bar either.
  */
 @media (max-width: 899.98px) {
   :root {
     scroll-padding-top: calc(60px + env(safe-area-inset-top, 0px));
     scroll-padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+  }
+  :root:has([data-layout='phone'][data-immersive='bare']) {
+    scroll-padding-top: calc(env(safe-area-inset-top, 0px) + var(--sp-2));
   }
 }
 
@@ -34,7 +56,7 @@
  * 900 px. In between, keep the toast stack clear of it.
  */
 @media (min-width: 720px) and (max-width: 899.98px) {
-  ol[aria-label='Notifications'][aria-live] {
+  ol[aria-label='Notifications'][aria-live]:not([data-over-dialog]) {
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--action-bar-h, 0px) + var(--sp-3));
   }
 }

@@ -5,8 +5,9 @@
 # A C F, G7 (320001) G B F. Form: A (C C F C), A again (C C G7 G7), B (F F C C), A (C F G7 C).
 # A tie (a dash after the string) means the tune note keeps ringing: do not pick it again, just
 # keep brushing. The brushes only need finger 1 for C and G7 (string 2 fret 1, string 1 fret 1)
-# and fingers 1 and 2 for F, so the other fingers are free for the tune: in F, finger 3 stays on
-# string 4 fret 3 as in the chord and finger 4 reaches string 5 fret 3 for C.
+# and fingers 1 and 2 for F, so the other fingers are free for the tune: in F, finger 3 plays
+# string 4 fret 3 as in the chord (lift it for the open D in bar 10) and finger 4 reaches string 5
+# fret 3 for C.
 title: Thumb-Lead Melody with Brush Strums
 composer: Sixstring Academy
 source: Original fingerstyle study in the thumb-lead style

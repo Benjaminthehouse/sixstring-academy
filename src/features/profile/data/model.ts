@@ -3,7 +3,8 @@
  * about, a before/after preview of an import (replace or merge), and the words for what can go
  * wrong. Pure; the store does the importing.
  */
-import { COSMETIC_BY_ID, decodeState, levelInfo, mergeStates, type ImportFailure, type LoadReport, type MergeStrategy, type ProgressState } from '@/core/progress';
+import { COSMETIC_BY_ID, levelInfo, mergeStates, readBackup as readBackupFile, type BackupPreview, type DataCount, type ImportFailure, type LoadReport, type MergeStrategy, type ProgressState, type ReadBackupOk } from '@/core/progress';
+import type { SongSyncInfo } from '@/core/platform';
 import { dateTimeText, durationText, fileDate, plural, thousands } from '../format';
 
 /** A progress state in a dozen numbers. */
@@ -115,8 +116,10 @@ export interface ReadFile {
   state: ProgressState;
   /** When the file was exported (epoch ms). */
   exportedAt: number;
-  /** Version of the file format. */
+  /** Version of the progress inside. */
   version: number;
+  /** Everything the file holds (progress, the learner's other data, songs). */
+  backup: ReadBackupOk;
 }
 
 /** A file that cannot be imported, with the words to show. */
@@ -127,8 +130,8 @@ export interface UnreadableFile {
   description: string;
 }
 
-/** Larger than any real export (three years of daily practice is under 2 MB). */
-export const MAX_IMPORT_BYTES = 8_000_000;
+/** Larger than any real backup: three years of daily practice is under 2 MB, and the learner's own songs travel too. */
+export const MAX_IMPORT_BYTES = 64_000_000;
 
 /** Why the file picker turned a file away before it was read: its size, or else its type. */
 export function rejectionReason(files: ReadonlyArray<{ size: number }>, maxBytes = MAX_IMPORT_BYTES): 'too-large' | 'wrong-type' {
@@ -157,12 +160,124 @@ export function importFailureText(reason: UnreadableFile['reason']): { title: st
 
 /** Check the text of a picked file. Nothing is imported: this only says whether it could be. */
 export function readBackup(text: string, env: { now: number; timeZone?: string; deviceId?: string }): ReadFile | UnreadableFile {
-  const decoded = decodeState(text, env);
-  if (!decoded.ok) return { ok: false, reason: decoded.reason, ...importFailureText(decoded.reason) };
-  return { ok: true, state: decoded.state, exportedAt: decoded.savedAt, version: decoded.version };
+  const read = readBackupFile(text, env);
+  if (!read.ok) return { ok: false, reason: read.reason, ...importFailureText(read.reason) };
+  return { ok: true, state: read.state, exportedAt: read.exportedAt, version: read.version, backup: read };
 }
 
-/** The file name of an export: `sixstring-progress-robin-2026-11-15.json`. */
+/** The other lines of the preview: each thing the learner made, the screen settings, the songs. */
+export function dataDiffRows(preview: Pick<BackupPreview, 'rows' | 'settings' | 'songs'>): DiffRow[] {
+  const row = (key: string, label: string, before: number, after: number, unit: readonly [string, string]): DiffRow => ({
+    key,
+    label,
+    before: plural(before, unit[0], unit[1]),
+    after: plural(after, unit[0], unit[1]),
+    change: after === before ? 'same' : after > before ? 'up' : 'down',
+  });
+  const rows = preview.rows.map((r) => row(`data-${r.id}`, r.label, r.before, r.after, r.unit));
+  if (preview.settings.before > 0 || preview.settings.after > 0) rows.push(row('settings', 'Screen settings', preview.settings.before, preview.settings.after, ['setting', 'settings']));
+  if (preview.songs) rows.push(row('songs', 'Your own songs', preview.songs.before, preview.songs.after, ['song', 'songs']));
+  return rows;
+}
+
+/** What the import does with the learner's other data, in one or two sentences under the table. */
+export function dataImportNote(preview: Pick<BackupPreview, 'strategy' | 'progressOnly' | 'songs'>): string {
+  if (preview.progressOnly) return 'This backup was made by an older version of the app and holds only your progress. Your practice journal, saved things, settings and songs here stay as they are.';
+  const songs = preview.songs
+    ? preview.songs.inBoth > 0
+      ? preview.strategy === 'replace'
+        ? ` ${plural(preview.songs.inBoth, 'song is', 'songs are')} in both: the file’s copy is used. Importing never deletes a song.`
+        : ` ${plural(preview.songs.inBoth, 'song is', 'songs are')} in both: the copy changed last is kept. Importing never deletes a song.`
+      : ' Importing never deletes a song.'
+    : '';
+  return preview.strategy === 'replace'
+    ? `Everything else becomes exactly what the file holds: things only this device has are removed.${songs}`
+    : `Lists are joined (nothing is lost), and each setting comes from the side where it changed last.${songs}`;
+}
+
+/** Bytes in words: "840 B", "12 KB", "3.4 MB". */
+export function sizeText(bytes: number): string {
+  if (bytes < 1000) return `${Math.max(0, Math.round(bytes))} B`;
+  if (bytes < 1_000_000) return `${Math.round(bytes / 1000)} KB`;
+  return `${(Math.round(bytes / 100_000) / 10).toFixed(1).replace(/\.0$/, '')} MB`;
+}
+
+/** Icons of the things the learner made (an item added later falls back to a generic one). */
+export const ITEM_ICONS: Readonly<Record<string, string>> = {
+  progress: 'Trophy',
+  journal: 'NotebookPen',
+  routines: 'ListChecks',
+  goals: 'Target',
+  arcade: 'Gamepad2',
+  progressions: 'Music',
+  'progression-draft': 'Music4',
+  patterns: 'Drum',
+  calibration: 'Timer',
+  presets: 'Gauge',
+  tunings: 'Guitar',
+  settings: 'SlidersHorizontal',
+  songs: 'ListMusic',
+};
+
+/** One line of "what a backup holds". */
+export interface IncludedLine {
+  id: string;
+  icon: string;
+  label: string;
+  /** "12 entries", "none yet". */
+  detail: string;
+  /** Nothing of it yet. */
+  empty: boolean;
+}
+
+/**
+ * What a backup holds right now: the progress and each thing the learner has some of (`lines`),
+ * and the names of the kinds they have none of yet (`later`), so the list stays short for a
+ * beginner and still says what will travel.
+ */
+export function includedLines(input: { progress: StateSummary; counts: { items: DataCount[]; settings: number }; songs: { count: number; bytes: number } | null }): { lines: IncludedLine[]; later: string[] } {
+  const p = input.progress;
+  const progressBits = [`level ${p.level}`, `${thousands(p.xp)} XP`];
+  if (p.streak > 0) progressBits.push(`a ${p.streak}-day streak`);
+  if (p.achievements > 0) progressBits.push(plural(p.achievements, 'achievement'));
+  const all: IncludedLine[] = [{ id: 'progress', icon: ITEM_ICONS.progress, label: 'Progress', detail: `${progressBits.join(', ')}; skills, review cards and settings`, empty: false }];
+  for (const item of input.counts.items) {
+    all.push({ id: item.id, icon: ITEM_ICONS[item.id] ?? 'Archive', label: item.label, detail: plural(item.count, item.unit[0], item.unit[1]), empty: item.count === 0 });
+  }
+  all.push({ id: 'settings', icon: ITEM_ICONS.settings, label: 'Screen settings', detail: `${plural(input.counts.settings, 'setting')}: tempos, views, chosen keys`, empty: input.counts.settings === 0 });
+  if (input.songs) all.push({ id: 'songs', icon: ITEM_ICONS.songs, label: 'Your own songs', detail: `${plural(input.songs.count, 'song')}, ${sizeText(input.songs.bytes)}`, empty: input.songs.count === 0 });
+  return { lines: all.filter((line) => !line.empty), later: all.filter((line) => line.empty).map((line) => line.label.charAt(0).toLowerCase() + line.label.slice(1)) };
+}
+
+/** What never leaves this device, line by line. */
+export function staysLines(input: { hasApiKey: boolean }): Array<{ id: string; icon: string; label: string; detail: string }> {
+  const lines = [
+    { id: 'device', icon: 'Smartphone', label: 'About this device', detail: 'Notices you have already seen, open sidebar groups, the guitar-at-hand and sound switches.' },
+    { id: 'session', icon: 'Hourglass', label: 'Work in progress', detail: 'A practice session that is running, a lesson half done, where you were in each song. A reset clears these too.' },
+  ];
+  if (input.hasApiKey) lines.unshift({ id: 'key', icon: 'KeyRound', label: 'Your API key', detail: 'Never in a backup or the cloud, and a reset keeps it. Remove it under Settings, AI helper.' });
+  return lines;
+}
+
+/** The sentence about songs under the cloud sync status, or null when there is nothing to say. */
+export function songSyncText(songs: SongSyncInfo | null, limits: { songs: number; bytes: number; songBytes: number }): string | null {
+  if (!songs) return null;
+  if (songs.synced) return songs.count > 0 ? `Your ${plural(songs.count, 'song')} sync too.` : 'Songs you add sync too.';
+  const why =
+    songs.reason === 'count'
+      ? `cloud sync carries up to ${limits.songs} songs and you have ${songs.count}`
+      : songs.reason === 'size'
+        ? `one of them is larger than ${sizeText(limits.songBytes)}, the most one song can be`
+        : songs.reason === 'total'
+          ? `together they are ${sizeText(songs.bytes)} and cloud sync carries up to ${sizeText(limits.bytes)}`
+          : 'the songs on another of your devices are more than cloud sync can carry';
+  return `Your songs stay on each device: ${why}. Export a backup to move them.`;
+}
+
+/** The sentence about what cloud sync carries. */
+export const SYNC_CARRIES = 'Everything in a backup syncs except the rhythm calibration, which each device measures for itself.';
+
+/** The file name of an export: `sixstring-backup-robin-2026-11-15.json`. */
 export function exportFileName(name: string, at: number): string {
   const who = name
     .toLowerCase()
@@ -172,7 +287,7 @@ export function exportFileName(name: string, at: number): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 24);
-  return `sixstring-progress-${who ? `${who}-` : ''}${fileDate(at)}.json`;
+  return `sixstring-backup-${who ? `${who}-` : ''}${fileDate(at)}.json`;
 }
 
 /** JSON with object keys in a fixed order, so two equal values always give the same text. */

@@ -10,7 +10,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { estimateDifficulty, parseSixTab, type Beat, type Note, type Song, type Track } from '@/core/song';
+import { buildPlayEvents, estimateDifficulty, flattenSong, parseSixTab, type Beat, type Note, type Song, type Track } from '@/core/song';
 import { chordVoicings, scalePatterns } from '@/core/guitar';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
@@ -432,7 +432,8 @@ describe('batch 11: the plan details', () => {
       }
       for (const b of m.beats) {
         const low = b.notes.filter((n) => n.string >= 3);
-        const top = b.notes.filter((n) => n.string <= 2);
+        // A tie holds an earlier tune note (the early arrivals in bars 4 and 8): it is not plucked.
+        const top = b.notes.filter((n) => n.string <= 2 && !n.tie);
         expect(top.length, `bar ${bar + 1}: one tune note at a time`).toBeLessThanOrEqual(1);
         if (b.start % PPQ !== 0) expect(low.length, `bar ${bar + 1}: the thumb plays only on the beat`).toBe(0);
         if (top.length) {
@@ -638,5 +639,82 @@ describe('batch 11: the plan details', () => {
     const eSharp = notes.filter((n) => n.midi % 12 === 5);
     expect(eSharp.map((n) => `${n.bar + 1} ${pos(n.note)} ${chordAt(song, n.bar, n.tick)}`)).toEqual(['11 4:3 C#7', '15 4:3 C#7']);
     expect(new Set(song.chords.map((c) => c.symbol))).toEqual(new Set(['A', 'D', 'E7', 'F#m', 'Bm', 'C#7']));
+  });
+});
+
+/**
+ * Independent review (a second musician, after the writer). Pitches are recomputed from string and
+ * fret without the song core, and the claims the review corrected are pinned down: the Travis
+ * tune's early arrivals are held over the bar line (and sound held), the second-position study
+ * reads strings 3-1 and then 6-3 and never plays B or E open, the thumb-lead study's F bars keep
+ * finger 3 on string 4 fret 3 apart from one open D, and box 4's about names its two bends rightly.
+ */
+const REVIEWED = [
+  'st-pent-box-4', 'st-pent-box-5', 'st-lick-bend', 'st-lick-vibrato', 'st-travis-melody',
+  'st-carter-style', 'st-arpeggio-triads', 'st-barre-f', 'st-barre-shapes', 'st-read-second-position',
+];
+
+describe('batch 11: independent review', () => {
+  it('every note sounds what its string and fret give in standard tuning with no capo', () => {
+    for (const id of REVIEWED) {
+      const text = readFileSync(new URL(`../songs/${id}/song.sixtab`, import.meta.url), 'utf8');
+      expect(/^\s*(tuning|capo):/m.test(text), `${id}: standard tuning, no capo`).toBe(false);
+      const song = load(id);
+      for (const t of song.tracks) {
+        t.measures.forEach((m, bar) => {
+          for (const b of m.beats) for (const n of b.notes) expect(n.midi, `${id}, ${t.name}, bar ${bar + 1}: ${pos(n)}`).toBe(STANDARD[6 - n.string] + n.fret);
+        });
+      }
+    }
+  });
+
+  it('st-travis-melody: the early C at the ends of bars 4 and 8 is tied over the bar line and sounds held', () => {
+    const song = load('st-travis-melody');
+    const part = trackNamed(song, 'Your part');
+    const ties = part.measures.flatMap((m, bar) => m.beats.flatMap((b) => b.notes.filter((n) => n.tie).map((n) => `${bar + 1}.${b.start / PPQ + 1} ${pos(n)}`)));
+    expect(ties).toEqual(['5.1 2:1', '9.1 2:1']);
+    for (const bar of [3, 7]) {
+      const beats = part.measures[bar].beats;
+      const last = beats[beats.length - 1];
+      expect(last.start, `bar ${bar + 1}: on the "and" of 4`).toBe(3.5 * PPQ);
+      expect(last.notes.map((n) => `${pos(n)} ${name(n.midi)}`), `bar ${bar + 1}: the early C`).toEqual(['2:1 C4']);
+    }
+    // Playback holds it for its eighth plus beat 1 of the next bar.
+    const timeline = flattenSong(song);
+    const held = buildPlayEvents(timeline).flatMap((e) => (e.kind === 'note' && e.midi === 60 ? [e] : []));
+    for (const bar of [3, 7]) {
+      const tick = timeline.bars.find((b) => b.bar === bar)!.start + 3.5 * PPQ;
+      expect(held.find((e) => e.tick === tick)?.ticks, `bar ${bar + 1}: the early C rings into the next bar`).toBe(EIGHTH + PPQ);
+    }
+  });
+
+  it('st-read-second-position: strings 3-1 in A major, 6-3 in F# minor, and B and E are never open', () => {
+    const song = load('st-read-second-position');
+    const part = trackNamed(song, 'Your part');
+    const strings = (from: number, to: number) => [...new Set(part.measures.slice(from, to).flatMap((m) => m.beats.flatMap((b) => b.notes.map((n) => n.string))))].sort();
+    expect(strings(0, 8)).toEqual([1, 2, 3]);
+    expect(strings(8, 16)).toEqual([3, 4, 5, 6]);
+    expect(songEntry('st-read-second-position')!.teaches).toContain('Low notes on strings 6 to 3');
+    // The about: the B and E a learner would play open are string 3 fret 4 and string 2 fret 5 here.
+    const at = (note: string) => [...new Set(notesOf(part).filter((n) => n.midi === noteToMidi(note)).map((n) => pos(n.note)))];
+    expect(at('B3')).toEqual(['3:4']);
+    expect(at('E4')).toEqual(['2:5']);
+  });
+
+  it('st-carter-style: under F the thumb uses string 4 fret 3 (finger 3 of the chord) except one open D in bar 10', () => {
+    const song = load('st-carter-style');
+    const part = trackNamed(song, 'Your part');
+    const string4 = part.measures.flatMap((m, bar) =>
+      m.beats.flatMap((b) => (chordAt(song, bar, b.start) === 'F' ? b.notes.filter((n) => n.string === 4 && !n.tie).map((n) => `${bar + 1} ${pos(n)}`) : [])),
+    );
+    expect(string4.filter((s) => !s.endsWith(' 4:3'))).toEqual(['10 4:0']);
+  });
+
+  it('st-pent-box-4: the about names the bars and frets of its two bends', () => {
+    const bends = notesOf(trackNamed(load('st-pent-box-4'), 'Your lick')).filter((n) => n.note.bend);
+    expect(bends.map((n) => `${n.bar + 1} ${pos(n.note)}`)).toEqual(['7 2:15', '15 2:3']);
+    const about = songEntry('st-pent-box-4')!.about;
+    expect(about).toMatch(/In bar 7 bend the D on string 2/);
+    expect(about).toMatch(/bar 15 at fret 3/);
   });
 });

@@ -8,6 +8,11 @@ import styles from './Stats.module.css';
 export interface StatChipsProps {
   /** bar: the tight row in the phone top bar. side: the roomier row at the foot of the sidebar. */
   variant?: 'bar' | 'side';
+  /**
+   * In the phone top bar when room runs out (large text, a narrow phone): `compact` trims the chips'
+   * padding, `core` also sets the gems chip aside (it stays measurable, but invisible and inert).
+   */
+  density?: 'normal' | 'compact' | 'core';
   className?: string;
 }
 
@@ -15,21 +20,24 @@ export interface StatChipsProps {
  * Streak, daily-goal ring, hearts and gems as four small buttons. Each opens the stats sheet on
  * its own panel.
  */
-export function StatChips({ variant = 'bar', className }: StatChipsProps) {
+export function StatChips({ variant = 'bar', density = 'normal', className }: StatChipsProps) {
   const streak = useStreak();
   const goal = useDailyGoal();
   const hearts = useHearts();
   const gems = useGems();
   const side = variant === 'side';
 
-  const chip = (tab: StatTab, label: string, content: ReactNode) => (
-    <button key={tab} type="button" className={styles.chip} aria-label={label} aria-haspopup="dialog" onClick={() => openStats(tab)}>
-      {content}
-    </button>
-  );
+  const chip = (tab: StatTab, label: string, content: ReactNode) => {
+    const setAside = density === 'core' && tab === 'gems';
+    return (
+      <button key={tab} type="button" className={cx(styles.chip, setAside && styles.chipAside)} aria-label={label} aria-haspopup="dialog" aria-hidden={setAside || undefined} tabIndex={setAside ? -1 : undefined} data-chip={tab} onClick={() => openStats(tab)}>
+        {content}
+      </button>
+    );
+  };
 
   return (
-    <div className={cx(styles.chips, side && styles.chipsSide, className)} role="group" aria-label="Your progress today">
+    <div className={cx(styles.chips, side && styles.chipsSide, density !== 'normal' && styles.chipsCompact, className)} role="group" aria-label="Your progress today">
       {chip(
         'streak',
         `${streak.current} day streak${streak.todayMet ? '' : ', today still open'}. Show streak`,

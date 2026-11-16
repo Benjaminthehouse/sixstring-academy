@@ -502,7 +502,7 @@ const a7AndWaltzTime: TeacherLesson = {
       prompt: 'Change from {c:D} to {c:A7} four times, one strum each. End on {c:A7} and let it ring.',
       chord: 'A7',
       frets: 'x02020',
-      explain: 'From {c:D}, finger 3 slides one fret back along string 2, from fret 3 to fret 2, and finger 2 moves to string 4. Keep finger 3 touching the string as it slides.',
+      explain: 'From {c:D}, finger 3 slides back along string 2 from fret 3 to fret 2, finger 2 moves to string 4 and finger 1 lifts. Keep finger 3 touching the string as it slides.',
       alternative: { generate: 'chord-shape', params: { chords: ['A7', 'D'] } },
     },
     {

@@ -27,6 +27,12 @@
   box-shadow: var(--shadow-2);
   transform: translateY(-300%);
 }
+.skipActions {
+  display: none;
+}
+.shell:has(#main [data-ui-action-bar]) .skipActions {
+  display: block;
+}
 .skip:focus-visible {
   transform: none;
   box-shadow:
@@ -129,6 +135,16 @@
   .topbarBrand {
     display: none;
   }
+}
+/* The bar measures its row (TopBar.tsx, topbarFit.ts) and lets the title, then the brand, give way. */
+.topbar:is([data-fit='no-title'], [data-fit='no-brand'], [data-fit='compact'], [data-fit='core']) .topbarTitle {
+  display: none;
+}
+.topbar:is([data-fit='no-brand'], [data-fit='compact'], [data-fit='core']) .topbarBrand {
+  display: none;
+}
+.topbar > [role='group'] {
+  margin-left: auto;
 }
 .topbarBack {
   flex: none;

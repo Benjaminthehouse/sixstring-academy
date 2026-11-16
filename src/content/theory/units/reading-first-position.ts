@@ -364,7 +364,7 @@ const sharpsAndFlatsInPosition: Lesson = {
     {
       type: 'card',
       title: 'One fret up, one fret down',
-      body: 'In first position a sharp is played one fret above its natural, and a flat one fret below, on the same string. {n:F} is string 1, fret 1, so {n:F#} is fret 2. {n:C} is string 2, fret 1, so {n:C#} is fret 2.',
+      body: 'In first position a sharp is played one fret above its natural, and a flat one fret below, on the same string where possible. {n:F} is string 1, fret 1, so {n:F#} is fret 2. {n:C} is string 2, fret 1, so {n:C#} is fret 2.',
       figure: {
         kind: 'staff',
         notes: [{ note: 'F#4', duration: 'q' }, { note: 'C#4', duration: 'q' }, { note: 'Bb3', duration: 'q' }, { note: 'Eb4', duration: 'q' }],

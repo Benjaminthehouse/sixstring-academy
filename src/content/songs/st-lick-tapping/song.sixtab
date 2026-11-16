@@ -1,0 +1,33 @@
+# Lick: Tapping Arpeggios (repertoire plan: st-lick-tapping). An original 8-bar lick on string 1
+# only, in triplet eighths: every beat is tap, pull-off, hammer-on, so each beat is one arpeggio.
+#   Am (bars 1-2): tap fret 12 (E), pull off to fret 5 (A), hammer fret 8 (C)
+#   F  (bars 3-4): tap fret 13 (F), pull off to fret 5 (A), hammer fret 8 (C)
+#   G  (bars 5-6): tap fret 15 (G), pull off to fret 7 (B), hammer fret 10 (D)
+#   E  (bars 7-8): tap fret 12 (E), pull off to fret 4 (G#), hammer fret 7 (B)
+# The left hand stays a minor third wide (finger 1 and finger 4, three frets apart) and just
+# moves the shape; the tapped notes sing a slow tune of their own on top: E, F, G, E. The lick
+# ends on a held tap on the high E, the root of E, which leads back to Am when you loop it.
+# The teacher strums the chords.
+title: Lick: Tapping Arpeggios
+composer: Sixstring Academy
+source: Original lick
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: tapping, legato, arpeggios, one string, triplets
+tempo: 80
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[Tapping]
+| "Am=x02210" ^"tap with the picking hand" e3 1:12t 1:5p{1} 1:8h{4} 1:12t 1:5p 1:8h 1:12t 1:5p 1:8h 1:12t 1:5p 1:8h | 1:12t 1:5p 1:8h 1:12t 1:5p 1:8h 1:12t 1:5p 1:8h 1:12t 1:5p 1:8h |
+| "F=133211" 1:13t 1:5p{1} 1:8h{4} 1:13t 1:5p 1:8h 1:13t 1:5p 1:8h 1:13t 1:5p 1:8h | 1:13t 1:5p 1:8h 1:13t 1:5p 1:8h 1:13t 1:5p 1:8h 1:13t 1:5p 1:8h |
+| "G=320003" 1:15t 1:7p{1} 1:10h{4} 1:15t 1:7p 1:10h 1:15t 1:7p 1:10h 1:15t 1:7p 1:10h | 1:15t 1:7p 1:10h 1:15t 1:7p 1:10h 1:15t 1:7p 1:10h 1:15t 1:7p 1:10h |
+| "E=022100" 1:12t 1:4p{1} 1:7h{4} 1:12t 1:4p 1:7h 1:12t 1:4p 1:7h 1:12t 1:4p 1:7h | 1:12t 1:4p 1:7h 1:12t 1:4p 1:7h 1:12t 1:4p 1:7h q 1:12t ||
+
+track: Teacher
+role: rhythm
+[Tapping]
+| q D D D D | D D D D | D D D D | D D D D |
+| D D D D | D D D D | D D D D | w D ||

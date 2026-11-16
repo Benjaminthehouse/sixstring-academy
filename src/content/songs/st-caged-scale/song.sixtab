@@ -1,0 +1,56 @@
+# CAGED: The Major Scale in Five Positions (repertoire plan: st-caged-scale). An original study,
+# eighth notes. C major climbs the neck through its five CAGED positions, in the guitar engine's
+# order and fingering:
+#   C shape  open position, frets 0-3      A shape  2nd position, frets 2-6
+#   G shape  5th position, frets 4-8       E shape  7th position, frets 7-10
+#   D shape  10th position, frets 9-13
+# Each position is six bars: two bars of the scale from its lowest C up to the next C and back
+# (the C chord of that shape is the teacher's chord), then a 4-bar original tune in the same
+# position. The five tunes join into one melody that climbs from G3 to F5 with the hand.
+# The plan says 20 bars but also asks for the scale and a 4-bar tune in every position; both
+# cannot fit, so the scale and the tunes are kept and the study has 30 bars.
+title: CAGED: The Major Scale in Five Positions
+composer: Sixstring Academy
+source: Original study on the CAGED positions of C major
+licence: Original study for Sixstring Academy
+difficulty: 7
+tags: caged, major scale, positions, whole neck
+tempo: 100
+time: 4/4
+key: C
+
+track: Your part
+role: lead
+[C shape]
+| "C=x32010" ^"C shape, open position" e 5:3{3} 4:0 4:2{2} 4:3{3} 3:0 3:2{2} 2:0 2:1{1} | 2:0 3:2 3:0 4:3 4:2 4:0 q 5:3 |
+| "C" q 1:0 e 2:3{3} 2:1{1} q 3:0 2:1 | "F" q 1:1{1} e 1:0 2:3{3} q 2:1{1} 3:2{2} |
+| "G7" e 3:0 2:0 2:3{3} 1:3{3} q 1:1{1} e 1:0 2:3 | "C" q 1:0 e 2:3 2:0 h 2:1 ||
+[A shape]
+| "C=x35553" ^"A shape, 2nd position" e 5:3{2} 5:5{4} 4:2{1} 4:3{2} 4:5{4} 3:2{1} 3:4{3} 3:5{4} | 3:4 3:2 4:5 4:3 4:2 5:5 q 5:3 |
+| "Am" q 1:5{3} e 1:3{1} 2:5{3} q 3:5{4} e 2:3{1} 2:5{3} | "Dm" q 2:6{4} e 2:5{3} 2:3{1} q 3:2{1} e 3:5{4} 2:3{1} |
+| "G7" q 3:4{3} e 2:3{1} 2:6{4} q 1:3{1} e 2:6{4} 2:3{1} | "C" q. 2:5{3} e 2:3{1} h 3:5{4} ||
+[G shape]
+| "C=875558" ^"G shape, 5th position" e 6:8{4} 5:5{1} 5:7{3} 5:8{4} 4:5{1} 4:7{3} 3:4{1} 3:5{2} | 3:4 4:7 4:5 5:8 5:7 5:5 q 6:8 |
+| "C" q 2:8{4} e 1:5{1} 2:8{4} q 2:5{1} 3:5{2} | "Em" q 1:7{3} e 1:5{1} 2:8{4} q 2:5{1} 3:4{1} |
+| "F" q 1:5{1} e 1:8{4} 1:5{1} q 2:6{2} e 2:5{1} 2:6{2} | "G7" q 1:7{3} e 1:5{1} 2:6{2} h 3:7{4} ||
+[E shape]
+| "C=8-10-10-9-8-8" ^"E shape, 7th position" e 6:8{2} 6:10{4} 5:7{1} 5:8{2} 5:10{4} 4:7{1} 4:9{3} 4:10{4} | 4:9 4:7 5:10 5:8 5:7 6:10 q 6:8 |
+| "Am" q 1:8{2} e 1:7{1} 2:10{4} q 3:9{3} e 2:10{4} 1:8{2} | "Dm" q 1:10{4} e 1:8{2} 2:10{4} q 3:10{4} e 3:7{1} 3:10{4} |
+| "G7" q 1:7{1} e 1:10{4} 1:7{1} q 2:8{2} e 3:10{4} 3:7{1} | "C" h 3:9{3} 4:10{4} ||
+[D shape]
+| "C=x-x-10-12-13-12" ^"D shape, 10th position" e 4:10{2} 4:12{4} 3:9{1} 3:10{2} 3:12{4} 2:10{1} 2:12{3} 2:13{4} | 2:12 2:10 3:12 3:10 3:9 4:12 q 4:10 |
+| "F" q 2:13{4} e 2:10{1} 2:13{4} q 1:13{4} e 1:12{3} 2:13{4} | "G7" q 2:12{3} e 1:10{1} 1:13{4} q 1:10{1} e 2:12{3} 3:12{4} |
+| "C" q 1:12{3} e 1:10{1} 2:13{4} q 3:12{4} e 2:13{4} 1:12{3} | w 2:13{4} ||
+
+track: Teacher
+role: rhythm
+[C shape]
+| h / / | / / | / / | / / | / / | / / ||
+[A shape]
+| / / | / / | / / | / / | / / | / / ||
+[G shape]
+| / / | / / | / / | / / | / / | / / ||
+[E shape]
+| / / | / / | / / | / / | / / | / / ||
+[D shape]
+| / / | / / | / / | / / | / / | w / ||

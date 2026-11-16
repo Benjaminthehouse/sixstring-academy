@@ -29,7 +29,7 @@ import { explainMediaFailure, isArtifact } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs } from '@/core/progress';
 import { cameraDeviceId, cameraMirrored, learnerTuning } from '@/core/settings';
 import { formatNote } from '@/core/theory';
-import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
+import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, projectMarker, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
 import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet, Spinner, Stepper as NumberStepper, Text, cx, toast, useEventListener, useLocalState, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
@@ -211,6 +211,7 @@ export default function CameraScreen({ params }: RouteProps) {
   // What was drawn on each recent frame, to check it against the tracker's answer for that frame.
   const drawnPoses = useRef(new DrawnPoses());
   const drawnTrust = useRef<DrawnTrust>(TRUSTED);
+  const abMotion = useRef<{ prev: { x: number; y: number; t: number; speed: number } | null; fast: boolean }>({ prev: null, fast: false });
   const onUpdate = useCallback((pu: PipelineUpdate) => {
     const u = pu.update;
     const now = performance.now();
@@ -223,9 +224,27 @@ export default function CameraScreen({ params }: RouteProps) {
     if (u.state !== 'locked' || !found) drawnTrust.current = TRUSTED;
     else {
       const drawn = drawnPoses.current.at(pu.frameTime);
-      if (drawn) drawnTrust.current = nextDrawnTrust(drawnTrust.current, drawnOffset(drawn, found));
+      if (drawn) drawnTrust.current = nextDrawnTrust(drawnTrust.current, drawnOffset(drawn, found, notesRef.current));
     }
-    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, drawnTrust.current.behind);
+    // TEMP A/B (review): the builder's speed x latency guess.
+    let behind = drawnTrust.current.behind;
+    if ((cameraDebug as unknown as { gate?: string }).gate === 'speed') {
+      let trailing = 0;
+      const pose = u.state === 'locked' || u.state === 'candidate' ? u.pose : null;
+      const mm = abMotion.current;
+      if (pose) {
+        const p = projectMarker(pose, 3, 7);
+        const dt = mm.prev ? (pu.frameTime - mm.prev.t) / 1000 : 0;
+        const raw = mm.prev && dt > 0.005 ? Math.hypot(p.x - mm.prev.x, p.y - mm.prev.y) / dt : 0;
+        const speed = mm.prev && dt > 0.005 ? 0.6 * mm.prev.speed + 0.4 * raw : 0;
+        mm.prev = { x: p.x, y: p.y, t: pu.frameTime, speed };
+        const sp = u.guidance.measures.stringSpacingPx;
+        trailing = speed > 0 && pu.latencyMs > 0 && sp > 0 ? (speed * pu.latencyMs) / 1000 / sp : 0;
+      } else mm.prev = null;
+      mm.fast = mm.fast ? trailing > 0.6 * 0.45 : trailing > 0.45;
+      behind = mm.fast;
+    }
+    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, behind);
     const prev = statusRef.current;
     statusRef.current = next;
     if (!sameStatus(prev, next)) {
