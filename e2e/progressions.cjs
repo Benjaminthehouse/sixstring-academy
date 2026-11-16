@@ -624,6 +624,10 @@ async function address() {
     const sheet = (await page.textContent('[role="dialog"]')) || '';
     check('tempo hint: below the usual range is "how you learn it", never "sits best"', /Usually 90 to 140 BPM\. Slower is how you learn it/.test(sheet) && !/sits best/.test(sheet), sheet.slice(0, 400));
     await page.keyboard.press('Escape');
+    // Closing a sheet steps history back a moment later (src/ui/API.md): let that land before the
+    // next address, or it undoes the navigation and the old jam stays on screen.
+    await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 10000 }).catch(() => undefined);
+    await page.waitForTimeout(800);
 
     // Chords by ear: names hidden until the learner shows them.
     await open(page, url, 'progressions--pop-axis--g--jam--hide-chart', '[data-jam]');

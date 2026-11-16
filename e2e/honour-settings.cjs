@@ -330,7 +330,7 @@ async function playerGroup() {
     // on a narrow one): that choice is theirs for this song.
     const more = page.locator('[data-player-more]');
     if (await more.count()) await more.first().click();
-    await page.getByRole('radiogroup', { name: 'Score' }).getByRole('radio', { name: 'Tab', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Score' }).getByRole('radio', { name: 'Tab only', exact: true }).click();
     if (await more.count()) await page.keyboard.press('Escape');
     const picked = await scoreLayer(page);
     await page.waitForFunction(() => /"layerPicked":true/.test(localStorage.getItem('ssa:player.session.amazing-grace') ?? ''), null, { timeout: 15000 }).catch(() => undefined);
