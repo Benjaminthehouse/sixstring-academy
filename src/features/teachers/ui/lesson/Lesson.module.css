@@ -108,6 +108,12 @@
   padding: var(--sp-5) 0 var(--sp-8);
   animation: enter var(--dur-2) var(--ease);
 }
+/* A figure never widens the lesson: a whole tune's tab scrolls inside its own box on a phone.
+   (The play step lines its figure up at the start, so without this the tab of a long phrase set
+   the page's width, the page scrolled sideways and the bottom bar slid off the screen.) */
+.stage [data-figure] {
+  max-width: 100%;
+}
 @keyframes enter {
   from {
     opacity: 0;

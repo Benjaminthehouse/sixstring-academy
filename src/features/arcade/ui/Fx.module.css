@@ -70,7 +70,11 @@
   font-weight: 800;
   font-size: var(--text-md);
   white-space: nowrap;
-  text-shadow: 0 1px 0 var(--surface), 0 0 6px var(--surface);
+  /* A pill of the page surface under the points, so they read on dark wood in both themes. */
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
   animation: pop 860ms var(--ease) forwards;
 }
 .pop.still {

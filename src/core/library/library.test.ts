@@ -122,7 +122,10 @@ describe('built-in songs', () => {
     const lib = makeLibrary();
     await lib.save(sixTab(ODE_TO_JOY));
     expect((await lib.list({ scope: 'mine' })).map((s) => s.title)).toEqual(['Ode to Joy']);
-    expect((await lib.list({ styles: ['blues'] })).map((s) => s.id)).toEqual(['st-blues-shuffle-a']);
+    // Authors keep adding songs: every blues song, and only those, whatever the collection holds.
+    const blues = await lib.list({ styles: ['blues'] });
+    expect(blues.map((s) => s.id)).toContain('st-blues-shuffle-a');
+    expect(blues.every((s) => s.style === 'blues')).toBe(true);
     expect((await lib.list({ scope: 'favourites' }, { favourites: new Set(['frere-jacques']) })).map((s) => s.id)).toEqual(['frere-jacques']);
   });
 

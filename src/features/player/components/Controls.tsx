@@ -7,7 +7,7 @@
  */
 import { TONE_NAMES } from '@/core/audio';
 import type { Song } from '@/core/song';
-import { Button, ButtonGroup, Icon, IconButton, Kbd, Popover, SegmentedControl, Slider, Stepper, Switch, Text, Tooltip, cx, focusRing } from '@/ui';
+import { Button, ButtonGroup, Icon, IconButton, Kbd, Popover, SegmentedControl, Slider, Stepper, Switch, Text, Tooltip, cx, focusRing, useIsTouch } from '@/ui';
 import type { EngineState } from '../engine/engine';
 import { SHORTCUTS } from '../model/keys';
 import { loopLabel, loopShort, type SectionChip } from '../model/loop';
@@ -37,6 +37,9 @@ export function ModePicker({ mode, micAvailable, onChange, size = 'md', icons = 
 
 /** − 100 % +, with the slider one tap away on the number. */
 export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number; bpm: number; onChange: (p: number) => void; vertical?: boolean }) {
+  // On a touch screen the popover must not focus the number field: the on-screen keyboard would
+  // cover the slider the learner opened it for. Focus lands on the panel; the field is a tap away.
+  const touch = useIsTouch();
   return (
     <div className={cx(styles.tempo, vertical && styles.tempoVertical)} role="group" aria-label="Tempo">
       <IconButton icon="Minus" label={`Slower (${SHORTCUTS.slower})`} onClick={() => onChange(tempoStep(tempo, -1))} disabled={tempo <= MIN_TEMPO} />
@@ -51,7 +54,13 @@ export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number
           </button>
         }
       >
-        <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
+        {touch ? (
+          <div tabIndex={-1} data-autofocus="" className={styles.tempoPanel}>
+            <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
+          </div>
+        ) : (
+          <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
+        )}
       </Popover>
       <IconButton icon="Plus" label={`Faster (${SHORTCUTS.faster})`} onClick={() => onChange(tempoStep(tempo, 1))} disabled={tempo >= MAX_TEMPO} />
     </div>

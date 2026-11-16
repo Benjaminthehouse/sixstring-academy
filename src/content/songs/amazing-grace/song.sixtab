@@ -1,0 +1,56 @@
+# Amazing Grace, strum and sing (repertoire plan: amazing-grace). John Newton's words (1779) on
+# the anonymous tune New Britain (printed 1829), in G. Your part: a waltz strum, the bass note on
+# beat 1 (string 6 fret 3 under G and G7, string 5 fret 3 under C, open string 4 under D7, open
+# string 6 under Em), then down-up on beats 2 and 3. Chords: G (320003), C (x32010),
+# D7 (xx0212), with G7 (320001) before C in the second half and Em (022000) under "blind but";
+# both of those can be played as G until they are comfortable.
+# The tune (second track) starts with a pickup on beat 3 and uses only G A B D E: in first
+# position, low D (open string 4) to the high D (string 2, fret 3). The two quick notes on
+# "-ing", "a", "was" and "but" (B then G) are sung on one syllable.
+title: Amazing Grace
+id: amazing-grace
+composer: Words by John Newton; tune New Britain (anonymous American)
+source: Words 1779; tune printed 1829, joined to these words in 1835; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain; this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: strumming, waltz, hymn, 3/4, pickup, lyrics
+tempo: 84
+time: 3/4
+key: G
+pickup: q
+
+track: Your strum
+role: rhythm
+[Verse 1]
+| ^"Wait: the tune starts on beat 3" q r |
+| ^"Amazing grace, how sweet the sound" "G=320003" q 6:3 e D U D U | q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | "G=320003" q 6:3 e D U D U |
+| ^"that saved a wretch like me." q 6:3 e D U D U | q 6:3 e D U D U | "D7=xx0212" q 4:0 e D U D U | q 4:0 e D U D U |
+| ^"I once was lost, but now am found," "G=320003" q 6:3 e D U D U | ^"G7 (or G)" "G7=320001" q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | "G=320003" q 6:3 e D U D U |
+| ^"was blind, but now I see." ^"Em (or G)" "Em=022000" q 6:0 e D U D U | "D7=xx0212" q 4:0 e D U D U | "G=320003" q 6:3 e D U D U | q 6:3 e D U D U |
+[Verse 2]
+| ^"'Twas grace that taught my heart to fear," "G=320003" q 6:3 e D U D U | q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | "G=320003" q 6:3 e D U D U |
+| ^"and grace my fears relieved;" q 6:3 e D U D U | q 6:3 e D U D U | "D7=xx0212" q 4:0 e D U D U | q 4:0 e D U D U |
+| ^"how precious did that grace appear" "G=320003" q 6:3 e D U D U | "G7=320001" q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | "G=320003" q 6:3 e D U D U |
+| ^"the hour I first believed." "Em=022000" q 6:0 e D U D U | "D7=xx0212" q 4:0 e D U D U | "G=320003" q 6:3 e D U D U | q 6:3 h D ||
+
+track: Tune
+role: lead
+[Verse 1]
+| q 4:0 | h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h 3:0 q 4:2 | h 4:0 q 4:0 |
+lyrics: A- maz- ing _ grace, how sweet the sound that
+| h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h. 2:3 | h 2:- q 2:0 |
+lyrics: saved a _ wretch like me. I
+| h 2:3 e 2:0 3:0 | h 2:0 q 3:2 | h 3:0 q 4:2 | h 4:0 q 4:0 |
+lyrics: once was _ lost, but now am found, was
+| h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h. 3:0 | h 3:- q 4:0 |
+lyrics: blind, but _ now I see. 'Twas
+[Verse 2]
+| h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h 3:0 q 4:2 | h 4:0 q 4:0 |
+lyrics: grace that _ taught my heart to fear, and
+| h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h. 2:3 | h 2:- q 2:0 |
+lyrics: grace my _ fears re- lieved; how
+| h 2:3 e 2:0 3:0 | h 2:0 q 3:2 | h 3:0 q 4:2 | h 4:0 q 4:0 |
+lyrics: pre- cious _ did that grace ap- pear the
+| h 3:0 e 2:0 3:0 | h 2:0 q 3:2 | h. 3:0 | h 3:- q r ||
+lyrics: hour I _ first be- lieved.

@@ -24,17 +24,34 @@
   }
 }
 
+/* Once the camera runs, the stage takes the picture's shape (no wasted bands above and below). */
+.stage[data-fitted] {
+  height: auto;
+  aspect-ratio: var(--video-aspect);
+  max-height: min(60dvh, 40rem);
+}
+@media (min-width: 1080px) {
+  .stage[data-fitted] {
+    max-height: calc(100dvh - var(--sticky-top, 0px) - 7.5rem);
+  }
+}
+
 /* Phone held sideways: the picture takes the whole height. */
 @media (orientation: landscape) and (max-height: 540px) {
-  .stage {
-    height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-6));
+  .stage,
+  .stage[data-fitted] {
+    height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-6));
     aspect-ratio: auto;
     max-height: none;
     border-radius: var(--r-md);
   }
 }
 
-.drawn {
+.stage.drawn {
+  height: auto;
+  min-height: 12rem;
+  aspect-ratio: auto;
+  max-height: none;
   background: var(--surface-2);
   color: var(--fg);
   box-shadow: none;
@@ -42,7 +59,7 @@
 }
 
 /* Full screen: the stage covers the window, controls float on it. */
-.focus {
+.stage.focus {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -114,11 +131,9 @@
 
 /* ── The drawn neck (no camera) ───────────────────────────────────────────────────────────── */
 .drawnNeck {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
-  padding: var(--sp-4);
+  padding: var(--sp-5) var(--sp-4);
   overflow: auto;
 }
 .drawnNeck > * {
@@ -612,4 +627,17 @@
     min-height: 2rem;
     font-size: var(--text-xs);
   }
+}
+
+/* The coaching line under a short picture (a phone held upright). */
+.under {
+  display: flex;
+  justify-content: center;
+  margin-top: calc(var(--sp-1) * -1);
+}
+.under > .coach {
+  width: 100%;
+  max-width: none;
+  justify-content: space-between;
+  background: var(--fb-wood-2);
 }

@@ -115,7 +115,7 @@ export function LessonDetails({ view, unit, lesson, conditions, hearts, adapted,
       ) : noHearts ? (
         <div className={styles.actions}>
           <Banner tone="warn" icon="HeartCrack" title="No hearts left">
-            Practise a unit you have finished lessons in to refill them{hearts.nextAt ? `, or wait: the next heart comes in ${minutesWords(hearts.msToNext)}` : ''}.
+            A short practice round refills them{hearts.nextAt ? `, or wait: the next heart comes in ${minutesWords(hearts.msToNext)}` : ''}.
           </Banner>
           {onRefill && (
             <Button variant="primary" size="lg" iconLeft="Dumbbell" onClick={onRefill} fullWidth data-refill="">

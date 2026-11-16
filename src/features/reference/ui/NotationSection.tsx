@@ -4,7 +4,7 @@
  * you can hear.
  */
 import { useMemo } from 'react';
-import { Button, Section, Text, cx } from '@/ui';
+import { Button, Section, Text, cx, usePrefersReducedMotion } from '@/ui';
 import { NoteGlyph, NotationView, TabSnippet } from '@/ui/music';
 import { ARTICULATIONS, DYNAMICS, REPEAT_SIGNS, TAB_TECHNIQUES, beatsWords, lengthExamples, noteValueRows, timeSignatureRows, type SignItem, type TabTechnique, type TimeSignatureRow } from '../model/notation';
 import { SignGlyph } from './Glyphs';
@@ -23,9 +23,10 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
   const values = useMemo(() => noteValueRows(), []);
   const lengths = useMemo(() => lengthExamples(), []);
   const times = useMemo(() => timeSignatureRows(), []);
+  const reduced = usePrefersReducedMotion();
 
   const jump = (part: string) => {
-    document.getElementById(`notation-${part}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    document.getElementById(`notation-${part}`)?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
   };
 
   return (
@@ -51,7 +52,9 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
                   <th scope="col">Rest</th>
                   <th scope="col">Beats in 4/4</th>
                   <th scope="col">Per bar</th>
-                  <th scope="col">British name</th>
+                  <th scope="col" className={styles.britishCol}>
+                    British name
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -60,7 +63,10 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
                     <th scope="row">
                       <span className={styles.glyphCell}>
                         <NoteGlyph value={v.id} className={styles.noteGlyph} />
-                        {v.name}
+                        <span>
+                          {v.name}
+                          <span className={styles.britishInline}>{v.british}</span>
+                        </span>
                       </span>
                     </th>
                     <td>
@@ -71,7 +77,7 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
                     </td>
                     <td className={styles.num}>{beatsWords(v.beats)}</td>
                     <td className={styles.num}>{v.perBar}</td>
-                    <td>{v.british}</td>
+                    <td className={styles.britishCol}>{v.british}</td>
                   </tr>
                 ))}
               </tbody>

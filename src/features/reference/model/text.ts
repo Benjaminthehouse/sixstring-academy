@@ -8,6 +8,7 @@ import { glossaryEntries } from './glossary';
 import { harmonyTable } from './harmony';
 import { compoundRows, fretMoveWords, intervalRows } from './intervals';
 import { MNEMONICS, flatOrder, namingRules, sharpOrder, signatureRows } from './keys';
+import { prettyName } from './names';
 import { ARTICULATIONS, DYNAMICS, REPEAT_SIGNS, TAB_TECHNIQUES, beatsWords, lengthExamples, noteValueRows, timeSignatureRows } from './notation';
 import { scaleGroups } from './scales';
 import type { SearchFormat } from './search';
@@ -65,15 +66,20 @@ export function sectionText(section: SectionId, fmt: SearchFormat = PLAIN): stri
     case 'scales': {
       for (const g of scaleGroups(0)) {
         lines.push(g.title, row(['Scale', 'Formula', 'Steps', 'Notes on C']));
-        for (const r of g.rows) lines.push(row([r.name, r.degrees.map((d) => formatDegree(d)).join(' '), r.steps.join(' '), notes(r.notes)]));
+        for (const r of g.rows) lines.push(row([prettyName(r.name), r.degrees.map((d) => formatDegree(d)).join(' '), r.steps.join(' '), notes(r.notes)]));
         lines.push('');
       }
       break;
     }
     case 'harmony': {
-      for (const mode of ['major', 'minor'] as const) {
-        const t = harmonyTable(mode);
-        lines.push(mode === 'major' ? 'Major keys' : 'Minor keys (V and vii° from harmonic minor)');
+      const tables = [
+        ['Major keys', harmonyTable('major')],
+        ['Minor keys (V and vii° from harmonic minor)', harmonyTable('minor')],
+        ['Minor keys, harmonic minor', harmonyTable('minor', false, 'harmonic')],
+        ['Minor keys, melodic minor', harmonyTable('minor', false, 'melodic')],
+      ] as const;
+      for (const [title, t] of tables) {
+        lines.push(title);
         lines.push(row(['Key', ...t.columns.map((c) => formatRoman(c.roman))]));
         lines.push(row(['', ...t.columns.map((c) => c.function)]));
         for (const r of t.rows) lines.push(row([fmt.key(r.key.name), ...r.chords.map(fmt.chord)]));
@@ -99,7 +105,7 @@ export function sectionText(section: SectionId, fmt: SearchFormat = PLAIN): stri
     case 'tunings': {
       for (const g of tuningGroups()) {
         lines.push(g.title);
-        for (const r of g.rows) lines.push(row([r.name, r.notes.map((n) => fmt.note(n.replace(/\d+$/, ''))).join(' '), r.changes.length ? changeSummary(r.changes) : '', r.description]));
+        for (const r of g.rows) lines.push(row([prettyName(r.name), r.notes.map((n) => fmt.note(n.replace(/\d+$/, ''))).join(' '), r.changes.length ? changeSummary(r.changes) : '', r.description]));
         lines.push('');
       }
       break;

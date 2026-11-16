@@ -9,14 +9,15 @@
  *   desktop  the side panel (lesson, unit list), keyboard walk, "no sound / no guitar" lesson
  *            (no listening or play step shows), the checkpoint passed with the unit celebration,
  *            a practice drill
+ *   hearts   a new learner out of hearts before finishing a lesson is offered the refill drill
  *   placement "Find my level" answered right (unit 1 unlocked) and with "I don't know" (start at 1)
- *   layout   360 px, a phone held sideways, a tablet, 1100 and 1440 px: no sideways scroll,
- *            titles on screen, the right layout
+ *   layout   360 px, text at 200 %, a phone held sideways, a tablet, 1100 and 1440 px: no sideways
+ *            scroll, titles on screen, stage names whole, Continue in one row, the right layout
  *
  * Answers come from the lesson engine itself (solve), read from the saved session as a learner's
  * screen shows it. Prints PASSED or FAILED; exits non-zero on failure. Screenshots: e2e/out/learn-*.png
  *
- *   node e2e/learn.cjs [--verbose] [--only phone,desktop,placement,layout]
+ *   node e2e/learn.cjs [--verbose] [--only phone,hearts,desktop,placement,layout]
  */
 'use strict';
 
@@ -194,6 +195,9 @@ async function runPhone(L) {
     check(group, 'a new learner sees the top of the page first', top < 20, top);
     await page.screenshot({ path: path.join(OUT, 'learn-phone-dark.png') });
     check(group, 'the first lesson is on the first screen or one swipe away', firstNode && firstNode.y < vh * 1.6, firstNode && Math.round(firstNode.y));
+    // Phones select nothing (a tap opens a sheet): no node is a pressed toggle with a ring around it.
+    const pressed = await page.locator('[data-node][aria-pressed]').count();
+    check(group, 'no node wears a selection ring on a phone', pressed === 0, pressed);
 
     // A locked lesson: its card says what to finish first and offers the test-out.
     await lib.tap(page, `[data-node="${SECOND}"]`);
@@ -279,6 +283,41 @@ async function runPhone(L) {
   });
 }
 
+/**
+ * Out of hearts before finishing a single lesson (five slips in the first one): the path still
+ * offers the refill drill, on the unit the learner is in, and it refills the hearts. This used to
+ * be a dead end ("practise a unit you have finished lessons in", with nothing finished).
+ */
+async function runHearts(L) {
+  const group = 'hearts';
+  await withApp({ mobile: true, theme: 'light', viewport: { width: 360, height: 740 } }, async ({ page, url, errors }) => {
+    await seed(page);
+    await open(page, url, 'learn');
+    await page.waitForSelector(`[data-node="${FIRST}"][data-state="current"]`, { timeout: 30000 });
+    await page.evaluate(async () => {
+      const p = await import('/src/core/progress/index.ts');
+      const a = p.createActions(p.getProgressStore);
+      for (let i = 0; i < 5; i++) a.loseHeart();
+    });
+    await page.waitForTimeout(500);
+    await lib.tap(page, '[data-continue]');
+    await page.waitForSelector(`[role="dialog"] [data-details="${FIRST}"]`, { timeout: 10000 });
+    const sheet = await page.locator('[role="dialog"]').innerText();
+    const refill = await page.locator('[role="dialog"] [data-refill]').count();
+    check(group, 'a new learner with no hearts is offered the refill drill', refill === 1 && /No hearts left/.test(sheet), sheet.replace(/\n/g, ' ').slice(0, 200));
+    check(group, 'the card does not ask for a finished unit they do not have', !/finished lessons in/.test(sheet));
+    await page.screenshot({ path: path.join(OUT, 'learn-hearts-new-learner.png') });
+    if (refill === 0) return;
+    await lib.tap(page, '[role="dialog"] [data-refill]');
+    await page.waitForSelector('[data-lesson-player][data-mode="practice"]', { timeout: 60000 });
+    check(group, 'the drill runs on the unit they are in', (await page.evaluate(() => location.hash)) === `#learn--${UNIT}--practice`);
+    await playToSummary(page, L, 'touch', 'practice');
+    const hearts = (await stored(page))?.hearts?.count;
+    check(group, 'and refills the hearts', hearts === 5, hearts);
+    check(group, 'no console errors', errors.length === 0, errors.join(' | '));
+  });
+}
+
 async function runDesktop(L) {
   const group = 'desktop';
   await withApp({ mobile: false, theme: 'light' }, async ({ page, url, errors }) => {
@@ -287,6 +326,8 @@ async function runDesktop(L) {
     await page.waitForSelector(`[data-details="${FIRST}"]`, { timeout: 30000 });
     check(group, 'the side panel shows the next lesson', true);
     check(group, 'and its unit, lesson by lesson', (await page.locator(`[data-panel-unit="${UNIT}"] [data-row]`).count()) === 6);
+    const ringed = await page.evaluate(() => [...document.querySelectorAll('[data-node][aria-pressed="true"]')].map((n) => n.getAttribute('data-node')));
+    check(group, 'the lesson in the panel is the one ringed on the map', ringed.length === 1 && ringed[0] === 'a-sound-is-a-vibration', ringed.join(' '));
     check(group, 'no sideways scroll', (await noSideScroll(page)) <= 1, await noSideScroll(page));
     await page.screenshot({ path: path.join(OUT, 'learn-desktop-light.png') });
 
@@ -442,6 +483,8 @@ async function runLayout() {
   const group = 'layout';
   const cases = [
     { name: '360-light', mobile: true, viewport: { width: 360, height: 740 }, theme: 'light' },
+    // The learner's text at twice the size (the browser's text-size setting).
+    { name: 'text-200', mobile: true, viewport: { width: 390, height: 844 }, theme: 'light', text: '200%' },
     { name: 'sideways', mobile: true, viewport: { width: 844, height: 390 }, theme: 'dark' },
     { name: 'tablet', mobile: true, viewport: { width: 820, height: 1180 }, theme: 'light' },
     { name: '1100', mobile: false, viewport: { width: 1100, height: 800 }, theme: 'dark' },
@@ -450,9 +493,26 @@ async function runLayout() {
   for (const c of cases) {
     await withApp({ mobile: c.mobile, viewport: c.viewport, theme: c.theme }, async ({ page, url, errors }) => {
       await seed(page);
+      if (c.text) await page.addInitScript((size) => document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = size; }), c.text);
       await open(page, url, 'learn');
       await page.waitForSelector(`[data-node="${FIRST}"]`, { timeout: 30000 });
       const layout = await page.getAttribute('[data-learn-map]', 'data-layout');
+      // Stage names are whole: never cut to "Intermedi…" or broken mid-word (they were at 360 px and 200 %).
+      const strip = await page.evaluate(() => [...document.querySelectorAll('[data-stage-jump]')].map((b) => {
+        const t = b.firstElementChild;
+        return { text: t.textContent, clipped: t.scrollWidth > t.clientWidth + 1, height: Math.round(t.getBoundingClientRect().height) };
+      }));
+      check(group, `${c.name}: stage names are whole, one line each`, strip.every((s) => !s.clipped) && new Set(strip.map((s) => s.height)).size === 1, JSON.stringify(strip));
+      if (layout === 'phone') {
+        const bar = await page.evaluate(() => {
+          const b = document.querySelector('[data-continue-bar]').getBoundingClientRect();
+          const q = document.querySelector('[data-continue]').getBoundingClientRect();
+          return { oneRow: Math.abs((q.top + q.bottom) / 2 - (b.top + b.bottom) / 2) < 8, inside: q.left >= 0 && q.right <= innerWidth + 1 && q.bottom <= innerHeight + 1, h: Math.round(b.height) };
+        });
+        check(group, `${c.name}: Continue is on screen`, bar.inside, JSON.stringify(bar));
+        // At the normal text size the bar is one row (it took two at 360 px).
+        if (!c.text) check(group, `${c.name}: the Continue bar is one row`, bar.oneRow, JSON.stringify(bar));
+      }
       check(group, `${c.name}: no sideways scroll`, (await noSideScroll(page)) <= 1, await noSideScroll(page));
       check(group, `${c.name}: ${layout === 'wide' ? 'the side panel' : 'Continue'} is there`, layout === 'wide' ? (await page.locator('[data-details]').count()) === 1 : (await page.locator('[data-continue]').count()) === 1, layout);
       const labels = await page.evaluate(() => {
@@ -474,6 +534,7 @@ async function runLayout() {
   const L = await loadTs('/src/lessons/index.ts');
   const runs = [
     ['phone', runPhone],
+    ['hearts', runHearts],
     ['desktop', runDesktop],
     ['placement', runPlacement],
     ['layout', runLayout],

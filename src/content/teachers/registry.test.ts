@@ -12,9 +12,11 @@ import { loadSongText, songEntry } from '@/content/songs';
 import { getExercise } from '@/content/technique';
 import { parseSixTab } from '@/core/song';
 import { parsePlayerParams } from '@/features/player/model/params';
-import { TEXT_LIMITS, assertValidCourse, formatProblems, glossaryFor, looseSymbols, parseRichText, phraseMidi, textLength, validateCourse, type PlayPhraseExercise, type RichText } from '@/lessons';
+import { TEXT_LIMITS, assertValidCourse, formatProblems, glossaryFor, grade, looseSymbols, parseRichText, phraseMidi, textLength, validateCourse, type Exercise, type PlayPhraseExercise, type RichText, type SessionFeedback } from '@/lessons';
+// The panel's verdict words, from the engine's pure feedback module (the UI barrel also loads components).
+import { feedbackCopy } from '@/lessons/ui/logic/feedback';
 import {
-  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, assembleCourse, compileCourse, courseMeta, hasArt, isTaskStep, loadTeacherCourse, strayUnitFiles, taskSong,
+  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, assembleCourse, compileCourse, courseMeta, echoes, hasArt, isTaskStep, loadTeacherCourse, pickLine, strayUnitFiles, taskSong,
   writtenUnitIds, type TaskStep, type TeacherCourse, type TeacherKey, type TeacherUnit,
 } from './index';
 
@@ -70,6 +72,60 @@ describe('the profiles', () => {
   it('are plain ASCII text', () => {
     // eslint-disable-next-line no-control-regex
     expect(JSON.stringify(PROFILES)).toMatch(/^[\x00-\x7f]*$/);
+  });
+
+  it('know when two lines say the same thing', () => {
+    expect(echoes('Spot on.', 'Spot on.')).toBe(true);
+    expect(echoes('Exactly right.', 'Exactly.')).toBe(true);
+    expect(echoes('Yes, well done.', 'Yes.')).toBe(true);
+    expect(echoes('That is the one.', 'That is it.')).toBe(true);
+    expect(echoes('Not quite. Check this out.', 'Not quite.')).toBe(true);
+    expect(echoes('Lovely. You have got it.', 'Right.')).toBe(false);
+    expect(echoes('Nearly. Here is the thing to notice.', 'Not quite.')).toBe(false);
+    expect(echoes('', 'Right.')).toBe(false);
+    // pickLine steps past a line that repeats the words beside it, and keeps the seed's line otherwise.
+    expect(pickLine(['Spot on.', 'Well done.'], 0, 'Spot on.')).toBe('Well done.');
+    expect(pickLine(['Spot on.', 'Well done.'], 0, 'Right.')).toBe('Spot on.');
+    expect(pickLine(['Spot on.'], 0, 'Spot on.')).toBe('Spot on.');
+  });
+
+  // Review bug: on a phone, Mia's reaction and the feedback panel's verdict sat one above the other
+  // and said the same thing ("Mia: Spot on." / "Spot on."), because both were picked by the same seed.
+  it("never repeat the feedback panel's verdict right under the teacher's reaction", () => {
+    const tf: Exercise = { type: 'true-false', statement: 'String 1 is the thickest string.', answer: false, explain: 'String 1 is the thinnest.' };
+    const fb = (correct: boolean, skipped = false): SessionFeedback => {
+      const answer = { type: 'true-false' as const, value: !correct };
+      return { result: grade(tf, answer), answer: skipped ? null : answer, skipped, heartLost: false, willRetry: false };
+    };
+    for (const t of TEACHER_KEYS) {
+      const r = PROFILES[t].reactions;
+      for (let seed = 0; seed < 60; seed++) {
+        for (const [lines, feedback] of [[r.right, fb(true)], [r.wrong, fb(false)], [r.skipped, fb(false, true)]] as const) {
+          const verdict = feedbackCopy(tf, feedback, seed).title;
+          const line = pickLine(lines, seed, verdict);
+          expect(echoes(line, verdict), `${t} seed ${seed}: "${line}" / "${verdict}"`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('never say a tapped performance was played', () => {
+    // Review bug: with no microphone (always so in the Claude artifact host) the show is answered by
+    // ordering tiles, yet the unit ended with "You performed Hot Cross Buns ... You played a whole tune".
+    for (const t of TEACHER_KEYS) {
+      const line = PROFILES[t].tappedShow;
+      expect(line, t).toContain('{piece}');
+      expect(line, t).not.toMatch(/\b(you played|you performed|you have played)\b/i);
+    }
+  });
+
+  it('welcome a learner back without repeating the heading above the line', () => {
+    // Review bug: the card's heading "Welcome back" sat over "Welcome back. Did you get to do it? ...".
+    for (const t of TEACHER_KEYS) {
+      const back = PROFILES[t].taskBack;
+      expect(echoes(back.unsure, 'Welcome back'), back.unsure).toBe(false);
+      for (const line of back.done) expect(echoes(line, 'Done'), line).toBe(false);
+    }
   });
 });
 

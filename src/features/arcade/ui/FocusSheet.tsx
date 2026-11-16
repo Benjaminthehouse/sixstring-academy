@@ -3,7 +3,7 @@ import { Button, ChipGroup, Select, Sheet, Stack, Text } from '@/ui';
 import { Fretboard, noteText, useMusicSettings } from '@/ui/music';
 import { formatNote, getScale } from '@/core/theory';
 import { learnerTuning } from '@/core/settings';
-import { boxOf, commonScales, normalizeFocus, regionOf, scaleTitle, scalesByFamily, shapesFor, tonicsFor, type Focus } from '../core/focus';
+import { boxOf, commonScales, normalizeFocus, regionOf, scaleLabel, scaleTitle, scalesByFamily, shapesFor, tonicsFor, type Focus } from '../core/focus';
 import { noteMarker } from './kit';
 import styles from './Arcade.module.css';
 
@@ -56,7 +56,7 @@ export function FocusSheet({ open, focus, onClose, onPick }: FocusSheetProps) {
           <Text variant="label">Scale</Text>
           <ChipGroup
             aria-label="Common scales"
-            options={common.map((s) => ({ value: s.id, label: s.name }))}
+            options={common.map((s) => ({ value: s.id, label: scaleLabel(s) }))}
             value={isCommon ? draft.scale : null}
             onChange={(v) => v && set({ scale: v })}
           />
@@ -64,7 +64,7 @@ export function FocusSheet({ open, focus, onClose, onPick }: FocusSheetProps) {
             label="Every scale"
             value={draft.scale}
             onChange={(v) => set({ scale: v })}
-            options={families.map((f) => ({ group: f.name, options: f.scales.map((s) => ({ value: s.id, label: s.name })) }))}
+            options={families.map((f) => ({ group: f.name, options: f.scales.map((s) => ({ value: s.id, label: scaleLabel(s) })) }))}
           />
           {getScale(draft.scale)?.description && (
             <Text size="sm" tone="muted">

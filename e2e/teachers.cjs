@@ -22,6 +22,14 @@
  *  looks   screenshots of the overview, Mia's page, Dev's page, a teaching card, a task card and an
  *          exercise on phone and desktop in both themes, and a phone held sideways; no page is
  *          wider than the screen.
+ *  breaks  phone, NO microphone (as in the Claude artifact host), cases a review caught: a learner
+ *          who skipped the first-run questions is not told "you told us"; Dev's tile says his
+ *          lessons are being written; text at 200 % never widens the page; turning the phone
+ *          sideways and back in the middle of a lesson does not crash it; the unit's show, played
+ *          without a microphone, stays inside the screen with its button in reach, the teacher's
+ *          reaction never repeats the panel's verdict, and the unit ends without claiming the
+ *          piece was played; an intermediate learner is offered somewhere to play today instead
+ *          of "Start with Dev" (whose lessons are not written yet).
  *
  * Prints PASSED or FAILED and exits non-zero on failure. Screenshots go to e2e/out/teachers-*.png.
  */
@@ -150,7 +158,8 @@ async function playLesson(page, L, { how, onTask, onExercise }) {
     await page.waitForSelector('[data-feedback]', { timeout: PLAY_TYPES.has(ex.type) ? 60000 : 15000 });
     const tone = await page.getAttribute('[data-feedback]', 'data-feedback');
     const reaction = await page.locator('[data-reaction]').innerText().catch(() => '');
-    log.push({ kind: 'exercise', key: step.key, type: ex.type, alternative: step.alternative, tone, reaction });
+    const verdict = await page.locator('[data-feedback] strong').first().innerText().catch(() => '');
+    log.push({ kind: 'exercise', key: step.key, type: ex.type, alternative: step.alternative, tone, reaction, verdict });
     if (verbose) console.log(`    ${id}: ${ex.type} -> ${tone}  ${reaction.replace(/\n/g, ' ')}`);
     await press(page, how, '[data-player-bar] [data-action="continue"]');
     await lib.waitForNewStep(page, id);
@@ -270,6 +279,8 @@ async function runLesson(L, wav) {
     const exercises = log.filter((e) => e.kind === 'exercise');
     check(group, 'every tapped exercise was answered right', exercises.length >= 6 && exercises.filter((e) => !PLAY_TYPES.has(e.type)).every((e) => e.tone === 'ok'), JSON.stringify(exercises.map((e) => `${e.type}:${e.tone}`)));
     check(group, 'after each answer Mia reacts in her own words', exercises.every((e) => /^\s*Mia:/.test(e.reaction)), JSON.stringify(exercises.map((e) => e.reaction)));
+    const repeats = exercises.filter((e) => echoes(e.reaction.replace(/^\s*Mia:\s*/, ''), e.verdict));
+    check(group, "her reaction never repeats the panel's verdict under it", repeats.length === 0, JSON.stringify(repeats.map((e) => `${e.reaction} / ${e.verdict}`)));
     // Each play step, at its last attempt, heard the right note from the microphone. (On a busy
     // machine the tracker can miss a note; the step then comes back, as it would for a learner.)
     const plays = exercises.filter((e) => e.type === 'play-note');
@@ -419,8 +430,133 @@ async function runLooks() {
   });
 }
 
+/** The words of a line, for comparing two lines shown together (the app's `echoes`, in plain JS). */
+function echoes(line, other) {
+  const words = (s) => String(s).toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const a = words(line);
+  const b = words(other);
+  if (!a.length || !b.length) return false;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (short.every((w, i) => long[i] === w)) return true;
+  return a.length >= 2 && b.length >= 2 && a[0] === b[0] && a[1] === b[1];
+}
+
+/** The screen's error panel, if a screen crashed. */
+async function crashed(page) {
+  return (await page.locator('main', { hasText: /hit a problem|could not open/ }).count()) > 0;
+}
+
+async function runBreaks(L) {
+  const group = 'breaks';
+  await withApp({ mobile: true, theme: 'light' }, async ({ page, url, errors }) => {
+    await seed(page);
+
+    // A learner who skipped the first-run questions has not told us their level.
+    await open(page, url, 'teachers', '[data-teacher="elena"]');
+    const because = await page.locator('[data-recommended]').innerText();
+    check(group, 'a learner who skipped the first-run questions is not told "you told us"', !/told us/i.test(because), because.slice(0, 160));
+    const devTile = await page.locator('[data-teacher="dev"] [data-ready]').innerText().catch(() => '');
+    check(group, "Dev's tile says his lessons are being written (not just a lesson count)", /being written/i.test(devTile), devTile);
+
+    // An intermediate learner (before any lesson): Dev is their teacher, but his lessons are not written yet.
+    await page.evaluate(async () => {
+      const p = await import('/src/core/progress/index.ts');
+      p.setProfile({ experience: 'intermediate', onboarded: true });
+    });
+    await page.waitForTimeout(400);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('[data-recommended]', { timeout: 60000 });
+    const hero = await page.locator('[data-recommended]').innerText();
+    check(group, "an intermediate learner is told plainly that Dev's lessons are being written", (await page.getAttribute('[data-recommended]', 'data-recommended')) === 'dev' && /being written/i.test(hero), hero.slice(0, 200));
+    await press(page, 'touch', '[data-action="start"]');
+    await page.waitForFunction(() => location.hash.startsWith('#learn'), null, { timeout: 30000 });
+    check(group, 'and the one big button leads somewhere to learn today (the Theory Path)', true);
+
+    // Text at 200 %.
+    for (const [hash, sel] of [['teachers', '[data-teacher="elena"]'], ['teachers--mia', '[data-course-map]'], ['teachers--dev', '[data-preparing="dev"]']]) {
+      await open(page, url, hash, sel);
+      await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+      await page.waitForTimeout(500);
+      check(group, `200 % text: #${hash} is no wider than the screen`, (await overflow(page)) <= 1, await overflow(page));
+      await page.evaluate(() => (document.documentElement.style.fontSize = ''));
+    }
+
+    // Turn the phone sideways and back in the middle of a lesson (the layout crosses the phone width).
+    await open(page, url, 'teachers--mia--meet-your-guitar', '[data-teacher-player="mia"]');
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.waitForTimeout(600);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(600);
+    check(group, 'turning the phone sideways and back mid-lesson keeps the lesson on screen', !(await crashed(page)) && (await page.locator('[data-teacher-player="mia"]').count()) === 1);
+    check(group, 'and logs no error', realErrors(errors).length === 0, realErrors(errors).join(' | ').slice(0, 300));
+
+    // The unit's show without a microphone.
+    await open(page, url, 'teachers--mia--first-week-show', '[data-teacher-player="mia"]');
+    const pairs = [];
+    let show = null;
+    for (let guard = 0; guard < 80; guard++) {
+      const kind = await stepKind(page);
+      if (kind === 'summary') break;
+      const id = await lib.stepId(page);
+      if (kind === 'task') {
+        await press(page, 'touch', '[data-player-bar] [data-action="skip-task"]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      if (kind === 'card' || kind === null) {
+        await press(page, 'touch', '[data-player-bar] [data-action="continue"]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      const state = await lib.savedSession(page, L);
+      const step = state && L.currentStep(state);
+      if (!step || step.kind !== 'exercise') throw new Error(`No saved exercise for the step on screen (${id})`);
+      if (!show && (await page.locator('[data-performance]').count())) {
+        const bar = await page.locator('[data-player-bar] [data-action="primary"], [data-player-bar] [data-action="check"]').first().boundingBox();
+        show = { overflow: await overflow(page), barBottom: bar ? bar.y + bar.height : null, alternative: step.alternative };
+        await shot(page, 'show-nomic-phone-light');
+      }
+      if (PLAY_TYPES.has(step.exercise.type) && !step.alternative) {
+        await press(page, 'touch', '[data-player-bar] [data-action="primary"]');
+        await page.waitForFunction(() => /Tap it instead/.test(document.querySelector('[data-player-bar] [data-action="primary"]')?.textContent || ''), null, { timeout: 30000 });
+        await press(page, 'touch', '[data-player-bar] [data-action="primary"]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      if (step.exercise.type === 'tap-rhythm') {
+        // Timing is e2e/lessons.cjs's business; here "I don't know" moves on.
+        await press(page, 'touch', '[data-action="skip"]');
+      } else {
+        const ok = await lib.giveAnswer(page, L, step, L.solve(step.exercise), 'touch');
+        if (!ok) throw new Error(`Could not give a ${step.exercise.type} answer by touch`);
+        await press(page, 'touch', '[data-player-bar] [data-action="check"]');
+      }
+      await page.waitForSelector('[data-feedback]', { timeout: 15000 });
+      const verdict = await page.locator('[data-feedback] strong').first().innerText().catch(() => '');
+      const reaction = (await page.locator('[data-reaction] p').innerText().catch(() => '')).replace(/^\s*\w+:\s*/, '');
+      pairs.push({ verdict, reaction, alt: step.alternative });
+      await press(page, 'touch', '[data-player-bar] [data-action="continue"]');
+      await lib.waitForNewStep(page, id);
+    }
+    check(group, 'the show without a microphone is no wider than the screen', show && show.overflow <= 1, JSON.stringify(show));
+    check(group, "and its button is inside the phone's screen", show && show.barBottom !== null && show.barBottom <= 844, JSON.stringify(show));
+    check(group, 'the show was answered by its tapping version', pairs.some((p) => p.alt), JSON.stringify(pairs));
+    const echoed = pairs.filter((p) => echoes(p.reaction, p.verdict));
+    check(group, "Mia's reaction never repeats the panel's verdict", pairs.length >= 3 && echoed.length === 0, JSON.stringify(echoed.length ? echoed : pairs).slice(0, 400));
+    await page.waitForSelector('[data-unit-complete="mia-hello-guitar"]', { timeout: 30000 });
+    await closeDialogs(page);
+    const words = await page.locator('[data-unit-complete]').innerText();
+    check(group, 'the unit still ends with the celebration', /Unit 1 complete/i.test(words), words.slice(0, 120));
+    check(group, 'which does not claim the piece was played', (await page.locator('[data-played="tapped"]').count()) === 1 && !/you performed|you played a whole tune/i.test(words), words.slice(0, 300));
+    await shot(page, 'unit-complete-nomic-phone-light', true);
+    check(group, 'the end of the unit is no wider than the screen', (await overflow(page)) <= 1, await overflow(page));
+
+    check(group, 'no console errors', realErrors(errors).length === 0, realErrors(errors).join(' | ').slice(0, 300));
+  });
+}
+
 (async () => {
-  const L = want('lesson') || want('show') ? await loadTs('/src/lessons/index.ts') : null;
+  const L = want('lesson') || want('show') || want('breaks') ? await loadTs('/src/lessons/index.ts') : null;
   const strings = path.join(OUT, 'teachers-open-strings.wav');
   const buns = path.join(OUT, 'teachers-hot-cross-buns.wav');
   if (want('lesson')) await makeWav(strings, [[40, 2], [55, 2], [64, 2]], { gap: 0.4, tail: 0.4 });
@@ -435,6 +571,7 @@ async function runLooks() {
     ['lesson', () => runLesson(L, strings)],
     ['show', () => runShow(L, buns)],
     ['looks', () => runLooks()],
+    ['breaks', () => runBreaks(L)],
   ];
   for (const [name, run] of runs) {
     if (!want(name)) continue;

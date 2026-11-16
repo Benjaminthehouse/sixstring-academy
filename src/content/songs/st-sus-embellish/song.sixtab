@@ -1,0 +1,49 @@
+# Sus Chords and Chord Embellishments (repertoire plan: st-sus-embellish). An original strumming
+# study in D on the folk pattern of st-strum-folk: down on 1, down-up on 2, a missed stroke on 3,
+# up on the and of 3, down-up on 4. In every bar the plain chord sounds on beats 1 and 2; on the
+# missed beat 3 one finger goes down or comes up (nothing else moves), so the up-strum on the and
+# of 3 rings the decorated chord; on beat 4 the finger goes back. The chord symbol of the
+# decoration sits on that up-strum, where it is heard.
+#   D (xx0232) -> Dsus4 (xx0233): add finger 4 on string 1 fret 3 (G replaces F#)
+#   D -> Dsus2 (xx0230): lift finger 2 off string 1 (open E replaces F#)
+#   A (x02220, fingers 1-2-3) -> Asus4 (x02230): add finger 4 on string 2 fret 3 (D replaces C#)
+#   A -> Asus2 (x02200): lift finger 3 off string 2 (open B replaces C#)
+#   C (x32010) -> Cadd9 (x32030): add finger 4 on string 2 fret 3 (D added; E stays on strings 4 and 1)
+# Bars 1-8 decorate with sus4 (and add9 on C), bars 9-16 with sus2; the last time round A goes to
+# Asus4 and home to D, the sus4 resolving as it does in a cadence. The progression D A C D is
+# original. The teacher plays an original tune that sings the moving note: on the and of 3 it is
+# always a note of the decorated chord, never the third it replaces.
+title: Sus Chords and Chord Embellishments
+id: st-sus-embellish
+composer: Sixstring Academy
+source: Original strumming study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: sus2, sus4, add9, embellishment, folk pattern
+tempo: 84
+time: 4/4
+key: D
+
+track: Your strum
+role: rhythm
+[Sus4]
+strum: D-DU-UDU
+| ^"Dsus4: add finger 4 on string 1" "D=xx0232" q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U | q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U |
+| ^"Asus4: add finger 4 on string 2" "A=x02220" q D e D q U "Asus4=x02230" e U "A=x02220" D U | q D e D q U "Asus4=x02230" e U "A=x02220" D U |
+| ^"Cadd9: add finger 4 on string 2" "C=x32010" q D e D q U "Cadd9=x32030" e U "C=x32010" D U | q D e D q U "Cadd9=x32030" e U "C=x32010" D U |
+| "D=xx0232" q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U | q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U ||
+[Sus2]
+strum: D-DU-UDU
+| ^"Dsus2: lift finger 2 off string 1" q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U | q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U |
+| ^"Asus2: lift finger 3 off string 2" "A=x02220" q D e D q U "Asus2=x02200" e U "A=x02220" D U | q D e D q U "Asus2=x02200" e U "A=x02220" D U |
+| "C=x32010" q D e D q U "Cadd9=x32030" e U "C=x32010" D U | q D e D q U "Cadd9=x32030" e U "C=x32010" D U |
+| ^"Asus4 to A, then home" "A=x02220" q D e D q U "Asus4=x02230" e U "A=x02220" D U | "D=xx0232" q D e D q U "Dsus2=xx0230" e U "D=xx0232" q D ||
+
+track: Teacher
+role: lead
+[Sus4]
+| h 1:2 q 1:3 1:2 | q 1:0 2:3 h 3:2 | h 2:2 q 2:3 2:2 | q 2:0 3:2 h 1:0 |
+| h 1:0 q 2:3 1:0 | q 1:3 1:0 h 2:1 | h 1:2 q 1:3 1:2 | q 3:2 2:0 h 2:3 ||
+[Sus2]
+| h 1:2 q 1:0 1:2 | q 1:3 1:2 h 2:3 | h 2:2 q 2:0 2:2 | q 1:0 2:2 h 3:2 |
+| h 1:0 q 2:3 1:0 | q 2:1 1:0 h 1:3 | q 1:0 2:2 2:3 2:2 | w 2:3 ||

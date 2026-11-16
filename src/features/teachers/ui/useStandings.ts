@@ -14,8 +14,8 @@ export function useStandings(): { standings: Record<TeacherKey, CourseStanding>;
   return useMemo(() => {
     const list = OUTLINE.map((o) => courseStanding({ skills }, o));
     const standings = Object.fromEntries(list.map((s) => [s.teacher, s])) as Record<TeacherKey, CourseStanding>;
-    return { standings, recommendation: recommendTeacher(profile.experience, TEACHER_KEYS.map((t) => standings[t])) };
-  }, [skills, profile.experience]);
+    return { standings, recommendation: recommendTeacher(profile.experience, TEACHER_KEYS.map((t) => standings[t]), profile.onboarded) };
+  }, [skills, profile.experience, profile.onboarded]);
 }
 
 /** An unfinished teacher lesson saved on this device (the lesson slot is shared with the Theory Path). */

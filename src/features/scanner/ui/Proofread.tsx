@@ -39,6 +39,9 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const draft = scan.draft!;
   const mobile = useIsMobile();
   const twoPane = useMediaQuery(TWO_PANE);
+  // A phone held sideways has the width of a tablet but little height: keep the panel compact.
+  const short = useMediaQuery('(max-height: 520px)');
+  const compact = mobile || short;
   const [sel, setSel] = useState<Selection | null>(() => {
     const first = nextToCheck(draft, null);
     return first ? selectBeat(draft, first.bar, first.beat ?? 0, first.note !== null ? draft.song.tracks[0].measures[first.bar].beats[first.beat ?? 0]?.notes[first.note]?.string ?? 1 : 1) : firstSelection(draft);
@@ -216,6 +219,11 @@ export function Proofread({ scan }: { scan: ScanState }) {
       return;
     }
     if (controlTarget(e.target)) return;
+    if (!sel && cmd.type === 'move') {
+      e.preventDefault();
+      setSel(firstSelection(draft));
+      return;
+    }
     if (!sel && cmd.type !== 'play' && cmd.type !== 'next') return;
     e.preventDefault();
     e.stopPropagation();
@@ -344,14 +352,17 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const showTab = twoPane || pane === 'tab';
 
   return (
-    <div className={cx(styles.root, twoPane && styles.fixed)} onKeyDownCapture={onKeyDownCapture} data-scan="proof">
+    <div className={cx(styles.root, twoPane && !short && styles.fixed, short && styles.short)} onKeyDownCapture={onKeyDownCapture} data-scan="proof">
       <Page title={draft.song.meta.title} hideHeader width="full" gap={4} className={styles.page}>
-        <header className={styles.head}>
+        {!short && (<header className={styles.head}>
           <div className={styles.headMain}>
             <p className={styles.eyebrow}>Check the reading</p>
-            <h2 className={styles.title} data-scan-title="">
-              {draft.song.meta.title}
-            </h2>
+            <div className={styles.titleRow}>
+              <h2 className={styles.title} data-scan-title="">
+                {draft.song.meta.title}
+              </h2>
+              <IconButton icon="Pencil" label="Rename, tempo, key, tuning and capo" size="sm" onClick={() => setDetails_(true)} data-scan-details="" />
+            </div>
             <div className={styles.verdict} aria-live="polite">
               <Badge tone={verdictTone} icon={verdictTone === 'ok' ? 'CircleCheck' : verdictTone === 'bad' ? 'CircleX' : 'Eye'}>
                 {headline}
@@ -366,16 +377,15 @@ export function Proofread({ scan }: { scan: ScanState }) {
               Save and play
             </Button>
           </div>
-        </header>
+        </header>)}
 
-
-        {verdict === 'poor' && left > 0 && !hideHard && (
+        {verdict === 'poor' && left > 0 && !hideHard && !short && (
           <Banner tone="warn" title="This picture was hard to read" onDismiss={() => setHideHard(true)}>
             Expect misread and missing notes: check them against your picture, or retake it flat, close and in good light.
           </Banner>
         )}
 
-        <AiOffer ai={ai} busy={scan.aiBusy} message={aiMessage} onRun={() => void runAi()} onStop={scan.stopAi} />
+        {!short && <AiOffer ai={ai} busy={scan.aiBusy} message={aiMessage} onRun={() => void runAi()} onStop={scan.stopAi} />}
 
         <div className={styles.toolbar} role="toolbar" aria-label="Proofreading tools">
           {!twoPane && (
@@ -394,7 +404,10 @@ export function Proofread({ scan }: { scan: ScanState }) {
             <Button size="sm" variant={player.playing ? 'secondary' : 'ghost'} iconLeft={player.playing ? 'Square' : 'Play'} onClick={() => player.toggle(sel?.bar)} data-scan-play="" aria-keyshortcuts="Space">
               {player.playing ? 'Stop' : sel && !mobile ? `Play from bar ${sel.bar + 1}` : 'Play'}
             </Button>
-            <IconButton icon="Undo2" label="Undo (Ctrl+Z)" size="sm" disabled={!scan.history?.past.length} onClick={scan.undo} data-scan-undo="" />
+            <IconButton icon="Undo2" label="Undo (Ctrl+Z)" size="sm" disabled={!scan.history?.past.length} onClick={() => {
+              scan.undo();
+              setAiMessage(null);
+            }} data-scan-undo="" />
             {!mobile && <IconButton icon="Redo2" label="Redo (Ctrl+Shift+Z)" size="sm" disabled={!scan.history?.future.length} onClick={scan.redo} />}
             <Button size="sm" variant="ghost" iconLeft="SkipForward" onClick={goNext} disabled={left === 0} data-scan-next="" aria-keyshortcuts="N" aria-label={`Next to check, ${left} left`}>
               {mobile ? `${left}` : `Next to check (${left})`}
@@ -404,14 +417,20 @@ export function Proofread({ scan }: { scan: ScanState }) {
               items={[
                 { label: 'Title, tempo, key, tuning, capo', icon: 'Settings2', onSelect: () => setDetails_(true) },
               ...(mobile ? [{ label: 'Redo', icon: 'Redo2', disabled: !scan.history?.future.length, onSelect: scan.redo }] : []),
+                ...(short && ai?.state === 'ready' ? [{ label: 'Improve with AI', icon: 'Sparkles', onSelect: () => void runAi() }] : []),
                 { label: 'Back to the pages', icon: 'ArrowLeft', onSelect: () => scan.setPhase('pages') },
                 { label: 'Keyboard shortcuts', icon: 'Keyboard', onSelect: () => toast.info('Keyboard', { description: 'Arrows move between notes. 0-9 set the fret (two digits quickly for 10-24), + and - step it. W H Q E S set the length, . adds a dot. Delete removes a note. Enter says it is right. N goes to the next doubt. Space plays. Ctrl+Z undoes.', duration: 12000 }) },
               ]}
             />
+            {short && (
+              <Button variant="primary" size="sm" iconLeft="Check" loading={saving} onClick={() => void save()} data-scan-save="">
+                Save and play
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className={cx(styles.body, twoPane && styles.twoPane)}>
+        <div className={cx(styles.body, twoPane && !short && styles.twoPane, short && styles.side)}>
           {showSource && pages.length > 0 && (
             <div className={styles.sourcePane}>
               <SourceView pages={pages} draft={draft} sel={sel} onSelect={(s) => setSel(s.beat === null ? { bar: s.bar, beat: null, note: null, string: null } : selectBeat(draft, s.bar, s.beat, draft.song.tracks[0].measures[s.bar]?.beats[s.beat]?.notes[s.note ?? 0]?.string ?? null))} className={styles.source} />
@@ -443,14 +462,20 @@ export function Proofread({ scan }: { scan: ScanState }) {
               )}
             </div>
           )}
+          {short && (
+            <aside className={styles.sidePanel} aria-label="Correct the selection">
+              <Inspector draft={draft} sel={sel} actions={actions} notationOnly={draft.notationOnly} compact tab={inspectorTab} onTab={setInspectorTab} />
+            </aside>
+          )}
         </div>
 
-
-        <ActionBar stretchOnMobile={false} className={styles.inspectorBar} aria-label="Correct the selection">
-          <div className={styles.inspector}>
-            <Inspector draft={draft} sel={sel} actions={actions} notationOnly={draft.notationOnly} compact={mobile} tab={inspectorTab} onTab={setInspectorTab} />
-          </div>
-        </ActionBar>
+        {!short && (
+          <ActionBar stretchOnMobile={false} className={styles.inspectorBar} aria-label="Correct the selection">
+            <div className={styles.inspector}>
+              <Inspector draft={draft} sel={sel} actions={actions} notationOnly={draft.notationOnly} compact={compact} tab={inspectorTab} onTab={setInspectorTab} />
+            </div>
+          </ActionBar>
+        )}
       </Page>
       <DetailsSheet open={details} draft={draft} position={position} onClose={() => setDetails_(false)} onApply={applyDetails} />
     </div>

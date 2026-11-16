@@ -4,7 +4,7 @@
  * in order, and read them.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, Sheet, Spinner, Stack, Text, TextArea, TextField, cx, toast, useEventListener, useIsMobile, useIsTouch } from '@/ui';
+import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, Sheet, Spinner, Stack, Text, TextArea, TextField, confirmDialog, cx, toast, useEventListener, useIsMobile, useIsTouch } from '@/ui';
 import { attachDropZone, onPasteImage, pickFile } from '@/core/platform';
 import { detectTextFormat } from '@/core/song';
 import type { ScanState, Page as ScanPageT } from '../engine/useScan';
@@ -75,7 +75,14 @@ export function Capture({ scan }: { scan: ScanState }) {
   const readLabel = allText ? 'Read the text' : pages.length > 1 ? `Read ${pages.length} pages` : 'Read the music';
 
   const startAgain = async () => {
-    scan.reset();
+    const reading = !!(draft || text);
+    const ok = await confirmDialog({
+      title: 'Start over?',
+      description: reading ? 'Your pages and the reading you were checking will be cleared. Songs you saved stay in your library.' : `Your ${pages.length === 1 ? 'page' : `${pages.length} pages`} will be cleared.`,
+      confirmLabel: 'Start over',
+      tone: 'danger',
+    });
+    if (ok) scan.reset();
   };
 
   return (

@@ -7,7 +7,7 @@ import { href } from '@/app/router';
 import { SegmentedControl, Switch, Text, cx } from '@/ui';
 import { functionLetter } from '../model/circle';
 import { keyFromParam } from '../model/circle';
-import { FUNCTION_WORDS, harmonyTable } from '../model/harmony';
+import { FUNCTION_WORDS, MINOR_KINDS, harmonyCaption, harmonyTable, minorKindFromParam, type MinorKind } from '../model/harmony';
 import { functionClass } from './CircleSection';
 import type { SectionProps } from './SectionBody';
 import styles from './Sections.module.css';
@@ -15,16 +15,22 @@ import styles from './Sections.module.css';
 /** The harmony table page. */
 export function HarmonySection({ item, reveal, fmt }: SectionProps) {
   const itemKey = keyFromParam(item);
-  const [mode, setMode] = useState<'major' | 'minor'>(itemKey?.mode === 'minor' ? 'minor' : 'major');
+  const itemMinor = minorKindFromParam(item);
+  const [mode, setMode] = useState<'major' | 'minor'>(itemKey?.mode === 'minor' || itemMinor ? 'minor' : 'major');
+  const [minor, setMinor] = useState<MinorKind>(itemMinor ?? 'natural');
   const [sevenths, setSevenths] = useState(false);
   useEffect(() => {
     if (itemKey) setMode(itemKey.mode === 'minor' ? 'minor' : 'major');
-  }, [itemKey, reveal]);
-  const table = useMemo(() => harmonyTable(mode, sevenths), [mode, sevenths]);
+    if (itemMinor) {
+      setMode('minor');
+      setMinor(itemMinor);
+    }
+  }, [itemKey, itemMinor, reveal]);
+  const table = useMemo(() => harmonyTable(mode, sevenths, minor), [mode, sevenths, minor]);
 
   return (
     <div className={styles.stack}>
-      <div className={styles.controls}>
+      <div className={styles.controls} data-ref-item={itemMinor ? item ?? undefined : undefined}>
         <SegmentedControl
           aria-label="Major or minor keys"
           options={[
@@ -34,6 +40,7 @@ export function HarmonySection({ item, reveal, fmt }: SectionProps) {
           value={mode}
           onChange={setMode}
         />
+        {mode === 'minor' && <SegmentedControl aria-label="Which minor scale" options={MINOR_KINDS.map((k) => ({ value: k.value, label: k.label }))} value={minor} onChange={setMinor} />}
         <Switch checked={sevenths} onChange={setSevenths} label="Seventh chords" />
       </div>
 
@@ -46,7 +53,7 @@ export function HarmonySection({ item, reveal, fmt }: SectionProps) {
         ))}
       </ul>
 
-      <div className={styles.tableFrame} tabIndex={0} aria-label={`Chords of every ${mode} key; scrolls sideways`}>
+      <div className={styles.tableFrame} tabIndex={0} aria-label={`Chords of every ${mode} key${mode === 'minor' && minor !== 'natural' ? `, from ${minor} minor` : ''}; scrolls sideways`}>
         <table className={cx(styles.table, styles.harmonyTable)}>
           <thead>
             <tr>
@@ -84,9 +91,7 @@ export function HarmonySection({ item, reveal, fmt }: SectionProps) {
         </table>
       </div>
       <Text variant="caption" tone="muted">
-        {mode === 'minor'
-          ? 'Numerals count from the major scale, so ♭III is the chord on the lowered third degree (many books write it III). The last two columns come from harmonic minor: its raised 7th turns v into a major V and ♭VII into a diminished vii°, which pull harder toward home.'
-          : 'Every major key has the same pattern: major I, IV and V; minor ii, iii and vi; a diminished vii°.'}
+        {harmonyCaption(mode, minor)}
       </Text>
     </div>
   );

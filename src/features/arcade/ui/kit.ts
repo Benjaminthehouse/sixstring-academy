@@ -2,21 +2,56 @@
  * Small pieces the game components share: a round clock, finding a fretboard cell on the page
  * (for effects), the learner's pitch settings, and marker builders.
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PatternNote } from '@/core/guitar';
 import type { FretMarker, MusicColor } from '@/ui/music';
 import { degreeColor } from '@/ui/music';
+import { useMediaQuery } from '@/ui';
 import { learnerA4 } from '@/core/settings';
 import { audioNow } from '@/core/audio';
 import type { Stars } from '../core/scoring';
+import { pausableClock, timerBag } from '../core/timers';
+import { degreeShort } from '../core/degreeDarts';
 
-/** Seconds since `running` turned true (0 before). */
+/** Seconds the round has run: the clock stands still while `running` is false (a pause). */
 export function useRoundClock(running: boolean): () => number {
-  const startedAt = useRef<number | null>(null);
+  const clock = useRef(pausableClock());
   useEffect(() => {
-    if (running && startedAt.current === null) startedAt.current = performance.now();
+    clock.current.set(running, performance.now());
   }, [running]);
-  return useCallback(() => (startedAt.current === null ? 0 : (performance.now() - startedAt.current) / 1000), []);
+  return useCallback(() => clock.current.seconds(performance.now()), []);
+}
+
+/** A pausable stopwatch for a component (milliseconds of `performance.now()`); see `pausableClock`. */
+export function usePausableClock(running: boolean): { reset: () => void; seconds: () => number } {
+  const clock = useRef(pausableClock());
+  const runningRef = useRef(running);
+  runningRef.current = running;
+  useEffect(() => {
+    clock.current.set(running, performance.now());
+  }, [running]);
+  return useMemo(
+    () => ({
+      reset: () => {
+        clock.current = pausableClock();
+        clock.current.set(runningRef.current, performance.now());
+      },
+      seconds: () => clock.current.seconds(performance.now()),
+    }),
+    [],
+  );
+}
+
+/** {@link timerBag} for a component: every timeout still pending is cancelled on unmount. */
+export function useLater(): (fn: () => void, ms: number) => void {
+  const [bag] = useState(timerBag);
+  useEffect(() => bag.clear, [bag]);
+  return bag.later;
+}
+
+/** True where a keyboard is the likely input (a mouse or trackpad): only then does copy name keys. */
+export function useKeyboardHints(): boolean {
+  return useMediaQuery('(hover: hover) and (pointer: fine)');
 }
 
 /** The cell button for a position inside a board (the boards use position labels). */
@@ -57,7 +92,7 @@ export function noteMarker(n: PatternNote, opts: { label?: 'note' | 'degree' | '
     fret: n.fret,
     id: opts.id,
     note: n.note,
-    label: label === 'note' ? n.note : label === 'degree' ? (n.degree === '1' ? 'R' : n.degree.replace('b', '♭').replace('#', '♯')) : '',
+    label: label === 'note' ? n.note : label === 'degree' ? degreeShort(n.degree) : '',
     noteLabel: label === 'note' || undefined,
     color,
     state: opts.state ?? 'normal',

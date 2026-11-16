@@ -42,6 +42,8 @@ export interface LiveCamera {
   devices: CameraDevice[];
   /** The camera in use (its device id), once running. */
   activeDevice: string | null;
+  /** The camera picture's width / height, once known (the stage takes its shape). */
+  aspect: number | null;
   /** The pipeline while running (commands: calibrate, confirmFret, shiftNumbering ...). */
   pipeline: RefObject<VisionPipeline | null>;
   /** Start (from a tap). With `deviceId`, that camera. */
@@ -65,6 +67,7 @@ export function useLiveCamera(o: LiveCameraOptions): LiveCamera {
   const [mode, setMode] = useState<PipelineMode>('idle');
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [activeDevice, setActiveDevice] = useState<string | null>(null);
+  const [aspect, setAspect] = useState<number | null>(null);
   const pipelineRef = useRef<VisionPipeline | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const generation = useRef(0);
@@ -161,6 +164,7 @@ export function useLiveCamera(o: LiveCameraOptions): LiveCamera {
       await pipeline.start(video);
       if (gen !== generation.current) return;
       runningSince.current = performance.now();
+      if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
       setPhaseBoth('running');
       // Labels are only readable once the camera is allowed.
       const list = await listDevices('videoinput');
@@ -209,5 +213,5 @@ export function useLiveCamera(o: LiveCameraOptions): LiveCamera {
 
   const secondsRunning = useCallback(() => runSeconds.current + (runningSince.current !== null ? (performance.now() - runningSince.current) / 1000 : 0), []);
 
-  return { phase, failure, mode, devices, activeDevice, pipeline: pipelineRef, start, stop, secondsRunning };
+  return { phase, failure, mode, devices, activeDevice, aspect, pipeline: pipelineRef, start, stop, secondsRunning };
 }

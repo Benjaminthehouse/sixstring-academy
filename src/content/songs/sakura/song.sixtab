@@ -1,0 +1,38 @@
+# Sakura, Sakura (repertoire plan: sakura). The traditional Japanese melody as it is usually
+# transcribed, starting on A and ending on E, an octave below the koto, in first position.
+# It uses the in scale on E: E F A B C (degrees 1 b2 4 5 b6), the same five notes as A hirajoshi.
+# E = string 4 fret 2, F = string 4 fret 3, A = string 3 fret 2, B = open string 2, C = string 2
+# fret 1; where the tune dips below E: B = string 5 fret 2, C = string 5 fret 3.
+# The words of the traditional verse are written above the phrase they belong to; play it as an
+# instrumental, or sing them. A little vibrato (~) on the long fretted notes. No Western chords:
+# the teacher's track is an open-string drone, E (string 6) and B (string 2).
+# The key line reads E minor because the content checks only read major and minor keys; the tune
+# is in the E in scale, with F natural and no G.
+title: Sakura, Sakura
+id: sakura
+composer: Traditional Japanese
+source: Edo-period melody printed in 1888 (Tokyo Academy of Music, koto collection); arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: melody, japanese, in scale, vibrato, slow
+tempo: 66
+time: 4/4
+key: Em
+
+track: Melody
+role: lead
+[Sakura]
+| ^"Sakura, sakura" q 3:2{2} 3:2 h 2:0 | q 3:2 3:2 h 2:0 |
+| ^"yayoi no sora wa" q 3:2 2:0 2:1{1} 2:0 | q 3:2 e 2:0 3:2 h 4:3~{3} |
+| ^"miwatasu kagiri" q 4:2{2} 5:3{3} 4:2 4:3{3} | q 4:2 e 4:2 5:3{3} h 5:2~{2} |
+| ^"kasumi ka kumo ka" q 3:2 2:0 2:1 2:0 | q 3:2 e 2:0 3:2 h 4:3~ |
+| ^"nioi zo izuru" q 4:2 5:3 4:2 4:3 | q 4:2 e 4:2 5:3 h 5:2~ |
+| ^"iza ya, iza ya" q 3:2 3:2 h 2:0 | q 3:2 3:2 h 2:0 |
+| ^"mi ni yukan" q 4:2 4:3 e 2:0 3:2 q 4:3 | w 4:2~ ||
+
+track: Drone
+role: rhythm
+[Sakura]
+| w (6:0 2:0) | (6:- 2:-) | (6:0 2:0) | (6:- 2:-) | (6:0 2:0) | (6:- 2:-) | (6:0 2:0) |
+| (6:- 2:-) | (6:0 2:0) | (6:- 2:-) | (6:0 2:0) | (6:- 2:-) | (6:0 2:0) | (6:- 2:-) ||

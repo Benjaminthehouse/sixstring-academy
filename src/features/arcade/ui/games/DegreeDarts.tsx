@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CountdownRing, Text } from '@/ui';
 import { Fretboard, degreeText, noteText, useMusicSettings, type FretCell, type FretMarker } from '@/ui/music';
 import { waitForNote } from '@/core/pitch';
-import { DARTS_LEVELS, DEGREE_INFO, degreeCall, makeDartsRound } from '../../core/degreeDarts';
+import { DARTS_LEVELS, DEGREE_INFO, dartsTip, degreeCall, makeDartsRound } from '../../core/degreeDarts';
 import { boxOf, posKey } from '../../core/focus';
 import { addHit, addMiss, findPoints, newTally, starsFor } from '../../core/scoring';
 import { appIsSounding, hitSound, missSound, playNote } from '../sound';
@@ -74,7 +74,7 @@ export function DegreeDarts({ ctx, input, mic, anyOctave, running, fx, title, on
           { label: 'Best combo', value: `${t.bestCombo}` },
         ],
         tip: worst
-          ? `Work on ${degreeCall(worst[0])}: ${DEGREE_INFO[worst[0]]?.role ?? ''} In this scale it is ${noteText(round.darts.find((d) => d.degree === worst[0])?.note ?? '', naming)}.`
+          ? dartsTip(worst[0], noteText(round.darts.find((d) => d.degree === worst[0])?.note ?? '', naming))
           : 'Every dart on target. Next time say each degree out loud as you hit it.',
         marks: done.map((d) => (d.firstTry ? (d.seconds < 3 ? 'ok' : 'meh') : 'bad')),
       });

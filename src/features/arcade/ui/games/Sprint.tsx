@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CountdownRing, Text, useMediaQuery } from '@/ui';
-import { Fretboard, degreeText, noteText, useMusicSettings, type FretCell, type FretMarker } from '@/ui/music';
+import { Fretboard, noteText, useMusicSettings, type FretCell, type FretMarker } from '@/ui/music';
 import { SPRINT_LEVELS, makeSprintRound, sprintScore } from '../../core/sprint';
 import { degreeCall } from '../../core/degreeDarts';
 import { posKey } from '../../core/focus';
 import { addHit, addMiss, comboMultiplier, newTally, starsFor } from '../../core/scoring';
 import { hitSound, missSound, playNote } from '../sound';
-import { cellElement, secondsText, useRoundClock } from '../kit';
+import { cellElement, secondsText, useLater, usePausableClock, useRoundClock } from '../kit';
 import { RoundFrame } from '../RoundFrame';
 import type { GameProps } from '../types';
 import styles from '../Arcade.module.css';
@@ -33,14 +33,14 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
   const [flash, setFlash] = useState<FretMarker | null>(null);
   const [status, setStatus] = useState<{ kind: string; text: string }>({ kind: 'waiting', text: '' });
   const boardRef = useRef<HTMLDivElement>(null);
-  const sprintStart = useRef<number>(0);
+  // Seconds into the current sprint; it stands still while the round is paused.
+  const sprintClock = usePausableClock(running);
+  const later = useLater();
   const elapsed = useRoundClock(running);
   const finished = useRef(false);
   const sprint = round.sprints[index];
   // A phone held upright gets the neck standing up: twelve frets fit down the screen, not across.
   const upright = useMediaQuery('(max-width: 719px) and (orientation: portrait)');
-
-  if (running && sprintStart.current === 0) sprintStart.current = performance.now();
 
   const finishAll = useCallback(
     (all: SprintDone[], t: typeof tally) => {
@@ -76,7 +76,7 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
   const endSprint = useCallback(
     (foundCount: number, wrongCount: number, t: typeof tally, timeUp: boolean) => {
       if (!sprint) return;
-      const left = Math.max(0, level.seconds - (performance.now() - sprintStart.current) / 1000);
+      const left = Math.max(0, level.seconds - sprintClock.seconds());
       const s = sprintScore({ found: foundCount, total: sprint.positions.length, wrong: wrongCount, secondsLeft: timeUp ? 0 : left });
       const all = [...done, { found: foundCount, total: sprint.positions.length, wrong: wrongCount, secondsLeft: timeUp ? 0 : left, score: s.score - foundCount * 100 }];
       setDone(all);
@@ -86,7 +86,7 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
           ? { kind: 'miss', text: `Time. ${foundCount} of ${sprint.positions.length}: the ones left are shown.` }
           : { kind: 'hit', text: `All ${sprint.positions.length} in ${secondsText(level.seconds - left)}. +${Math.round(left) * 10} time bonus.` },
       );
-      window.setTimeout(
+      later(
         () => {
           if (index + 1 >= round.sprints.length) finishAll(all, t);
           else {
@@ -94,14 +94,14 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
             setFound(new Set());
             setWrong(0);
             setReveal(false);
-            sprintStart.current = performance.now();
+            sprintClock.reset();
             setStatus({ kind: 'waiting', text: '' });
           }
         },
         timeUp ? 1800 : 900,
       );
     },
-    [sprint, level.seconds, done, index, round.sprints.length, finishAll],
+    [sprint, level.seconds, done, index, round.sprints.length, finishAll, later, sprintClock],
   );
 
   const onCell = useCallback(
@@ -129,11 +129,11 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
         missSound();
         fx.shake(el);
         setFlash({ string: cell.string, fret: cell.fret, label: cell.note, noteLabel: true, note: cell.note, color: 'bad', state: 'miss' });
-        window.setTimeout(() => setFlash(null), 800);
+        later(() => setFlash(null), 800);
         setStatus({ kind: 'miss', text: `That is ${noteText(cell.note, naming)}.` });
       }
     },
-    [running, sprint, reveal, found, tally, fx, wrong, endSprint, naming],
+    [running, sprint, reveal, found, tally, fx, wrong, endSprint, naming, later],
   );
 
   const markers = useMemo(() => {
@@ -157,7 +157,7 @@ export function Sprint({ ctx, running, fx, title, onFinish, onEnd }: GameProps) 
         Every {noteText(sprint.note, naming)}
       </span>
       <span className={styles.promptHint}>
-        {sprint.positions.length} on frets 0–{level.maxFret} · degree {degreeText(sprint.degree)} of {ctx.scaleName}
+        {sprint.positions.length} on frets 0–{level.maxFret} in {ctx.scaleName}
       </span>
     </>
   ) : null;

@@ -1,0 +1,30 @@
+# Harmonics Melody (repertoire plan: st-lick-harmonics). An original 8-bar bell tune in G major,
+# played only with natural harmonics on strings 4, 3 and 2. Touch the string lightly right over
+# the fret wire and pick:
+#   over fret 12 the strings sound D, G and B (an octave above the open strings),
+#   over fret 7 they sound A, D and F# (an octave and a fifth above),
+#   over fret 5 they sound D, G and B again, two octaves above.
+# Bars 1-4 rise at fret 12, turn at fret 7 and fall back down string 4 (frets 5, 7, 12) to D.
+# Bars 5-8 start the same, echo the rising G chord an octave higher at fret 5, climb the D chord
+# at fret 7 and land on a G chord rung at fret 5 (F# rising to G). The teacher strums G and D.
+title: Harmonics Melody
+composer: Sixstring Academy
+source: Original study for natural harmonics
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: harmonics, natural harmonics, bell tone, let ring
+tempo: 60
+time: 4/4
+key: G
+
+track: Your harmonics
+role: lead
+[Fret 12 and fret 7]
+| "G=320003" ^"touch over fret 12" q 4:<12> 3:<12> h 2:<12> | q 3:<12> 2:<12> ^"fret 7" h 3:<7> | "D=xx0232" q 2:<7> 3:<7> h 4:<7> | q 4:<5> 4:<7> h 4:<12> |
+[Up to fret 5]
+| "G" q 4:<12> 3:<12> h 2:<12> | ^"fret 5" q 4:<5> 3:<5> h 2:<5> | "D" q 4:<7> 3:<7> h 2:<7> | "G" w (4:<5> 3:<5> 2:<5>) ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | w / ||

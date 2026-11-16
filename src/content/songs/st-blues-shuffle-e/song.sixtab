@@ -1,0 +1,33 @@
+# 12-Bar Blues Shuffle in E, quick change (repertoire plan: st-blues-shuffle-e). An original study
+# on the traditional 12-bar form with the quick change: E A E E | A A E E | B7 A E B7, played
+# twice, then a last E7. The shuffle is the one from st-blues-shuffle-a, moved to E: the open
+# string 6 (E) with string 5 fret 2 (B), then with string 5 fret 4 (C#); for A the same shape one
+# string toward string 1, the open string 5 (A) with string 4 fret 2 (E) and fret 4 (F#). Finger 1
+# stays on fret 2 and finger 3 reaches fret 4. Bars 9 and 12 strum B7 (x21202) in the same
+# long-short swing, down on the beat and up on the short note. Swung eighths are written as
+# triplets: a long note (q3, two thirds of the beat) and a short one (e3, the last third).
+title: 12-Bar Blues Shuffle in E (quick change)
+id: st-blues-shuffle-e
+composer: Sixstring Academy
+source: Original study on the traditional 12-bar blues form
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: blues, shuffle, 12-bar, swing, quick change
+tempo: 88
+time: 4/4
+key: E
+
+track: Your shuffle
+role: rhythm
+[12-bar blues]
+|: ^"Shuffle on string 6: fingers 1 and 3" "E" q3 (6:0 5:2{1}) e3 (6:0 5:2) q3 (6:0 5:4{3}) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) |
+| ^"Quick change: A in bar 2" "A" q3 (5:0 4:2{1}) e3 (5:0 4:2) q3 (5:0 4:4{3}) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) | % |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) | % |
+| ^"B7: strum, still swinging" "B7=x21202" q3 D e3 U q3 D e3 U q3 D e3 U q3 D e3 U |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) |
+| ^"Turnaround" "B7=x21202" q3 D e3 U q3 D e3 U q3 D e3 U q3 D e3 U :|
+[Ending]
+| "E7=020100" w (6:0 5:2 4:0 3:1 2:0 1:0) ||

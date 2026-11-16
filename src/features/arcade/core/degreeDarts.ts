@@ -3,6 +3,7 @@
  * the current shape. It teaches what each note does, not just where it is.
  */
 import type { PatternNote, ScalePattern } from '@/core/guitar';
+import { formatDegree } from '@/core/theory';
 import { makeRng, rotation } from './rng';
 import { regionOf } from './focus';
 
@@ -54,7 +55,18 @@ export const DEGREE_INFO: Readonly<Record<string, { name: string; role: string }
 
 /** The name of a degree for a prompt ("the ♭3"). */
 export function degreeCall(degree: string): string {
-  return DEGREE_INFO[degree]?.name ?? `degree ${degree}`;
+  return DEGREE_INFO[degree]?.name ?? `degree ${degreeShort(degree)}`;
+}
+
+/** A degree as a dot label: `1` → `R`, `b3` → `♭3`, `bb7` → `𝄫7` (every accidental, not just the first). */
+export function degreeShort(degree: string): string {
+  return degree === '1' ? 'R' : formatDegree(degree);
+}
+
+/** The tip after a round of darts: the degree to work on, what it does, and where it is in this scale. */
+export function dartsTip(degree: string, note: string): string {
+  const role = DEGREE_INFO[degree]?.role;
+  return `Work on ${degreeCall(degree)}.${role ? ` ${role}` : ''} In this scale it is ${note}.`;
 }
 
 const FIFTHS = ['5', 'b5', '#5'];

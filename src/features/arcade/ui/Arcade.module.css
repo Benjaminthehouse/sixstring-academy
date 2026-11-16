@@ -721,6 +721,10 @@
   box-shadow: var(--shadow-3);
   animation: rise 260ms var(--ease);
 }
+/* The card takes focus when it opens (so Enter starts); the card itself needs no ring for that. */
+.readyCard:focus {
+  outline: none;
+}
 .inputPick {
   display: flex;
   flex-direction: column;

@@ -19,7 +19,7 @@ export function StaffOverlay({ look, width, height, className, labels = false }:
             <polyline key={k} className={styles.line} points={l.map((p) => `${p.x},${p.y}`).join(' ')} />
           ))}
           {labels && (
-            <text className={styles.label} x={s.box.x} y={s.box.y - stroke * 3} fontSize={Math.max(10, s.box.h * 0.32)}>
+            <text className={styles.label} x={s.box.x} y={s.box.y - stroke * 2} fontSize={Math.max(9, s.box.h * 0.2)}>
               {s.kind === 'tab' ? `Tab, ${s.lineCount} lines` : 'Notation'}
             </text>
           )}

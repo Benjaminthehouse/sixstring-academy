@@ -25,7 +25,7 @@ import {
   type Answer, type EffectResults, type SessionSource,
 } from '@/lessons';
 import {
-  ExerciseFrame, FeedbackPanel, LeaveDialog, LessonProvider, StepKeysProvider, SummaryView, nextLabel, selfSubmitting, teacherLine, useKeysRegistry, useLessonSession,
+  ExerciseFrame, FeedbackPanel, LeaveDialog, LessonProvider, StepKeysProvider, SummaryView, feedbackCopy, nextLabel, selfSubmitting, teacherLine, useKeysRegistry, useLessonSession,
   type NextStep, type PrimaryAction,
 } from '@/lessons/ui';
 import { useMusicSettings } from '@/ui/music';
@@ -63,7 +63,10 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
   const progress = sessionProgress(state);
   const done = state.phase === 'done';
   const isMobile = useIsMobile();
-  const hints = !isMobile && !useIsTouch();
+  // Both hooks run on every render: a phone turned sideways (or a window resized) crosses the
+  // phone width, and a hook skipped by `&&` would change the hook order and crash the lesson.
+  const isTouch = useIsTouch();
+  const hints = !isMobile && !isTouch;
   const { naming } = useMusicSettings();
   const [draftState, setDraftState] = useState<{ id: string; answer: Answer | null } | null>(null);
   const [primaryState, setPrimaryState] = useState<{ id: string; action: PrimaryAction } | null>(null);
@@ -307,7 +310,9 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
   const review = feedback && exercise ? { result: feedback.result, answer: feedback.answer } : null;
   const canCheck = isCheckable(draft);
   const altReason = step?.kind === 'exercise' && step.alternative ? (isArtifact() ? 'The microphone is not available in this viewer, so this one is answered by tapping.' : 'This is the version you answer by tapping.') : null;
-  const reaction = feedback ? pickLine(feedback.skipped ? profile.reactions.skipped : feedback.result.correct ? profile.reactions.right : profile.reactions.wrong, state.stats.answers) : '';
+  // The teacher's line sits right above the panel's verdict ("Right.", "Not quite."): never the same words twice.
+  const verdict = feedback && exercise ? feedbackCopy(exercise, feedback, state.stats.answers).title : '';
+  const reaction = feedback ? pickLine(feedback.skipped ? profile.reactions.skipped : feedback.result.correct ? profile.reactions.right : profile.reactions.wrong, state.stats.answers, verdict) : '';
   const unitDone = !!report && !!milestone && report.outcome === 'completed' && state.mode === 'lesson';
   const tool = taskState ? TASK_TOOLS[taskState.target.tool] : null;
 
@@ -364,7 +369,8 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
               {report ? (
                 <div className={styles.end}>
                   {unitDone && unit && milestone ? (
-                    <UnitComplete teacher={teacher} unit={unit} milestone={milestone} tc={tc} />
+                    // Once the microphone is off for the session (refused, missing, "can't play now"), the show was its tapping version.
+                    <UnitComplete teacher={teacher} unit={unit} milestone={milestone} tc={tc} played={!state.micOff} />
                   ) : (
                     <div className={styles.says} data-teacher-says="">
                       <TeacherLine teacher={teacher} size={3}>
@@ -440,7 +446,7 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                           {isMobile ? 'Skip' : 'Skip for now'}
                         </Button>
                         <Button variant="primary" size="lg" iconRight="ArrowUpRight" className={styles.primary} onClick={openTask} disabled={taskTarget.checking} data-action="open-task" wrap>
-                          {`Open ${tool?.name.replace(/^the /, 'the ') ?? 'the tool'}`}
+                          {`Open ${tool?.name ?? 'the tool'}`}
                         </Button>
                       </>
                     ) : (

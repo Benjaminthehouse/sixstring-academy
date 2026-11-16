@@ -9,7 +9,7 @@ import { teacherById } from '@/app/teachers';
 import { RichText } from '@/lessons/ui';
 import { speakable } from '@/lessons';
 import { Button, Celebration, Heading, Icon, LinkButton, Text, cx, usePrefersReducedMotion } from '@/ui';
-import { playerParams, type Milestone, type TeacherCourse, type TeacherKey, type TeacherUnit } from '@/content/teachers';
+import { PROFILES, playerParams, type Milestone, type TeacherCourse, type TeacherKey, type TeacherUnit } from '@/content/teachers';
 import { Portrait } from '../Portrait';
 import { SpeakButton } from '../Speak';
 import styles from './Lesson.module.css';
@@ -20,11 +20,17 @@ export interface UnitCompleteProps {
   unit: TeacherUnit;
   milestone: Milestone;
   tc: TeacherCourse;
+  /**
+   * False when the performance was answered by its tapping version (no microphone): the unit is
+   * still done, but nobody says the learner played the piece.
+   */
+  played: boolean;
 }
 
 /** The unit's celebration, above the lesson summary. */
-export function UnitComplete({ teacher, unit, milestone, tc }: UnitCompleteProps) {
+export function UnitComplete({ teacher, unit, milestone, tc, played }: UnitCompleteProps) {
   const card = teacherById(teacher);
+  const words = played ? milestone.celebrate : PROFILES[teacher].tappedShow.replace('{piece}', milestone.piece);
   const reduced = usePrefersReducedMotion();
   const [fire, setFire] = useState(false);
   useEffect(() => {
@@ -50,15 +56,17 @@ export function UnitComplete({ teacher, unit, milestone, tc }: UnitCompleteProps
       <Heading level={2} size="3xl" display id="unit-done-title" className={styles.unitTitle}>
         {unit.title}
       </Heading>
-      <Text tone="muted">{`You performed ${milestone.piece}, start to finish.`}</Text>
+      <Text tone="muted" data-played={played ? 'mic' : 'tapped'}>
+        {played ? `You performed ${milestone.piece}, start to finish.` : `You know ${milestone.piece} from start to finish.`}
+      </Text>
 
       <figure className={styles.celebrate}>
         <blockquote>
-          <RichText text={milestone.celebrate} as="p" />
+          <RichText text={words} as="p" />
         </blockquote>
         <figcaption>
           <span>{card.name}</span>
-          <SpeakButton teacher={teacher} text={speakable(milestone.celebrate)} />
+          <SpeakButton teacher={teacher} text={speakable(words)} />
         </figcaption>
       </figure>
 

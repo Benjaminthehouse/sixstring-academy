@@ -5,12 +5,12 @@ import { chroma, scaleNotes as theoryScaleNotes, chordPcs } from '@/core/theory'
 import { boardEdgeY, fretX, poseFromWireTaps, projectMarker, projectPlanePoint, stringY, type FretboardPose, type TrackerUpdate } from '@/core/vision';
 import { DEFAULT_CONTENT, cameraParams, parseCameraParams, sanitizeContent, type CameraContent } from './address';
 import { DEFAULT_WIRES, fretChoices, stickerPrompt, tapSteps, tooClose, validPair, wireTaps } from './calibrate';
-import { MAX_FRET, boardRange, chordNotes, chordTitle, matchHeard, noteLabel, scaleNotes, scaleTitle, toFretMarkers, toOverlay } from './content';
+import { MAX_FRET, boardRange, chordNotes, chordTitle, joinChord, matchHeard, noteLabel, scaleNotes, scaleTitle, splitChord, toFretMarkers, toOverlay } from './content';
 import { answers, drillCandidates, drillNote, nextTarget } from './drill';
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor } from './guitar';
 import { FAR_FROM_WIRE, frettingHand, handAdvice, readFingers } from './hands';
 import { describeStep, songPlan, stepHeard, stepIndexAt, stepNotes } from './song';
-import { GHOST_MS, STARTING_STATUS, announcement, describeStatus, sameStatus } from './status';
+import { GHOST_MS, SOLID_CONFIDENCE, STARTING_STATUS, announcement, describeStatus, sameStatus } from './status';
 
 const SETUP = { tuning: STANDARD_TUNING, capo: 0 };
 
@@ -157,6 +157,15 @@ describe('content', () => {
     expect(matchHeard(notes, 58)).toEqual([]);
   });
 
+  it('splits and joins chord symbols for the root and type pickers', () => {
+    expect(splitChord('Am7')).toEqual({ root: 'A', type: 'm7' });
+    expect(splitChord('G')).toEqual({ root: 'G', type: 'major' });
+    expect(splitChord('C#m')).toEqual({ root: 'C#', type: 'minor' });
+    expect(splitChord('Bb7')).toEqual({ root: 'Bb', type: '7' });
+    expect(splitChord('C/E')).toEqual({ root: 'C', type: 'major' });
+    for (const s of ['Am7', 'G', 'C#m', 'Bb7', 'Fmaj7', 'Dsus4', 'Em7b5']) expect(joinChord(splitChord(s).root, splitChord(s).type)).toBe(s);
+  });
+
   it('caps the shapes at a reachable fret', () => {
     expect(MAX_FRET).toBeGreaterThanOrEqual(12);
   });
@@ -200,6 +209,9 @@ describe('drill', () => {
     expect(answers(t, 60, true)).toBe(true);
     expect(answers(t, 49, true)).toBe(false);
     expect(drillNote(t)).toMatchObject({ string: 5, fret: 3, target: true });
+    // Drawn in the strongest colour, labelled with its name.
+    expect(toOverlay([drillNote(t)], 0, 'note')[0]).toMatchObject({ string: 5, fret: 3, degree: 1, label: 'C', target: true });
+    expect(toFretMarkers([drillNote(t)], 'note')[0]).toMatchObject({ color: 'deg-1', state: 'target', noteLabel: true });
   });
 });
 
@@ -404,6 +416,12 @@ describe('status', () => {
     const s = describeStatus(update({ state: 'locked', confidence: 0.92, guidance: guidance('ok', 'auto'), numberingConfirmed: true }));
     expect(s).toMatchObject({ state: 'locked', word: 'Locked', tone: 'ok', bars: 5, message: '', notes: 'solid', offers: [] });
     expect(announcement(s)).toBe('Locked: the notes are on your frets.');
+  });
+
+  it('a locked board the tracker is no longer sure of draws outlines only', () => {
+    const s = describeStatus(update({ state: 'locked', confidence: 0.4, guidance: guidance('ok', 'auto'), numberingConfirmed: true }));
+    expect(s.notes).toBe('ghost');
+    expect(describeStatus(update({ state: 'locked', confidence: SOLID_CONFIDENCE, guidance: guidance('ok', 'auto'), numberingConfirmed: true })).notes).toBe('solid');
   });
 
   it('locked outside the limits still draws, and coaches', () => {

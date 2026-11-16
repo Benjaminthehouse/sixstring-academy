@@ -5,7 +5,7 @@
  * `toOverlay` moves them onto the wood for the camera, the drawn neck takes the capo itself.
  */
 import { chordVoicings, degreeNumber, scalePatterns, scalePositions, type ScalePattern, type Tuning, type Voicing } from '@/core/guitar';
-import { formatChord, formatDegree, formatNote, getScale, parseChord, pcName } from '@/core/theory';
+import { CHORD_TYPES, formatChord, formatDegree, formatNote, getScale, parseChord, pcName } from '@/core/theory';
 import type { OverlayNote } from '@/core/vision';
 import type { FretMarker } from '@/ui/music';
 import type { ChordContent, ScaleContent } from './address';
@@ -140,7 +140,8 @@ export function toOverlay(notes: readonly ShowNote[], capo: number, mode: LabelM
     string: n.string,
     fret: n.fret + capo,
     label: noteLabel(n, mode, naming),
-    degree: n.degree ? degreeNumber(n.degree) : 0,
+    // A note to play now without a degree (the drill, a song in no key) takes the strongest colour.
+    degree: n.degree ? degreeNumber(n.degree) : n.target ? 1 : 0,
     target: n.target,
     // An open string behind a capo is played from the capo: an outline, like an open string at the nut.
     ghost: n.ghost || (capo > 0 && n.fret === 0),
@@ -150,7 +151,7 @@ export function toOverlay(notes: readonly ShowNote[], capo: number, mode: LabelM
 /** Markers for the drawn neck (`<Fretboard capo>` counts frets from the capo itself). */
 export function toFretMarkers(notes: readonly ShowNote[], mode: LabelMode, naming: Naming = 'letters'): FretMarker[] {
   return notes.map((n) => {
-    const d = n.degree ? degreeNumber(n.degree) : 0;
+    const d = n.degree ? degreeNumber(n.degree) : n.target ? 1 : 0;
     const marker: FretMarker = {
       id: `${n.string}:${n.fret}:${n.ghost ? 'g' : n.target ? 't' : 'n'}`,
       string: n.string,
@@ -188,4 +189,19 @@ export function boardRange(notes: readonly ShowNote[], capo: number): [number, n
 export function matchHeard(notes: readonly ShowNote[], midi: number): ShowNote[] {
   const hits = notes.filter((n) => n.midi === midi && !n.ghost);
   return hits.sort((a, b) => Number(!!b.target) - Number(!!a.target));
+}
+
+/** Split a chord symbol into its root and the catalog type id ('Am7' -> A, m7; a slash bass is dropped). */
+export function splitChord(symbol: string): { root: string; type: string } {
+  const m = /^([A-G](?:#|b)?)(.*)$/.exec(symbol);
+  const root = m?.[1] ?? 'C';
+  const suffix = (m?.[2] ?? '').split('/')[0];
+  const type = CHORD_TYPES.find((t) => t.symbol === suffix)?.id ?? parseChord(`${root}${suffix}`)?.type.id ?? 'major';
+  return { root, type };
+}
+
+/** The chord symbol for a root and a catalog type id ('A', 'm7' -> 'Am7'). */
+export function joinChord(root: string, type: string): string {
+  const t = CHORD_TYPES.find((x) => x.id === type);
+  return `${root}${t ? t.symbol : ''}`;
 }

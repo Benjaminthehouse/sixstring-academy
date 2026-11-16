@@ -67,7 +67,7 @@ export function RoundFrame({ title, progress, score, combo, timer, onEnd, prompt
 
       <div className={styles.prompt}>{prompt}</div>
 
-      <div className={styles.stage}>
+      <div className={styles.stage} data-arcade-stage>
         {board}
         <div ref={fx.layerRef} className={fxLayerClass} />
       </div>
@@ -76,7 +76,11 @@ export function RoundFrame({ title, progress, score, combo, timer, onEnd, prompt
         {status}
       </div>
 
-      {controls && <div className={styles.controls}>{controls}</div>}
+      {controls && (
+        <div className={styles.controls} data-arcade-controls>
+          {controls}
+        </div>
+      )}
 
       {keys && keys.length > 0 && (
         <div className={styles.keysHint} aria-hidden="true">

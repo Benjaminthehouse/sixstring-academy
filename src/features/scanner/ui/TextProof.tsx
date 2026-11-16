@@ -4,7 +4,7 @@
  * sheet out again from the picture when the OCR struggled.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Banner, Button, Icon, Page, SegmentedControl, Spinner, Text, TextArea, TextField, cx, toast, useDebouncedCallback, useMediaQuery } from '@/ui';
+import { Badge, Banner, Button, Icon, Page, SegmentedControl, Spinner, Text, TextArea, TextField, confirmDialog, cx, toast, useDebouncedCallback, useMediaQuery } from '@/ui';
 import { TabView } from '@/ui/music';
 import { href } from '@/app/router';
 import { AI_SETTINGS_PARAMS } from '@/core/settings';
@@ -21,7 +21,7 @@ export function TextProof({ scan }: { scan: ScanState }) {
   const twoPane = useMediaQuery('(min-width: 1000px)');
   const [pane, setPane] = useState<'text' | 'song' | 'picture'>('song');
   const [value, setValue] = useState(t.text);
-  const [title, setTitle] = useState(t.reading?.result.song.meta.title ?? '');
+  const [title, setTitle] = useState((t.reading?.result.song.meta.title ?? '').replace(/\s+/g, ' ').trim());
   const [saving, setSaving] = useState(false);
   const [ai, setAi] = useState<AiAvailability | null>(null);
   const [aiMsg, setAiMsg] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function TextProof({ scan }: { scan: ScanState }) {
 
   useEffect(() => setValue(t.text), [t.text]);
   useEffect(() => {
-    if (!title && t.reading?.result.song.meta.title) setTitle(t.reading.result.song.meta.title);
+    if (!title && t.reading?.result.song.meta.title) setTitle(t.reading.result.song.meta.title.replace(/\s+/g, ' ').trim());
     // Only when a reading first arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.reading]);
@@ -68,6 +68,12 @@ export function TextProof({ scan }: { scan: ScanState }) {
 
   const runAi = async () => {
     setAiMsg(null);
+    const go = await confirmDialog({
+      title: 'Ask the AI helper to type it out?',
+      description: `It sends ${pictures.length === 1 ? 'your picture' : `your ${pictures.length} pictures`} to Claude${ai?.provider === 'anthropic' ? ' with your own key' : ''} and puts its typed copy here for you to check. Nothing else is sent.`,
+      confirmLabel: 'Send the picture',
+    });
+    if (!go) return;
     const r = await scan.improveWithAi();
     setAiMsg(r.message);
   };
@@ -98,7 +104,7 @@ export function TextProof({ scan }: { scan: ScanState }) {
         data-scan-text=""
       />
       <Text size="sm" tone="muted">
-        Fix any misread chord or fret here; the song on the right follows as you type.
+        Fix any misread chord or fret here; the song follows as you type.
       </Text>
     </div>
   );

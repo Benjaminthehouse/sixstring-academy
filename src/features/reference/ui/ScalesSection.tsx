@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { SCALE_FAMILIES, noteToMidi, scaleNotes } from '@/core/theory';
 import { ChipGroup, Section, Select, Text, useLocalState } from '@/ui';
+import { prettyName } from '../model/names';
 import { SCALE_ROOTS, displayAliases, scaleGroups, type ScaleRow } from '../model/scales';
 import { PlayIcon } from './IntervalsSection';
 import type { SectionProps } from './SectionBody';
@@ -34,7 +35,7 @@ export function ScalesSection({ item, level, fmt, sounder }: SectionProps) {
         <ChipGroup aria-label="Scale family" options={[{ value: 'all', label: 'All' }, ...SCALE_FAMILIES.map((f) => ({ value: f.id, label: f.name.replace(' modes', '') }))]} value={family} onChange={setFamily} className={styles.grow} />
       </div>
       <Text variant="caption" tone="muted">
-        A formula counts each note against the major scale on the same root; the steps are W (whole step, 2 frets), H (half step, 1 fret) and larger gaps such as WH (3 frets).
+        A formula counts each note against the major scale on the same root. Steps: H is a half step (1 fret), W a whole step (2 frets), WH a step and a half (3 frets) and 2W two whole steps (4 frets).
       </Text>
       {visible.map((g) => (
         <Section key={g.id} level={level} title={g.title} description={g.blurb}>
@@ -56,12 +57,13 @@ function ScaleItem({ row, fmt, sounder }: { row: ScaleRow; fmt: SectionProps['fm
       const notes = scaleNotes(`${row.tonic}3`, row.id, { closed: true });
       return playLine(notes.map((n) => noteToMidi(n)), 0.26);
     });
-  const aka = displayAliases(row.name, row.aliases);
+  const aka = displayAliases(row.name, row.aliases).map(prettyName);
+  const name = prettyName(row.name);
   return (
     <li className={styles.scRow} data-ref-item={row.id}>
       <div className={styles.scMain}>
         <a className={styles.scName} href={href('scales', ...row.scalePage)}>
-          {row.name}
+          {name}
         </a>
         {aka.length > 0 && <span className={styles.scAka}>also {aka.join(', ')}</span>}
       </div>
@@ -75,7 +77,7 @@ function ScaleItem({ row, fmt, sounder }: { row: ScaleRow; fmt: SectionProps['fm
       <span className={styles.scSteps}>{row.steps.join(' ')}</span>
       <span className={styles.chNotes}>{fmt.notes(row.notes)}</span>
       <span className={styles.scPlay}>
-        <PlayIcon playing={sounder.playing === id} label={`Play ${fmt.note(row.tonic)} ${row.name}`} onClick={play} />
+        <PlayIcon playing={sounder.playing === id} label={`Play ${fmt.note(row.tonic)} ${name}`} onClick={play} />
       </span>
     </li>
   );

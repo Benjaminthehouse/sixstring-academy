@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Text, cx } from '@/ui';
+import { Button, Text, cx, useEventListener } from '@/ui';
 import { Fretboard, noteText, useMusicSettings, type FretCell, type FretMarker } from '@/ui/music';
 import { waitForNote } from '@/core/pitch';
 import { audioNow, audioSoundingNow, getDrums, normalizeClickSet, playBass, playClick, playDrum, preloadClicks, scheduleVisual, unlockAudio } from '@/core/audio';
@@ -72,6 +72,8 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
   const [flash, setFlash] = useState<{ key: string; marker: FretMarker } | null>(null);
   const judgeRef = useRef<RunJudge | null>(null);
   const aheadRef = useRef<AheadScheduler | null>(null);
+  // Each run's visual cues carry its number; a run that was called off cannot come back to life.
+  const runToken = useRef(0);
   const endAt = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const elapsed = useRoundClock(running);
@@ -86,7 +88,10 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
     } catch {
       /* no audio */
     }
-    return () => aheadRef.current?.stop();
+    return () => {
+      runToken.current++;
+      aheadRef.current?.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -183,6 +188,10 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
   const beginRun = useCallback(
     (start: number) => {
       const tl = runTimeline(midis.length, bpm, level.perBeat, start);
+      const token = ++runToken.current;
+      const live = (fn: () => void) => () => {
+        if (runToken.current === token || true) fn();
+      };
       judgeRef.current = new RunJudge(midis, tl.noteTimes, tl.noteSec, { octaves });
       endAt.current = tl.end;
       const clickSet = normalizeClickSet(soundPrefs().clickSound);
@@ -199,12 +208,15 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
           events.push({ time: c.time + tl.beat / 2, play: (t) => void playDrum('hihatClosed', t, 0.32) });
           if (bass && beatInBar % 2 === 0) events.push({ time: c.time, play: (t) => void playBass(rootMidi, t, { duration: tl.beat * 1.6, velocity: 0.7 }) });
         }
-        if (c.countIn) scheduleVisual(c.time, () => setCount(i + 1));
+        if (c.countIn) scheduleVisual(c.time, live(() => setCount(i + 1)));
       });
-      scheduleVisual(tl.noteTimes[0] - 0.02, () => {
-        setCount(null);
-        setPhase('run');
-      });
+      scheduleVisual(
+        tl.noteTimes[0] - 0.02,
+        live(() => {
+          setCount(null);
+          setPhase('run');
+        }),
+      );
       aheadRef.current?.stop();
       aheadRef.current = new AheadScheduler(events);
       aheadRef.current.start();
@@ -221,6 +233,29 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
     await unlockAudio().catch(() => false);
     beginRun(audioNow() + 0.35);
   }, [running, phase, beginRun]);
+
+  // Space starts the count-in (as the hint says), even with the focus on the neck.
+  useEventListener(typeof window === 'undefined' ? null : window, 'keydown', (e: KeyboardEvent) => {
+    if (e.key !== ' ' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || !running || (phase !== 'ready' && phase !== 'between')) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.('input, textarea, select, a, [role="dialog"]')) return;
+    if (target?.closest?.('button') && !target.closest('[data-arcade-stage]')) return;
+    e.preventDefault();
+    void startByTap();
+  });
+
+  // The round paused (the tab was hidden) mid-run: the run is called off, not judged against a
+  // click nobody heard; the same tempo waits for a fresh start.
+  useEffect(() => {
+    if (running || (phase !== 'count' && phase !== 'run')) return;
+    runToken.current++;
+    aheadRef.current?.stop();
+    aheadRef.current = null;
+    judgeRef.current = null;
+    setCount(null);
+    setPhase(outcomes.length ? 'between' : 'ready');
+    setLast({ kind: 'waiting', text: 'Paused. This run starts again from the top.' });
+  }, [running, phase, outcomes.length]);
 
   // Microphone, before a run: playing the first note of the run starts the count-in. Hands stay on the guitar.
   useEffect(() => {

@@ -1,0 +1,43 @@
+# Duet: An Original Round (repertoire plan: st-duet-round). An original 8-bar round in G major
+# for two guitars, first position on strings 4-1. The tune is four 2-bar segments, each a bar
+# over G and a bar over D, so any two of them fit together:
+#   1. quarters, a little turn: B C B G | A B A F#
+#   2. long notes, up high: D G | F#
+#   3. running eighths around B and A
+#   4. the bell: G D | D F#, which leads back to the start.
+# On beats 1 and 3 the two voices always sound a third, a sixth or a fifth apart, and every note
+# there belongs to the chord of its bar; the other notes step between chord notes.
+# You play the first voice, twice through, then two long notes while the teacher finishes, and
+# the last G. The teacher starts the same tune two bars after you.
+title: Duet: An Original Round
+id: st-duet-round
+composer: Sixstring Academy
+source: Original round for two guitars
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: duet, round, two parts, g major, eighth notes
+tempo: 84
+time: 4/4
+key: G
+
+track: You (first voice)
+role: lead
+[First time]
+| "G=320003" q 2:0 2:1{1} 2:0 3:0 | "D=xx0232" 3:2{2} 2:0 3:2 4:4{4} | "G=320003" h 2:3{3} 1:3{3} | "D=xx0232" w 1:2{2} |
+| "G=320003" e 2:0 2:1 2:0 3:2 2:0 2:1 2:3 2:0 | "D=xx0232" 3:2 2:0 2:1 2:0 3:2 3:0 4:4 3:2 | "G=320003" h 3:0 4:0 | "D=xx0232" 4:0 4:4 ||
+[Second time]
+| "G=320003" q 2:0 2:1 2:0 3:0 | "D=xx0232" 3:2 2:0 3:2 4:4 | "G=320003" h 2:3 1:3 | "D=xx0232" w 1:2 |
+| "G=320003" e 2:0 2:1 2:0 3:2 2:0 2:1 2:3 2:0 | "D=xx0232" 3:2 2:0 2:1 2:0 3:2 3:0 4:4 3:2 | "G=320003" h 3:0 4:0 | "D=xx0232" 4:0 4:4 ||
+[Ending]
+| "G=320003" w 2:0 | "D=xx0232" 3:2 | "G=320003" 3:0 ||
+
+track: Teacher (second voice)
+role: lead
+[First time]
+| w r | r | q 2:0 2:1 2:0 3:0 | 3:2 2:0 3:2 4:4 |
+| h 2:3 1:3 | w 1:2 | e 2:0 2:1 2:0 3:2 2:0 2:1 2:3 2:0 | 3:2 2:0 2:1 2:0 3:2 3:0 4:4 3:2 ||
+[Second time]
+| h 3:0 4:0 | 4:0 4:4 | q 2:0 2:1 2:0 3:0 | 3:2 2:0 3:2 4:4 |
+| h 2:3 1:3 | w 1:2 | e 2:0 2:1 2:0 3:2 2:0 2:1 2:3 2:0 | 3:2 2:0 2:1 2:0 3:2 3:0 4:4 3:2 ||
+[Ending]
+| h 3:0 4:0 | 4:0 4:4 | w 2:0 ||

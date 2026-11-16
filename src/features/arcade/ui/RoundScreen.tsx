@@ -11,7 +11,7 @@ import { patternOf, scaleTitle, shapesFor, shapeTitle, type Focus } from '../cor
 import { levelsOf, scopeOf, type GameDef } from '../core/games';
 import { applyRound, isUnlocked, levelRecord, type RoundChange } from '../core/records';
 import { freshSeed } from '../core/rng';
-import { gameParams, roundTitle, skillIdFor } from '../core/skill';
+import { gameParams, roundTitle, scopeLabel, skillIdFor } from '../core/skill';
 import { getRecords, updateRecords, useRecords } from './store';
 import { markMicBlockedShown, micBlockedShown, useArcadeMic } from './useArcadeMic';
 import { useFx } from './fx';
@@ -99,10 +99,13 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
   const [attempt, setAttempt] = useState(0);
   const [input, setInput] = useState<'tap' | 'mic'>(() => (game.mic ? records.input : 'tap'));
   const [blocked, setBlocked] = useState<MediaFailure | null>(null);
-  const [quietFallback, setQuietFallback] = useState(false);
+  // Why a round meant for the guitar is played by tapping: no microphone here, or it stopped mid-round.
+  const [fallback, setFallback] = useState<'none' | 'lost' | null>(null);
   const [count, setCount] = useState(3);
   const [outcome, setOutcome] = useState<RoundOutcome | null>(null);
   const [starting, setStarting] = useState(false);
+  // The tab went to the background mid-round: the round stands still and counts in again on return.
+  const [away, setAway] = useState(false);
   const mic = useArcadeMic();
   const fx = useFx();
   const reduced = usePrefersReducedMotion();
@@ -110,13 +113,58 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
   const inRound = phase === 'count' || phase === 'play';
   // The round hides the navigation (all of it on a phone held sideways); the summary brings it back.
   useImmersive(true, phase === 'summary' ? 'none' : shortLandscape && inRound ? 'bare' : 'focus');
-  useWakeLock(inRound);
+  useWakeLock(inRound && !away);
   const title = `${game.title} · Level ${info.n}`;
   useScreenTitle(`${game.title}: ${info.title}`);
   const startedRef = useRef(false);
+  const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (phase === 'summary' || phase === 'count') window.scrollTo({ top: 0 });
+  }, [phase]);
+
+  // Leaving the tab pauses the round (games stop their clocks and listening while `running` is
+  // false); coming back counts 3-2-1 again, so nobody loses time to a phone call.
+  useEventListener(typeof document === 'undefined' ? null : document, 'visibilitychange', () => {
+    if (document.hidden) {
+      if (phase === 'count' || phase === 'play') setAway(true);
+    } else if (away) {
+      setAway(false);
+      setPhase((p) => (p === 'play' ? 'count' : p));
+    }
+  });
+
+  // The microphone died mid-round (unplugged, taken by another app): finish the round by tapping.
+  useEffect(() => {
+    if (input !== 'mic' || !inRound || mic.status !== 'failed') return;
+    setInput('tap');
+    setFallback('lost');
+  }, [input, inRound, mic.status]);
+
+  // While the ready card is up, the board behind it is out of reach (no stray Tab stops under it);
+  // the card itself takes the focus so Enter starts and Tab reaches its controls.
+  useEffect(() => {
+    const shell = shellRef.current;
+    const round = shell?.querySelector('[data-arcade-round]');
+    round?.toggleAttribute('inert', phase === 'ready');
+    if (phase !== 'ready' || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    shell?.querySelector<HTMLElement>('[data-arcade-ready]')?.focus({ preventScroll: true });
+  }, [phase, blocked, seed, attempt]);
+
+  // Once it starts, focus goes to the board (or the round's first control), where the arrow keys,
+  // Enter and the number keys work; it is never left on the page body.
+  useEffect(() => {
+    if (phase !== 'count') return;
+    const shell = shellRef.current;
+    const round = shell?.querySelector('[data-arcade-round]');
+    const active = document.activeElement;
+    if (!round || (active && active !== document.body && !shell?.contains(active)) || (active && round.contains(active))) return;
+    const target =
+      round.querySelector<HTMLElement>('[data-arcade-autofocus]:not([disabled])') ??
+      round.querySelector<HTMLElement>('[data-arcade-stage] button[tabindex="0"]:not([disabled])') ??
+      round.querySelector<HTMLElement>('[data-arcade-stage] button:not([disabled])') ??
+      round.querySelector<HTMLElement>('[data-arcade-controls] button:not([disabled])');
+    target?.focus({ preventScroll: true });
   }, [phase]);
 
   // The countdown: 3, 2, 1 with ticks, then go.
@@ -150,30 +198,33 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
     [mic],
   );
 
-  const start = useCallback(async () => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    setStarting(true);
-    await unlockAudio().catch(() => false);
-    if (input === 'mic') {
-      const failure = await mic.start();
-      if (failure) {
-        startedRef.current = false;
-        setStarting(false);
-        // The panel explains it once a visit; after that the game quietly plays by taps.
-        if (!micBlockedShown()) {
-          markMicBlockedShown();
-          setBlocked(failure);
-          return;
+  const start = useCallback(
+    async (mode: 'tap' | 'mic' = input) => {
+      if (startedRef.current) return;
+      startedRef.current = true;
+      setStarting(true);
+      await unlockAudio().catch(() => false);
+      if (mode === 'mic') {
+        const failure = await mic.start();
+        if (failure) {
+          startedRef.current = false;
+          setStarting(false);
+          // The panel explains it once a visit; after that the game quietly plays by taps.
+          if (!micBlockedShown()) {
+            markMicBlockedShown();
+            setBlocked(failure);
+            return;
+          }
+          setInput('tap');
+          setFallback('none');
+          startedRef.current = true;
         }
-        setInput('tap');
-        setQuietFallback(true);
-        startedRef.current = true;
       }
-    }
-    setStarting(false);
-    setPhase('count');
-  }, [input, mic]);
+      setStarting(false);
+      setPhase('count');
+    },
+    [input, mic],
+  );
 
   const finish = useCallback(
     (result: RoundResult) => {
@@ -184,7 +235,7 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
         activity = recordActivity({
           kind: 'scale-game',
           id: skillIdFor(game.id, shapeFocus, info.n),
-          title: roundTitle(game, scaleName, game.id === 'mode-match' ? null : pattern.name),
+          title: roundTitle(game, scaleName, pattern.name),
           accuracy: result.accuracy,
           score: result.score,
           stars: result.stars,
@@ -236,7 +287,7 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
 
   if (phase === 'summary' && outcome) {
     return (
-      <Page title={`${game.title}: ${info.title}`} eyebrow={`Level ${info.n} of ${levels.length} · ${scaleName}`} back={{ to: 'arcade', params: gameParams(game.id, focus), label: game.title }}>
+      <Page title={`${game.title}: ${info.title}`} eyebrow={`Level ${info.n} of ${levels.length} · ${scopeLabel(game.id, scaleName)}`} back={{ to: 'arcade', params: gameParams(game.id, focus), label: game.title }}>
         <Summary game={game} focus={focus} level={info.n} levels={levels} outcome={outcome} onAgain={again} />
       </Page>
     );
@@ -248,13 +299,13 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
 
   return (
     <Page title={`${game.title}: ${info.title}`} hideHeader width="full" className={styles.roundPage}>
-      <div className={cx(styles.roundShell, phase === 'ready' && styles.roundShellDim)} data-arcade-phase={phase} data-arcade-input={input}>
-        {quietFallback && phase !== 'ready' && (
-          <Banner tone="info" icon="Hand" className={styles.fallbackBanner}>
-            No microphone here, so this round is played by tapping.
+      <div ref={shellRef} className={cx(styles.roundShell, phase === 'ready' && styles.roundShellDim)} data-arcade-phase={phase} data-arcade-input={input} data-arcade-away={away || undefined}>
+        {fallback && phase !== 'ready' && (
+          <Banner tone="info" icon="Hand" className={styles.fallbackBanner} live={fallback === 'lost'}>
+            {fallback === 'lost' ? 'The microphone stopped, so the rest of this round is played by tapping.' : 'No microphone here, so this round is played by tapping.'}
           </Banner>
         )}
-        <Game key={`${seed}:${attempt}`} ctx={ctx} input={input} mic={mic} anyOctave={records.anyOctave} running={phase === 'play'} fx={fx} title={title} onFinish={finish} onEnd={onExit} />
+        <Game key={`${seed}:${attempt}`} ctx={ctx} input={input} mic={mic} anyOctave={records.anyOctave} running={phase === 'play' && !away} fx={fx} title={title} onFinish={finish} onEnd={onExit} />
         {phase === 'count' && (
           <div className={styles.countOverlay} aria-live="assertive" data-arcade-countdown>
             <span className={styles.countBig} key={count}>
@@ -264,7 +315,7 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
         )}
         {phase === 'ready' && (
           <div className={styles.readyOverlay}>
-            <section className={styles.readyCard} aria-labelledby="arcade-ready-title" data-arcade-ready>
+            <section className={styles.readyCard} aria-labelledby={blocked ? undefined : 'arcade-ready-title'} aria-label={blocked ? 'Microphone' : undefined} tabIndex={-1} data-arcade-ready>
               {blocked ? (
                 <MediaBlocked
                   reason={blocked}
@@ -272,12 +323,14 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
                   level={2}
                   onRetry={() => {
                     setBlocked(null);
-                    void start();
+                    void start('mic');
                   }}
                   onContinueWithout={() => {
+                    // The learner asked to play by tapping: start straight away, no second Start.
                     chooseInput('tap');
                     setBlocked(null);
                     startedRef.current = false;
+                    void start('tap');
                   }}
                   continueLabel="Tap the notes instead"
                 />
@@ -337,7 +390,7 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
                     <Button variant="ghost" onClick={onExit}>
                       Not now
                     </Button>
-                    <Button variant="primary" size="lg" iconLeft={input === 'mic' ? 'Mic' : 'Play'} onClick={() => void start()} loading={starting} aria-keyshortcuts="Enter" data-arcade-go>
+                    <Button variant="primary" size="lg" iconLeft={input === 'mic' ? 'Mic' : 'Play'} onClick={() => void start(input)} loading={starting} aria-keyshortcuts="Enter" data-arcade-go>
                       {input === 'mic' ? 'Start listening' : 'Start'}
                     </Button>
                   </div>

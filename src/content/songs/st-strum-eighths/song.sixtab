@@ -1,0 +1,38 @@
+# Strumming: Down-Up Eighths (repertoire plan: st-strum-eighths). Your part: Em (022000) for
+# 2 bars, D (xx0232; strum strings 4 to 1 only) for 2, four times: 16 bars of eighth notes, down
+# on 1 2 3 4 and up on every "and". The hand never stops: it moves down and up all the time,
+# and only the direction tells you where the beat is. Bars 9-16: accent beats 2 and 4 (a little
+# harder down-strum on "two" and "four"). The last bar ends on a held D on beat 3.
+# The teacher plays an original tune over the chords (E minor, without C or C#). Its notes on
+# beats 1 and 3 are always notes of the chord in force. It ends on D over the D chord, an open
+# ending that leads straight back to bar 1 when you loop the study.
+title: Strumming: Down-Up Eighths
+id: st-strum-eighths
+composer: Sixstring Academy
+source: Original strumming study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 2
+tags: strumming, eighth notes, down-up, accents, backbeat
+tempo: 70
+time: 4/4
+key: Em
+
+track: Your strum
+role: rhythm
+[Even eighths]
+strum: DUDUDUDU
+| ^"Down on the beat, up on the and" "Em=022000" e D U D U D U D U | D U D U D U D U | "D=xx0232" D U D U D U D U | D U D U D U D U |
+| "Em=022000" D U D U D U D U | D U D U D U D U | "D=xx0232" D U D U D U D U | D U D U D U D U |
+[Accents on 2 and 4]
+strum: DUDUDUDU
+| ^"Accent beats 2 and 4" "Em=022000" D U D U D U D U | D U D U D U D U | "D=xx0232" D U D U D U D U | D U D U D U D U |
+| "Em=022000" D U D U D U D U | D U D U D U D U | "D=xx0232" D U D U D U D U | D U D U h D ||
+
+track: Teacher
+role: lead
+[Even eighths]
+| q 1:0 2:0 3:0 2:0 | q 1:0 1:2 h 1:3 | q 1:2 1:0 2:3 3:2 | h 3:2 q 2:3 1:0 |
+| h 1:3 q 1:0 2:0 | q 3:0 3:2 2:0 1:0 | q 1:2 2:3 3:2 2:3 | h 2:3 3:2 |
+[Accents on 2 and 4]
+| q 2:0 1:0 2:0 3:0 | q 1:0 2:3 h 2:0 | q 3:2 2:3 1:2 2:3 | q 1:2 1:3 h 3:2 |
+| q 1:3 1:2 1:0 2:0 | h 3:0 2:0 | q 3:2 2:3 1:2 1:0 | w 2:3 ||

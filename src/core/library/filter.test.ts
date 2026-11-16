@@ -4,7 +4,9 @@ import { activeFilterCount, filterSongs, normalizeText, searchScore, sortSongs }
 import { builtinListing } from './library';
 import type { SongListing } from './types';
 
-const BUILT_IN = SONG_ENTRIES.map(builtinListing);
+/** The five seed songs these expectations were written for: authors keep adding songs beside them. */
+const SEEDS = new Set(['hot-cross-buns', 'frere-jacques', 'st-blues-shuffle-a', 'st-pimami-3-4', 'greensleeves-fingerstyle']);
+const BUILT_IN = SONG_ENTRIES.filter((e) => SEEDS.has(e.id)).map(builtinListing);
 const ids = (list: SongListing[]) => list.map((s) => s.id);
 
 /** A learner's song as the library would list it. */

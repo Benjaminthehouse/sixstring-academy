@@ -145,6 +145,23 @@ export function isMineId(id: string): boolean {
 
 const NOT_FOUND = 'That song is not in your library any more. It may have been deleted.';
 
+/** Messages of the song core's XML reader: true, but not words for a learner. */
+const XML_SYNTAX = /^(Unclosed|Mismatched XML|A start tag without|The text has no XML)/;
+
+/**
+ * An importer's refusal in words for the learner. The importers mostly write plain sentences, but a
+ * damaged MusicXML file reports the XML reader's own words ("Unclosed start tag."), and the Guitar
+ * Pro reader adds alphaTab's reason in brackets: those go to `detail`, not on screen.
+ */
+export function importProblem(text: string): { code: 'unsupported' | 'unreadable'; message: string; detail?: string } {
+  if (XML_SYNTAX.test(text)) {
+    return { code: 'unreadable', message: 'This file is cut short or damaged, so it could not be read. Save or export it again from the program that made it, then try once more.', detail: text };
+  }
+  const bracket = /^(This file could not be read as [^(]+?) \((.+)\)\.$/.exec(text);
+  if (bracket) return { code: 'unsupported', message: `${bracket[1]}.`, detail: bracket[2] };
+  return { code: 'unsupported', message: text };
+}
+
 /** Create a library on a store. */
 export function createLibrary(opts: LibraryOptions = {}): Library {
   const now = opts.now ?? Date.now;
@@ -341,7 +358,10 @@ export function createLibrary(opts: LibraryOptions = {}): Library {
       return await run();
     } catch (e) {
       if (e instanceof LibraryError) throw e;
-      if (e instanceof RangeError) throw new LibraryError('unsupported', e.message);
+      if (e instanceof RangeError) {
+        const t = importProblem(e.message);
+        throw new LibraryError(t.code, t.message, t.detail);
+      }
       throw new LibraryError('unreadable', 'The file could not be read. It may be damaged, or saved by a program this app does not know.', e instanceof Error ? e.message : String(e));
     }
   }

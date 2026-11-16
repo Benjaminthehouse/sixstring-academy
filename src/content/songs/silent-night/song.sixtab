@@ -1,0 +1,70 @@
+# Silent Night, strum and sing (repertoire plan: silent-night). Gruber's carol of 1818 in G, so
+# every chord is a level-3 chord: G (320003), D7 (xx0212) and C (x32010).
+# 6/8 is two slow beats a bar, each split in three: count "ONE two three FOUR five six".
+# Tempo 75 quarters is a dotted quarter of 50.
+# Your part, first time through (verse 1 in John Freeman Young's English): one downstrum on 1 and
+# one on 4. Second time (verse 1 in Joseph Mohr's German): the thumb on the bass on 1 and 4, the
+# fingers on strings 3, 2 and 1 in between: p i m, p a m (G: string 6 then string 4; C: string 5
+# then string 4; D7: string 4 both times).
+# Harmony: G for "Silent night, holy night", D7 then G for "All is calm, all is bright", C then G
+# for each of the next two lines, D7 then G for "Sleep in heavenly peace", G, D7, G at the end.
+# The tune (second track) in first position, low G to the open B, with the note values of the
+# usual hymnal version (twice those of Gruber's own 6/8). "Si-", "ho-", "-ther", the first "peace"
+# and the second "Sleep" each take two notes.
+title: Silent Night
+id: silent-night
+composer: Franz Xaver Gruber; words by Joseph Mohr
+source: Carol of 1818; German words by Joseph Mohr, English words by John Freeman Young (1859); arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Gruber died in 1863, Mohr in 1848, Young in 1885); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: strumming, fingerpicking, 6/8, christmas, carol, lyrics
+tempo: 75
+time: 6/8
+key: G
+
+track: Your part
+role: rhythm
+[Strummed]
+| ^"Strum down on 1 and on 4" "G=320003" q. D D | D D | D D | D D |
+| "D7=xx0212" D D | D D | "G=320003" D D | D D |
+| "C=x32010" D D | D D | "G=320003" D D | D D |
+| "C=x32010" D D | D D | "G=320003" D D | D D |
+| "D7=xx0212" D D | D D | "G=320003" D D | D D |
+| D D | "D7=xx0212" D D | "G=320003" D D | D D ||
+[Fingerpicked]
+| ^"Thumb on 1 and 4: p i m, p a m" "G=320003" e 6:3{P} 3:0{I} 2:0{M} 4:0{P} 1:3{A} 2:0{M} | 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
+| "D7=xx0212" 4:0{P} 3:2{I} 2:1{M} 4:0{P} 1:2{A} 2:1{M} | 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
+| "C=x32010" 5:3{P} 3:0{I} 2:1{M} 4:2{P} 1:0{A} 2:1{M} | 5:3 3:0 2:1 4:2 1:0 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
+| "C=x32010" 5:3 3:0 2:1 4:2 1:0 2:1 | 5:3 3:0 2:1 4:2 1:0 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
+| "D7=xx0212" 4:0 3:2 2:1 4:0 1:2 2:1 | 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
+| 6:3 3:0 2:0 4:0 1:3 2:0 | "D7=xx0212" 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | h. (6:3 4:0 3:0 2:0 1:3) ||
+
+track: Tune
+role: lead
+[Strummed]
+| q. 4:0 e 4:2{2} q 4:0 | h. 5:2{2} | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: Si- _ lent night, ho- _ ly night,
+| h 3:2{2} q 3:2 | h. 4:4{4} | h 3:0 q 3:0 | h. 4:0 |
+lyrics: All is calm, all is bright,
+| h 4:2 q 4:2 | q. 3:0 e 4:4 q 4:2 | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: Round yon Vir- gin Mo- ther _ and Child,
+| h 4:2 q 4:2 | q. 3:0 e 4:4 q 4:2 | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: Ho- ly In- fant so ten- der and mild,
+| h 3:2 q 3:2 | q. 2:1{1} e 3:2 q 4:4 | h. 3:0 | h. 2:0 |
+lyrics: Sleep in heav- en- ly peace, _
+| q. 3:0 e 4:0 q 5:2 | q. 4:0 e 5:3{3} q 5:0 | h. 6:3{3} | h. 6:- ||
+lyrics: Sleep _ in heav- en- ly peace.
+[Fingerpicked]
+| q. 4:0 e 4:2 q 4:0 | h. 5:2 | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: Stil- _ le Nacht, hei- li- ge Nacht,
+| h 3:2 q 3:2 | h. 4:4 | h 3:0 q 3:0 | h. 4:0 |
+lyrics: Al- les schläft, ein- sam wacht
+| h 4:2 q 4:2 | q. 3:0 e 4:4 q 4:2 | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: nur das trau- te hoch- hei- li- ge Paar.
+| h 4:2 q 4:2 | q. 3:0 e 4:4 q 4:2 | q. 4:0 e 4:2 q 4:0 | h. 5:2 |
+lyrics: Hol- der Kna- be im lo- cki- gen Haar,
+| h 3:2 q 3:2 | q. 2:1 e 3:2 q 4:4 | h. 3:0 | h. 2:0 |
+lyrics: schlaf in himm- li- scher Ruh, _
+| q. 3:0 e 4:0 q 5:2 | q. 4:0 e 5:3 q 5:0 | h. 6:3 | h. 6:- ||
+lyrics: Schlaf _ in himm- li- scher Ruh.

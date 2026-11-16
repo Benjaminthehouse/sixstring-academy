@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Player (src/features/player). Run:
- *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,flow,reload,nomic,address,artifact,long,layouts]
+ *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,flow,reload,nomic,address,artifact,long,review,layouts]
  *
  * Real Chromium, real Web Audio, Chromium's fake microphone playing WAV files rendered by the
  * audio module (the app's own guitar synth).
@@ -36,6 +36,10 @@
  *           playing from bar 40 at 150 % the score scrolls by itself so the line being played and
  *           the next one stay in view, frames keep coming (the rate on this shared machine is
  *           reported; a real phone was not measured)
+ *  review   cases from an independent review: Stop is never drawn over the music (phone: it takes
+ *           the mode picker's row, with no jump; sideways: the top of the control column; desktop:
+ *           beside Play); the tempo popover on a touch screen does not focus a text field (no
+ *           on-screen keyboard over its slider); a very long title gives way to the mode picker
  *  layouts  phone upright (controls in the lower half), phone sideways (score above the
  *           fretboard, controls in a column on the right, one-line tab), tablet, desktop (side
  *           panel); light and dark; no sideways scroll; no console errors
@@ -771,6 +775,64 @@ async function long(browser, url) {
 // ---------------------------------------------------------------------------------------------
 // layouts: phone upright and sideways, tablet, desktop, both themes
 // ---------------------------------------------------------------------------------------------
+async function review(browser, url) {
+  const box = (page, sel) => page.evaluate((q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }, sel);
+  const inside = (a, b) => !!a && !!b && a.x >= b.x - 1 && a.y >= b.y - 1 && a.x + a.w <= b.x + b.w + 1 && a.y + a.h <= b.y + b.h + 1;
+  for (const c of [
+    { name: 'phone', mobile: true, want: 'bar' },
+    { name: 'sideways', mobile: true, viewport: { width: 844, height: 390 }, want: 'rail' },
+    { name: 'desktop', mobile: false, want: 'wide' },
+  ]) {
+    const s = await open(browser, url, { mobile: c.mobile, viewport: c.viewport });
+    const { page } = s;
+    try {
+      await s.goto(`play--${SONG}`);
+      const scoreBefore = await box(page, '[data-player-score]');
+      const neckBefore = await box(page, '[data-player-neck]');
+      await page.locator('[data-player-play]').click();
+      await waitPhase(page, 'playing', 20000).catch(() => {});
+      await page.waitForTimeout(400);
+      const stop = await box(page, '[data-player-stop]');
+      const score = await box(page, '[data-player-score]');
+      check('review', `${c.name}: Stop is shown while playing, and not over the music`, !!stop && !inside(stop, score) && (stop.y >= score.y + score.h || stop.x >= score.x + score.w || stop.y + stop.h <= score.y), JSON.stringify({ stop, score }));
+      if (c.want === 'bar') {
+        const neck = await box(page, '[data-player-neck]');
+        check('review', `${c.name}: starting a run moves nothing (score and fretboard stay put)`, Math.abs(score.h - scoreBefore.h) <= 1 && Math.abs(neck.y - neckBefore.y) <= 1, JSON.stringify({ scoreBefore, score, neckBefore, neck }));
+        check('review', `${c.name}: the mode picker gives way to Stop during the run`, (await page.locator('[data-player-modes]').count()) === 0);
+      }
+      if (c.want === 'wide') check('review', `${c.name}: Stop sits beside Play in the side panel`, (await page.locator('aside [data-player-stop]').count()) === 1);
+      if (c.want === 'rail') check('review', `${c.name}: Stop sits in the control column`, stop.x > score.x + score.w);
+      await page.locator('[data-player-stop]').click();
+      await waitPhase(page, 'idle', 10000).catch(() => {});
+      await page.waitForTimeout(300);
+      if (c.want === 'bar') {
+        check('review', `${c.name}: the mode picker is back after Stop`, (await page.locator('[data-player-modes]').count()) === 1);
+        await page.locator('[data-player-tempo]').first().click();
+        await page.waitForTimeout(500);
+        const focused = await page.evaluate(() => { const a = document.activeElement; return a ? `${a.tagName}:${a.getAttribute('type') || ''}` : ''; });
+        check('review', `${c.name}: the tempo popover does not put the cursor in a text field (no keyboard over the slider)`, !/^INPUT:(text|number|)$|^TEXTAREA/.test(focused), focused);
+        await page.keyboard.press('Escape');
+      }
+      if (c.want === 'wide') {
+        const id = await page.evaluate(async () => {
+          const L = (await import('/src/core/library/index.ts')).getLibrary();
+          const r = await L.importText('title: The Extraordinarily Long Ballad of the Riverboat Gambler and His Seventeen Cousins from Over the Hills and Far Away\ntempo: 90\ntime: 4/4\n\ntrack: Lead\n| q 3:0 3:2 3:4 3:2 | w 3:0 ||\n');
+          return r.listing.id;
+        });
+        await s.goto(`play--${id}`);
+        const title = await box(page, '[data-player] header p');
+        const modes = await box(page, '[data-player-modes]');
+        check('review', `${c.name}: a very long title stops before the mode picker`, !!title && !!modes && title.x + title.w <= modes.x + 1, JSON.stringify({ title, modes }));
+        await s.shot('review-long-title');
+      }
+      const errors = s.takeErrors();
+      check('review', `${c.name}: no console errors`, errors.length === 0, errors.join(' | '));
+    } finally {
+      await s.close();
+    }
+  }
+}
+
 async function layouts(browser, url) {
   const cases = [
     { name: 'phone-dark', mobile: true, theme: 'dark', want: 'bar' },
@@ -839,6 +901,7 @@ async function layouts(browser, url) {
     ['address', address],
     ['artifact', artifact],
     ['long', long],
+    ['review', review],
     ['layouts', layouts],
   ].filter(([g]) => wants(g));
   if (groups.length) {

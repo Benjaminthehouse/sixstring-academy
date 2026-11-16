@@ -1,0 +1,42 @@
+# Greensleeves, melody with chords (repertoire plan: greensleeves-melody). A new arrangement of
+# the anonymous Elizabethan tune: the first verse (A section, bars 1-8) and the refrain (B section,
+# bars 9-16), one chord per bar as the plan gives them, with Am then E in bars 7 and 15.
+# Your part is the tune in first position: G# on string 3 fret 1 (finger 1), A on string 3 fret 2
+# (finger 2), E on string 4 fret 2, and the low F# on string 4 fret 4 (finger 4). The sixth note of
+# the scale is F# throughout (the plan allows F or F#; this keeps it the same everywhere, as the
+# fingerstyle arrangement does). The teacher strums each chord on the two dotted-quarter beats.
+# Shapes: Am x02210, G 320003, E 022100, C x32010.
+title: Greensleeves (melody)
+id: greensleeves-melody
+composer: Traditional English
+source: Anonymous tune registered in 1580; Elizabethan words (first verse and refrain); arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: melody, 6/8, minor key, lyrics, renaissance
+tempo: 81
+time: 6/8
+key: Am
+pickup: e
+
+track: Melody
+role: lead
+[Verse]
+| e 3:2{2} | "Am=x02210" q 2:1{1} e 2:3{3} e. 1:0 s 1:2{2} e 1:0 | "G=320003" q 2:3 e 2:0 e. 3:0 s 3:2 e 2:0 | "Am=x02210" q 2:1 e 3:2 e. 3:2 s 3:1{1} e 3:2 | "E=022100" q 2:0 e 3:1 q 4:2{2} e 3:2 |
+lyrics: A- las, my love, _ you do me wrong, _ to cast me off _ dis- cour- teous- ly. For
+| "Am=x02210" q 2:1 e 2:3 e. 1:0 s 1:2 e 1:0 | "G=320003" q 2:3 e 2:0 e. 3:0 s 3:2 e 2:0 | "Am=x02210" e. 2:1 s 2:0 e 3:2 "E=022100" e. 3:1 s 4:4{4} e 3:1 | "Am=x02210" h. 3:2 ||
+lyrics: I have loved _ you well and long, _ de- light- ing in your com- pa- ny.
+[Refrain]
+| "C=x32010" q. 1:3{3} e. 1:3 s 1:2 e 1:0 | "G=320003" q 2:3 e 2:0 e. 3:0 s 3:2 e 2:0 | "Am=x02210" q 2:1 e 3:2 e. 3:2 s 3:1 e 3:2 | "E=022100" q 2:0 e 3:1 q. 4:2 |
+lyrics: Green- sleeves _ was all my joy, _ and Green- sleeves was _ my de- _ light.
+| "C=x32010" q. 1:3 e. 1:3 s 1:2 e 1:0 | "G=320003" q 2:3 e 2:0 e. 3:0 s 3:2 e 2:0 | "Am=x02210" e. 2:1 s 2:0 e 3:2 "E=022100" e. 3:1 s 4:4 e 3:1 | "Am=x02210" h. 3:2 ||
+lyrics: Green- sleeves was my heart of gold, _ and who but my la- dy Green- sleeves.
+
+track: Teacher
+role: rhythm
+[Verse]
+| e r | q. / / | / / | / / | / / |
+| / / | / / | / / | h. / ||
+[Refrain]
+| q. / / | / / | / / | / / |
+| / / | / / | / / | h. / ||

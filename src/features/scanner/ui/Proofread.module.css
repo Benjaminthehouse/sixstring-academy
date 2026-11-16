@@ -246,7 +246,86 @@
   overscroll-behavior: contain;
   padding-right: var(--sp-1);
 }
+/* The tab keeps its full height inside the scrolling pane (a flex item would be squeezed). */
+.tabPane > * {
+  flex: none;
+}
 .fixed .toolbar {
   position: relative;
   top: auto;
+}
+
+/* A phone held sideways: little height, so a one-line header and the compact panel. */
+.short .head {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.short .eyebrow,
+.short .verdict > :last-child {
+  display: none;
+}
+.short .title {
+  font-size: var(--text-lg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.short .about {
+  display: none;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* Sideways: the music on the left, the correction panel beside it, both filling the height. */
+.short .page {
+  --_pb: 0px;
+  height: calc(100dvh - var(--sticky-top, 0px));
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--sp-2);
+  padding-bottom: var(--sp-2);
+}
+.short .page > div {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.short .page > div > * {
+  flex: none;
+}
+.short .page > div > .body {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.short .toolbar {
+  position: relative;
+  top: auto;
+  padding: 0;
+}
+.side {
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.62fr);
+  gap: var(--sp-3);
+  align-items: stretch;
+}
+.side .tabPane,
+.side .sourcePane {
+  min-height: 0;
+  overflow-y: auto;
+}
+.side .source {
+  height: 100%;
+}
+.sidePanel {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
 }

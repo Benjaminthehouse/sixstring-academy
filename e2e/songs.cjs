@@ -151,25 +151,41 @@ async function desktop() {
     check('browse', '"/" puts the cursor in the search box', await page.evaluate(() => document.activeElement?.getAttribute('type') === 'search'));
     await page.keyboard.type('blues');
     await page.waitForTimeout(300);
-    check('browse', 'searching "blues" finds the 12-bar blues only', (await rowIds(page)).join(',') === 'st-blues-shuffle-a', (await rowIds(page)).join(','));
+    // Authors keep adding songs, so these checks hold for any collection: what they find, not how many.
+    const blues = await rowIds(page);
+    const allCount = await page.evaluate(() => Number((document.querySelector('[role="radio"]')?.textContent || '').replace(/\D+/g, '')) || 0);
+    check('browse', 'searching "blues" finds the 12-bar blues and leaves most songs out', blues.includes('st-blues-shuffle-a') && blues.length < allCount / 2, `${blues.join(',')} of ${allCount}`);
+    // Review: from the search box, Down goes into the results and Enter plays the first match.
+    await page.keyboard.press('ArrowDown');
+    check('browse', 'Down in the search box moves to the first result', await page.evaluate(() => !!document.activeElement?.closest('[data-song-row]')));
+    await page.keyboard.press('/');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => location.hash.startsWith('#play--'), null, { timeout: 8000 }).catch(() => {});
+    check('browse', 'Enter in the search box plays the first match', (await page.evaluate(() => location.hash)) === `#play--${blues[0]}`, await page.evaluate(() => location.hash));
+    await goto('songs');
+    await ready(page);
+    await page.keyboard.press('/');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
 
+    const total = await page.evaluate(() => Number((document.querySelector('[role="radio"]')?.textContent || '').replace(/\D+/g, '')) || 0);
     await page.getByRole('button', { name: 'Level' }).click();
     await page.getByRole('button', { name: /Intermediate/ }).click();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
     const inter = await rowIds(page);
-    check('browse', 'the Intermediate filter keeps levels 4 to 7', inter.length === 2 && inter.includes('st-pimami-3-4') && inter.includes('greensleeves-fingerstyle'), inter.join(','));
+    const interLevels = await page.$$eval('[data-song-row]', (rows) => rows.map((r) => Number((/Level (\d+)/.exec(r.textContent || '') || [])[1])));
+    check('browse', 'the Intermediate filter keeps levels 4 to 7', inter.includes('st-pimami-3-4') && inter.includes('greensleeves-fingerstyle') && interLevels.every((lv) => lv >= 4 && lv <= 7), `${inter.join(',')} / ${interLevels.join(',')}`);
     check('browse', 'the active filter shows as a removable tag', (await page.getByRole('button', { name: 'Remove the filter Intermediate' }).count()) === 1);
     await page.getByRole('button', { name: 'Clear all' }).click();
     await page.waitForTimeout(300);
-    check('browse', '"Clear all" brings every song back', (await rowIds(page)).length === 5);
+    const cleared = await rowIds(page);
+    check('browse', '"Clear all" brings every song back', total > 0 && cleared.length === total, `${cleared.length} rows, ${total} songs`);
 
     await page.getByLabel('Sort').selectOption('length');
-    await page.waitForFunction(() => document.querySelectorAll('[data-song-row]').length === 5 && document.querySelector('[data-song-row]')?.getAttribute('data-song-row') === 'hot-cross-buns', null, { timeout: 10000 }).catch(() => {});
-    const byLength = await rowIds(page);
-    check('browse', '"Shortest first" puts the 13-second tune first and the 12-bar blues last', byLength[0] === 'hot-cross-buns' && byLength[4] === 'st-blues-shuffle-a', byLength.join(','));
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-song-row]')].every((r) => /\d+:\d\d/.test(r.textContent || '')), null, { timeout: 20000 }).catch(() => {});
+    const lengths = await page.$$eval('[data-song-row]', (rows) => rows.map((r) => { const m = /(\d+):(\d\d)/.exec(r.textContent || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; }));
+    check('browse', '"Shortest first" sorts every song by its length', lengths.length === total && lengths.every((x, i) => Number.isFinite(x) && (i === 0 || lengths[i - 1] <= x)), lengths.join(','));
     await page.getByLabel('Sort').selectOption('fit');
     await page.waitForTimeout(300);
 
@@ -359,11 +375,13 @@ async function phone(theme) {
       await dialog(page).getByRole('button', { name: /Intermediate/ }).click();
       await page.waitForTimeout(200);
       const label = await dialog(page).getByRole('button', { name: /^Show \d+ songs?$/ }).innerText();
-      check('phone', 'the filter sheet says how many songs it will show', /Show 2 songs/.test(label), label);
+      const promised = Number((/\d+/.exec(label) || [])[0]);
+      check('phone', 'the filter sheet says how many songs it will show', promised >= 2, label);
       await dialog(page).getByRole('button', { name: /^Show \d+ songs?$/ }).click();
       await page.waitForTimeout(400);
       const ids = await rowIds(page);
-      check('phone', 'filters from the sheet apply to the list', ids.length === 2 && ids.includes('greensleeves-fingerstyle'), ids.join(','));
+      const levels = await page.$$eval('[data-song-row]', (rows) => rows.map((r) => Number((/Level (\d+)/.exec(r.textContent || '') || [])[1])));
+      check('phone', 'filters from the sheet apply to the list (as many as promised, all intermediate)', ids.length === promised && ids.includes('greensleeves-fingerstyle') && levels.every((lv) => lv >= 4 && lv <= 7), `${ids.length} of ${promised}: ${levels.join(',')}`);
       await page.getByRole('button', { name: 'Clear all' }).click();
       await page.waitForTimeout(300);
       await openRowMenu(page, 'greensleeves-fingerstyle', 'About this song');

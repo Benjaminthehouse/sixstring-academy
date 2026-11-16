@@ -56,6 +56,17 @@ export function Saved({ scan }: { scan: ScanState }) {
             {facts}
           </Text>
         )}
+        <div className={styles.actions}>
+          <LinkButton to="play" params={[listing.id]} variant="primary" size="lg" iconLeft="Play" data-scan-open-player="">
+            Play it now
+          </LinkButton>
+          <Button iconLeft="ScanLine" onClick={scan.reset}>
+            Scan another sheet
+          </Button>
+          <LinkButton to="songs" variant="ghost" iconRight="ArrowRight">
+            All your songs
+          </LinkButton>
+        </div>
         {song && (
           <div className={styles.preview}>
             <TabView song={song} bars={[0, Math.min(2, song.bars.length)]} size="md" barNumbers={false} aria-label={`The first bars of ${listing.title}`} />
@@ -82,17 +93,6 @@ export function Saved({ scan }: { scan: ScanState }) {
             </ul>
           </details>
         )}
-        <div className={styles.actions}>
-          <LinkButton to="play" params={[listing.id]} variant="primary" size="lg" iconLeft="Play" data-scan-open-player="">
-            Play it now
-          </LinkButton>
-          <Button iconLeft="ScanLine" onClick={scan.reset}>
-            Scan another sheet
-          </Button>
-          <LinkButton to="songs" variant="ghost" iconRight="ArrowRight">
-            All your songs
-          </LinkButton>
-        </div>
       </div>
     </Page>
   );

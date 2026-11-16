@@ -5,7 +5,7 @@
  * files cannot load (the artifact build ships without them), the status says so and the rest of the
  * screen carries on.
  */
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
 import type { Landmark } from '../model/hands';
 
 /** Where hand tracking is. */
@@ -23,8 +23,10 @@ interface Landmarker {
   close(): void;
 }
 
-/** Hand detections per second (each costs the main thread several milliseconds). */
+/** Hand detections per second at most (each costs the main thread several milliseconds). */
 const RATE_HZ = 8;
+/** Wait at least this many times a detection's own cost before the next one (at most a fifth of the main thread). */
+const MAX_DUTY_INVERSE = 5;
 
 /** Load the landmarker from the bundled files. */
 async function loadLandmarker(): Promise<Landmarker> {
@@ -46,10 +48,9 @@ async function loadLandmarker(): Promise<Landmarker> {
   }
 }
 
-/** Hand tracking while `enabled` and the video plays. */
-export function useHands(enabled: boolean, videoRef: RefObject<HTMLVideoElement | null>): { status: HandStatus; frame: RefObject<HandFrame | null> } {
+/** Hand tracking while `enabled` and the video plays; the newest hands go into `frame`. */
+export function useHands(enabled: boolean, videoRef: RefObject<HTMLVideoElement | null>, frame: MutableRefObject<HandFrame | null>): HandStatus {
   const [status, setStatus] = useState<HandStatus>('off');
-  const frame = useRef<HandFrame | null>(null);
   const landmarker = useRef<Landmarker | null>(null);
   const failed = useRef(false);
 
@@ -62,18 +63,24 @@ export function useHands(enabled: boolean, videoRef: RefObject<HTMLVideoElement 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastVideoTime = -1;
+    let cost = 0;
     const loop = () => {
-      timer = setTimeout(loop, 1000 / RATE_HZ);
+      // The detection runs on the main thread: never let it take more than a fifth of it, however
+      // slow the device (a software-rendered GPU can take hundreds of milliseconds per frame).
+      timer = setTimeout(loop, Math.max(1000 / RATE_HZ, cost * MAX_DUTY_INVERSE));
       const video = videoRef.current;
       const lm = landmarker.current;
       if (!video || !lm || video.paused || video.readyState < 2 || video.currentTime === lastVideoTime) return;
       lastVideoTime = video.currentTime;
+      const t0 = performance.now();
       try {
-        const res = lm.detectForVideo(video, performance.now());
+        const res = lm.detectForVideo(video, t0);
         frame.current = { hands: res.landmarks.map((h) => h.map((p) => ({ x: p.x, y: p.y }))), at: performance.now() };
       } catch {
         frame.current = null;
       }
+      const took = performance.now() - t0;
+      cost = cost === 0 ? took : 0.7 * cost + 0.3 * took;
     };
     const begin = () => {
       if (cancelled) return;
@@ -103,7 +110,7 @@ export function useHands(enabled: boolean, videoRef: RefObject<HTMLVideoElement 
       if (timer) clearTimeout(timer);
       frame.current = null;
     };
-  }, [enabled, videoRef]);
+  }, [enabled, videoRef, frame]);
 
   // The landmarker holds WASM memory and a GL context: free it with the screen.
   useEffect(
@@ -114,5 +121,5 @@ export function useHands(enabled: boolean, videoRef: RefObject<HTMLVideoElement 
     [],
   );
 
-  return { status, frame };
+  return status;
 }

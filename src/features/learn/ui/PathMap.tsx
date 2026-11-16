@@ -17,6 +17,10 @@ const PAD = ROW / 2 + 8;
 
 /** What the map needs from the screen. */
 export interface MapHandlers {
+  /**
+   * The lesson shown in the side panel (wide screens), ringed and pressed on the map. Null on
+   * phones: a tap there opens the lesson's sheet, so nodes are plain buttons, not toggles.
+   */
   selected: string | null;
   onSelect: (lesson: PathLesson) => void;
   onCheckpoint: (unitId: string) => void;
@@ -138,7 +142,7 @@ export function UnitBlock({ unit, phase, handlers }: { unit: PathUnitView; phase
                   tabIndex={handlers.focusable(n.id) ? 0 : -1}
                   aria-label={nodeWords(lesson)}
                   aria-current={n.state === 'current' ? 'step' : undefined}
-                  aria-pressed={selected}
+                  aria-pressed={handlers.selected === null ? undefined : selected}
                   data-node={n.id}
                   data-state={n.state}
                 >

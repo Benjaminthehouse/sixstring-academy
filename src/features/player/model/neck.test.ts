@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flattenSong, practiceTargets, sixTab } from '@/core/song';
-import { beatSpots, describeSpots, neckMarkers, neckRange, targetSpots } from './neck';
+import { beatSpots, chordName, describeSpots, heardName, neckMarkers, neckRange, spotName, targetSpots } from './neck';
 
 const STANDARD = [40, 45, 50, 55, 59, 64];
 
@@ -52,5 +52,24 @@ tempo: 90
     expect(describeSpots([{ string: 1, fret: 0 }], o)).toBe('E on open string 1');
     expect(describeSpots([{ string: 5, fret: 0 }, { string: 4, fret: 2 }], o)).toBe('A on open string 5 and E on string 4, fret 2');
     expect(describeSpots([], o, 'G')).toBe('the G chord');
+  });
+
+  // Review: the wait-mode prompt showed data spellings ("F# on string 4", "That sounded like A#").
+  it('writes sharps and flats as ♯ and ♭ in the words it shows', () => {
+    const inE = { tuning: STANDARD, capo: 0, key: 'E' };
+    const inF = { tuning: STANDARD, capo: 0, key: 'F' };
+    expect(describeSpots([{ string: 4, fret: 4 }], inE)).toBe('F♯ on string 4, fret 4');
+    expect(describeSpots([{ string: 1, fret: 6 }], inF)).toBe('B♭ on string 1, fret 6');
+    expect(describeSpots([], inE, 'F#m7')).toBe('the F♯m7 chord');
+    expect(chordName('Bb')).toBe('B♭');
+    expect(spotName({ string: 1, fret: 6 }, inE)).toBe('A♯');
+  });
+
+  it('names a heard pitch in the song’s key', () => {
+    expect(heardName(70, 'F')).toBe('B♭');
+    expect(heardName(70, 'E')).toBe('A♯');
+    expect(heardName(66)).toBe('F♯');
+    expect(heardName(60, 'G')).toBe('C');
+    expect(heardName(-1)).toBe('that');
   });
 });

@@ -78,9 +78,11 @@
 }
 .dockRow {
   display: flex;
+  /* With very large text the row would run off a phone's edge: it wraps instead. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-1);
+  gap: var(--sp-2) var(--sp-1);
   min-width: 0;
 }
 .dockRow > * {
@@ -155,12 +157,13 @@
   display: grid;
   gap: var(--sp-1);
   justify-items: end;
-  flex: 0 1 auto;
-  min-width: 0;
+  /* The mode picker keeps its size; a long title gives way (ellipsis) instead of running under it. */
+  flex: 0 0 auto;
 }
 .headModes .modeHint {
   justify-content: flex-end;
   text-align: right;
+  max-width: 23rem;
 }
 .modeHint {
   margin: 0;
@@ -200,6 +203,7 @@
 }
 
 .info {
+  flex: 1 1 0;
   min-width: 0;
 }
 .title {
@@ -264,12 +268,24 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  max-width: calc(100% - 9rem);
+  max-width: calc(100% - var(--sp-4));
   z-index: 4;
+  pointer-events: none;
 }
-.runBadge :global(button) {
-  background: var(--surface-2);
-  box-shadow: var(--shadow-1);
+/* During a run, Stop and where the music is take the mode picker's row (same height: no jump). */
+.runRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  /* The height of the small mode picker it stands in for. */
+  min-height: 2.25rem;
+}
+.runWhere {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .pass {
   padding: 2px var(--sp-2);

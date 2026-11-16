@@ -1,0 +1,34 @@
+# Lick: Slides (repertoire plan: st-lick-slide). An original 8-bar lick in A minor pentatonic
+# over an Am7 groove, built around three slides, all with finger 3:
+#   bar 1:     string 3 fret 7 (D) up to fret 9 (E): out of box 1 into box 2 (finger 1 now on fret 7);
+#   bar 3:     string 2 fret 8 (G) up to fret 10 (A): finger 3 plays the G so it can slide
+#              (finger 1 lands on fret 8, beside C at string 1 fret 8);
+#   bars 5-6:  the long shift on string 4 from fret 5 (G) to fret 10 (C), across the bar line.
+# Bar 7 slides back down string 3 from fret 9 to fret 7, which puts the hand home in box 1.
+# The hand moves back down to box 1 during the rests at the ends of bars 2 and 4.
+# Phrases 1 and 3 ask (they stop on E and G), phrases 2 and 4 answer (they come home to A).
+title: Lick: Slides
+composer: Sixstring Academy
+source: Original lick in A minor pentatonic
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: slide, position shift, minor pentatonic, lick
+tempo: 92
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[Ask 1]
+| "Am7=x02010" e 4:7{3} 3:5{1} q 3:7{3} ^"slide" 3:9s{3} e 3:7{1} 4:10{4} | q 3:7 e 3:9{3} 2:8{2} q 3:9 r |
+[Answer 1]
+| e 3:5{1} 3:7{3} 2:5{1} 2:8{3} ^"slide" q 2:10s{3} e 1:8{1} 2:10{3} | e 1:10{3} 1:8{1} 2:10 2:8{1} q 2:10{3} r |
+[Ask 2]
+| e 6:5{1} 6:8{4} 5:5{1} 5:7{3} ^"long slide" h 4:5{3} | q 4:10s{3} e 3:9{2} 2:10{3} q 2:8{1} r |
+[Answer 2]
+| e 1:8{1} 2:10{3} 2:8{1} 2:10{3} q 3:9{3} ^"slide down" 3:7s{3} | e 3:5{1} 4:7{3} 4:5{1} 5:7{3} h 6:5{1} ||
+
+track: Teacher groove
+role: rhythm
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | w D ||

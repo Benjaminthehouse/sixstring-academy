@@ -7,6 +7,7 @@
 import type { GrayImage } from '@/core/omr/image/gray';
 import type { BBox } from '@/core/omr/types';
 import { flatten } from '@/core/omr/image/illumination';
+import { isArtifact } from '@/core/platform';
 import type { TextPiece } from '../model/text-layout';
 import { type AnyCanvas, canvasOfGray, ctx2d, makeCanvas } from './images';
 
@@ -49,10 +50,12 @@ interface TessWorker {
 }
 
 const vendor = (path: string): string => new URL(`vendor/tesseract/${path}`, document.baseURI).href;
-const START_TIMEOUT_MS = 45_000;
+const START_TIMEOUT_MS = 30_000;
 
 /** Start Tesseract. `onProgress(0..1)` follows loading the engine and language data. */
 export async function createOcr(onProgress?: (fraction: number, status: string) => void): Promise<Ocr> {
+  // The Claude-artifact build ships without the OCR files: say so at once instead of waiting.
+  if (isArtifact()) throw new OcrUnavailableError('Reading printed words is not part of this version of the app; the AI helper can read them instead.');
   let mod: unknown;
   try {
     mod = await import('tesseract.js');

@@ -7,7 +7,7 @@ import { MODE_LEVELS, makeModeRound, modeInfo, modeLabel, type ModeId, type Mode
 import { regionOf } from '../../core/focus';
 import { addHit, addMiss, findPoints, newTally, starsFor } from '../../core/scoring';
 import { hitSound, missSound, playNote } from '../sound';
-import { noteMarker, useRoundClock } from '../kit';
+import { noteMarker, useKeyboardHints, useLater, useRoundClock } from '../kit';
 import { RoundFrame } from '../RoundFrame';
 import type { GameProps } from '../types';
 import styles from '../Arcade.module.css';
@@ -31,6 +31,8 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
   const elapsed = useRoundClock(running);
   const finished = useRef(false);
   const answerRef = useRef<HTMLDivElement>(null);
+  const later = useLater();
+  const keys = useKeyboardHints();
   const q: ModeQuestion | undefined = round.questions[index];
 
   const silence = useCallback(() => {
@@ -108,7 +110,12 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
           { label: 'On the neck', value: `${done.filter((a, i) => a.right && round.questions[i].kind === 'eye').length}` },
           { label: 'Best combo', value: `${t.bestCombo}` },
         ],
-        tip: was && heard ? `You heard ${modeLabel(heard, level.plain)} where it was ${modeLabel(was, level.plain)}. ${modeInfo(was).colour}` : 'Every mode named. Next, hum the colour note of each one over the drone.',
+        tip:
+          was && heard
+            ? `You heard ${modeLabel(heard, level.plain)} where it was ${modeLabel(was, level.plain)}. ${modeInfo(was).colour}`
+            : level.plain
+              ? 'Every one named. Next, hum the third note over the drone: it sits higher in major, lower in minor.'
+              : 'Every mode named. Next, hum the note that gives each one its colour over the drone.',
         marks: done.map((a) => (a.right ? 'ok' : 'bad')),
       });
     },
@@ -138,15 +145,15 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
         fx.shake(btn);
       }
       if (done.length >= round.questions.length) {
-        window.setTimeout(() => finish(done, t), right ? 900 : 1800);
+        later(() => finish(done, t), right ? 900 : 1800);
       } else if (right) {
-        window.setTimeout(() => {
+        later(() => {
           setChosen(null);
           setIndex((i) => i + 1);
         }, 1100);
       }
     },
-    [running, q, chosen, tally, answers, fx, round.questions.length, finish, silence],
+    [running, q, chosen, tally, answers, fx, round.questions.length, finish, silence, later],
   );
 
   const next = useCallback(() => {
@@ -183,9 +190,9 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
   const prompt = q ? (
     <>
       <span className={styles.promptKicker}>{q.kind === 'ear' ? 'Listen over the drone' : 'Look at the shape'}</span>
-      <span className={styles.promptBig}>Which mode?</span>
+      <span className={styles.promptBig}>{level.plain ? 'Major or minor?' : 'Which mode?'}</span>
       <span className={styles.promptHint}>
-        {q.kind === 'ear' ? `On ${noteText(q.tonic, naming)}. Space plays it again.` : `Root ${noteText(q.tonic, naming)} is marked R.`}
+        {q.kind === 'ear' ? `Drone on ${noteText(q.tonic, naming)}.${keys ? ' Space plays it again.' : ''}` : `Root ${noteText(q.tonic, naming)} is marked R.`}
       </span>
     </>
   ) : null;
@@ -227,7 +234,7 @@ export function ModeMatch({ ctx, running, fx, title, onFinish, onEnd }: GameProp
             </Text>
           </span>
         ) : (
-          <Text tone="muted">{running ? 'Pick the mode. Number keys work too.' : 'Get ready…'}</Text>
+          <Text tone="muted">{running ? (keys ? 'Pick one, or press its number.' : 'Pick one.') : 'Get ready…'}</Text>
         )
       }
       statusKind={chosen ? (right ? 'hit' : 'miss') : 'waiting'}

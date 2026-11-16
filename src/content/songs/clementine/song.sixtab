@@ -1,0 +1,62 @@
+# Oh My Darling, Clementine, strum and sing (repertoire plan: clementine). A new arrangement of
+# the 1884 song. Your part: a waltz strum with two chords, D (xx0232) and A7 (x02020): the bass
+# note alone on beat 1 (open string 4 under D, open string 5 under A7), downstrums on beats 2
+# and 3. The tune starts with a pickup on beat 3 ("In a"), so you wait one beat and come in on
+# "cav-". Every line of eight bars has the same chords: D D D A7 | A7 D A7 D.
+# The tune (second track) is the 1884 melody, the same for verse and chorus, in first position
+# on strings 5 to 3: do do | do sol, mi mi | mi do do mi | sol sol fa mi | re ..., with the low A
+# (open string 5) and C# (string 5, fret 4) under the tonic D (open string 4).
+# Words: the 1884 chorus and the first two verses only.
+title: Oh My Darling, Clementine
+id: clementine
+composer: Traditional American (credited to Percy Montrose, 1884)
+source: Song published in 1884; the 1884 tune and words (chorus, verses 1 and 2); arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain; this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: strumming, waltz, 3/4, pickup, two chords, lyrics
+tempo: 108
+time: 3/4
+key: D
+pickup: q
+
+track: Your strum
+role: rhythm
+| ^"Wait: the tune starts on beat 3" q r |
+[Verse 1]
+| ^"In a cavern, in a canyon," "D=xx0232" q 4:0 D D | 4:0 D D | ^"excavating for a mine," 4:0 D D | "A7=x02020" 5:0 D D |
+| ^"dwelt a miner, forty-niner," 5:0 D D | "D=xx0232" 4:0 D D | ^"and his daughter Clementine." "A7=x02020" 5:0 D D | "D=xx0232" 4:0 D D |
+[Chorus]
+| ^"Oh my darling, oh my darling," 4:0 D D | 4:0 D D | ^"oh my darling Clementine," 4:0 D D | "A7=x02020" 5:0 D D |
+| ^"you are lost and gone forever," 5:0 D D | "D=xx0232" 4:0 D D | ^"dreadful sorry, Clementine." "A7=x02020" 5:0 D D | "D=xx0232" 4:0 D D |
+[Verse 2]
+| ^"Light she was, and like a fairy," 4:0 D D | 4:0 D D | ^"and her shoes were number nine," 4:0 D D | "A7=x02020" 5:0 D D |
+| ^"herring boxes, without topses," 5:0 D D | "D=xx0232" 4:0 D D | ^"sandals were for Clementine." "A7=x02020" 5:0 D D | "D=xx0232" 4:0 D D |
+[Last chorus]
+| ^"Oh my darling, oh my darling," 4:0 D D | 4:0 D D | ^"oh my darling Clementine," 4:0 D D | "A7=x02020" 5:0 D D |
+| ^"you are lost and gone forever," 5:0 D D | "D=xx0232" 4:0 D D | ^"dreadful sorry, Clementine." "A7=x02020" 5:0 D D | "D=xx0232" 4:0 h D ||
+
+track: Tune
+role: lead
+| e 4:0 4:0 |
+lyrics: In a
+[Verse 1]
+| q 4:0 5:0 e 4:4 4:4 | q 4:4 4:0 e 4:0 4:4 | q 3:2 3:2 e 3:0 4:4 | h 4:2 e 4:2 4:4 |
+lyrics: cav- ern, in a can- yon, ex- ca- vat- ing for a mine, dwelt a
+| q 3:0 3:0 e 4:4 4:2 | q 4:4 4:0 e 4:0 4:4 | q 4:2 5:0 e 5:4 4:2 | h 4:0 e 4:0 4:0 |
+lyrics: min- er, for- ty nin- er, and his daugh- ter Clem- en- tine. Oh my
+[Chorus]
+| q 4:0 5:0 e 4:4 4:4 | q 4:4 4:0 e 4:0 4:4 | q 3:2 3:2 e 3:0 4:4 | h 4:2 e 4:2 4:4 |
+lyrics: dar- ling, oh my dar- ling, oh my dar- ling, Clem- en- tine, you are
+| q 3:0 3:0 e 4:4 4:2 | q 4:4 4:0 e 4:0 4:4 | q 4:2 5:0 e 5:4 4:2 | h 4:0 e 4:0 4:0 |
+lyrics: lost and gone for- ev- er, dread- ful sor- ry, Clem- en- tine. Light she
+[Verse 2]
+| q 4:0 5:0 e 4:4 4:4 | q 4:4 4:0 e 4:0 4:4 | q 3:2 3:2 e 3:0 4:4 | h 4:2 e 4:2 4:4 |
+lyrics: was, and like a fai- ry, and her shoes were num- ber nine, her- ring
+| q 3:0 3:0 e 4:4 4:2 | q 4:4 4:0 e 4:0 4:4 | q 4:2 5:0 e 5:4 4:2 | h 4:0 e 4:0 4:0 |
+lyrics: box- es, with- out top- ses, san- dals were for Clem- en- tine. Oh my
+[Last chorus]
+| q 4:0 5:0 e 4:4 4:4 | q 4:4 4:0 e 4:0 4:4 | q 3:2 3:2 e 3:0 4:4 | h 4:2 e 4:2 4:4 |
+lyrics: dar- ling, oh my dar- ling, oh my dar- ling, Clem- en- tine, you are
+| q 3:0 3:0 e 4:4 4:2 | q 4:4 4:0 e 4:0 4:4 | q 4:2 5:0 e 5:4 4:2 | h. 4:0 ||
+lyrics: lost and gone for- ev- er, dread- ful sor- ry, Clem- en- tine.

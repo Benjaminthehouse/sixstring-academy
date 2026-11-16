@@ -121,6 +121,21 @@ export function focusUnit(view: PathView, asked: string | null): PathUnitView | 
   return null;
 }
 
+/**
+ * The unit whose practice drill refills the hearts: `preferred` when it has finished lessons, else
+ * the latest unit that has some. A learner who has finished nothing yet (out of hearts in the very
+ * first lesson) practises the unit they are in, as the lesson player's own "Practise to refill
+ * hearts" does: a drill runs on a whole unit before any of its lessons is done. Null only when
+ * nothing is written.
+ */
+export function refillUnit(view: PathView, preferred: string | null): string | null {
+  const written = view.stages.flatMap((s) => s.units).filter((u) => u.node);
+  const started = written.filter((u) => (u.node?.done ?? 0) > 0);
+  if (preferred && started.some((u) => u.path.outline.id === preferred)) return preferred;
+  if (started.length > 0) return started[started.length - 1].path.outline.id;
+  return view.next?.unit.path.outline.id ?? written[0]?.path.outline.id ?? null;
+}
+
 /** The next written unit after this one, or null. */
 export function unitAfter(view: PathView, unitId: string): PathUnitView | null {
   const all = view.stages.flatMap((s) => s.units).filter((u) => u.node);

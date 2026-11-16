@@ -27,6 +27,12 @@ export interface RenderInfo {
   notes: 'solid' | 'ghost' | 'none';
   markers: DebugMarker[];
   numbering: string | null;
+  /** The tracker's coaching code and trust for the newest answer. */
+  guidance: string | null;
+  trust: string | null;
+  confidence: number;
+  /** Notes the microphone confirmed, flashing now (fret on the wood). */
+  flashes: Array<{ string: number; fret: number }>;
 }
 
 /** The live record (one camera screen at a time). */

@@ -85,6 +85,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: OverlayFrame): Overl
     // The screen shows the state in words beside the picture.
     indicator: false,
     allFretNumbers: f.state === 'locked',
+    // Open-string notes sit behind the nut, where the string names would go.
+    stringLabels: !notes.some((n) => n.fret <= 0),
   });
   const pose = f.pose;
   if (!pose) return res;

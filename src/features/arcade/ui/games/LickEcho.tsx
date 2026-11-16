@@ -6,7 +6,7 @@ import { audioNow, stopAll, unlockAudio } from '@/core/audio';
 import { LICK_LEVELS, makeLickRound, markLick, type LickMark } from '../../core/lickEcho';
 import { comboMultiplier, newTally, starsFor } from '../../core/scoring';
 import { hitSound, missSound, playNote } from '../sound';
-import { cellElement, noteMarker, useRoundClock } from '../kit';
+import { cellElement, noteMarker, useKeyboardHints, useLater, useRoundClock } from '../kit';
 import { RoundFrame } from '../RoundFrame';
 import { MicLine } from '../MicLine';
 import type { GameProps } from '../types';
@@ -35,6 +35,8 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
   const [heard, setHeard] = useState(0);
   const boardRef = useRef<HTMLDivElement>(null);
   const playTimer = useRef<number | null>(null);
+  const later = useLater();
+  const keys = useKeyboardHints();
   const elapsed = useRoundClock(running);
   const finished = useRef(false);
   const lick = round.licks[index];
@@ -70,9 +72,10 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
     }, total * 1000);
   }, [lick, stopPlayback]);
 
-  // Each phrase starts fresh: listening, nothing entered, then it plays by itself.
+  // Each phrase starts fresh: listening, nothing entered, then it plays by itself. A phrase already
+  // marked stays marked when the round resumes from a pause (its Next button must stay reachable).
   useEffect(() => {
-    if (!running || !lick) return;
+    if (!running || !lick || markedRef.current === index) return;
     setEntered([]);
     setHeard(0);
     setPhase('listen');
@@ -137,10 +140,10 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
         missSound();
       }
       setTally(t);
-      if (index + 1 >= round.licks.length) window.setTimeout(() => finish(all, t), m.perfect ? 1000 : 2200);
-      else if (m.perfect) window.setTimeout(() => setIndex((i) => i + 1), 1100);
+      if (index + 1 >= round.licks.length) later(() => finish(all, t), m.perfect ? 1000 : 2200);
+      else if (m.perfect) later(() => setIndex((i) => i + 1), 1100);
     },
-    [lick, marks, index, octaves, tally, input, fx, round.licks.length, finish],
+    [lick, marks, index, octaves, tally, input, fx, round.licks.length, finish, later],
   );
 
   // The microphone: record from the end of the phrase until the learner has played it.
@@ -245,7 +248,7 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
         <span className={styles.promptHint}>
           {level.show === 'first'
             ? `It starts on ${noteText(lick.notes[0].note, naming)}, string ${lick.notes[0].string}${lick.notes[0].fret === 0 ? ' open' : ` fret ${lick.notes[0].fret}`}.`
-            : `${lick.notes.length} notes, by ear. Space plays it again.`}
+            : `${lick.notes.length} notes, by ear.${keys ? ' Space plays it again.' : ''}`}
         </span>
       )}
     </>
@@ -270,7 +273,7 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
               {mark.perfect ? 'Every note, in order.' : `${mark.comparison.correct} of ${lick?.midis.length} right. The phrase is shown on the neck.`}
             </Text>
           ) : (
-            <Text tone="muted">{!running ? 'Get ready…' : playing ? 'Listen to the whole phrase first.' : input === 'mic' ? 'Your turn: play it on your guitar.' : 'Tap the notes in order. Backspace takes one back.'}</Text>
+            <Text tone="muted">{!running ? 'Get ready…' : playing ? 'Listen to the whole phrase first.' : input === 'mic' ? 'Your turn: play it on your guitar.' : keys ? 'Tap the notes in order. Backspace takes one back.' : 'Tap the notes in order.'}</Text>
           )}
         </div>
       }

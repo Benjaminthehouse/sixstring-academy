@@ -1,0 +1,27 @@
+# Korobeiniki, the Russian folk melody (repertoire plan: korobeiniki). A new arrangement of the
+# folk tune only: its eight bars, played twice, in first position (finger = fret) with one short
+# shift up string 1 in bar 5: finger 4 reaches the high A at fret 5 with the hand one fret higher,
+# then finger 1 comes straight back to F. Bar 5 starts on the beat, as folk-song books print it.
+# The strum track plays the backing chords Am, E7 and Dm, one downstrum per beat.
+title: Korobeiniki
+id: korobeiniki
+composer: Traditional Russian
+source: Russian folk melody, printed c. 1898 (sung to Nekrasov's poem of 1861; played here without words); arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: melody, minor key, russian, folk
+tempo: 100
+time: 4/4
+key: Am
+
+track: Melody
+role: lead
+[Tune]
+|: "E7=020100" q 1:0 e 2:0 2:1{1} q 2:3{3} e 2:1 2:0 | "Am=x02210" q 3:2{2} e 3:2 2:1 q 1:0 e 2:3 2:1 | "E7=020100" q. 2:0 e 2:1 q 2:3 1:0 | "Am=x02210" q 2:1 3:2 h 3:2 |
+| "Dm=xx0231" q. 2:3{3} e 1:1{1} q 1:5{4} e 1:3{2} 1:1{1} | "Am=x02210" q. 1:0 e 2:1 q 1:0 e 2:3 2:1 | "E7=020100" q 2:0 e 2:0 2:1 q 2:3 1:0 | "Am=x02210" q 2:1 3:2 h 3:2 :|
+
+track: Strum
+role: rhythm
+|: q D D D D | D D D D | D D D D | D D D D |
+| D D D D | D D D D | D D D D | D D D D :|

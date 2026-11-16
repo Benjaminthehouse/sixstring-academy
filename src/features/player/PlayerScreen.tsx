@@ -372,13 +372,18 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     </div>
   ) : null;
 
-  const runBadge = active && !isWait ? (
+  // Stop sits with the transport, never over the music: the line coming next is what the learner reads.
+  const runOn = active && !isWait;
+  const stopButton = runOn ? (
+    <Tooltip content="Stop and see how it went (Esc)">
+      <Button size="sm" iconLeft="Square" onClick={() => engine.stop()} data-player-stop="">
+        Stop
+      </Button>
+    </Tooltip>
+  ) : null;
+  // Loop passes and the speed trainer's word: small pills in the corner of the score.
+  const runStatus = runOn && ((s.loop && s.passes > 0) || s.trainerNote) ? (
     <div className={styles.runBadge}>
-      <Tooltip content="Stop and see how it went (Esc)">
-        <Button size="sm" iconLeft="Square" onClick={() => engine.stop()} data-player-stop="">
-          Stop
-        </Button>
-      </Tooltip>
       {s.loop && s.passes > 0 && <span className={styles.pass}>Loop {s.passes}</span>}
       {s.trainerNote && <span className={styles.trainerNote}>{s.trainerNote}</span>}
     </div>
@@ -404,7 +409,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     >
       <CountIn engine={engine} />
       {(s.mode === 'flow' || s.mode === 'tap') && <Judgement engine={engine} />}
-      {runBadge}
+      {runStatus}
     </Score>
   );
   const bannerRow = banner ? <div className={styles.bannerWrap}>{banner}</div> : null;
@@ -483,6 +488,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
               {hostPanel}
               <div className={styles.transport}>
                 {play}
+                {stopButton}
                 {tapPad}
                 <div className={styles.position}>
                   <span className={styles.positionBar}>
@@ -513,7 +519,17 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
               {neck}
             </div>
             <div className={styles.dock}>
-              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" icons={!phone} />
+              {/* While a run is on, the mode picker (which would end it) gives its place to Stop. */}
+              {stopButton ? (
+                <div className={styles.runRow}>
+                  {stopButton}
+                  <span className={styles.runWhere}>
+                    Bar {s.bar + 1} <span className={styles.positionOf}>of {song.bars.length}</span>
+                  </span>
+                </div>
+              ) : (
+                <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" icons={!phone} />
+              )}
               <div className={styles.dockRow}>
                 {loopBtn}
                 {/* While tapping along, the Tap pad takes the tempo's place (it can be changed when paused). */}
@@ -534,7 +550,11 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
               {neck}
             </div>
             <div className={styles.railControls}>
-              <IconButton icon="SlidersHorizontal" label="Mode and options" onClick={() => setMoreOpen(true)} data-player-more="" />
+              {stopButton ? (
+                <IconButton icon="Square" label="Stop and see how it went (Esc)" onClick={() => engine.stop()} data-player-stop="" />
+              ) : (
+                <IconButton icon="SlidersHorizontal" label="Mode and options" onClick={() => setMoreOpen(true)} data-player-more="" />
+              )}
               {needsMic(s.mode) && s.mic.status === 'on' && <MicLevel engine={engine} label="Listening" compact />}
               {loopBtn}
               {tempo}

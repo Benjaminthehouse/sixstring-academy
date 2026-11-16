@@ -1,0 +1,33 @@
+# Reading: Sharps and Dotted Rhythms (repertoire plan: st-read-first-sharps). An original reading
+# study in first position (finger 1 on fret 1, finger 2 on fret 2 ...), 16 bars of 4/4:
+#   bars 1-8 in D major (F# and C#): C# at string 2 fret 2 and at string 5 fret 4;
+#   bars 9-16 in A major (F#, C# and G#): G# at string 3 fret 1.
+# Each half is two 4-bar phrases with a long-short dotted rhythm (dotted quarter, eighth). A tie
+# carries a note across the bar line in bars 3-4 (E over A7 into D) and bars 11-12 (B over E7
+# into A); the tied note is held, not picked again. The teacher strums the chords.
+title: Reading: Sharps and Dotted Rhythms
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: reading, sharps, dotted rhythm, ties, first position
+tempo: 72
+time: 4/4
+key: D
+
+track: Your part
+role: lead
+[D major]
+| "D=xx0232" q. 1:2{2} e 1:0 q 2:3{3} 3:2{2} | "G=320003" q. 2:0 e 2:2{2} q 2:3 2:0 | "A7=x02020" q. 3:2 e 2:0 q 2:2 ^"tie" 1:0 | "D" q 1:- e 2:3 2:2 h 2:3 |
+| q 4:0 4:4{4} 3:2 2:3 | "G" q. 2:0 e 3:2 q 3:0 2:0 | "A7" q 5:0 5:4{4} 4:2{2} 3:0 | "D" q. 4:4 e 4:2 h 4:0 ||
+key: A
+[A major]
+| "A=x02220" q. 1:0 e 2:2 q 3:2 2:2 | "D" q. 1:2 e 1:0 q 2:3 2:0 | "E7=020100" q. 3:1{1} e 3:2 ^"tie" h 2:0 | "A" q 2:- e 3:2 3:1 h 3:2 |
+| q 5:0 5:4{4} 4:2 3:2 | "D" q. 4:4 e 4:2 q 4:0 4:4 | "E7" q. 4:2 e 3:1 q 2:0 2:3 | "A" q. 2:2 e 2:0 h 3:2 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / ||
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

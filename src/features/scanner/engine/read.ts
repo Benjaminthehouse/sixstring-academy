@@ -5,7 +5,7 @@
  * and, when the learner asks for it, a second reading by the AI helper merged in by the reader's
  * own rules.
  */
-import { type ImportResult, type SongFormat, detectTextFormat, importSong, isChordWord } from '@/core/song';
+import { type ImportResult, type SongFormat, detectTextFormat, importSong } from '@/core/song';
 import type { OmrDocument } from '@/core/omr/pipeline';
 import type { OmrWorkerClient } from '@/core/omr/worker/client';
 import type { GrayImage } from '@/core/omr/image/gray';
@@ -13,6 +13,9 @@ import type { BBox, OmrText } from '@/core/omr/types';
 import { aiStatus, askJson, isAiError } from '@/core/platform';
 import { aiAllowed } from '@/core/settings';
 import { layoutText } from '../model/text-layout';
+import { CHORD_CHARS, cleanChordText } from '../model/chords';
+
+export { CHORD_CHARS, cleanChordText };
 import { type Ocr, OcrUnavailableError, createOcr, ocrCanvas, readBoxes } from './ocr';
 import { canvasOfGray, ctx2d, makeCanvas } from './images';
 
@@ -43,17 +46,6 @@ export async function readMusic(omr: OmrWorkerClient, grays: GrayImage[], opts: 
     ...(opts.tuning ? { tuning: opts.tuning } : {}),
     onProgress: (p) => opts.onProgress?.({ page: p.page, pages: p.pages, fraction: p.fraction, message: p.pages > 1 ? `Page ${p.page + 1} of ${p.pages}: ${p.message}` : p.message, stage: 'music' }),
   });
-}
-
-/** Every character a chord name uses (so OCR does not read "C" as "(" or "c"). */
-export const CHORD_CHARS = 'ABCDEFGHmajdinsuMb#/()+-0123456789';
-
-/** Normalise what OCR made of a chord symbol ("Am7", "F♯m" -> "F#m"); null when it is not one. */
-export function cleanChordText(raw: string): string | null {
-  const t = raw.replace(/♯/g, '#').replace(/♭/g, 'b').replace(/[“”"'`’|]/g, '').replace(/\s+/g, '').trim();
-  if (!t) return null;
-  const fixed = t.replace(/^([A-G])(?:0|O)$/, '$1o').replace(/^8b/, 'Bb').replace(/^6$/, 'G');
-  return isChordWord(fixed) ? fixed : null;
 }
 
 /** The located-but-unread texts of a reading. */

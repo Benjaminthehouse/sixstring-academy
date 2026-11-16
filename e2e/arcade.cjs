@@ -247,20 +247,32 @@ async function tapRounds(browser, url) {
   await dismissShell(page);
   await page.click('[data-arcade-daily]');
   let dailyOk = true;
+  let promised = null;
+  const upNextRight = [];
   for (let stage = 0; stage < 3; stage++) {
     await page.waitForSelector('[data-arcade-ready]', { timeout: 20000 });
     const game = await page.evaluate(() => document.querySelector('[data-arcade-round]')?.getAttribute('data-arcade-game'));
+    if (promised !== null) upNextRight.push(`${promised}=${game}`);
     await startRound(page);
-    dailyOk = (await playByTaps(page, game)) && dailyOk;
+    const played = await playByTaps(page, game);
+    dailyOk = played && dailyOk;
     if (stage < 2) {
-      await page.waitForSelector('[data-arcade-between]', { timeout: 20000 });
+      const between = await page.waitForSelector('[data-arcade-between]', { timeout: 30000 }).then(() => true, () => false);
+      if (!between) {
+        await page.screenshot({ path: path.join(OUT, 'arcade-debug-daily.png') });
+        console.log(`  daily stage ${stage} (${game}) played=${played}; on screen: ${await page.evaluate(() => `${location.hash} :: ${(document.querySelector('main')?.innerText || '').slice(0, 300).replace(/\s+/g, ' ')}`)}`);
+        dailyOk = false;
+        break;
+      }
       await page.waitForTimeout(300);
       await dismissShell(page);
+      promised = await page.getAttribute('[data-arcade-up-next]', 'data-arcade-up-next').catch(() => null);
       await page.click('[data-arcade-daily-continue]');
     }
   }
   await page.waitForSelector('[data-arcade-daily-summary]', { timeout: 20000 }).catch(() => (dailyOk = false));
   check('daily', "today's challenge plays three games to one summary", dailyOk);
+  check('daily', 'between games, "Next:" names the game that comes next', upNextRight.length === 2 && upNextRight.every((p) => p.split('=')[0] === p.split('=')[1]), upNextRight.join(', '));
   await page.waitForTimeout(600);
   await dismissShell(page);
   await page.screenshot({ path: path.join(OUT, 'arcade-daily-summary.png') });
@@ -291,9 +303,10 @@ async function noMic(browser, url) {
   check('no mic', 'choosing the guitar where the host refuses the mic shows MediaBlocked', (await blocked.count()) > 0);
   await page.screenshot({ path: path.join(OUT, 'arcade-nomic-blocked.png') });
   if (await blocked.count()) await blocked.click();
-  const tapSelected = await page.getByRole('radio', { name: /Tap the screen/ }).getAttribute('aria-checked').catch(() => null);
-  check('no mic', '"Tap the notes instead" switches the round to taps', tapSelected === 'true', `aria-checked=${tapSelected}`);
-  await page.click('[data-arcade-go]');
+  // "Tap the notes instead" starts the round by tapping at once: no second Start to find.
+  const started = await page.waitForSelector('[data-arcade-phase="count"], [data-arcade-phase="play"]', { timeout: 15000 }).then(() => true, () => false);
+  const tapInput = await page.getAttribute('[data-arcade-input]', 'data-arcade-input').catch(() => null);
+  check('no mic', '"Tap the notes instead" starts the round by tapping straight away', started && tapInput === 'tap', `started=${started}, input=${tapInput}`);
   const played = await playByTaps(page, 'note-hunt');
   check('no mic', 'the round is played to its summary by taps', played);
   // Second round in the same visit (no reload), guitar chosen again: no panel, it quietly uses taps.
@@ -305,6 +318,248 @@ async function noMic(browser, url) {
   check('no mic', 'later rounds in the visit fall back to taps without the panel', input === 'tap' && panelAgain === 0, `input=${input}, panel=${panelAgain}`);
   check('no mic', 'no console errors', errors.length === 0, errors.join(' | '));
   await context.close();
+}
+
+/** Hide or show the tab the way a phone does when the learner switches apps. Runs in the page. */
+function setHidden(hidden) {
+  Object.defineProperty(document, 'visibilityState', { value: hidden ? 'hidden' : 'visible', configurable: true });
+  Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
+const focusInfo = (page) =>
+  page.evaluate(() => {
+    const a = document.activeElement;
+    return {
+      tag: a ? a.tagName : null,
+      label: a ? a.getAttribute('aria-label') || '' : '',
+      ready: !!(a && a.closest && a.closest('[data-arcade-ready]')),
+      inRound: !!(a && a.closest && a.closest('[data-arcade-round]')),
+      body: a === document.body,
+    };
+  });
+
+/** Move the keyboard focus on the neck to `key` ("string:fret") with the arrow keys. */
+async function arrowTo(page, key) {
+  const [ts, tf] = key.split(':').map(Number);
+  const where = async () => {
+    const m = /string (\d), (?:fret (\d+)|open)/.exec((await focusInfo(page)).label);
+    return m ? { s: Number(m[1]), f: m[2] ? Number(m[2]) : 0 } : null;
+  };
+  for (let i = 0; i < 40; i++) {
+    const at = await where();
+    if (!at) return false;
+    if (at.s === ts && at.f === tf) return true;
+    let k;
+    if (at.s !== ts) k = at.s > ts ? 'ArrowUp' : 'ArrowDown';
+    else k = at.f < tf ? 'ArrowRight' : 'ArrowLeft';
+    await page.keyboard.press(k);
+    const after = await where();
+    // The neck may map up and down the other way round (left-handed, vertical): try the opposite key.
+    if (after && after.s === at.s && after.f === at.f) await page.keyboard.press({ ArrowUp: 'ArrowDown', ArrowDown: 'ArrowUp', ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft' }[k]);
+  }
+  return false;
+}
+
+/**
+ * Cases found in the review (each was a real bug): the keyboard alone, Space in Run the Scale, a
+ * hidden tab mid-round, leaving right after the last answer, and Lick Echo resuming a marked phrase.
+ */
+async function reviewCases(browser, url) {
+  // --- Keyboard alone, on a desktop: Enter on the level link, Enter on the card, arrows + Enter on the neck.
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: false });
+    await open(page, url, 'arcade', 'note-hunt', FOCUS);
+    await page.waitForSelector('[data-arcade-play]', { timeout: 20000 });
+    await page.focus('[data-arcade-play]');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-arcade-ready]', { timeout: 20000 });
+    await page.waitForTimeout(300);
+    const onCard = await focusInfo(page);
+    check('review', 'keyboard: the ready card takes the focus (not the page body)', onCard.ready, JSON.stringify(onCard));
+    await page.keyboard.press('Tab');
+    const firstTab = await focusInfo(page);
+    check('review', 'keyboard: Tab stays in the card, never on the board hidden behind it', firstTab.ready && !/^string /.test(firstTab.label), JSON.stringify(firstTab));
+    // Tab on to Start (as a keyboard user would) and press it.
+    for (let i = 0; i < 8 && !(await page.evaluate(() => document.activeElement?.hasAttribute('data-arcade-go'))); i++) await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await waitPlay(page);
+    await page.waitForTimeout(300);
+    const inPlay = await focusInfo(page);
+    check('review', 'keyboard: once the round starts the focus is on the neck', inPlay.inRound && /^string /.test(inPlay.label), JSON.stringify(inPlay));
+    let ok = true;
+    for (let n = 0; n < 12 && !(await summaryVisible(page)); n++) {
+      const answers = await attr(page, 'answers');
+      if (!answers) break;
+      ok = (await arrowTo(page, answers.split(' ')[0])) && ok;
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(250);
+    }
+    await page.waitForSelector('[data-arcade-summary]', { timeout: 15000 }).catch(() => {});
+    const stars = Number(await page.getAttribute('[data-arcade-summary]', 'data-stars').catch(() => -1));
+    check('review', 'keyboard: a whole Note Hunt round is played with the arrows and Enter', ok && stars === 3, `arrows ok=${ok}, stars=${stars}`);
+    check('review', 'keyboard: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- Run the Scale: Space starts the count-in, as its hint says, with the focus on the neck.
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: false });
+    await open(page, url, 'arcade', 'run-the-scale', FOCUS, 'level-1');
+    await startRound(page);
+    await waitPlay(page);
+    await page.waitForTimeout(300);
+    await page.keyboard.press(' ');
+    const counting = await page.waitForSelector('[data-arcade-round][data-arcade-phase="count"]', { timeout: 5000 }).then(() => true, () => false);
+    check('review', 'Run the Scale: Space starts the count-in', counting);
+    // Hidden mid-run: the run is called off (not judged against clicks nobody heard).
+    await page.waitForSelector('[data-arcade-round][data-arcade-phase="run"]', { timeout: 10000 }).catch(() => {});
+    await page.evaluate(setHidden, true);
+    await page.waitForTimeout(1500);
+    const pausedPhase = await page.getAttribute('[data-arcade-round]', 'data-arcade-phase').catch(() => null);
+    const pausedText = await page.textContent('[data-arcade-status]').catch(() => '');
+    await page.evaluate(setHidden, false);
+    await page.waitForSelector('[data-arcade-phase="play"]', { timeout: 10000 }).catch(() => {});
+    const startBack = await page.locator('[data-arcade-start]:not([disabled])').count();
+    check('review', 'Run the Scale: a hidden tab calls the run off; Start is there again on return', pausedPhase === 'ready' && /Paused/.test(pausedText ?? '') && startBack > 0, `phase=${pausedPhase}, start=${startBack}, "${pausedText}"`);
+    // Hidden for a moment during the count-in: the called-off run's own cues must not wake it up
+    // later (it used to switch to "run" with nothing to judge, and no Start button).
+    await page.waitForTimeout(300);
+    await page.keyboard.press(' ');
+    await page.waitForSelector('[data-arcade-round][data-arcade-phase="count"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    await page.evaluate(setHidden, true);
+    await page.waitForTimeout(300);
+    await page.evaluate(setHidden, false);
+    await page.waitForSelector('[data-arcade-phase="play"]', { timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(5000);
+    const laterPhase = await page.getAttribute('[data-arcade-round]', 'data-arcade-phase').catch(() => null);
+    const laterStart = await page.locator('[data-arcade-start]:not([disabled])').count();
+    check('review', 'Run the Scale: a run called off in its count-in stays off (Start waits)', laterPhase === 'ready' && laterStart > 0, `phase=${laterPhase}, start=${laterStart}`);
+    check('review', 'Run the Scale: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- A hidden tab pauses the clock and counts in again on return (Fretboard Sprint).
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: true });
+    await open(page, url, 'arcade', 'fretboard-sprint', FOCUS, 'level-1');
+    await startRound(page);
+    await waitPlay(page);
+    await page.waitForTimeout(1200);
+    const left = () => page.getAttribute('[data-arcade-round] [role="timer"]', 'aria-label').then((s) => Number(/(\d+) seconds/.exec(s ?? '')?.[1] ?? NaN));
+    const before = await left();
+    await page.evaluate(setHidden, true);
+    await page.waitForTimeout(4000);
+    const hiddenLeft = await left();
+    await page.evaluate(setHidden, false);
+    const recount = await page.waitForSelector('[data-arcade-phase="count"]', { timeout: 3000 }).then(() => true, () => false);
+    await waitPlay(page);
+    check('review', 'hidden tab: the clock stands still while away', Number.isFinite(before) && hiddenLeft >= before - 1, `before ${before}, after 4 s hidden ${hiddenLeft}`);
+    check('review', 'hidden tab: coming back counts 3-2-1 before play resumes', recount);
+    check('review', 'hidden tab: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- Lick Echo: a phrase marked wrong keeps its Next button through a pause (it used to get stuck).
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: true });
+    await open(page, url, 'arcade', 'lick-echo', FOCUS, 'level-1');
+    await startRound(page);
+    await waitPlay(page);
+    await page.waitForSelector('[data-arcade-round][data-arcade-phase="answer"]', { timeout: 15000 }).catch(() => {});
+    const answers = (await attr(page, 'answers')) ?? '';
+    const keys = answers.split(' ');
+    // Three taps, the middle one wrong: the phrase is marked "Close" and waits for Next.
+    const wrong = await page.evaluate((right) => [...document.querySelectorAll('[data-arcade-round] button[aria-label^="string "]')].map((b) => b.getAttribute('aria-label')).find((l) => l !== right), label(keys[1]));
+    await cell(page, keys[0]).click();
+    await page.locator(`[data-arcade-round] button[aria-label="${wrong}"]`).first().click();
+    await cell(page, keys[2]).click();
+    await page.waitForSelector('[data-arcade-next]', { timeout: 5000 }).catch(() => {});
+    await page.evaluate(setHidden, true);
+    await page.waitForTimeout(600);
+    await page.evaluate(setHidden, false);
+    await waitPlay(page);
+    await page.waitForTimeout(800);
+    const nextThere = await page.locator('[data-arcade-next]').count();
+    check('review', 'Lick Echo: after a pause, a marked phrase still offers Next phrase', nextThere > 0);
+    if (nextThere) await page.click('[data-arcade-next]');
+    const moved = await page.waitForFunction(() => document.querySelector('[data-arcade-round]')?.getAttribute('data-arcade-index') === '1', null, { timeout: 5000 }).then(() => true, () => false);
+    check('review', 'Lick Echo: Next phrase moves on', moved);
+    check('review', 'Lick Echo: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+
+  // --- Leaving right after the last answer does not record the round afterwards (Mode Match).
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: true });
+    await open(page, url, 'arcade', 'mode-match', FOCUS, 'level-1');
+    await startRound(page);
+    await waitPlay(page);
+    // Level 1 asks 8 questions; answer them all right, and leave the moment the 8th is in.
+    const QUESTIONS = 8;
+    let answered = 0;
+    for (let i = 0; i < 60 && answered < QUESTIONS; i++) {
+      const index = Number(await attr(page, 'index'));
+      const answer = await attr(page, 'answer');
+      const btn = page.locator(`[data-mode="${answer}"]:not([disabled])`);
+      if (index !== answered || !answer || !(await btn.count())) {
+        await page.waitForTimeout(200);
+        continue;
+      }
+      await btn.click();
+      answered++;
+      // Out of the round before its summary arrives.
+      if (answered === QUESTIONS) await page.evaluate(() => { location.hash = '#arcade'; });
+    }
+    check('review', 'leaving before the summary: all the questions were answered first', answered === QUESTIONS, `answered ${answered}`);
+    await page.waitForTimeout(2500);
+    const recorded = await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('ssa:progress') || '{}');
+      const st = raw.state ?? raw;
+      return (st.skills || {})['arcade:mode-match:level-1']?.attempts ?? 0;
+    });
+    check('review', 'leaving before the summary: the round is not recorded behind the learner’s back', recorded === 0, `attempts ${recorded}`);
+    check('review', 'leaving before the summary: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
+}
+
+/** The microphone stops mid-round (unplugged): the round says so and goes on by tapping. */
+async function micLost() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'arcade-lost-'));
+  const quiet = path.join(tmp, 'quiet.wav');
+  // A quiet room: two seconds of near silence, looped.
+  const SR = 48000;
+  const n = SR * 2;
+  const buf = Buffer.alloc(44 + n * 2);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + n * 2, 4); buf.write('WAVE', 8); buf.write('fmt ', 12);
+  buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22); buf.writeUInt32LE(SR, 24);
+  buf.writeUInt32LE(SR * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34); buf.write('data', 36); buf.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) buf.writeInt16LE(Math.round((Math.random() - 0.5) * 40), 44 + i * 2);
+  fs.writeFileSync(quiet, buf);
+  await withApp({ mobile: true, fakeAudio: quiet, settle: 300 }, async ({ page, goto, errors }) => {
+    await page.addInitScript((e) => { for (const [k, v] of Object.entries(e)) localStorage.setItem(k, v); }, SEEDED);
+    await page.addInitScript(() => {
+      const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      window.__arcadeTracks = [];
+      navigator.mediaDevices.getUserMedia = async (c) => { const s = await g(c); window.__arcadeTracks.push(...s.getTracks()); return s; };
+    });
+    await goto('arcade', 'note-hunt', FOCUS, 'level-1');
+    await startRound(page, { mic: true });
+    await page.waitForSelector('[data-arcade-mic="on"]', { timeout: 20000 }).catch(() => {});
+    await waitPlay(page);
+    await page.evaluate(() => { for (const t of window.__arcadeTracks) { t.stop(); t.dispatchEvent(new Event('ended')); } });
+    const fellBack = await page.waitForSelector('[data-arcade-input="tap"]', { timeout: 8000 }).then(() => true, () => false);
+    const banner = await page.locator('text=The microphone stopped').count();
+    check('mic lost', 'the round switches to taps and says why', fellBack && banner > 0, `tap=${fellBack}, banner=${banner}`);
+    const played = await playByTaps(page, 'note-hunt', { maxMs: 60000 });
+    check('mic lost', 'the round is finished by tapping', played);
+    const released = await page.evaluate(() => window.__arcadeTracks.every((t) => t.readyState === 'ended'));
+    check('mic lost', 'the microphone is released', released);
+    check('mic lost', 'no console errors', errors.length === 0, errors.join(' | '));
+  });
+  fs.rmSync(tmp, { recursive: true, force: true });
 }
 
 /** Write a fake microphone recording made with the app's guitar. */
@@ -451,14 +706,16 @@ async function shots(browser, url) {
 
 (async () => {
   console.log('Scale Arcade browser check');
-  if (want('taps') || want('nomic') || (want('shots') && !skipShots)) {
+  if (want('taps') || want('nomic') || want('review') || (want('shots') && !skipShots)) {
     await withApp({ mobile: true, settle: 300 }, async ({ browser, url }) => {
       if (want('taps')) await tapRounds(browser, url);
       if (want('nomic')) await noMic(browser, url);
+      if (want('review')) await reviewCases(browser, url);
       if (want('shots') && !skipShots) await shots(browser, url);
     });
   }
   if (want('mic') && !skipMic) await fakeMic();
+  if (want('lost') && !skipMic) await micLost();
   const groups = [...new Set(results.map((r) => r.group))];
   for (const g of groups) {
     const rs = results.filter((r) => r.group === g);

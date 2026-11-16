@@ -16,10 +16,23 @@ export function skillIdFor(game: GameId, focus: Focus, level: number): string {
   return `scale:${focusSlug(focus)}:${focus.shape}`;
 }
 
-/** "Note Hunt: A minor pentatonic, Box 1" for the activity log. */
-export function roundTitle(game: GameDef, scale: string, shape: string | null): string {
+/** "Note Hunt: A minor pentatonic, Box 1" for the activity log (Sprint covers the whole neck, not a shape). */
+export function roundTitle(game: Pick<GameDef, 'id' | 'title'>, scale: string, shape: string | null): string {
   if (game.id === 'mode-match') return `${game.title}: the modes`;
+  if (game.id === 'fretboard-sprint') return `${game.title}: ${scale}, whole neck`;
   return shape ? `${game.title}: ${scale}, ${shape}` : `${game.title}: ${scale}`;
+}
+
+/** What a game's crowns are for, as the summary says it: "Crown 2 for this shape". */
+export function crownLabel(game: GameId, crown: number): string {
+  if (game === 'mode-match') return `Crown ${crown} in Mode Match`;
+  if (game === 'fretboard-sprint') return `Crown ${crown} for the whole neck`;
+  return `Crown ${crown} for this shape`;
+}
+
+/** What a game's levels are played on, for headings: the scale, or the modes for Mode Match. */
+export function scopeLabel(game: GameId, scaleName: string): string {
+  return game === 'mode-match' ? 'The modes' : scaleName;
 }
 
 /** Route params that reopen a game on a focus: `['note-hunt', 'a-minor-pentatonic', 'box-1']`. */

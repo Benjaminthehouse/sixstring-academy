@@ -194,3 +194,8 @@
   margin: 0;
   color: var(--fg-muted);
 }
+
+/* The tempo popover's body on touch screens: it takes focus so no keyboard opens. */
+.tempoPanel:focus {
+  outline: none;
+}

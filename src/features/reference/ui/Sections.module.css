@@ -620,6 +620,12 @@
   gap: var(--sp-3) var(--sp-4);
 }
 
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 .shapeNotes {
   display: grid;
   gap: var(--sp-2);
@@ -717,6 +723,26 @@
   color: var(--fg-muted);
 }
 
+/* The play / stop mark of a compound row (the whole row is the button). */
+.ivPlay {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--fg);
+  justify-self: end;
+  align-self: center;
+}
+
+.ivPlaying {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
 /* Phones: the name on top, then inversion and "from C", then the two neck moves, two to a line. */
 @container refbody (max-width: 619px) {
   .ivRow {
@@ -724,6 +750,20 @@
   }
   .ivName {
     grid-column: 2 / 4;
+  }
+  /* Compound rows: two lines, with the play mark at the end of both. */
+  .ivCompound .ivRow {
+    grid-template-columns: 2.25rem minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .ivCompound .ivSemis {
+    grid-row: 1 / span 2;
+  }
+  .ivCompound .ivName {
+    grid-column: 2 / 4;
+  }
+  .ivCompound .ivPlay {
+    grid-column: 4;
+    grid-row: 1 / span 2;
   }
 }
 
@@ -759,16 +799,30 @@
   .ivCell {
     color: var(--fg);
   }
+  .ivCompound .ivHead,
+  .ivCompound .ivRow {
+    grid-template-columns: 3.5rem minmax(10rem, 1.6fr) minmax(6rem, 1fr) minmax(6rem, 1fr) 2.75rem;
+  }
 }
 
 /* ================= tables ================= */
+/*
+ * A table wider than its frame scrolls inside it. A shade on the edge that has more columns tells
+ * the learner there is more to see: the two "local" covers travel with the content and hide the
+ * shade once that edge is reached.
+ */
 .tableFrame {
   position: relative;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  background: var(--surface);
+  background:
+    linear-gradient(to right, var(--surface) 40%, transparent) left / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 40%, transparent) right / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--overlay), transparent) left / 0.875rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--overlay), transparent) right / 0.875rem 100% no-repeat scroll,
+    var(--surface);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1198,6 +1252,27 @@ thead .stickyCol {
 .noteGlyph {
   font-size: var(--text-lg);
   flex: none;
+}
+
+/* The British name sits under the note name on phones, where its own column would be cut off. */
+.britishInline {
+  display: none;
+}
+
+@container refbody (max-width: 479px) {
+  /* Column titles may take two lines, so the values beneath them fit the phone. */
+  .table thead th {
+    white-space: normal;
+  }
+  .britishCol {
+    display: none;
+  }
+  .britishInline {
+    display: block;
+    font-weight: 400;
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+  }
 }
 
 .glyphStaff line {

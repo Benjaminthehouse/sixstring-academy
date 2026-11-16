@@ -10,7 +10,7 @@ import { createInitialState, type ProgressState } from '@/core/progress';
 import { makeRig } from '@/core/progress/testkit';
 import { assembleTheory, loadWrittenUnits, writtenUnitIds } from '@/content/theory';
 import { adaptCourse, adaptLesson, adaptUnit, conditionsLine, isListeningStep, isPlayStep, lessonNeeds } from './conditions';
-import { completedUnits, focusUnit, pathView, unitAfter } from './path';
+import { completedUnits, focusUnit, pathView, refillUnit, unitAfter } from './path';
 import { MAX_PROBES, nextProbe, probePool, probeVerdict, recordProbe, startPlacement, unitsKnown } from './placement';
 import { learnParams, parseLearnParams, type LearnView } from './route';
 import { resolveSession, sessionUnit } from './session';
@@ -184,6 +184,23 @@ describe('the map over the syllabus', () => {
     expect(completedUnits(all.map).has(unit.id)).toBe(true);
     expect(all.byUnit.get(unit.id)!.node!.checkpoint?.state).toBe('passed');
     expect(unitAfter(all, unit.id)).toBe(theory.course.units.length > 1 ? all.byUnit.get(theory.course.units[1].id) : null);
+  });
+
+  it('always has a drill to refill hearts, even before the first lesson is finished', async () => {
+    const theory = assembleTheory(await loadWrittenUnits());
+    const unit = theory.course.units[0];
+    // Out of hearts in the very first lesson: the drill runs on the unit the learner is in.
+    const beginner = pathView(theory, fresh(), NOW);
+    expect(refillUnit(beginner, null)).toBe(unit.id);
+    expect(refillUnit(beginner, 'the-six-strings')).toBe(unit.id);
+    const drill = resolveSession({ kind: 'practice', unitId: refillUnit(beginner, null)! }, theory, { guitar: true, sound: true }, fresh(), NOW);
+    expect(drill.status === 'ready' && drill.source.mode).toBe('practice');
+    // With a lesson finished, the drill keeps to what was learned.
+    const started = withDone([unit.lessons[0].skill]);
+    expect(refillUnit(pathView(theory, started, NOW), unit.id)).toBe(unit.id);
+    expect(practiceSource(theory.course, unit.id, started).lessonIds).toEqual([unit.lessons[0].id]);
+    // Nothing written at all: nothing to practise.
+    expect(refillUnit({ ...beginner, next: null, stages: beginner.stages.map((s) => ({ ...s, units: s.units.filter((u) => !u.node) })) }, null)).toBeNull();
   });
 });
 

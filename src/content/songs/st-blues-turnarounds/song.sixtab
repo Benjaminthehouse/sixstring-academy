@@ -1,0 +1,49 @@
+# Blues Turnarounds in E and A (repertoire plan: st-blues-turnarounds). An original study on the
+# traditional 12-bar form. A turnaround fills bars 11 and 12 and leads back to the top.
+# In E: over the open string 6, a line falls by half steps on string 3, fret 7 (D), 6 (C#),
+# 5 (C), 4 (B), one note per beat, each struck with the open string 1 (E) as a swung long-short
+# pair; bar 12 is B7 (x21202). In A: over the open string 5, the same on string 4, fret 5 (G),
+# 4 (F#), 3 (F), 2 (E), with the open string 1; bar 12 is E7 (020100). Both lines run b7, 6, b6, 5.
+# Left hand: fingers 4, 3, 2, 1, one per fret. Right hand: thumb (P) on the bass of beat 1,
+# i on the moving note, a on string 1. Then a full 12-bar chorus with each one, using the shuffle
+# from the 12-bar study (played with the thumb), and a last chord to finish.
+# Swung eighths are written as triplets: q3 (long) then e3 (short) in each beat.
+title: Blues Turnarounds in E and A
+composer: Sixstring Academy
+source: Original study on the traditional 12-bar blues form
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: blues, turnaround, 12-bar, shuffle, swing
+tempo: 80
+time: 4/4
+key: E
+
+track: Your part
+role: lead
+[Turnaround in E]
+| "E7" q3 (6:0{P} 3:7{4 I} 1:0{A}) e3 (3:7 1:0) q3 (3:6{3} 1:0) e3 (3:6 1:0) q3 (3:5{2} 1:0) e3 (3:5 1:0) q3 (3:4{1} 1:0) e3 (3:4 1:0) |
+| "B7=x21202" h (5:2 4:1 3:2 2:0 1:2){dn} q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} q r ||
+key: A
+[Turnaround in A]
+| "A7" q3 (5:0{P} 4:5{4 I} 1:0{A}) e3 (4:5 1:0) q3 (4:4{3} 1:0) e3 (4:4 1:0) q3 (4:3{2} 1:0) e3 (4:3 1:0) q3 (4:2{1} 1:0) e3 (4:2 1:0) |
+| "E7=020100" h (6:0 5:2 4:0 3:1 2:0 1:0){dn} q3 (6:0 5:2 4:0 3:1 2:0 1:0){dn} e3 (6:0 5:2 4:0 3:1 2:0 1:0){up} q r ||
+key: E
+[12-bar in E]
+| "E" q3 (6:0{P} 5:2{P}) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) | % | % | % |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) | % |
+| "B7=x21202" q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) |
+| "E7" ^"turnaround" q3 (6:0 3:7 1:0) e3 (3:7 1:0) q3 (3:6 1:0) e3 (3:6 1:0) q3 (3:5 1:0) e3 (3:5 1:0) q3 (3:4 1:0) e3 (3:4 1:0) |
+| "B7" h (5:2 4:1 3:2 2:0 1:2){dn} q3 (5:2 4:1 3:2 2:0 1:2){dn} e3 (5:2 4:1 3:2 2:0 1:2){up} q r |
+| "E=022100" w (6:0 5:2 4:2 3:1 2:0 1:0){dn} ||
+key: A
+[12-bar in A]
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % | % | % |
+| "D" q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) | % |
+| "A" q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) q3 (5:0 4:2) e3 (5:0 4:2) q3 (5:0 4:4) e3 (5:0 4:4) | % |
+| "E" q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) q3 (6:0 5:2) e3 (6:0 5:2) q3 (6:0 5:4) e3 (6:0 5:4) |
+| "D" q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) q3 (4:0 3:2) e3 (4:0 3:2) q3 (4:0 3:4) e3 (4:0 3:4) |
+| "A7" ^"turnaround" q3 (5:0 4:5 1:0) e3 (4:5 1:0) q3 (4:4 1:0) e3 (4:4 1:0) q3 (4:3 1:0) e3 (4:3 1:0) q3 (4:2 1:0) e3 (4:2 1:0) |
+| "E7" h (6:0 5:2 4:0 3:1 2:0 1:0){dn} q3 (6:0 5:2 4:0 3:1 2:0 1:0){dn} e3 (6:0 5:2 4:0 3:1 2:0 1:0){up} q r |
+| "A=x02220" w (5:0 4:2 3:2 2:2 1:0){dn} ||

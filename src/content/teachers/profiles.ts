@@ -32,6 +32,11 @@ export interface TeacherProfile {
   taskBack: { done: readonly string[]; unsure: string };
   /** Said before the performance that ends a unit. */
   performance: string;
+  /**
+   * Said at the end of a unit whose performance was answered by tapping (no microphone): the
+   * learner has not played it yet, so the teacher does not say they did. `{piece}` is its name.
+   */
+  tappedShow: string;
   /** Said when a course has no written lessons yet. */
   preparing: string;
 }
@@ -48,15 +53,16 @@ export const PROFILES: Record<TeacherKey, TeacherProfile> = {
     forWho: 'For you if you have never played, or tried once and gave up.',
     sample: 'Today you only need to make one clear note, and I will show you exactly how. If it buzzes, that is fine. We fix it together.',
     reactions: {
-      right: ['That is it.', 'Exactly right.', 'Yes, well done.', 'Lovely. You have got it.', 'Spot on.'],
-      wrong: ['Nearly. Here is the thing to notice.', 'Not this time, and that is fine. Look:', 'Close. Let me show you.', 'Good try. Here is how it works.'],
-      skipped: ['No problem. Here is the answer, and it will come back in a moment.', 'That is what I am here for. Have a look:'],
+      right: ['Lovely. You have got it.', 'Well done.', 'Nicely done. One more thing you know.', 'You are getting the hang of this.', 'Good. Keep that one.'],
+      wrong: ['Nearly. Here is the thing to notice.', 'Not this time, and that is fine. Look:', 'Good try. Let me show you.', 'That one catches lots of people. Here is how it works.'],
+      skipped: ['No problem at all. Have a look.', 'That is what I am here for. Have a look:'],
     },
     taskBack: {
-      done: ['Welcome back. I saw that, and it counts.', 'You did it. That is real playing.', 'Nicely done. Let us carry on.'],
-      unsure: 'Welcome back. Did you get to do it? Either way is fine: you can carry on, or go and have another go.',
+      done: ['I saw that, and it counts.', 'You did it. That is real playing.', 'Nicely done. Let us carry on.'],
+      unsure: 'Did you get to do it? Either way is fine: you can carry on, or go and have another go.',
     },
     performance: 'This is your show. Count yourself in, play it start to finish, and keep going through any mistake.',
+    tappedShow: 'You know how {piece} goes, start to finish. Next time your guitar is in your hands, play it for someone and keep going through any mistake. That is your show.',
     preparing: 'My lessons are being written right now. Until they are ready, start with the Theory Path or tune up and play a song.',
   },
   dev: {
@@ -69,15 +75,16 @@ export const PROFILES: Record<TeacherKey, TeacherProfile> = {
     forWho: 'For you if you know your open chords and want the rest of the neck.',
     sample: 'Here is the deal: every shape I show you, you use in a song tonight. Theory is just the map. The music is the trip.',
     reactions: {
-      right: ['Nailed it.', 'Yes. That is the one.', 'Clean.', 'There it is.', 'Locked in.'],
-      wrong: ['Not quite. Check this out.', 'Close, but here is the trick.', 'Happens to everyone. Look:', 'Almost. Here is what is going on.'],
-      skipped: ['All good. Here is the answer; it will come round again.', 'No sweat. Have a look:'],
+      right: ['Nailed it.', 'Clean.', 'There it is.', 'Locked in.', 'Now you are cooking.'],
+      wrong: ['Check this out.', 'Close, but here is the trick.', 'Happens to everyone. Look:', 'Almost. Here is what is going on.'],
+      skipped: ['All good. Have a look.', 'No sweat. Have a look:'],
     },
     taskBack: {
       done: ['Back already? I saw that. Nice work.', 'That is the stuff. On we go.', 'Sounded good from here.'],
-      unsure: 'Hey, you are back. Did you get a run at it? Keep going, or jump back in for another take.',
+      unsure: 'Did you get a run at it? Keep going, or jump back in for another take.',
     },
     performance: 'Gig time. Count it in, play it through, and if you drop a note, land on the next beat like nothing happened.',
+    tappedShow: 'You know how {piece} goes. Next time the guitar is on your knee, play it through for somebody. That is the gig.',
     preparing: "My lessons are still in the workshop. Meanwhile, Mia's course and the Theory Path will keep your hands busy.",
   },
   elena: {
@@ -90,15 +97,16 @@ export const PROFILES: Record<TeacherKey, TeacherProfile> = {
     forWho: 'For you if you play well and want to play beautifully, with reasons.',
     sample: 'I will assume you can play, and ask you to play better. Precision first; speed is merely precision repeated.',
     reactions: {
-      right: ['Correct.', 'Precisely.', 'Good. As expected.', 'Yes. Well reasoned.', 'Exactly so.'],
-      wrong: ['No. Consider this:', 'Not quite. The reason matters:', 'An understandable error. Observe:', 'Incorrect, but instructive.'],
-      skipped: ['Honest. Here is the answer; we will return to it.', 'Admitting it is the first step. Observe:'],
+      right: ['Precisely.', 'Good. As expected.', 'Well reasoned.', 'Quite so.', 'Clean thinking.'],
+      wrong: ['No. Consider this:', 'The reason matters:', 'An understandable error. Observe:', 'Incorrect, but instructive.'],
+      skipped: ['Honest. That is worth something. Observe:', 'Admitting it is the first step. Observe:'],
     },
     taskBack: {
       done: ['Recorded. Good.', 'You returned with evidence. I approve.', 'Satisfactory. We continue.'],
-      unsure: 'You are back. If the work is done, continue; if not, return to it. I will not check, but your hands will know.',
+      unsure: 'If the work is done, continue; if not, return to it. I will not check, but your hands will know.',
     },
     performance: 'A performance, however small, deserves preparation. Breathe, count in, and do not stop for anything.',
+    tappedShow: 'You know the shape of {piece}. A performance, however, is played: on the instrument, for a listener, without stopping. Do that before we go on.',
     preparing: "My course is in preparation. Use the time well: the Theory Path's expert stage is a fine place to begin.",
   },
 };
@@ -108,8 +116,40 @@ export function profileOf(id: string): TeacherProfile {
   return (PROFILES as Record<string, TeacherProfile>)[id] ?? PROFILES.mia;
 }
 
-/** A line from a list, chosen by a number (stable for one answer, varied across answers). */
-export function pickLine(lines: readonly string[], seed: number): string {
+function words(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * True when `line` would read as a repeat of `other` shown next to it ("Spot on." under "Mia: Spot
+ * on.", "Exactly right." over "Exactly."): one starts with all the words of the other, or both
+ * open with the same two words.
+ */
+export function echoes(line: string, other: string): boolean {
+  const a = words(line);
+  const b = words(other);
+  if (a.length === 0 || b.length === 0) return false;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (short.every((w, i) => long[i] === w)) return true;
+  return a.length >= 2 && b.length >= 2 && a[0] === b[0] && a[1] === b[1];
+}
+
+/**
+ * A line from a list, chosen by a number (stable for one answer, varied across answers). With
+ * `avoid` (the words already on screen beside it), the next line that does not repeat them is taken.
+ */
+export function pickLine(lines: readonly string[], seed: number, avoid?: string): string {
   if (lines.length === 0) return '';
-  return lines[((Math.floor(seed) % lines.length) + lines.length) % lines.length];
+  const start = ((Math.floor(seed) % lines.length) + lines.length) % lines.length;
+  if (avoid) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[(start + i) % lines.length];
+      if (!echoes(line, avoid)) return line;
+    }
+  }
+  return lines[start];
 }

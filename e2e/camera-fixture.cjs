@@ -14,13 +14,14 @@
  * never touches, and the ground-truth pose of every frame is saved beside the video, so the page's
  * overlay can be scored against the frame actually on screen.
  *
- * Phases (frame indices at 30 fps):
+ * Phases (frame indices at 30 fps); every move is slow (a few pixels per frame), and the last
+ * second blends back into the first frame so the looping fake camera never jumps:
  *   still   0-149    sway in place (lock, notes on the right frets)
  *   drift   150-239  slide sideways by about a sixth of the picture (the overlay must follow)
- *   exit    240-279  slide down out of the picture
- *   away    280-359  no guitar in view (the overlay must go)
- *   return  360-399  slide back in (it must lock again)
- *   settle  400-449  sway in place
+ *   exit    240-329  slide down out of the picture
+ *   away    330-419  no guitar in view (the overlay must go)
+ *   return  420-509  slide back in (it must lock again)
+ *   settle  510-599  sway in place, ending where frame 0 starts
  */
 'use strict';
 const fs = require('node:fs');
@@ -30,7 +31,7 @@ const { loadTs, ROOT } = require('./lib/harness.cjs');
 
 const OUT = path.join(ROOT, 'e2e', 'out', 'camera');
 const FPS = 30;
-const FRAMES = 450;
+const FRAMES = 600;
 const WIDTH = 1280;
 const HEIGHT = 720;
 const JPEG_QUALITY = 82;
@@ -40,7 +41,9 @@ const CODE_W = CODE_CELLS * CODE_CELL;
 const CODE_H = CODE_CELL;
 
 /** Phase boundaries (frame indices, inclusive start). */
-const PHASES = { still: [0, 150], drift: [150, 240], exit: [240, 280], away: [280, 360], return: [360, 400], settle: [400, 450] };
+const PHASES = { still: [0, 150], drift: [150, 240], exit: [240, 330], away: [330, 420], return: [420, 510], settle: [510, 600] };
+/** Frames over which the end blends into the start (seamless loop). */
+const BLEND = 45;
 
 function fingerprint() {
   const dir = path.join(ROOT, 'src', 'core', 'vision', 'testing');
@@ -117,9 +120,13 @@ async function buildCameraFixture({ fresh = false } = {}) {
     exitV += 0.08;
     // Choreography on top of the sway.
     let prev = null;
+    const startView = { ...seq.frames[0].view };
     for (let i = 0; i < seq.frames.length; i++) {
       const spec = seq.frames[i];
       const view = { ...spec.view };
+      // The last frames glide into frame 0's view, so the looping video has no jump.
+      const k = smooth(FRAMES - BLEND, FRAMES - 1, i);
+      if (k > 0) for (const key of Object.keys(view)) if (typeof view[key] === 'number') view[key] = view[key] * (1 - k) + startView[key] * k;
       const drift = 0.16 * smooth(PHASES.drift[0], PHASES.drift[1] - 1, i) * (1 - smooth(PHASES.away[0], PHASES.away[1] - 1, i));
       const down = exitV * (smooth(PHASES.exit[0], PHASES.exit[1] - 1, i) - smooth(PHASES.return[0], PHASES.return[1] - 1, i));
       view.anchorU += drift;

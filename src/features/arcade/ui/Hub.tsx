@@ -56,10 +56,10 @@ export function Hub() {
             <Fretboard frets={regionOf(pattern)} tuning={tuning} markers={markers} box={boxOf(pattern)} size="sm" aria-label={`${scaleTitle(focus, naming)}, ${pattern.name}`} />
           </div>
           <div className={styles.focusActions}>
-            <Button iconLeft="SlidersHorizontal" onClick={() => setSheet(true)} data-arcade-change>
+            <Button iconLeft="SlidersHorizontal" onClick={() => setSheet(true)} wrap data-arcade-change>
               Change scale or shape
             </Button>
-            <LinkButton to="scales" params={gameParams('note-hunt', focus).slice(1)} variant="ghost" iconRight="ArrowRight">
+            <LinkButton to="scales" params={gameParams('note-hunt', focus).slice(1)} variant="ghost" iconRight="ArrowRight" wrap>
               Learn it on the Scales page
             </LinkButton>
           </div>
@@ -90,7 +90,7 @@ export function Hub() {
           ) : (
             <Text size="sm" tone="muted">About three minutes. A new one every day.</Text>
           )}
-          <LinkButton to="arcade" params={['daily']} variant="primary" size="lg" iconLeft="CalendarCheck" fullWidth data-arcade-daily>
+          <LinkButton to="arcade" params={['daily']} variant="primary" size="lg" iconLeft="CalendarCheck" fullWidth wrap data-arcade-daily>
             {daily?.done ? 'Play it again' : 'Play today’s challenge'}
           </LinkButton>
         </Card>

@@ -88,9 +88,12 @@ describe('ranking', () => {
   });
 
   it('works on the real built-in collection', () => {
-    const top = goodNextSongs(SONG_ENTRIES.map(builtinListing), learner());
+    // The collection grows as authors add songs: check what holds for any of them.
+    const all = SONG_ENTRIES.map(builtinListing);
+    const top = goodNextSongs(all, learner());
+    expect(top.length).toBeGreaterThanOrEqual(Math.min(2, all.filter((s) => s.level <= 2).length));
     expect(top.map((r) => r.listing.level).every((lv) => lv <= 2)).toBe(true);
-    expect(top.map((r) => r.listing.id)).toEqual(expect.arrayContaining(['hot-cross-buns', 'frere-jacques']));
+    expect(new Set(top.map((r) => r.listing.id)).size).toBe(top.length);
   });
 });
 

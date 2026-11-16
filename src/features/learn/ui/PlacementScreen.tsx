@@ -386,8 +386,8 @@ export function PlacementScreen() {
                 <Icon name="Compass" size="sm" /> Checking Unit {placed.number}: {unit.title}
               </p>
             )}
-            {/* data-question: the question as data, so a browser check can answer it the way the lesson checks do. */}
-            <div className={styles.stage} key={question?.uid ?? 'none'} data-step-id={question?.uid ?? ''} data-question={question ? JSON.stringify({ exercise: question.exercise, presentation: question.presentation }) : undefined}>
+            {/* data-question: the question (with its answer) as data, so the browser check on the dev server can answer it; never in a build. */}
+            <div className={styles.stage} key={question?.uid ?? 'none'} data-step-id={question?.uid ?? ''} data-question={import.meta.env.DEV && question ? JSON.stringify({ exercise: question.exercise, presentation: question.presentation }) : undefined}>
               {question && (
                 <ExerciseFrame
                   exercise={question.exercise}

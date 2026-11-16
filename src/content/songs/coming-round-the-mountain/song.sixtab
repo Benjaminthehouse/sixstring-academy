@@ -1,0 +1,43 @@
+# She'll Be Coming 'Round the Mountain, strum and sing (repertoire plan: coming-round-the-mountain).
+# Your part: G (320003), C (x32010) and D7 (xx0212), down-up eighths all the way, with beats 2
+# and 4 a little harder (SixTab cannot put an accent on a strum, so it is written in the words
+# above bar 1). Each sung line takes two bars of 4/4, and "She'll be" comes just before each line.
+# Line 1 on G; line 2 on G, turning to D7 on its last word, "comes" (the plan says "line 2 on
+# D7": the tune of that line sits on G's notes until "when she comes", so D7 waits for "comes");
+# line 3 on G, then C for its second half; line 4 G, D7 on "mountain when she", G on "comes".
+# Three traditional verses. The tune itself is not written out here: it is traditional and sung
+# in many small variants, and this file holds only the accompaniment and the words.
+title: She'll Be Coming 'Round the Mountain
+id: coming-round-the-mountain
+composer: Traditional American
+source: Traditional song of the late 19th century, printed in 1927; three traditional verses; accompaniment arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: strumming, eighth notes, i-iv-v, campfire, g, c, d7
+tempo: 108
+time: 4/4
+key: G
+pickup: q
+
+track: Your strum
+role: rhythm
+[Verse 1]
+strum: DUDUDUDU
+| ^"Sing 'She'll be' here" q r |
+| ^"Down-up eighths: beats 2 and 4 a little harder" ^"She'll be coming 'round the mountain when she comes," "G=320003" e D U D U D U D U | D U D U D U D U |
+| ^"she'll be coming 'round the mountain when she comes," D U D U D U D U | "D7=xx0212" D U D U D U D U |
+| ^"she'll be coming 'round the mountain," "G=320003" D U D U D U D U | ^"she'll be coming 'round the mountain," "C=x32010" D U D U D U D U |
+| ^"she'll be coming 'round the mountain when she comes." "G=320003" D U D U "D7=xx0212" D U D U | "G=320003" D U D U D U D U ||
+[Verse 2]
+strum: DUDUDUDU
+| ^"She'll be driving six white horses when she comes," "G=320003" D U D U D U D U | D U D U D U D U |
+| ^"she'll be driving six white horses when she comes," D U D U D U D U | "D7=xx0212" D U D U D U D U |
+| ^"she'll be driving six white horses," "G=320003" D U D U D U D U | ^"she'll be driving six white horses," "C=x32010" D U D U D U D U |
+| ^"she'll be driving six white horses when she comes." "G=320003" D U D U "D7=xx0212" D U D U | "G=320003" D U D U D U D U ||
+[Verse 3]
+strum: DUDUDUDU
+| ^"We will all go out to meet her when she comes," "G=320003" D U D U D U D U | D U D U D U D U |
+| ^"we will all go out to meet her when she comes," D U D U D U D U | "D7=xx0212" D U D U D U D U |
+| ^"we will all go out to meet her," "G=320003" D U D U D U D U | ^"we will all go out to meet her," "C=x32010" D U D U D U D U |
+| ^"we will all go out to meet her when she comes." "G=320003" D U D U "D7=xx0212" D U D U | "G=320003" D U D U h D ||

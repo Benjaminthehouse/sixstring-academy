@@ -19,7 +19,7 @@
  * `data-listen`, `data-step`. Keyboard: Space play / next note, arrows previous / next, F full
  * screen, M mirror, Esc leaves a tool or full screen. Browser check: `node e2e/camera.cjs`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
 import { useImmersive, useScreenTitle } from '@/app/shell';
@@ -34,7 +34,7 @@ import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
 import { freezeVideo, useLiveCamera } from './hooks/useLiveCamera';
-import { useHands } from './hooks/useHands';
+import { useHands, type HandFrame } from './hooks/useHands';
 import { useListen } from './hooks/useListen';
 import { useSongMode } from './hooks/useSongMode';
 import { DEFAULT_CONTENT, cameraParams, parseCameraParams, sanitizeContent, type CameraContent } from './model/address';
@@ -45,7 +45,7 @@ import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, 
 import { frettingHand, handAdvice, type FingerReading } from './model/hands';
 import { describeStep, stepHeard, stepNotes } from './model/song';
 import { STARTING_STATUS, announcement, describeStatus, sameStatus, type LiveStatus } from './model/status';
-import { ContentControls, TrackingControls, type ContentControlsProps } from './ui/Controls';
+import { ContentControls, PrevNext, TrackingControls, type ContentControlsProps } from './ui/Controls';
 import { CoachBar, HudButton, StatusPill, TapLayer, ToolBanner } from './ui/Hud';
 import { clearOverlay, drawFrame, readStagePalette, type Flash, type StagePalette } from './ui/overlay';
 import { SETUP_TIPS, SetupGuide } from './ui/SetupGuide';
@@ -221,7 +221,7 @@ export default function CameraScreen({ params }: RouteProps) {
     }
   }, []);
 
-  const handFrameRef = useRef<{ hands: Array<Array<{ x: number; y: number }>>; at: number } | null>(null);
+  const handFrameRef = useRef<HandFrame | null>(null);
 
   const onRender = useCallback((r: PipelineRender) => {
     const canvas = canvasRef.current;
@@ -277,24 +277,23 @@ export default function CameraScreen({ params }: RouteProps) {
         notes: s.notes,
         markers: res.markers.map((m) => ({ string: m.string, fret: m.note.fret, x: m.x, y: m.y, ghost: !!m.note.ghost })),
         numbering: u?.pose?.numbering ?? null,
+        guidance: u?.guidance.code ?? null,
+        trust: u?.guidance.trust ?? null,
+        confidence: u?.confidence ?? 0,
+        flashes: flashes.current.map((f) => ({ string: f.string, fret: f.fret })),
       });
     }
   }, []);
 
   const camera = useLiveCamera({ videoRef, tracker, onRender, onUpdate, deviceId: cameraDeviceId(prefs) });
   const live = camera.phase === 'running';
-  const hands = useHands(handsOn && live, videoRef);
-  handsRef.current = handsOn && hands.status === 'on';
-  useEffect(() => {
-    handFrameRef.current = null;
-    const id = setInterval(() => {
-      handFrameRef.current = hands.frame.current;
-    }, 60);
-    return () => clearInterval(id);
-  }, [hands.frame]);
+  const handStatus = useHands(handsOn && live, videoRef, handFrameRef);
+  handsRef.current = handsOn && handStatus === 'on';
   useEffect(() => {
     if (!handsRef.current) setHandText(null);
-  }, [hands.status, handsOn]);
+    // Not available here: the switch goes back off (on again tries once more).
+    if (handStatus === 'unavailable' && handsOn) setHandsOn(false);
+  }, [handStatus, handsOn, setHandsOn]);
   useWakeLock(live);
 
   // The stage's size, for the overlay canvas (read per frame from a ref, never from layout).
@@ -367,7 +366,8 @@ export default function CameraScreen({ params }: RouteProps) {
   const [focus, setFocus] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [guitarSheet, setGuitarSheet] = useState(false);
-  useImmersive(true, focus ? 'bare' : mode === 'live' || mode === 'starting' ? 'focus' : 'none');
+  // Held sideways, a phone has no height to spare: the tab bar goes from the start.
+  useImmersive(true, focus ? 'bare' : mode === 'live' || mode === 'starting' || sideways ? 'focus' : 'none');
   useEffect(() => {
     if (!live) setFocus(false);
   }, [live]);
@@ -591,7 +591,9 @@ export default function CameraScreen({ params }: RouteProps) {
   useEventListener(window, 'keydown', (e: KeyboardEvent) => {
     if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
     const el = e.target as HTMLElement | null;
-    if (el?.closest('input, select, textarea, [contenteditable="true"], [role="dialog"], [role="application"]')) return;
+    if (el?.closest('[role="dialog"]')) return;
+    // Escape leaves a tool or full screen from anywhere on the screen, the tap layer included.
+    if (e.key !== 'Escape' && el?.closest('input, select, textarea, [contenteditable="true"], [role="application"]')) return;
     const onControl = !!el?.closest('button, a, [role="radio"], [role="slider"], [role="tab"]');
     if (e.key === 'Escape') {
       if (toolRef.current) endTool();
@@ -637,7 +639,7 @@ export default function CameraScreen({ params }: RouteProps) {
       toFretMarkers(notes, labelsInUse, naming).map((m) => (hitSet.has(`${m.string}:${m.fret}`) ? { ...m, state: 'hit' as const } : m)),
     [notes, labelsInUse, naming, hitSet],
   );
-  const range = useMemo(() => (content.kind === 'note' ? ([0, 12] as [number, number]) : content.kind === 'song' ? songRange(song.plan?.steps.flatMap((s) => s.notes) ?? [], capoInUse) : boardRange(notes, capoInUse)), [content.kind, notes, capoInUse, song.plan]);
+  const range = useMemo(() => (content.kind === 'note' ? (notes.length ? boardRange(notes, capoInUse) : ([0, 12] as [number, number])) : content.kind === 'song' ? songRange(song.plan?.steps.flatMap((s) => s.notes) ?? [], capoInUse) : boardRange(notes, capoInUse)), [content.kind, notes, capoInUse, song.plan]);
   const onCell = useCallback(
     (cell: FretCell) => {
       void unlockAudio();
@@ -727,7 +729,7 @@ export default function CameraScreen({ params }: RouteProps) {
     onMirrored: (v: boolean) => setPrefs({ camera: { mirrored: v } }),
     bassUp,
     onBassUp: setBassUp,
-    hands: { on: handsOn && hands.status !== 'unavailable', status: hands.status, onChange: setHandsOn },
+    hands: { on: handsOn, status: handStatus, onChange: setHandsOn },
   };
 
   // ── The stage ───────────────────────────────────────────────────────────────────────────────
@@ -865,12 +867,17 @@ export default function CameraScreen({ params }: RouteProps) {
   const tapLabel = tool?.kind === 'calibrate' ? 'The still picture: tap to mark the neck.' : tool?.kind === 'stickers' ? 'The still picture: tap a sticker.' : 'The picture: tap a fret.';
   const showTapLayer = !!tool && !(tool.kind === 'calibrate' && tool.choosing) && !(tool.kind === 'numbers' && tool.tap);
 
+  /** On a phone held upright the picture is short: the coaching line goes under it, not over the neck. */
+  const coachOnStage = focus || wide || sideways;
+
   const stageNode = (
     <div
       ref={stageRef}
       className={cx(stage.stage, focus && stage.focus, mode === 'drawn' && stage.drawn)}
       data-camera-stage=""
       data-mode={mode}
+      data-fitted={live && camera.aspect ? '' : undefined}
+      style={live && camera.aspect ? ({ '--video-aspect': String(camera.aspect) } as CSSProperties) : undefined}
     >
       <video ref={videoRef} className={cx(stage.video, mirrored && stage.mirrored, !live && stage.off)} muted playsInline aria-label="Your camera picture" />
       <canvas ref={canvasRef} className={cx(stage.canvas, !live && stage.off)} aria-hidden="true" />
@@ -922,7 +929,7 @@ export default function CameraScreen({ params }: RouteProps) {
                 <span className={stage.beta}>Experimental</span> {handText.text}
               </p>
             )}
-            {bottom}
+            {coachOnStage ? bottom : null}
           </div>
         </div>
       )}
@@ -939,7 +946,7 @@ export default function CameraScreen({ params }: RouteProps) {
     mode !== 'drawn' && !sideways && notes.length > 0 ? (
       <div className={styles.preview}>
         <Text variant="label" tone="muted" as="p">
-          {content.kind === 'song' ? 'Now and next' : 'The shape'}
+          {content.kind === 'song' ? 'Now and next' : content.kind === 'note' ? 'Where it is' : content.kind === 'chord' ? 'The chord shape' : 'The shape'}
         </Text>
         <Fretboard frets={range} markers={markers} muted={content.kind === 'chord' ? derived.muted : undefined} capo={capoInUse || undefined} tuning={content.kind === 'song' && song.plan ? [...song.plan.tuning] : neckTuning} size="sm" onCellClick={onCell} cellLabels="note" />
       </div>
@@ -954,11 +961,9 @@ export default function CameraScreen({ params }: RouteProps) {
         <ContentControls {...controls} />
         {preview}
       </section>
-      {mode !== 'drawn' && (
-        <section className={styles.block} aria-label="Tracking help and settings">
-          <TrackingControls {...tracking} />
-        </section>
-      )}
+      <section className={styles.block} aria-label={mode === 'drawn' ? 'Settings' : 'Tracking help and settings'}>
+        <TrackingControls {...tracking} drawn={mode === 'drawn'} />
+      </section>
     </>
   );
 
@@ -968,13 +973,13 @@ export default function CameraScreen({ params }: RouteProps) {
       subtitle={mode === 'guide' ? 'Your camera finds the frets; the notes to play appear on your own neck.' : undefined}
       hideHeader={mode !== 'guide' || sideways}
       width="full"
-      className={cx(styles.screen, mode !== 'guide' && styles.tight)}
+      className={cx(styles.screen, (mode !== 'guide' || sideways) && styles.tight)}
       data-mode={mode}
       data-state={live ? status.state : ''}
       data-tool={tool?.kind ?? ''}
       data-content={content.kind}
       data-mirrored={mirrored ? 'true' : 'false'}
-      data-hands={hands.status}
+      data-hands={handStatus}
       data-listen={listen.status}
       data-step={content.kind === 'song' ? song.step : ''}
       data-pipeline={camera.mode}
@@ -1001,6 +1006,7 @@ export default function CameraScreen({ params }: RouteProps) {
             </Banner>
           )}
           {stageNode}
+          {live && !coachOnStage && bottom ? <div className={stage.under}>{bottom}</div> : null}
           {mode !== 'drawn' && !sideways && privacy}
           {mode === 'guide' && (
             <ul className={styles.tips} aria-label="Before you start">
@@ -1016,23 +1022,31 @@ export default function CameraScreen({ params }: RouteProps) {
           )}
         </div>
         <aside className={styles.panel} aria-label="Controls">
-          {sideways && live ? (
+          {sideways ? (
             <div className={styles.rail}>
               <p className={styles.railTitle}>{title}</p>
-              <p className={styles.railDetail}>{content.kind === 'song' ? controls.song.now : content.kind === 'note' ? controls.drill.where : derived.detail}</p>
-              <div className={styles.railRow}>
-                <IconButton icon="ChevronLeft" label="Previous (Left arrow)" variant="secondary" onClick={() => stepContent(-1)} />
-                {content.kind === 'song' ? (
+              <p className={styles.railDetail}>{content.kind === 'song' ? controls.song.now : content.kind === 'note' ? controls.drill.where : content.kind === 'scale' ? derived.shape?.where : derived.voicingLabel}</p>
+              {content.kind === 'song' ? (
+                <div className={styles.railRow}>
+                  <IconButton icon="SkipBack" label="Previous note (Left arrow)" variant="secondary" onClick={() => stepContent(-1)} />
                   <Button variant="primary" iconLeft={song.playing ? 'Pause' : 'Play'} onClick={() => void song.toggle()}>
                     {song.playing ? 'Pause' : 'Play'}
                   </Button>
-                ) : content.kind === 'note' ? (
-                  <Button variant="primary" onClick={nextNote}>
-                    Next note
-                  </Button>
-                ) : null}
-                <IconButton icon="ChevronRight" label="Next (Right arrow)" variant="secondary" onClick={() => stepContent(1)} />
-              </div>
+                  <IconButton icon="SkipForward" label="Next note (Right arrow)" variant="secondary" onClick={() => stepContent(1)} />
+                </div>
+              ) : content.kind === 'note' ? (
+                <Button variant="primary" iconRight="ArrowRight" onClick={nextNote} fullWidth>
+                  Next note
+                </Button>
+              ) : (
+                <PrevNext
+                  label={content.kind === 'scale' ? derived.shape?.name ?? 'Shape' : `Shape ${Math.min(content.voicing, Math.max(0, derived.voicingCount - 1)) + 1} of ${derived.voicingCount}`}
+                  onPrev={() => stepContent(-1)}
+                  onNext={() => stepContent(1)}
+                  prevLabel="Previous shape (Left arrow)"
+                  nextLabel="Next shape (Right arrow)"
+                />
+              )}
               <Button iconLeft="SlidersHorizontal" onClick={() => setSheet(true)} fullWidth>
                 Controls
               </Button>

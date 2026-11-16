@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from 'react';
 import { href } from '@/app/router';
-import { Icon, SearchField, Text } from '@/ui';
+import { Icon, SearchField, Text, usePrefersReducedMotion } from '@/ui';
 import { filterGlossary, glossaryEntries } from '../model/glossary';
 import type { SectionProps } from './SectionBody';
 import styles from './Sections.module.css';
@@ -17,10 +17,11 @@ export function GlossarySection({ item }: SectionProps) {
   // The deep-linked term stays visible even when a filter would hide it.
   const list = item && q && !shown.some((e) => e.id === item) ? [...shown, ...entries.filter((e) => e.id === item)] : shown;
   const letters = useMemo(() => [...new Set(entries.map((e) => e.letter))], [entries]);
+  const reduced = usePrefersReducedMotion();
 
   const jump = (letter: string) => {
     const el = document.querySelector<HTMLElement>(`[data-letter="${letter}"]`);
-    el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    el?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
     el?.focus({ preventScroll: true });
   };
 

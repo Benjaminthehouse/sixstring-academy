@@ -1,0 +1,38 @@
+# Change: D-A7 and A-D (repertoire plan: st-change-d-a7-a-d). An original chord-change study.
+# Each half is a ladder that changes faster and faster: the home chord D held for two bars (one
+# strum a bar), then a change every bar with two strums, every bar with four strums, and every
+# two beats. First half: D (xx0232: finger 1 on string 3 fret 2, 3 on string 2 fret 3, 2 on
+# string 1 fret 2) with A7 (x02020: finger 2 on string 4 fret 2, 3 on string 2 fret 2), so
+# finger 3 slides one fret along string 2. Second half: D with A (x02220), fingered 2-1-3
+# (2 on string 4, 1 on string 3, 3 on string 2): finger 1 stays on string 3, fret 2 for both.
+# Strum D on strings 4 to 1, A and A7 on strings 5 to 1. Keep the metronome on: the new chord
+# lands on the beat even if the strum before it catches open strings. The teacher plays an
+# original tune in D whose notes on beats 1 and 3 belong to the chord in force.
+title: Change: D-A7 and A-D
+id: st-change-d-a7-a-d
+composer: Sixstring Academy
+source: Original chord-change study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 2
+tags: chord changes, strumming, metronome, anchor finger, d, a7, a
+tempo: 60
+time: 4/4
+key: D
+
+track: Your strum
+role: rhythm
+[D and A7]
+| ^"One strum a bar" "D=xx0232" w D | D | ^"Two strums a bar" "A7=x02020" h D D | "D=xx0232" D D |
+| ^"Four strums a bar" "A7=x02020" q D D D D | "D=xx0232" D D D D | ^"Change every two beats" "A7=x02020" D D "D=xx0232" D D | "A7=x02020" D D "D=xx0232" D D ||
+[D and A]
+| ^"Finger 1 stays on string 3, fret 2" "D=xx0232" w D | D | ^"Two strums a bar" "A=x02220" h D D | "D=xx0232" D D |
+| ^"Four strums a bar" "A=x02220" q D D D D | "D=xx0232" D D D D | ^"Change every two beats" "A=x02220" D D "D=xx0232" D D | "A=x02220" D D "D=xx0232" h D ||
+
+track: Teacher
+role: lead
+[D and A7]
+| h 1:2 2:3 | q 2:3 1:0 h 1:2 | h 1:0 2:2 | h 2:3 3:2 |
+| q 2:2 1:0 1:3 1:0 | q 1:2 1:0 2:3 3:2 | q 1:0 2:2 2:3 1:2 | q 1:3 1:0 h 2:3 ||
+[D and A]
+| h 3:2 2:3 | q 1:2 1:0 h 2:3 | h 2:2 1:0 | q 2:3 1:2 h 3:2 |
+| q 1:0 2:2 3:2 2:2 | q 2:3 1:0 1:2 2:3 | q 1:0 2:2 2:3 3:2 | q 2:2 1:0 h 2:3 ||

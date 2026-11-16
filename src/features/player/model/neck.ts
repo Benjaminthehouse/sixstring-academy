@@ -5,6 +5,7 @@
  */
 import { noteAt } from '@/core/guitar';
 import type { PracticeTarget, TimelineBeat } from '@/core/song';
+import { formatChord, formatNote, spellInKey } from '@/core/theory';
 import type { FretMarker } from '@/ui/music/fretboard/markers';
 
 /** A place on the neck (fret counted from the capo). */
@@ -109,12 +110,47 @@ export function neckMarkers(now: readonly NeckSpot[], next: readonly NeckSpot[],
   return out;
 }
 
+/** A note or chord name for reading ("F♯", "B♭m7"): data spells in ASCII, the screen in glyphs. */
+function shown(name: string, kind: 'note' | 'chord' = 'note'): string {
+  try {
+    return kind === 'chord' ? formatChord(name) : formatNote(name, { octave: false });
+  } catch {
+    return name.replace(/#/g, '♯').replace(/(?<=[A-G])b/g, '♭');
+  }
+}
+
+/** A chord symbol as the screen shows it ("F♯m"). */
+export function chordName(symbol: string): string {
+  return shown(symbol, 'chord');
+}
+
+/** A spot's note name as the screen shows it ("F♯"), spelled for the song's key. */
+export function spotName(spot: NeckSpot, o: NeckLabelOptions): string {
+  const n = spell(spot, o);
+  return n ? shown(n) : '';
+}
+
+/** The name of a heard pitch ("That sounded like B♭"), spelled for the song's key when it has one. */
+export function heardName(midi: number, key?: string): string {
+  if (!Number.isFinite(midi) || midi < 0) return 'that';
+  const pc = ((Math.round(midi) % 12) + 12) % 12;
+  let name: string | null = null;
+  if (key) {
+    try {
+      name = spellInKey(pc, key);
+    } catch {
+      name = null;
+    }
+  }
+  return shown(name ?? ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][pc]);
+}
+
 /** Plain words for where to play a target: "B on string 3, fret 4 (finger 3)" or "the G chord". */
 export function describeSpots(spots: readonly NeckSpot[], o: NeckLabelOptions, symbol?: string): string {
-  if (symbol) return `the ${symbol} chord`;
+  if (symbol) return `the ${chordName(symbol)} chord`;
   if (!spots.length) return 'the next note';
   const parts = spots.map((s) => {
-    const note = spell(s, o);
+    const note = spotName(s, o);
     const where = s.fret === 0 ? `open string ${s.string}` : `string ${s.string}, fret ${s.fret}`;
     const finger = s.finger !== undefined && s.finger !== 0 ? ` (finger ${s.finger === 'T' ? 'thumb' : s.finger})` : '';
     return `${note ? `${note} on ` : ''}${where}${finger}`;

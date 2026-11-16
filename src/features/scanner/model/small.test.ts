@@ -153,3 +153,17 @@ describe('keyboard', () => {
     expect(typeDigit(typeDigit(null, 'n', 0, 0).typing, 'n', 5, 10).fret).toBe(5);
   });
 });
+
+describe('chord names from OCR', () => {
+  it('keeps real chord symbols, fixes common OCR slips, drops the rest', async () => {
+    const { cleanChordText } = await import('./chords');
+    expect(cleanChordText('Am7')).toBe('Am7');
+    expect(cleanChordText('F♯m')).toBe('F#m');
+    expect(cleanChordText('B♭')).toBe('Bb');
+    expect(cleanChordText('(G)')).toBe('G');
+    expect(cleanChordText('D/F#')).toBe('D/F#');
+    expect(cleanChordText('Verse')).toBeNull();
+    expect(cleanChordText('|')).toBeNull();
+    expect(cleanChordText('')).toBeNull();
+  });
+});

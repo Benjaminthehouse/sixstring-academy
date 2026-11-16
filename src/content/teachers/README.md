@@ -96,7 +96,10 @@ milestone: {
 ```
 
 The screen frames the performance as a show and, when the lesson is finished, the teacher celebrates
-the unit.
+the unit. `celebrate` may say the learner played the piece: it is shown only when the microphone heard
+the performance. When the show was answered by its tapping version (no microphone, as always in the
+Claude artifact host), the teacher's `tappedShow` line from `profiles.ts` is shown instead, which never
+claims the piece was played.
 
 ### Unit glossary
 

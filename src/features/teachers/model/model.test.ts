@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { PracticeSession, SkillRecord } from '@/core/progress';
 import { OUTLINE, type CourseOutline } from '@/content/teachers';
 import { parseTeachersParams, teachersParams, type TeachersView } from './route';
-import { courseStanding, recommendTeacher, type CourseStanding } from './standing';
+import { courseStanding, lessonsReady, recommendTeacher, type CourseStanding } from './standing';
 import { clearPendingTask, describeActivity, findTaskActivity, readPendingTask, savePendingTask, taskSkillId, PENDING_MAX_AGE_MS } from './tasks';
 
 const outline = (id: 'mia' | 'dev' | 'elena'): CourseOutline => OUTLINE.find((c) => c.id === id)!;
@@ -78,6 +78,27 @@ describe('recommendation', () => {
     const r = recommendTeacher('beginner', [st('mia', { lastAt: 10, finished: true, done: 70 }), st('dev'), st('elena')]);
     expect(r).toMatchObject({ teacher: 'dev', reason: 'next-course' });
   });
+
+  it('does not claim "you told us" when the learner skipped the first-run questions', () => {
+    // Review bug: a learner who skipped onboarding (level left at its default) read "You told us you are new to the guitar."
+    const all = [st('mia'), st('dev'), st('elena')];
+    for (const level of ['beginner', 'intermediate', 'expert'] as const) {
+      expect(recommendTeacher(level, all, false).because).not.toMatch(/told us/i);
+      expect(recommendTeacher(level, all, true).because).toMatch(/told us/i);
+    }
+    expect(recommendTeacher('beginner', all, false)).toMatchObject({ teacher: 'mia', reason: 'level' });
+  });
+});
+
+describe('lessons ready', () => {
+  it('counts only the lessons of written units', () => {
+    const mia = outline('mia');
+    const first = mia.units[0];
+    expect(lessonsReady(mia, [])).toBe(0);
+    expect(lessonsReady(mia, [first.id])).toBe(first.lessons.length);
+    expect(lessonsReady(mia, ['not-a-unit'])).toBe(0);
+    expect(lessonsReady(mia, mia.units.map((u) => u.id))).toBe(courseStanding({ skills: {} }, mia).total);
+  });
 });
 
 describe('tasks', () => {
@@ -109,6 +130,13 @@ describe('tasks', () => {
     expect(describeActivity(entry({ metrics: { accuracy: 0.92 }, durationSec: 90 }))).toBe('92% of the notes, 1 min 30 s');
     expect(describeActivity(entry({ durationSec: 40 }))).toBe('40 s');
     expect(describeActivity(entry({ durationSec: 1 }))).toBeNull();
+  });
+
+  it('rounds a duration once, so seconds never read 60', () => {
+    // Review bug: 119.6 s read "1 min 60 s"; 59.7 s read "60 s".
+    expect(describeActivity(entry({ durationSec: 119.6 }))).toBe('2 min');
+    expect(describeActivity(entry({ durationSec: 59.7 }))).toBe('1 min');
+    expect(describeActivity(entry({ durationSec: 61.2 }))).toBe('1 min 1 s');
   });
 
   describe('the pending task', () => {

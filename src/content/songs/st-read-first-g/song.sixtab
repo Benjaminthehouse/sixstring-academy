@@ -1,0 +1,39 @@
+# Reading: First Position in G (repertoire plan: st-read-first-g). An original 16-bar reading
+# study in G major, first position, one finger per fret (fret 1 finger 1 ... fret 4 finger 4).
+# It covers all six strings, from G on string 6 fret 3 up to G on string 1 fret 3, with F# in
+# both octaves: string 4 fret 4 and string 1 fret 2.
+# Bars 1-4 (strings 6-4) ask a question that ends on D; bars 5-8 answer it and come home to G.
+# Bars 9-12 are bars 1-4 an octave higher, on strings 3-1: the same tune, read on other strings.
+# Bars 13-16 walk from the top G all the way down to the low G. Eighth notes come in pairs, on
+# a beat and its "and". Every note on beats 1 and 3 belongs to the teacher's chord; the others
+# are chord notes or steps between them.
+title: Reading: First Position in G
+id: st-read-first-g
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: reading, first position, g major, f sharp, eighth notes
+tempo: 80
+time: 4/4
+key: G
+
+track: Your part
+role: lead
+[Low strings]
+| "G=320003" q 6:3{3} 5:2{2} 4:0 3:0 | "D=xx0232" 4:4{4} 4:2{2} h 4:0 | "Am=x02210" q 4:2 5:3{3} 5:0 5:3 | "D=xx0232" e 4:0 5:3 q 5:2 h 5:0 |
+| "G=320003" q 6:3 5:2 4:0 3:0 | "C=x32010" 4:2 e 5:3 4:0 q 4:2 3:0 | "D7=xx0212" 3:2{2} 4:4 e 4:2 4:0 q 5:3 | "G=320003" h 5:2 6:3 ||
+[High strings]
+| "G=320003" q 3:0 2:0 2:3{3} 1:3{3} | "D=xx0232" 1:2{2} 1:0 h 2:3 | "Am=x02210" q 1:0 2:1{1} 3:2 2:1 | "D=xx0232" e 2:3 2:1 q 2:0 h 3:2 ||
+[All the way down]
+| "G=320003" q 1:3 e 1:2 1:0 q 2:3 2:0 | "C=x32010" 2:1 e 2:0 3:2 q 3:0 4:2 | "D7=xx0212" 4:4 4:0 5:3 5:0 | "G=320003" w 6:3 ||
+
+track: Teacher
+role: rhythm
+[Low strings]
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / ||
+[High strings]
+| / / | / / | / / | / / ||
+[All the way down]
+| / / | / / | / / | w / ||

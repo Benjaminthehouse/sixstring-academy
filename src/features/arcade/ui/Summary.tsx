@@ -3,7 +3,7 @@ import { ActionBar, AnimatedNumber, Badge, Button, Callout, Celebration, Heading
 import { navigate } from '@/app/router';
 import type { Focus } from '../core/focus';
 import type { GameDef, LevelInfo } from '../core/games';
-import { levelParams, gameParams } from '../core/skill';
+import { crownLabel, levelParams, gameParams } from '../core/skill';
 import { HEADLINES } from './kit';
 import type { RoundOutcome } from './RoundScreen';
 import styles from './Arcade.module.css';
@@ -75,7 +75,7 @@ export function Summary({ game, focus, level, levels, outcome, onAgain }: Summar
           )}
           {crownUp !== null && (
             <Badge tone="accent" icon="Crown" size="md">
-              Crown {crownUp} for this shape
+              {crownLabel(game.id, crownUp)}
             </Badge>
           )}
           {result.bestCombo >= 5 && (
@@ -125,7 +125,7 @@ export function Summary({ game, focus, level, levels, outcome, onAgain }: Summar
       <ActionBar start={<LinkButton to="arcade" params={gameParams(game.id, focus)} variant="ghost" iconLeft="ChevronLeft">All levels</LinkButton>}>
         {goNext ? (
           <>
-            <Button iconLeft="RotateCcw" onClick={onAgain} data-arcade-again>
+            <Button iconLeft="RotateCcw" onClick={onAgain} wrap data-arcade-again>
               Again
             </Button>
             <LinkButton to="arcade" params={levelParams(game.id, focus, level + 1)} variant="primary" iconRight="ArrowRight" wrap aria-keyshortcuts="Enter" data-arcade-next-level>

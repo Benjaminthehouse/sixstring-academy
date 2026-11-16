@@ -84,7 +84,7 @@ export function GameScreen({ game, focus }: { game: GameDef; focus: Focus }) {
             <div>
               <span className={styles.recordLabel}>Stars</span>
               <span className={styles.recordValue}>
-                <Icon name="Star" size={18} className={styles.starIcon} /> {stars.stars} / {stars.max}
+                <Icon name="Star" size={18} className={stars.stars ? styles.starIcon : styles.starIconOff} /> {stars.stars} / {stars.max}
               </span>
             </div>
             <div>

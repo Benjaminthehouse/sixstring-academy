@@ -1,0 +1,31 @@
+# Travis Picking (repertoire plan: st-travis-picking). An original 16-bar study: C, C, Am, Am,
+# G7, G7, C, C, played twice. The thumb (P) plays every beat and alternates two bass strings,
+# lightly palm muted:
+#   C (x32010): string 5 fret 3 (C), string 4 fret 2 (E), string 6 fret 3 (G), string 4 fret 2
+#               (finger 3 hops between strings 5 and 6);
+#   Am (x02210): the open string 5 (A) and string 4 fret 2 (E);
+#   G7 (320001): string 6 fret 3 (G) and the open string 4 (D).
+# Between the thumb notes, i plucks string 2 on the "and" of 1 and 3, and m plucks string 1 on
+# the "and" of 2 and 4. Bars 9-16 are the same with a pinch on beat 1: thumb and m together.
+title: Travis Picking
+composer: Sixstring Academy
+source: Original fingerstyle study
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: travis picking, alternating bass, fingerstyle, thumb
+tempo: 80
+time: 4/4
+key: C
+
+track: Your part
+role: lead
+[Thumb and fingers]
+| "C=x32010" e 5:3{P 3 pm} 2:1{I 1} 4:2{P 2 pm} 1:0{M} 6:3{P 3 pm} 2:1{I} 4:2{P pm} 1:0{M} | 5:3{pm} 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 |
+| "Am=x02210" 5:0{P pm} 2:1{I 1} 4:2{P 2 pm} 1:0{M} 5:0{P pm} 2:1{I} 4:2{P pm} 1:0{M} | 5:0{pm} 2:1 4:2{pm} 1:0 5:0{pm} 2:1 4:2{pm} 1:0 |
+| "G7=320001" 6:3{P 3 pm} 2:0{I} 4:0{P pm} 1:1{M 1} 6:3{P pm} 2:0{I} 4:0{P pm} 1:1{M} | 6:3{pm} 2:0 4:0{pm} 1:1 6:3{pm} 2:0 4:0{pm} 1:1 |
+| "C" 5:3{pm} 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 | 5:3{pm} 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 |
+[With a pinch]
+| "C" ^"pinch: thumb and m together" (5:3{P pm} 1:0{M}) 2:1{I} 4:2{P pm} 1:0{M} 6:3{P pm} 2:1{I} 4:2{P pm} 1:0{M} | (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 |
+| "Am" (5:0{pm} 1:0) 2:1 4:2{pm} 1:0 5:0{pm} 2:1 4:2{pm} 1:0 | (5:0{pm} 1:0) 2:1 4:2{pm} 1:0 5:0{pm} 2:1 4:2{pm} 1:0 |
+| "G7" (6:3{pm} 1:1) 2:0 4:0{pm} 1:1 6:3{pm} 2:0 4:0{pm} 1:1 | (6:3{pm} 1:1) 2:0 4:0{pm} 1:1 6:3{pm} 2:0 4:0{pm} 1:1 |
+| "C" (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 | (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 ||

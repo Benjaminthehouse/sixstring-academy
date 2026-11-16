@@ -6,7 +6,8 @@ import { judgeShapeTap, makeShapeRound, missReason, shapeScore } from '../../cor
 import { boxOf, posKey } from '../../core/focus';
 import { addHit, addMiss, comboMultiplier, newTally, starsFor } from '../../core/scoring';
 import { hitSound, missSound, playNote } from '../sound';
-import { cellElement, noteMarker, secondsText, useRoundClock } from '../kit';
+import { cellElement, noteMarker, secondsText, usePausableClock, useRoundClock } from '../kit';
+import { degreeCall } from '../../core/degreeDarts';
 import { RoundFrame } from '../RoundFrame';
 import type { GameProps } from '../types';
 import styles from '../Arcade.module.css';
@@ -24,7 +25,8 @@ export function ShapeBuilder({ ctx, running, fx, title, onFinish, onEnd }: GameP
   const [status, setStatus] = useState<{ kind: string; text: string }>({ kind: 'waiting', text: '' });
   const [, setTick] = useState(0);
   const boardRef = useRef<HTMLDivElement>(null);
-  const buildStarted = useRef<number | null>(null);
+  // The build clock: it starts when the shape is hidden and stands still while the round is paused.
+  const buildClock = usePausableClock(running && stage === 'build');
   const elapsed = useRoundClock(running);
   const finished = useRef(false);
 
@@ -44,9 +46,9 @@ export function ShapeBuilder({ ctx, running, fx, title, onFinish, onEnd }: GameP
 
   const startBuild = useCallback(() => {
     setStage('build');
-    buildStarted.current = performance.now();
+    buildClock.reset();
     setStatus({ kind: 'waiting', text: '' });
-  }, []);
+  }, [buildClock]);
 
   useEventListener(typeof window === 'undefined' ? null : window, 'keydown', (e: KeyboardEvent) => {
     if (e.key !== 'Enter' || stage !== 'study' || !running || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -55,7 +57,7 @@ export function ShapeBuilder({ ctx, running, fx, title, onFinish, onEnd }: GameP
     startBuild();
   });
 
-  const buildSeconds = () => (buildStarted.current === null ? 0 : (performance.now() - buildStarted.current) / 1000);
+  const buildSeconds = () => buildClock.seconds();
 
   const finish = useCallback(
     (placedCount: number, t: typeof tally, peekCount: number) => {
@@ -110,7 +112,7 @@ export function ShapeBuilder({ ctx, running, fx, title, onFinish, onEnd }: GameP
         hitSound(t.combo, true);
         fx.burst(el, t.combo >= 8 ? 'streak' : 'ok');
         fx.pop(el, `+${points}`);
-        setStatus({ kind: 'hit', text: `${noteText(verdict.note.note, naming)}, the ${verdict.note.degree === '1' ? 'root' : verdict.note.degree.replace('b', '♭').replace('#', '♯')}. ${round.toPlace.length - next.size} to go.` });
+        setStatus({ kind: 'hit', text: `${noteText(verdict.note.note, naming)}, ${degreeCall(verdict.note.degree)}. ${round.toPlace.length - next.size} to go.` });
         if (next.size >= round.toPlace.length) finish(next.size, t, peeks);
         return;
       }

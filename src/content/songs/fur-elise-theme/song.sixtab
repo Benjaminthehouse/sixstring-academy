@@ -1,0 +1,26 @@
+# Fur Elise, the opening section (repertoire plan: fur-elise-theme). Beethoven's A section as a
+# single line, an octave below the piano's right hand, with its repeat (first ending back to the
+# start, second ending on the final A). The rocking E D# E D# E B D C A sits on the open string 1
+# (E), string 2 fret 4 (D#, finger 4), string 2 fret 3 (D, finger 3), string 2 fret 1 (C, finger 1),
+# the open string 2 (B) and string 3 fret 2 (A, finger 2). Each answer climbs a chord from the bass
+# strings: C E A (Am) and E G# B (E), with G# on string 3 fret 1, never the open G.
+# The piano's left-hand notes are left out (they lie below the guitar's range an octave down).
+# Text as commonly printed (from the 1867 first edition, as far as the A section goes).
+title: Für Elise (theme)
+id: fur-elise-theme
+composer: Ludwig van Beethoven
+source: Bagatelle in A minor, WoO 59 (composed 1810, first published 1867); A section arranged as a single line for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Beethoven died in 1827); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: melody, classical, 3/8, minor key, sixteenth notes
+tempo: 60
+time: 3/8
+key: Am
+pickup: e
+
+track: Melody
+role: lead
+[Theme]
+| s 1:0 2:4{4} |: 1:0 2:4 1:0 2:0 2:3{3} 2:1{1} | "Am" e 3:2{2} s r 5:3{3} 4:2{2} 3:2{2} | "E" e 2:0 s r 4:2 3:1{1} 2:0 | "Am" e 2:1 s r 4:2 1:0 2:4 |
+| s 1:0 2:4 1:0 2:0 2:3 2:1 | "Am" e 3:2 s r 5:3 4:2 3:2 | "E" e 2:0 s r 4:2 2:1 2:0 | [1] "Am" e 3:2 r s 1:0 2:4 :| [2] "Am" q. 3:2 ||

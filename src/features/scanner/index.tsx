@@ -51,7 +51,7 @@ export default function ScanScreen({ params }: RouteProps) {
   // Browser checks read the reading from here (development builds only).
   useEffect(() => {
     if (!import.meta.env.DEV) return;
-    (window as unknown as { __ssaScan?: unknown }).__ssaScan = { phase, draft, text: text ?? null, pages: scan.pages.map((p) => ({ id: p.id, label: p.label, look: p.look, pdfText: p.pdfText ?? null })), saved: scan.saved };
+    (window as unknown as { __ssaScan?: unknown }).__ssaScan = { phase, draft, text: text ?? null, pages: scan.pages.map((p) => ({ id: p.id, label: p.label, width: p.width, height: p.height, look: p.look, pdfText: p.pdfText ?? null })), saved: scan.saved };
   }, [phase, draft, text, scan.pages, scan.saved]);
 
   if (phase === 'reading') return <Reading scan={scan} />;

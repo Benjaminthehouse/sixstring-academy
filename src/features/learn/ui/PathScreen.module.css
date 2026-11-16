@@ -27,10 +27,14 @@
   max-width: 36rem;
 }
 
-/* Stages at a glance */
+/*
+ * Stages at a glance. Three across while "Intermediate" fits whole (from 360 px at the normal text
+ * size); with larger text or a narrower screen the stages wrap onto more rows instead of being cut
+ * to "Int…".
+ */
 .strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6.25rem), 1fr));
   gap: var(--sp-2);
 }
 .stripItem {
@@ -40,7 +44,7 @@
   gap: var(--sp-1);
   min-height: var(--tap, 44px);
   min-width: 0;
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -64,9 +68,6 @@
 .stripTitle {
   font-size: var(--text-sm);
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .stripCount,
 .stripSoon {
@@ -285,10 +286,22 @@
 .bar {
   margin-top: var(--sp-6);
 }
+/*
+ * The words ask for 10rem beside the button, not their full length: the bar stays one row at 360 px
+ * (a long title takes a second line) and only with large text does "Start" move to a row of its own.
+ */
 .barText {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  min-width: 0;
+  width: 0;
+  min-width: min(10rem, 60vw);
+}
+/* A phone held sideways has little height to spare: the title alone says what is next. */
+@media (max-height: 480px) {
+  .barEyebrow {
+    display: none;
+  }
 }
 .barEyebrow {
   font-family: var(--font-mono);
@@ -301,9 +314,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Up to two lines, so "The octave: the same note, higher" is read whole beside the button. */
 .barTitle {
-  font-weight: 700;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 700;
+  line-height: var(--leading-tight);
 }

@@ -21,7 +21,7 @@ export * from './types';
 export * from './tasks';
 export { compileCourse, compileLesson, compileStep, compileUnit, hasArt, isTaskStep, teacherStepOf, type CourseMeta } from './compile';
 export { OUTLINE } from './outline';
-export { PROFILES, pickLine, profileOf, type TeacherProfile } from './profiles';
+export { PROFILES, echoes, pickLine, profileOf, type TeacherProfile } from './profiles';
 
 /** The teachers, beginner to expert. */
 export const TEACHER_KEYS: readonly TeacherKey[] = ['mia', 'dev', 'elena'];

@@ -6,11 +6,11 @@
 import { useMemo } from 'react';
 import { Badge, Grid, Heading, Icon, LinkButton, Page, ProgressBar, Section, Text, cx } from '@/ui';
 import { TEACHERS, teacherById } from '@/app/teachers';
-import { PROFILES, TEACHER_KEYS, writtenUnitIds, type TeacherKey } from '@/content/teachers';
+import { PROFILES, TEACHER_KEYS, outlineOf, writtenUnitIds, type TeacherKey } from '@/content/teachers';
 import { Portrait } from './Portrait';
 import { SpeakButton } from './Speak';
 import { savedTeacherLesson, useStandings } from './useStandings';
-import type { CourseStanding } from '../model/standing';
+import { lessonsReady, type CourseStanding } from '../model/standing';
 import styles from './Overview.module.css';
 
 /** The teachers overview. */
@@ -22,6 +22,13 @@ export function Overview() {
   const recStanding = standings[rec];
   const recWritten = writtenUnitIds(rec).length > 0;
   const startLabel = recommendation.reason === 'continue' && recStanding.next ? `Continue with ${recCard.first}` : `Start with ${recCard.first}`;
+  // A teacher whose lessons are still being written is not offered as a "start": the one action is
+  // somewhere the learner can play today, and the course plan is one tap away.
+  const heading = !recWritten
+    ? `${recCard.first}'s lessons are being written`
+    : recommendation.reason === 'continue'
+      ? `Keep going with ${recCard.first}`
+      : `${recCard.first} is the place to start`;
 
   return (
     <Page
@@ -56,29 +63,40 @@ export function Overview() {
               {recommendation.reason === 'continue' ? 'Your teacher' : 'Recommended for you'}
             </Text>
             <Heading level={2} size="2xl" display id="teachers-rec">
-              {recommendation.reason === 'continue' ? `Keep going with ${recCard.first}` : `${recCard.first} is the place to start`}
+              {heading}
             </Heading>
             <Text tone="muted">{recommendation.because}</Text>
             <blockquote className={styles.quote}>
-              <p>{recCard.hello}</p>
+              <p>{recWritten ? recCard.hello : PROFILES[rec].preparing}</p>
             </blockquote>
-            <div className={styles.heroActions}>
-              <LinkButton
-                to="teachers"
-                params={recWritten && recStanding.next ? [rec, recStanding.next.lessonId] : [rec]}
-                variant="primary"
-                size="lg"
-                iconRight="ArrowRight"
-                data-action="start"
-              >
-                {startLabel}
-              </LinkButton>
-              {recWritten && recStanding.next && (
-                <Text variant="caption" tone="muted">
-                  Next: {recStanding.next.title}
-                </Text>
-              )}
-            </div>
+            {recWritten ? (
+              <div className={styles.heroActions}>
+                <LinkButton
+                  to="teachers"
+                  params={recStanding.next ? [rec, recStanding.next.lessonId] : [rec]}
+                  variant="primary"
+                  size="lg"
+                  iconRight="ArrowRight"
+                  data-action="start"
+                >
+                  {startLabel}
+                </LinkButton>
+                {recStanding.next && (
+                  <Text variant="caption" tone="muted">
+                    Next: {recStanding.next.title}
+                  </Text>
+                )}
+              </div>
+            ) : (
+              <div className={styles.heroActions} data-preparing-rec={rec}>
+                <LinkButton to="learn" variant="primary" size="lg" iconLeft="Route" data-action="start">
+                  Open the Theory Path
+                </LinkButton>
+                <LinkButton to="teachers" params={[rec]} variant="ghost" iconRight="ArrowRight" data-action="plan">
+                  {`See ${recCard.first}'s course plan`}
+                </LinkButton>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -123,6 +141,7 @@ function TeacherTile({ teacher, standing, recommended }: { teacher: TeacherKey; 
   const card = teacherById(teacher);
   const profile = PROFILES[teacher];
   const started = standing.done > 0 || standing.lastAt !== null;
+  const ready = lessonsReady(outlineOf(teacher), writtenUnitIds(teacher));
   return (
     <article className={cx(styles.tile, styles[`tone-${teacher}`])} data-teacher={teacher} aria-labelledby={`tile-${teacher}`}>
       <div className={styles.tileHead}>
@@ -161,8 +180,9 @@ function TeacherTile({ teacher, standing, recommended }: { teacher: TeacherKey; 
         {started ? (
           <ProgressBar value={standing.done} max={standing.total} label={`${standing.done} of ${standing.total} lessons`} valueText={false} size="sm" tone="ok" />
         ) : (
-          <Text variant="caption" tone="muted">
-            <Icon name="Clock" size="xs" /> {standing.total} lessons
+          <Text variant="caption" tone="muted" data-ready={ready}>
+            <Icon name={ready > 0 ? 'Clock' : 'PenLine'} size="xs" />{' '}
+            {ready === 0 ? `Being written: ${standing.total} lessons planned` : ready < standing.total ? `${ready} lessons ready, ${standing.total} planned` : `${standing.total} lessons`}
           </Text>
         )}
         <LinkButton to="teachers" params={[teacher]} iconRight="ArrowRight" fullWidth data-open-teacher={teacher}>

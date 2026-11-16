@@ -10,12 +10,13 @@
  * (or keyboard focus) with Play as its main button.
  *
  * Params: `#songs--<id>` selects (and highlights) a song, `#songs--add` opens "Add a song",
- * `#songs--paste` the paste box. Keyboard: `/` search, Up/Down move through the list, Enter plays.
+ * `#songs--paste` the paste box. Keyboard: `/` search; in it, Down goes to the results and Enter
+ * plays the first match; Up/Down move through the list, Enter plays.
  * Browser check: `node e2e/songs.cjs`. Songs come from `@/core/library` (see its API.md).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { RouteProps } from '@/app/routes';
-import { redirect } from '@/app/router';
+import { navigate, redirect } from '@/app/router';
 import { attachDropZone } from '@/core/platform';
 import { recordActivity, toggleFavourite } from '@/core/progress';
 import { detectTextFormat } from '@/core/song';
@@ -362,6 +363,21 @@ export default function SongsScreen({ params }: RouteProps) {
     }
   });
 
+  // From the search field: Down goes into the results, Enter plays the first one.
+  const onSearchKey = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.target !== searchRef.current || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'ArrowDown') {
+      const first = rootRef.current?.querySelector<HTMLAnchorElement>('[data-song-row] > a, [data-next-song]');
+      if (first) {
+        e.preventDefault();
+        first.focus();
+      }
+    } else if (e.key === 'Enter' && query.trim() && rest[0]) {
+      e.preventDefault();
+      navigate('play', rest[0].id);
+    }
+  };
+
   const onListKey = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     const links = Array.from(rootRef.current?.querySelectorAll<HTMLAnchorElement>('[data-song-row] > a, [data-next-song]') ?? []);
@@ -511,7 +527,7 @@ export default function SongsScreen({ params }: RouteProps) {
       <Page title="Songs" subtitle="Play along with tab, chords and lyrics. The songs you import live here too." actions={headerActions} className={styles.page}>
         <div ref={rootRef} className={styles.screen} data-songs-ready={ready ? 'true' : 'false'}>
           <div className={styles.toolbar}>
-            <div className={styles.searchRow}>
+            <div className={styles.searchRow} onKeyDown={onSearchKey}>
               <SearchField ref={searchRef} label="Search songs" placeholder={isMobile ? 'Search songs' : 'Search by title, composer or style'} value={query} onChange={setQuery} className={styles.search} aria-keyshortcuts="/" />
               {isMobile && (
                 <Button iconLeft="SlidersHorizontal" onClick={() => setFiltersOpen(true)} pressed={filterCount(filterValue) > 0} aria-haspopup="dialog" className={styles.filtersButton}>

@@ -13,7 +13,7 @@ import { useHearts, useProgress } from '@/core/progress';
 import { FACT_CARD_KIND } from '@/lessons';
 import { ReviewEntry } from '@/lessons/ui';
 import { adaptLesson, conditionsLine, type Conditions } from '../model/conditions';
-import { focusUnit, pathView, type PathLesson, type PathUnitView, type PathView } from '../model/path';
+import { focusUnit, pathView, refillUnit, type PathLesson, type PathUnitView, type PathView } from '../model/path';
 import { nextPhase } from '../model/winding';
 import { useConditions, useTheory } from '../useTheory';
 import { LessonDetails } from './LessonDetails';
@@ -26,13 +26,6 @@ const WIDE = '(min-width: 1080px)';
 function openLesson(unit: PathUnitView | null): PathLesson | null {
   if (!unit) return null;
   return unit.lessons.find((l) => l.node.state === 'current') ?? unit.lessons.find((l) => l.node.state === 'available') ?? null;
-}
-
-/** The unit to practise to refill hearts: this one if it has finished lessons, else the latest that does. */
-function refillUnit(view: PathView, preferred: string | null): string | null {
-  const units = view.stages.flatMap((s) => s.units).filter((u) => u.node && u.node.done > 0);
-  if (preferred && units.some((u) => u.path.outline.id === preferred)) return preferred;
-  return units.length ? units[units.length - 1].path.outline.id : null;
 }
 
 /** The switches for where the learner is. */
@@ -245,7 +238,8 @@ export function PathScreen({ focus }: { focus: string | null }) {
     nodeRefs.current.get(target.node.id)?.focus();
   };
   const handlers: MapHandlers = {
-    selected: selected?.lesson.node.id ?? null,
+    // Phones have no selection to show: the next lesson already beckons, a tap opens its sheet.
+    selected: wide ? (selected?.lesson.node.id ?? null) : null,
     onSelect: select,
     onCheckpoint: checkpoint,
     onPractice: practice,

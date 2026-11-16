@@ -3,7 +3,7 @@
  * ("A minor pentatonic, box 1"). Every game reads its notes from here, so every target is derived
  * from the guitar engine (`scalePatterns`) and is a real note of the scale inside the shape.
  */
-import { getScale, parseScaleSlug, scaleSlug, simplestTonic, SCALES, SCALE_FAMILIES, formatScaleName, isNote, type ScaleType } from '@/core/theory';
+import { getScale, parseScaleSlug, scaleSlug, simplestTonic, SCALES, SCALE_FAMILIES, formatScaleName, isNote, prettyAccidentals, type ScaleType } from '@/core/theory';
 import { allScalePatterns, patternSystemsFor, scalePatterns, STANDARD_TUNING, type PatternNote, type ScalePattern, type Tuning } from '@/core/guitar';
 
 /** The scale and shape being practised. */
@@ -122,6 +122,11 @@ export function scaleTitle(focus: Pick<Focus, 'tonic' | 'scale'>, system?: 'lett
 }
 
 const PLAIN_WORDS = new Set(['Major', 'Minor', 'Natural', 'Melodic', 'Harmonic', 'Altered', 'Double', 'Dominant', 'Combined', 'Bebop', 'Whole', 'Diminished', 'Augmented', 'Six-tone', 'Tritone', 'Leading']);
+
+/** A scale's catalog name for a picker, accidentals drawn as signs: `Dorian #4` → `Dorian ♯4`. */
+export function scaleLabel(scale: Pick<ScaleType, 'name'>): string {
+  return prettyAccidentals(scale.name);
+}
 
 /** "Box 1 · 5th position". */
 export function shapeTitle(pattern: Pick<ScalePattern, 'name' | 'positionName'>): string {

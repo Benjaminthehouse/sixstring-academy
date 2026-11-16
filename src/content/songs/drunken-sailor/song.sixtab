@@ -1,0 +1,72 @@
+# What Shall We Do with the Drunken Sailor, strum and sing (repertoire plan: drunken-sailor).
+# A new arrangement of the traditional shanty, in E Dorian: E minor with C# instead of C.
+# Your part: two chords, Em (022000) and D (xx0232; strum strings 4 to 1 only). Every line takes
+# four bars of 2/4: Em under line 1, D under line 2, Em under line 3, then D and Em under the
+# last line. First chorus: two downstrums a bar, beat 1 a little louder. Then down-up eighths.
+# The tune (second track) as it is commonly sung, in first position on strings 4 to 1:
+#   Way hay and up she rises:  B B B | B E G B, then A A A | A D F# A, then B B B | B C# D E,
+#   Early in the morning:      D B A F# E E.
+# The words of the verse follow the same notes. The plan allows the traditional chorus and the
+# verse "Put him in the longboat till he's sober", so only those are sung here.
+title: What Shall We Do with the Drunken Sailor
+id: drunken-sailor
+composer: Traditional (sea shanty)
+source: Sailors' work song described in 1839, printed in shanty collections by the 1890s; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: strumming, shanty, dorian, 2/4, two chords, lyrics
+tempo: 96
+time: 2/4
+key: Em
+
+track: Your strum
+role: rhythm
+[Chorus]
+strum: DD
+| ^"Way hay and up she rises (beat 1 a little louder)" "Em=022000" q D D | D D | D D | D D |
+| ^"Way hay and up she rises" "D=xx0232" D D | D D | D D | D D |
+| ^"Way hay and up she rises" "Em=022000" D D | D D | D D | D D |
+| ^"Early in the morning." "D=xx0232" D D | D D | "Em=022000" D D | D D |
+[Verse]
+strum: DUDU
+| ^"Put him in the longboat till he's sober (down-up eighths)" "Em=022000" e D U D U | D U D U | D U D U | D U D U |
+| ^"Put him in the longboat till he's sober" "D=xx0232" D U D U | D U D U | D U D U | D U D U |
+| ^"Put him in the longboat till he's sober" "Em=022000" D U D U | D U D U | D U D U | D U D U |
+| ^"Early in the morning." "D=xx0232" D U D U | D U D U | "Em=022000" D U D U | D U D U |
+[Last chorus]
+strum: DUDU
+| ^"Way hay and up she rises" "Em=022000" D U D U | D U D U | D U D U | D U D U |
+| ^"Way hay and up she rises" "D=xx0232" D U D U | D U D U | D U D U | D U D U |
+| ^"Way hay and up she rises" "Em=022000" D U D U | D U D U | D U D U | D U D U |
+| ^"Early in the morning." "D=xx0232" D U D U | D U D U | "Em=022000" D U D U | h D ||
+
+track: Tune
+role: lead
+[Chorus]
+| h 2:0 | q. 2:0 e 2:0 | q 2:0 4:2 | 3:0 2:0 |
+lyrics: Way hay and up she ri- ses,
+| h 3:2 | q. 3:2 e 3:2 | q 3:2 4:0 | 4:4 3:2 |
+lyrics: Way hay and up she ri- ses,
+| h 2:0 | q. 2:0 e 2:0 | q 2:0 2:2 | 2:3 1:0 |
+lyrics: Way hay and up she ri- ses,
+| q 2:3 2:0 | 3:2 4:4 | h 4:2 | 4:2 |
+lyrics: Ear- ly in the morn- ing.
+[Verse]
+| e 2:0 2:0 2:0 2:0 | q 2:0 2:0 | 2:0 4:2 | 3:0 2:0 |
+lyrics: Put him in the long- boat till he's so- ber,
+| e 3:2 3:2 3:2 3:2 | q 3:2 3:2 | 3:2 4:0 | 4:4 3:2 |
+lyrics: Put him in the long- boat till he's so- ber,
+| e 2:0 2:0 2:0 2:0 | q 2:0 2:0 | 2:0 2:2 | 2:3 1:0 |
+lyrics: Put him in the long- boat till he's so- ber,
+| q 2:3 2:0 | 3:2 4:4 | h 4:2 | 4:2 |
+lyrics: Ear- ly in the morn- ing.
+[Last chorus]
+| h 2:0 | q. 2:0 e 2:0 | q 2:0 4:2 | 3:0 2:0 |
+lyrics: Way hay and up she ri- ses,
+| h 3:2 | q. 3:2 e 3:2 | q 3:2 4:0 | 4:4 3:2 |
+lyrics: Way hay and up she ri- ses,
+| h 2:0 | q. 2:0 e 2:0 | q 2:0 2:2 | 2:3 1:0 |
+lyrics: Way hay and up she ri- ses,
+| q 2:3 2:0 | 3:2 4:4 | h 4:2 | 4:2 ||
+lyrics: Ear- ly in the morn- ing.

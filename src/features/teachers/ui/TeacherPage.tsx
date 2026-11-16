@@ -11,7 +11,7 @@ import { teacherById } from '@/app/teachers';
 import { getProgress, setProfile } from '@/core/progress';
 import { nextLesson } from '@/lessons';
 import { CourseMap, ReviewEntry } from '@/lessons/ui';
-import { Badge, Heading, Icon, LinkButton, Page, ProgressRing, Section, Skeleton, Text, cx } from '@/ui';
+import { Badge, Icon, LinkButton, Page, ProgressRing, Section, Skeleton, Text, cx } from '@/ui';
 import { PROFILES, TEACHER_KEYS, type TeacherKey } from '@/content/teachers';
 import { Portrait } from './Portrait';
 import { SpeakButton } from './Speak';
@@ -121,12 +121,21 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
             ) : written ? (
               <Text tone="muted">You have done every lesson written so far. New units are on their way.</Text>
             ) : (
-              <>
-                <Text weight="semibold">Lessons in preparation</Text>
+              // Nothing to start here yet: the one action is somewhere to play today (the plan is below).
+              <div className={styles.preparing} data-preparing={teacher}>
                 <Text variant="caption" tone="muted">
-                  {`The whole course is planned below; ${card.first}'s first unit is being written.`}
+                  Lessons being written
                 </Text>
-              </>
+                <Text>{profile.preparing}</Text>
+                <LinkButton to="learn" variant="primary" size="lg" iconLeft="Route" data-action="next-lesson" wrap>
+                  Open the Theory Path
+                </LinkButton>
+                {teacher !== 'mia' && (
+                  <LinkButton to="teachers" params={['mia']} variant="ghost" iconRight="ArrowRight" wrap>
+                    Learn with Mia meanwhile
+                  </LinkButton>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -152,27 +161,7 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
             </div>
           </Section>
         </>
-      ) : (
-        <section className={styles.preparing} data-preparing={teacher}>
-          <Portrait teacher={teacher} size={3} />
-          <div>
-            <Heading level={2} size="lg">
-              {`${card.first}'s lessons are being written`}
-            </Heading>
-            <Text tone="muted">{profile.preparing}</Text>
-            <div className={styles.preparingActions}>
-              {teacher !== 'mia' && (
-                <LinkButton to="teachers" params={['mia']} variant="primary" iconRight="ArrowRight">
-                  Learn with Mia meanwhile
-                </LinkButton>
-              )}
-              <LinkButton to="learn" iconLeft="Route">
-                Open the Theory Path
-              </LinkButton>
-            </div>
-          </div>
-        </section>
-      )}
+      ) : null}
 
       {tc && tc.upcoming.length > 0 && (
         <Section title={written ? 'Later in the course' : 'The course'} description={written ? 'Units still being written, in the order you will meet them.' : 'What you will learn, unit by unit.'} divided>

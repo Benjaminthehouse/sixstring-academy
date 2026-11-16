@@ -98,7 +98,7 @@ export function TapLayer({ taps, onTap, label }: { taps: ReadonlyArray<{ x: numb
 /** The tool banner at the top of the stage: what to do now, and progress dots. */
 export function ToolBanner({ title, text, step, steps, error }: { title: string; text: string; step?: number; steps?: number; error?: string | null }) {
   return (
-    <div className={styles.toolBanner} aria-live="polite">
+    <div className={styles.toolBanner} aria-live="polite" data-camera-banner="">
       <p className={styles.toolTitle}>
         {title}
         {steps ? (

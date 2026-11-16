@@ -6,7 +6,7 @@ import { memo, type ReactNode } from 'react';
 import { CHORD_TYPES, SCALE_FAMILIES, filterChordTypes, filterScales, formatNote, simplestTonic } from '@/core/theory';
 import { Button, ChipGroup, Icon, IconButton, PlayButton, SegmentedControl, Select, Slider, Switch, Text, cx } from '@/ui';
 import type { CameraContent, ContentKind } from '../model/address';
-import type { LabelMode, Naming, ShapeOption } from '../model/content';
+import { joinChord, splitChord, type LabelMode, type Naming, type ShapeOption } from '../model/content';
 import { GUITAR_KINDS, type GuitarKind } from '../model/guitar';
 import styles from './Controls.module.css';
 
@@ -37,21 +37,6 @@ const CHORD_TYPE_OPTIONS = (() => {
     label: t.id === 'major' ? 'major' : `${t.symbol} (${t.name})`,
   }));
 })();
-
-/** Split a chord symbol into a root and a type id ('Am7' -> ['A', 'm7']). */
-export function splitChord(symbol: string): { root: string; type: string } {
-  const m = /^([A-G](?:#|b)?)(.*)$/.exec(symbol);
-  const root = m?.[1] ?? 'C';
-  const suffix = (m?.[2] ?? '').split('/')[0];
-  const type = CHORD_TYPES.find((t) => t.symbol === suffix)?.id ?? 'major';
-  return { root, type };
-}
-
-/** The chord symbol for a root and a type id. */
-export function joinChord(root: string, type: string): string {
-  const t = CHORD_TYPES.find((x) => x.id === type);
-  return `${root}${t ? t.symbol : ''}`;
-}
 
 /** A row with a previous / next pair around a label (shapes, voicings, song steps). */
 export function PrevNext({
@@ -360,9 +345,11 @@ function NoteControls(
   return (
     <>
       <div className={styles.target} aria-live="polite">
-        <span className={styles.targetLabel}>Find</span>
+        <span className={styles.targetText}>
+          <span className={styles.targetLabel}>Find this note</span>
+          <span className={styles.targetWhere}>{d.where}</span>
+        </span>
         <span className={styles.targetNote}>{d.target}</span>
-        <span className={styles.targetWhere}>{d.where}</span>
       </div>
       <ChipGroup
         aria-label="On which string"
@@ -399,6 +386,8 @@ function NoteControls(
 /** The tools for when tracking needs help, and the camera and guitar settings. */
 export interface TrackingControlsProps {
   live: boolean;
+  /** The drawn neck (no camera): only what changes the dots (the capo). */
+  drawn?: boolean;
   onCalibrate: () => void;
   onNumbers: () => void;
   onStickers: () => void;
@@ -457,56 +446,64 @@ export const TrackingControls = memo(function TrackingControls(p: TrackingContro
           />
         </div>
       )}
-      <div className={styles.sub}>
-        <h3 className={styles.subTitle}>Camera and guitar</h3>
-        <Select
-          label="Guitar"
-          size="sm"
-          value={p.guitar}
-          options={GUITAR_KINDS.map((g) => ({ value: g.id, label: g.label }))}
-          onChange={(v: string) => p.onGuitar(v as GuitarKind)}
-          hint={GUITAR_KINDS.find((g) => g.id === p.guitar)?.description}
-        />
+      {p.drawn ? (
+        <div className={styles.sub}>
+          <h3 className={styles.subTitle}>Your guitar</h3>
         <Select
           label="Capo"
           size="sm"
           value={String(p.capo)}
-          options={[
-            { value: '0', label: 'No capo' },
-            ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-              value: String(n),
-              label: `Capo at fret ${n}`,
-            })),
-          ]}
+          options={[{ value: '0', label: 'No capo' }, ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ value: String(n), label: `Capo at fret ${n}` }))]}
           onChange={(v: string) => p.onCapo(Number(v))}
-          hint="The camera cannot see a capo: tell it here, and the dots move up with it."
+          hint={p.drawn ? 'Frets count from the capo, as in tab.' : 'The camera cannot see a capo: tell it here, and the dots move up with it.'}
         />
-        {p.devices.length > 1 && <Select label="Camera" size="sm" value={p.device ?? p.devices[0].id} options={p.devices.map((d) => ({ value: d.id, label: d.label }))} onChange={p.onDevice} />}
-        <Switch checked={p.mirrored} onChange={p.onMirrored} label="Mirror the picture" description="Like a mirror, as most selfie cameras show you." />
-        <SegmentedControl
-          aria-label="Thickest string in the picture"
+        </div>
+      ) : (
+        <div className={styles.sub}>
+          <h3 className={styles.subTitle}>Camera and guitar</h3>
+          <Select
+            label="Guitar"
+            size="sm"
+            value={p.guitar}
+            options={GUITAR_KINDS.map((g) => ({ value: g.id, label: g.label }))}
+            onChange={(v: string) => p.onGuitar(v as GuitarKind)}
+            hint={GUITAR_KINDS.find((g) => g.id === p.guitar)?.description}
+          />
+        <Select
+          label="Capo"
           size="sm"
-          fullWidth
-          options={[
-            { value: 'top', label: 'Thick string on top' },
-            { value: 'bottom', label: 'On the bottom' },
-          ]}
-          value={p.bassUp ? 'top' : 'bottom'}
-          onChange={(v: string) => p.onBassUp(v === 'top')}
+          value={String(p.capo)}
+          options={[{ value: '0', label: 'No capo' }, ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ value: String(n), label: `Capo at fret ${n}` }))]}
+          onChange={(v: string) => p.onCapo(Number(v))}
+          hint={p.drawn ? 'Frets count from the capo, as in tab.' : 'The camera cannot see a capo: tell it here, and the dots move up with it.'}
         />
-        <Switch
-          checked={p.hands.on}
-          onChange={p.hands.onChange}
-          label="Hand feedback (experimental)"
-          description={
-            p.hands.status === 'unavailable'
-              ? 'Hand tracking is not available in this copy of the app.'
-              : p.hands.status === 'loading'
-                ? 'Loading the hand tracker…'
-                : 'Shows which fret each fingertip is on, and warns when one is far from the fret wire.'
-          }
-        />
-      </div>
+          {p.devices.length > 1 && <Select label="Camera" size="sm" value={p.device ?? p.devices[0].id} options={p.devices.map((d) => ({ value: d.id, label: d.label }))} onChange={p.onDevice} />}
+          <Switch checked={p.mirrored} onChange={p.onMirrored} label="Mirror the picture" description="Like a mirror, as most selfie cameras show you." />
+          <SegmentedControl
+            aria-label="Thickest string in the picture"
+            size="sm"
+            fullWidth
+            options={[
+              { value: 'top', label: 'Thick string on top' },
+              { value: 'bottom', label: 'On the bottom' },
+            ]}
+            value={p.bassUp ? 'top' : 'bottom'}
+            onChange={(v: string) => p.onBassUp(v === 'top')}
+          />
+          <Switch
+            checked={p.hands.on}
+            onChange={p.hands.onChange}
+            label="Hand feedback (experimental)"
+            description={
+              p.hands.status === 'unavailable'
+                ? 'Hand tracking is not available in this copy of the app.'
+                : p.hands.status === 'loading'
+                  ? 'Loading the hand tracker…'
+                  : 'Shows which fret each fingertip is on, and warns when one is far from the fret wire.'
+            }
+          />
+        </div>
+      )}
     </div>
   );
 });

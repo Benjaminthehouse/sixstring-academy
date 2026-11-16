@@ -213,23 +213,13 @@
   gap: var(--sp-4);
 }
 
-/* No lessons written yet */
+/* No lessons written yet: the teacher's words and where to play meanwhile, in the next-lesson slot */
 .preparing {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--sp-4);
-  padding: var(--sp-5);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-lg);
-}
-.preparing > div {
-  display: grid;
   gap: var(--sp-2);
+  text-align: start;
 }
-.preparingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
+.preparing > a:first-of-type {
   margin-top: var(--sp-2);
 }
 

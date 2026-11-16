@@ -75,8 +75,10 @@ export function describeActivity(entry: PracticeSession): string | null {
     parts.push(`${pct}% of the notes`);
   }
   if (entry.durationSec >= 5) {
-    const m = Math.floor(entry.durationSec / 60);
-    const s = Math.round(entry.durationSec % 60);
+    // Round once, then split: 119.6 s is "2 min", never "1 min 60 s".
+    const total = Math.round(entry.durationSec);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
     parts.push(m > 0 ? `${m} min${s ? ` ${s} s` : ''}` : `${s} s`);
   }
   return parts.length ? parts.join(', ') : null;

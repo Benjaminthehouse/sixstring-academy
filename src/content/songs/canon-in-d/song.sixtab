@@ -1,0 +1,61 @@
+# Canon in D, duet (repertoire plan: canon-in-d). Your part is Pachelbel's two-bar ground bass,
+# one note per beat, on the frets the plan gives: D (open string 4), A (open 5), B (string 5
+# fret 2), F# (string 6 fret 2), G (string 6 fret 3), D, G, A; first position, finger = fret.
+# Then the same eight bars again with you on chords, one downstrum per beat: D, A, the open Bm7
+# (x20202, the easier shape before barre chords), the small F#m (xx4222, finger 1 across strings
+# 3 to 1 at fret 2), G, D, G, A. Chord names (and diagrams) appear only there, where you strum
+# them; in the first half the harmony is the same, D A Bm F#m G D G A, with your notes as roots.
+# The app plays the canon above, as the original opens: three violins enter two bars apart, each
+# with the same line (first in quarters, then quarters again, then eighths), read an octave lower
+# for guitar. Only this opening of the canon is used. The violins' landing note in bar 9 and the
+# closing D chord in bar 17 are added for this arrangement.
+title: Canon in D (duet)
+id: canon-in-d
+composer: Johann Pachelbel
+source: Canon for three violins and continuo, c. 1680-1706 (first published 1919); the opening, arranged as a guitar duet for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Pachelbel died in 1706); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: duet, ground bass, baroque, canon
+tempo: 60
+time: 4/4
+key: D
+
+track: Your part
+role: rhythm
+[Ground bass]
+| q 4:0 5:0 5:2{2} 6:2{2} | 6:3{3} 4:0 6:3{3} 5:0 |
+| 4:0 5:0 5:2 6:2 | 6:3 4:0 6:3 5:0 |
+| 4:0 5:0 5:2 6:2 | 6:3 4:0 6:3 5:0 |
+| 4:0 5:0 5:2 6:2 | 6:3 4:0 6:3 5:0 ||
+[Chords]
+| "D=xx0232" D "A=x02220" D "Bm7=x20202" D "F#m=xx4222" D | "G=320003" D "D=xx0232" D "G=320003" D "A=x02220" D |
+| "D=xx0232" D "A=x02220" D "Bm7=x20202" D "F#m=xx4222" D | "G=320003" D "D=xx0232" D "G=320003" D "A=x02220" D |
+| "D=xx0232" D "A=x02220" D "Bm7=x20202" D "F#m=xx4222" D | "G=320003" D "D=xx0232" D "G=320003" D "A=x02220" D |
+| "D=xx0232" D "A=x02220" D "Bm7=x20202" D "F#m=xx4222" D | "G=320003" D "D=xx0232" D "G=320003" D "A=x02220" D ||
+[Ending]
+| "D=xx0232" w D ||
+
+track: Violin 1
+role: lead
+| w r | w r | q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 |
+| 2:3 2:2 2:0 3:2 | 3:0 4:4 3:0 4:2 | e 4:0 4:4 3:2 3:0 4:4 4:0 4:4 4:2 | 4:0 5:2 4:0 3:2 3:0 2:0 3:2 3:0 ||
+| q 4:4 r h r | w r | q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 |
+| 2:3 2:2 2:0 3:2 | 3:0 4:4 3:0 4:2 | e 4:0 4:4 3:2 3:0 4:4 4:0 4:4 4:2 | 4:0 5:2 4:0 3:2 3:0 2:0 3:2 3:0 ||
+| w 4:4 ||
+
+track: Violin 2
+role: lead
+| w r | w r | w r | w r |
+| q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 | 2:3 2:2 2:0 3:2 | 3:0 4:4 3:0 4:2 ||
+| q 4:0 r h r | w r | w r | w r |
+| q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 | 2:3 2:2 2:0 3:2 | 3:0 4:4 3:0 4:2 ||
+| w 4:0 ||
+
+track: Violin 3
+role: lead
+| w r | w r | w r | w r |
+| w r | w r | q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 ||
+| q 2:3 r h r | w r | w r | w r |
+| w r | w r | q 1:2 1:0 2:3 2:2 | 2:0 3:2 2:0 2:2 ||
+| w 2:3 ||

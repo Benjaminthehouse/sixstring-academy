@@ -17,3 +17,4 @@ export * from './games';
 export * from './records';
 export * from './daily';
 export * from './skill';
+export * from './timers';

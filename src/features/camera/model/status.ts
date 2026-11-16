@@ -3,7 +3,8 @@
  * confidence bars, a tone), one line of coaching, which help to offer (the "Is this fret N?"
  * question, four-tap marking, the guitar type), and how far the notes may be drawn.
  *
- * Honest by design: notes are drawn solidly only on a locked board; a board just lost keeps its
+ * Honest by design: notes are drawn solidly only on a locked board the tracker is sure of (a locked
+ * board whose confidence sags gets outlines); a board just lost keeps its
  * notes as faint outlines for a moment (the learner sees it is holding on, not guessing), then they
  * go; a board whose numbers are a guess shows its outline and asks, never notes.
  */
@@ -37,6 +38,9 @@ export interface LiveStatus {
 /** How long notes of a lost board stay as outlines before they go (ms). */
 export const GHOST_MS = 600;
 
+/** Below this smoothed confidence a board that is still locked draws its notes as outlines only. */
+export const SOLID_CONFIDENCE = 0.5;
+
 /** The status before the first answer. */
 export const STARTING_STATUS: LiveStatus = {
   state: 'searching',
@@ -63,7 +67,7 @@ export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | '
   if (u.state === 'candidate' && !u.numberingConfirmed && !u.question) offers.push('fix-numbers');
   const bars = Math.max(0, Math.min(5, Math.round(Math.min(1, Math.max(0, u.confidence)) * 5)));
   let notes: NoteMode = 'none';
-  if (u.state === 'locked') notes = 'solid';
+  if (u.state === 'locked') notes = u.confidence >= SOLID_CONFIDENCE ? 'solid' : 'ghost';
   else if (u.state === 'lost' && lostForMs < GHOST_MS) notes = 'ghost';
   let message = g.message;
   if (u.state === 'locked' && g.code === 'ok') message = '';

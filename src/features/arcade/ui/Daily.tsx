@@ -115,6 +115,8 @@ export function Daily({ focus }: { focus: Focus }) {
   if (between) {
     const last = outcomes[outcomes.length - 1];
     const lastGame = gameById(stages[outcomes.length - 1].game)!;
+    // The game after the one just played (`step` still points at the finished one until Continue).
+    const upNext = gameById(stages[outcomes.length].game)!;
     return (
       <Page title="Today’s challenge" eyebrow={`${outcomes.length} of ${stages.length} done`} back={{ to: 'arcade', label: 'Scale Arcade' }}>
         <div className={styles.between} data-arcade-between>
@@ -123,17 +125,17 @@ export function Daily({ focus }: { focus: Focus }) {
             {lastGame.title}: {last.result.score.toLocaleString()} points
           </Heading>
           <Text tone="muted">{last.result.tip}</Text>
-          <div className={styles.nextUp}>
+          <div className={styles.nextUp} data-arcade-up-next={upNext.id}>
             <span className={styles.dailyIcon} aria-hidden="true">
-              <Icon name={game.icon} size={20} />
+              <Icon name={upNext.icon} size={20} />
             </span>
             <span>
               <Text as="span" weight="semibold">
-                Next: {game.title}
+                Next: {upNext.title}
               </Text>
               <Text as="span" size="sm" tone="muted">
                 {' '}
-                · {game.blurb}
+                · {upNext.blurb}
               </Text>
             </span>
           </div>

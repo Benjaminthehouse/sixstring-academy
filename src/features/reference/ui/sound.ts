@@ -89,11 +89,18 @@ export function playOpenStrings(midi: readonly number[]): number {
   return n * 0.32 + 2.2;
 }
 
+/**
+ * Starts a sound and returns its length in seconds. `alive()` stays true until this sound is
+ * stopped or replaced: guard callbacks scheduled for later (a chord lighting up) with it, because
+ * the audio clock cannot take them back.
+ */
+export type SoundRun = (alive: () => boolean) => number | Promise<number>;
+
 /** What is playing now (an id the screen chose) and how to start or stop a sound. */
 export interface Sounder {
   playing: string | null;
-  /** Start a sound under `id` (or stop it, when it is the one playing). `run` returns its length in seconds. */
-  toggle: (id: string, run: () => number | Promise<number>) => void;
+  /** Start a sound under `id` (or stop it, when it is the one playing). */
+  toggle: (id: string, run: SoundRun) => void;
   /** Play a tab example (a parsed song) under `id`. */
   toggleSong: (id: string, song: Song) => void;
   stop: () => void;
@@ -138,23 +145,28 @@ export function useSounder(): Sounder {
   }, []);
 
   const toggle = useCallback(
-    (id: string, run: () => number | Promise<number>) => {
+    (id: string, run: SoundRun) => {
       if (current.current === id) {
         stop();
         return;
       }
       token.current++;
       const my = token.current;
+      const alive = () => token.current === my;
       clear();
       stopAll();
       current.current = id;
       setPlaying(id);
-      void unlockAudio().then(async () => {
-        if (token.current !== my) return;
-        const seconds = await run();
-        if (token.current !== my) return;
-        finishAfter(id, seconds, my);
-      });
+      void unlockAudio()
+        .then(async () => {
+          if (!alive()) return;
+          const seconds = await run(alive);
+          if (alive()) finishAfter(id, seconds, my);
+        })
+        .catch(() => {
+          // A sound that cannot be built (no shape in this tuning) must not leave a Stop button behind.
+          if (alive()) stop();
+        });
     },
     [clear, finishAfter, stop],
   );
@@ -191,6 +203,8 @@ export function useSounder(): Sounder {
         // A safety net in case the end event never arrives (a suspended context, a closed tab).
         const tempo = song.tempo[0]?.bpm ?? 90;
         finishAfter(id, (song.bars.length * 4 * 60) / tempo + 3, my);
+      }).catch(() => {
+        if (token.current === my) stop();
       });
     },
     [clear, finishAfter, stop],

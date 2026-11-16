@@ -1,0 +1,40 @@
+# Joy to the World, the opening (repertoire plan: joy-to-the-world). Lowell Mason's tune Antioch
+# (1839) on Isaac Watts's words (1719), in D. Only the carol's first two lines are written here,
+# for verses 1 and 2: the part of the tune this arrangement can give note for note.
+# Line 1 is the D major scale stepping down an octave, in first position: D (string 2 fret 3),
+# C# (string 2 fret 2), B (open string 2), A (string 3 fret 2), G (open string 3), F# (string 4
+# fret 4), E (string 4 fret 2), D (open string 4). Rhythm: D quarter, C# dotted eighth, B
+# sixteenth | A dotted quarter, G eighth | F# E | D, then "Let" on the last eighth.
+# Line 2 climbs back up in pairs, a long note and a short one on the same pitch: B B, C# C#, D.
+# The teacher strums D, G and A7.
+title: Joy to the World (opening)
+id: joy-to-the-world
+composer: Lowell Mason (tune Antioch); words by Isaac Watts
+source: Words 1719; tune Antioch published 1839; first two lines of verses 1 and 2; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Watts died in 1748, Mason in 1872); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: melody, major scale, dotted rhythm, christmas, carol, lyrics
+tempo: 72
+time: 2/4
+key: D
+
+track: Melody
+role: lead
+[Verse 1]
+| "D" q 2:3{3} e. 2:2{2} s 2:0 | q. 3:2{2} e 3:0 | q 4:4{4} "A7" 4:2{2} | "D" q. 4:0 e 3:2 |
+lyrics: Joy to the world! the Lord is come; Let
+| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" h 2:3 ||
+lyrics: earth re- ceive her King;
+[Verse 2]
+| q 2:3 e. 2:2 s 2:0 | q. 3:2 e 3:0 | q 4:4 "A7" 4:2 | "D" q. 4:0 e 3:2 |
+lyrics: Joy to the earth! the Sav- iour reigns; Let
+| "G" q. 2:0 e 2:0 | "A7" q. 2:2 e 2:2 | "D" h 2:3 ||
+lyrics: men their songs em- ploy;
+
+track: Teacher
+role: rhythm
+[Verse 1]
+| q / / | / / | / / | / / | / / | / / | h / ||
+[Verse 2]
+| q / / | / / | / / | / / | / / | / / | h / ||

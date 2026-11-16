@@ -21,7 +21,7 @@ import { type PageOrigin, type ScanPage, describeLook, kindLabel, movePage, pdfS
 import { layoutText } from '../model/text-layout';
 import { type AnyCanvas, canvasOfGray, cropPicture, grayOf, pictureFromCanvas, pictureFromFile, releasePicture, rotatePicture, toBlob } from './images';
 import { createLooker, type Looker } from './look';
-import type { Ocr } from './ocr';
+import { type Ocr, OcrUnavailableError } from './ocr';
 import { type PdfFile, PdfError, openPdf } from './pdf';
 import { type AiOutcome, type ReadProgress, type TextReading, aiErrorMessage, createOcr, fillTexts, findChordsOverTab, importText, improveMusicWithAi, isAbort, readMusic, readTextPages, readTextWithAi } from './read';
 
@@ -109,8 +109,9 @@ export function useScan() {
     return ocr.current;
   }, []);
 
-  const update = useCallback((id: string, patch: Partial<Page>) => {
-    setPages((list) => list.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  /** Update a page, but only while it still shows the picture the work was done on (a turn or crop since then wins). */
+  const update = useCallback((id: string, patch: Partial<Page>, url?: string) => {
+    setPages((list) => list.map((p) => (p.id === id && (url === undefined || p.url === url) ? { ...p, ...patch } : p)));
   }, []);
 
   // ---- the quick look --------------------------------------------------------------------------
@@ -136,7 +137,7 @@ export function useScan() {
             pdfs.current.set(page.id, { ...src, scale });
             const next: Page = { ...page, ...pic, kindOf: 'render', look: null };
             releasePicture(page);
-            setPages((list) => list.map((p) => (p.id === page.id ? next : p)));
+            setPages((list) => list.map((p) => (p.id === page.id && p.url === page.url ? next : p)));
             void lookAt(next);
             return;
           }
@@ -144,10 +145,10 @@ export function useScan() {
         update(page.id, {
           cleanUrl,
           look: { kind: r.kind, staves: r.staves, barlines: r.barlines, paper: r.paper, quality: r.quality, skew: r.skew, staffSpace: r.staffSpace, summary: words.summary, advice: words.advice },
-        });
+        }, page.url);
       } catch (e) {
         if (!alive.current || isAbort(e)) return;
-        update(page.id, { look: { kind: 'not-music', staves: [], barlines: [], paper: null, quality: 0, skew: 0, staffSpace: 0, summary: 'This picture could not be looked at.', advice: 'Try another photo.' }, lookError: e instanceof Error ? e.message : String(e) });
+        update(page.id, { look: { kind: 'not-music', staves: [], barlines: [], paper: null, quality: 0, skew: 0, staffSpace: 0, summary: 'This picture could not be looked at.', advice: 'Try another photo.' }, lookError: e instanceof Error ? e.message : String(e) }, page.url);
       }
     },
     [update],
@@ -320,7 +321,16 @@ export function useScan() {
           const textPages = list.filter((p) => p.pdfText || p.look?.kind === 'text');
           const inputs: { gray: GrayImage | null; pdfText?: string }[] = [];
           for (const p of textPages) inputs.push({ gray: p.pdfText ? null : await grayOf(p.blob), ...(p.pdfText ? { pdfText: p.pdfText } : {}) });
-          const t = await readTextPages(inputs, getOcr, { signal: ctl.signal, onProgress: setProgress });
+          let t: string;
+          try {
+            t = await readTextPages(inputs, getOcr, { signal: ctl.signal, onProgress: setProgress });
+          } catch (e) {
+            if (!(e instanceof OcrUnavailableError)) throw e;
+            // No OCR here: open the text view empty, saying why; it offers the AI helper or typing.
+            setText({ text: '', reading: null, error: `${e.message} You can also type or paste the chords and words yourself.`, source: 'ocr' });
+            setPhase('text');
+            return;
+          }
           if (ctl.signal.aborted) return;
           await openText(t, textPages.every((p) => p.pdfText) ? 'pdf' : 'ocr');
           return;

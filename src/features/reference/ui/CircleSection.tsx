@@ -57,7 +57,9 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
     if (sounder.playing) sounder.stop();
   };
 
-  const playCadence = () => sounder.toggle(cadenceId, () => playProgression(cadence.chords, tuning, setStep));
+  // The highlights are scheduled on the audio clock and cannot be taken back: once this run is
+  // stopped or replaced, its late steps must not light up chords that are no longer sounding.
+  const playCadence = () => sounder.toggle(cadenceId, (alive) => playProgression(cadence.chords, tuning, (i) => alive() && setStep(i)));
   const cadenceLabel = cadence.romans.map(fmt.roman).join('–');
   const mainChords = chords.filter((c) => c.variant !== 'harmonic');
   const borrowed = chords.filter((c) => c.variant === 'harmonic');

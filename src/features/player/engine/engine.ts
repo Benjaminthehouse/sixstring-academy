@@ -9,7 +9,7 @@
  * are heard. Note-ons from the microphone carry the pluck's audio time; the learner plays with
  * what they hear, so the output and input latency are taken off before a note is scored.
  */
-import { audioNow, audioRunning, audioSoundingNow, normalizeClickSet, normalizeTone, onAudioUnlocked, playUi, pluck, strum, unlockAudio, type ClickSet, type ToneName } from '@/core/audio';
+import { audioNow, audioRunning, audioSoundingNow, normalizeClickSet, normalizeTone, playUi, pluck, strum, unlockAudio, type ClickSet, type ToneName } from '@/core/audio';
 import { getProgress, recordActivity, type ActivityResult } from '@/core/progress';
 import { readJSON, writeJSON, type MediaFailure } from '@/core/platform';
 import {
@@ -20,13 +20,14 @@ import type { ChromaEvent, NoteOnEvent } from '@/core/pitch';
 import { noteKey, type TabNoteState } from '@/ui/music/tab';
 import { playerDebug, pushBounded, resetDebug } from '../debug';
 import { IDLE_PICK, loopKey, normalizeLoop, stepBarTick, type LoopPick } from '../model/loop';
-import { describeSpots, targetSpots, type NeckLabelOptions, type NeckSpot } from '../model/neck';
+import { chordName, describeSpots, heardName, spotName, targetSpots, type NeckLabelOptions, type NeckSpot } from '../model/neck';
 import { activityFor, bestLine, readSongData, summarizeFlow, summarizeListen, summarizeWait, withRun, type RunSummary } from '../model/results';
 import { FlowRun } from '../model/run';
 import { sessionKey, type PlayerSession } from '../model/session';
 import { isCleanPass, trainerNext, type TrainerSettings } from '../model/trainer';
 import { clampTempo, needsMic, type BarRange, type PracticeMode, type ScoreLayer } from '../model/types';
 import { MicInput, type MicStatus } from './mic';
+import { whenAudioUnlocked } from './unlock';
 
 /** What the transport is doing, as the controls show it. */
 export type Phase = 'idle' | 'loading' | 'countin' | 'playing' | 'paused' | 'waiting';
@@ -211,6 +212,7 @@ export class PlayerEngine {
   };
   private onPageHide = () => this.saveNow();
   private preparedDone = false;
+  private prepareTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: EngineOptions) {
     this.song = opts.song;
@@ -250,9 +252,11 @@ export class PlayerEngine {
     this.listen();
     this.updateNeck();
     // Render the notes in idle time once audio may run, so the first Play starts at once.
-    const soon = () => setTimeout(() => void this.prepareSoon(), 250);
+    const soon = () => {
+      this.prepareTimer = setTimeout(() => void this.prepareSoon(), 250);
+    };
     if (audioRunning()) soon();
-    else onAudioUnlocked(soon);
+    else this.offs.push(whenAudioUnlocked(soon));
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onHidden);
     if (typeof window !== 'undefined') window.addEventListener('pagehide', this.onPageHide);
   }
@@ -808,7 +812,7 @@ export class PlayerEngine {
     const labels = this.neckLabels;
     const spots = targetSpots(t);
     const where = describeSpots(spots, labels, t.symbol);
-    const name = t.symbol ?? joinNames(spots.map((x) => spellSpot(x, labels)));
+    const name = t.symbol ? chordName(t.symbol) : joinNames(spots.map((x) => spotName(x, labels)));
     this.set({ wait: { index: w.wait.index, total: w.wait.targets.length, target: t, tries, hint: showHint, name, where, feedback }, noteStates: new Map(w.states) });
     playerDebug.waitIndex = w.wait.index;
     this.updateNeck();
@@ -877,7 +881,7 @@ export class PlayerEngine {
       this.afterWaitStep(r.target, r.next ?? null);
       if (r.next) this.showWait({ tone: 'ok', text: 'Yes.' });
     } else if (r.kind === 'wrong' && r.target) {
-      const heard = noteName(midi);
+      const heard = heardName(midi, this.song.key);
       const want = describeSpots(targetSpots(r.target), this.neckLabels, r.target.symbol);
       const text = r.octave ? `Right note, other octave. Try ${want}.` : r.target.chord ? `${heard} is not in this chord. Play ${want}.` : `That sounded like ${heard}. This one is ${want}.`;
       const tries = (w.wait.summary().records[w.wait.index]?.wrong ?? 0);
@@ -1112,6 +1116,7 @@ export class PlayerEngine {
     this.saveNow();
     this.disposed = true;
     if (this.statesTimer) clearTimeout(this.statesTimer);
+    if (this.prepareTimer) clearTimeout(this.prepareTimer);
     for (const off of this.offs) off();
     this.mic.stop();
     this.player.dispose();
@@ -1123,20 +1128,10 @@ export class PlayerEngine {
   }
 }
 
-const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-function spellSpot(spot: NeckSpot, labels: NeckLabelOptions): string {
-  return describeSpots([spot], labels).split(' on ')[0] ?? '';
-}
-
 function joinNames(names: string[]): string {
   const list = [...new Set(names.filter(Boolean))];
   if (list.length <= 1) return list[0] ?? 'the next note';
   return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
-}
-function noteName(midi: number): string {
-  if (!Number.isFinite(midi) || midi < 0) return 'that';
-  return NAMES[((Math.round(midi) % 12) + 12) % 12];
 }
 
 /** Read a saved session for a song (raw: the caller sanitises it). */

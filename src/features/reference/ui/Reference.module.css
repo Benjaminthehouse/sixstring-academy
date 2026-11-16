@@ -268,9 +268,15 @@
   }
 }
 
+/* Without motion the highlight is a steady ring for as long as the flash would have lasted. */
 @media (prefers-reduced-motion: reduce) {
-  .body [data-flash] {
+  :global(:root:not([data-motion='full'])) .body [data-flash] {
     animation: none;
     box-shadow: 0 0 0 3px var(--accent);
   }
+}
+
+:global(:root[data-motion='reduce']) .body [data-flash] {
+  animation: none;
+  box-shadow: 0 0 0 3px var(--accent);
 }

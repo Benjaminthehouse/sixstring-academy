@@ -1,0 +1,38 @@
+# Change: Em-Am and Em-B7 (repertoire plan: st-change-em-am-em-b7). An original chord-change
+# study on the three chords of E minor: Em (i), Am (iv) and B7 (V7). Each half is a ladder that
+# changes faster and faster: Em held for two bars (one strum a bar), then a change every bar with
+# two strums, every bar with four strums, and every two beats. First half: Em (022000) fingered 2
+# on string 5 and 3 on string 4, with Am (x02210): the 2-3 pair moves one string toward string 1
+# (string 4 fret 2 (E), string 3 fret 2 (A)) and finger 1 adds string 2 fret 1 (C). Second half:
+# Em with B7 (x21202): finger 2 stays on string 5 fret 2 (B) while 1, 3 and 4 come in around it.
+# Strum Am and B7 from string 5. Keep the metronome on: the new chord lands on the beat even if
+# the strum before it catches open strings. The teacher plays an original tune in E minor whose
+# notes on beats 1 and 3 belong to the chord in force; over B7 it uses D#, the leading note.
+title: Change: Em-Am and Em-B7
+id: st-change-em-am-em-b7
+composer: Sixstring Academy
+source: Original chord-change study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 4
+tags: chord changes, minor key, b7, anchor finger, metronome
+tempo: 80
+time: 4/4
+key: Em
+
+track: Your strum
+role: rhythm
+[Em and Am]
+| ^"One strum a bar" "Em=022000" w D | D | ^"Am: move 2 and 3 over a string, add 1" "Am=x02210" h D D | "Em=022000" D D |
+| ^"Four strums a bar" "Am=x02210" q D D D D | "Em=022000" D D D D | ^"Change every two beats" "Am=x02210" D D "Em=022000" D D | "Am=x02210" D D "Em=022000" D D ||
+[Em and B7]
+| ^"One strum a bar" "Em=022000" w D | D | ^"B7: finger 2 stays on string 5" "B7=x21202" h D D | "Em=022000" D D |
+| ^"Four strums a bar" "B7=x21202" q D D D D | "Em=022000" D D D D | ^"Change every two beats" "B7=x21202" D D "Em=022000" D D | "B7=x21202" D D "Em=022000" h D ||
+
+track: Teacher
+role: lead
+[Em and Am]
+| h 1:3 q 1:2 1:0 | w 2:0 | h 2:1 1:0 | h 2:0 3:0 |
+| q 3:2 2:1 1:0 2:1 | q 1:3 1:0 h 2:0 | h 2:1 2:0 | q 3:2 2:1 h 2:0 ||
+[Em and B7]
+| h 1:0 q 1:3 1:2 | w 1:0 | h 2:4 1:2 | h 1:0 2:0 |
+| q 2:0 2:4 1:2 2:4 | q 1:3 1:2 h 1:0 | h 3:2 3:0 | h 2:4 1:0 ||
