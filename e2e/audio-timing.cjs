@@ -432,7 +432,8 @@ function inPage({ quick, long }) {
       // For a failure: each sound found that nobody asked for, with the nearest click the metronome logged.
       const strays = found.filter((t) => !wanted.some((w) => Math.abs(w - t) < 0.01)).map((t) => {
         const near = log.reduce((b, c) => (Math.abs(c.time - t) < Math.abs(b.time - t) ? c : b), log[0]);
-        return `${t.toFixed(4)} s (nearest click ${near ? `${((near.time - t) * 1000).toFixed(2)} ms away, ${near.cancelled ? 'taken back' : 'kept'}` : 'none'})`;
+        const twins = log.filter((c) => Math.abs(c.time - t) < 0.0005).length;
+        return `${t.toFixed(4)} s, ${(t - cap.start / fs).toFixed(3)} s into the capture of ${(capEnd - cap.start / fs).toFixed(3)} s (nearest click ${near ? `${((near.time - t) * 1000).toFixed(2)} ms away, ${near.cancelled ? 'taken back' : 'kept'}, ${twins} clicks logged there` : 'none'})`;
       });
       check('live: every click of a long, changing metronome run is heard, none extra', cmp.missing === 0 && cmp.extra === 0 && cmp.n > seconds * 4, `${cmp.n}/${wanted.length} found, ${cmp.missing} missing, ${cmp.extra} extra${strays.length ? `: ${strays.join('; ')}` : ''}`);
       check('live: every click within 2 ms of its audio-clock time', cmp.worst < 0.002, `worst ${ms(cmp.worst)}, mean offset ${ms(cmp.mean)}`);
