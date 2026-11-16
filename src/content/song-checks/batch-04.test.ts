@@ -114,7 +114,8 @@ const SONGS: Expected[] = [
     melody: 'Melody',
     tune: NACHTMUSIK,
     shift: -12,
-    harmony: 'G - | G - | D7 - | D7 -'.replace(/ -/g, ' D'),
+    // The orchestra plays in octaves here; the notes spell G, then D7.
+    harmony: 'G G | G G | D7 D7 | D7 D7',
     key: 'G major',
     scale: ['G', 'major'],
     range: ['D3', 'D4'],
@@ -157,7 +158,8 @@ const SONGS: Expected[] = [
   },
 ];
 
-const ROLE_FREE_HARMONY_IDS = new Set(['minuet-in-g-melody']);
+/** Songs whose harmony above is an analysis of the tune, not chord symbols written in the file. */
+const ANALYSIS_ONLY = new Set(['minuet-in-g-melody']);
 
 function load(id: string): Song {
   const text = readFileSync(new URL(`../songs/${id}/song.sixtab`, import.meta.url), 'utf8');
@@ -235,6 +237,17 @@ describe.each(SONGS.map((s) => [s.id, s] as [string, Expected]))('batch 4: %s', 
     });
   });
 
+  it('has the chords written where the harmony plan of this check puts them', () => {
+    if (!want.harmony || ANALYSIS_ONLY.has(id)) return;
+    const harmony = bars(want.harmony);
+    expect(harmony.length, `${id}: harmony bars`).toBe(song.bars.length);
+    harmony.forEach((slots, bar) => {
+      if (want.pickup && bar === 0) return;
+      const written = want.strong.map((tick) => chordAt(song, bar, tick) ?? '-');
+      expect(written, `${id}: chords on the strong beats of bar ${bar}`).toEqual(slots);
+    });
+  });
+
   it('puts chord tones on the strong beats, or steps off them to the next note', () => {
     if (!want.harmony) return;
     const harmony = bars(want.harmony);
@@ -245,10 +258,6 @@ describe.each(SONGS.map((s) => [s.id, s] as [string, Expected]))('batch 4: %s', 
       const slot = want.strong.indexOf(n.tick);
       if (slot < 0) return;
       const symbol = harmony[n.bar]?.[slot];
-      if (!ROLE_FREE_HARMONY_IDS.has(id)) {
-        const written = chordAt(song, n.bar, n.tick);
-        if (written !== symbol) problems.push(`bar ${n.bar + 1}, beat ${n.tick / PPQ + 1}: chord ${written} but the plan of this check says ${symbol}`);
-      }
       if (!symbol || symbol === '-') return;
       if (chordPcs(symbol).includes(n.midi % 12)) return;
       // Passing note, neighbour, appoggiatura or suspension: it moves by step to a different note.
