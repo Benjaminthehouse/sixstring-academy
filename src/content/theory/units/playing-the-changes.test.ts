@@ -356,6 +356,47 @@ describe('playing-the-changes: outside and back', () => {
   });
 });
 
+describe('playing-the-changes: review fixes', () => {
+  /** Every string in the unit. */
+  function texts(value: unknown, out: string[] = []): string[] {
+    if (typeof value === 'string') out.push(value);
+    else if (Array.isArray(value)) for (const v of value) texts(v, out);
+    else if (value && typeof value === 'object') for (const v of Object.values(value)) texts(v, out);
+    return out;
+  }
+  /** "{n:X} is not in {k:K}", "which {k:K} does not have", "{n:X} is not in {c:C}": the nearest note before. */
+  function outsideClaims(text: string): Array<[string, string]> {
+    const out: Array<[string, string]> = [];
+    for (const sentence of text.split(/(?<=[.;:?])\s/)) {
+      for (const m of sentence.matchAll(/(?:is not in|outside|foreign to) \{[kc]:([^}]+)\}|\{k:([^}]+)\} (?:does not have|lacks)/g)) {
+        const notes = [...sentence.slice(0, m.index).matchAll(/\{n:([A-G][#b]*)\}/g)];
+        if (notes.length) out.push([notes.at(-1)![1], m[1] ?? m[2]]);
+      }
+    }
+    return out;
+  }
+
+  it('names only notes that really lie outside that key or chord', () => {
+    const claims = texts(unit).flatMap(outsideClaims);
+    expect(claims.length).toBeGreaterThanOrEqual(5);
+    for (const [note, where] of claims) {
+      const pcs = / (major|minor)$/.test(where) ? scaleNotes(where.split(' ')[0], where.endsWith('minor') ? 'minor' : 'major').map(pc) : chordPcs(where);
+      expect(pcs.includes(pc(note)), `${note} in ${where}`).toBe(false);
+    }
+  });
+
+  // Review: the Dm7 distractor said it "starts below the root, on the 6th": it now says what it adds.
+  it('says Dm7 over Fmaj7 adds the 6th, and Gm7 brings the Bb that clashes with A', () => {
+    const q = findIn<ChoiceExercise>(allExercises(), 'choice', /Over Fmaj7, which seventh arpeggio/);
+    const why = (c: string): string => plain(q.options.find((o) => tagged(o.text!, 'chord')[0] === c)!.why!);
+    expect(intervalBetween('F', 'D')).toBe('M6');
+    expect(why('Dm7')).toMatch(/the 6th of Fmaj7: it adds the 6th, not the 9th/);
+    expect(chordNotes('Dm7').map((x) => intervalBetween('F', x))).not.toContain('M2'); // no 9th
+    expect(chordNotes('Gm7')).toContain('Bb');
+    expect(intervalBetween('A', 'Bb')).toBe('m2'); // a half step against the 3rd of Fmaj7
+  });
+});
+
 describe('playing-the-changes: on the go', () => {
   it('still teaches with the sound off and with the guitar away', () => {
     for (const c of [{ guitar: false, sound: true }, { guitar: false, sound: false }, { guitar: true, sound: false }]) {

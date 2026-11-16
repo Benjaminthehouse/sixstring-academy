@@ -323,9 +323,19 @@ describe('song-form-and-arranging: bass lines', () => {
       expect(bar[0].midi % 12, `bar ${i + 1}`).toBe(pc(roots[i]));
       if (i < 3) {
         expect(bar).toHaveLength(4);
-        expect(Math.abs(b[i + 1][0].midi - bar[3].midi), `bar ${i + 1} beat 4`).toBe(1);
+        // Review: bar 1 used to drop from C# to C; every approach now rises from a half step below.
+        expect(b[i + 1][0].midi - bar[3].midi, `bar ${i + 1} beat 4`).toBe(1);
       }
     });
+    // The card and the listening answer name exactly those approach notes: B, C# and F#.
+    const approaches = b.slice(0, 3).map((bar) => bar[3].midi % 12);
+    const card = lesson('bass-lines').steps[3];
+    if (isGenerated(card) || card.type !== 'card') throw new Error('expected the walking card');
+    const named = tagged(String(card.body).split('below the next root:')[1], 'note');
+    expect(named.filter((_x, i) => i % 2 === 0).map(pc)).toEqual(approaches);
+    expect(named.filter((_x, i) => i % 2 === 0).map((x) => transpose(x, 'm2'))).toEqual(named.filter((_x, i) => i % 2 === 1));
+    const [, walkQ] = listens(lesson('bass-lines').steps);
+    expect(tagged(walkQ.explain, 'note').map(pc)).toEqual(approaches);
     const steps = notesOf(walking).slice(1).map((m, i) => Math.abs(m - notesOf(walking)[i]));
     expect(steps.filter((s) => s <= 2).length).toBeGreaterThan(steps.length / 2); // mostly by step
     expect(correct(findIn<ChoiceExercise>(inLesson('bass-lines'), 'choice', /which beat carries/))).toBe('Beat 4');
@@ -368,6 +378,54 @@ describe('song-form-and-arranging: writing a progression', () => {
   it('marks only a chord tone of C as safe to hold', () => {
     const q = findIn<ChoiceExercise>(inLesson('writing-a-progression'), 'choice', /safe to hold/);
     for (const o of q.options) expect(chordPcs('C').includes(pc(tagged(o.text!, 'note')[0])), plain(o.text!)).toBe(!!o.correct);
+  });
+});
+
+describe('song-form-and-arranging: every "not in" claim', () => {
+  /** "{n:X} is not in {k:K}" / "{n:X} is foreign to {k:K}" / "{n:X} is not in {c:C}": the nearest note before. */
+  function outsideClaims(text: string): Array<[string, 'key' | 'chord', string]> {
+    const out: Array<[string, 'key' | 'chord', string]> = [];
+    for (const sentence of text.split(/(?<=[.;:?])\s/)) {
+      for (const m of sentence.matchAll(/(?:is not in|outside|foreign to) \{([kc]):([^}]+)\}/g)) {
+        const notes = [...sentence.slice(0, m.index).matchAll(/\{n:([A-G][#b]*)\}/g)];
+        if (notes.length) out.push([notes.at(-1)![1], m[1] === 'k' ? 'key' : 'chord', m[2]]);
+      }
+    }
+    return out;
+  }
+  const keyPcs = (key: string): number[] => {
+    const [tonic, mode] = key.split(' ');
+    return diatonicChords(`${tonic} ${mode}`).map((c) => pc(c.root));
+  };
+
+  it('names only notes that really lie outside that key or chord', () => {
+    const claims = texts(unit).flatMap(outsideClaims);
+    expect(claims.length).toBeGreaterThanOrEqual(5);
+    for (const [note, kind, where] of claims) {
+      const pcs = kind === 'key' ? keyPcs(where) : chordPcs(where);
+      expect(pcs.includes(pc(note)), `${note} in ${where}`).toBe(false);
+    }
+  });
+});
+
+describe('song-form-and-arranging: the checkpoint', () => {
+  const steps = exercises(unit.checkpoint!.steps!);
+
+  // Review: the checkpoint line lists "rhythm, lead, riff and fill roles"; no step asked about them.
+  it('asks about the guitar\'s jobs in a band, with a fill as the answer to the singer', () => {
+    const q = findIn<ChoiceExercise>(steps, 'choice', /Which job is that/);
+    expect(correct(q)).toBe('A fill');
+    expect(q.options.map((o) => plain(o.text!)).sort()).toEqual(['A fill', 'A riff', 'Lead', 'Rhythm']);
+    const g = THEORY_GLOSSARY.find((t) => t.id === 'fill')!;
+    expect(g.definition).toMatch(/between two vocal lines/);
+  });
+
+  it('keeps within the 20-step limit and covers every lesson of the unit', () => {
+    expect(unit.checkpoint!.steps!.length).toBeLessThanOrEqual(20);
+    const all = steps.map((e) => plain(('prompt' in e && e.prompt) || ('statement' in e && e.statement) || '')).join(' | ');
+    for (const word of [/verse|chorus|bridge/i, /AABA|rondo|ternary/i, /phrase|period/i, /guitars?|job/i, /chord-melody/i, /bass line|approach/i, /progression|borrowed/i]) {
+      expect(all).toMatch(word);
+    }
   });
 });
 

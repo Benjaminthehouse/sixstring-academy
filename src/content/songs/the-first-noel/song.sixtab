@@ -10,7 +10,7 @@
 # opening figure, "F# E | D. E F# G | A", and its last four bars are the verse's last four bars,
 # note for note. Each time a line comes round, its chords come round with it.
 # Chords D (xx0232), G (320003) and A (x02220), one per bar, every one under a melody note it
-# contains on beat 1. The teacher strums the open chords on every beat, beat 1 the strongest.
+# contains on beat 1. The teacher strums the open chords, one even down-strum on every beat.
 # Then swap parts: strum the chords while the app plays the tune.
 title: The First Noel
 id: the-first-noel

@@ -306,7 +306,7 @@ const pivotChords: Lesson = {
     {
       type: 'card',
       title: 'One chord, two keys',
-      body: 'A {t:pivot-chord} belongs to both the old key and the new one. {c:Am} (x02210) is {r:vi} in {k:C major} and {r:ii} in {k:G major}. Play {c:C} (x32010), {c:Am}, {c:D7} (xx0212), {c:G} (320003):\nIn C: {r:I} {r:vi}\nIn G: {r:ii} {r:V7} {r:I}',
+      body: 'A {t:pivot-chord} belongs to both the old key and the new one. Play {c:C} (x32010), {c:Am} (x02210), {c:D7} (xx0212), {c:G} (320003):\n{c:C}: {r:I} in C\n{c:Am}: {r:vi} in C, and also {r:ii} in G\n{c:D7}: {r:V7} in G\n{c:G}: {r:I} in G, the new home',
       figure: { kind: 'chord', symbol: 'Am', frets: 'x02210', caption: '{c:Am}: {r:vi} in {k:C major}, {r:ii} in {k:G major}.' },
     },
     {
@@ -575,7 +575,7 @@ const chromaticMediants: Lesson = {
     {
       type: 'card',
       title: 'Hear them',
-      body: 'Each change keeps one note and moves the rest, so it sounds bright, sudden and a little magical. Film composers love it for heroic or eerie moments, and Romantic composers such as Schubert and Liszt used it often.',
+      body: 'Each change keeps one note and moves the rest, so it sounds sudden and a little magical: bright when {c:C} moves to {c:E}, with its sharp {n:G#}; darker when it moves to {c:Ab}, with its flats. Film composers love it for heroic or eerie moments, and Romantic composers such as Schubert and Liszt used it often.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['C', 'E', 'C', 'Ab'], beats: 4, tempo: 80 }, label: '{c:C} to {c:E}, then to {c:Ab}' },
     },
     {
@@ -587,7 +587,7 @@ const chromaticMediants: Lesson = {
         { text: '{c:C} to {c:Em}', why: 'The roots are a third apart, but {c:Em} shares two notes with {c:C}, {n:E} and {n:G}: a plain diatonic change.' },
         { text: '{c:C} to {c:G}', why: 'Roots a fifth apart, sharing {n:G}: both chords are in {k:C major}.' },
       ],
-      explain: '{c:C} and {c:E} are both major, with roots a major third apart, and share only {n:E}. The {n:G#} and {n:B} of {c:E} come from outside {k:C major}.',
+      explain: '{c:C} and {c:E} are both major, with roots a major third apart, and share only {n:E}. The {n:G#} of {c:E} comes from outside {k:C major}: that is the bright jolt you hear.',
       fact: 'modulation-chromatic-mediant',
     },
     {
@@ -739,7 +739,7 @@ const augmentedSixthChords: Lesson = {
     {
       type: 'card',
       title: 'Resolving on the guitar',
-      body: 'From the German sixth, xx6542, every voice moves a half step to {c:G} at xx5433: {n:Ab} to {n:G}, {n:C} to {n:B}, {n:Eb} to {n:D}, {n:F#} to {n:G}. Or go through {c:C/G} at xx5553 first: {n:Eb} rises to {n:E}, then on to {c:G}.',
+      body: 'From the German sixth, xx6542, every voice moves a half step to {c:G} at xx5433: {n:Ab} to {n:G}, {n:C} to {n:B}, {n:Eb} to {n:D}, {n:F#} to {n:G}. Or go through {c:C/G} at xx5553 first: {n:Eb} rises to {n:E}, then on to {c:G}. Classical writers usually do, because {n:Ab} and {n:Eb} falling together to {n:G} and {n:D} make {t:parallel-fifths|parallel fifths}.',
       figure: {
         kind: 'audio',
         sound: {
@@ -885,6 +885,13 @@ const unit: Unit = {
         explain: 'The relative major of {k:E minor} is {k:G major}: the same one sharp, a minor third up.',
       },
       {
+        type: 'type-answer',
+        prompt: 'A piece in {k:Bb major} modulates to its dominant key. Type the tonic of that key.',
+        answer: { kind: 'note', value: 'F', spelling: 'exact' },
+        input: 'keypad',
+        explain: 'The 5th note of {k:Bb major} is {n:F}, so its dominant key is {k:F major}: a fifth up, with one flat fewer.',
+      },
+      {
         type: 'choice',
         prompt: 'Which chord can pivot from {k:C major} to {k:G major}?',
         options: [
@@ -912,6 +919,17 @@ const unit: Unit = {
           { left: 'Common-tone', right: 'Holds one shared note' },
         ],
         explain: 'Pivot modulations pass through a chord of both keys, common-tone modulations hold a shared note, and direct modulations simply jump.',
+      },
+      {
+        type: 'choice',
+        prompt: 'A common-tone modulation goes from {c:G} to {c:E}. Which note can ring through the change?',
+        options: [
+          { text: '{n:B}', correct: true },
+          { text: '{n:G}', why: '{c:E} has {n:G#}, not {n:G}.' },
+          { text: '{n:D}', why: '{n:D} is not in {c:E}, which is {n:E} {n:G#} {n:B}.' },
+          { text: '{n:E}', why: '{n:E} is not in {c:G}, which is {n:G} {n:B} {n:D}.' },
+        ],
+        explain: '{c:G} is {n:G} {n:B} {n:D} and {c:E} is {n:E} {n:G#} {n:B}. Only {n:B} is in both, so it can ring on while the harmony moves under it.',
       },
       {
         type: 'type-answer',
@@ -948,11 +966,21 @@ const unit: Unit = {
       },
       {
         type: 'choice',
+        prompt: 'In {k:C major}, which augmented sixth chord is {n:Ab} {n:C} {n:F#}?',
+        options: [
+          { text: 'The Italian sixth', correct: true },
+          { text: 'The French sixth', why: 'The French sixth adds {n:D}: {n:Ab} {n:C} {n:D} {n:F#}.' },
+          { text: 'The German sixth', why: 'The German sixth adds {n:Eb}: {n:Ab} {n:C} {n:Eb} {n:F#}.' },
+        ],
+        explain: 'The Italian sixth is the plain one, three notes: {n:Ab}, {n:C} and {n:F#}. The French adds {n:D}, the German {n:Eb}.',
+      },
+      {
+        type: 'choice',
         prompt: 'In {k:C major}, where do {n:Ab} and {n:F#} of an augmented sixth chord go?',
         options: [
           { text: 'Both to {n:G}, an octave apart', correct: true },
           { text: '{n:Ab} up to {n:A}, {n:F#} down to {n:F}', why: 'That squeezes them inward. An augmented sixth opens outward, to the 5th.' },
-          { text: 'Both to {n:C}', why: '{n:C} is a third away from each; the half-step moves lead to {n:G}.' },
+          { text: 'Both to {n:C}', why: '{n:C} is a third above {n:Ab} and a tritone from {n:F#}. Each is a half step from {n:G}, so that is where they go.' },
         ],
         explain: '{n:Ab} falls a half step and {n:F#} rises a half step, landing on {n:G} and {n:G}: the 5th of the key, the root of {r:V}.',
       },

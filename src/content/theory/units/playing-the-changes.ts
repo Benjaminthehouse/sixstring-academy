@@ -908,7 +908,7 @@ const unit: Unit = {
         options: [
           { text: '{c:Am7}', correct: true },
           { text: '{c:Cmaj7}', why: '{c:Cmaj7} starts on the 5th of {c:Fmaj7}.' },
-          { text: '{c:Dm7}', why: '{c:Dm7} starts below the root, on the 6th.' },
+          { text: '{c:Dm7}', why: '{c:Dm7} starts on {n:D}, the 6th of {c:Fmaj7}: it adds the 6th, not the 9th.' },
           { text: '{c:Gm7}', why: '{c:Gm7} has {n:Bb}, which clashes with {c:Fmaj7}.' },
         ],
         explain: '{c:Am7} is {n:A} {n:C} {n:E} {n:G}: the 3rd, 5th and 7th of {c:Fmaj7}, plus {n:G}, the 9th.',

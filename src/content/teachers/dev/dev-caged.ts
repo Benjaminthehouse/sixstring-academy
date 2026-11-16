@@ -905,6 +905,7 @@ const unit: TeacherUnit = {
     lesson: 'caged-review',
     step: 'show',
     piece: 'the high second-guitar part',
+    song: 'the-first-noel',
     celebrate: 'That was a second guitar part, three shapes up the neck, and you kept it going. You can find any major chord in five places now. Next we make those shapes talk: slides, bends and vibrato.',
   },
   glossary: [

@@ -72,9 +72,9 @@ const ODE_OPENING = [n(1, 0, 'q'), n(1, 0, 'q'), n(1, 1, 'q'), n(1, 3, 'q'), n(1
 
 /** Root and 5th under G C D G, strings 6 to 4. */
 const ROOT_FIFTH = [n(6, 3, 'h'), n(5, 5, 'h'), n(5, 3, 'h'), n(6, 3, 'h'), n(4, 0, 'h'), n(5, 0, 'h'), n(6, 3, 'w')];
-/** A walking line under G C D G: a note a beat, a half-step approach on each beat 4. */
+/** A walking line under G C D G: a note a beat, a half step below the next root on each beat 4. */
 const WALKING = [
-  n(6, 3, 'q'), n(5, 0, 'q'), n(5, 2, 'q'), n(5, 4, 'q'),
+  n(6, 3, 'q'), n(5, 0, 'q'), n(5, 1, 'q'), n(5, 2, 'q'),
   n(5, 3, 'q'), n(5, 2, 'q'), n(5, 0, 'q'), n(5, 4, 'q'),
   n(4, 0, 'q'), n(5, 3, 'q'), n(5, 0, 'q'), n(6, 2, 'q'),
   n(6, 3, 'w'),
@@ -717,7 +717,7 @@ const bassLines: Lesson = {
     {
       type: 'card',
       title: 'Walking',
-      body: 'A {t:walking-bass} line plays a note on every beat, moving mostly by step and landing on a chord tone at each change. On beat 4 it often slips in by a half step from the next root: {n:C#} into {n:D}, {n:F#} into {n:G}.',
+      body: 'A {t:walking-bass} line plays a note on every beat, moving mostly by step and landing on a chord tone at each change. On beat 4 it often slips up from a half step below the next root: {n:B} into {n:C}, {n:C#} into {n:D}, {n:F#} into {n:G}.',
       figure: { kind: 'audio', sound: { kind: 'tab', tempo: 96, notes: WALKING }, label: 'Hear it walk' },
     },
     {
@@ -759,7 +759,7 @@ const bassLines: Lesson = {
       sound: { kind: 'tab', tempo: 96, notes: WALKING },
       options: [{ text: 'Root-fifth' }, { text: 'Walking', correct: true }],
       shuffle: false,
-      explain: 'A note on every beat, moving mostly by step, with {n:C#} and {n:F#} slipping into the next roots: a walking line.',
+      explain: 'A note on every beat, moving mostly by step, with {n:B}, {n:C#} and {n:F#} slipping up into the next roots: a walking line.',
     },
     {
       type: 'choice',
@@ -980,6 +980,17 @@ const unit: Unit = {
           { text: 'It is out of time', why: 'The bars are in time; only their grouping is unusual.' },
         ],
         explain: 'Listeners feel four-bar groups like large beats, so a 3-bar phrase ends earlier than the ear expects.',
+      },
+      {
+        type: 'choice',
+        prompt: 'The singer stops at the end of a line, and the guitar answers with a short phrase in the gap. Which job is that?',
+        options: [
+          { text: 'A fill', correct: true },
+          { text: 'A riff', why: 'A riff is a short figure repeated through a section, not a one-off answer in a gap.' },
+          { text: 'Rhythm', why: 'Rhythm guitar plays the chords and the groove under the song.' },
+          { text: 'Lead', why: 'Lead carries the melody or a solo, not a quick answer to the singer.' },
+        ],
+        explain: 'A fill is a little phrase played between vocal lines. Rhythm holds the chords, lead carries the tune or the solo, and a riff repeats.',
       },
       {
         type: 'choice',

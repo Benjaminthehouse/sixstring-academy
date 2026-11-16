@@ -15,7 +15,7 @@ export default defineSong({
   skills: ['melody', 'chords', 'form', 'rhythm'],
   tags: ['christmas', 'carol', 'waltz time', '3/4', 'd major', 'refrain', 'english', 'lyrics'],
   about:
-    'Feel three beats to the bar and lean on beat 1, where the strum is strongest. Listen for the one phrase: the verse is an eight-bar line sung twice, and the refrain starts like the verse and ends with its last four bars note for note, so you know most of the refrain before you reach it. The usual slip is the long low D on "first" and "fields": hold it for a beat and a half, then play the three eighths evenly. When the tune is easy, swap parts: strum D, G and A on every beat while the app plays the tune.',
+    'Feel three beats to the bar and lean on beat 1, where the chord changes. Listen for the one phrase: the verse is an eight-bar line sung twice, and the refrain starts like the verse and ends with its last four bars note for note, so you know most of the refrain before you reach it. The usual slip is the long low D on "first" and "fields": hold it for a beat and a half, then play the three eighths evenly. When the tune is easy, swap parts: strum D, G and A on every beat while the app plays the tune.',
   plan: 'the-first-noel',
   added: '2026-11-16',
 });

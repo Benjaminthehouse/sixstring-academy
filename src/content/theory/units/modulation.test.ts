@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   chordNotes, chordPcs, chordToRoman, closelyRelatedKeys, diatonicChords, intervalBetween, neighborKeys, noteAtDegree, parseChord,
-  relativeKey, transposeChord, tritoneSubstitute,
+  relativeKey, scaleNotes, transposeChord, tritoneSubstitute,
 } from '@/core/theory';
 import { buildVoicing, chordVoicings, midiAt, tryBuildVoicing } from '@/core/guitar';
 import {
@@ -427,12 +427,92 @@ describe('modulation: augmented sixth chords', () => {
 });
 
 describe('modulation: the checkpoint', () => {
+  const steps = exercises(unit.checkpoint!.steps!);
+
   it('names the pivot and the shared note the engines give', () => {
-    const steps = exercises(unit.checkpoint!.steps!);
     const fill = findIn<FillBlanksExercise>(steps, 'fill-blanks', /Name the pivot/);
     expect(fill.blanks.map((b) => tagged(b, 'roman')[0])).toEqual([chordToRoman('Am', 'C').roman, chordToRoman('Am', 'G').roman]);
     expect(findIn<TypeAnswerExercise>(steps, 'type-answer', /relative major/).answer.value).toBe(relativeKey('E minor').tonic);
     expect(findIn<TypeAnswerExercise>(steps, 'type-answer', /shared by C and E/).answer.value).toBe(shared('C', 'E')[0]);
+  });
+
+  // Review: the checkpoint line lists "modulating to the dominant", common-tone modulation and the
+  // Italian sixth; each now has its own question.
+  it('asks for the dominant key, a held common tone and the Italian sixth', () => {
+    const dom = findIn<TypeAnswerExercise>(steps, 'type-answer', /Bb major modulates to its dominant key/);
+    expect(dom.answer.value).toBe(neighborKeys('Bb major').dominant.tonic);
+    const held = findIn<ChoiceExercise>(steps, 'choice', /common-tone modulation goes from G to E/);
+    expect(shared('G', 'E')).toEqual(['B']);
+    for (const o of held.options) expect(shared('G', 'E').includes(tagged(o.text!, 'note')[0]), plain(o.text!)).toBe(!!o.correct);
+    const it6 = findIn<ChoiceExercise>(steps, 'choice', /which augmented sixth chord is Ab C F#/);
+    expect(tagged(it6.prompt, 'note')).toEqual([noteAtDegree('C major', 'b6'), 'C', noteAtDegree('C major', '#4')]);
+    expect(correct(it6)).toBe('The Italian sixth');
+  });
+
+  // Review: the "Both to C" distractor said C is "a third away from each"; F# to C is a tritone.
+  it('gives the true distance from Ab and F# to C', () => {
+    const q = findIn<ChoiceExercise>(steps, 'choice', /where do Ab and F# of an augmented sixth chord go/);
+    const why = plain(q.options.find((o) => /Both to C/.test(plain(o.text!)))!.why!);
+    expect(intervalBetween('Ab', 'C')).toBe('M3');
+    expect(intervalBetween('C', 'F#')).toBe('A4');
+    expect(why).toMatch(/third above Ab and a tritone from F#/);
+    expect(intervalBetween('G', 'Ab')).toBe('m2'); // Ab falls a half step to G
+    expect(intervalBetween('F#', 'G')).toBe('m2'); // F# rises a half step to G
+  });
+
+  it('keeps within the 20-step limit', () => {
+    expect(unit.checkpoint!.steps!.length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe('modulation: every "not in the key" claim', () => {
+  /** "{n:X} is not in {k:K}", "{n:X} ... comes from outside {k:K}", "{n:X}, which {k:K} does not have": the nearest note before the key. */
+  function outsideClaims(text: string): Array<[string, string]> {
+    const out: Array<[string, string]> = [];
+    for (const sentence of text.split(/(?<=[.;:?])\s/)) {
+      for (const m of sentence.matchAll(/(?:is not in|outside|foreign to) \{k:([^}]+)\}|\{k:([^}]+)\} (?:does not have|lacks)/g)) {
+        const notes = [...sentence.slice(0, m.index).matchAll(/\{n:([A-G][#b]*)\}/g)];
+        if (notes.length) out.push([notes.at(-1)![1], m[1] ?? m[2]]);
+      }
+    }
+    return out;
+  }
+  const inKey = (note: string, key: string): boolean => {
+    const [tonic, mode] = key.split(' ');
+    return scaleNotes(tonic, mode === 'minor' ? 'minor' : 'major').some((x) => chordPcs(x)[0] === chordPcs(note)[0]);
+  };
+
+  // Review: the chromatic-mediant explanation said "the G# and B of E come from outside C major";
+  // B is in C major.
+  it('names only notes that really lie outside that key', () => {
+    const claims = texts(unit).flatMap(outsideClaims);
+    expect(claims.length).toBeGreaterThanOrEqual(6);
+    for (const [note, key] of claims) expect(inKey(note, key), `${note} in ${key}`).toBe(false);
+    expect(inKey('B', 'C major')).toBe(true);
+    expect(outsideClaims('The {n:G#} and {n:B} of {c:E} come from outside {k:C major}.')).toEqual([['B', 'C major']]);
+  });
+});
+
+describe('modulation: review fixes in the lessons', () => {
+  // Review: the German sixth straight to V moves Ab-Eb to G-D: parallel fifths, the reason the
+  // card now gives for going through C/G.
+  it('makes parallel fifths from xx6542 straight to xx5433', () => {
+    const ger = buildVoicing('Ab7', 'xx6542').notes;
+    const g = buildVoicing('G', 'xx5433').notes;
+    const ab = ger.find((n) => n.string === 4)!;
+    const eb = ger.find((n) => n.string === 2)!;
+    expect(eb.midi - ab.midi).toBe(7); // Ab3 up to Eb4
+    expect(g.find((n) => n.string === 2)!.midi - g.find((n) => n.string === 4)!.midi).toBe(7); // G3 up to D4
+    expect(intervalBetween('Ab', 'Eb')).toBe('P5');
+    expect(intervalBetween('G', 'D')).toBe('P5');
+    const card = lesson('augmented-sixth-chords').steps[4];
+    if (isGenerated(card) || card.type !== 'card') throw new Error('expected the card');
+    expect(plain(card.body)).toMatch(/parallel fifths/);
+  });
+
+  it('calls C to E the bright move and C to Ab the dark one, by their sharps and flats', () => {
+    expect(chordNotes('E')).toContain('G#');
+    expect(chordNotes('Ab').filter((n) => n.endsWith('b'))).toEqual(['Ab', 'Eb']);
   });
 });
 
