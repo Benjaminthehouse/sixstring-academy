@@ -10,8 +10,9 @@
  *
  * Notes for readers of the code:
  * - `teaches` is shown as plain text on the map, so it spells degrees out ("flat 3").
- * - A play-phrase holds at most 16 notes and a box has 12, so "play the box up and down" is
- *   graded going up; the explanation sends the learner back down the same way.
+ * - A play step draws its tab without a scroll box of its own, so a 12-note box would push a phone
+ *   page sideways. "Play the box up and down" is therefore graded going up, in two 6-note halves
+ *   (strings 6 to 4, then 3 to 1); the explanation sends the learner back down the same way.
  * - A fretboard figure has no "faded box" or shading per box. Box 2's picture dims box 1
  *   (`ghost`), rings the shared notes (`target`) and marks the roots; the captions say so.
  * - A lesson `Sound` cannot bend or detune a note, nor hold a drone under a line. The bend
@@ -126,7 +127,7 @@ const pentatonicFormulas: Lesson = {
     {
       type: 'card',
       title: 'The minor pentatonic formula',
-      body: 'You know box 1 of the {n:A} minor {t:pentatonic|pentatonic} scale. As {t:degree|degrees} of {n:A}, its five notes are {d:1} {d:b3} {d:4} {d:5} {d:b7}: the natural minor scale without its {d:2} and {d:b6}. That formula builds a minor pentatonic in any key.',
+      body: 'You know box 1 of the {n:A} minor {t:pentatonic|pentatonic} scale. As {t:degree|degrees} of {n:A}, its five notes are {d:1} {d:b3} {d:4} {d:5} {d:b7}: natural minor without its {d:2} and {d:b6}. This formula works in any key.',
       figure: {
         kind: 'fretboard',
         frets: [4, 8],
@@ -135,6 +136,7 @@ const pentatonicFormulas: Lesson = {
         dots: boxDots(BOX_1, { degrees: IN_A_MINOR }),
         caption: 'Box 1 of {n:A} minor pentatonic, each note labelled by its degree in {n:A}.',
       },
+      tip: 'Each dropped note leaves a three-fret gap, a whole + half step: {n:A} to {n:C}, {n:E} to {n:G}. Major pentatonic has two such gaps too.',
     },
     {
       type: 'choice',
@@ -192,7 +194,7 @@ const pentatonicFormulas: Lesson = {
     {
       type: 'card',
       title: 'Twins, a minor third apart',
-      body: 'The two homes are always a {t:minor-third|minor third} apart: three frets. From a minor pentatonic root, count three frets up string 6 and you reach its major twin: {n:E} (open) to {n:G} (fret 3), {n:A} (fret 5) to {n:C} (fret 8).',
+      body: 'The two homes are always a {t:minor-third|minor third} apart: three frets. Count three frets up string 6 from a minor root to reach its major twin: {n:E} (open) to {n:G} (fret 3), {n:A} (fret 5) to {n:C} (fret 8).',
       figure: {
         kind: 'fretboard',
         frets: [0, 8],
@@ -402,7 +404,7 @@ const box3: Lesson = {
       mode: 'all',
       octave: 'any',
       frets: [9, 13],
-      explain: 'String 5 at fret 12 and string 2 at fret 10, an octave apart: three strings higher and two frets back, because the {n:B} string shifts the shape by a fret.',
+      explain: 'String 5 at fret 12 and string 2 at fret 10: both {n:A}, an octave apart. The higher one, string 2 at fret 10, is also the top root of box 2.',
       fact: 'boxes-box-3-roots',
     },
     {
@@ -529,7 +531,7 @@ const boxes4And5: Lesson = {
     {
       type: 'card',
       title: 'Twelve frets lower',
-      body: 'Fret 12 repeats the open strings, so every box also sits **twelve frets lower**. Box 4 drops to **open position**, frets 0 to 3, with five open strings. Box 5 drops to frets 2 to 5, just below box 1. Same shapes, same notes, an octave down.',
+      body: 'Fret 12 repeats the open strings, so a box at fret 12 or higher also sits **twelve frets lower**. Box 4 drops to **open position**, frets 0 to 3, with five open strings. Box 5 drops to frets 2 to 5, just below box 1. Same shapes, same notes, an octave down.',
       figure: { kind: 'fretboard', frets: [0, 5], derive: { scale: 'minor-pentatonic', tonic: 'A' }, caption: 'Frets 0 to 5: box 4 (frets 0 to 3) and box 5 (frets 2 to 5).' },
     },
     {
@@ -642,7 +644,7 @@ const connectingTheBoxes: Lesson = {
       type: 'order',
       prompt: 'You start in box 3 and climb the neck. Put the boxes you play through in order.',
       tiles: ['Box 3', 'Box 4', 'Box 5', 'Box 1', 'Box 2'],
-      explain: 'Box 3 at fret 9, box 4 at 12, box 5 at 14, then box 1 again at fret 17 and box 2 at 19: the cycle repeats every twelve frets.',
+      explain: 'On string 6: box 3 from fret 10, box 4 from 12, box 5 from 15, then box 1 again from fret 17 and box 2 from 20. The cycle repeats every twelve frets.',
       fact: 'boxes-cycle-repeats',
     },
     {
@@ -673,7 +675,7 @@ const connectingTheBoxes: Lesson = {
       explain: '{n:C}, {n:D}, slide to {n:E} (box 2), slide on to {n:G} (box 3), then home to the root, {n:A}. Two slides, three boxes, one bar.',
       alternative: {
         type: 'fretboard-find',
-        prompt: 'The phrase leaves box 1 at string 3, fret 7 and slides up into box 2. Tap the fret it lands on.',
+        prompt: 'The phrase leaves box 1 at string 3, fret 7 and slides up into box 2. On string 3, tap the fret it lands on.',
         find: { note: 'E4' },
         mode: 'one',
         octave: 'exact',
@@ -782,7 +784,7 @@ const majorPentatonicBoxes: Lesson = {
       options: [
         { text: '{n:E} minor pentatonic', correct: true },
         { text: '{n:G} minor pentatonic', why: 'Same root, different notes: {n:G} minor pentatonic has {n:Bb} and {n:F}.' },
-        { text: '{n:B} minor pentatonic', why: '{n:B} is a 3rd above {n:G}. The relative minor is a minor 3rd below.' },
+        { text: '{n:B} minor pentatonic', why: '{n:B} is a major 3rd above {n:G}. The relative minor is a minor 3rd below.' },
         { text: '{n:D} minor pentatonic', why: '{n:D} is a 5th above {n:G}. Count three frets down from {n:G} instead.' },
       ],
       explain: 'Three frets below {n:G} is {n:E}. {n:G} major pentatonic, G A B D E, has the same notes and boxes as {n:E} minor pentatonic, E G A B D.',
@@ -900,7 +902,7 @@ const bendsThatLand: Lesson = {
       explain: 'In tune, the bend sounds exactly like fret 9: {n:E}, the {d:5}. If it sounds low, push further; if it wobbles above the target, ease off.',
       alternative: {
         type: 'fretboard-find',
-        prompt: 'Your bend starts on string 3, fret 7, and goes up a whole step. Tap the fret it has to sound like.',
+        prompt: 'Your bend starts on string 3, fret 7, and goes up a whole step. On string 3, tap the fret it has to sound like.',
         find: { note: 'E4' },
         mode: 'one',
         octave: 'exact',
@@ -914,8 +916,8 @@ const bendsThatLand: Lesson = {
       prompt: 'You bend the {d:b7} of {n:A} minor pentatonic, {n:G} on string 2 at fret 8, up a whole step. Where do you land?',
       options: [
         { text: 'On the root, {n:A}', correct: true },
-        { text: 'On {n:G#}', why: 'That is a half step: {n:G#} is not in the scale, so the bend sounds out of tune.' },
-        { text: 'On the {d:b3}, {n:C}', why: '{n:C} is a minor 3rd above {n:G}: too far for a whole-step bend.' },
+        { text: 'On {n:G#}', why: 'Only a half step, and {n:G#} is not in the scale: the bend would land on a sour note.' },
+        { text: 'On the {d:b3}, {n:C}', why: '{n:C} is five half steps above {n:G}, a perfect 4th: far too far for a whole-step bend.' },
       ],
       explain: 'A whole step above {n:G} is {n:A}: string 2, fret 8 bent to the pitch of fret 10. Bending up to the root is one of the most satisfying sounds in a solo.',
       fact: 'boxes-bend-g-to-a',
@@ -929,7 +931,7 @@ const bendsThatLand: Lesson = {
     },
     {
       type: 'fretboard-find',
-      prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. Tap the fret it must match.',
+      prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. On string 2, tap the fret it must match.',
       find: { note: 'A4' },
       mode: 'one',
       octave: 'exact',
@@ -973,7 +975,7 @@ const bendsThatLand: Lesson = {
       back: '{n:A}, the root: the pitch of string 2, fret 10.',
       ask: {
         type: 'fretboard-find',
-        prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. Tap the fret it must match.',
+        prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. On string 2, tap the fret it must match.',
         find: { note: 'A4' },
         mode: 'one',
         octave: 'exact',
@@ -1104,7 +1106,7 @@ const unit: Unit = {
       },
       {
         type: 'fretboard-find',
-        prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. Tap the fret it must match.',
+        prompt: 'You bend string 2 at fret 8, {n:G}, up a whole step. On string 2, tap the fret it must match.',
         find: { note: 'A4' },
         mode: 'one',
         octave: 'exact',

@@ -11,7 +11,7 @@ import {
   chordNotes, chordPcs, chordTones, chordToRoman, enharmonicEqual, getScale, intervalBetween, parseChord, romanToChord, scaleModes,
   scaleNotes, scalePcs, transpose, tritoneSubstitute,
 } from '@/core/theory';
-import { buildVoicing, midiAt, moveVoicing, tryBuildVoicing } from '@/core/guitar';
+import { buildVoicing, identifyFretted, midiAt, moveVoicing, tryBuildVoicing } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
   type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise,
@@ -163,6 +163,13 @@ describe('altered-dominants: altered tensions', () => {
     const card = lesson('altered-tensions').steps[0];
     if (isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'fretboard') throw new Error('expected a fretboard card');
     expect(card.figure.dots!.map((d) => `${d.string}:${d.fret}`)).toEqual(g7b9.notes.map((n) => `${n.string}:${n.fret}`));
+    // Review fix: in x3545x the G that the Ab falls to is on string 4, not string 3 (string 3 holds B).
+    const g = cmaj7.notes.find((n) => n.midi === ab.midi - 1)!;
+    expect(g.string).toBe(4);
+    expect(cmaj7.notes.find((n) => n.string === 3)!.note).toBe('B');
+    expect(plainText(card.body)).toMatch(/falls a half step to G, on string 4/);
+    // The 11th is altered too (#11), so the card names the 9th, 11th and 13th.
+    expect(plainText(card.body)).toMatch(/9th, 11th and 13th/);
   });
 });
 
@@ -182,6 +189,21 @@ describe('altered-dominants: the sharp-nine chord', () => {
     const card = lesson('the-sharp-nine-chord').steps[0];
     if (isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'fretboard') throw new Error('expected a fretboard card');
     expect(card.figure.dots!.map((d) => d.note)).toEqual(e.notes.map((n) => n.note));
+  });
+
+  it('explains the D7#9 clash as a minor-3rd sound over the major 3rd (review fix)', () => {
+    const d = buildVoicing('D7#9', 'x5456x');
+    const sharp9 = d.notes.find((n) => n.degree === '#9')!;
+    const third = d.notes.find((n) => n.degree === '3')!;
+    expect(sharp9.note).toBe('E#');
+    expect(enharmonicEqual('E#', 'F')).toBe(true);
+    expect(intervalBetween('D', 'F')).toBe('m3');
+    expect(third.note).toBe('F#');
+    expect(third.midi).toBeLessThan(sharp9.midi);
+    // E# against F# is not a minor 3rd apart: the old wording said it was.
+    expect(sharp9.midi - third.midi).toBe(11);
+    const q = listens(lesson('the-sharp-nine-chord'))[0];
+    expect(plainText(q.explain)).toMatch(/sounds like F, a minor 3rd/);
   });
 
   it('types the sharp 9 of C7#9 and F7#9', () => {
@@ -284,6 +306,22 @@ describe('altered-dominants: tritone substitution', () => {
     const fill = findIn<FillBlanksExercise>(inLesson('tritone-substitution'), 'fill-blanks', /G major/);
     expect(tagged(fill.blanks[0], 'chord')[0]).toBe(tritoneSubstitute('D7'));
     expect([rootOf('Am7'), rootOf('Ab7'), rootOf('Gmaj7')].map(pcOf)).toEqual([9, 8, 7]);
+  });
+
+  it('gets from the Db7 shell to the Cmaj7 shell by holding string 3 (review fix)', () => {
+    const db7 = buildVoicing('Db7', 'x4x46x');
+    // Sliding the whole shape down a fret gives C7, not Cmaj7.
+    const slid = moveVoicing(db7, -1)!;
+    expect(slid.frets).toEqual(buildVoicing('C7', 'x3x35x').frets);
+    expect(identifyFretted('x3x35x').symbol).toBe('C7');
+    // Holding string 3 (Cb = B) and moving the other two down a fret gives x3x45x.
+    const cmaj7 = buildVoicing('Cmaj7', 'x3x45x');
+    const changed = db7.frets.map((f, i) => (f === cmaj7.frets[i] ? null : 6 - i)).filter((s) => s !== null);
+    expect(changed).toEqual([5, 2]);
+    expect(db7.notes.find((n) => n.string === 3)!.midi).toBe(cmaj7.notes.find((n) => n.string === 3)!.midi);
+    const play = exercises(lesson('tritone-substitution').steps).find((e): e is PlayChordExercise => e.type === 'play-chord')!;
+    expect(plainText(play.explain)).toMatch(/Keep string 3 where it is/);
+    expect(plainText(play.explain)).not.toMatch(/Slide it down one fret/);
   });
 });
 

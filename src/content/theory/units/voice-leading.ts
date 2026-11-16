@@ -96,7 +96,7 @@ const whatVoiceLeadingIs: Lesson = {
         { text: '{n:E} and {n:G}', why: '{n:G} has to move; {n:C} stays.' },
         { text: '{n:A} and {n:E}', why: '{n:A} is new: {c:C} has no {n:A}.' },
       ],
-      explain: '{c:C} is {n:C} {n:E} {n:G} and {c:Am} is {n:A} {n:C} {n:E}: they share {n:C} and {n:E}, and only {n:G} moves, to {n:A}.',
+      explain: '{c:C} is {n:C} {n:E} {n:G} and {c:Am} is {n:A} {n:C} {n:E}: they share {n:C} and {n:E}, so only {n:G} has to move, to {n:A}.',
       fact: 'voice-c-to-am',
     },
     {
@@ -308,7 +308,7 @@ const kindsOfMotion: Lesson = {
     {
       type: 'card',
       title: 'Two voices, four ways to move',
-      body: 'Pick strings 3 and 1 together, then move. Both up the same distance: {t:parallel-motion|parallel}. Both up, by different distances: {t:similar-motion|similar}. One up, one down: {t:contrary-motion|contrary}. One holds while the other moves: {t:oblique-motion|oblique}.',
+      body: 'Pick strings 3 and 1 together, then move. Both the same way, the same distance: {t:parallel-motion|parallel}. The same way, different distances: {t:similar-motion|similar}. One up, one down: {t:contrary-motion|contrary}. One holds while the other moves: {t:oblique-motion|oblique}.',
       figure: {
         kind: 'fretboard',
         frets: [0, 3],
@@ -370,7 +370,7 @@ const kindsOfMotion: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Which motion is this: string 3 from 1 to 2 and string 1 from 1 to 2?',
+      prompt: 'Both strings move from dot 1 to dot 2. Which motion is this?',
       figure: {
         kind: 'fretboard',
         frets: [0, 3],
@@ -439,7 +439,7 @@ const kindsOfMotion: Lesson = {
 const parallelFifths: Lesson = {
   id: 'parallel-fifths',
   title: 'Parallel fifths and the rule of style',
-  teaches: 'Classical style avoids parallel fifths, rock riffs live on them, and parallel 3rds and 6ths fit any style.',
+  teaches: 'Classical style avoids parallel fifths; rock riffs live on them; parallel 3rds and 6ths suit almost any style.',
   minutes: 3,
   skill: `theory:${U}:parallel-fifths`,
   steps: [
@@ -523,7 +523,8 @@ const parallelFifths: Lesson = {
         type: 'order',
         prompt: 'Put the lower four {k:G major} sixths in order up the neck (string 3 fret, then string 1 fret).',
         tiles: G_SIXTHS.slice(0, 4).map(([low, high]) => `${low}-${high}`),
-        explain: '0-0, 2-2, 4-3, 5-5: string 3 climbs {k:G major} from {n:G}, and string 1 stays a sixth above.',
+        distractors: ['4-4'],
+        explain: '0-0, 2-2, 4-3, 5-5: string 3 climbs {k:G major} from {n:G}, and string 1 stays a sixth above. 4-4 would put {n:G#} over {n:B}, and {n:G#} is not in the key.',
       },
     },
     {
@@ -538,7 +539,8 @@ const parallelFifths: Lesson = {
         type: 'order',
         prompt: 'Put the upper four {k:G major} sixths in order up the neck (string 3 fret, then string 1 fret).',
         tiles: G_SIXTHS.slice(4).map(([low, high]) => `${low}-${high}`),
-        explain: '7-7, 9-8, 11-10, 12-12: string 3 finishes the scale on {n:G} at fret 12, with {n:E} a sixth above.',
+        distractors: ['9-9'],
+        explain: '7-7, 9-8, 11-10, 12-12: string 3 finishes the scale on {n:G} at fret 12, with {n:E} a sixth above. 9-9 would put {n:C#} over {n:E}, and {n:C#} is not in the key.',
       },
     },
     {
@@ -697,7 +699,7 @@ const lineCliches: Lesson = {
       sound: { kind: 'tab', notes: arpeggios(C_CLICHE), tempo: 120 },
       options: [{ text: 'Rising', correct: true }, { text: 'Falling' }],
       shuffle: false,
-      explain: 'The third note of each chord climbed {n:G} {n:G#} {n:A} {n:Bb}: the major line cliché, from {c:C} to {c:C7}.',
+      explain: 'The note on string 3 climbed {n:G} {n:G#} {n:A} {n:Bb}: the major line cliché, from {c:C} to {c:C7}.',
     },
     {
       type: 'true-false',
@@ -788,7 +790,7 @@ const nonChordTones: Lesson = {
     {
       type: 'card',
       title: 'Held over, then falling',
-      body: 'Play {c:G} (320003), {c:Dsus4} (xx0233), then {c:D} (xx0232), keeping string 1 at fret 3. The {n:G} belongs to {c:G}. Held into the {c:D} chord it clashes, then falls a step to {n:F#}. That is a {t:suspension}: a 4-3 suspension, since {n:G} is the 4th of {n:D} and {n:F#} its 3rd.',
+      body: 'Play {c:G} (320003), {c:Dsus4} (xx0233), then {c:D} (xx0232). String 1 stays at fret 3 until the last chord. That {n:G} belongs to {c:G}. Held into the {c:D} chord it clashes, then falls a step to {n:F#}. That is a {t:suspension}: a 4-3 suspension, since {n:G} is the 4th of {n:D} and {n:F#} its 3rd.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: ['G', 'Dsus4', 'D'], tempo: 70 }, label: 'Hear {c:G} {c:Dsus4} {c:D}' },
     },
     {
@@ -933,7 +935,7 @@ const voiceLedTwoFiveOne: Lesson = {
     {
       type: 'card',
       title: 'Hear it slowly',
-      body: 'Each chord is picked from string 5 up to string 2. Use the slower button first, then hear it in time: the four lines barely move.',
+      body: 'Each chord is picked from string 5 up to string 2. Tap Slower first, then play it in time: the four lines barely move.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: arpeggios(TWO_FIVE_ONE), tempo: 90 }, label: 'Hear {c:Dm7} {c:G7} {c:Cmaj7}' },
     },
     {
@@ -1083,7 +1085,7 @@ const unit: Unit = {
           { text: '{n:E} and {n:G}', why: '{n:G} moves up to {n:A}.' },
           { text: '{n:C} and {n:G}', why: '{n:G} moves up to {n:A}.' },
         ],
-        explain: 'They share {n:C} and {n:E}; only {n:G} moves, to {n:A}.',
+        explain: 'They share {n:C} and {n:E}, so only {n:G} has to move, to {n:A}.',
       },
       {
         type: 'true-false',

@@ -7,9 +7,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { midiAt, noteAt, positionsForPitchClass, scalePatterns } from '@/core/guitar';
-import { degreeInScale, getScale, noteToMidi, pcName, scaleNotes, scalePcs, transpose } from '@/core/theory';
+import { degreeInScale, getScale, intervalBetween, noteToMidi, pcName, scaleNotes, scalePcs, transpose } from '@/core/theory';
 import {
-  estimateLessonSeconds, findTargets, formatProblems, plainText, resolveFigure, soundPlan, validateCourse,
+  estimateLessonSeconds, findTargets, formatProblems, generateExercise, plainText, resolveFigure, soundPlan, validateCourse,
   type CardStep, type ChoiceExercise, type Exercise, type FillBlanksExercise, type FretboardFigure, type FretboardFindExercise,
   type FretboardNameExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise, type OrderExercise, type PlayNoteExercise, type PlayPhraseExercise,
   type Step, type TabFigure, type TabNote, type TypeAnswerExercise,
@@ -80,6 +80,50 @@ const byString = (box: readonly Spot[]): Map<number, number[]> => {
   for (const [s, f] of box) out.set(s, [...(out.get(s) ?? []), f]);
   return out;
 };
+
+/** Every string in a value (texts, prompts, explanations, option whys), with where it sits. */
+function allTexts(value: unknown, path = ''): Array<[string, string]> {
+  if (typeof value === 'string') return [[path, value]];
+  if (Array.isArray(value)) return value.flatMap((v, i) => allTexts(v, `${path}[${i}]`));
+  if (value && typeof value === 'object') return Object.entries(value).flatMap(([k, v]) => allTexts(v, path ? `${path}.${k}` : k));
+  return [];
+}
+const QUALITY: Record<string, string> = { minor: 'm', major: 'M', perfect: 'P' };
+const ORDINAL: Record<string, number> = { '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6, '7th': 7 };
+const COUNT: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, half: 1, whole: 2 };
+const LETTERS = 'CDEFGAB';
+/**
+ * Reads every interval claim between two named notes in a text and checks it with the theory
+ * engine: "{n:B} is a minor 3rd below {n:D}", "a 5th above {n:D} is {n:A}", "three frets below
+ * {n:G} is {n:E}", "{n:C} is five half steps above {n:G}", "a whole step above {n:G} is {n:A}".
+ * Returns [claims read, claims that are wrong].
+ */
+function intervalClaims(text: string): [number, string[]] {
+  const N = '\\{n:([A-G][#b]?)\\}';
+  const Q = '(?:(minor|major|perfect) )?';
+  const O = '(2nd|3rd|4th|5th|6th|7th)';
+  let read = 0;
+  const wrong: string[] = [];
+  const named = (claim: string, upper: string, lower: string, quality: string | undefined, ord: string) => {
+    read++;
+    const n = ((LETTERS.indexOf(upper[0]) - LETTERS.indexOf(lower[0]) + 7) % 7) + 1;
+    if (n !== ORDINAL[ord]) wrong.push(claim);
+    else if (quality && intervalBetween(lower, upper) !== `${QUALITY[quality.toLowerCase()]}${ORDINAL[ord]}`) wrong.push(claim);
+  };
+  const sized = (claim: string, upper: string, lower: string, semis: number) => {
+    read++;
+    if ((noteToMidi(upper) - noteToMidi(lower) + 12) % 12 !== semis % 12) wrong.push(claim);
+  };
+  const flip = (dir: string, x: string, y: string): [string, string] => (dir.toLowerCase() === 'above' ? [x, y] : [y, x]);
+  for (const m of text.matchAll(new RegExp(`${N} is a ${Q}${O} (above|below) ${N}`, 'gi'))) named(m[0], ...flip(m[4], m[1], m[5]), m[2], m[3]);
+  for (const m of text.matchAll(new RegExp(`\\ba ${Q}${O} (above|below) ${N} is ${N}`, 'gi'))) named(m[0], ...flip(m[3], m[5], m[4]), m[1], m[2]);
+  for (const m of text.matchAll(new RegExp(`\\b(\\w+) (?:frets?|half steps?) (above|below) ${N} is ${N}`, 'gi'))) {
+    if (COUNT[m[1].toLowerCase()]) sized(m[0], ...flip(m[2], m[4], m[3]), COUNT[m[1].toLowerCase()]);
+  }
+  for (const m of text.matchAll(new RegExp(`${N} is (\\w+) half steps? (above|below) ${N}`, 'gi'))) sized(m[0], ...flip(m[3], m[1], m[4]), COUNT[m[2].toLowerCase()]);
+  for (const m of text.matchAll(new RegExp(`\\ba (whole|half) step (above|below) ${N} is ${N}`, 'gi'))) sized(m[0], ...flip(m[2], m[4], m[3]), COUNT[m[1].toLowerCase()]);
+  return [read, wrong];
+}
 
 describe('pentatonic-boxes: the engine accepts the unit on its own', () => {
   it('has no errors and no warnings', () => {
@@ -448,6 +492,87 @@ describe('pentatonic-boxes: bends that land', () => {
     // Bending the b7 (G) a whole step lands on the root; a half step would land outside the scale.
     expect(transpose('G', 'M2')).toBe('A');
     expect(pcs.has((noteToMidi('G') + 1) % 12)).toBe(false);
+  });
+});
+
+describe('pentatonic-boxes: what the review fixed', () => {
+  it('every interval named between two notes is the interval the engine measures', () => {
+    let read = 0;
+    const wrong: string[] = [];
+    for (const [where, text] of allTexts(unit)) {
+      const [n, bad] = intervalClaims(text);
+      read += n;
+      wrong.push(...bad.map((b) => `${where}: ${b}`));
+    }
+    expect(wrong).toEqual([]);
+    // The reader is live: it finds the relative-pair, bend and "count three frets" claims.
+    expect(read).toBeGreaterThanOrEqual(14);
+    // The claim the review corrected: G up to C is a perfect 4th, five half steps, not a minor 3rd.
+    expect(intervalBetween('G', 'C')).toBe('P4');
+    expect(intervalClaims('{n:C} is a minor 3rd above {n:G}')[1]).toHaveLength(1);
+  });
+
+  it('only boxes at fret 12 or higher can drop twelve frets, which is what the card says', () => {
+    const low = BOXES.map((b, i) => [i + 1, Math.min(...b.map(([, f]) => f))] as const).filter(([, lo]) => lo >= 12).map(([n]) => n);
+    expect(low).toEqual([4, 5]);
+    const body = plainText(cards(lesson('boxes-4-and-5'))[2].body);
+    expect(body).toMatch(/a box at fret 12 or higher/);
+    expect(body).not.toMatch(/every box/);
+  });
+
+  it('the cycle order names each box by its string-6 start, twelve frets up after box 5', () => {
+    const o = exercises(lesson('connecting-the-boxes')).find((e): e is OrderExercise => e.type === 'order')!;
+    const claims = [...plainText(o.explain).matchAll(/box (\d) (?:again )?from (?:fret )?(\d+)/gi)].map((m) => [Number(m[1]), Number(m[2])]);
+    expect(claims.map(([b]) => b)).toEqual([3, 4, 5, 1, 2]);
+    for (const [b, fret] of claims) {
+      const start = BOXES[b - 1][0];
+      expect(start[0]).toBe(6);
+      // Boxes 1 and 2 come round again an octave up.
+      expect(fret, `box ${b}`).toBe(b <= 2 ? start[1] + 12 : start[1]);
+    }
+  });
+
+  it('the whole + half step the step drill uses is taught on the first card', () => {
+    const l = lesson('pentatonic-formulas');
+    expect(plainText(cards(l)[0].tip!)).toMatch(/whole \+ half step/);
+    const drill = l.steps.find((s) => 'generate' in s && s.generate === 'scale-formula')!;
+    const tiles = new Set<string>();
+    for (let seed = 1; seed < 40; seed++) {
+      const ex = generateExercise(drill, { seed, difficulty: 1, level: 'intermediate' });
+      if (ex.type === 'order') for (const t of ex.tiles) tiles.add(plainText(t));
+    }
+    expect([...tiles].sort()).toEqual(['Whole', 'Whole + half']);
+    // The gaps of three half steps: A to C and E to G in A minor; major pentatonic has two too.
+    expect([['A', 'C'], ['E', 'G']].map(([a, b]) => (noteToMidi(b) - noteToMidi(a) + 12) % 12)).toEqual([3, 3]);
+    for (const [tonic, scale] of [['A', 'minor-pentatonic'], ['C', 'major-pentatonic']]) {
+      const pcs = scaleNotes(tonic, scale).map((n) => noteToMidi(n) % 12);
+      const gaps = pcs.map((p, i) => (pcs[(i + 1) % pcs.length] - p + 12) % 12);
+      expect(gaps.filter((g) => g === 3)).toHaveLength(2);
+    }
+  });
+
+  it('a find limited to some strings says so, since the neck lets you tap the same pitch on another string', () => {
+    const alternatives = everyExercise().flatMap((e) => ('alternative' in e && e.alternative && !('generate' in e.alternative) ? [e.alternative as Exercise] : []));
+    const limited = [...finds((e) => !!e.strings), ...alternatives.filter((e): e is FretboardFindExercise => e.type === 'fretboard-find' && !!e.strings)];
+    expect(limited.length).toBe(5);
+    for (const f of limited) {
+      expect(plainText(f.prompt), plainText(f.prompt)).toMatch(new RegExp(`On string ${f.strings!.join(' and ')}, tap`));
+      // The same pitch sits on another string inside the drawn frets: that is why the prompt must say which.
+      const target = findTargets(f)[0];
+      const twins = [1, 2, 3, 4, 5, 6].filter((s) => s !== target.string).flatMap((s) => {
+        const fret = target.midi - midiAt({ string: s, fret: 0 });
+        return fret >= f.frets[0] && fret <= f.frets[1] ? [s] : [];
+      });
+      expect(twins.length, plainText(f.prompt)).toBeGreaterThan(0);
+    }
+  });
+
+  it('box 3\'s upper root is also the top root of box 2', () => {
+    const find = exercises(lesson('box-3')).find((e): e is FretboardFindExercise => e.type === 'fretboard-find' && 'note' in e.find)!;
+    expect(plainText(find.explain)).toMatch(/top root of box 2/);
+    const box2Roots = BOX_2.filter(([, , n]) => n === 'A').map(([s, f]) => midiAt({ string: s, fret: f }));
+    expect(midiAt({ string: 2, fret: 10 })).toBe(Math.max(...box2Roots));
+    expect(BOX_3.some(([s, f]) => s === 2 && f === 10)).toBe(true);
   });
 });
 

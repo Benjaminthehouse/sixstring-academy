@@ -272,6 +272,28 @@ describe('jazz-harmony: shell voicings', () => {
     expect(buildVoicing('Dm7', plainText(correctOption(q))).chord).toBe('Dm7');
     expect(romanToChord('ii7', 'C')).toBe('Dm7');
   });
+
+  it('describes the shell two-five-one as it lies on the neck (review fix)', () => {
+    const shapes = [buildVoicing('Dm7', 'x5x56x'), buildVoicing('G7', '3x34xx'), buildVoicing('Cmaj7', 'x3x45x')];
+    // The hand stays between frets 3 and 6; the root hops 5, 6, 5.
+    const frets = shapes.flatMap((v) => v.notes.map((n) => n.fret));
+    expect([Math.min(...frets), Math.max(...frets)]).toEqual([3, 6]);
+    expect(shapes.map((v) => v.notes[0].string)).toEqual([5, 6, 5]);
+    // String 3 goes C, B, B: the 7th of Dm7 falls a fret to the 3rd of G7, which stays as the 7th of Cmaj7.
+    const s3 = shapes.map((v) => v.notes.find((n) => n.string === 3)!);
+    expect(s3.map((n) => n.note)).toEqual(['C', 'B', 'B']);
+    expect(s3.map((n) => n.role)).toEqual(['seventh', 'third', 'seventh']);
+    expect(s3[0].midi - s3[1].midi).toBe(1);
+    expect(s3[1].midi).toBe(s3[2].midi);
+    // The other guide tones do not move by a fret in these shapes: F jumps an octave between Dm7 and G7.
+    const f = [shapes[0], shapes[1]].map((v) => v.notes.find((n) => n.note === 'F')!);
+    expect(f.map((n) => n.string)).toEqual([2, 4]);
+    expect(f[0].midi - f[1].midi).toBe(12);
+    const card = lesson('shell-voicings').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.title === 'A shell two-five-one');
+    if (!card || isGenerated(card) || card.type !== 'card') throw new Error('expected the shell two-five-one card');
+    expect(tagged(card.body, 'note')).toEqual(['C', 'B', 'B']);
+    expect(plainText(card.body)).not.toMatch(/move by a fret or stay/);
+  });
 });
 
 describe('jazz-harmony: drop-2 and drop-3 voicings', () => {
@@ -325,6 +347,25 @@ describe('jazz-harmony: drop-2 and drop-3 voicings', () => {
     for (const shape of ['3x443x', '3x343x', '3x333x']) expect(parseFretsLike(shape)[1], shape).toBeNull();
     const typed = findIn<TypeAnswerExercise>(inLesson('drop-2-voicings'), 'type-answer', /bass/);
     expect(typed.answer.value).toBe(buildVoicing('Cmaj7/G', '3324xx').notes[0].note);
+  });
+
+  it('says what the drop shapes really do (review fixes)', () => {
+    // Drop 2 here uses strings 6 to 3 as well as 5 to 2, so the card cannot say "always 5 to 2 or 4 to 1".
+    const strings = (shape: string): number[] => buildVoicing(shape === '3324xx' ? 'Cmaj7/G' : 'Cmaj7', shape).notes.map((n) => n.string);
+    expect(strings('3324xx')).toEqual([6, 5, 4, 3]);
+    expect(strings('x3545x')).toEqual([5, 4, 3, 2]);
+    const onFour = lesson('drop-2-voicings').steps.find((s) => !isGenerated(s) && s.type === 'card' && s.title === 'On four strings');
+    if (!onFour || isGenerated(onFour) || onFour.type !== 'card') throw new Error('expected the four-strings card');
+    expect(plainText(onFour.body)).toMatch(/usually sit on four neighbouring strings: 6 to 3, 5 to 2 or 4 to 1/);
+    // Drop 3: the bass lands a major 7th (11 half steps) under the next note, nearly an octave, not more.
+    const g = buildVoicing('Gmaj7', '3x443x');
+    expect(g.midi[1] - g.midi[0]).toBe(11);
+    const skip = findIn<ChoiceExercise>(inLesson('drop-3-voicings'), 'choice', /left out/);
+    expect(plainText(skip.explain)).toMatch(/nearly an octave/);
+    // Gmaj7 -> G7 lowers one note; Gm7 needs a second one lowered.
+    const changed = (a: string, b: string, sa: string, sb: string): number => buildVoicing(a, sa).frets.filter((f, i) => f !== buildVoicing(b, sb).frets[i]).length;
+    expect(changed('Gmaj7', 'G7', '3x443x', '3x343x')).toBe(1);
+    expect(changed('Gmaj7', 'Gm7', '3x443x', '3x333x')).toBe(2);
   });
 });
 

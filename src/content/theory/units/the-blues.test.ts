@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { buildVoicing, chordVoicings, midiAt, noteAt, positionsForPitchClass, scalePatterns } from '@/core/guitar';
-import { chordFitsScale, chordNotes, chordTones, getScale, inKey, noteToMidi, pcName, romanToChord, scaleNotes, scalePcs, transpose } from '@/core/theory';
+import { chordFitsScale, chordNotes, chordTones, getScale, inKey, intervalBetween, noteToMidi, pcName, romanToChord, scaleNotes, scalePcs, transpose } from '@/core/theory';
 import {
   estimateLessonSeconds, findTargets, formatProblems, plainText, soundPlan, validateCourse,
   type CardStep, type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type FretboardFigure,
@@ -52,6 +52,33 @@ function unitCourse() {
     .filter((u) => u.id === unit.id)
     .map((u) => ({ ...u, lessons: u.lessons.map((l) => ({ ...l, requires: (l.requires ?? []).filter((r) => ids.has(r)) })) }));
   return { ...course, units };
+}
+
+/** Every string in a value (texts, prompts, explanations, option whys), with where it sits. */
+function allTexts(value: unknown, path = ''): Array<[string, string]> {
+  if (typeof value === 'string') return [[path, value]];
+  if (Array.isArray(value)) return value.flatMap((v, i) => allTexts(v, `${path}[${i}]`));
+  if (value && typeof value === 'object') return Object.entries(value).flatMap(([k, v]) => allTexts(v, path ? `${path}.${k}` : k));
+  return [];
+}
+/**
+ * Reads every step claim between two named notes and checks it with the engine: "{n:Eb}, a half
+ * step below {n:E}", "the {i:m7} above {n:D}: {n:C}". Returns [claims read, claims that are wrong].
+ */
+function stepClaims(text: string): [number, string[]] {
+  const N = '\\{n:([A-G][#b]?)\\}';
+  let read = 0;
+  const wrong: string[] = [];
+  for (const m of text.matchAll(new RegExp(`${N}, a (half|whole) step (above|below) (?:the )?${N}`, 'g'))) {
+    read++;
+    const [upper, lower] = m[3] === 'above' ? [m[1], m[4]] : [m[4], m[1]];
+    if ((noteToMidi(upper) - noteToMidi(lower) + 12) % 12 !== (m[2] === 'half' ? 1 : 2)) wrong.push(m[0]);
+  }
+  for (const m of text.matchAll(new RegExp(`\\{i:([^}]+)\\} above ${N}: ${N}`, 'g'))) {
+    read++;
+    if (intervalBetween(m[2], m[3]) !== m[1]) wrong.push(m[0]);
+  }
+  return [read, wrong];
 }
 
 describe('the-blues: the engine accepts the unit on its own', () => {
@@ -297,8 +324,21 @@ describe('the-blues: minor or major pentatonic over a blues', () => {
     expect(chordNotes('A7')).toContain('C#');
     expect(chordNotes('A7')).not.toContain('C');
     expect(scaleNotes('A', 'major-pentatonic')).toEqual(['A', 'B', 'C#', 'E', 'F#']);
-    // The other notes of minor pentatonic named in the question fit: E and G are in A7.
+    // The other notes named in the question fit: E and G are in A7.
     expect(chordNotes('A7')).toEqual(expect.arrayContaining(['E', 'G']));
+  });
+
+  it('in the "which note rubs" questions only the right answer is outside A7 (D, a half step above C#, would rub too)', () => {
+    const rubs = everyExercise().filter((e): e is ChoiceExercise => e.type === 'choice' && /rubs against/.test(plainText(e.prompt)));
+    expect(rubs.length).toBe(2);
+    for (const q of rubs) {
+      for (const o of q.options) {
+        const n = notesIn(o.text)[0];
+        expect(scaleNotes('A', 'minor-pentatonic'), n).toContain(n);
+        expect(A7.has(noteToMidi(n) % 12), n).toBe(!o.correct);
+      }
+    }
+    expect((noteToMidi('D') - noteToMidi('C#') + 12) % 12).toBe(1);
   });
 
   it('the gritty phrase stays in A minor pentatonic box 1 and ends on C; the sweet one stays in A major box 1 and ends on C#', () => {
@@ -380,6 +420,43 @@ describe('the-blues: phrases fit a phone', () => {
     const phrases = everyExercise().filter((e): e is PlayPhraseExercise => e.type === 'play-phrase');
     expect(phrases.length).toBe(2);
     for (const p of phrases) expect(played(p.notes).length, plainText(p.prompt)).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('the-blues: what the review fixed', () => {
+  it('every half step and interval named between two notes is right', () => {
+    let read = 0;
+    const wrong: string[] = [];
+    for (const [where, text] of allTexts(unit)) {
+      const [n, bad] = stepClaims(text);
+      read += n;
+      wrong.push(...bad.map((b) => `${where}: ${b}`));
+    }
+    expect(wrong).toEqual([]);
+    expect(read).toBeGreaterThanOrEqual(3);
+  });
+
+  it('no play step asks for anything before the notes it grades (it listens at once)', () => {
+    const plays = unit.lessons.flatMap((l) => exercises(l)).filter((e) => e.type === 'play-note' || e.type === 'play-chord' || e.type === 'play-phrase');
+    expect(plays.length).toBe(5);
+    for (const p of plays) expect(plainText(p.prompt), plainText(p.prompt)).not.toMatch(/\bover\b|\bfirst\b|\bthen strum\b/i);
+  });
+
+  it('the blues-scale listening question plays seven notes, six of them different, as its explanation says', () => {
+    const q = exercises(lesson('the-blues-scale')).find((e): e is ListenChoiceExercise => e.type === 'listen-choice')!;
+    const midi = soundPlan(q.sound).events.flatMap((e) => e.midi);
+    expect(midi.length).toBe(7);
+    expect(midi[6] - midi[0]).toBe(12);
+    expect(plainText(q.explain)).toMatch(/^Six different notes/);
+  });
+
+  it('the minor-blues card names only chords that fit: Am and Dm for i and iv, Em7 for V', () => {
+    const body = String(cards(lesson('the-minor-blues'))[0].body);
+    const before = chordsIn(body.split('\n')[0]);
+    expect([...new Set(before)].sort()).toEqual(['Am', 'Am7', 'Dm', 'Dm7', 'E7', 'Em7']);
+    expect(chordNotes('Am').every((n) => chordNotes('Am7').includes(n))).toBe(true);
+    expect(chordNotes('Dm').every((n) => chordNotes('Dm7').includes(n))).toBe(true);
+    expect(romanToChord('v7', 'A minor')).toBe('Em7');
   });
 });
 

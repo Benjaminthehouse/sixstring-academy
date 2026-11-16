@@ -213,6 +213,18 @@ describe('modal-harmony-and-borrowing: the drone and the fourths', () => {
     expect([...scaleNotes('E', 'phrygian')].sort()).toEqual([...scaleNotes('C', 'major')].sort());
   });
 
+  it('claims only that the drone notes fit E Phrygian, since they fit E Aeolian too (review fix)', () => {
+    const notes = [at(6, 0), at(5, 5), at(4, 5), at(3, 5), at(5, 7), at(4, 7), at(3, 7)];
+    for (const m of notes) expect(scalePcs('E', 'minor'), String(m)).toContain(m % 12);
+    // F is what only Phrygian has: the card names it as the note that would decide.
+    expect(scaleNotes('E', 'phrygian')[1]).toBe('F');
+    expect(scaleNotes('E', 'minor')).not.toContain('F');
+    const card = lesson('drones-and-quartal-chords').steps[1];
+    if (isGenerated(card) || card.type !== 'card') throw new Error('expected a card');
+    expect(plainText(card.body)).toMatch(/Every note fits E Phrygian/);
+    expect(plainText(card.body)).not.toMatch(/which is E Phrygian/);
+  });
+
   it('plays what the card and the listening question say', () => {
     const card = lesson('drones-and-quartal-chords').steps[1];
     if (isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'audio') throw new Error('expected an audio card');
@@ -308,6 +320,24 @@ describe('modal-harmony-and-borrowing: the minor four', () => {
     const card = lesson('the-minor-four').steps[0];
     if (isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'fretboard') throw new Error('expected a fretboard card');
     expect(card.figure.dots!.map((d) => d.note)).toEqual(['A3', 'Ab3', 'G3']);
+    // Review fix: from Fm to C far more than string 3 changes, so the card only claims F to Fm.
+    const toC = fm.frets.map((fret, i) => (fret === c.frets[i] ? null : 6 - i)).filter((s) => s !== null);
+    expect(toC.length).toBeGreaterThan(1);
+    expect(plainText(card.body)).toMatch(/From F to Fm only string 3 moves/);
+  });
+
+  it('measures every "from X up or down to Y" in half steps or names it as the engine does (review fix)', () => {
+    const claims = texts(unit).flatMap((t) => [...t.matchAll(/From \{n:([A-G][#b]*)\} (up|down) to \{n:([A-G][#b]*)\} is (a major 3rd|four half steps)/g)]);
+    expect(claims.length).toBeGreaterThanOrEqual(4);
+    for (const [, from, dir, to, size] of claims) {
+      const [low, high] = dir === 'up' ? [from, to] : [to, from];
+      const half = (pcOf(high) - pcOf(low) + 12) % 12;
+      expect(half, `${from} ${dir} ${to}`).toBe(4);
+      // Ab down to E and Eb down to B are diminished 4ths by their letters: never call them major 3rds.
+      if (size === 'a major 3rd') expect(intervalBetween(low, high), `${from} ${dir} ${to}`).toBe('M3');
+    }
+    expect(intervalBetween('E', 'Ab')).toBe('d4');
+    expect(intervalBetween('B', 'Eb')).toBe('d4');
   });
 
   it('falls from the flat 6th to the 5th of the tonic chord in every key it names', () => {
@@ -368,6 +398,20 @@ describe('modal-harmony-and-borrowing: flat seven, flat six and flat three', () 
     const q = find<ChoiceExercise>(lesson('flat-seven-and-flat-six'), 'choice', /III of C major/);
     expect(tagged(correctOption(q), 'chord')[0]).toBe(romanToChord('bIII', 'C'));
     expect(chordNotes('E')).toContain('G#');
+  });
+
+  it('asks bIII in the checkpoint too, in G major (review addition)', () => {
+    const q = find<ChoiceExercise>(null, 'choice', /III of G major/);
+    expect(tagged(correctOption(q), 'chord')).toEqual([romanToChord('bIII', 'G')]);
+    expect(modalInterchange('G').some((b) => b.symbol === 'Bb' && b.sources.includes('minor'))).toBe(true);
+    expect(chordToRoman('Bb', 'G').relation).toBe('borrowed');
+    // The wrong options: the key's own iii, a secondary dominant, and a minor chord on Bb.
+    expect(romanToChord('iii', 'G')).toBe('Bm');
+    expect(chordToRoman('B', 'G').relation).toBe('secondary-dominant');
+    expect(chordNotes('B')).toContain('D#');
+    expect(scaleNotes('G', 'minor')).not.toContain('D#');
+    expect(chordNotes('Bbm')).not.toEqual(chordNotes('Bb'));
+    for (const o of q.options.filter((x) => !x.correct)) expect(tagged(o.text!, 'chord')[0]).not.toBe(romanToChord('bIII', 'G'));
   });
 
   it('fills the endings with the right chords', () => {
@@ -431,10 +475,13 @@ describe('modal-harmony-and-borrowing: what each listening question plays', () =
     expect(plainText(correctOption(q))).toBe('E Phrygian');
   });
 
-  it('modal-interchange: the IV chord was Fm', () => {
+  it('modal-interchange: the chord on F was Fm', () => {
     const [q] = listens(lesson('modal-interchange'));
     expect(chordsOf(q)).toEqual(['C', romanToChord('iv', 'C'), 'C']);
     expect(plainText(correctOption(q))).toMatch(/^Minor/);
+    // Review fix: the prompt names the chord by its root, not as "the IV chord", which would already say major.
+    expect(tagged(q.prompt, 'note')).toEqual([rootOf(chordsOf(q)[1])]);
+    expect(tagged(q.prompt, 'roman')).toEqual([]);
   });
 
   it('the-minor-four: IV-iv-I in the lesson, IV-I in the checkpoint', () => {

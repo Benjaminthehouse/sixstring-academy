@@ -112,7 +112,7 @@ const theBluesScale: Lesson = {
       sound: { kind: 'scale', tonic: 'A2', scale: 'minor-blues', direction: 'up', tempo: 100 },
       options: [{ text: 'Minor pentatonic' }, { text: 'Blues scale', correct: true }],
       shuffle: false,
-      explain: 'Six notes, not five: between {n:D} and {n:E} it squeezed in {n:Eb}, so three notes in a row climb by half steps, {n:D} {n:Eb} {n:E}.',
+      explain: 'Six different notes, not five: between {n:D} and {n:E} it squeezed in {n:Eb}, so three notes in a row climb by half steps, {n:D} {n:Eb} {n:E}.',
     },
     {
       type: 'type-answer',
@@ -173,7 +173,7 @@ const theMajorBluesScale: Lesson = {
     {
       type: 'card',
       title: 'Major pentatonic plus one',
-      body: 'The {t:major-blues-scale|major blues scale} adds the {d:b3} to the major pentatonic: {d:1} {d:2} {d:b3} {d:3} {d:5} {d:6}. In {n:A}: {n:A} {n:B} {n:C} {n:C#} {n:E} {n:F#}. Its box 1 has the root on string 6 at fret 5 and spans frets 4 to 7; the added {n:C}s sit at string 3 fret 5, string 1 fret 8 and string 6 fret 8.',
+      body: 'The {t:major-blues-scale|major blues scale} adds the {d:b3} to the major pentatonic: {d:1} {d:2} {d:b3} {d:3} {d:5} {d:6}. In {n:A}: {n:A} {n:B} {n:C} {n:C#} {n:E} {n:F#}. Box 1 of {n:A} major pentatonic has its root on string 6 at fret 5 and spans frets 4 to 7; the added {n:C}s sit at string 3 fret 5, string 1 fret 8 and string 6 fret 8.',
       figure: { kind: 'fretboard', frets: [4, 8], root: 'A', labels: 'degree', dots: boxDots(A_MAJOR_BOX, MAJOR_BLUES_ADDED), caption: 'Box 1 of {n:A} major pentatonic, with the added {d:b3}s ringed.' },
     },
     {
@@ -327,7 +327,7 @@ const theTwelveBarForm: Lesson = {
       prompt: 'Bar 9 is {r:V}, the one new chord. Strum {c:E} and let it ring.',
       chord: 'E',
       frets: '022100',
-      explain: '{r:V} in {n:A} is {c:E}: {n:E} {n:G#} {n:B}, all six strings. It is the furthest the 12 bars travel from home.',
+      explain: '{r:V} in {n:A} is {c:E}: {n:E} {n:G#} {n:B}, all six strings. It is the high point of the 12 bars, the moment of most tension before the way home.',
       alternative: { generate: 'chord-shape', params: { chords: ['E'] } },
     },
     {
@@ -632,7 +632,7 @@ const whichPentatonicOverABlues: Lesson = {
     {
       type: 'card',
       title: 'The gritty side',
-      body: 'Over a dominant blues in {n:A}, two scales on the tonic work. **{n:A} minor pentatonic** is the gritty one: its {n:C}, the {d:b3}, rubs against the {n:C#} in {c:A7}. That clash is not a mistake. It is the sound of the blues.',
+      body: 'Over a dominant blues in {n:A}, the kind with {c:A7}, {c:D7} and {c:E7}, two scales on the tonic work. **{n:A} minor pentatonic** is the gritty one: its {n:C}, the {d:b3}, rubs against the {n:C#} in {c:A7}. That clash is not a mistake. It is the sound of the blues.',
       figure: { kind: 'fretboard', frets: [4, 9], root: 'A', labels: 'degree', dots: boxDots(A_MINOR_BOX), caption: '{n:A} minor pentatonic, box 1 at fret 5: its {d:b3} is {n:C}.' },
     },
     {
@@ -642,7 +642,7 @@ const whichPentatonicOverABlues: Lesson = {
         { text: '{n:C}, the {d:b3}', correct: true },
         { text: '{n:E}, the {d:5}', why: '{n:E} is in {c:A7} itself, so it fits.' },
         { text: '{n:G}, the {d:b7}', why: '{n:G} is the {d:b7} of {c:A7}: also in the chord.' },
-        { text: '{n:D}, the {d:4}', why: '{n:D} is a passing note here, but the famous clash is the {d:b3} against the {d:3}.' },
+        { text: '{n:A}, the root', why: '{n:A} is the root of {c:A7}: it fits the chord.' },
       ],
       explain: '{c:A7} has the major 3rd, {n:C#}. Minor pentatonic brings the minor 3rd, {n:C}, a half step below it: the bluesy clash.',
       fact: 'blues-minor-over-dominant',
@@ -671,7 +671,7 @@ const whichPentatonicOverABlues: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Over {c:A7}, play the gritty phrase ending on {n:C}, then the sweet one ending on {n:C#}.',
+      prompt: 'Play the gritty phrase, ending on {n:C}, then the sweet one, ending on {n:C#}. Strings 2 and 3, as in the tab.',
       notes: [...GRITTY_PHRASE, ...SWEET_PHRASE],
       octave: 'exact',
       tempo: 70,
@@ -751,7 +751,7 @@ const theMinorBlues: Lesson = {
     {
       type: 'card',
       title: 'The same 12 bars, in minor',
-      body: 'A {t:minor-blues|minor blues} keeps the 12-bar form but makes {r:i} and {r:iv} minor. In {n:A}: {c:Am7}, {c:Dm7} and {c:E7}, the major {r:V} from {t:harmonic-minor|harmonic minor}. Plain {c:Am}, {c:Dm} or {c:Em7} work too.\n| {c:Am7} | {c:Am7} | {c:Am7} | {c:Am7} |\n| {c:Dm7} | {c:Dm7} | {c:Am7} | {c:Am7} |\n| {c:E7} | {c:Dm7} | {c:Am7} | {c:Am7} |',
+      body: 'A {t:minor-blues|minor blues} keeps the 12-bar form but makes {r:i} and {r:iv} minor. In {n:A}: {c:Am7}, {c:Dm7} and {c:E7}, the major {r:V} from {t:harmonic-minor|harmonic minor}. {c:Am} and {c:Dm} work too, and {c:Em7} can stand in for {c:E7}.\n| {c:Am7} | {c:Am7} | {c:Am7} | {c:Am7} |\n| {c:Dm7} | {c:Dm7} | {c:Am7} | {c:Am7} |\n| {c:E7} | {c:Dm7} | {c:Am7} | {c:Am7} |',
       figure: { kind: 'chord', symbol: 'Am7', frets: 'x02010', caption: 'Open {c:Am7}, the {r:i} chord: x02010.' },
     },
     {

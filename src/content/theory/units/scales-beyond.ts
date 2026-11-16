@@ -205,7 +205,7 @@ const chordScales: Lesson = {
 const melodicMinorModes: Lesson = {
   id: 'melodic-minor-modes',
   title: 'The modes of melodic minor',
-  teaches: 'The modes of melodic minor give jazz its usual colours for 7#11, m7b5, 7alt and maj7#5 chords.',
+  teaches: 'Melodic minor\'s modes fit four jazz chords: sharp-11 dominant, half-diminished, altered, major 7 sharp 5.',
   minutes: 4,
   skill: `theory:${U}:melodic-minor-modes`,
   steps: [
@@ -304,7 +304,7 @@ const melodicMinorModes: Lesson = {
     {
       type: 'card',
       title: 'From the 7th note',
-      body: 'Start on {n:C#}, the 7th note: the {t:altered-scale|altered scale}. Against {n:C#} its notes are the root, {d:b9}, {d:#9}, 3rd ({n:F} sounding as {n:E#}), {d:#11}, {d:b13} and {d:b7}: every altered tension, so it fits {c:C#7alt}. And from {n:F}, the 3rd note, Lydian augmented fits {c:Fmaj7#5}.',
+      body: 'Start on {n:C#}, the 7th note: the {t:altered-scale|altered scale}. Against {n:C#} its notes are the root, {d:b9}, {d:#9}, 3rd ({n:F}, the same pitch as {n:E#}), {d:#11}, {d:b13} and {d:b7}: every altered tension, so it fits {c:C#7alt}. And from {n:F}, the 3rd note, Lydian augmented fits {c:Fmaj7#5}.',
       figure: {
         kind: 'fretboard',
         frets: [2, 5],
@@ -553,7 +553,7 @@ const bebopScales: Lesson = {
       body: 'The **bebop major** scale adds {n:G#}, the {d:#5}, to {n:C} major: {n:C} {n:D} {n:E} {n:F} {n:G} {n:G#} {n:A} {n:B}. Run down from {n:C} on the beat and {n:C}, {n:A}, {n:G} and {n:E} take the beats: the notes of {c:C6}.',
       figure: {
         kind: 'keyboard',
-        keys: [{ note: 'C4', role: 'root' }, 'D4', 'E4', 'F4', 'G4', { note: 'G#4', role: 'target', label: '#5' }, 'A4', 'B4'],
+        keys: [{ note: 'C4', role: 'root' }, 'D4', 'E4', 'F4', 'G4', { note: 'G#4', role: 'target' }, 'A4', 'B4'],
         from: 'C4',
         to: 'C5',
         caption: '{n:C} bebop major: the major scale plus {n:G#}.',
@@ -976,7 +976,7 @@ const unit: Unit = {
         options: [
           { text: '{c:E7b9}', correct: true },
           { text: '{c:Em7}', why: 'The scale has {n:G#}, not {n:G}.' },
-          { text: '{c:Am7}', why: 'Over the tonic chord, {n:A} minor scales fit better; Phrygian dominant is for the dominant.' },
+          { text: '{c:Am7}', why: '{c:Am7} has {n:G}; the scale has {n:G#}. Phrygian dominant is for the dominant, not the tonic chord.' },
         ],
         explain: '{c:E7b9}, the dominant of {k:A minor} with its flat 9: every note is in {n:E} Phrygian dominant.',
       },
@@ -1000,7 +1000,7 @@ const unit: Unit = {
         options: [
           { text: 'To keep chord tones on the beats in eighths', correct: true },
           { text: 'To make the scale sound more minor', why: 'The added note is chromatic, between two scale notes; it changes nothing about major or minor.' },
-          { text: 'To add an avoid note on purpose', why: 'The passing note falls off the beat, where it never clashes.' },
+          { text: 'To add an avoid note on purpose', why: 'The passing note falls off the beat and moves straight on, so it is never held against the chord.' },
         ],
         explain: 'Eight notes in a bar of eighths: start on a chord tone on the beat and the chord tones keep landing on the beats.',
       },
@@ -1019,6 +1019,16 @@ const unit: Unit = {
           { text: 'Harmonic minor', why: 'Harmonic minor has one augmented second, {d:b6} to {d:7}.' },
         ],
         explain: 'Double harmonic, {d:1} {d:b2} {d:3} {d:4} {d:5} {d:b6} {d:7}: an augmented second in each half.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which scale is {n:A} {n:B} {n:C} {n:E} {n:F}?',
+        options: [
+          { text: '{n:A} hirajoshi', correct: true },
+          { text: '{n:A} In', why: 'The In scale has {n:Bb} and {n:D}: {d:1} {d:b2} {d:4} {d:5} {d:b6}.' },
+          { text: '{n:A} minor pentatonic', why: 'Minor pentatonic is {n:A} {n:C} {n:D} {n:E} {n:G}.' },
+        ],
+        explain: '{d:1} {d:2} {d:b3} {d:5} {d:b6}: hirajoshi, a five-note Japanese scale.',
       },
       {
         type: 'choice',

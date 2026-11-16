@@ -171,6 +171,24 @@ describe('symmetric-sounds: the diminished seventh', () => {
     expect(chordNotes('Cdim7')).toEqual(['C', 'Eb', 'Gb', 'Bbb']);
   });
 
+  it('closes the circle in half steps, not with a misspelled third (review fix)', () => {
+    // A minor third above Ab is Cb and a major third above G# is B#: the chord comes back to B and C
+    // only as a sound, so the text counts half steps there instead of naming a third.
+    expect(transpose('Ab', 'm3')).toBe('Cb');
+    expect(transpose('G#', 'M3')).toBe('B#');
+    expect((chordPcs('Bdim7')[3] + 3) % 12).toBe(chordPcs('Bdim7')[0]);
+    expect((chordPcs('Caug')[2] + 4) % 12).toBe(chordPcs('Caug')[0]);
+    for (const text of texts(unit)) expect(text, text).not.toMatch(/one more (minor|major) third/i);
+    expect(card(lesson('dim7-symmetry'), 0).body).toMatch(/Three more half steps above \{n:Ab\} bring you back to \{n:B\}/);
+    expect(card(lesson('augmented-symmetry'), 0).body).toMatch(/Four more half steps above \{n:G#\} bring you back to \{n:C\}/);
+  });
+
+  it('asks in the checkpoint how many different dim7 chords there are (review fix)', () => {
+    const q = exercises(unit.checkpoint!.steps!).find((e): e is ChoiceExercise => e.type === 'choice' && /How many different diminished seventh/.test(String(e.prompt)))!;
+    const roots = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
+    expect(plainText(correct(q)[0])).toBe(String(new Set(roots.map((r) => pcSet(`${r}dim7`))).size));
+  });
+
   it('marks as right exactly the dim7 options that share the notes of Bdim7', () => {
     const asked = ofType<ChoiceExercise>('choice').filter((e) => /same notes as \{c:Bdim7\}/.test(plainText(e.prompt) + String(e.prompt)));
     expect(asked.length).toBe(2);
@@ -227,6 +245,12 @@ describe('symmetric-sounds: one dim7, four dominants', () => {
     // The common-tone chord keeps the bass of the C shape: string 5, fret 3.
     expect(buildVoicing('Cdim7', 'x3424x').notes[0]).toMatchObject({ string: 5, fret: 3, note: 'C' });
     expect(buildVoicing('C', 'x32010').notes[0]).toMatchObject({ string: 5, fret: 3, note: 'C' });
+    // The other voices move (not all by step: string 2 goes C up to Eb, three frets), and come back.
+    const c = new Map(buildVoicing('C', 'x32010').notes.map((n) => [n.string, n.midi]));
+    const ct = new Map(buildVoicing('Cdim7', 'x3424x').notes.map((n) => [n.string, n.midi]));
+    expect([4, 3, 2].map((s) => ct.get(s)! - c.get(s)!)).toEqual([2, 2, 3]);
+    const commonTone = card(lesson('one-dim7-four-dominants'), 7);
+    expect(commonTone.body).toMatch(/other notes move away and come back/);
   });
 
   it('plays a bass climbing by half steps under the passing chord, and not under Am', () => {
@@ -463,6 +487,17 @@ describe('symmetric-sounds: augmented chords in progressions', () => {
 function chordToRootInterval(from: string, to: string): string {
   return intervalBetween(parseChord(from)!.root, parseChord(to)!.root);
 }
+
+describe('symmetric-sounds: words a learner can rely on', () => {
+  it('never leans on a colour name alone in a caption (review fix)', () => {
+    const captions = texts(unit).filter((t) => /\b(amber|orange|green|purple|blue|red)\b/i.test(t));
+    expect(captions).toEqual([]);
+  });
+
+  it('keeps music symbols out of the plain-text "teaches" lines', () => {
+    for (const l of unit.lessons) expect(l.teaches, l.id).not.toMatch(/[#{}]/);
+  });
+});
 
 describe('symmetric-sounds: on the go', () => {
   it('still teaches with the sound off and with the guitar away', () => {

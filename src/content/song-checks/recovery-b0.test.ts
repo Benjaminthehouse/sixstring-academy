@@ -1,14 +1,15 @@
 /**
  * Recovery batch b0: Mo Li Hua (Jasmine Flower), left out earlier because no single writer could
  * vouch for the tune note for note, now written from a melody that independent recollections
- * agreed on exactly (2 of 5).
+ * agreed on exactly: bars 1-17 by 2 of 5, then bar 18 by 3 of 5 recollections that were given the
+ * agreed opening and wrote only what follows (recovery d0 checks the song against that text too).
  *
- * Only the first 17 bars were agreed. Bars 1-16 are a complete musical unit, the first half of the
+ * Only the first 18 bars were agreed. Bars 1-16 are a complete musical unit, the first half of the
  * verse: four four-bar phrases, the first three resting on D, the fourth coming home to the tonic
- * G, held for the whole of bar 16. Bar 17 opens the next phrase (four running eighths that stop on
- * B), so it cannot end a piece; the song is bars 1-16, played twice (plain, then ornamented), and
- * nothing outside the agreed span is added. The last describe block records that evidence from
- * the agreed text itself.
+ * G, held for the whole of bar 16. Bars 17-18 open the next phrase (four running eighths, then a
+ * dotted A and an eighth B that stop mid-line), so they cannot end a piece; the song is bars 1-16,
+ * played twice (plain, then ornamented), and nothing outside the agreed span is added. The last
+ * describe block records that evidence from the agreed text itself.
  *
  * The agreed melody below is copied exactly as it was handed to the arranger (PITCH:DURATION as
  * sung, C4 = middle C), not from the SixTab file. The song is parsed with the song core and its
@@ -65,9 +66,10 @@ bar 14: D5:q B4:e A4:e
 bar 15: G4:q G4:e A4:e
 bar 16: G4:h
 bar 17: B4:e A4:e G4:e B4:e
+bar 18: A4:q. B4:e
 `;
 
-/** The agreed bars the song plays: 1-16 (bar 17 opens the next phrase; see the last block). */
+/** The agreed bars the song plays: 1-16 (bars 17-18 open the next phrase; see the last block). */
 const WRITTEN_BARS = 16;
 
 /** One note or rest of a melody: MIDI (null for a rest), length in ticks, tied to the next. */
@@ -230,10 +232,10 @@ function compareMelody(song: Song): { shift: number; mismatches: string[] } {
 }
 
 describe('recovery b0: the agreed melody is read correctly', () => {
-  it('reads the notation and every one of the 17 agreed bars adds up to 2/4', () => {
+  it('reads the notation and every one of the 18 agreed bars adds up to 2/4', () => {
     expect(parseAgreed('bar 1: C#5:e. r:s B4:q~')[0].map((e) => token(e))).toEqual(['C#5:e.', 'r:s', 'B4:q~']);
     const bars = parseAgreed(MO_LI_HUA_AGREED);
-    expect(bars).toHaveLength(17);
+    expect(bars).toHaveLength(18);
     bars.forEach((bar, i) => expect(bar.reduce((s, e) => s + e.ticks, 0), `bar ${i + 1}`).toBe(2 * PPQ));
   });
 });
@@ -433,8 +435,8 @@ describe('recovery b0: the comparison catches a wrong note and a wrong rhythm', 
   });
 });
 
-describe('recovery b0: why the song stops at bar 16 of the 17 agreed bars', () => {
-  it('bar 16 holds the tonic G for the whole bar; bar 17 is four running eighths that stop on B, opening the next phrase', () => {
+describe('recovery b0: why the song stops at bar 16 of the 18 agreed bars', () => {
+  it('bar 16 holds the tonic G for the whole bar; bars 17-18 open the next phrase and stop mid-line on a short B', () => {
     const bars = parseAgreed(MO_LI_HUA_AGREED);
     const sixteen = bars[15];
     expect(sixteen.map((e) => token(e))).toEqual(['G4:h']);
@@ -446,7 +448,14 @@ describe('recovery b0: why the song stops at bar 16 of the 17 agreed bars', () =
     const last = seventeen[seventeen.length - 1];
     expect(pc(last.midi!), 'bar 17 does not end on the tonic').not.toBe(pc(noteToMidi('G4')));
     expect(last.ticks, 'and its last note is short, on the off-beat').toBe(PPQ / 2);
-    // Every four-bar phrase of the span ends on a note held for the whole bar; bar 17 holds nothing.
+    // Bar 18, the continuation agreed later, goes on from there: a dotted A, then an eighth B on
+    // the off-beat, so the span still stops in the middle of a line.
+    const eighteen = bars[17];
+    expect(eighteen.map((e) => token(e))).toEqual(['A4:q.', 'B4:e']);
+    const end = eighteen[eighteen.length - 1];
+    expect(pc(end.midi!), 'bar 18 does not end on the tonic').not.toBe(pc(noteToMidi('G4')));
+    expect(end.ticks, 'and its last note is short, on the off-beat').toBe(PPQ / 2);
+    // Every four-bar phrase of the span ends on a note held for the whole bar; bars 17-18 hold nothing.
     const phraseEnds = bars.map((bar, i) => (bar.length === 1 && bar[0].ticks === 2 * PPQ ? `${i + 1}:${name(bar[0].midi!)}` : null)).filter(Boolean);
     expect(phraseEnds).toEqual(['4:D5', '8:D5', '12:D5', '16:G4']);
   });

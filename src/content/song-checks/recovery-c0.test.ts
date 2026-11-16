@@ -1,25 +1,21 @@
 /**
  * Recovery batch c0: We Three Kings, The First Noel and Home on the Range. All three were left
- * out earlier because no single writer could vouch for the tune note for note. This time two of
- * five independent recollections agreed exactly on the opening of each tune, but none of the
- * agreed spans ends where a piece can end, so **none of the three is written**. The arranger's
+ * out earlier because no single writer could vouch for the tune note for note. In this batch two
+ * of five independent recollections agreed exactly on the opening of each tune, but none of the
+ * agreed spans ended where a piece can end, so none of the three was written then. The arranger's
  * rule: write only the agreed span, and only if it is a complete musical phrase; otherwise skip
  * the song. A shorter complete stretch at the start of a span counts only if it still gives what
  * the repertoire plan asks for (as Mo Li Hua's first 16 bars did in recovery b0).
+ *
+ * The First Noel and Home on the Range were written later, in recovery d0, from longer agreed
+ * melodies (this opening plus a continuation agreed the same way): verse 1 and the refrain of The
+ * First Noel, and the first verse of Home on the Range. Their checks, and the evidence for where
+ * each song stops, are in recovery-d0.test.ts, so this file now keeps only We Three Kings.
  *
  * - we-three-kings (17 bars): bars 1-15 are the whole first verse, ending on the tonic E held
  *   for a bar. Bars 16-17 are the first three notes of the refrain ("O star of", three Ds), and
  *   the span stops on the D of "of", a quarter on beat 3. The verse alone would leave out the G
  *   major refrain that the plan entry names and that Mia's lesson asks the learner to listen for.
- * - the-first-noel (pickup + 23 bars): the span stops on G4, a quarter on beat 3 of bar 23. Each
- *   time this D A G bar comes earlier in the tune (bars 7 and 15), G falls to F# on the next
- *   downbeat, and that F# ends the line. The refrain's F# would be in bar 24, outside the span.
- *   The verse alone ends in bar 16 with the two eighths that lead into the refrain, and it would
- *   leave out the refrain that the plan asks the arrangement to compare with the verse.
- * - home-on-the-range (pickup + 13 bars): the span stops on a B4 eighth, the second half of beat
- *   3 of bar 13 ("and the skies are not ..."), in the first bar of the verse's fourth four-bar
- *   line. No line in the span comes home to G (the lines end on C, A and C), and the chorus is
- *   not in the span at all.
  *
  * What this file checks, all from the agreed text (copied exactly as it was handed to the arranger,
  * PITCH:DURATION as sung, C4 = middle C): the notation is read correctly and every bar adds up to
@@ -77,50 +73,6 @@ bar 16: D5:h.
 bar 17: D5:h D5:q
 `;
 
-const NOEL_AGREED = `
-pickup: F#4:e E4:e
-bar 1: D4:q. E4:e F#4:e G4:e
-bar 2: A4:h B4:e C#5:e
-bar 3: D5:q C#5:q B4:q
-bar 4: A4:h B4:e C#5:e
-bar 5: D5:q C#5:q B4:q
-bar 6: A4:q B4:q C#5:q
-bar 7: D5:q A4:q G4:q
-bar 8: F#4:h F#4:e E4:e
-bar 9: D4:q. E4:e F#4:e G4:e
-bar 10: A4:h B4:e C#5:e
-bar 11: D5:q C#5:q B4:q
-bar 12: A4:h B4:e C#5:e
-bar 13: D5:q C#5:q B4:q
-bar 14: A4:q B4:q C#5:q
-bar 15: D5:q A4:q G4:q
-bar 16: F#4:h F#4:e E4:e
-bar 17: D4:q. E4:e F#4:e G4:e
-bar 18: A4:h D5:e C#5:e
-bar 19: B4:h B4:q
-bar 20: A4:h.
-bar 21: D5:q C#5:q B4:q
-bar 22: A4:q B4:q C#5:q
-bar 23: D5:q A4:q G4:q
-`;
-
-const HOME_AGREED = `
-pickup: D4:q
-bar 1: D4:q G4:q A4:q
-bar 2: B4:h G4:e F#4:e
-bar 3: E4:q C5:q C5:q
-bar 4: C5:h B4:e C5:e
-bar 5: D5:h G4:e G4:e
-bar 6: G4:q F#4:q G4:q
-bar 7: A4:h.~
-bar 8: A4:h D4:q
-bar 9: D4:q G4:q A4:q
-bar 10: B4:h G4:e F#4:e
-bar 11: E4:q C5:q C5:q
-bar 12: C5:h B4:e C5:e
-bar 13: D5:h C5:e B4:e
-`;
-
 /** One note or rest of a melody: MIDI (null for a rest), length in ticks, tied to the next. */
 interface Ev {
   midi: number | null;
@@ -167,8 +119,6 @@ interface Span {
 
 const SPANS: Span[] = [
   { id: 'we-three-kings', title: 'We Three Kings', agreed: KINGS_AGREED, key: 'Em', pickup: false, bars: 17 },
-  { id: 'the-first-noel', title: 'The First Noel', agreed: NOEL_AGREED, key: 'D', pickup: true, bars: 23 },
-  { id: 'home-on-the-range', title: 'Home on the Range', agreed: HOME_AGREED, key: 'G', pickup: true, bars: 13 },
 ];
 const span = (id: string) => SPANS.find((s) => s.id === id)!;
 
@@ -378,83 +328,6 @@ describe('recovery c0: why we-three-kings is not written', () => {
       expect(body, `${unit} > ${task.id}`).toContain('{c:G}');
       expect(body, `${unit} > ${task.id}`).toContain('{c:C}');
     }
-  });
-});
-
-describe('recovery c0: why the-first-noel is not written', () => {
-  const s = span('the-first-noel');
-  const bars = numbered(s);
-
-  it('the span stops on G4, a quarter on beat 3 of bar 23', () => {
-    expect(lastNote(s, parseSpan(s))).toEqual({ bar: 23, beat: 3, name: 'G4', length: 'q' });
-  });
-
-  it('everywhere else that bar comes, its G falls to F# on the next downbeat and the line ends there', () => {
-    for (const n of [7, 15, 23]) expect(barText(bars.get(n)!), `bar ${n}`).toBe('D5:q A4:q G4:q');
-    for (const n of [8, 16]) expect(token(bars.get(n)![0]), `bar ${n}`).toBe('F#4:h');
-    expect(bars.has(24), 'bar 24, where the refrain would close, is not agreed').toBe(false);
-    // G is not a note of the home chord D; F#, where the line ends, is.
-    expect(chordPcs('D')).not.toContain(pc(noteToMidi('G4')));
-    expect(chordPcs('D')).toContain(pc(noteToMidi('F#4')));
-  });
-
-  it("the refrain's last line repeats the verse's last line, which is exactly why its missing end matters", () => {
-    for (const n of [21, 22, 23]) {
-      expect(barText(bars.get(n)!), `bar ${n}`).toBe(barText(bars.get(n - 16)!));
-      expect(barText(bars.get(n)!), `bar ${n}`).toBe(barText(bars.get(n - 8)!));
-    }
-    // And the refrain opens with the verse's opening figure: F# E | D. E F# G | A.
-    const opening = (pick: number, bar: number) => [...bars.get(pick)!.slice(-2), ...bars.get(bar)!, bars.get(bar + 1)![0]].map(token);
-    expect(opening(16, 17)).toEqual(opening(0, 1));
-    expect(opening(16, 17).join(' ')).toBe('F#4:e E4:e D4:q. E4:e F#4:e G4:e A4:h');
-  });
-
-  it('the verse alone ends in bar 16 with the two eighths that lead into the refrain', () => {
-    // The verse is one eight-bar line played twice.
-    for (let n = 1; n <= 8; n++) expect(barText(bars.get(n + 8)!), `bar ${n + 8}`).toBe(barText(bars.get(n)!));
-    expect(barText(bars.get(16)!)).toBe('F#4:h F#4:e E4:e');
-    // Those two eighths are the pickup figure the tune starts with: they belong to the next line.
-    expect(bars.get(16)!.slice(1).map(token)).toEqual(bars.get(0)!.map(token));
-  });
-
-  it('the verse alone does not meet the plan, which asks to show the phrase verse and refrain share', () => {
-    const p = planned('the-first-noel');
-    expect(p.notes).toContain('Point out how the verse and the refrain reuse the same phrase.');
-    expect(p).toMatchObject({ key: 'D major', meter: '3/4', tempo: 92 });
-  });
-});
-
-describe('recovery c0: why home-on-the-range is not written', () => {
-  const s = span('home-on-the-range');
-  const bars = numbered(s);
-
-  it('the span stops on a B4 eighth on the second half of beat 3 of bar 13', () => {
-    expect(lastNote(s, parseSpan(s))).toEqual({ bar: 13, beat: 3.5, name: 'B4', length: 'e' });
-  });
-
-  it('bars 9-12 repeat bars 1-4, so the lines are four bars long and bar 13 opens the fourth', () => {
-    for (let n = 1; n <= 4; n++) expect(barText(bars.get(n + 8)!), `bar ${n + 8}`).toBe(barText(bars.get(n)!));
-    // Lines 1 and 3 are picked up by the same low D on the beat before.
-    expect(barText(bars.get(0)!)).toBe('D4:q');
-    expect(token(bars.get(8)![1])).toBe('D4:q');
-    // Line 4 sets off differently from line 2 and is cut after its first bar.
-    expect(barText(bars.get(5)!)).toBe('D5:h G4:e G4:e');
-    expect(barText(bars.get(13)!)).toBe('D5:h C5:e B4:e');
-    expect(bars.has(14)).toBe(false);
-  });
-
-  it('no line in the span comes home: they end on C, A and C, and G is never held anywhere', () => {
-    const lineEnds = [4, 7, 12].map((n) => token(bars.get(n)![0]));
-    expect(lineEnds).toEqual(['C5:h', 'A4:h.~', 'C5:h']);
-    expect(token(bars.get(8)![0]), 'the A of line 2 is tied on into bar 8').toBe('A4:h');
-    const g = pc(noteToMidi('G4'));
-    expect(lineEnds.map((t) => pc(noteToMidi(t.split(':')[0])))).not.toContain(g);
-    // Every G in the span is a quarter or an eighth: the tune never rests on its tonic.
-    const gs = [...bars].flatMap(([n, b]) => b.filter((e) => e.midi !== null && pc(e.midi) === g).map((e) => `${n}:${token(e)}`));
-    expect(gs.length).toBeGreaterThan(0);
-    expect(gs.filter((t) => !/:(q|e)$/.test(t))).toEqual([]);
-    // So no stretch at the start of the span can end a song in the plan's key.
-    expect(planned('home-on-the-range')).toMatchObject({ key: 'G major', meter: '3/4', tempo: 96 });
   });
 });
 

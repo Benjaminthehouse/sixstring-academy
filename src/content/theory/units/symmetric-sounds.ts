@@ -410,7 +410,7 @@ const diminishedScales: Lesson = {
         ],
         from: 'C4',
         to: 'C5',
-        caption: '{n:C} whole-half. {n:C} {n:Eb} {n:Gb} {n:A}: {c:Cdim7}. Amber: a step above each.',
+        caption: '{n:C} whole-half: {c:Cdim7} ({n:C} {n:Eb} {n:Gb} {n:A}), and a note a step above each.',
       },
     },
     {
@@ -475,7 +475,7 @@ const augmentedSymmetry: Lesson = {
     {
       type: 'card',
       title: 'Two major thirds',
-      body: 'An {t:augmented-triad|augmented triad} stacks two {t:major-third|major thirds}: {c:Caug} is {n:C} {n:E} {n:G#}. One more major third above {n:G#} lands on {n:C} again, so three equal steps of four half steps fill the octave.',
+      body: 'An {t:augmented-triad|augmented triad} stacks two {t:major-third|major thirds}: {c:Caug} is {n:C} {n:E} {n:G#}. Four more half steps above {n:G#} bring you back to {n:C}, so three equal steps of four half steps fill the octave.',
       figure: {
         kind: 'fretboard',
         frets: [1, 10],
@@ -566,7 +566,7 @@ const augmentedSymmetry: Lesson = {
       type: 'true-false',
       statement: 'An augmented triad divides the octave into three equal parts.',
       answer: true,
-      explain: 'Three major thirds of four half steps make twelve: {n:C} to {n:E}, {n:E} to {n:G#}, {n:G#} back to {n:C}.',
+      explain: 'Three steps of four half steps make twelve: {n:C} to {n:E}, {n:E} to {n:G#}, and {n:G#} up to {n:C} again.',
       fact: 'symmetric-aug-two-thirds',
     },
     { generate: 'chord-quality-ear', params: { types: ['major', 'aug'] } },
@@ -576,7 +576,7 @@ const augmentedSymmetry: Lesson = {
     {
       id: 'symmetric-aug-two-thirds',
       front: 'What is an augmented triad made of?',
-      back: 'Two major thirds, such as {n:C} {n:E} {n:G#}. One more major third returns to {n:C}, so it divides the octave into three equal parts.',
+      back: 'Two major thirds, such as {n:C} {n:E} {n:G#}. Four more half steps return to {n:C}, so it divides the octave into three equal parts.',
       ask: {
         type: 'choice',
         prompt: 'What is {c:Caug} made of?',
@@ -746,7 +746,7 @@ const augmentedInProgressions: Lesson = {
     {
       type: 'card',
       title: 'Hear the line',
-      body: 'Each chord is picked slowly, low string to high, so you can follow the third note of each one climbing. The x32210 shape has no {n:G}: it is {c:C6} without its 5th, the same notes as {c:Am/C}.',
+      body: 'Each chord is picked slowly, low string to high, so you can follow the note on string 3 climbing. The x32210 shape has no {n:G}: it is {c:C6} without its 5th, the same notes as {c:Am/C}.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: RISING_LINE.flatMap((s) => arpeggio(s)), tempo: 120 }, label: 'Hear {c:C} to {c:F}' },
     },
     {
@@ -877,7 +877,14 @@ const unit: Unit = {
           { text: 'Two major thirds', why: 'Two major thirds make an augmented triad.' },
           { text: 'A major triad and a minor 7th', why: 'That is a dominant seventh chord.' },
         ],
-        explain: '{c:Bdim7} is {n:B} {n:D} {n:F} {n:Ab}: minor thirds all the way, and one more brings you back to {n:B}.',
+        explain: '{c:Bdim7} is {n:B} {n:D} {n:F} {n:Ab}: minor thirds all the way, and three more half steps bring you back to {n:B}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'How many different diminished seventh chords are there?',
+        options: [{ text: '3', correct: true }, { text: '4' }, { text: '6' }, { text: '12' }],
+        shuffle: false,
+        explain: 'Only three sets of notes: {c:Cdim7}, {c:C#dim7} and {c:Ddim7}. A dim7 on any of its four notes has the same pitches.',
       },
       {
         type: 'true-false',

@@ -1,0 +1,52 @@
+# The First Noel, melody with chords (repertoire plan: the-first-noel). A new arrangement of the
+# traditional English carol: verse 1 and the refrain, with the tune as it is commonly sung today
+# (older printings vary), exactly as independent recollections agreed on it note for note. It is
+# played an octave below the sung pitch so the whole tune sits in first position on strings 4, 3
+# and 2: D (open string 4), E (string 4 fret 2), F# (string 4 fret 4), G (open string 3),
+# A (string 3 fret 2), B (open string 2), C# (string 2 fret 2), D (string 2 fret 3). One finger per
+# fret: the fret number is the finger.
+# The tune is built from one phrase used again and again. The verse is a single eight-bar line
+# sung twice (bars 1-8 and 9-16, the same notes). The refrain (bars 17-24) opens with the verse's
+# opening figure, "F# E | D. E F# G | A", and its last four bars are the verse's last four bars,
+# note for note. Each time a line comes round, its chords come round with it.
+# Chords D (xx0232), G (320003) and A (x02220), one per bar, every one under a melody note it
+# contains on beat 1. The teacher strums the open chords on every beat, beat 1 the strongest.
+# Then swap parts: strum the chords while the app plays the tune.
+title: The First Noel
+id: the-first-noel
+composer: Traditional English
+source: English carol printed in 1823 and 1833; melody as commonly sung today; verse 1 and the refrain; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: melody, chords, carol, christmas, waltz time, repeated phrases, lyrics
+tempo: 92
+time: 3/4
+key: D
+pickup: q
+
+track: Melody
+role: lead
+[Verse]
+| ^"First position: the fret number is the finger" e 4:4{4} 4:2{2} | "D=xx0232" q. 4:0 e 4:2 4:4 3:0 | h 3:2{2} e 2:0 2:2{2} | "G=320003" q 2:3{3} 2:2 2:0 | "D=xx0232" h 3:2 e 2:0 2:2 |
+lyrics: The _ first No- _ _ el the _ an- gel did say, Was to
+| "G=320003" q 2:3 2:2 2:0 | "A=x02220" q 3:2 2:0 2:2 | "D=xx0232" q 2:3 3:2 3:0 | h 4:4 e 4:4 4:2 |
+lyrics: cer- tain poor shep- herds in fields as they lay; In _
+| ^"The same eight bars again" "D=xx0232" q. 4:0 e 4:2 4:4 3:0 | h 3:2 e 2:0 2:2 | "G=320003" q 2:3 2:2 2:0 | "D=xx0232" h 3:2 e 2:0 2:2 |
+lyrics: fields where they _ lay _ _ keep- ing their sheep, On a
+| "G=320003" q 2:3 2:2 2:0 | "A=x02220" q 3:2 2:0 2:2 | "D=xx0232" q 2:3 3:2 3:0 | h 4:4 e 4:4 4:2 |
+lyrics: cold win- ter's night that was so _ _ deep. No- _
+[Refrain]
+| ^"Refrain: it opens like the verse" "D=xx0232" q. 4:0 e 4:2 4:4 3:0 | h 3:2 e 2:3 2:2 | "G=320003" h 2:0 q 2:0 | "A=x02220" h. 3:2 |
+lyrics: el, No- _ _ el, No- _ el, No- el,
+| ^"The verse's last line, note for note" "G=320003" q 2:3 2:2 2:0 | "A=x02220" q 3:2 2:0 2:2 | "D=xx0232" q 2:3 3:2 3:0 | h. 4:4 ||
+lyrics: Born is the King of Is- ra- _ _ el.
+
+track: Chords
+role: rhythm
+[Verse]
+| q r |
+| D D D | D D D | D D D | D D D | D D D | D D D | D D D | D D D |
+| D D D | D D D | D D D | D D D | D D D | D D D | D D D | D D D |
+[Refrain]
+| D D D | D D D | D D D | D D D | D D D | D D D | D D D | h. D ||

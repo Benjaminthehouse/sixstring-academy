@@ -228,6 +228,10 @@ describe('voice-leading: kinds of motion', () => {
     expect(plainText(correct(similar)[0])).toBe('Similar');
     // Oblique: an open string held under a moving line.
     expect(motion([55, 55], [64, 65])).toBe('oblique');
+    // Parallel and similar motion go down as well as up (review fix: the card no longer says "both up").
+    expect(motion([57, 55], [66, 64])).toBe('parallel');
+    expect(motion([57, 55], [67, 64])).toBe('similar');
+    expect(card(lesson('kinds-of-motion'), 0).body).not.toMatch(/Both up/);
   });
 
   it('plays contrary and then parallel motion in the listening questions', () => {
@@ -309,6 +313,16 @@ describe('voice-leading: parallel fifths, thirds and sixths', () => {
     played.forEach(([a, b], i) => expect(high[i] - low[i] === 8, `${a}-${b}`).toBe(a !== b));
     const tiles = phrases.flatMap((p) => (!isGenerated(p.alternative) && p.alternative.type === 'order' ? p.alternative.tiles.map((t) => plainText(t)) : []));
     expect(tiles).toEqual(planned.map(([a, b]) => `${a}-${b}`));
+    // Each tapping version has a near miss to reject (review fix): the same fret on string 1 where the
+    // sixth is minor, which puts a note outside G major on top.
+    const distractors = phrases.flatMap((p) => (!isGenerated(p.alternative) && p.alternative.type === 'order' ? (p.alternative.distractors ?? []).map((t) => plainText(t)) : []));
+    expect(distractors).toEqual(['4-4', '9-9']);
+    for (const d of distractors) {
+      const [a, b] = d.split('-').map(Number);
+      expect(gMajor, d).toContain(midiAt({ string: 3, fret: a }) % 12);
+      expect(gMajor, d).not.toContain(midiAt({ string: 1, fret: b }) % 12);
+      expect(played.some(([x]) => x === a), d).toBe(true);
+    }
     const fig = card(lesson('parallel-fifths'), 4).figure;
     if (fig?.kind !== 'fretboard') throw new Error('expected a fretboard');
     expect(fig.dots!.map((d) => `${d.string}:${d.fret}`).sort()).toEqual(played.flatMap(([a, b]) => [`3:${a}`, `1:${b}`]).sort());
@@ -377,6 +391,9 @@ describe('voice-leading: non-chord tones', () => {
   it('holds G from the G chord over D, then falls to F#: a 4-3 suspension', () => {
     const top = (symbol: string, shape: string): number => byString(symbol, shape).get(1)!;
     expect([top('G', '320003'), top('Dsus4', 'xx0233'), top('D', 'xx0232')]).toEqual([67, 67, 66]);
+    // "String 1 stays at fret 3 until the last chord" (review fix: the D chord has it at fret 2).
+    expect(['320003', 'xx0233', 'xx0232'].map((s) => Number(s[5]))).toEqual([3, 3, 2]);
+    expect(card(lesson('non-chord-tones'), 3).body).toMatch(/String 1 stays at fret 3 until the last chord/);
     expect(chordPcs('G')).toContain(7);
     expect(chordPcs('D')).not.toContain(7);
     expect(intervalBetween('D', 'G')).toBe('P4');
@@ -439,6 +456,18 @@ describe('voice-leading: a voice-led ii-V-I', () => {
     expect(plainText(correct(led)[0])).toBe('Voice-led');
     expect(plainText(correct(jumpy)[0])).toBe('Jumpy');
     expect(parseChord('G7/D')!.bass).toBe('D');
+  });
+});
+
+describe('voice-leading: words a learner can rely on', () => {
+  it('names the moving voice of the arpeggiated cliché by its string, not as "the third note"', () => {
+    // Picked low to high, x32010 sounds C E G C E: the climbing voice is on string 3.
+    expect(identifyFretted('x32010').notes.map((n) => n.string)).toEqual([5, 4, 3, 2, 1]);
+    for (const text of texts(unit)) expect(text, text).not.toMatch(/third note of each/i);
+  });
+
+  it('keeps music symbols out of the plain-text "teaches" lines', () => {
+    for (const l of unit.lessons) expect(l.teaches, l.id).not.toMatch(/[#{}]/);
   });
 });
 

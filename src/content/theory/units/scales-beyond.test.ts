@@ -6,7 +6,7 @@
  * teaches with the guitar or the sound off.
  */
 import { describe, expect, it } from 'vitest';
-import { chordNotes, chordPcs, degreeInScale, getScale, intervalBetween, scaleMidi, scaleNotes, scalePcs, semitonesToDegree } from '@/core/theory';
+import { chordNotes, chordPcs, degreeInScale, getScale, intervalBetween, scaleMidi, scaleNotes, scalePcs, semitonesToDegree, transpose } from '@/core/theory';
 import { buildVoicing, midiAt } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, resolveFigure, soundPlan, tokenize, validateCourse,
@@ -219,10 +219,14 @@ describe('scales-beyond: Phrygian dominant', () => {
     for (const e of ofType<ChoiceExercise>('choice').filter((x) => /which chord does .*Phrygian dominant fit/i.test(plainText(x.prompt)))) {
       for (const o of e.options) {
         const chord = tagged(o.text ?? '', 'chord')[0];
-        if (chord === 'Am7') continue; // fits A minor scales, not the dominant: a question of use, checked in the text
         expect(inScale('E', 'phrygian-dominant', chord), chord).toBe(!!o.correct);
       }
     }
+    // Am7 is out for a reason of notes too (review fix): its G clashes with the scale's G#.
+    expect(chordNotes('Am7')).toContain('G');
+    expect(scaleNotes('E', 'phrygian-dominant')).toContain('G#');
+    const am7 = exercises(unit.checkpoint!.steps!).flatMap((e) => (e.type === 'choice' ? e.options : [])).find((o) => o.text === '{c:Am7}')!;
+    expect(tagged(am7.why ?? '', 'note')).toEqual(['G', 'G#']);
   });
 
   it('plays and draws the scale on strings 6, 5 and 4 in open position', () => {
@@ -340,6 +344,18 @@ describe('scales-beyond: exotic scales', () => {
     for (const n of ['C', 'F']) expect(scalePcs('A', 'hirajoshi')).toContain((scalePcs(n, 'major')[0] + 11) % 12);
   });
 
+  it('asks the checkpoint to name a Japanese pentatonic, and only one option fits (review fix)', () => {
+    const q = exercises(unit.checkpoint!.steps!).find((e): e is ChoiceExercise => e.type === 'choice' && /Which scale is/.test(String(e.prompt)))!;
+    const asked = tagged(q.prompt, 'note');
+    const SCALES: Record<string, string> = { hirajoshi: 'hirajoshi', In: 'in', 'minor pentatonic': 'minor-pentatonic' };
+    for (const o of q.options) {
+      const [tonic] = tagged(o.text ?? '', 'note');
+      const name = plainText(o.text ?? '').replace(/^\S+\s/, '');
+      expect(scaleNotes(tonic, SCALES[name]).join(' ') === asked.join(' '), plainText(o.text ?? '')).toBe(!!o.correct);
+    }
+    expect(plainText(correct(q)[0])).toBe('A hirajoshi');
+  });
+
   it('names the In scale and plays Hungarian minor over A', () => {
     const q = ofType<ChoiceExercise>('choice').find((e) => /Which scale is/.test(String(e.prompt)))!;
     expect(tagged(q.prompt, 'note')).toEqual(scaleNotes('A', 'in'));
@@ -402,6 +418,26 @@ describe('scales-beyond: pentatonics on other roots', () => {
     const notes = soundPlan(audio.sound).events.map((e) => e.midi[0]);
     expect(notes.filter((_m, i) => i % 2 === 1)).toEqual(scaleMidi(59, 'minor-pentatonic'));
     expect(notes.filter((_m, i) => i % 2 === 0).every((m) => m === 45)).toBe(true);
+  });
+});
+
+describe('scales-beyond: words a learner can rely on', () => {
+  it('keeps music symbols out of the plain-text "teaches" lines (review fix)', () => {
+    // The map shows "teaches" as plain text: 7#11 would show a hash sign and be read aloud badly.
+    for (const l of unit.lessons) expect(l.teaches, l.id).not.toMatch(/[#{}]/);
+  });
+
+  it('lets keyboard keys show their own note names, not ASCII labels like "#5" (review fix)', () => {
+    const keys = card(lesson('bebop-scales'), 4).figure;
+    if (keys?.kind !== 'keyboard') throw new Error('expected a keyboard');
+    for (const k of keys.keys) if (typeof k !== 'string') expect(k.label ?? '', k.note).not.toMatch(/[#b]\d/);
+  });
+
+  it('names F as the 3rd of C# altered by its pitch, E#', () => {
+    expect(scaleNotes('C#', 'altered')[3]).toBe('F');
+    expect(transpose('C#', 'M3')).toBe('E#');
+    expect(scalePcs('C#', 'altered')[3]).toBe(scalePcs('C#', 'major')[2]);
+    expect(card(lesson('melodic-minor-modes'), 6).body).toMatch(/\{n:F\}, the same pitch as \{n:E#\}/);
   });
 });
 

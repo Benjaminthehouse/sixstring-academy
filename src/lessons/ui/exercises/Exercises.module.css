@@ -866,6 +866,13 @@
   align-items: flex-start;
   gap: var(--sp-3);
   min-width: 0;
+  max-width: 100%;
+}
+/* Children size to their content but never past the column, so a long phrase's tab scrolls inside
+   its own box instead of widening the page on a phone. */
+.playTarget > * {
+  max-width: 100%;
+  min-width: 0;
 }
 .phraseProgress {
   display: flex;

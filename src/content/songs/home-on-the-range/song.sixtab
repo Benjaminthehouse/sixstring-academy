@@ -1,0 +1,48 @@
+# Home on the Range, strum and sing (repertoire plan: home-on-the-range). A new arrangement of
+# the 1873 song: the first verse, with the tune as it is commonly sung today (older printings
+# vary), exactly as independent recollections agreed on it note for note. The chorus is left
+# out: its tune was not agreed, so it is not guessed.
+# Your part: a waltz strum, the chord's root alone on beat 1, then down-up on beats 2 and 3.
+# Roots: G on string 6 fret 3, C on string 5 fret 3, A7 on the open string 5, D7 on the open
+# string 4. Shapes: G (320003), C (x32010), A7 (x02020), D7 (xx0212).
+# The four lines of the verse take four bars each: G G C C | G G A7 D7 | G G C C | G D7 G G.
+# A7 under "play" is the V of V: the dominant of D, so it pulls to D7 in the next bar, and D7,
+# the dominant of G, pulls home to G. The words are written above the bar where each line
+# starts, as on a chord sheet. The tune starts on beat 3 with "Oh", so you wait one beat.
+# The tune (second track) is played an octave below the sung pitch, in first position on strings
+# 4, 3 and 2.
+title: Home on the Range
+id: home-on-the-range
+composer: Daniel E. Kelley (music); words by Brewster Higley
+source: Song of 1873 (as My Western Home); melody as commonly sung today; verse 1; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Kelley died in 1905, Higley in 1911); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: strumming, waltz, 3/4, pickup, secondary dominant, lyrics
+tempo: 96
+time: 3/4
+key: G
+pickup: q
+
+track: Your strum
+role: rhythm
+| ^"Wait: the tune starts on beat 3" q r |
+[Verse]
+| ^"Oh, give me a home where the buffalo roam," "G=320003" q 6:3 e D U D U | q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | q 5:3 e D U D U |
+| ^"where the deer and the antelope play," "G=320003" q 6:3 e D U D U | q 6:3 e D U D U | ^"A7: the signpost to D7" "A7=x02020" q 5:0 e D U D U | "D7=xx0212" q 4:0 e D U D U |
+| ^"where seldom is heard a discouraging word," "G=320003" q 6:3 e D U D U | q 6:3 e D U D U | "C=x32010" q 5:3 e D U D U | q 5:3 e D U D U |
+| ^"and the skies are not cloudy all day." "G=320003" q 6:3 e D U D U | "D7=xx0212" q 4:0 e D U D U | "G=320003" q 6:3 e D U D U | q 6:3 h D ||
+
+track: Tune
+role: lead
+| q 4:0 |
+lyrics: Oh,
+[Verse]
+| q 4:0 3:0 3:2 | h 2:0 e 3:0 4:4 | q 4:2 2:1 2:1 | h 2:1 e 2:0 2:1 |
+lyrics: give me a home where the buf- fa- lo roam, where the
+| h 2:3 e 3:0 3:0 | q 3:0 4:4 3:0 | h. 3:2 | h 3:- q 4:0 |
+lyrics: deer and the an- te- lope play, where
+| q 4:0 3:0 3:2 | h 2:0 e 3:0 4:4 | q 4:2 2:1 2:1 | h 2:1 e 2:0 2:1 |
+lyrics: sel- dom is heard a dis- cour- ag- ing word, and the
+| h 2:3 e 2:1 2:0 | q 3:2 3:0 4:4 | h. 3:0 | h 3:- q r ||
+lyrics: skies are not cloud- y all day.
