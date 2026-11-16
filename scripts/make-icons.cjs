@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Draws the app icons into public/icons/ from the brand mark (six strings, thickest on the left,
- * crossing a fret: src/app/brand/Brand.tsx) on a sunburst-amber tile, in the token colours of
- * src/ui/tokens.css. Run it again after changing the mark or the accent:
+ * Draws the app icons into public/icons/: the first frets of a guitar neck in the fretboard's own
+ * materials, six strings thickest on the left as in the brand mark (src/app/brand/Brand.tsx), and
+ * one note to play, on a sunburst-amber tile. Every colour is a token of src/ui/tokens.css. Run it
+ * again after changing the drawing or the tokens:
  *
  *   node scripts/make-icons.cjs
  *
@@ -34,42 +35,71 @@ const C = {
   glow: token('--accent-strong', 'dark'), // the light amber at the heart of the sunburst
   amber: token('--accent', 'light'),
   edge: token('--accent-strong', 'light'),
-  ink: token('--accent-fg', 'light'),
+  wood: token('--fb-wood', 'light'),
+  wood2: token('--fb-wood-2', 'light'),
+  nut: token('--fb-nut', 'light'),
+  fret: token('--fb-fret', 'light'),
+  fretShade: token('--fb-fret-shade', 'light'),
+  inlay: token('--fb-inlay', 'light'),
+  plain: token('--fb-string', 'light'),
+  wound: token('--fb-string-wound', 'light'),
+  root: token('--deg-1', 'light'),
+  rootFg: token('--deg-1-fg', 'light'),
+  shadow: token('--fg', 'light'), // the ink of the light theme, for soft shadows
 };
 
 /**
- * The mark in its own 32-unit box (Brand.tsx): a fret across the top and six strings whose gauge
- * grows from the first string (right) to the sixth (left).
+ * The picture, in a 512 box: the first frets of a rosewood neck seen from the player's side (bone
+ * nut at the top, nickel frets, a pearl dot), six strings thickest on the left as in the brand
+ * mark, and one note to play, on the sunburst amber of the app's accent.
  */
-function mark() {
-  const gauges = [1.1, 1.4, 1.7, 2.1, 2.5, 2.9];
-  const strings = gauges
-    .map((w, i) => `<rect x="${(25.2 - i * 3.9 - w / 2).toFixed(3)}" y="5.5" width="${w}" height="21" rx="${w / 2}" fill="${C.ink}"/>`)
-    .join('');
-  return `<rect x="5" y="10.25" width="22" height="1.5" rx="0.75" fill="${C.ink}" fill-opacity="0.38"/>${strings}`;
+function neck(bottom) {
+  const left = 150;
+  const right = 362;
+  const top = 70;
+  const strings = [];
+  const gauges = [10, 8.4, 7, 5.4, 4.4, 3.6]; // string 6 (left) .. string 1
+  for (let i = 0; i < 6; i++) {
+    const x = left + 24 + (i * (right - left - 48)) / 5;
+    const w = gauges[i];
+    strings.push(`<rect x="${(x - w / 2).toFixed(2)}" y="${top}" width="${w}" height="${bottom - top}" rx="${w / 2}" fill="${i < 3 ? C.wound : C.plain}"/>`);
+  }
+  const fret = (y) => `<rect x="${left}" y="${y}" width="${right - left}" height="12" fill="${C.fret}"/><rect x="${left}" y="${y + 12}" width="${right - left}" height="5" fill="${C.fretShade}" fill-opacity="0.85"/>`;
+  const noteX = left + 24 + (3 * (right - left - 48)) / 5; // string 3
+  return [
+    `<rect x="${left - 6}" y="${top + 10}" width="${right - left + 12}" height="${bottom - top}" rx="10" fill="${C.shadow}" fill-opacity="0.2"/>`,
+    `<rect x="${left}" y="${top}" width="${right - left}" height="${bottom - top}" fill="url(#wood)"/>`,
+    `<rect x="${left}" y="${top}" width="${right - left}" height="26" rx="3" fill="${C.nut}"/>`,
+    fret(212),
+    fret(352),
+    `<circle cx="256" cy="430" r="15" fill="${C.inlay}" fill-opacity="0.9"/>`,
+    strings.join(''),
+    `<circle cx="${noteX}" cy="146" r="33" fill="${C.shadow}" fill-opacity="0.24"/>`,
+    `<circle cx="${noteX}" cy="142" r="31" fill="${C.root}" stroke="${C.rootFg}" stroke-width="5"/>`,
+  ].join('');
 }
 
 /**
  * One icon. `rounded`: a tile with transparent corners (the "any" icon); otherwise full bleed.
- * `scale`: how large the mark sits on the tile (1 = as in the app; maskable icons need it inside
- * the 80 % safe circle). The strings are centred on the tile.
+ * `scale`: how large the neck sits on the tile (maskable icons keep it inside the 80 % safe circle).
  */
 function svg({ rounded, scale }) {
   const size = 512;
-  const unit = size / 32;
-  // The strings span x 4.25..25.75 (centre 15), y 5.5..26.5 (centre 16): centre them on the tile.
-  const tx = 16 - 15 * scale;
-  const ty = 16 - 16 * scale;
-  const tile = rounded ? `<rect width="${size}" height="${size}" rx="${8 * unit}" fill="url(#sunburst)"/>` : `<rect width="${size}" height="${size}" fill="url(#sunburst)"/>`;
+  const offset = (size - size * scale) / 2;
+  const tile = rounded ? `<rect width="${size}" height="${size}" rx="112"/>` : `<rect width="${size}" height="${size}"/>`;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
     '<defs>',
-    `<radialGradient id="sunburst" cx="50%" cy="42%" r="70%">`,
+    `<radialGradient id="sunburst" cx="50%" cy="40%" r="72%">`,
     `<stop offset="0" stop-color="${C.glow}"/><stop offset="0.55" stop-color="${C.amber}"/><stop offset="1" stop-color="${C.edge}"/>`,
     '</radialGradient>',
+    `<linearGradient id="wood" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${C.wood2}"/><stop offset="0.5" stop-color="${C.wood}"/><stop offset="1" stop-color="${C.wood2}"/></linearGradient>`,
+    `<clipPath id="tile">${tile}</clipPath>`,
     '</defs>',
-    tile,
-    `<g transform="scale(${unit}) translate(${tx.toFixed(4)} ${ty.toFixed(4)}) scale(${scale})">${mark()}</g>`,
+    `<g clip-path="url(#tile)">`,
+    `<rect width="${size}" height="${size}" fill="url(#sunburst)"/>`,
+    `<g transform="translate(${offset.toFixed(2)} ${offset.toFixed(2)}) scale(${scale})">${neck((size - offset) / scale + 40)}</g>`,
+    '</g>',
     '</svg>',
   ].join('');
 }
@@ -83,9 +113,9 @@ async function render(page, source, px) {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const any = svg({ rounded: true, scale: 1.08 });
-  const maskable = svg({ rounded: false, scale: 0.78 });
-  const apple = svg({ rounded: false, scale: 0.9 });
+  const any = svg({ rounded: true, scale: 1 });
+  const maskable = svg({ rounded: false, scale: 0.8 });
+  const apple = svg({ rounded: false, scale: 0.92 });
   fs.writeFileSync(path.join(OUT, 'icon.svg'), `${any}\n`);
   const browser = await chromium.launch();
   try {
