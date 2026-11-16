@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, flattenSong, parseSixTab, validateSong, type Beat, type Song, type Track } from '@/core/song';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
+import { checkVoicingFingering, identifyFretted } from '@/core/guitar';
 import { songEntry } from '@/content/songs';
 
 const PPQ = 960;
@@ -464,5 +465,97 @@ describe('batch 4: st-change-g-c-c-g7', () => {
     // eslint-disable-next-line no-console
     console.log(`st-change-g-c-c-g7: level 3; estimate ${est.level} (score ${est.score}); ${est.reasons.join(' ') || 'no hard spots'}`);
     expect(Math.abs(est.level - songEntry('st-change-g-c-c-g7')!.level)).toBeLessThanOrEqual(1);
+  });
+});
+
+/*
+ * Added by the independent review of batch 4. Each block covers something the review changed or
+ * checked with another engine: the carol's words under its slurred figures, the teacher's tune
+ * added to st-change-g-c-c-g7, and every chord shape of the batch named by @/core/guitar.
+ */
+describe('batch 4 review', () => {
+  const BATCH = ['minuet-in-g-melody', 'eine-kleine-nachtmusik', 'brahms-lullaby', 'o-come-all-ye-faithful', 'st-change-g-c-c-g7'];
+
+  it.each(BATCH)('%s: every chord shape sounds the chord it is named for (@/core/guitar)', (id) => {
+    const song = load(id);
+    for (const c of song.chords) {
+      if (!c.voicing) continue;
+      const found = identifyFretted(c.voicing);
+      expect(found.symbol, `${id}: bar ${c.bar + 1}: "${c.symbol}=${shapeOf(c.voicing)}" sounds ${found.notes.map((n) => n.note).join(' ')}`).toBe(c.symbol);
+    }
+  });
+
+  it('st-change-g-c-c-g7: the fingerings in the annotations are playable, and the 3-2 shape really moves one string', () => {
+    // G with 3, 2 and 4; C x32010 with 3, 2, 1; G7 320001 with 3, 2, 1 (fingers low string first).
+    expect(checkVoicingFingering([3, 2, 0, 0, 0, 3], [3, 2, 0, 0, 0, 4])).toEqual([]);
+    expect(checkVoicingFingering([null, 3, 2, 0, 1, 0], [null, 3, 2, 0, 1, 0])).toEqual([]);
+    expect(checkVoicingFingering([3, 2, 0, 0, 0, 1], [3, 2, 0, 0, 0, 1])).toEqual([]);
+    const song = load('st-change-g-c-c-g7');
+    const notes = song.tracks[0].measures.flatMap((m, bar) => m.beats.map((b) => ({ bar, ann: song.annotations.filter((a) => a.bar === bar).map((a) => a.text) })));
+    expect(notes.some((n) => n.ann.some((t) => /3, 2 and 4/.test(t)))).toBe(true);
+  });
+
+  it('o-come-all-ye-faithful: each slurred figure carries one syllable, the next note the next one', () => {
+    const song = load('o-come-all-ye-faithful');
+    const tune = trackNamed(song, 'Tune');
+    const at = (bar: number) => tune.measures[bar].beats.map((b) => `${b.lyric ?? '_'}:${name(b.notes[0]?.midi ?? null)}`);
+    // "to Beth-le-hem": le on the half-note F#, hem on E with the D slurred to it, then the held D.
+    expect(at(7)).toEqual(['le-:F#3', 'hem;:E3', '_:D3']);
+    // "King of an-gels": an on the dotted F# with the E slurred to it, gels on D (as in the Latin
+    // "an-ge-lo-rum", where -rum takes the D), then "O" leads into the refrain.
+    expect(at(12)).toEqual(['an-:F#3', '_:E3', 'gels::D3', 'O:G3']);
+    // "Christ the Lord": the on B, Lord on A with the G slurred to it and held.
+    expect(at(19)).toEqual(['the:B3', 'Lord.:A3', '_:G3']);
+  });
+
+  describe('st-change-g-c-c-g7: the teacher tune', () => {
+    const song = load('st-change-g-c-c-g7');
+    const teacher = trackNamed(song, 'Teacher');
+    // Composition plan, bar by bar, as sounding pitch and length: a chord tone on beats 1 and 3.
+    const TUNE =
+      'D4h B3q D4q | G4h. F#4q | E4h C4h | D4h B3h | C4q E4q G4q E4q | D4q B3q G3q B3q | C4q E4q D4q B3q | C4q A3q G3h |' +
+      'E4h G4q E4q | C4h E4h | F4h D4h | E4h C4h | B3q D4q F4q D4q | E4q G4q E4q C4q | D4q F4q E4q G4q | F4q D4q C4h';
+    const want = bars(TUNE).map((bar) => bar.map((t) => readToken(t, 0)));
+
+    it('is a second track, so your strum stays the part you play', () => {
+      expect(song.tracks.map((t) => [t.name, t.role])).toEqual([
+        ['Your strum', 'rhythm'],
+        ['Teacher', 'lead'],
+      ]);
+    });
+
+    it('sounds the planned notes and rhythm', () => {
+      const got = writtenOf(teacher);
+      expect(got.length).toBe(16);
+      got.forEach((bar, i) => {
+        const fmt = (w: Written) => `${name(w.midi)}:${w.ticks}`;
+        expect(bar.map(fmt), `teacher bar ${i + 1}`).toEqual(want[i].map(fmt));
+      });
+    });
+
+    it('puts a chord tone of the chord in force on every strong beat', () => {
+      teacher.measures.forEach((m, bar) => {
+        for (const tick of [0, 2 * PPQ]) {
+          const sounding = m.beats.find((b) => b.start <= tick && tick < b.start + b.duration)!;
+          const midi = sounding.notes[0].midi;
+          const chord = chordAt(song, bar, tick)!;
+          expect(chordPcs(chord), `bar ${bar + 1}, beat ${tick / PPQ + 1}: ${name(midi)} over ${chord}`).toContain(midi % 12);
+        }
+      });
+    });
+
+    it('keeps to G major, then C major, in first position, and ends each half on its home note', () => {
+      const notes = struckNotes(teacher);
+      const g = scalePcs('G', 'major');
+      const c = scalePcs('C', 'major');
+      for (const n of notes) {
+        expect((n.bar < 8 ? g : c).includes(n.midi % 12), `bar ${n.bar + 1}: ${name(n.midi)}`).toBe(true);
+        expect(n.fret, `bar ${n.bar + 1}: first position`).toBeLessThanOrEqual(3);
+      }
+      const midis = notes.map((n) => n.midi);
+      expect([name(Math.min(...midis)), name(Math.max(...midis))]).toEqual(['G3', 'G4']);
+      expect(name(notes.filter((n) => n.bar === 7).at(-1)!.midi)).toBe('G3');
+      expect(name(notes.at(-1)!.midi)).toBe('C4');
+    });
   });
 });
