@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Player (src/features/player). Run:
- *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,flow,reload,nomic,address,artifact,long,review,layouts]
+ *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,strum,flow,reload,nomic,address,artifact,long,review,layouts]
  *
  * Real Chromium, real Web Audio, Chromium's fake microphone playing WAV files rendered by the
  * audio module (the app's own guitar synth).
@@ -19,6 +19,8 @@
  *  wait     phone, fake microphone: B A G played right, then two wrong notes (the song waits,
  *           says what it heard, and after the second the hint appears by itself), then the right
  *           note and the song carries on; the score marks hits and the note waited on
+ *  strum    phone, fake microphone: three strums of G on the strum-along Frère Jacques move wait mode
+ *           on by three chords, not more (a ringing chord used to match every chord after it)
  *  flow     desktop, fake microphone: a recording of the melody started in time with the song,
  *           with bar 2 played 130 ms early on purpose: those notes are judged "early", the others
  *           perfect or good; the results panel shows accuracy, stars, the heat strip and a
@@ -415,6 +417,46 @@ async function wait() {
         } finally {
           await l.close();
         }
+      }
+    });
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// strum: one strum is one chord in wait mode
+// ---------------------------------------------------------------------------------------------
+async function strumWait() {
+  // Review: a strummed chord rings, and its chroma kept matching the next chords: one strum ran
+  // wait mode through the whole song. Three G strums (xx0003), 1.6 s apart, each left to ring.
+  const shape = [[50, 4], [55, 3], [59, 2], [67, 1]];
+  const notes = [];
+  for (const t of [4.0, 5.6, 7.2]) shape.forEach(([midi, string], k) => notes.push({ time: t + k * 0.012, midi, string, velocity: 0.7 }));
+  const file = await wav('strum', notes, 11);
+  try {
+    await withMic(file, async (browser, url) => {
+      const s = await open(browser, url, { mobile: true, permissions: ['microphone'] });
+      const { page } = s;
+      try {
+        await s.goto('play--frere-jacques');
+        await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
+        await page.waitForFunction(() => window.__pl.mode === 'wait', null, { timeout: 15000 });
+        await page.locator('[data-player-play]').click();
+        await page.waitForSelector('[data-player-wait]', { timeout: 15000 });
+        check('strum', 'wait mode asks for a strum of G', /Strum G/.test(await page.locator('[data-player-wait]').innerText()), await page.locator('[data-player-wait]').innerText());
+        await page.waitForFunction(() => window.__pl.waitIndex >= 1, null, { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(1200);
+        let d = await dbg(page);
+        check('strum', 'the first strum counts once, while it rings', d.waitIndex === 1, `index ${d.waitIndex}`);
+        // Past the third strum, with time for it to ring out.
+        await page.waitForTimeout(6500);
+        d = await dbg(page);
+        check('strum', 'three strums of G: three chords on, no more', d.waitIndex === 3, `index ${d.waitIndex} of ${d.waitTotal}`);
+        const errors = s.takeErrors();
+        check('strum', 'no console errors', errors.length === 0, errors.join(' | '));
+      } finally {
+        await s.close();
       }
     });
   } finally {
@@ -923,7 +965,7 @@ async function layouts(browser, url) {
       await server.close();
     }
   }
-  for (const [name, fn] of [['wait', wait], ['flow', () => flow(facts)]]) {
+  for (const [name, fn] of [['wait', wait], ['strum', strumWait], ['flow', () => flow(facts)]]) {
     if (!wants(name)) continue;
     const t = Date.now();
     try {

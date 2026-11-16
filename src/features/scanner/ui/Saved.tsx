@@ -47,7 +47,9 @@ export function Saved({ scan }: { scan: ScanState }) {
         <span className={styles.badge} aria-hidden="true">
           <Icon name="Music" size="lg" />
         </span>
-        <p className={styles.eyebrow}>In your songs</p>
+        <p className={styles.eyebrow}>
+          In your songs{saved.xp > 0 && <span className={styles.xp}> · +{saved.xp} XP</span>}
+        </p>
         <h1 className={styles.title} data-scan-saved-title="">
           {listing.title} is ready to play
         </h1>

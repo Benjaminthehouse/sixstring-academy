@@ -173,6 +173,23 @@ export function userBeatMark(): BeatMark {
   return { ids: [], boxes: [], confidence: 1, altValues: [], reasons: [], source: 'user', checked: true, notes: [] };
 }
 
+/** The highest fret a reading may keep (the editor's range too). */
+export const MAX_READ_FRET = 24;
+
+/**
+ * A fret the song can hold. A number past the last fret is a misreading (two numbers side by side
+ * read as one, "9" "2" as 92; a smudge): it becomes the reader's best other reading on the neck,
+ * else its first digit, and the other digits are offered as one-tap fixes.
+ */
+export function possibleFret(fret: number, alternatives: readonly number[] = []): { fret: number; alts: number[]; impossible: boolean } {
+  const onNeck = (f: number) => Number.isInteger(f) && f >= 0 && f <= MAX_READ_FRET;
+  if (onNeck(fret)) return { fret, alts: alternatives.filter((f) => f !== fret && onNeck(f)), impossible: false };
+  const digits = String(Math.abs(Math.trunc(fret))).split('').map(Number);
+  const options = [...alternatives.filter(onNeck), ...digits].filter((f, i, all) => all.indexOf(f) === i);
+  const chosen = options[0] ?? 0;
+  return { fret: chosen, alts: options.filter((f) => f !== chosen), impossible: true };
+}
+
 /** Notes of a tab column as Song notes with their marks; `partner` = the notation chord linked to it. */
 function tabNotes(e: OmrTabEvent, tuning: readonly number[], partner: OmrEvent | undefined, dropped: { count: number }): { notes: Note[]; marks: NoteMark[] } {
   const notes: Note[] = [];
@@ -188,13 +205,14 @@ function tabNotes(e: OmrTabEvent, tuning: readonly number[], partner: OmrEvent |
       continue;
     }
     usedStrings.add(n.string);
-    const out: Note = { string: n.string, fret: n.fret, midi: midiOf(n.string, n.fret, tuning) };
-    if (n.tieStop) out.tie = true;
+    const fix = possibleFret(n.fret, (n.alternatives ?? []).map((a) => a.value));
+    const out: Note = { string: n.string, fret: fix.fret, midi: midiOf(n.string, fix.fret, tuning) };
+    if (n.tieStop && !fix.impossible) out.tie = true;
     if (n.technique?.includes('x')) out.dead = true;
     if (n.technique?.includes('<>')) out.harmonic = 'natural';
     const head = heads.find((h) => h.string === n.string && h.fret === n.fret) ?? heads.find((h) => h.string === n.string);
     notes.push(out);
-    marks.push(tabNoteMark(n, head));
+    marks.push(fix.impossible ? impossibleMark(tabNoteMark(n, head), n.fret, fix.alts) : tabNoteMark(n, head));
   }
   // Keep the column's own order (top string first) for a stable display.
   const idx = notes.map((_, i) => i).sort((a, b) => notes[a].string - notes[b].string);
@@ -212,6 +230,11 @@ function tabNoteMark(n: OmrTabNote, head: OmrNote | undefined): NoteMark {
     source: sourceOf(n.source),
     checked: false,
   };
+}
+
+/** A mark for a fret that was read past the last fret and replaced: a guess, saying why. */
+function impossibleMark(mark: NoteMark, read: number, alts: number[]): NoteMark {
+  return { ...mark, confidence: Math.min(mark.confidence, 0.2), altFrets: alts, reasons: [`Read as ${read}, which is past the last fret: probably two numbers side by side, or a smudge.`, ...mark.reasons] };
 }
 
 function headMark(n: OmrNote): NoteMark {
@@ -300,8 +323,9 @@ export function buildDraft(doc: OmrDocument, opts: BuildDraftOptions = {}): Draf
         const linked = e.notes.length > 0 && e.notes.every((n) => n.string !== undefined && n.fret !== undefined && n.string <= tuning.length);
         if (linked) {
           for (const n of e.notes) {
-            beatNotes.push({ string: n.string as number, fret: n.fret as number, midi: midiOf(n.string as number, n.fret as number, tuning), ...(n.tieStop ? { tie: true } : {}) });
-            noteMarks.push(headMark(n));
+            const fix = possibleFret(n.fret as number);
+            beatNotes.push({ string: n.string as number, fret: fix.fret, midi: midiOf(n.string as number, fix.fret, tuning), ...(n.tieStop && !fix.impossible ? { tie: true } : {}) });
+            noteMarks.push(fix.impossible ? impossibleMark(headMark(n), n.fret as number, fix.alts) : headMark(n));
           }
         } else {
           for (const f of fretChord(e.notes.map((n) => n.pitch.midi), tuning)) {

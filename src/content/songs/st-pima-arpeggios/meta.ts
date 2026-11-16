@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['fingerpicking', 'chords'],
   tags: ['p i m a', 'arpeggio', 'free stroke', 'right hand', 'pinch', 'c', 'am', 'dm', 'g7'],
   about:
-    'It should sound like a harp: eight even notes in every bar, each chord ringing while you hold it. Give each finger its own string (thumb on the bass, i on 3, m on 2, a on 1) and rest them lightly on those strings before you start. The thumb is the usual trouble: it moves to a new string for each chord (5, 5, 4, then 6), so look at the next bass note before the change. It ends on G7, which leads back to the C at the top, so go round again; if the notes come out uneven, slow down until they are all the same loudness.',
+    'It should sound like a harp: eight even notes in every bar, each chord ringing while you hold it. Give each finger its own string (thumb on the bass, i on 3, m on 2, a on 1) and rest them lightly on those strings before you start. The thumb is the usual trouble: its string follows the chord (string 5 for C and Am, 4 for Dm, 6 for G7), so look at the next bass note before the change. It ends on G7, which leads back to the C at the top, so go round again; if the notes come out uneven, slow down until they are all the same loudness.',
   plan: 'st-pima-arpeggios',
   added: '2026-11-16',
 });

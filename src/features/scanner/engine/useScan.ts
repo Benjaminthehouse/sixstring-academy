@@ -14,10 +14,10 @@ import { detectTextFormat, type Song } from '@/core/song';
 import { getLibrary, isLibraryError, type SongListing } from '@/core/library';
 import { readFileText, sniffFile } from '@/core/platform';
 import { recordActivity } from '@/core/progress';
-import { type Draft, buildDraft, finalSong } from '../model/draft';
-import { rearrange } from '../model/edit';
+import { type Draft, buildDraft } from '../model/draft';
+import { rearrange, songToSave } from '../model/edit';
 import { type History, commit, redo as redoHistory, startHistory, undo as undoHistory } from '../model/select';
-import { type PageOrigin, type ScanPage, describeLook, kindLabel, movePage, pdfScale, sheetKind } from '../model/pages';
+import { type PageOrigin, type ScanPage, describeLook, hasWork, kindLabel, movePage, pdfScale, sheetKind, worthWarning } from '../model/pages';
 import { layoutText } from '../model/text-layout';
 import { type AnyCanvas, canvasOfGray, cropPicture, grayOf, pictureFromCanvas, pictureFromFile, releasePicture, rotatePicture, toBlob } from './images';
 import { createLooker, type Looker } from './look';
@@ -49,31 +49,60 @@ export interface TextState {
 export interface Saved {
   listing: SongListing;
   warnings: string[];
+  /** XP the import earned (0 once today's cap for imports is reached). */
+  xp: number;
 }
 
 const MAX_PDF_PAGES = 16;
 let uid = 0;
 const newId = () => `p${Date.now().toString(36)}${(uid++).toString(36)}`;
 
+/** The work kept while the learner is on another screen of the app (this tab), so leaving loses nothing. */
+interface Kept {
+  pages: Page[];
+  readPages: Page[];
+  doc: OmrDocument | null;
+  summary: OmrSummary | null;
+  history: History | null;
+  readNotes: string[];
+  text: TextState | null;
+  aiResult: AiOutcome | null;
+  /** Pages removed with an Undo still on offer (their pictures are freed with the rest). */
+  removed: Page[];
+}
+let kept: Kept | null = null;
+
+function release(list: Page[]): void {
+  for (const p of list) {
+    releasePicture(p);
+    if (p.cleanUrl) URL.revokeObjectURL(p.cleanUrl);
+  }
+}
+
 /** The scanner's state (see the file comment). */
 export function useScan() {
-  const [pages, setPages] = useState<Page[]>([]);
+  // Coming back to the screen picks up the pages and the reading where they were left.
+  const [resume] = useState(() => kept);
+  const [pages, setPages] = useState<Page[]>(resume?.pages ?? []);
   const pagesRef = useRef<Page[]>([]);
   pagesRef.current = pages;
   const [adding, setAdding] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('pages');
   const [progress, setProgress] = useState<ReadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [doc, setDoc] = useState<OmrDocument | null>(null);
-  const [summary, setSummary] = useState<OmrSummary | null>(null);
-  const [history, setHistory] = useState<History | null>(null);
-  const [readNotes, setReadNotes] = useState<string[]>([]);
-  const [text, setText] = useState<TextState | null>(null);
+  const [doc, setDoc] = useState<OmrDocument | null>(resume?.doc ?? null);
+  const [summary, setSummary] = useState<OmrSummary | null>(resume?.summary ?? null);
+  const [history, setHistory] = useState<History | null>(resume?.history ?? null);
+  const [readNotes, setReadNotes] = useState<string[]>(resume?.readNotes ?? []);
+  const [text, setText] = useState<TextState | null>(resume?.text ?? null);
   const [aiBusy, setAiBusy] = useState<ReadProgress | null>(null);
-  const [aiResult, setAiResult] = useState<AiOutcome | null>(null);
+  const [aiResult, setAiResult] = useState<AiOutcome | null>(resume?.aiResult ?? null);
   const [saved, setSaved] = useState<Saved | null>(null);
   /** The pages the current reading came from, in its page order. */
-  const [readPages, setReadPages] = useState<Page[]>([]);
+  const [readPages, setReadPages] = useState<Page[]>(resume?.readPages ?? []);
+  const removed = useRef<Page[]>(resume?.removed ?? []);
+  const latest = useRef<Omit<Kept, 'removed'> & { saved: Saved | null }>({ pages, readPages, doc, summary, history, readNotes, text, aiResult, saved });
+  latest.current = { pages, readPages, doc, summary, history, readNotes, text, aiResult, saved };
 
   const grays = useRef<GrayImage[]>([]);
   const pdfs = useRef(new Map<string, { pdf: PdfFile; index: number; scale: number; size: { width: number; height: number } }>());
@@ -86,20 +115,41 @@ export function useScan() {
 
   useEffect(() => {
     alive.current = true;
+    kept = null;
     return () => {
       alive.current = false;
       run.current?.abort();
       ai.current?.abort();
       omr.current?.terminate();
+      omr.current = null;
       looker.current?.close();
+      looker.current = null;
       void ocr.current?.then((o) => o.close(), () => undefined);
+      ocr.current = null;
       for (const { pdf } of pdfs.current.values()) pdf.close();
-      for (const p of pagesRef.current) {
-        releasePicture(p);
-        if (p.cleanUrl) URL.revokeObjectURL(p.cleanUrl);
+      pdfs.current.clear();
+      // Leaving the screen keeps unsaved work for when the learner comes back; a saved song is in the library.
+      const s = latest.current;
+      if (hasWork(s)) {
+        kept = { pages: s.pages, readPages: s.readPages, doc: s.doc, summary: s.summary, history: s.history, readNotes: s.readNotes, text: s.text, aiResult: s.aiResult, removed: removed.current };
+      } else {
+        release([...s.pages, ...removed.current]);
+        removed.current = [];
       }
     };
   }, []);
+
+  // A reload or a closed tab would lose the photos and the checking done so far: the browser asks first.
+  const precious = worthWarning({ pages, history, text, saved });
+  useEffect(() => {
+    if (!precious) return;
+    const ask = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', ask);
+    return () => window.removeEventListener('beforeunload', ask);
+  }, [precious]);
 
   const getOcr = useCallback((): Promise<Ocr> => {
     ocr.current ??= createOcr().catch((e) => {
@@ -161,6 +211,11 @@ export function useScan() {
     },
     [lookAt],
   );
+
+  // Pages kept from an earlier visit whose quick look was cut short: look again.
+  useEffect(() => {
+    for (const p of pagesRef.current) if (!p.look) void lookAt(p);
+  }, [lookAt]);
 
   // ---- adding pages ------------------------------------------------------------------------------
   /** Text pasted or in a text file: straight to the text proofreader. */
@@ -265,11 +320,13 @@ export function useScan() {
   const removePage = useCallback((id: string) => {
     const page = pagesRef.current.find((p) => p.id === id);
     setPages((list) => list.filter((p) => p.id !== id));
+    if (page) removed.current.push(page);
     return page ?? null;
   }, []);
 
   /** Put a removed page back where it was (undo). */
   const restorePage = useCallback((page: Page, index: number) => {
+    removed.current = removed.current.filter((p) => p !== page);
     setPages((list) => {
       const out = list.slice();
       out.splice(Math.min(index, out.length), 0, page);
@@ -417,6 +474,8 @@ export function useScan() {
       if (!doc || !draft) return { ok: false, message: 'Read the pages first.' };
       // Fuse into a copy, so a failure leaves the reading as it was.
       const copy: OmrDocument = structuredClone(doc);
+      // The grey pages are not kept while the learner is away from the screen: decode them again.
+      if (grays.current.length !== readPages.length) grays.current = await Promise.all(readPages.map((p) => grayOf(p.blob)));
       const outcome = await improveMusicWithAi(copy, grays.current, { signal: ctl.signal, tuning: draft.song.tuning, onProgress: setAiBusy });
       let next = buildDraft(copy, { title: draft.song.meta.title, bpm: draft.song.tempo[0]?.bpm });
       if (next.notationOnly) {
@@ -438,7 +497,7 @@ export function useScan() {
       if (ai.current === ctl) ai.current = null;
       if (alive.current) setAiBusy(null);
     }
-  }, [apply, doc, draft, openText, phase]);
+  }, [apply, doc, draft, openText, phase, readPages]);
 
   const stopAi = useCallback(() => ai.current?.abort(), []);
 
@@ -452,15 +511,15 @@ export function useScan() {
       ...(info.confidence !== undefined ? { confidence: info.confidence } : {}),
       ...(info.estimatedRhythm ? { estimatedRhythm: true } : {}),
     });
-    recordActivity({ kind: 'scan', title: listing.title, route: 'play', params: [listing.id] });
-    const s = { listing, warnings: info.warnings };
+    const result = recordActivity({ kind: 'scan', title: listing.title, route: 'play', params: [listing.id] });
+    const s: Saved = { listing, warnings: info.warnings, xp: result.xp };
     setSaved(s);
     return s;
   }, []);
 
   const saveDraft = useCallback(async (): Promise<Saved> => {
     if (!draft) throw new Error('Nothing to save yet.');
-    const { song, warnings } = finalSong(draft);
+    const { song, warnings } = songToSave(draft);
     const marks = draft.marks.flatMap((b) => b.beats.flatMap((x) => x.notes));
     const confidence = marks.length ? marks.reduce((s, m) => s + (m.checked ? 1 : m.confidence), 0) / marks.length : 0;
     return save(song, { warnings: [...warnings, ...readNotes.filter((n) => /estimated/.test(n))], confidence: Math.round(confidence * 100) / 100, estimatedRhythm: draft.marks.some((b) => b.estimated) });
@@ -476,10 +535,8 @@ export function useScan() {
   const reset = useCallback(() => {
     run.current?.abort();
     ai.current?.abort();
-    for (const p of pagesRef.current) {
-      releasePicture(p);
-      if (p.cleanUrl) URL.revokeObjectURL(p.cleanUrl);
-    }
+    release([...pagesRef.current, ...removed.current]);
+    removed.current = [];
     for (const { pdf } of pdfs.current.values()) pdf.close();
     pdfs.current.clear();
     grays.current = [];

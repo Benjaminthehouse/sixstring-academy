@@ -472,6 +472,10 @@ async function runBreaks(L) {
     await page.waitForFunction(() => location.hash.startsWith('#learn'), null, { timeout: 30000 });
     check(group, 'and the one big button leads somewhere to learn today (the Theory Path)', true);
 
+    // A review with nothing due (a bookmarked address): the teacher does not say "well done" for nothing.
+    await open(page, url, 'teachers--mia--review', '[data-summary]');
+    check(group, 'an empty review ends without a "well done" from the teacher', (await page.locator('[data-teacher-says]').count()) === 0, await page.locator('main').innerText().catch(() => ''));
+
     // Text at 200 %.
     for (const [hash, sel] of [['teachers', '[data-teacher="elena"]'], ['teachers--mia', '[data-course-map]'], ['teachers--dev', '[data-preparing="dev"]']]) {
       await open(page, url, hash, sel);

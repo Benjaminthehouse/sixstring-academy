@@ -7,7 +7,7 @@
  *   if (r.ok) history = commit(history, r.draft); else toast(r.message);
  */
 import { type Beat, type Note, type NoteValue, type Song, arrangeTrack, barCapacity, barLength, midiOf, valueFromTicks, valueTicks } from '@/core/song';
-import { type BeatMark, type Draft, type NoteMark, userBeatMark, userNoteMark } from './draft';
+import { type BeatMark, type Draft, type NoteMark, checkBar, finalSong, userBeatMark, userNoteMark } from './draft';
 
 /** A note of the draft: bar, beat index in the bar, note index in the beat. */
 export interface NoteRef {
@@ -354,6 +354,28 @@ export function splitBar(draft: Draft, bar: number): EditResult {
   d.song.tempo = d.song.tempo.map((t) => (t.bar > bar ? { ...t, bar: t.bar + k } : t));
   d.song.sections = d.song.sections.map((s) => ({ ...s, start: s.start > bar ? s.start + k : s.start, end: s.end > bar ? s.end + k : s.end }));
   return ok(d);
+}
+
+/**
+ * The song to save. A bar that runs at least half a bar long holds a bar line the reader missed:
+ * it is split into bars first, so no note that was read is thrown away; then `finalSong` fills
+ * short bars with a rest and trims what little still runs past a bar line. Each change is said.
+ */
+export function songToSave(draft: Draft): { song: Song; warnings: string[] } {
+  let d = draft;
+  const splits: string[] = [];
+  // From the end, so the bar numbers still to visit do not move.
+  for (let bar = d.song.bars.length - 1; bar >= 0; bar--) {
+    const c = checkBar(d.song, bar);
+    if (c.need <= 0 || c.diff * 2 < c.need) continue;
+    const r = splitBar(d, bar);
+    if (!r.ok) continue;
+    const pieces = r.draft.song.bars.length - d.song.bars.length + 1;
+    d = r.draft;
+    splits.unshift(`Bar ${bar + 1} held more than one bar (a bar line was probably missed), so it was split into ${pieces} bars.`);
+  }
+  const out = finalSong(d);
+  return { song: out.song, warnings: [...splits, ...out.warnings] };
 }
 
 /** Give every beat of a bar the same length so it adds up (when the bar can be split evenly). */

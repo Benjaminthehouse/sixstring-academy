@@ -4,7 +4,9 @@
 # two beats. First half: G (320003) with D7 (xx0212). Second half: the four-finger G (320033)
 # with D (xx0232); finger 3 stays on string 2, fret 3 (D) for both chords. Strum D and D7 on
 # strings 4 to 1 only. Keep the metronome on: the new chord lands on the beat even if the strum
-# before it catches open strings.
+# before it catches open strings. The last G is held for two beats to close.
+# The teacher plays an original tune over your chords, a chord tone on every strong beat; each
+# half ends with the tune falling to G (the D7 half by C-B-A-G, the 7th of D7 resolving to B).
 title: Change: G-D7 and D-G
 composer: Sixstring Academy
 source: Original chord-change study
@@ -18,8 +20,17 @@ key: G
 track: Your strum
 role: rhythm
 [G and D7]
-| ^"One strum a bar" "G=320003" w D | D | ^"Two strums a bar" "D7=xx0212" h D D | "G=320003" D D |
+| ^"One strum a bar" "G=320003" w D | D | ^"Two strums a bar; D7 on strings 4-1" "D7=xx0212" h D D | "G=320003" D D |
 | ^"Four strums a bar" "D7=xx0212" q D D D D | "G=320003" D D D D | ^"Change every two beats" "D7=xx0212" D D "G=320003" D D | "D7=xx0212" D D "G=320003" D D ||
 [D and G]
-| ^"Four-finger G: finger 3 stays for D" "G=320033" w D | D | "D=xx0232" h D D | "G=320033" D D |
-| "D=xx0232" q D D D D | "G=320033" D D D D | "D=xx0232" D D "G=320033" D D | "D=xx0232" D D "G=320033" D D ||
+| ^"Four-finger G: finger 3 stays for D" "G=320033" w D | D | ^"D on strings 4-1" "D=xx0232" h D D | "G=320033" D D |
+| "D=xx0232" q D D D D | "G=320033" D D D D | "D=xx0232" D D "G=320033" D D | "D=xx0232" D D "G=320033" h D ||
+
+track: Teacher
+role: lead
+[G and D7]
+| q 2:3 2:0 3:0 2:0 | h 2:3 1:3 | q 1:2 1:0 2:3 2:1 | w 2:0 |
+| q 3:2 2:0 2:1 3:2 | h 2:0 2:3 | h 2:1 2:0 | h 3:2 3:0 ||
+[D and G]
+| q 3:0 2:0 2:3 1:3 | h 2:3 2:0 | q 3:2 2:3 1:2 2:3 | w 1:3 |
+| q 1:2 1:0 2:3 3:2 | h 2:0 3:0 | h 2:3 2:0 | h 3:2 3:0 ||

@@ -5,6 +5,7 @@
  */
 import { Button, Icon, Page, ProgressBar, Spinner, Text, cx } from '@/ui';
 import type { ScanState } from '../engine/useScan';
+import { readingFraction } from '../model/pages';
 import { StaffOverlay } from './StaffOverlay';
 import styles from './Reading.module.css';
 
@@ -39,7 +40,7 @@ export function Reading({ scan }: { scan: ScanState }) {
               </Text>
             </div>
           </div>
-          <ProgressBar aria-label="Reading" value={Math.round((p?.fraction ?? 0) * 100)} max={100} valueText="percent" tone="accent" />
+          <ProgressBar aria-label="Reading" value={Math.round(readingFraction(p) * 100)} max={100} valueText="percent" tone="accent" />
           <ol className={styles.pages}>
             {shown.map((pg, i) => {
               const state = i < current || p?.stage === 'words' ? 'done' : i === current ? 'now' : 'wait';

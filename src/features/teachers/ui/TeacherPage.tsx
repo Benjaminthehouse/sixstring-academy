@@ -127,11 +127,11 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
                   Lessons being written
                 </Text>
                 <Text>{profile.preparing}</Text>
-                <LinkButton to="learn" variant="primary" size="lg" iconLeft="Route" data-action="next-lesson" wrap>
+                <LinkButton to="learn" variant="primary" size="lg" data-action="next-lesson" wrap>
                   Open the Theory Path
                 </LinkButton>
                 {teacher !== 'mia' && (
-                  <LinkButton to="teachers" params={['mia']} variant="ghost" iconRight="ArrowRight" wrap>
+                  <LinkButton to="teachers" params={['mia']} variant="ghost" wrap>
                     Learn with Mia meanwhile
                   </LinkButton>
                 )}

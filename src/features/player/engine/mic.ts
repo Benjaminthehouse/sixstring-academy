@@ -15,6 +15,8 @@ export type MicStatus = 'off' | 'starting' | 'on' | 'failed';
 export interface MicHandlers {
   noteon(e: NoteOnEvent): void;
   chroma(e: ChromaEvent): void;
+  /** A pluck or a strum (audio-clock time). */
+  onset(time: number): void;
   /** Input level 0–1 (for the meter), about 30 times a second. */
   level(x: number, clipping: boolean): void;
   /** The device went away or the audio failed while listening. */
@@ -81,6 +83,7 @@ export class MicInput {
       this.offs.push(
         t.on('noteon', (e) => this.on.noteon(e)),
         t.on('chroma', (e) => this.on.chroma(e)),
+        t.on('onset', (e) => this.on.onset(e.time)),
         t.on('level', (e) => this.on.level(Math.max(0, Math.min(1, (e.db + 60) / 50)), e.clipping)),
         t.onStatus((s, fault) => {
           if (s === 'stopped' && fault) {

@@ -135,3 +135,32 @@ export const POSITIONS: { id: string; label: string; hint: string; prefer: numbe
   { id: 'fifth', label: 'Fifth position', hint: 'Around frets 4 to 8: fewer jumps for melodies that sit higher.', prefer: 5 },
   { id: 'high', label: 'Up the neck', hint: 'Around frets 7 to 12: a warmer sound on the thicker strings.', prefer: 9 },
 ];
+
+/** Is there work that leaving the screen would lose: pages, or a reading not saved yet? */
+export function hasWork(s: { pages: readonly unknown[]; history: unknown; text: unknown; saved: unknown }): boolean {
+  return !s.saved && (s.pages.length > 0 || !!s.history || !!s.text);
+}
+
+/**
+ * Should a reload or a closed tab be asked about first? Yes for the learner's own pages, a reading
+ * they changed, or text they brought; not for the sample read as it came (ten seconds to redo).
+ */
+export function worthWarning(s: { pages: readonly { origin: PageOrigin }[]; history: { past: readonly unknown[] } | null; text: unknown; saved: unknown }): boolean {
+  if (s.saved) return false;
+  return s.pages.some((p) => p.origin !== 'sample') || (s.history?.past.length ?? 0) > 0 || !!s.text;
+}
+
+/** The share of the progress bar the music takes (the rest is chord names and titles). */
+export const MUSIC_SHARE = 0.85;
+
+/**
+ * How far the whole reading is, 0..1, from the stage's own fraction: the music is most of the
+ * work and the chord names and titles come after it, so the bar never runs backwards between them.
+ */
+export function readingFraction(p: { stage: 'music' | 'words' | 'text' | 'ai'; fraction: number } | null): number {
+  if (!p) return 0;
+  const f = Math.max(0, Math.min(1, p.fraction));
+  if (p.stage === 'music') return f * MUSIC_SHARE;
+  if (p.stage === 'words') return MUSIC_SHARE + f * (1 - MUSIC_SHARE);
+  return f;
+}

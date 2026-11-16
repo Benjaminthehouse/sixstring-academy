@@ -8,7 +8,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { estimateDifficulty, parseSixTab, type Beat, type Song, type Track } from '@/core/song';
+import { defaultVoicing, estimateDifficulty, parseSixTab, type Beat, type Song, type Track } from '@/core/song';
+import { identifyFretted } from '@/core/guitar';
 import { chordPcs, midiToNote, parseKey, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
 
@@ -350,7 +351,8 @@ describe('batch 1: the strum parts', () => {
     const strum = trackNamed(song, 'Your strum');
     strum.measures.forEach((m, i) => {
       const bar = i + 1;
-      const expected = bar === 16 ? ['w'] : ['q', 'q', 'q', 'q'];
+      // The plan: downstrums on every beat, never stopping, so the last bar has four as well.
+      const expected = ['q', 'q', 'q', 'q'];
       expect(m.beats.map((b) => DURATION[b.duration]), `bar ${bar}`).toEqual(expected);
       expect(m.beats.every((b) => b.slash && b.stroke === 'down'), `bar ${bar}: downstrums`).toBe(true);
       expect(chordAt(song, i, 0), `bar ${bar}`).toBe(Math.floor(i / 4) % 2 === 0 ? 'Em' : 'A');
@@ -406,5 +408,125 @@ describe('batch 1: the cross-check catches a wrong fret', () => {
     expect(bar1).not.toEqual(bars(SONGS.find((s) => s.id === 'ode-to-joy-theme')!.notes)[0]);
     expect(bar1[3]).toBe('D#4');
     expect(scalePcs('G', 'major')).not.toContain(broken.tracks[0].measures[0].beats[3].notes[0].midi % 12);
+  });
+});
+
+/*
+ * Reviewer's checks (an independent review of batch 1). They cover what the checks above leave
+ * out: every chord shape against the guitar engine, the second voices of the two rounds and the
+ * harmony between the voices, the words of Down in the Valley, and the fixes made in review.
+ */
+const BATCH = [
+  'st-first-notes-string-6',
+  'st-strum-quarters',
+  'st-change-a-e7',
+  'ode-to-joy-theme',
+  'twinkle-twinkle-little-star',
+  'frere-jacques-round',
+  'row-row-row-your-boat',
+  'jingle-bells',
+  'london-bridge',
+  'down-in-the-valley',
+];
+
+/** The standard open shapes a teacher means by these symbols (low string first). */
+const OPEN_SHAPES: Record<string, string> = { G: '320003', C: 'x32010', D: 'xx0232', D7: 'xx0212', A7: 'x02020' };
+
+/** "G3/960" per beat of a bar (or "r/960" for a rest): pitch and length, so a shifted voice compares exactly. */
+function barCells(track: Track, bar: number): string[] {
+  return track.measures[bar].beats.map((b) => (b.notes.length ? `${b.notes.map((n) => name(n.midi)).join('+')}/${b.duration}` : `r/${b.duration}`));
+}
+
+/** Pitches sounding in a track at a tick of a bar (struck or still held). */
+function soundingAt(track: Track, bar: number, tick: number): number[] {
+  const beat = track.measures[bar].beats.find((b) => b.start <= tick && tick < b.start + b.duration);
+  return beat ? beat.notes.map((n) => n.midi) : [];
+}
+
+describe('batch 1 review: chords', () => {
+  it.each(BATCH)('%s: every chord sounds its symbol, and a symbol without a shape gets the standard open shape', (id) => {
+    const song = load(id);
+    for (const c of song.chords) {
+      const frets = c.voicing ?? defaultVoicing(c.symbol, song.tuning, song.capo);
+      expect(frets, `${id}: bar ${c.bar + 1}: ${c.symbol} has a shape`).not.toBeNull();
+      expect(identifyFretted(shape(frets!)).symbol, `${id}: bar ${c.bar + 1}: ${c.symbol}=${shape(frets!)}`).toBe(c.symbol);
+      if (!c.voicing) expect(shape(frets!), `${id}: ${c.symbol} as the teacher strums it`).toBe(OPEN_SHAPES[c.symbol]);
+    }
+  });
+});
+
+describe('batch 1 review: the rounds', () => {
+  it('frere-jacques-round: the teacher plays your tune two bars behind you, twice through', () => {
+    const song = load('frere-jacques-round');
+    const you = trackNamed(song, 'You (first voice)');
+    const teacher = trackNamed(song, 'Teacher (second voice)');
+    expect([0, 1].map((i) => barCells(teacher, i))).toEqual([['r/3840'], ['r/3840']]);
+    for (let i = 0; i < 16; i++) expect(barCells(teacher, i + 2), `teacher bar ${i + 3} = your bar ${i + 1}`).toEqual(barCells(you, i));
+  });
+
+  it('row-row-row-your-boat: in the round the second voice is the tune two bars behind', () => {
+    const song = load('row-row-row-your-boat');
+    const you = trackNamed(song, 'Melody');
+    const second = trackNamed(song, 'Second voice');
+    for (let i = 0; i < 10; i++) expect(barCells(second, i), `second voice bar ${i + 1} rests`).toEqual(['r/2880']);
+    for (let i = 8; i < 16; i++) expect(barCells(second, i + 2), `second voice bar ${i + 3} = your bar ${i + 1}`).toEqual(barCells(you, i));
+  });
+
+  it.each([
+    ['frere-jacques-round', [0, 2 * PPQ]],
+    ['row-row-row-your-boat', [0, 3 * (PPQ / 2)]],
+  ] as Array<[string, number[]]>)('%s: on every strong beat both voices sound notes of the G chord', (id, strong) => {
+    const song = load(id);
+    const voices = song.tracks.filter((t) => t.role === 'lead');
+    expect(voices.length).toBe(2);
+    const g = chordPcs('G');
+    const clashes: string[] = [];
+    song.bars.forEach((_, bar) => {
+      for (const tick of strong) {
+        const midis = voices.flatMap((v) => soundingAt(v, bar, tick));
+        const off = midis.filter((m) => !g.includes(m % 12));
+        if (off.length) clashes.push(`bar ${bar + 1}, tick ${tick}: ${midis.map(name).join(' ')}`);
+      }
+    });
+    expect(clashes).toEqual([]);
+  });
+});
+
+describe('batch 1 review: fixes and gaps', () => {
+  it('st-strum-quarters: beat 1 is asked for in plain words, and the about is true about the A shape', () => {
+    const song = load('st-strum-quarters');
+    expect(song.annotations.map((a) => `${a.bar + 1}:${a.text}`)).toEqual(['1:beat 1 a little stronger']);
+    // The open string 6 (E) is the fifth of A: the shape leaves it out so A stays the lowest note.
+    expect(chordPcs('A')).toContain(4);
+    const about = songEntry('st-strum-quarters')!.about;
+    expect(about).not.toMatch(/not part of A/);
+    expect(about).toMatch(/leaves string 6 out/);
+  });
+
+  it('london-bridge: the quick note behind the level-2 exception is an open string', () => {
+    const song = load('london-bridge');
+    const sixteenths = song.tracks[0].measures.flatMap((m) => m.beats.filter((b) => b.duration === PPQ / 4));
+    expect(sixteenths.length).toBe(2);
+    for (const b of sixteenths) expect(b.notes.map((n) => `${n.string}:${n.fret}`)).toEqual(['1:0']);
+  });
+
+  it('down-in-the-valley: the two traditional verses over the chords, and no claim to a tune it does not have', () => {
+    const song = load('down-in-the-valley');
+    // Written out from the traditional words, one half-line per two bars.
+    const verses = [
+      'Down in the valley, | valley so low, | hang your head over, | hear the wind blow. |',
+      'Hear the wind blow, dear, | hear the wind blow; | hang your head over, | hear the wind blow. |',
+      'Roses love sunshine, | violets love dew, | angels in heaven | know I love you. |',
+      'Know I love you, dear, | know I love you; | angels in heaven | know I love you.',
+    ]
+      .join(' ')
+      .split('|')
+      .map((s) => s.trim());
+    expect(song.annotations.map((a) => a.text)).toEqual(verses);
+    expect(song.annotations.map((a) => a.bar)).toEqual(verses.map((_, i) => 2 * i));
+    // No melody track and no sung syllables yet (see the review report), so it must not claim singing.
+    expect(song.tracks.map((t) => t.role)).toEqual(['rhythm']);
+    expect(song.tracks.some((t) => t.measures.some((m) => m.beats.some((b) => b.lyric !== undefined)))).toBe(false);
+    expect(songEntry('down-in-the-valley')!.skills).not.toContain('singing');
   });
 });

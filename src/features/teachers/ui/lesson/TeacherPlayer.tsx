@@ -371,7 +371,8 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                   {unitDone && unit && milestone ? (
                     // Once the microphone is off for the session (refused, missing, "can't play now"), the show was its tapping version.
                     <UnitComplete teacher={teacher} unit={unit} milestone={milestone} tc={tc} played={!state.micOff} />
-                  ) : (
+                  ) : (state.summary?.exercises ?? 0) === 0 ? null : (
+                    // A session with nothing in it (a review with no card due) gets no "well done".
                     <div className={styles.says} data-teacher-says="">
                       <TeacherLine teacher={teacher} size={3}>
                         <span className={styles.saysLine}>{teacherLine(teacher, report.outcome, report.perfect)}</span>

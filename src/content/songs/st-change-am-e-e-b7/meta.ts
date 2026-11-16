@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['chords', 'strumming', 'rhythm'],
   tags: ['chord changes', 'am', 'e', 'b7', 'anchor finger', 'metronome'],
   about:
-    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats. Am and E are the same shape: keep the three fingers in their triangle and move it all one string toward the ceiling for E, then back. For B7, leave finger 2 on string 5, fret 2 and bring the other three in around it, with string 2 open. B7 often buzzes at first: press finger 4 right behind the fret wire, and if a change is late, keep strumming on the beat anyway.',
+    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats, while the teacher plays a tune over your chords. Am and E are the same shape: keep the three fingers in their triangle and move it all one string toward the ceiling for E, then back; strum E on all six strings and Am from string 5. For B7, leave finger 2 on string 5, fret 2, bring the other three in around it with string 2 open, and strum from string 5. B7 often buzzes at first: press finger 4 right behind the fret wire, and if a change is late, keep strumming on the beat anyway.',
   plan: 'st-change-am-e-e-b7',
   added: '2026-11-16',
 });

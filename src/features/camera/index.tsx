@@ -366,6 +366,9 @@ export default function CameraScreen({ params }: RouteProps) {
   const [focus, setFocus] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [guitarSheet, setGuitarSheet] = useState(false);
+  const [capoSheet, setCapoSheet] = useState(false);
+  const [capoAsked, setCapoAsked] = useState(false);
+  const [numbersChecked, setNumbersChecked] = useState(false);
   // Held sideways, a phone has no height to spare: the tab bar goes from the start.
   useImmersive(true, focus ? 'bare' : mode === 'live' || mode === 'starting' || sideways ? 'focus' : 'none');
   useEffect(() => {
@@ -545,6 +548,7 @@ export default function CameraScreen({ params }: RouteProps) {
     if (!t || t.kind !== 'numbers' || !t.tap || !pipeline) return;
     const ok = await pipeline.confirmFret(toVideo(t.tap), n);
     endTool();
+    if (ok) setNumbersChecked(true);
     if (ok) toast.ok(`That is fret ${n} now`, { description: 'Every other fret is numbered from it.' });
     else toast.warn('That spot is not on the neck', { description: 'Tap inside a fret, between two metal wires.' });
   };
@@ -845,6 +849,64 @@ export default function CameraScreen({ params }: RouteProps) {
         {status.message}
       </CoachBar>
     );
+  } else if (live && status.state === 'locked' && !capoAsked) {
+    // The camera cannot see a capo: ask once per visit, right after the first lock.
+    bottom =
+      capo > 0 ? (
+        <CoachBar
+          icon="Info"
+          actions={
+            <>
+              <HudButton primary onClick={() => setCapoAsked(true)}>
+                Still on
+              </HudButton>
+              <HudButton onClick={() => setCapoSheet(true)}>Change</HudButton>
+            </>
+          }
+        >
+          Locked. Your capo is at fret {capo}: is it still on?
+        </CoachBar>
+      ) : (
+        <CoachBar
+          icon="Info"
+          actions={
+            <>
+              <HudButton primary onClick={() => setCapoAsked(true)}>
+                No capo
+              </HudButton>
+              <HudButton onClick={() => setCapoSheet(true)}>I use a capo</HudButton>
+            </>
+          }
+        >
+          Locked. Is there a capo on your guitar?
+        </CoachBar>
+      );
+  } else if (live && status.state === 'locked' && guitar === 'classical' && !numbersChecked) {
+    // Classical necks (slotted headstock, dark nut) can be numbered a fret or two off with confidence.
+    bottom = (
+      <CoachBar
+        icon="CircleHelp"
+        tone="warn"
+        actions={
+          <>
+            <HudButton
+              primary
+              onClick={() => {
+                setNumbersChecked(true);
+                void confirmQuestion();
+              }}
+            >
+              Yes, they match
+            </HudButton>
+            <HudButton icon="Hash" onClick={() => openTool('numbers')}>
+              Fix numbers
+            </HudButton>
+          </>
+        }
+      >
+        On classical guitars the numbers can come out a fret or two off. Is the 5 under your 5th fret?
+      </CoachBar>
+    );
   } else if (live) {
     bottom = (
       <CoachBar icon="Check" tone="ok">
@@ -1059,6 +1121,20 @@ export default function CameraScreen({ params }: RouteProps) {
       </div>
       <Sheet open={sheet} onClose={() => setSheet(false)} title="Live Fretboard controls" desktop="drawer">
         <div className={styles.sheetBody}>{panel}</div>
+      </Sheet>
+      <Sheet open={capoSheet} onClose={() => setCapoSheet(false)} title="Where is your capo?" description="The camera cannot see a capo. Frets count from it, as in tab, and the dots move up with it.">
+        <RadioGroup
+          label="Capo"
+          variant="cards"
+          minCardWidth="8rem"
+          options={[{ value: '0', label: 'No capo' }, ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ value: String(n), label: `Fret ${n}` }))]}
+          value={String(capo)}
+          onChange={(v: string) => {
+            setCapo(Number(v));
+            setCapoAsked(true);
+            setCapoSheet(false);
+          }}
+        />
       </Sheet>
       <Sheet open={guitarSheet} onClose={() => setGuitarSheet(false)} title="Which guitar is this?" description="The camera fits the neck it expects. A wrong type never locks.">
         <RadioGroup

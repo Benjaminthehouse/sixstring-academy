@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['chords', 'strumming', 'rhythm'],
   tags: ['chord changes', 'c', 'am', 'dm', 'anchor fingers', 'metronome'],
   about:
-    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats. C to Am is the easiest change there is: fingers 1 and 2 stay pressed, and only finger 3 hops from string 5 to string 3. Am to Dm is trickier because the note on string 3, fret 2 stays but is taken over by finger 2, so practise that swap slowly. If a change is late, do not stop: keep strumming on the beat and let the strum before the change ring on open strings.',
+    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats, while the teacher plays a tune over your chords. C to Am is one of the easiest changes there is: fingers 1 and 2 stay pressed, only finger 3 hops from string 5 to string 3, and both chords are strummed from string 5. Am to Dm is trickier: the note on string 3, fret 2 stays but is taken over by finger 2, and Dm is strummed from string 4, so practise that swap slowly. If a change is late, do not stop: keep strumming on the beat and let the strum before the change ring on open strings.',
   plan: 'st-change-c-am-am-dm',
   added: '2026-11-16',
 });

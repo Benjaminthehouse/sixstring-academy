@@ -50,7 +50,7 @@ export const SETUP_TIPS: ReadonlyArray<{ icon: string; title: string; text: stri
   { icon: 'MoveHorizontal', title: 'Neck across the picture', text: 'Hold the guitar so the neck runs from side to side and fills most of the picture.' },
   { icon: 'ScanLine', title: 'Nut in view', text: 'Show the end by the headstock if you can: that is how the frets get their numbers.' },
   { icon: 'Sun', title: 'Good light', text: 'Light on the neck, and no bright window behind you.' },
-  { icon: 'Smartphone', title: 'Camera at chest height', text: 'About an arm’s length away, facing you. A phone on a stand or a laptop both work.' },
+  { icon: 'Smartphone', title: 'Camera at chest height', text: 'About an arm’s length away, facing you. On a phone, use the main lens, not the ultra-wide one.' },
 ];
 
 /** The idle stage: picture, title, the start button. */
@@ -63,7 +63,7 @@ export function SetupGuide({ onStart, starting, onDrawn }: { onStart: () => void
         <p className={styles.guideLead}>Point the camera at your guitar’s neck and the dots appear where your fingers go.</p>
       </div>
       <div className={styles.guideActions}>
-        <Button variant="primary" size="lg" iconLeft="Camera" loading={starting} onClick={onStart} data-autofocus>
+        <Button variant="primary" size="lg" iconLeft="Camera" loading={starting} onClick={onStart}>
           Start camera
         </Button>
         <button type="button" className={styles.quiet} onClick={onDrawn}>

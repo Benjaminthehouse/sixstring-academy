@@ -17,7 +17,7 @@ import { CHORD_CHARS, cleanChordText } from '../model/chords';
 
 export { CHORD_CHARS, cleanChordText };
 import { type Ocr, OcrUnavailableError, createOcr, ocrCanvas, readBoxes } from './ocr';
-import { canvasOfGray, ctx2d, makeCanvas } from './images';
+import { type AnyCanvas, canvasOfGray, ctx2d, makeCanvas } from './images';
 
 /** Where reading is, for the progress panel. */
 export interface ReadProgress {
@@ -109,6 +109,8 @@ export async function findChordsOverTab(doc: OmrDocument, grays: GrayImage[], oc
     const page = doc.pages[p];
     const gray = grays[p];
     if (!gray) continue;
+    // One canvas of the page for all its staves (a whole page is millions of pixels to copy).
+    let pageCanvas: AnyCanvas | null = null;
     for (const sys of page.systems) {
       if (opts.signal?.aborted) throw abortError();
       const top = sys.staves[0];
@@ -125,7 +127,8 @@ export async function findChordsOverTab(doc: OmrDocument, grays: GrayImage[], oc
       const band = makeCanvas((x1 - x0) * scale, (y1 - y0) * scale);
       const c = ctx2d(band);
       c.imageSmoothingQuality = 'high';
-      c.drawImage(canvasOfGray(gray) as unknown as CanvasImageSource, x0, y0, x1 - x0, y1 - y0, 0, 0, band.width, band.height);
+      pageCanvas ??= canvasOfGray(gray);
+      c.drawImage(pageCanvas as unknown as CanvasImageSource, x0, y0, x1 - x0, y1 - y0, 0, 0, band.width, band.height);
       try {
         reader ??= await ocr();
       } catch {

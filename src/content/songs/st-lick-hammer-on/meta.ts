@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['technique', 'melody'],
   tags: ['hammer-on', 'legato', 'minor pentatonic', 'e minor', 'lick', 'open position'],
   about:
-    'Each pair should sound like "da-DA": pick the open string, then bring the fingertip down hard and fast just behind the fret, so the second note rings without being picked. The usual problem is a hammered note that is quieter than the picked one, or that dies at once; snap the finger down from about a centimetre above the string and keep pressing after it lands. Try each pair slowly on its own, then let the phrase climb from string 4 to string 1.',
+    'Each pair should sound like two even notes, "da-da", from one pick stroke: pick the open string, then bring the fingertip down hard and fast just behind the fret, so the second note rings without being picked. The usual problem is a hammered note that is quieter than the picked one, or that dies at once; snap the finger down from about a centimetre above the string and keep pressing after it lands. Try each pair slowly on its own, then let the phrase climb from string 4 to string 1.',
   plan: 'st-lick-hammer-on',
   added: '2026-11-16',
 });

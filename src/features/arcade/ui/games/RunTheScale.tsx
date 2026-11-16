@@ -190,7 +190,7 @@ export function RunTheScale({ ctx, input, mic, anyOctave, running, fx, title, on
       const tl = runTimeline(midis.length, bpm, level.perBeat, start);
       const token = ++runToken.current;
       const live = (fn: () => void) => () => {
-        if (runToken.current === token || true) fn();
+        if (runToken.current === token) fn();
       };
       judgeRef.current = new RunJudge(midis, tl.noteTimes, tl.noteSec, { octaves });
       endAt.current = tl.end;

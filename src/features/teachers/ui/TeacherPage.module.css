@@ -217,7 +217,6 @@
 .preparing {
   display: grid;
   gap: var(--sp-2);
-  text-align: start;
 }
 .preparing > a:first-of-type {
   margin-top: var(--sp-2);

@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, type Song } from '@/core/song';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
-import { loadSongText } from '@/content/songs';
+import { loadSongText, songEntry } from '@/content/songs';
 
 const STANDARD = [40, 45, 50, 55, 59, 64];
 const BASS = [28, 33, 38, 43];
@@ -156,31 +156,65 @@ interface ChangeStudy {
   strums: string[][];
   /** Each half's key and the bars it covers. */
   halves: Array<{ key: string; scale: string; from: number; to: number }>;
+  /** The teacher's tune, bar by bar, written out from the composition plan (reviewer, batch 5). */
+  tune: string[][];
+  /** Words the learner text must contain: which strings each chord is strummed on. */
+  strings: RegExp[];
 }
 
-/** The ladder of one half: home chord two bars, then Y X with 2 strums, Y X with 4, (Y X)(Y X) every two beats. */
-function ladder(home: string, other: string): string[][] {
-  return [[home], [home], [other, other], [home, home], [other, other, other, other], [home, home, home, home], [other, other, home, home], [other, other, home, home]];
+/**
+ * The ladder of one half: home chord two bars, then Y X with 2 strums, Y X with 4, (Y X)(Y X) every
+ * two beats. The last half closes with the home chord held for two beats (one strum).
+ */
+function ladder(home: string, other: string, last = false): string[][] {
+  return [[home], [home], [other, other], [home, home], [other, other, other, other], [home, home, home, home], [other, other, home, home], last ? [other, other, home] : [other, other, home, home]];
 }
 
 const CHANGES: ChangeStudy[] = [
   {
     id: 'st-change-g-d7-d-g',
     key: 'G major',
-    strums: [...ladder('G=320003', 'D7=xx0212'), ...ladder('G=320033', 'D=xx0232')],
+    strums: [...ladder('G=320003', 'D7=xx0212'), ...ladder('G=320033', 'D=xx0232', true)],
     halves: [{ key: 'G', scale: 'major', from: 0, to: 16 }],
+    // G: an arpeggio, a climb to the high G, a scale down to the 7th of D7 (C) and its resolution
+    // to B; the half ends C-B-A-G. Second half: G arpeggio up, D arpeggio, D-B-A-G home.
+    tune: [
+      ['D4', 'B3', 'G3', 'B3'], ['D4', 'G4'], ['F#4', 'E4', 'D4', 'C4'], ['B3'],
+      ['A3', 'B3', 'C4', 'A3'], ['B3', 'D4'], ['C4', 'B3'], ['A3', 'G3'],
+      ['G3', 'B3', 'D4', 'G4'], ['D4', 'B3'], ['A3', 'D4', 'F#4', 'D4'], ['G4'],
+      ['F#4', 'E4', 'D4', 'A3'], ['B3', 'G3'], ['D4', 'B3'], ['A3', 'G3'],
+    ],
+    strings: [/D7 and D on strings 4 to 1/],
   },
   {
     id: 'st-change-c-am-am-dm',
     key: 'C major',
-    strums: [...ladder('C=x32010', 'Am=x02210'), ...ladder('Am=x02210', 'Dm=xx0231')],
+    strums: [...ladder('C=x32010', 'Am=x02210'), ...ladder('Am=x02210', 'Dm=xx0231', true)],
     halves: [{ key: 'C', scale: 'major', from: 0, to: 8 }, { key: 'A', scale: 'minor', from: 8, to: 16 }],
+    // C: C-E-G-E, an Am arpeggio, E-D-C-B stepping back to C, ending E-C over Am and C.
+    // Am: A-C-E-C, up to F over Dm and falling F-E-D to A over the last Dm and Am.
+    tune: [
+      ['C4', 'E4', 'G4', 'E4'], ['C4', 'G3'], ['A3', 'C4', 'E4'], ['G4', 'E4'],
+      ['E4', 'D4', 'C4', 'B3'], ['C4', 'E4'], ['C4', 'G4'], ['E4', 'C4'],
+      ['A3', 'C4', 'E4', 'C4'], ['A3', 'E4'], ['D4', 'F4'], ['E4'],
+      ['F4', 'E4', 'D4', 'A3'], ['C4', 'E4'], ['F4', 'E4'], ['D4', 'A3'],
+    ],
+    strings: [/both chords are strummed from string 5/, /Dm is strummed from string 4/],
   },
   {
     id: 'st-change-am-e-e-b7',
     key: 'A minor',
-    strums: [...ladder('Am=x02210', 'E=022100'), ...ladder('E=022100', 'B7=x21202')],
+    strums: [...ladder('Am=x02210', 'E=022100'), ...ladder('E=022100', 'B7=x21202', true)],
     halves: [{ key: 'A', scale: 'harmonic-minor', from: 0, to: 8 }, { key: 'E', scale: 'major', from: 8, to: 16 }],
+    // Am: E-C-A down, the leading note G# rising to A at the end of each phrase.
+    // E: an E arpeggio, B7 tones, and D# rising to E to close.
+    tune: [
+      ['E4', 'C4', 'A3'], ['C4', 'E4'], ['B3', 'G#3'], ['A3'],
+      ['G#3', 'B3', 'E4', 'B3'], ['C4', 'E4'], ['B3', 'C4'], ['G#3', 'A3'],
+      ['B3', 'E4', 'G#4', 'E4'], ['B3', 'G#3'], ['A3', 'B3', 'F#4'], ['E4'],
+      ['F#4', 'E4', 'D#4', 'B3'], ['G#3', 'B3'], ['A3', 'G#3'], ['D#4', 'E4'],
+    ],
+    strings: [/strum E on all six strings and Am from string 5/, /B7[^.]*strum from string 5/],
   },
 ];
 
@@ -211,6 +245,58 @@ describe.each(CHANGES)('batch 5: $id', (study) => {
 
   it('estimates near level 3', async () => {
     expectLevelNear(await load(study.id), 'Your strum', 3);
+  });
+
+  it('ends on the home chord, held for two beats', async () => {
+    const song = await load(study.id);
+    const beats = played(song, 'Your strum');
+    const last = beats[beats.length - 1];
+    const home = study.strums[8][0].split('=')[0]; // the second half's home chord
+    expect([last.bar, last.inBar, last.chord]).toEqual([15, 1920, home]);
+    const track = song.tracks.find((t) => t.name === 'Your strum')!;
+    expect(track.measures[15].beats.at(-1)?.duration).toBe(1920);
+  });
+
+  it('has a teacher tune in first position that sounds the notes written out for it', async () => {
+    const song = await load(study.id);
+    expect(song.tracks.map((t) => t.name)).toEqual(['Your strum', 'Teacher']);
+    expect(song.tracks[1].role).toBe('lead');
+    const beats = played(song, 'Teacher');
+    expect(tokensByBar(beats, 16)).toEqual(study.tune.map((bar) => bar.map(canon)));
+    expect(Math.max(...beats.flatMap((b) => b.frets.map((f) => f.fret))), 'first position: frets 0-4').toBeLessThanOrEqual(4);
+    expect(beats.every((b) => b.frets.every((f) => f.string <= 4)), 'the tune stays on strings 1-4, above your chords').toBe(true);
+  });
+
+  it("puts a tone of the chord in force on every beat 1 and 3 of the tune, and each half's notes are in its key", async () => {
+    const song = await load(study.id);
+    const beats = played(song, 'Teacher');
+    // Strict: a chord tone, no passing notes allowed on beats 1 and 3.
+    for (const b of beats.filter((x) => x.midis.length && x.inBar % 1920 === 0)) {
+      expect(outside(b.midis, chordPcs(b.chord!)), `bar ${b.bar + 1} beat ${b.inBar / 960 + 1}: ${b.token} over ${b.chord}`).toEqual([]);
+    }
+    // Off the strong beats only steps: a passing note lies between its neighbours.
+    const notes = beats.filter((b) => b.midis.length);
+    notes.forEach((b, i) => {
+      if (outside(b.midis, chordPcs(b.chord!)).length === 0) return;
+      const prev = notes[i - 1];
+      const next = notes[i + 1];
+      const steps = !!prev && !!next && Math.abs(b.midis[0] - prev.midis[0]) <= 2 && Math.abs(next.midis[0] - b.midis[0]) <= 2;
+      expect(steps, `bar ${b.bar + 1}: ${b.token} over ${b.chord} is not a passing note`).toBe(true);
+    });
+    for (const half of study.halves) {
+      const midis = beats.filter((b) => b.bar >= half.from && b.bar < half.to).flatMap((b) => b.midis);
+      expect(outside(midis, scalePcs(half.key, half.scale)), `tune, bars ${half.from + 1}-${half.to}`).toEqual([]);
+    }
+    // Each half's tune ends on the home chord's root.
+    for (const half of study.halves.length > 1 ? study.halves : [{ from: 0, to: 8 }, { from: 8, to: 16 }]) {
+      const last = notes.filter((b) => b.bar < half.to).at(-1)!;
+      expect(last.midis[0] % 12, `the tune ends bar ${half.to} on the root of ${last.chord}`).toBe(chordPcs(last.chord!)[0]);
+    }
+  });
+
+  it('tells the learner which strings to strum', () => {
+    const about = songEntry(study.id)!.about;
+    for (const re of study.strings) expect(about, `${study.id}/meta.ts about`).toMatch(re);
   });
 });
 
@@ -275,6 +361,12 @@ describe('batch 5: st-strum-6-8', () => {
   it('estimates near level 3', async () => {
     expectLevelNear(await load('st-strum-6-8'), 'Your strum', 3);
   });
+
+  it('does not call 6/8 a waltz (a waltz is three beats in a bar; 6/8 is two)', () => {
+    const entry = songEntry('st-strum-6-8')!;
+    expect(entry.tags.some((t) => /waltz/.test(t))).toBe(false);
+    expect(entry.about).not.toMatch(/waltz/i);
+  });
 });
 
 // ---------------------------------------------------------------- boom-chick
@@ -317,6 +409,15 @@ describe('batch 5: st-boom-chick', () => {
 
   it('estimates near level 3', async () => {
     expectLevelNear(await load('st-boom-chick'), 'Your part', 3);
+  });
+
+  it('flags the finger-3 hop of the C bass where the C bars start', async () => {
+    const song = await load('st-boom-chick');
+    const label = song.annotations.find((a) => a.bar === 4 && a.tick === 0);
+    expect(label?.text).toMatch(/finger 3/i);
+    expect(label?.text).toMatch(/string 5.*string 6/);
+    const beats = played(song, 'Your part').filter((b) => b.bar >= 4 && b.bar < 8 && b.midis.length === 1);
+    expect([...new Set(beats.map((b) => `${b.frets[0].string}:${b.frets[0].fret}`))].sort()).toEqual(['5:3', '6:3']);
   });
 });
 
@@ -425,6 +526,16 @@ describe('batch 5: st-lick-hammer-on', () => {
   it('estimates near level 3', async () => {
     expectLevelNear(await load('st-lick-hammer-on'), 'Your lick', 3);
   });
+
+  it('puts Em7 tones on every beat except the A that opens bar 4, as its header says', async () => {
+    const song = await load('st-lick-hammer-on');
+    const onBeats = played(song, 'Your lick').filter((b) => b.midis.length === 1 && b.inBar % 960 === 0);
+    const off = onBeats.filter((b) => outside(b.midis, chordPcs('Em7')).length > 0).map((b) => `${b.bar + 1}:${b.inBar / 960 + 1} ${b.token}`);
+    expect(off).toEqual(['4:1 A3']);
+    // Every note on a beat is picked; the hammered notes fall between the beats.
+    expect(onBeats.every((b) => !b.frets[0].legato)).toBe(true);
+    expect(await loadSongText('st-lick-hammer-on')).toMatch(/except the A that opens bar 4/);
+  });
 });
 
 describe('batch 5: st-lick-pull-off', () => {
@@ -525,6 +636,12 @@ describe('batch 5: st-pima-arpeggios', () => {
   it('estimates near level 3', async () => {
     expectLevelNear(await load('st-pima-arpeggios'), 'Arpeggios', 3);
   });
+
+  it("names the thumb's string for each chord correctly in the learner text (C and Am share string 5)", () => {
+    const about = songEntry('st-pima-arpeggios')!.about;
+    expect(about).toMatch(/string 5 for C and Am, 4 for Dm, 6 for G7/);
+    expect(about).not.toMatch(/new string for each chord/);
+  });
 });
 
 describe('batch 5: the checks themselves', () => {
@@ -539,6 +656,9 @@ describe('batch 5: the checks themselves', () => {
     const wrongShape = parseSixTab(strum.replace('"D7=xx0212" h D D', '"D7=xx0213" h D D')).song!;
     expect(played(wrongShape, 'Your strum').find((b) => b.bar === 2)?.voicing).toBe('xx0213');
     expect(Object.keys(SHAPES)).not.toContain('D7=xx0213');
+    // A wrong fret in a teacher tune changes its notes (C4 on 2:1 written as 2:2 = C#4).
+    const tune = parseSixTab(strum.replace('| q 1:2 1:0 2:3 2:1 | w 2:0 |', '| q 1:2 1:0 2:3 2:2 | w 2:0 |')).song!;
+    expect(tokensByBar(played(tune, 'Teacher'), 16)[2]).toEqual(['F#4', 'E4', 'D4', 'C#4']);
   });
 });
 

@@ -24,6 +24,7 @@ import { chordName, describeSpots, heardName, spotName, targetSpots, type NeckLa
 import { activityFor, bestLine, readSongData, summarizeFlow, summarizeListen, summarizeWait, withRun, type RunSummary } from '../model/results';
 import { FlowRun } from '../model/run';
 import { sessionKey, type PlayerSession } from '../model/session';
+import { StrumGate } from '../model/strum';
 import { isCleanPass, trainerNext, type TrainerSettings } from '../model/trainer';
 import { clampTempo, needsMic, type BarRange, type PracticeMode, type ScoreLayer } from '../model/types';
 import { MicInput, type MicStatus } from './mic';
@@ -203,6 +204,11 @@ export class PlayerEngine {
   private pendingStates: Array<[string, TabNoteState]> = [];
   private statesTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly runStates = new Map<string, TabNoteState>();
+  /** One strum counts for one chord (a ringing chord keeps matching otherwise). */
+  private readonly strum = new StrumGate();
+  private lastLevel = Number.NEGATIVE_INFINITY;
+  /** Audio time of the last thing heard (note-on or chroma frame), for the strum gate. */
+  private lastHeard = 0;
   private onHidden = () => {
     if (document.visibilityState === 'hidden') {
       // A phone put away, or another app in front: the music should not play on unheard.
@@ -233,6 +239,7 @@ export class PlayerEngine {
     this.mic = new MicInput({
       noteon: (e) => this.onNoteOn(e),
       chroma: (e) => this.onChroma(e),
+      onset: (time) => this.strum.onset(time),
       level: (x, clipping) => this.hud({ type: 'level', x, clipping }),
       lost: (reason) => {
         this.set({ mic: { status: 'failed', failure: reason } });
@@ -569,6 +576,7 @@ export class PlayerEngine {
       const i = this.waitRun.wait.targets.findIndex((x) => x.tick >= t);
       if (i >= 0) {
         this.waitRun.wait.goTo(i);
+        this.strum.reset();
         this.player.stop();
         this.player.seek(this.waitRun.wait.targets[i].tick);
         this.syncPosition();
@@ -771,6 +779,7 @@ export class PlayerEngine {
     };
     this.runStates.clear();
     this.flushStates(true);
+    this.strum.reset();
     this.set({ passes: 1, trainerNote: null, wait: null });
     this.player.play();
   }
@@ -786,6 +795,7 @@ export class PlayerEngine {
       return;
     }
     const wait = new WaitMode(targets, { toleranceCents: 50 });
+    this.strum.reset();
     this.waitRun = { wait, startedAt: performance.now(), fromTick: from, endTick: end, fullSong: !loop && from <= (this.timeline.bars[0]?.start ?? 0), tempo: this.player.tempoPercent, states: new Map() };
     playerDebug.waitIndex = 0;
     playerDebug.waitTotal = targets.length;
@@ -843,6 +853,7 @@ export class PlayerEngine {
     const cur = w.wait.current;
     if (!cur) return;
     w.states.set(noteKey(cur.bar, cur.beat.beat), 'miss');
+    this.strum.reset();
     const next = w.wait.skip();
     this.afterWaitStep(cur, next);
   }
@@ -876,6 +887,7 @@ export class PlayerEngine {
     const w = this.waitRun;
     if (!w) return;
     if (r.kind === 'match' && r.target) {
+      if (r.target.chord) this.strum.close(this.lastHeard, this.lastLevel);
       w.states.set(noteKey(r.target.bar, r.target.beat.beat), 'hit');
       playUi('correct', { volume: 0.35 });
       this.afterWaitStep(r.target, r.next ?? null);
@@ -897,6 +909,7 @@ export class PlayerEngine {
   }
 
   private onNoteOn(e: NoteOnEvent): void {
+    this.lastHeard = e.time;
     const latency = this.mic.latency;
     const audio = e.time - latency;
     let result: string | null = null;
@@ -932,14 +945,21 @@ export class PlayerEngine {
   }
 
   private onChroma(e: ChromaEvent): void {
+    this.lastLevel = e.levelDb;
+    this.lastHeard = e.time;
+    this.strum.level(e.levelDb);
     if (this.waitRun && this.stateNow.mode === 'wait') {
       const cur = this.waitRun.wait.current;
-      if (!cur?.chord) return;
+      if (!cur?.chord || !this.strum.open) return;
       const r = this.waitRun.wait.hearChroma({ time: e.time, chroma: e.chroma, bass: e.bass });
       if (r.kind === 'match') this.waitHeard(r, -1);
     } else if (this.run?.flow && this.run.kind === 'flow' && this.player.state === 'playing') {
+      if (!this.strum.open) return;
       const j = this.run.flow.hearChroma({ audio: e.time - this.mic.latency, chroma: e.chroma, bass: e.bass });
-      if (j) this.judged(j.grade, j.target, j.combo, j.offset);
+      if (j) {
+        this.strum.close(e.time, e.levelDb);
+        this.judged(j.grade, j.target, j.combo, j.offset);
+      }
     }
   }
 
@@ -960,6 +980,7 @@ export class PlayerEngine {
     const run = this.run;
     if (!run) return;
     const t = run.targets[targetIndex];
+    if (t?.chord && grade !== 'missed' && grade !== 'wrong') this.strum.close(this.lastHeard, this.lastLevel);
     if (t) this.queueState(noteKey(t.bar, t.beat.beat), grade === 'missed' || grade === 'wrong' ? 'miss' : 'hit');
   }
 

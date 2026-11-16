@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['chords', 'strumming', 'rhythm'],
   tags: ['chord changes', 'g', 'd7', 'd', 'four-finger g', 'metronome', 'guide finger'],
   about:
-    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats. From G to D7, let finger 3 slide back from fret 3 to fret 2 on string 1 (play G with fingers 2, 1 and 3). In the second half finger 3 never leaves string 2, fret 3: it belongs to both the four-finger G and D. The usual mistake is stopping to fix a chord; keep the metronome on and strum on the beat even if the strum before a change catches open strings.',
+    'Each half starts slow and gets busier: one strum a bar, then two, then four, then a change every two beats, while the teacher plays a tune over your chords. From G to D7, let finger 3 slide back from fret 3 to fret 2 on string 1 (play G with fingers 2, 1 and 3); in the second half finger 3 stays on string 2, fret 3 for both the four-finger G and D. Strum D7 and D on strings 4 to 1 only. The usual mistake is stopping to fix a chord: keep the metronome on and strum on the beat even if the strum before a change catches open strings.',
   plan: 'st-change-g-d7-d-g',
   added: '2026-11-16',
 });

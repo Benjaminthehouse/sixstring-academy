@@ -8,10 +8,10 @@ import { Button, Icon, cx } from '@/ui';
 import type { LiveStatus } from '../model/status';
 import styles from './Stage.module.css';
 
-/** The status pill: five bars and the state in words. */
+/** The status pill: five bars and the state in words (the screen announces changes in its own live region). */
 export function StatusPill({ status, extra }: { status: LiveStatus; extra?: ReactNode }) {
   return (
-    <div className={cx(styles.pill, styles.statusPill)} data-tone={status.tone} role="status" aria-live="polite" aria-atomic="true">
+    <div className={cx(styles.pill, styles.statusPill)} data-tone={status.tone}>
       <span className={styles.bars} aria-hidden="true">
         {[0, 1, 2, 3, 4].map((i) => (
           <span key={i} className={cx(styles.bar, i < status.bars && styles.barOn)} style={{ height: `${5 + i * 2}px` }} />

@@ -5,7 +5,7 @@
  * and "Save and play". Keyboard: arrows move, digits set frets, Delete removes, Ctrl+Z undoes.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, SegmentedControl, Spinner, Text, confirmDialog, cx, toast, useIsMobile, useMediaQuery, useRafLoop } from '@/ui';
+import { ActionBar, Badge, Banner, Button, Icon, IconButton, Menu, Page, SegmentedControl, Spinner, Text, confirmDialog, cx, toast, useEventListener, useIsMobile, useMediaQuery, useRafLoop } from '@/ui';
 import { TabView, noteKey, type TabNoteState, type TabSeek, type TabViewHandle } from '@/ui/music';
 import { href } from '@/app/router';
 import { AI_SETTINGS_PARAMS, showNotation } from '@/core/settings';
@@ -207,7 +207,19 @@ export function Proofread({ scan }: { scan: ScanState }) {
   );
 
   // ---- keyboard ------------------------------------------------------------------------------
-  const onKeyDownCapture = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  // On the window, so the keys work from the start: after reading, nothing inside has focus yet.
+  const root = useRef<HTMLDivElement | null>(null);
+  useEventListener(
+    window,
+    'keydown',
+    (e) => {
+      const at = e.target;
+      if (e.defaultPrevented || !root.current || !(at instanceof Node) || !(at === document.body || root.current.contains(at))) return;
+      onKey(e);
+    },
+    true,
+  );
+  const onKey = (e: KeyboardEvent) => {
     const cmd = keyCommand(e);
     if (!cmd) return;
     if (cmd.type === 'undo' || cmd.type === 'redo') {
@@ -321,7 +333,7 @@ export function Proofread({ scan }: { scan: ScanState }) {
     if (bad.length) {
       const go = await confirmDialog({
         title: bad.length === 1 ? 'One bar does not add up' : `${bad.length} bars do not add up`,
-        description: `${bad.slice(0, 3).map((b) => b.text).join(' ')} If you save now, short bars get a rest at the end and long bars are cut at the bar line.`,
+        description: `${bad.slice(0, 3).map((b) => b.text).join(' ')} If you save now, a bar that holds more than one bar is split into bars, a short bar gets a rest at the end, and a note that runs past a bar line is cut there.`,
         confirmLabel: 'Save anyway',
         cancelLabel: 'Fix them first',
       });
@@ -352,7 +364,7 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const showTab = twoPane || pane === 'tab';
 
   return (
-    <div className={cx(styles.root, twoPane && !short && styles.fixed, short && styles.short)} onKeyDownCapture={onKeyDownCapture} data-scan="proof">
+    <div ref={root} className={cx(styles.root, twoPane && !short && styles.fixed, short && styles.short)} data-scan="proof">
       <Page title={draft.song.meta.title} hideHeader width="full" gap={4} className={styles.page}>
         {!short && (<header className={styles.head}>
           <div className={styles.headMain}>

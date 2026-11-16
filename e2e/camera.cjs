@@ -2,7 +2,8 @@
 /**
  * Browser check of the Live Fretboard (`#camera`) with a fake camera.
  *
- *   node e2e/camera.cjs                  everything (about 5 minutes once the fixture exists)
+ *   node e2e/camera.cjs                  everything (about 10 minutes on a busy machine once the fixture exists;
+ *                                        the first run renders it, about 5 minutes more)
  *   node e2e/camera.cjs --only live,tools   some groups: live, mirror, tools, content, lifecycle, nocamera, shots
  *   node e2e/camera.cjs --verbose        print every check, not just failures
  *
@@ -23,10 +24,11 @@
  *              right again), marking the neck with four taps on a still picture (after a deliberate
  *              mis-numbering it is right again, numbers from the learner), sticker mode refuses a
  *              dull colour
- *   content    a chord, a song played (the step moves on), the find-a-note drill, hand feedback
- *              switch (on, or "not available") without errors
+ *   content    the microphone (a fake one plucking A2) flashes string 6, fret 5 green and nothing
+ *              else; a chord, a song played (the step moves on), the find-a-note drill, the hand
+ *              feedback switch (on, or "not available") without errors
  *   lifecycle  a hidden tab releases the camera and takes it back; leaving the route releases it
- *              and the vision worker
+ *              and the vision worker, and logs the session as practice
  *   nocamera   no camera: MediaBlocked once, then the drawn neck with the same dots; the next visit
  *              goes straight to the drawn neck
  *   shots      screenshots: desktop and phone sideways (dark and light), phone upright
@@ -195,7 +197,7 @@ async function waitForFrame(page, lo, hi, timeout = 30000) {
  * sees them, raised above the wood: `projectMarkerSeen`). `shift` = the fret offset every dot is
  * expected to have (the renumbering checks). Also counts dots in the right cell of the flat board.
  */
-function score(geo, ov, truth, log, { shift = 0 } = {}) {
+function score(geo, ov, truth, log, { shift = 0, steady = false } = {}) {
   const out = { frames: 0, right: 0, dots: 0, rightDots: 0, flatDots: 0, solidAway: 0, wrapSkip: 0, wrong: [] };
   const cams = new Map();
   let prev = -1;
@@ -211,6 +213,8 @@ function score(geo, ov, truth, log, { shift = 0 } = {}) {
       return;
     }
     if (e.notes !== 'solid' || solid.length === 0) return;
+    // Checks about numbering (not motion) leave out the neck sliding out of the picture and back.
+    if (steady && e.shown >= truth.phases.exit[0] && e.shown < truth.phases.return[1]) return;
     // Right after the looping video starts again the tracker sees a new scene: give it a second.
     if (k > wrapAt && k - wrapAt <= 30 && e.shown < 30) {
       out.wrapSkip++;
@@ -344,11 +348,11 @@ async function tools(page, truth, geo, ov) {
   await page.getByRole('button', { name: 'All one higher' }).click();
   await page.waitForTimeout(700);
   let log = await record(page, 2000);
-  let off = score(geo, ov, truth, log, { shift: 2 });
+  let off = score(geo, ov, truth, log, { shift: 2, steady: true });
   check('tools', 'after "all one higher" twice, every dot sits two frets lower on the real neck', off.frames > 8 && off.right >= 0.9 * off.frames, `${off.right}/${off.frames} (${pct(off.rightDots, off.dots)} of dots)`);
   // The learner's word stays while the neck is in view, nut and all.
   log = await record(page, 4000);
-  off = score(geo, ov, truth, log, { shift: 2 });
+  off = score(geo, ov, truth, log, { shift: 2, steady: true });
   check('tools', 'the shifted numbers stay (the tracker does not undo the learner)', off.frames > 15 && off.right >= 0.9 * off.frames, `${off.right}/${off.frames}`);
   // One tap: the true cell of fret 7 on string 3 of the frame on screen, then "7".
   const f = await shownFrame(page);
@@ -368,7 +372,7 @@ async function tools(page, truth, geo, ov) {
   check('tools', 'choosing the number ends the tool', await waitAttr(page, 'data-tool', '', 5000));
   await page.waitForTimeout(800);
   log = await record(page, 2000);
-  let sc = score(geo, ov, truth, log);
+  let sc = score(geo, ov, truth, log, { steady: true });
   check('tools', '"this is fret 7" puts every dot back on the right fret', sc.frames > 8 && sc.right >= 0.95 * sc.frames, `${sc.right}/${sc.frames}`);
 
   // ---- Mark the neck: mis-number on purpose, then four taps on a still picture showing the nut
@@ -405,7 +409,7 @@ async function tools(page, truth, geo, ov) {
   check('tools', 'locked after marking', await waitAttr(page, 'data-state', 'locked', 8000));
   await page.waitForTimeout(400);
   log = await record(page, 2000);
-  sc = score(geo, ov, truth, log);
+  sc = score(geo, ov, truth, log, { steady: true });
   const numbering = [...new Set(log.map((e) => e.numbering))];
   check('tools', 'marked by hand, the dots are on the right frets again (the mis-numbering is gone)', sc.frames > 8 && sc.right >= 0.95 * sc.frames, `${sc.right}/${sc.frames}`);
   check('tools', 'the numbers rest on the learner (or are carried from that)', numbering.every((n) => n === 'user' || n === 'tracked'), numbering.join(','));
@@ -484,6 +488,8 @@ async function content(page, truth) {
 }
 
 async function lifecycle(page) {
+  // At least ten seconds of camera, so the session counts as practice.
+  await page.waitForTimeout(9000);
   const before = await page.evaluate(() => {
     window.__cam.stream = window.__cam.debug.stream;
     return { starts: window.__cam.debug.starts, live: window.__cam.stream?.getVideoTracks()[0]?.readyState };
@@ -512,6 +518,11 @@ async function lifecycle(page) {
   const visionWorkers = page.workers().filter((w) => /vision/.test(w.url())).length;
   check('lifecycle', 'leaving the screen releases the camera', left.track === 'ended' && !left.pipeline, JSON.stringify(left));
   check('lifecycle', 'and the vision worker', visionWorkers === 0, `${visionWorkers} left`);
+  const logged = await page.evaluate(async () => {
+    const progress = await import('/src/core/progress/index.ts');
+    return progress.getProgress().log.filter((e) => e.kind === 'camera').map((e) => ({ title: e.title, sec: e.durationSec, xp: e.xp }));
+  });
+  check('lifecycle', 'the session goes into the practice log (kind "camera")', logged.length === 1 && logged[0].sec >= 10, JSON.stringify(logged));
 }
 
 async function noCamera(url) {
@@ -523,6 +534,8 @@ async function noCamera(url) {
     await page.getByRole('button', { name: 'Start camera' }).click();
     const blocked = await waitAttr(page, 'data-mode', 'blocked', 20000);
     check('nocamera', 'without a camera the screen explains why (MediaBlocked)', blocked && (await page.getByRole('button', { name: 'Use a drawn neck' }).isVisible()));
+    fs.mkdirSync(OUT, { recursive: true });
+    await page.screenshot({ path: path.join(OUT, 'blocked-desktop.png') });
     await page.getByRole('button', { name: 'Use a drawn neck' }).click();
     check('nocamera', 'then the drawn neck', await waitAttr(page, 'data-mode', 'drawn', 5000));
     const dots = await page.locator('[data-camera-drawn] [data-state]').count();
@@ -543,6 +556,19 @@ async function noCamera(url) {
     const errs = s.errors.filter((e) => !/NotFoundError|NotAllowedError|Requested device not found|Permission/.test(e));
     check('nocamera', 'no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
     await s.close();
+    // A phone: the same, upright.
+    const p = await open(browser, url, { camera: false, viewport: { width: 390, height: 844 }, mobile: true, theme: 'light' });
+    await p.goto(ROUTE);
+    await p.page.getByRole('button', { name: 'Start camera' }).click();
+    await waitAttr(p.page, 'data-mode', 'blocked', 20000);
+    await p.page.screenshot({ path: path.join(OUT, 'blocked-phone-light.png') });
+    await p.page.getByRole('button', { name: 'Use a drawn neck' }).click();
+    await waitAttr(p.page, 'data-mode', 'drawn', 5000);
+    await p.page.waitForTimeout(500);
+    await p.page.screenshot({ path: path.join(OUT, 'drawn-phone-light.png') });
+    const wide = await p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check('nocamera', 'phone: the drawn neck fits without sideways scroll', wide <= 1, wide);
+    await p.close();
   } finally {
     await browser.close();
   }

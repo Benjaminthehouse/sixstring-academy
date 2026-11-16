@@ -1,8 +1,8 @@
 /** Corrections, selection, things to check and undo on a small hand-made draft. */
 import { describe, expect, it } from 'vitest';
 import { sixTab, validateSong } from '@/core/song';
-import { type Draft, type NoteMark, checkBar, viewSong } from './draft';
-import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, splitBar, transposeSymbol } from './edit';
+import { type Draft, type NoteMark, checkBar, finalSong, viewSong } from './draft';
+import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, songToSave, splitBar, transposeSymbol } from './edit';
 import { commit, firstSelection, itemsToCheck, moveSelection, nextToCheck, redo, startHistory, undo } from './select';
 
 /** A draft over a SixTab song, every note read with confidence 0.9 except the ones listed (0.3). */
@@ -106,6 +106,50 @@ time: 3/4
     expect(s.song.bars.every((_, i) => checkBar(s.song, i).ok)).toBe(true);
     expect(valid(s)).toEqual([]);
     expect(splitBar(s, 0).ok).toBe(false);
+  });
+
+  it('saves a bar holding a missed bar line as bars, keeping every note (cutting it lost them)', () => {
+    // Bars 1-2 and bars 4-6 of a 4/4 tune each read as one bar, as a reader that missed bar lines
+    // on a photo gives them.
+    const d = draftOf(`title: Glued
+time: 4/4
+| q 2:0 2:0 2:1 2:3 | 2:3 2:1 2:0 3:2 | 3:0 3:0 3:2 2:0 | 2:0 3:2 h 3:2 | q 2:0 2:0 2:1 2:3 | 2:3 2:1 2:0 3:2 | h 3:0 3:0 |`);
+    const notesOf = (song: Draft['song']) => song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes.map((n) => `${n.string}:${n.fret}`)));
+    const all = notesOf(d.song);
+    const glue = (dr: Draft, from: number, count: number) => {
+      const m = dr.song.tracks[0].measures;
+      let at = 0;
+      m[from].beats = m.slice(from, from + count).flatMap((x) => x.beats).map((b) => ({ ...b, start: (at += b.duration) - b.duration }));
+      m.splice(from + 1, count - 1);
+      dr.song.bars.splice(from + 1, count - 1);
+      dr.marks[from].beats = dr.marks.slice(from, from + count).flatMap((x) => x.beats);
+      dr.marks.splice(from + 1, count - 1);
+    };
+    glue(d, 3, 3); // bars 4, 5 and 6 read as one
+    glue(d, 0, 2); // bars 1 and 2 read as one
+    expect(d.song.bars).toHaveLength(4);
+    expect(checkBar(d.song, 0).text).toBe('Holds about 2 bars: a bar line was probably missed');
+    expect(checkBar(d.song, 2).text).toBe('Holds about 3 bars: a bar line was probably missed');
+    // Cutting at the bar line (the old save) throws away the notes after it.
+    expect(notesOf(finalSong(d).song).length).toBeLessThan(all.length);
+    const { song, warnings } = songToSave(d);
+    expect(notesOf(song)).toEqual(all);
+    expect(song.bars).toHaveLength(7);
+    expect(song.bars.every((_, i) => checkBar(song, i).ok)).toBe(true);
+    expect(validateSong(song, { notation: false }).filter((i) => i.level === 'error')).toEqual([]);
+    expect(warnings).toEqual([
+      'Bar 1 held more than one bar (a bar line was probably missed), so it was split into 2 bars.',
+      'Bar 3 held more than one bar (a bar line was probably missed), so it was split into 3 bars.',
+    ]);
+    // A bar only a little too long is still trimmed at the bar line, and says so.
+    const long = draftOf(`title: Long
+time: 4/4
+| q 2:0 2:0 2:1 2:3 |`);
+    long.song.tracks[0].measures[0].beats.push({ start: 3840, duration: 960, notes: [{ string: 2, fret: 5, midi: 64 }] });
+    long.marks[0].beats.push({ ...long.marks[0].beats[0] });
+    const trimmed = songToSave(long);
+    expect(trimmed.song.bars).toHaveLength(1);
+    expect(trimmed.warnings).toEqual(['Bar 1 was a quarter too long; what ran past the bar line was cut.']);
   });
 
   it('deletes notes and beats, adds notes and beats, keeping the marks in step', () => {

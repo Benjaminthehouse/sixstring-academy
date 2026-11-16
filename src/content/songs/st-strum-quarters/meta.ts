@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['strumming', 'chords', 'rhythm'],
   tags: ['downstrums', 'quarter notes', 'steady beat', 'em', 'a chord'],
   about:
-    'Swing your arm down once on every count, "1, 2, 3, 4", like a clock that never stops, and give beat 1 a little more weight. In the A bars start each strum from string 5, because string 6 is not part of A. The usual mistake is stopping to fix a buzzing note: keep the arm moving and fix the chord on the next count, because the beat matters more than any one strum. Start at 60 and raise the tempo by 4 only when four bars in a row feel easy.',
+    'Swing your arm down once on every count, "1, 2, 3, 4", like a clock that never stops, and give beat 1 a little more weight. In the A bars start each strum from string 5, the open A: the chord sounds best with A as its lowest note, so the shape leaves string 6 out. The usual mistake is stopping to fix a buzzing note: keep the arm moving and fix the chord on the next count, because the beat matters more than any one strum. Start at 60 and raise the tempo by 4 only when four bars in a row feel easy.',
   plan: 'st-strum-quarters',
   added: '2026-11-16',
 });

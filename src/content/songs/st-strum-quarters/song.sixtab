@@ -1,6 +1,8 @@
 # Strumming: Steady Quarters (repertoire plan: st-strum-quarters). Your part: Em (022000) for
 # 4 bars, A (x02220) for 4, then the same again: 16 bars of four even downstrums, a little
-# stronger on beat 1. Start at 60 and raise the tempo in steps of 4.
+# stronger on beat 1, to the very last beat (the plan: downstrums on every beat, never stopping).
+# SixTab cannot put an accent on a slash, so the stronger beat 1 is a note on the score.
+# Start at 60 and raise the tempo in steps of 4.
 # The teacher plays an original tune over the chords (E minor with an A major chord: the Dorian
 # colour, C#). Its notes on beats 1 and 3 are always notes of the chord in force.
 title: Strumming: Steady Quarters
@@ -18,12 +20,12 @@ track: Your strum
 role: rhythm
 [First time]
 strum: DDDD
-| ^"accent beat 1" "Em=022000" q D D D D | D D D D | D D D D | D D D D |
+| ^"beat 1 a little stronger" "Em=022000" q D D D D | D D D D | D D D D | D D D D |
 | "A=x02220" D D D D | D D D D | D D D D | D D D D |
 [Second time]
 strum: DDDD
 | "Em=022000" D D D D | D D D D | D D D D | D D D D |
-| "A=x02220" D D D D | D D D D | D D D D | w D ||
+| "A=x02220" D D D D | D D D D | D D D D | D D D D ||
 
 track: Teacher
 role: lead

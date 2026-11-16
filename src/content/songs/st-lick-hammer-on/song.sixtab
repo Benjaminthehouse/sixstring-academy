@@ -3,8 +3,9 @@
 # string 3 open to fret 2 (G to A), string 2 open to fret 3 (B to D), string 1 open to fret 3
 # (E to G). Pick only the first note of each pair; frets 2 and 3 are fingers 2 and 3.
 # The same two-bar phrase climbs one string pair at a time (bars 1-2, 3-4, 5-6), bar 7 runs all
-# four hammer-ons in a row, and bar 8 comes home to an E minor chord. Every picked note on a beat
-# is a note of Em7 (E G B D); the hammered notes fall between the beats.
+# four hammer-ons in a row, and bar 8 comes home to an E minor chord. The picked notes on the
+# beats are notes of Em7 (E G B D), except the A that opens bar 4 and steps down to G (the
+# string-3 echo of bars 2 and 6); the hammered notes fall between the beats.
 title: Lick: Hammer-Ons
 composer: Sixstring Academy
 source: Original lick

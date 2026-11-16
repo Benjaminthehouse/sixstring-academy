@@ -51,6 +51,9 @@
   text-transform: uppercase;
   color: var(--ok-text);
 }
+.xp {
+  color: var(--xp-text);
+}
 .title {
   margin: 0;
   font-family: var(--font-display);
