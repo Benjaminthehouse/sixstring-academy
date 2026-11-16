@@ -20,6 +20,7 @@ import {
   PitchTracker,
   pluckedString,
   rankChords,
+  requiredTones,
   silence,
   strum,
   Tuner,
@@ -101,6 +102,12 @@ describe('API.md examples', () => {
     const m = matchChord(frame, { pcs: [7, 11, 2], bass: 7 });
     expect(m.score).toBeGreaterThan(0.6);
     expect(rankChords(frame, [{ name: 'Em', pcs: [4, 7, 11] }, { name: 'G', pcs: [7, 11, 2] }])[0].chord.name).toBe('G');
+    // Every tone is required but the fifth above the bass: a G triad is no G7, unless asked leniently.
+    expect(requiredTones({ pcs: [7, 11, 2, 5], bass: 7 })).toEqual([5, 7, 11]);
+    const g7 = { pcs: [7, 11, 2, 5], bass: 7 };
+    expect(matchChord(frame, g7).score).toBeLessThan(0.4);
+    expect(matchChord(frame, { ...g7, required: [] }).score).toBeGreaterThan(0.6);
+    expect(matchChord(frame, g7, { requiredThreshold: 0.2 }).score).toBeLessThanOrEqual(matchChord(frame, g7).score);
   });
 
   it('record a phrase', () => {

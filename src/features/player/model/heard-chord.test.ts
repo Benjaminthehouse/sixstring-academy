@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chordCandidates, chordSpec, judgeStrum, LISTEN_S, SETTLE_S, StrumListener, strumWords } from './heard-chord';
+import { chordCandidates, chordSpec, judgeStrum, LISTEN_S, SETTLE_S, STRUM_RISE_DB, StrumListener, strumWords } from './heard-chord';
 
 /** A chroma frame with these pitch classes sounding (strength 1, or as given). */
 function frame(pcs: Record<number, number> | number[]): number[] {
@@ -83,6 +83,24 @@ describe('StrumListener', () => {
 
   it('says nothing without a strum', () => {
     expect(new StrumListener().frame(3, frame(C), want, candidates)).toBeNull();
+  });
+
+  it('says nothing about an onset that brings no new sound (the last chord dying away, then a click)', () => {
+    const l = new StrumListener();
+    // A C chord ringing out, about -45 dB and falling, fed between strums.
+    let t = 40;
+    for (let i = 0; i < 6; i++, t += 0.05) l.frame(t, frame(C), want, candidates, -45 - i * 0.3);
+    l.onset(t);
+    const start = t;
+    for (const dt of [0.15, 0.25, 0.35]) expect(l.frame(start + dt, frame(C), want, candidates, -47 - dt)).toBeNull();
+    expect(l.frame(start + SETTLE_S + LISTEN_S + 0.02, frame(C), want, candidates, -48)).toBeNull();
+    // A real strum rises well above what was ringing: it is judged.
+    t = start + 1;
+    for (let i = 0; i < 4; i++, t += 0.05) l.frame(t, frame([]), want, candidates, -50);
+    l.onset(t);
+    l.frame(t + SETTLE_S + 0.05, frame(AM), want, candidates, -50 + STRUM_RISE_DB + 20);
+    l.frame(t + SETTLE_S + 0.15, frame(AM), want, candidates, -50 + STRUM_RISE_DB + 18);
+    expect(l.frame(t + SETTLE_S + LISTEN_S + 0.02, frame(AM), want, candidates, -36)).toMatchObject({ kind: 'other', heard: 'Am' });
   });
 
   it('says nothing about an onset followed by silence (strings muted, a knock, a click)', () => {

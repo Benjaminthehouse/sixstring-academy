@@ -20,8 +20,8 @@ a section name (and said so when the song has no such section), never thrown on.
 | `<section>` | loop that section, by its name as a slug: `chorus`, `verse-1`, `a-again` |
 | `part-<part>` | the learner plays this part: a track id (`part-your-strum`), a track name as a slug (`part-teacher`), or a role: `part-rhythm` (also `part-strum`, `part-chords`), `part-lead` (also `part-melody`, `part-tune`), `part-bass`. The others keep sounding. A part the song does not have opens on the first part and says so. A section called "Part A" still loops with `part-a` when no part has that name. |
 | `mute-<part>` | mute a part (same names as `part-`; may be given more than once). With mutes in the address, any solo is cleared. |
-| `tab-only` `tab-and-notes` `notes` | what the score shows: tab, tab with the notes on a staff above it, or **notes only** (sight reading: the staff, with the tab rows covered on every line; the cursor, taps, loops and the heat strip work as with both). `notes` also turns the fretboard off (it would show the answers). |
-| `hide-chart` | chord names and chord boxes hidden: play it from memory. The fretboard is turned off too. Wait mode does not name the chord until "Show me". For this visit only (a reload keeps it; the next plain visit shows the chords). |
+| `tab-only` `tab-and-notes` `notes` | what the score shows: tab, tab with the notes on a staff above it, or **notes only** (sight reading: the staff, with the tab rows covered on every line; the cursor, taps, loops and the heat strip work as with both). `notes` also turns the fretboard off (it would show the answers); it comes back when the tab is shown again. |
+| `hide-chart` | chord names and chord boxes hidden: play it from memory. The fretboard is turned off too. Wait mode does not name the chord until "Show me". For this visit only (a reload keeps it; the next plain visit shows the chords, and the fretboard the hidden chart turned off). |
 | `capo<n>` | the learner's capo is on fret n (0–9): the shapes stay as written and the app plays along in the key the capo gives (capo 2 on a song in G sounds A; a bass part moves with it). |
 | `up<n>` `down<n>` | move the song n semitones (1–7) up or down, for singing: every part moves and the tab and chords change to match. |
 
@@ -61,12 +61,27 @@ href('play', ...playerParams('st-read-first-g', { layer: 'notation', mode: 'wait
   song", with a line saying what sounds ("Sounds in A major. You play G major shapes with a capo on
   fret 2."), "Same key, easier shapes: capo n" when a song was moved up, and "As written". A change
   builds a fresh engine on the moved song (`model/arrange.ts` `arrangeForPlayer`), carrying over tempo,
-  loop, place and mode. The header shows the sounding key and the shift ("A major (+2)").
+  loop, place and mode. The header shows the sounding key and the shift ("A major (+2)"). Behind a
+  capo, chords are named by the shape played everywhere, as the chart above the tab names them: the
+  wait prompt ("Strum E7" under capo 2, not F♯7) and what a wrong strum sounded like ("That sounded
+  like Am", for the Bm it sounds) (`chartSymbol` in `model/neck.ts`). The fretboard names the notes
+  that sound.
 - **Wait mode with chords.** A strum that does not match the chord waited on is named from its
   sound (`model/heard-chord.ts`: its chroma averaged over the moment after the strum, ranked against
   the song's chords and every major and minor triad): "That sounded like Am. The chart says C: give it
   another go."; "Nearly G. The D did not ring out. Strum it again."; after two such strums the hint
-  comes by itself, with the chord sounded.
+  comes by itself, with the chord sounded. Only a strum played while the song waits is named (while
+  it plays on to the next chord the microphone hears the app too), and only one that brings new
+  sound: an onset followed by silence or by the last chord dying away (a click, strings muted) says
+  nothing. Once a chord counts, the gate (`model/strum.ts` `StrumGate`) stays shut until the next
+  strum, for its note-ons too, so the chord still ringing never says "Keep going" about the next one.
+- **The hint, heard back.** "Show me" (and the hint that comes by itself) plays the note or chord
+  through the speakers. For a moment after (`HintEcho`, `HINT_ECHO_S` plus the latency) nothing the
+  microphone hears counts, and after a chord hint the gate stays shut until the learner strums: the
+  app's own chord never counts as theirs.
+- **The fretboard follows what hides it.** "Notes only" and "Hide the chord names" turn the
+  fretboard off (it would give the answers away; a toast says so). When they go, it comes back,
+  unless the learner switched it themselves in between (`neckFollows`, `neckBack` in the session).
 - **No microphone.** After the microphone was refused or none was found (and wherever the host
   refuses it), the results never suggest Wait or Flow: their suggestion becomes tap-along and the
   listen summary points to Tap along (`micUsable`, `withoutMic` in `model/results.ts`).
@@ -78,11 +93,13 @@ parsePlayerParams(params) → PlayerRequest      playerParams(id, PlayerLinkOpti
 resolveRequest(request, song) → ResolvedRequest  // bars clamped, section and part found, problems in words
 findPart(tracks, 'strum') → track | null           // by id, name slug, then role
 openingState(saved, resolved, key, { now, layer, micBlocked, prefersNotation? }) → { session, resumed }
+neckFollows({ neck, neckBack }, hidBefore, hidesNow) → { neck, neckBack, hid }   hidesNeck({ layer, hideChart })
+chartSymbol('F#7', 2) → 'E7'   new HintEcho(): sounded(now, latency), covers(time)
 arrangeForPlayer(song, { transpose, capo }) → { song, sounding, capo, warnings }
 arrangementWords(song, arrangement) → { sounds, shapes, line, shift }    keyName('A dorian') → 'A Dorian'
 meterBeat(time) / tempoMark(quarterBpm, time) → { value, short: '♩. = 60', spoken } / countInWords(time)
 judgeStrum(chroma, want, candidates) → { kind: 'other', heard } | { kind: 'close' | 'unclear', missing }
-new StrumListener(): onset(t), frame(t, chroma, want, candidates) → verdict once, cancel()
+new StrumListener(): onset(t), frame(t, chroma, want, candidates, levelDb?) → verdict once, cancel()
 micUsable(failure, hostBlocked)   withoutMic(summary)   trainerSummary(settings, judged, mark?)   trainerNote(next, target, mark?)
 ```
 
@@ -94,4 +111,7 @@ The score box: `data-player-score`, `data-layer` (`tab` | `both` | `notation`), 
 button `data-player-tempo` (percent) and `data-player-bpm` (beats of the meter a minute). The key and
 capo section `data-player-arrangement="<transpose>:<capo>"` and its line `data-player-sounds`.
 `e2e/player.cjs` imports `debug.ts` (`playerDebug`: mode, notes heard and what they did, the wait
-index, cursor, bars heard, results) through the dev server.
+index, cursor, bars heard, results) through the dev server. In wait mode a note's `result` can be
+`ignored-hint` (heard while the app's hint sounded), `ignored-ringing` (a chord just counted, still
+ringing) or `ignored-low`; a judged strum is logged with `midi: -2` and `chord:<name>`, `close` or
+`unclear`.

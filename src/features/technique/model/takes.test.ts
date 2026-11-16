@@ -199,3 +199,14 @@ describe('analyzeTake against the click (pass 2)', () => {
     expect(r.verdict).not.toBe('clean');
   });
 });
+
+describe('a take that came in a beat early or late', () => {
+  it('is told to start after the count-in, not given a millisecond figure', () => {
+    const click = { zero: 30, latency: 0.08, calibrated: true };
+    const notes = EXPECTED.map((e) => note(e.midi!, click.zero + click.latency + e.songTime - 0.9));
+    const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes, click });
+    expect(r.timing.click!.keeping).toBe('ahead');
+    expect(r.verdict).not.toBe('clean');
+    expect(r.messages.join(' ')).toMatch(/Not in step with the click: you came in about 0\.9 s early/);
+  });
+});

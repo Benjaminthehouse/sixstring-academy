@@ -1075,7 +1075,7 @@ export class PlayerEngine {
     const w = this.waitRun;
     if (!w) return;
     const want = (target.symbol ? chordSpec(target.symbol) : null) ?? { pcs: [...target.pcs] };
-    const verdict = this.strumEar.frame(e.time, e.chroma, want, this.chordList);
+    const verdict = this.strumEar.frame(e.time, e.chroma, want, this.chordList, e.levelDb);
     if (!verdict) return;
     const hidden = this.stateNow.hideChart && !!target.symbol && !this.stateNow.wait?.hint;
     // Named as the chart names chords: behind a capo, by the shape ("That sounded like Am" for a

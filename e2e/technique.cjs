@@ -395,9 +395,11 @@ async function scaleTakeRun(fakeAudio, { click = true } = {}) {
     await p.getByText('Check me with the microphone').first().click();
     await p.waitForTimeout(200);
     const startTempo = await attr(p, root, 'data-tempo');
+    const out0 = { clickOff: false };
     if (!click) {
       const sw = p.getByRole('switch', { name: 'Click during the take' });
-      if ((await sw.getAttribute('aria-checked')) === 'true') await sw.click();
+      if (await sw.isChecked()) await sw.click();
+      out0.clickOff = !(await sw.isChecked());
     }
     await p.locator('[data-technique-primary]').first().click();
     await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-mic') === 'ready', root, { timeout: 20000 });
@@ -407,6 +409,7 @@ async function scaleTakeRun(fakeAudio, { click = true } = {}) {
       verdict: await attr(p, '[data-technique-take]', 'data-technique-take'),
       text: await p.textContent('[data-technique-take]'),
       clickOffset: Number(await attr(p, '[data-technique-take]', 'data-click-offset')),
+      clickOff: out0.clickOff,
       click: await attr(p, '[data-technique-take]', 'data-click'),
       startTempo,
       tempo: await attr(p, root, 'data-tempo'),

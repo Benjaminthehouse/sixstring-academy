@@ -45,6 +45,35 @@ describe('NoteTracker: unsure readings', () => {
     expect(Math.min(...tail.map((r) => r.cents))).toBeLessThan(3);
   });
 
+  it('does not hold on to the clear readings alone when they scatter as much as the unsure ones', () => {
+    // The last 0.4 s of C#4 on the nylon string (string 3, fret 6) in the adversarial corpus's
+    // laptop room, while the open B string rings underneath and takes over: clarity, the reading
+    // in cents from the true pitch, and the level in dBFS. Near the end the clear readings
+    // scatter by 20 cents, and the unsure ones among them are no worse.
+    const LAPTOP: ReadonlyArray<[number, number, number]> = [
+      [0.945, -5.77, -34.2], [0.914, -2.86, -35.1], [0.905, -2.09, -36.3], [0.919, -7.29, -35.7], [0.921, -4.7, -35.5],
+      [0.909, -2.19, -36.9], [0.905, -6.11, -37.1], [0.906, -6.03, -37.0], [0.875, -4.68, -38.1], [0.902, -3.73, -37.5],
+      [0.927, -8.31, -37.0], [0.912, -5.97, -37.7], [0.908, -4.24, -38.9], [0.898, -7.85, -38.3], [0.891, -7.45, -38.3],
+      [0.875, -4.78, -39.9], [0.885, -4.96, -39.6], [0.884, -9.31, -38.7], [0.858, -5.33, -39.3], [0.842, -4.05, -40.7],
+      [0.841, -9.77, -39.7], [0.854, -8.34, -39.5], [0.834, -5.94, -40.5], [0.85, -7.97, -40.4], [0.874, -27.94, -39.8],
+      [0.807, -8.68, -40.6], [0.794, -5.31, -41.2], [0.787, -9.33, -40.8], [0.664, -7.19, -41.1], [0.684, -1199.44, -42.9],
+      [0.692, -7.21, -42.6], [0.757, -20.51, -42.2], [0.641, 2.24, -43.4], [0.713, -14.34, -43.8], [0.805, -26.78, -42.3],
+      [0.705, -6.98, -42.9], [0.685, -1.68, -42.9], [0.698, -8.16, -42.6], [0.747, -24.06, -41.8], [0.649, -5.7, -42.9],
+    ];
+    const tracker = new NoteTracker();
+    const out: PitchEvent[] = [];
+    let t = 0;
+    for (let i = 0; i < 30; i++) tracker.push({ time: (t += 0.01), freq: midiToFreq(61 - 0.05), clarity: 0.95, rms: 0.03, window: 0.03 }, out);
+    const from = out.length;
+    for (const [clarity, cents, db] of LAPTOP) tracker.push({ time: (t += 0.01), freq: midiToFreq(61 + cents / 100), clarity, rms: Math.pow(10, db / 20), window: 0.03 }, out);
+    const tail = out.slice(from).filter((e): e is Extract<PitchEvent, { type: 'pitch' }> => e.type === 'pitch');
+    expect(tail.length).toBeGreaterThan(30);
+    expect(tail.every((r) => r.midi === 61)).toBe(true);
+    // Keeping only the clear readings, the last one said 20.5 cents flat; with the unsure ones that
+    // lie inside the scatter, never more than the 14.3 that every reading together gives.
+    expect(Math.max(...tail.map((r) => Math.abs(r.cents)))).toBeLessThan(15);
+  });
+
   it('still follows a slow drift when the unsure readings agree with it', () => {
     const tracker = new NoteTracker();
     const out: PitchEvent[] = [];

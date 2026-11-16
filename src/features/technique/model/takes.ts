@@ -291,6 +291,8 @@ export function analyzeTake(input: {
       if (click) {
         const ms = Math.abs(click.offsetMs);
         if (click.keeping === 'with') messages.push(`With the click: ${ms <= 5 ? 'right on it' : `${ms} ms ${click.offsetMs > 0 ? 'behind' : 'ahead of'} it`} on average.`);
+        // More than half a note off is not a feel: the take came in early or late (a beat or more).
+        else if (ms > (timedGap * 1000) / 2) messages.push(`Not in step with the click: you came in about ${(ms / 1000).toFixed(1)} s ${click.offsetMs > 0 ? 'late' : 'early'}. Start on the first beat after the count-in.`);
         else if (click.keeping === 'behind') messages.push(`Even, but about ${ms} ms behind the click: play with the click, not after you hear it.`);
         else messages.push(`Even, but about ${ms} ms ahead of the click: let the click lead, and land with it.`);
       }

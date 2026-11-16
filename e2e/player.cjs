@@ -1318,7 +1318,7 @@ async function chordCapo() {
         }
         const log = seen.map((x) => `${(x.t / 1000).toFixed(1)}s #${x.index} ${x.text}`).join(' | ');
         // Review: behind a capo the prompt said "Strum F♯7" under a chart of E7 shapes.
-        check('chordcapo', 'capo 2: the prompt names the shape on the chart ("Strum E7", not F♯7)', seen.some((x) => x.index === 0 && /Strum E7\b/.test(x.text)) && !seen.some((x) => /F♯7/.test(x.text)), log);
+        check('chordcapo', 'capo 2: the prompt names the shape on the chart ("Strum E7", not F♯7)', seen.some((x) => x.index === 0 && /Strum E7(?![\d♯♭])/.test(x.text)) && !seen.some((x) => /F♯7/.test(x.text)), log);
         check('chordcapo', 'a wrong shape is named as a shape too ("That sounded like Am. The chart says E7")', seen.some((x) => /That sounded like Am\. The chart says E7/.test(x.text)) && !seen.some((x) => /Bm/.test(x.text)), log);
         // Review: the hint the app strums was heard back and counted as the learner's chord.
         const hinted = seen.find((x) => x.index === 0 && !/Show me/.test(x.text) && /sounded like/.test(x.text));

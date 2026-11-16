@@ -20,6 +20,14 @@ export type StrumVerdict =
 /** Listening window after a strum starts (s): skip the attack, then average this long. */
 export const SETTLE_S = 0.11;
 export const LISTEN_S = 0.32;
+/**
+ * A strum is louder than the moment before it, by at least this (dB). An onset with no such rise
+ * (a click, strings muted, the tail of the last chord re-triggered) is not judged: saying "Not E7
+ * yet" when nothing was played would be unkind and wrong.
+ */
+export const STRUM_RISE_DB = 3;
+/** Frames of level kept from before a strum, to know how loud it was just before (about 0.2 s). */
+const BEFORE_FRAMES = 4;
 /** A chord heard must score at least this, and this much better than the chart's chord. */
 const MIN_SCORE = 0.5;
 const MARGIN = 0.08;
@@ -91,6 +99,11 @@ export class StrumListener {
   private start: number | null = null;
   private frames: number[][] = [];
   private judged = false;
+  /** Levels (dB) of the last few frames, and the quietest of them when the strum started. */
+  private recent: number[] = [];
+  private before = Number.NEGATIVE_INFINITY;
+  /** The loudest frame of the strum being listened to. */
+  private peak = Number.NEGATIVE_INFINITY;
 
   /** True while a strum is being listened to (not yet judged). */
   get listening(): boolean {
@@ -105,25 +118,45 @@ export class StrumListener {
     this.start = time;
     this.frames = [];
     this.judged = false;
+    this.before = this.recent.length ? Math.min(...this.recent) : Number.NEGATIVE_INFINITY;
+    this.peak = Number.NEGATIVE_INFINITY;
   }
 
   /**
-   * A chroma frame at `time`: collected while the strum is listened to; once the window has passed
-   * the strum is judged (once) against `want`. Returns the verdict on that frame, else null.
+   * A chroma frame at `time` (with its level in dB, when known): collected while the strum is
+   * listened to; once the window has passed the strum is judged (once) against `want`. Returns the
+   * verdict on that frame, else null. Feed every frame, also between strums: the level before a
+   * strum tells a strum from a click.
    */
-  frame(time: number, chroma: ArrayLike<number>, want: ChordSpec, candidates: readonly ChordSpec[]): StrumVerdict | null {
-    if (this.start === null || this.judged) return null;
+  frame(time: number, chroma: ArrayLike<number>, want: ChordSpec, candidates: readonly ChordSpec[], levelDb?: number): StrumVerdict | null {
+    const level = levelDb !== undefined && Number.isFinite(levelDb) ? levelDb : null;
+    if (this.start === null || this.judged) {
+      this.remember(level);
+      return null;
+    }
     const since = time - this.start;
     if (since < SETTLE_S) return null;
     if (since <= SETTLE_S + LISTEN_S) {
       // A quiet frame (the tracker reports it empty: below its gate) is not part of a strum.
-      if (hasSound(chroma)) this.frames.push(Array.from(chroma));
+      if (hasSound(chroma)) {
+        this.frames.push(Array.from(chroma));
+        if (level !== null) this.peak = Math.max(this.peak, level);
+      }
       return null;
     }
     this.judged = true;
+    this.remember(level);
     // An onset with nothing after it (strings muted, a knock, a click) was not a chord: say nothing.
     if (this.frames.length < 2) return null;
+    // Nor was one that brought no new sound (the last chord dying away, re-triggered).
+    if (Number.isFinite(this.before) && Number.isFinite(this.peak) && this.peak < this.before + STRUM_RISE_DB) return null;
     return judgeStrum(averageChroma(this.frames), want, candidates);
+  }
+
+  private remember(level: number | null): void {
+    if (level === null) return;
+    this.recent.push(level);
+    if (this.recent.length > BEFORE_FRAMES) this.recent.shift();
   }
 
   /** The chord matched (or the target changed): forget the strum being listened to. */

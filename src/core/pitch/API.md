@@ -82,15 +82,20 @@ source you feed yourself — tests replay `analyze()` output through it.
 - `detectPitch(samples, sampleRate, {minFreq?, maxFreq?, hintFreq?, …}) → PitchEstimate {freq, clarity, rms, window}` /
   `new PitchDetector(opts).detect(buf, hintFreq?, end?, staleFreq?)`. Stateless. Give it DC-free audio and,
   for full accuracy on low notes, `detector.historyNeeded` samples. `clarity` below ~0.7 is not a note.
-- `detectOnsets(samples, sampleRate, opts?) → OnsetEvent[]` / `class OnsetDetector`.
+- `detectOnsets(samples, sampleRate, opts?) → OnsetEvent[]` / `class OnsetDetector`. Two energy envelopes (whole
+  signal, treble) plus spectral flux between 1 and 8 kHz, which hears a light upstroke while the
+  downstroke still rings (the envelopes barely move).
 - `computeChroma(samples, sampleRate, {a4?, windowMs?, minMidi?, maxMidi?}) → ChromaFrame {chroma, notes, minMidi, bass, bassMidi, levelDb}` / `class ChromaExtractor`.
 - `class NoteTracker`, `class NoiseGate`, `toDb`, `fromDb`, `isMainsPitch`, `FFT`, `fftPlan`, `hannWindow`, `magnitudeSpectrum`, `nextPow2`.
 
 Fine-tuning keys (defaults in brackets). `tracker`: `clarityOn` (0.7), `clarityOff` (0.5), `stableFrames` (3),
 `stableCents` (35), `centreCents` (20), `labelSettleMs` (70), `changeFrames` (3), `harmonicChangeFrames` (7),
 `switchCents` (60), `holdMs` (110), `releaseMs` (45), `medianSize` (5), `attackHoldMs` (18), `silenceMs` (250),
-`retrigger` (true), `rejectHum` (true), `minGateDb` (−68), `maxGateDb` (−38), `marginDb` (8). `onset`:
-`thresholdDb` (3.5), `trebleThresholdDb` (5), `minIntervalMs` (60), `minLevelDb` (−55). `detector`:
+`retrigger` (true), `rejectHum` (true), `minGateDb` (−68), `maxGateDb` (−38), `marginDb` (8), `unsureCents` (6:
+a reading less clear than `clarityOn` only moves the pitch when it lies this close to it, or inside the
+scatter of the clear readings when they scatter more). `onset`: `thresholdDb` (3.5), `trebleThresholdDb` (5),
+`minIntervalMs` (60), `minLevelDb` (−55), `minFreq` (60), `fluxThreshold` (0.15; 0 switches the flux detector
+off; it only runs at 16 kHz and above). `detector`:
 `peakThreshold` (0.8), `freshThreshold` (0.9 in the engine; in a bare `PitchDetector` it defaults to
 `peakThreshold`), `acceptClarity` (0.9), `gateRms`, `fineHarmonics` (4.2), `finePeriods` (24), `stiffness` (true).
 `isMainsPitch(freq, toleranceCents = 25)`.
@@ -139,6 +144,11 @@ const c = await waitForChord(tracker, { name: 'G', pcs: [7, 11, 2], bass: 7 }, {
 // {ok:true, match: ChordMatch, time, failedAttempts} | {ok:false, reason, time, lastAttempt, failedAttempts}
 const m = matchChord(chromaFrameOrArray, chord);          // {score, purity, coverage, present, missing, extra, bassOk}
 rankChords(frame, candidates); averageChroma(frames); pitchClassesOf(midis);
+// Every tone of a chord is required, except the fifth above `bass` when a bass is given (often left
+// out or faint): a required tone under 12 % of the strongest cuts the score, down to a quarter at 3 %.
+requiredTones({ pcs: [7, 11, 2, 5], bass: 7 });           // [5, 7, 11]: G7 without its D still passes
+matchChord(frame, { pcs: [7, 11, 2, 5], required: [] });  // lenient: any three of four may do
+matchChord(frame, g7, { requiredThreshold: 0.2 });        // stricter
 
 // Record a phrase and mark it.
 const rec = new NoteRecorder(tracker, { minDurationMs: 50, onNote });
@@ -271,7 +281,7 @@ machine. The last string of the tuning section is followed for 1.2 to 1.9 s depe
 frames fall (the five strings ringing under it raise the noise floor by 3 dB when there is a gap).
 
 - **Speed**: 0.15–0.55 ms per frame (1.3 ms worst case: bass range on pure noise); the whole engine at
-  100 frames/s uses about 3 % of one core, 4–5 % with chroma.
+  100 frames/s uses about 3.5 % of one core (the onset flux adds about 0.3 points), 4.5–5 % with chroma.
 - **Response** (analysis only): note-on 40 ms after the pluck (50–60 ms for the low E); tuner needle
   within 1 cent by 60 ms on a steady string, and within 2 cents by 140–170 ms (1 cent by 170–230 ms)
   when the string itself starts 12 cents sharp from a hard pluck.
@@ -280,7 +290,9 @@ frames fall (the five strings ringing under it raise the noise floor by 3 dB whe
   Nothing is reported in the first 40 ms of a stream.
 - **Chords**: 20 open and barre chords, each scored against all 20, clean / small mic + noise / soft
   up-strum: 480 of 480 named correctly; C–Am, G–Em, D–Dsus4, E–Em and four similar pairs separated by
-  more than 0.15 in score both ways.
+  more than 0.15 in score both ways. The six four-note shapes of that set (3 strum styles × 4 takes)
+  with one tone silent (neither the bass nor the fifth): 4 of 144 still pass 0.6 (100 of 144 with
+  `required: []`, the old behaviour); all 72 whole ones pass.
 
 ## Limits (be honest with learners)
 
@@ -333,7 +345,10 @@ frames fall (the five strings ringing under it raise the noise floor by 3 dB whe
   transcribe. It works on pitch classes, so inversions and voicings are not told apart except through
   the `bass` hint (right about 95 % of the time). A triad against its own seventh chord (C vs Cmaj7,
   A vs A7) is the weak spot: right in all 40 synthetic takes, but by a score margin of only 0.03–0.08,
-  so expect misses on real guitars. Allow ~110 ms after the strum (`waitForChord` does). Notes below
+  so expect misses on real guitars. A chord needs every tone but the fifth above its bass: a G7
+  strummed without its F fails, and so does one whose F is just 3 % as strong as its loudest
+  note. Between 3 and 12 % the score falls off gradually, so a tone that is there but badly muted can
+  still pass. Allow ~110 ms after the strum (`waitForChord` does). Notes below
   about 150 Hz a tone or less apart are not resolved. A string more than a third of a semitone out
   starts to count toward the neighbouring pitch class. While a chord rings, `pitch`/`noteon` events
   (which assume one note) are not meaningful.

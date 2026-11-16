@@ -29,8 +29,10 @@ export interface NoteTrackerOptions extends NoiseGateOptions {
   clarityOff?: number;
   /**
    * A reading less clear than `clarityOn` (typically the end of a note fading into the room) only
-   * moves the smoothed pitch when it lies within this many cents of it (default 6); otherwise the
-   * note keeps its last good pitch.
+   * moves the smoothed pitch when it lies within this many cents of it (default 6), or within the
+   * scatter of the readings already in the median when they scatter more (twice their median
+   * deviation: a note fighting another string, where the clear readings are no better);
+   * otherwise the note keeps its last good pitch.
    */
   unsureCents?: number;
   /** Consecutive agreeing frames needed to start a note (default 3). */
@@ -124,6 +126,14 @@ function medianOf(values: readonly number[]): number {
   const s = [...values].sort((a, b) => a - b);
   const m = s.length >> 1;
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/** How far an unsure reading may lie from the median, in multiples of the median's own scatter. */
+const UNSURE_SCATTER = 2;
+
+/** Median absolute deviation of `values` from `med`. */
+function scatterOf(values: readonly number[], med: number): number {
+  return medianOf(values.map((v) => Math.abs(v - med)));
 }
 
 /** True when `freq` sits within `toleranceCents` (default 25) of a low multiple of the 50 or 60 Hz mains frequency. */
@@ -311,8 +321,10 @@ export class NoteTracker {
         } else if (!inAttack) {
           // An unsure frame (fading into the room) is often a few cents off, and several in a
           // row would carry the median with them: it may only confirm the pitch, not move it.
+          // When the clear readings scatter themselves, an unsure one inside that scatter is no worse.
           const sure = frame.clarity >= this.clarityOn;
-          if (sure || note.buf.length === 0 || Math.abs(pitch - medianOf(note.buf)) <= this.unsureSemis) {
+          const med = sure || note.buf.length === 0 ? 0 : medianOf(note.buf);
+          if (sure || note.buf.length === 0 || Math.abs(pitch - med) <= Math.max(this.unsureSemis, UNSURE_SCATTER * scatterOf(note.buf, med))) {
             note.buf.push(pitch);
             if (note.buf.length > this.medianSize) note.buf.shift();
           }

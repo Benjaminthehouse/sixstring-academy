@@ -208,7 +208,7 @@ or a long note; out-of-range parts move by octaves (with a warning); a pitch the
 ## Playback — `SongPlayer`
 ```ts
 const player = new SongPlayer(song, { metronome?, countInBars? = 1, output? = liveOutput({ tone?, bassTone?, clickSet?, engine? }) });
-await player.prepare();                 // after the first gesture: renders the notes ahead
+await player.prepare();                 // after the first gesture: renders every sound ahead, as it will be played (strokes, accents, hammer-ons, tone)
 player.play(); player.pause(); player.toggle(); player.stop(); player.seek(tick); player.seekBar(4);
 player.tempoPercent = 70;               // 25–150, pitch unchanged
 player.setLoop(4, 7, { ramp: { start: 60, step: 10, target: 100, every: 1 } }); player.clearLoop();   // the shortest stretch as played
@@ -218,15 +218,18 @@ const off = player.subscribe((e) => {   // 'beat' {beat, time} | 'bar' | 'counti
 });
 requestAnimationFrame(() => cursorAt(player.position()));   // { state, tick, sec, index, bar, pass, beat, barProgress, countIn }
 player.beatNow('lead'); player.playRange(fromTick, toTick); player.songTimeAt(noteOn.time); player.dispose();
-player.firstBeatTime;                   // audio time the first beat of this run is heard (after the count-in; a seek moves it); null before play
+player.firstBeatTime;                   // audio time the tick this run started from is heard: from a stop, the first beat after the count-in; after a pause, where it carries on; a seek while playing moves it; null before play
 player.audioTimeAt(tick);               // audio time a song tick still ahead will be heard; null when not playing
 ```
 Notes use the guitar synth (bass tracks the bass synth), slashes strum the chord's voicing (`chord.voicing` or the engine's
 first), ties sound once. Techniques are played by the guitar voice for real (`@/core/audio` "Expression"): a bend glides to its
 target (`3:5b2`, and back with `r`; `{pre}` is struck bent), `h`/`p` carry the ringing string on without a new pick stroke,
-`s` glides between frets, `~` vibrato, `/3:7` `\3:7` slide in, `3:7\` `3:7/` slide out, `{lr}` let ring. Strokes have
-per-stroke strength: a down-strum on the beat 0.8, between beats 0.72, an up-strum 0.62; `beat.accent` (the whole beat) and
-`note.accent` play it ×1.25–1.3 harder and brighter. `buildPlayEvents(timeline)` is the pure schedule (`PlayNote` carries
+`s` glides between frets (a slide down that cannot carry the string on slides in from above), `~` vibrato, `/3:7` `\3:7`
+slide in, `3:7\` `3:7/` slide out, `{lr}` let ring. A hammer-on, pull-off or slide keeps the velocity of a picked note: the
+voice plays it softer (4–5 dB under picking it, measured in a song). Strokes have per-stroke strength: a down-strum on a felt
+beat of the meter 0.8 (quarters in 4/4, the two dotted quarters of 6/8, 2+2+3 in 7/8, halves in 2/2; a pickup counts from
+the end of its bar), between beats 0.72, an up-strum 0.62 (`strumVelocity`, `feltBeats`); `beat.accent` (the whole beat)
+and `note.accent` play it ×1.25–1.3 harder and brighter. `buildPlayEvents(timeline)` is the pure schedule (`PlayNote` carries
 `legato`, `bend`, `vibrato`, `slideIn`, `slideOut`, `accent`; `PlayStrum` `accent`, `letRing`). `liveOutput({ engine })`
 plays into a given (offline) engine with the player's own synths.
 

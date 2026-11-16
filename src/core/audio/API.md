@@ -177,6 +177,10 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
 - `new GuitarSynth({ engine?, bus?, tone?, mono?, maxVoices?, pan? })` — `.tone`, `.a4`, `.baseTone`,
   `.pluck`, `.strum`, `.stopString(n)`, `.stopAll`, `.activeVoices`, `.preload(notes, opts?)` (async,
   avoids first-note hitches), `.renderNow(notes)` (the same, synchronously: render, then read the clock),
+  `.strumNotes(midis, strumOpts)` (the notes a strum renders, for those two). A note is rendered per velocity
+  layer, articulation and brightness, so give `preload` each `PreloadNote` (`{ midi, string?, velocity?, tone?,
+  articulation?, brightness?, accent?, legato? }`) as it will be played: an up-stroke or accented strum of a chord
+  preloaded only plainly renders its six strings (50–70 ms) while the music plays. The song player does this.
   `.dispose()` (takes its chains off the mixer; usable again afterwards).
 
 ## Expression: bends, slides, vibrato, hammer-ons, accents (`expression.ts`, `guitar.ts`, `phrase.ts`)
@@ -193,9 +197,11 @@ clock (the body and amp filters come after, so the timbre stays put while the pi
   ringing on that `string` to the new fret, arriving on the beat (glide 0.03–0.12 s).
 - **Hammer-on / pull-off** `legato: 'hammer' | 'pull'`: no new pick stroke. The voice ringing on the same
   `string` (or, without a string, the last note played) carries on: its pitch steps on the render quantum
-  nearest the beat (within 1.5 ms) and the finger adds a soft, pick-less attack (about 7 dB under a pick
-  stroke of the same velocity). Nothing ringing (first note, after a rest, a dead or muted note) → a soft
-  `legato` note of its own (about 4 dB under a pick); a slide with nothing to slide from slides in from below.
+  nearest the beat (within 1.5 ms), it blends out over ~0.15 s under a soft, pick-less finger note (gain ×0.55,
+  ×0.62 for a pull-off). Measured: 4–5 dB under picking the same note at the same velocity, the pick click's highs
+  12 dB down. So pass a hammer-on the velocity a picked note would have: the voice softens it (the song player does).
+  Nothing ringing (first note, after a rest, a dead or muted note) → a soft `legato` note of its own (gain ×0.62);
+  a slide with nothing to slide from slides into a fresh note (from below, or from `slideIn: 'above'`).
   The returned handle stops the string.
 - **Accent** `accent: true` on `pluck` or `strum`: velocity ×1.3 and half a step brighter (≈ 3 dB).
 - **Let ring** `letRing: true`: ignore `duration`, ring until the string is played again.
@@ -205,12 +211,14 @@ clock (the body and amp filters come after, so the timbre stays put while the pi
 - **Tab tokens** `parseTabTechnique('5h7p5')` → `[{ fret: 5 }, { fret: 7, legato: 'hammer' }, { fret: 5, legato: 'pull' }]`;
   understands `h p s / \ b b7 b7r5 pb9 ~` and `/5` `\5` `5\` `5/`; null for anything else.
 - **Phrases** `tabPhrase(token, string, { tuning?, capo?, noteSeconds? = 0.45 }): PhraseNote[] | null` turns one
-  string's token into notes (`tabPhrase('5b7', 3)` = fret 5 on the G string bent a whole tone);
+  string's token into notes (`tabPhrase('5b7', 3)` = fret 5 on the G string bent a whole tone; a slide down such as
+  `7\5` carries `slideIn: 'above'`, used only if the string cannot be carried on);
   `playPhrase(notes, when?, { synth?, tone?, velocity? }): PhraseHandle` plays `{ midi, at, ...PlayOptions }[]`
   (renders first, then schedules) — `.startTime`, `.endTime`, `.queued`, `.stop(when?)`.
   `playLineOverChord(chordMidis, line, when?, { chordVoice? = 'guitar' | 'epiano' | 'organ', hold?, chordLevel? = 0.6,
   tone?, lineDelay?, engine? })`: the chord is held (on its own guitar, a little left, or on the keys) while the
-  line plays over it; one handle stops both. For a line over a drone, use `startDrone({ when, duration })`.
+  line plays over it; one handle stops both. Both are rendered before the clock is read, so asked for "now" the
+  chord and the line still start together. For a line over a drone, use `startDrone({ when, duration })`.
 - Pure: `renderPluck(spec)`, `renderRawPluck(spec)` (dry, pre-bus), `renderStrum(midis, opts)`,
   `renderSequence(notes, opts)`, `strumPlan(midis, opts)`, `encodeWav(samples, sampleRate, { bitDepth?, channels? })`, `decodeWav(bytes)`.
 - Tuning (measured by estimators written independently of the synth, MIDI 28..88, three velocities,
@@ -304,7 +312,9 @@ clock (the body and amp filters come after, so the timbre stays put while the pi
   — pure: `.events` (drum/bass/keys/guitar with ticks), `.chords: ChordSegment[]`, `.lengthTicks`, `.bars`.
 - `BackingBand`: `load(bars, { style, tempo?, choruses?, loop?, countInBars?, seed?, ending? })` (stops and resets),
   `change(bars, opts)` (live: the band finishes its bar and the new progression / style / tempo takes over on the
-  next bar line, at the same bar of the form, no stop, no count-in; during the count-in at once; stopped = `load`), `prepare()`,
+  next bar line, at the same bar of the form, no stop, no count-in; during the count-in at once; stopped or paused =
+  `load`; a `pause()` before that bar line keeps the change for `resume()`, `start()` plays it from the top,
+  `setTempo` meanwhile carries over, `load` drops it), `prepare()`,
   `start/stop/pause/resume`, `playing`, `tempo`, `setTempo`, `setVolume(inst, v)`, `setMuted(inst, b)`,
   `onChord(fn)`, `currentChord()`, `arrangement`, `style`, `transport`, `dispose()` (always call it when
   the screen unmounts: it frees the band's own guitar chain).
