@@ -80,11 +80,18 @@ export const cagedShape = defineGenerator({
       kind: 'fretboard',
       frets: [Math.max(0, low - 1), Math.max(...fretted, low + 3)],
       labels: 'none',
-      dots: voicing.notes.map((n): FretDot => ({ string: n.string, fret: n.fret, label: n.isRoot ? 'R' : n.degree, role: n.isRoot ? 'root' : n.role === 'third' ? 'third' : n.role === 'fifth' ? 'fifth' : 'tone' })),
+      dots: voicing.notes.map((n): FretDot => ({
+        string: n.string,
+        fret: n.fret,
+        label: n.isRoot ? 'R' : n.degree.replace(/^b/, '♭'),
+        role: n.isRoot ? 'root' : n.role === 'third' ? 'third' : n.role === 'fifth' ? 'fifth' : 'tone',
+      })),
     };
     const lowestRoot = voicing.notes.filter((n) => n.isRoot).sort((a, b) => b.string - a.string)[0];
     const open = `${shape}${minor ? 'm' : ''}`;
-    const explain = `It is the open {c:${open}} grip moved up the neck: the ${shape} shape. Its lowest root (R) is on string ${lowestRoot.string}, fret ${lowestRoot.fret}: {n:${lowestRoot.note}}, so it plays {c:${symbol}}.`;
+    // Em, Am and Dm are open chords; the minor C and G shapes are only shapes.
+    const grip = !minor || ['E', 'A', 'D'].includes(shape) ? `the open {c:${open}} grip` : `the ${shape} shape in its minor form`;
+    const explain = `It is ${grip} moved up the neck: the ${shape} shape. Its lowest root (R) is on string ${lowestRoot.string}, fret ${lowestRoot.fret}: {n:${lowestRoot.note}}, so it plays {c:${symbol}}.`;
     if ((p.ask ?? 'shape') === 'chord') {
       const typeSymbol = minor ? 'm' : '';
       const rootPc = pcOf(lowestRoot.note);

@@ -16,7 +16,7 @@ Song { meta: { id, title, composer?, artist?, arranger?, source?, licence?, diff
 BarInfo { time: {numerator, denominator}, length? (pickup), repeatStart?, repeatEnd? (times played), ending?: number[], key? }
 Track { id, name, role: 'lead'|'rhythm'|'bass', tuning?, capo?, measures: { beats: Beat[] }[] }    // one measure per bar
 Beat { start, duration, value?: {base 1..64, dots?, tuplet?: {actual, normal}}, notes: Note[], slash?, mutedStrum?,
-       stroke?: 'down'|'up', lyric? ('A-' continues the word), text? }                              // no notes = rest
+       stroke?: 'down'|'up', accent? (the whole strum/beat harder), lyric? ('A-' continues the word), text? }  // no notes = rest
 Note { string, fret, midi, tie?, legato?: 'hammer'|'pull', slide?: 'up'|'down', slideIn?: 'below'|'above', slideOut?,
        bend?: {amount (semitones, 2 = full), release?, pre?}, vibrato?, palmMute?, dead?, ghost?, harmonic?: 'natural'|'artificial',
        letRing?, staccato?, accent?, tap?, finger?: 0–4|'T', pluck?: 'p'|'i'|'m'|'a'|'c', length? (held longer than its beat) }
@@ -36,7 +36,7 @@ A file is lines: **header fields** (before the music), **`[Section]`** headers, 
 | Header | Meaning |
 |---|---|
 | `title:` (required) `id:` `composer:` `artist:` `arranger:` `source:` `licence:` `difficulty: 1–10` `tags: a, b` | metadata (id defaults to the title's slug) |
-| `tempo: 90` `time: 3/4` `key: G` / `Em` / `F# minor` | tempo (quarters/min), meter, key |
+| `tempo: 90` `time: 3/4` `key: G` / `Em` / `F# minor` / `A Dorian` | tempo (quarters/min), meter, key: major, minor or one of the other modes (ionian dorian phrygian lydian mixolydian aeolian locrian), written with the signature of its parent major scale |
 | `tuning: standard` / `drop-d` / `dadgad` / `bass` / `D A D G B E` / `C2 G2 C3 G3 C4 E4` / `40 45 50 55 59 64` · `capo: 0–12` · `pickup: q` | tuning low→high, capo, first bar shortened |
 
 | In the body | Meaning |
@@ -54,10 +54,10 @@ A file is lines: **header fields** (before the music), **`[Section]`** headers, 
 | `w h q e s` · `/32 /64` (also `/1 … /16`) · dots `q. e..` · tuplet digit 2–13 `e3 s6 q5` (n in the time of the next lower power of two) | duration for the following beats until changed (required before the first note of each track) |
 | `3:5` | string 3, fret 5 · `3:x` dead · `3:(5)` ghost · `3:<12>` natural harmonic · `3:-` tie (same fret as the note ringing on string 3) |
 | `(5:3 4:2 2:1)` | notes struck together |
-| `r` · `/` `D` `U` `X` | rest · rhythm slash (strum the chord in force; `D`/`U` with direction, `X` muted) |
+| `r` · `/` `D` `U` `X` · `D>` `U>` `/>` `X>` | rest · rhythm slash (strum the chord in force; `D`/`U` with direction, `X` muted) · accented strum (`beat.accent`; also `D{ac}`) |
 | suffixes `3:7h` `p` `s` `t` `~` `>` `b` `b1` `b0.5` `r` `/` `\` | hammer-on / pull-off / slide **into this note** from the previous one on the string, tap, vibrato, accent, bend (semitones, `b` = 2), release, slide out up/down |
 | prefixes `/3:7` `\3:7` | slide in from below / above |
-| `{pm lr st ac vib x gh nh ah tap pre dn up 0–4 T P I M A C}` right after a note or `(…)` | palm mute, let ring, staccato, accent, vibrato, dead, ghost, harmonics, tap, pre-bend, pick/strum direction, left-hand finger, right-hand finger (capitals) |
+| `{pm lr st ac vib x gh nh ah tap pre dn up 0–4 T P I M A C}` right after a note or `(…)` | palm mute, let ring, staccato, accent, vibrato, dead, ghost, harmonics, tap, pre-bend, pick/strum direction, left-hand finger, right-hand finger (capitals). `ac` after a chord group or a slash accents the whole beat (`beat.accent`, and every note of the group); `>` or `{ac}` on one note accents that note (`note.accent`) |
 | `"Am"` · `"G=320003"` · `"Bb=x-1-3-3-3-1"` | chord symbol at the next beat (optional shape, low string first) |
 | `^"let ring"` | annotation at the next beat |
 | `\|` `\|\|` `\|:` `:\|` `:\|x3` `:\|:` · `[1]` `[2]` `[1,2]` · `%` | bar lines and repeats (`\|:` at a line's end opens the next line's first bar) · ending right after the bar line (carries until `:\|` or `\|\|`) · repeat the previous bar (alone in its bar) |
@@ -121,18 +121,36 @@ Techniques in one line: `| e 3:5 3:7h 3:5p 3:7 s 3:9s 3:7s 3:5{1} 3:7{3} q 3:7b2
 createSong({ meta?, tuning?, capo?, key?, bpm?, time?, bars?, tracks? }) cloneSong  findTrack(song, id|name|index)  midiOf(string, fret, tuning, capo)
 soundingPitch(note) (as struck: harmonics up, pre-bends bent, dead → null)  barLength(info)  valueTicks(v)  valueFromTicks(t)  splitTicks(t)  restBeats(a, b)
 validateSong(song): SongIssue[]  isValidSong  assertValidSong (throws, lists errors)  describeTicks(480): 'an eighth'
+voicingLabelProblem('Dm', [null,null,3,2,3,5], tuning, capo?, { bassMidi? }): 'sounds Dm/F, not Dm: …' | null   // the chord-label check
+//   validateSong warns `chord-voicing-label` when a written shape is not what its symbol names (`buildVoicing(symbol, frets).chord`,
+//   slash chords included; a shape missing its third is another chord). Two inversions keep the plain name, as charts write them:
+//   a major/minor triad with its fifth lowest (G=xx0003), and any shape over a bass part sounding the root below it (drop-2 comping)
 flattenSong(song, { unroll? = true, tracks? }): SongTimeline   playbackOrder(bars)   songDuration(song)   // ramps restart on each repeat pass
 //  .bars {index, bar, pass, start, length, time, startSec, endSec}  .beats / .trackBeats(id) {track, index, bar, beat, tick, duration, sec, durSec, notes, source}
 //  .chords {tick, endTick, sec, symbol, voicing?}  .sections  .tempo: TempoMap  .totalTicks  .totalSeconds
 //  .secondsAt(tick) .tickAt(sec) .barAt(tick) .barAtTime(sec) .beatAt(track, tick) .beatAtTime(track, sec) .chordAt .sectionAt .firstIndexOf(bar) .locate(tick)
-transposeSong(song, semis, { mode?: 'shift'|'arrange' }) → { song, warnings }       transposeKey('E minor', 1): 'Fm'
+transposeSong(song, semis, { mode?: 'shift'|'arrange' }) → { song, warnings }       transposeKey('E minor', 1): 'Fm'   transposeKey('A dorian', 2): 'B dorian'
 retuneSong(song, { tuning?, capo?, keep?: 'pitch' (re-finger) | 'shapes' (music moves) }) → { song, warnings }
 extractBars(song, from, to, { title?, repeat? }) / extractSection(song, 'Chorus')     // a looping exercise: chord/tempo/key carried in, outside ties struck
 withTempoPercent(song, 70)  practiceVariants(song, [50, 70, 85, 100])
 strumBeats(time, 'D-DU-UDU'): Beat[]   withStrumTrack(song, { pattern?, name? })   // a rhythm track from each section's strum pattern
-songStats(song): { bars, playedBars, seconds, chords, chordChangesPerBar, tracks: TrackStats[] }   // range, frets, strings, positions, shifts, maxSpan, techniques, notesPerSecond, fastestGap, syncopation
-estimateDifficulty(song, { track?, tempoPercent? }): { level 1–10, band: 'beginner'|'intermediate'|'expert', score, factors {speed, fastest, stretch, position, techniques, rhythm, chords}, reasons }
+songStats(song): { bars, playedBars, seconds, chords, chordChangesPerBar, tracks: TrackStats[] }   getTrackStats(song, track?)
+//  TrackStats: range, frets, handFrets (tapped/dead/open left out), strings, positions, shifts, maxSpan, techniques, notesPerSecond,
+//  fastestGap, shortestTicks, syncopation, shapes {frets, difficulty, barre, count}[], heldVoices, thumbVoices,
+//  enduranceSeconds, enduranceRepeats, mutedStrums, mutingSwitches
+estimateDifficulty(song, { track?, tempoPercent? }): { level 1–10, band: 'beginner'|'intermediate'|'expert', score,
+  factors {speed, fastest, stretch, position, techniques, rhythm, chords, voices, endurance, muting}, reasons }
+shortestValueWords(320): 'triplet eighth notes'    // the rhythm reason names the real shortest value
 ```
+How the estimate reads the hands: the part is cut into as **few hand positions** as fit five frets (one finger per fret plus
+one of reach), so a first-position tune that opens on fret 3 is one position, not a shift and a stretch; tapped notes belong to
+the picking hand. A **stretch** is the span the hand holds at once: a chord, a note tied under new ones, a hammer-on/pull-off
+pair, or notes within 0.75 s in one position. **Chords** are scored by the grip played: the shapes in the tab (three notes or
+more), the shape written for a strummed chord (`"F=133211"`, else the engine's standard voicing), and a written shape a
+picked part takes at least 3 in 4 of its notes from (Travis picking). **Syncopation**: an off-beat onset that is accented,
+sounds on through the next beat, or has nothing struck on it. **Voices**: notes held while another voice moves (0.75 at most),
+or fingers moving off a steady thumb (0.35 at most). **Endurance**: the longest run of onsets ≤ 0.2 s apart, from 6 s up
+(tremolo when most notes repeat). **Muting**: muted strums (X, or a chord all palm-muted/dead) alternating with ringing ones.
 
 ## Import, export, arranger
 ```ts
@@ -147,7 +165,12 @@ toSixTab(song)  toAsciiTab(song, { track?, width?, header?, rhythm? = true })  t
 arrangeTrack(song, track, { tuning?, capo?, maxFret? = 17, preferPosition?, weights?, keepStrings?, octaves? = true, fingers? }) → { track, octaveShift, cost, warnings }
 arrangeSong(song, opts)  arrangeLine([48, 50, 52]) → [{string, fret, midi}]  spellTrack(song, track?) → per beat { name: 'F#3', written: 'F#4' }
 buildMeasures(onsets, bars, { tuning, capo })  chooseGrid(ticks)  quantize(tick, grid)   // for sheet recognition building songs from notes
+SongImportError extends RangeError { message (for the learner), detail? (the parser's own words), format? }   isSongImportError(e)
 ```
+**Refusals** are `SongImportError`s whose message a learner can act on ("This MIDI file could not be read: it seems damaged or cut
+short. Export it again…", "This song was saved by a newer version of Sixstring Academy…"); the parser's reason (`Offset is outside
+the bounds of the DataView`, `Not JSON: …`, `The root element is <html>.`) is the `detail`. One exception on purpose: a damaged XML
+file keeps the XML reader's message (`Unclosed start tag.`), which `@/core/library` turns into its own sentence with that text as detail.
 **ASCII tab** in the usual web styles: `e|`, `E-|` (high E in capitals), `e |`, `1|` or no labels; `|` or `:` bar lines (a `:` beside
 `|`, or `*` on two strings, is a repeat sign); typographic dashes and box lines; tabs, CRLF, non-breaking spaces; systems with or without
 blank lines between them (repeating string names split them); separator lines of dashes and comments after a line ("`|  <- let ring`",

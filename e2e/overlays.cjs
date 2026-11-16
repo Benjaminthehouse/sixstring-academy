@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the layers above a screen: toasts, sheets and dialogs, the bars at the bottom,
- * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose] [--only toasts,clearance,text,hold,immersive,back,keyboard]
+ * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose] [--only toasts,clearance,text,hold,title,immersive,back,keyboard]
  *
  * What it checks (phone 390 x 844 unless it says desktop 1280 x 800):
  *  toasts      a moment's rewards never cover an open sheet: they wait and show once it closes,
@@ -18,6 +18,8 @@
  *              the text; at the normal size nothing moved
  *  hold        rewards that arrive while a lesson's steps are on screen (a new level included) do
  *              not cover it; they show, dialog first, once the learner leaves the lesson
+ *  title       phone, a fake camera: once the live camera view hides its page header, the top bar
+ *              shows the screen's title at scroll 0 (it showed none)
  *  immersive   no scroll padding is kept for the tab bar an immersive screen hides
  *  back        Back closes an open sheet and stays on the screen (phone and desktop); a link inside a
  *              sheet, then Back, returns to the screen; a sheet opened from the address
@@ -415,6 +417,34 @@ async function hold(browser, url) {
 }
 
 // -----------------------------------------------------------------------------------------------
+async function title(url) {
+  const group = 'title';
+  // A browser with a fake camera, so the live view can start.
+  const camBrowser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+  try {
+    const ctx = await open(camBrowser, url);
+    const { page } = ctx;
+    await ctx.context.grantPermissions(['camera']);
+    await ctx.goto('camera', 'main[data-route="camera"]', 1200);
+    const shown = () => page.evaluate(() => {
+      const span = [...document.querySelectorAll('header span[aria-hidden="true"]')].find((s) => s.textContent.trim().length > 0);
+      return span ? { text: span.textContent.trim(), opacity: getComputedStyle(span).opacity } : null;
+    });
+    await page.getByRole('button', { name: 'Start camera' }).click();
+    await page.waitForSelector('[data-mode="live"], [data-mode="starting"]', { timeout: 30000 });
+    await page.waitForTimeout(800);
+    const live = await page.evaluate(() => ({ scroll: window.scrollY, mode: document.querySelector('[data-mode]')?.getAttribute('data-mode') }));
+    const t = await shown();
+    check(group, 'the live camera view: the top bar shows the title at scroll 0', live.scroll < 5 && t && t.text.length > 0 && Number(t.opacity) > 0.9, JSON.stringify({ ...live, title: t }));
+    await ctx.shot('camera-live-title-phone');
+    check(group, 'no console errors', ctx.errors.length === 0, ctx.errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  } finally {
+    await camBrowser.close();
+  }
+}
+
+// -----------------------------------------------------------------------------------------------
 async function immersive(browser, url) {
   const ctx = await open(browser, url);
   await ctx.goto('home');
@@ -537,6 +567,7 @@ async function keyboard(browser, url) {
       ['clearance', () => clearance(browser, server.url)],
       ['text', () => largeText(browser, server.url, seeds)],
       ['hold', () => hold(browser, server.url)],
+      ['title', () => title(server.url)],
       ['immersive', () => immersive(browser, server.url)],
       ['back', () => back(browser, server.url)],
       ['keyboard', () => keyboard(browser, server.url)],

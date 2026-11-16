@@ -42,6 +42,32 @@ async function seed(page) {
   await page.addInitScript((entries) => {
     for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
   }, SEED);
+  // Count what lesson sounds ask of Web Audio: oscillators (the drone), buffer sources (plucks and
+  // strums) and automation of a source's playback rate (bends, slides, vibrato, hammer-ons).
+  await page.addInitScript(() => {
+    window.__audio = { osc: 0, src: 0, rate: 0 };
+    const proto = window.BaseAudioContext && window.BaseAudioContext.prototype;
+    if (!proto) return;
+    const osc = proto.createOscillator;
+    proto.createOscillator = function () {
+      window.__audio.osc += 1;
+      return osc.call(this);
+    };
+    const src = proto.createBufferSource;
+    proto.createBufferSource = function () {
+      const node = src.call(this);
+      window.__audio.src += 1;
+      const rate = node.playbackRate;
+      for (const m of ['setValueAtTime', 'linearRampToValueAtTime', 'exponentialRampToValueAtTime', 'setTargetAtTime', 'setValueCurveAtTime']) {
+        const f = rate[m].bind(rate);
+        rate[m] = (...args) => {
+          window.__audio.rate += 1;
+          return f(...args);
+        };
+      }
+      return node;
+    };
+  });
 }
 
 async function openOptions(page, url) {
@@ -280,6 +306,35 @@ async function desktop() {
     const placed = await page.evaluate((t) => document.querySelector(`[data-left="${t}"]`)?.getAttribute('data-state'), target);
     check(group, 'keys 6 and a letter make the sixth pair', placed === 'placed', `${placed} (${letter})`);
     await page.screenshot({ path: path.join(OUT, 'fixes-match-desktop.png') });
+
+    // Lesson sounds use the engine's drone, held chord and techniques: count what reaches Web Audio.
+    await openOptions(page, url);
+    const tabMarks = await page.evaluate(() => {
+      const fig = document.querySelector('[data-option-figure="tab-techniques"]');
+      const svg = fig && fig.querySelector('svg[role="img"]');
+      return { marks: fig ? fig.querySelectorAll('[data-tab-mark]').length : 0, texts: fig ? [...fig.querySelectorAll('[data-tab-mark] text')].map((t) => t.textContent) : [], label: svg ? svg.getAttribute('aria-label') : '' };
+    });
+    check(group, 'a tab figure draws its techniques (H, P, full)', tabMarks.marks >= 5 && ['H', 'P', 'full'].every((t) => tabMarks.texts.includes(t)), JSON.stringify(tabMarks));
+    check(group, 'and reads them out', /hammered on/.test(tabMarks.label) && /bent up a whole step and released/.test(tabMarks.label), tabMarks.label);
+    const heard = async (selector) => {
+      await page.evaluate(() => Object.assign(window.__audio, { osc: 0, src: 0, rate: 0 }));
+      // The same button stops it (its words change to "Stop" while it plays).
+      const button = await page.locator(selector).first().elementHandle();
+      await button.click();
+      await page.waitForTimeout(1500);
+      const counts = await page.evaluate(() => ({ ...window.__audio }));
+      await button.click();
+      await page.waitForTimeout(300);
+      return counts;
+    };
+    const drone = await heard('[data-option-figure="audio-drone"] [data-sound-play]');
+    check(group, 'a scale over a drone starts the drone', drone.osc > 0, JSON.stringify(drone));
+    const plain = await heard('[data-option-figure="tab-a-major"] button:has-text("Hear it")');
+    const techniques = await heard('[data-option-figure="tab-techniques"] button:has-text("Hear it")');
+    check(group, 'bends and slides move the pitch of the notes', techniques.rate > plain.rate, `plain ${JSON.stringify(plain)} techniques ${JSON.stringify(techniques)}`);
+    const over = await heard('[data-option-figure="audio-over"] [data-sound-play]');
+    check(group, 'a line over a chord sounds the chord too', over.src > 6, JSON.stringify(over));
+    await page.locator('[data-option-figure="tab-techniques"]').screenshot({ path: path.join(OUT, 'fixes-tab-techniques.png') });
     check(group, 'no console errors', errors.length === 0, errors.join(' | '));
   });
 }

@@ -397,6 +397,9 @@ function inPage({ quick, long }) {
       });
       m.subdivision = 'sixteenth'; // a sixteenth-note run at 200 BPM: 75 ms apart
       const stop = capture();
+      // The first click now comes 20 ms after start(): give the capture a moment first, so that click
+      // is inside the window the comparison below looks at.
+      await sleep(100);
       const t0 = performance.now();
       m.start();
       const rand = rng(99);
@@ -426,7 +429,12 @@ function inPage({ quick, long }) {
       const afterStop = found.filter((t) => t > stopAt + 0.005).length;
       report.info['live metronome'] = `${wanted.length} clicks in ${seconds} s, ${stalls} main-thread stalls up to ${longestStall.toFixed(0)} ms, smallest scheduling lead ${ms(minLead, 1)}, ${cancelledCount} clicks cancelled by restarts and stop, capture gaps ${cap.gaps}`;
       report.info['live recording holes'] = cap.gaps;
-      check('live: every click of a long, changing metronome run is heard, none extra', cmp.missing === 0 && cmp.extra === 0 && cmp.n > seconds * 4, `${cmp.n}/${wanted.length} found, ${cmp.missing} missing, ${cmp.extra} extra`);
+      // For a failure: each sound found that nobody asked for, with the nearest click the metronome logged.
+      const strays = found.filter((t) => !wanted.some((w) => Math.abs(w - t) < 0.01)).map((t) => {
+        const near = log.reduce((b, c) => (Math.abs(c.time - t) < Math.abs(b.time - t) ? c : b), log[0]);
+        return `${t.toFixed(4)} s (nearest click ${near ? `${((near.time - t) * 1000).toFixed(2)} ms away, ${near.cancelled ? 'taken back' : 'kept'}` : 'none'})`;
+      });
+      check('live: every click of a long, changing metronome run is heard, none extra', cmp.missing === 0 && cmp.extra === 0 && cmp.n > seconds * 4, `${cmp.n}/${wanted.length} found, ${cmp.missing} missing, ${cmp.extra} extra${strays.length ? `: ${strays.join('; ')}` : ''}`);
       check('live: every click within 2 ms of its audio-clock time', cmp.worst < 0.002, `worst ${ms(cmp.worst)}, mean offset ${ms(cmp.mean)}`);
       check('live: jitter under 2 ms', cmp.jitter < 0.002, `${ms(cmp.jitter)} (${(cmp.jitter * fs).toFixed(2)} samples)`);
       check('live: no drift', Math.abs(cmp.drift) < 0.0002, `${ms(cmp.drift, 5)} over ${cmp.span.toFixed(0)} s`);

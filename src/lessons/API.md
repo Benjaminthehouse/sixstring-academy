@@ -253,12 +253,16 @@ engines, or `null` when it cannot be drawn (`figureProblems(figure)` says why):
 | `keyboard` | `from to` (MIDI, white keys), `keys[]`: `midi note label role black` |
 | `circle` | `key { name, mode, fifths, accidentals } show`, `slots[12]`: `index major[] minor[] fifths majorState minorState` (`selected \| highlight \| null`) |
 | `rhythm` | `time bars barTicks tempo counting onsetTimes`, `events[]`: `code tick ticks bar value dots triplet rest tied attack count` (`count` = "1", "&", "e", "a") |
-| `tab` | `tuning capo time tempo totalTicks`, `notes[]`: `rest string fret midi note tick ticks duration` |
+| `tab` | `tuning capo time tempo totalTicks`, `notes[]`: `rest string fret midi note tick ticks duration technique` (`technique`: the note's bend, slides, legato, vibrato, or null) |
 | `audio` | `plan: SoundPlan`, `strum` (the pattern slots, for drawing arrows), `label` |
 
-A `Sound` becomes plain events with `soundPlan(sound): { events, duration, tempo }`; each `SoundEvent` is
-`{ at (seconds), type: 'pluck' | 'strum' | 'click', midi[], duration, direction?, muted?, accent?, string? }`.
-Schedule them with `@/core/audio` (from a tap, after `unlockAudio()`):
+A `Sound` becomes plain events with `soundPlan(sound): { events, duration, tempo, drone?, hold? }`; each `SoundEvent` is
+`{ at (seconds), type: 'pluck' | 'strum' | 'click', midi[], duration, direction?, muted?, accent?, string?, technique? }`.
+`technique` is a tab note's bend, vibrato, legato (hammer/pull/slide from the note before, which is kept ringing into
+it) or slide in/out; `drone` (`{ midi, fifth }`) sounds under the whole plan; `hold` (`{ midi[], voice }`) is a chord
+held under it while the plucks play over it. The lesson player (`schedulePlan`) hands these to the audio engine:
+techniques as `pluck` options (`techniqueOptions(event)`), the drone with `startDrone({ when, duration })`, a held
+chord with `playLineOverChord(hold.midi, planLine(plan), t0, { chordVoice })`. A plain schedule from scratch:
 
 ```ts
 const t0 = audioNow() + 0.05;
@@ -269,7 +273,8 @@ for (const e of soundPlan(sound).events) {
 }
 ```
 
-`soundProblems(sound)`, `tabProblems(notes)`, `chordSoundMidi(symbol, opts)`, `voicingFor(symbol, frets)`,
+`soundProblems(sound)`, `tabProblems(notes, { tuning?, capo?, techniques? })` (`techniques: false` makes any
+technique a problem, as for play-phrase targets), `hasTechnique(note)`, `chordSoundMidi(symbol, opts)`, `voicingFor(symbol, frets)`,
 `positionProblem(pos)`, `degreeSemitones(label)`. Rhythm notation helpers: `parseRhythm(spec)`,
 `parseDuration(code)`, `durationCode(value)`, `parseStrum(pattern, grid)`, `rhythmOnsetTimes(spec, tempo)`,
 `tickSeconds(tick, tempo)`, `countLabel(tick, time)`.
@@ -664,7 +669,17 @@ The notation, used everywhere a rhythm is written:
 <!-- /gen -->
 
 `notes` (`{ string, fret, duration }` or `{ rest: true, duration }`), `tuning?`, `capo?`, `time?`, `tempo?`, `key?`
-(spells its notes; default: the key they imply), `caption?`.
+(spells its notes; default: the key they imply), `caption?`. A fretted note may carry techniques (`TabTechnique`),
+drawn on the tab (bend arrow with `full`/`½`, H/P arcs, slide lines, vibrato wave; read out in the figure's label) and
+heard when it plays: `bend` (semitones, 0.5–3 in halves: 2 = full), `release` (with a bend), `vibrato: true`,
+`legato: 'hammer' | 'pull' | 'slide'` (from the note just before on the same string, no rest between; a hammer-on
+goes up, a pull-off down, a slide between two fretted notes), `slideIn: 'below' | 'above'`, `slideOut: 'down' | 'up'`
+(not on an open string). Techniques are not allowed in play-phrase targets (the listener would hear other pitches).
+
+```ts
+notes: [{ string: 3, fret: 5, duration: 'q' }, { string: 3, fret: 7, duration: 'e', legato: 'hammer' },
+        { string: 3, fret: 5, duration: 'e', legato: 'pull' }, { string: 2, fret: 8, duration: 'h', bend: 2, release: true, vibrato: true }]
+```
 
 **`audio`** — a play button.
 
@@ -675,18 +690,27 @@ The notation, used everywhere a rhythm is written:
 <!-- /gen -->
 
 `sound`, `label?` (at most 28 characters), `caption?`. `describeSound(sound)` is its short description ("one note",
-"3 notes together", "a chord"). A `Sound` is one of:
+"3 notes together", "a chord", "a scale over a drone"). A `Sound` is one of:
 
 | `kind` | fields |
 |---|---|
-| `notes` | `notes` (with octaves), `together?`, `tempo?` |
-| `interval` | `from` (lower note with octave), `interval`, `play?`: `up` (default), `down` (upper note first), `together` |
+| `notes` | `notes` (with octaves), `together?`, `tempo?`, `drone?`, `over?` |
+| `interval` | `from` (lower note with octave), `interval`, `play?`: `up` (default), `down` (upper note first), `together`, `drone?` |
 | `chord` | `chord`, `frets?`, `voicing?`: `guitar` (default, the library shape) or `close` (best for comparing qualities), `octave?`, `style?`: `strum`, `arpeggio`, `block` |
-| `scale` | `tonic` (with octave), `scale` (id), `direction?`: `up`, `down`, `up-down`, `tempo?` |
+| `scale` | `tonic` (with octave), `scale` (id), `direction?`: `up`, `down`, `up-down`, `tempo?`, `drone?`, `over?` |
 | `strum` | `chord`, `pattern` (one character per eighth note: `D` down, `U` up, `X` muted, `-` miss; `\|` between bars), `grid?`: `eighth` or `sixteenth`, `tempo?`, `repeat?` |
 | `progression` | `chords`, `tempo?`, `beats?` per chord (default 2), `voicing?` |
 | `rhythm` | `pattern`, `time?`, `tempo?` |
-| `tab` | `notes`, `tempo?`, `tuning?`, `capo?` |
+| `tab` | `notes` (techniques heard as written), `tempo?`, `tuning?`, `capo?`, `drone?`, `over?` |
+
+Under a melodic sound: `drone: { root: 'D2', fifth?: true }` (`SoundDrone`) (a held root, with its fifth if asked; hear each degree
+against the tonic) or `over: { chord: 'Am', frets?, voice?: 'guitar' | 'epiano' | 'organ' }` (`SoundOver`: the chord held while the
+line plays over it; a tab sound's capo applies to `frets`). One or the other, not both; not `over` with `together`.
+
+```ts
+{ kind: 'scale', tonic: 'D3', scale: 'dorian', drone: { root: 'D2', fifth: true } }
+{ kind: 'notes', notes: ['A3', 'C4', 'D4', 'E4', 'G4', 'A4'], over: { chord: 'Am' } }
+```
 
 ## B5. Exercise types
 
@@ -1839,7 +1863,7 @@ for a screen that already has its own primary action.
 | `ScrollHint` | wraps content that may scroll sideways in its own box (a long neck or tab on a phone): a soft edge and a tappable arrow where more is hidden |
 | `RichText`, `usePlainText` | the markup of B3 as React: notes in the learner's naming, glossary terms tappable |
 | `LessonProvider`, `useLessonContext` | the course for glossary, teacher and level (the player and map provide it) |
-| `useSoundPlayer`, `schedulePlan` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click |
+| `useSoundPlayer`, `schedulePlan`, `techniqueOptions`, `planLine` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click: tab techniques as pluck options, a drone under it, a held chord with the line over it (`stretchPlan` keeps both under a slowed line) |
 | `useStepKeys`, `StepKeysProvider`, `useKeysRegistry` | the step's keys inside the player's single keyboard listener |
 | `feedbackCopy`, `wrongLine` | the feedback panel's words: "Not quite. E is the third of C." + the answer + why |
 | `summaryHeadline`, `summaryStats`, `teacherLine`, `nextLabel`, `formatDuration`, `resumeNote` | the summary's words and numbers; the "Picked up" toast's line |

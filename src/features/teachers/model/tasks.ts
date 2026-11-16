@@ -37,8 +37,7 @@ export const TOOL_KINDS: Record<TaskTool, readonly ActivityKind[]> = {
   arcade: ['scale-game'],
   progressions: ['progression'],
   scan: ['scan'],
-  // The progress module has no kind for a recording: a take the Recorder reports is 'other'. When it
-  // reports nothing, the card back from it simply asks whether the learner got to do it.
+  // The progress module has no kind for a recording: the Recorder reports the time played as 'other'.
   record: ['other'],
   theory: ['theory-lesson'],
 };

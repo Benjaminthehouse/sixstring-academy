@@ -87,3 +87,22 @@ export function tabNoteWords(n: TabMarkNote): string {
   }
   return parts.join(', ');
 }
+
+/**
+ * Where each note of a tab sits across the staff: longer notes get more room, but never in
+ * proportion (an eighth beside a whole note would be crushed), and never less than `minGap`, so
+ * two eighths with a pull-off between them still have room for the P. Returns the x of every note
+ * from `start` and the x just past the last one, with `tail` room for its marks (a bend's arrow).
+ */
+export function tabNoteXs(notes: ReadonlyArray<{ ticks: number }>, opts: { start: number; step: number; minGap?: number; tail?: number }): { xs: number[]; end: number } {
+  const minGap = opts.minGap ?? opts.step * 0.75;
+  const xs: number[] = [];
+  let x = opts.start;
+  for (const n of notes) {
+    xs.push(x);
+    // sqrt spacing, as engravers do: a quarter gets one step, a half 1.4, a whole 2, an eighth 0.7.
+    x += Math.max(minGap, opts.step * Math.sqrt(Math.max(1, n.ticks) / 960));
+  }
+  const last = xs.length > 0 ? xs[xs.length - 1] : opts.start;
+  return { xs, end: last + (opts.tail ?? opts.step) };
+}

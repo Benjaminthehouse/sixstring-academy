@@ -17,7 +17,7 @@ export { ScrollHint } from './figures/ScrollHint';
 export { RichText, usePlainText, type RichTextProps } from './RichText';
 export { LessonProvider, useLessonContext, type LessonContextValue } from './context';
 export { StepKeysProvider, useKeysRegistry, useStepKeys, type StepKeyHandlers } from './keys';
-export { useSoundPlayer, schedulePlan } from './useSound';
+export { useSoundPlayer, schedulePlan, techniqueOptions, planLine } from './useSound';
 export { feedbackCopy, wrongLine, type FeedbackCopy } from './logic/feedback';
 export { summaryHeadline, summaryStats, teacherLine, nextLabel, formatDuration, resumeNote, type NextStep, type SummaryStat } from './logic/summary';
 export { memoryPort } from './memoryPort';

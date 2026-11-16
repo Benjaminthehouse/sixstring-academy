@@ -318,6 +318,8 @@ async function runLesson(L, wav) {
     check(group, 'the summary shows the XP of a teacher lesson (20 when perfect, 15 otherwise)', plays.length === 3 ? /\+20\b/.test(xp) : /\+15\b/.test(xp), xp.replace(/\n/g, ' '));
     await closeDialogs(page);
     await shot(page, 'summary-phone-dark');
+    await page.locator('[data-theory-links]').scrollIntoViewIfNeeded().catch(() => null);
+    await shot(page, 'summary-theory-phone-dark');
     await page.waitForTimeout(900);
     const progress = await lib.storedProgress(page);
     const skill = progress && progress.skills['teacher:mia:meet-your-guitar'];

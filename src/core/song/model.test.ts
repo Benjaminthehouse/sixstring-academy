@@ -347,6 +347,7 @@ describe('chord labels: the symbol names what the shape sounds', () => {
   });
 
   it('judges a shape no hand can hold by its bass alone', () => {
-    expect(labels(`${header}| "C=x3x0x8" w / |\n`)).toEqual([]);
+    expect(labels(`${header}| "C=x-3-x-0-x-12" w / |\n`)).toEqual([]);
+    expect(labels(`${header}| "C=0-x-5-x-13-x" w / |\n`)[0]).toMatch(/has E in the bass, not C/);
   });
 });

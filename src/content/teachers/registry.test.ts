@@ -74,8 +74,9 @@ describe('the task helpers', () => {
     expect(taskRoute(recordTask({ id: 'r', title: 'Record', minutes: 2, body: 'x' }))).toEqual({ route: 'record', params: [] });
     expect(taskRoute(toolTask({ id: 'scan', title: 'Scan a page', tool: 'scan', minutes: 5, body: 'x' }))).toEqual({ route: 'scan', params: [] });
     expect(TASK_TOOLS.theory.name).toBe('the Theory Path');
-    // The scanner and the Theory Path are routes of the app (the Recorder's route is added by its own screen).
+    // The scanner, the Recorder and the Theory Path are routes of the app.
     expect(ROUTE_BY_NAME[TASK_TOOLS.scan.route]).toBeTruthy();
+    expect(ROUTE_BY_NAME[TASK_TOOLS.record.route]).toBeTruthy();
     expect(ROUTE_BY_NAME[TASK_TOOLS.theory.route]).toBeTruthy();
   });
 });

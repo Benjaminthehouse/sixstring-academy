@@ -15,7 +15,7 @@ export {
   valueFromTicks, valueTicks,
 } from './model';
 export type { CreateSongInit } from './model';
-export { assertValidSong, describeTicks, isValidSong, validateSong } from './validate';
+export { assertValidSong, describeTicks, isValidSong, validateSong, voicingLabelProblem } from './validate';
 export type { ValidateOptions } from './validate';
 export { SongTimeline, TempoMap, flattenSong, playbackOrder, songDuration } from './timeline';
 export type { FlattenOptions, TempoPoint as TimelineTempoPoint, TimelineBar, TimelineBeat, TimelineChord, TimelineSection } from './timeline';
@@ -30,14 +30,15 @@ export { AMAZING_GRACE, CAMPFIRE_GROOVE, ODE_TO_JOY, SONG_EXAMPLES, TECHNIQUE_SA
 // Transformations, statistics, difficulty
 export { allNotes, extractBars, extractSection, practiceVariants, retuneSong, strumBeats, transposeKey, transposeSong, withStrumTrack, withTempoPercent } from './transform';
 export type { ExtractOptions, RetuneOptions, TransposeOptions } from './transform';
-export { bandName, difficultyBand, estimateDifficulty, getTrackStats, noteTechniques, songStats } from './stats';
-export type { DifficultyBand, DifficultyEstimate, DifficultyFactors, SongStats, TechniqueName, TrackStats } from './stats';
+export { bandName, difficultyBand, estimateDifficulty, getTrackStats, noteTechniques, shortestValueWords, songStats } from './stats';
+export type { ChordShapeStat, DifficultyBand, DifficultyEstimate, DifficultyFactors, SongStats, TechniqueName, TrackStats } from './stats';
 
 // Arranger
 export { arrangeLine, arrangeSong, arrangeTrack, spellTrack } from './arranger';
 export type { ArrangeOptions, ArrangeResult, SpelledNote } from './arranger';
 
 // Importers
+export { SongImportError, isSongImportError } from './import-error';
 export { buildMeasures, chooseGrid, quantize } from './import-util';
 export type { BuildOptions, Onset, OnsetNote } from './import-util';
 export { importAsciiTab, isChordLine, isChordWord } from './import-ascii';

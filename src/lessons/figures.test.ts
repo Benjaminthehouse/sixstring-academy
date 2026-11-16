@@ -228,9 +228,9 @@ describe('rhythm, tab and audio figures', () => {
     const r = resolveFigure(figure);
     if (r?.kind !== 'tab') throw new Error('not a tab');
     expect(r.notes).toEqual([
-      { rest: false, string: 6, fret: 0, midi: 40, note: 'E2', tick: 0, ticks: 960, duration: 'q' },
-      { rest: true, string: null, fret: null, midi: null, note: null, tick: 960, ticks: 480, duration: 'e' },
-      { rest: false, string: 5, fret: 2, midi: 47, note: 'B2', tick: 1440, ticks: 480, duration: 'e' },
+      { rest: false, string: 6, fret: 0, midi: 40, note: 'E2', tick: 0, ticks: 960, duration: 'q', technique: null },
+      { rest: true, string: null, fret: null, midi: null, note: null, tick: 960, ticks: 480, duration: 'e', technique: null },
+      { rest: false, string: 5, fret: 2, midi: 47, note: 'B2', tick: 1440, ticks: 480, duration: 'e', technique: null },
     ]);
     expect(r.totalTicks).toBe(1920);
     bad({ kind: 'tab', notes: [{ string: 8, fret: 0, duration: 'q' }] }, /string 8/);

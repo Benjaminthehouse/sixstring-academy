@@ -1,0 +1,230 @@
+#!/usr/bin/env node
+/**
+ * How fast the production build is on a mid-range phone: first load and one interaction on
+ * #home, a Theory Path lesson, #play--hot-cross-buns and #scales, with the CPU slowed 4x and the
+ * network at DevTools' "Slow 4G" (562.5 ms round trip, 1.44 Mbit/s down, 675 kbit/s up), served
+ * gzipped by a plain static host (e2e/perf-lib.cjs). Every run starts with an empty cache.
+ *
+ *   node e2e/perf.cjs                       build to a temp dir, 3 runs of each screen
+ *   node e2e/perf.cjs --dist <dir>          measure a build you already have
+ *   node e2e/perf.cjs --runs 5 --only home,scales --json /tmp/perf.json
+ *   node e2e/perf.cjs --quick               one run of each screen
+ *
+ * Prints, per screen (median of the runs): first contentful paint, "ready" (the screen's own
+ * content is on screen, not the shell's skeleton), the JavaScript downloaded by then (gzip bytes
+ * on the wire) and the slowest interaction (Event Timing: tap to next paint), plus the largest
+ * chunks of the build. Fails when a first screen downloads a heavy library it does not show
+ * (alphaTab, pdf.js, VexFlow, Tesseract, MediaPipe, the full icon set) or when the JavaScript a
+ * first screen needs grows past its budget. Timings are reported, not judged: this machine is
+ * shared, and a slowed CPU on a loaded machine is noisy.
+ */
+'use strict';
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const zlib = require('node:zlib');
+const { chromium } = require('playwright');
+const { serveDir, buildInto } = require('./perf-lib.cjs');
+
+const argv = process.argv.slice(2);
+const flag = (n) => argv.includes(`--${n}`);
+const val = (n, d) => {
+  const i = argv.indexOf(`--${n}`);
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : d;
+};
+
+/** DevTools' "Slow 4G" preset and a 4x CPU slow-down: Lighthouse's idea of a mid-range phone. */
+const NETWORK = { offline: false, latency: 562.5, downloadThroughput: (1.6e6 / 8) * 0.9, uploadThroughput: (750e3 / 8) * 0.9 };
+const CPU_SLOWDOWN = 4;
+const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
+
+/**
+ * The screens. `ready` is the screen's own content; `act` is one tap a learner would make first.
+ * `budgetKb` caps the gzip JavaScript on the wire before the screen is ready.
+ */
+const SCREENS = [
+  { id: 'home', hash: 'home', ready: 'main[data-route="home"] [data-ui-page]:not([data-shell-fallback])', act: '[data-chip]', budgetKb: 330 },
+  { id: 'lesson', hash: 'learn--sound-and-pitch--a-sound-is-a-vibration', ready: '[data-lesson-player]', act: '[data-lesson-player] [data-ui-primary]', budgetKb: 520 },
+  { id: 'play', hash: 'play--hot-cross-buns', ready: '[data-player] [data-player-play]', act: '[data-player-play]', budgetKb: 560 },
+  { id: 'scales', hash: 'scales', ready: '[data-scales] [data-neck]', act: '[data-play]', budgetKb: 470 },
+];
+
+/** Libraries that must never be on the wire before a first screen is ready (they are lazy by design). */
+const HEAVY = [
+  { name: 'alphaTab', test: /alphaTab/i },
+  { name: 'pdf.js', test: /(^|\/)pdf(\.worker)?[.-]/i },
+  { name: 'VexFlow', test: /vexflow/i },
+  { name: 'Tesseract', test: /tesseract/i },
+  { name: 'MediaPipe', test: /mediapipe|vision_bundle/i },
+  { name: 'the full icon set', test: /all\.generated/ },
+  { name: 'JSZip', test: /jszip/i },
+];
+
+let failures = 0;
+function check(name, ok, detail) {
+  if (!ok) failures += 1;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${detail !== undefined ? `  (${detail})` : ''}`);
+}
+
+const median = (xs) => {
+  const s = xs.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  return s.length ? s[Math.floor((s.length - 1) / 2)] : NaN;
+};
+const ms = (x) => (Number.isFinite(x) ? `${Math.round(x)} ms` : 'n/a');
+const kb = (x) => `${(x / 1024).toFixed(0)} kB`;
+
+/** Installed before any page script: collects paint, long-task and Event Timing entries. */
+function instrument() {
+  const perf = { fcp: NaN, lcp: NaN, longTasks: [], events: [], ready: NaN };
+  window.__perf = perf;
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) if (e.name === 'first-contentful-paint') perf.fcp = e.startTime;
+    }).observe({ type: 'paint', buffered: true });
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) perf.lcp = e.startTime;
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) perf.longTasks.push([e.startTime, e.duration]);
+    }).observe({ type: 'longtask', buffered: true });
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) if (e.interactionId) perf.events.push({ name: e.name, start: e.startTime, duration: e.duration, processing: e.processingEnd - e.processingStart, delay: e.processingStart - e.startTime });
+    }).observe({ type: 'event', durationThreshold: 16, buffered: true });
+  } catch {
+    /* an older engine: the numbers it lacks stay n/a */
+  }
+  try {
+    localStorage.setItem('ssa:shell.onboarding', '{"skipped":true}');
+  } catch {
+    /* storage refused: the first-run flow would show on #home */
+  }
+}
+
+async function measure(browser, base, screen) {
+  const context = await browser.newContext({ ...PHONE, serviceWorkers: 'block' });
+  await context.addInitScript(instrument);
+  const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.emulateNetworkConditions', NETWORK);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
+  const responses = new Map();
+  const wire = [];
+  cdp.on('Network.responseReceived', (e) => responses.set(e.requestId, { url: e.response.url, type: e.type }));
+  cdp.on('Network.loadingFinished', (e) => {
+    const r = responses.get(e.requestId);
+    if (r) wire.push({ ...r, bytes: e.encodedDataLength, at: e.timestamp });
+  });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const t0 = Date.now();
+  await page.goto(`${base}#${screen.hash}`, { waitUntil: 'commit', timeout: 120000 });
+  await page.waitForSelector(screen.ready, { state: 'attached', timeout: 120000 });
+  await page.waitForFunction(() => !document.querySelector('[data-shell-fallback]'), null, { timeout: 120000 });
+  const ready = await page.evaluate(() => performance.now());
+  const readyWall = Date.now() - t0;
+  const atReady = wire.slice();
+  // Let the page settle (late chunks, fonts) before the tap, then measure the tap to the next paint.
+  await page.waitForTimeout(2500);
+  const before = await page.evaluate(() => window.__perf.events.length);
+  await page.locator(screen.act).first().click({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  const perf = await page.evaluate(() => window.__perf);
+  const tapEvents = perf.events.slice(before);
+  const tap = tapEvents.length ? Math.max(...tapEvents.map((e) => e.duration)) : NaN;
+  const blocking = perf.longTasks.filter(([start]) => start < ready).reduce((sum, [, d]) => sum + Math.max(0, d - 50), 0);
+  await context.close();
+  const js = atReady.filter((r) => r.type === 'Script' || /\.m?js(\?|$)/.test(r.url));
+  return {
+    fcp: perf.fcp,
+    lcp: perf.lcp,
+    ready,
+    readyWall,
+    blocking,
+    tap,
+    jsBytes: js.reduce((s, r) => s + r.bytes, 0),
+    allBytes: atReady.reduce((s, r) => s + r.bytes, 0),
+    requests: atReady.length,
+    scripts: js.map((r) => ({ file: new URL(r.url).pathname.replace(/^.*\/assets\//, ''), bytes: r.bytes })),
+    errors,
+  };
+}
+
+function largestChunks(dist, count = 15) {
+  const dir = path.join(dist, 'assets');
+  const rows = fs
+    .readdirSync(dir)
+    .filter((f) => /\.(m?js|css)$/.test(f))
+    .map((f) => {
+      const buf = fs.readFileSync(path.join(dir, f));
+      return { file: f, raw: buf.length, gz: zlib.gzipSync(buf, { level: 6 }).length };
+    })
+    .sort((a, b) => b.raw - a.raw);
+  return rows.slice(0, count);
+}
+
+/** The JavaScript index.html asks for before anything runs (entry + modulepreloads). */
+function entryClosure(dist) {
+  const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+  const files = [...html.matchAll(/(?:src|href)="\.\/(assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+  return files.map((f) => {
+    const buf = fs.readFileSync(path.join(dist, f));
+    return { file: f.replace('assets/', ''), raw: buf.length, gz: zlib.gzipSync(buf, { level: 6 }).length };
+  });
+}
+
+(async () => {
+  let dist = val('dist');
+  let temp = null;
+  if (!dist) {
+    temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-perf-'));
+    dist = path.join(temp, 'dist');
+    console.log('Building the production app ...');
+    await buildInto(dist);
+  }
+  dist = path.resolve(dist);
+  const runs = flag('quick') ? 1 : Number(val('runs', 3));
+  const only = val('only') ? val('only').split(',') : null;
+  const screens = SCREENS.filter((s) => !only || only.includes(s.id));
+
+  console.log(`\nLargest chunks of ${dist} (raw / gzip):`);
+  for (const c of largestChunks(dist)) console.log(`  ${kb(c.raw).padStart(8)} ${kb(c.gz).padStart(8)}  ${c.file}`);
+  const closure = entryClosure(dist);
+  const closureGz = closure.reduce((s, c) => s + c.gz, 0);
+  console.log(`\nindex.html loads ${closure.length} scripts before anything runs: ${kb(closure.reduce((s, c) => s + c.raw, 0))} raw, ${kb(closureGz)} gzip`);
+  for (const c of closure) console.log(`  ${kb(c.raw).padStart(8)} ${kb(c.gz).padStart(8)}  ${c.file}`);
+
+  const server = await serveDir(dist);
+  const browser = await chromium.launch();
+  const report = { network: 'DevTools Slow 4G', cpuSlowdown: CPU_SLOWDOWN, runs, screens: {}, closure, largest: largestChunks(dist) };
+  try {
+    for (const screen of screens) {
+      const results = [];
+      for (let i = 0; i < runs; i++) results.push(await measure(browser, server.url, screen));
+      const m = (k) => median(results.map((r) => r[k]));
+      const row = { fcp: m('fcp'), lcp: m('lcp'), ready: m('ready'), blocking: m('blocking'), tap: m('tap'), jsBytes: m('jsBytes'), allBytes: m('allBytes'), requests: m('requests'), runs: results };
+      report.screens[screen.id] = row;
+      console.log(`\n#${screen.hash}  (median of ${runs})`);
+      console.log(`  first paint ${ms(row.fcp)} · largest paint ${ms(row.lcp)} · ready ${ms(row.ready)} · main thread blocked ${ms(row.blocking)} before ready · tap to paint ${ms(row.tap)}`);
+      console.log(`  ${row.requests} requests, ${kb(row.allBytes)} on the wire by ready, of which JavaScript ${kb(row.jsBytes)}`);
+      const scripts = results[0].scripts.slice().sort((a, b) => b.bytes - a.bytes);
+      const shown = flag('verbose') ? scripts : scripts.slice(0, 6);
+      console.log(`  ${flag('verbose') ? 'scripts' : 'largest scripts'}: ${shown.map((s) => `${s.file} ${kb(s.bytes)}`).join(', ')}`);
+      const heavy = HEAVY.filter((h) => results.some((r) => r.scripts.some((s) => h.test.test(s.file)))).map((h) => h.name);
+      check(`#${screen.hash} loads no heavy library before it is ready`, heavy.length === 0, heavy.join(', ') || undefined);
+      check(`#${screen.hash} needs at most ${screen.budgetKb} kB of JavaScript (gzip) to be ready`, row.jsBytes <= screen.budgetKb * 1024, kb(row.jsBytes));
+      const errs = results.flatMap((r) => r.errors);
+      check(`#${screen.hash} runs without page errors`, errs.length === 0, errs[0]);
+    }
+  } finally {
+    await browser.close();
+    await server.close();
+    if (temp) fs.rmSync(temp, { recursive: true, force: true });
+  }
+  if (val('json')) fs.writeFileSync(val('json'), JSON.stringify(report, null, 2));
+  console.log(failures ? `\n${failures} check(s) failed` : '\nAll performance checks passed');
+  process.exit(failures ? 1 : 0);
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

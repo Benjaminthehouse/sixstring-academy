@@ -86,7 +86,7 @@ function makeBar(rng: Rng, s: TabSettings): Fretted[] {
       return out.map((q, i) => ({ ...q, duration: durations[i] }));
     },
     (bar) => new Set(bar.map((q) => midiAt(q))).size >= Math.min(3, s.length),
-    () => places.slice(0, s.length).map((q, i) => ({ ...q, duration: durations[i] })),
+    () => durations.map((duration, i) => ({ ...places[i % places.length], duration })),
   );
 }
 
@@ -244,7 +244,7 @@ export function positionNotes(key: Key, position: number): Array<{ midi: number;
 /** At most this many notes in a passage: it has to fit a phone screen as a staff and as a line of note names. */
 const MAX_PASSAGE_NOTES = 10;
 
-/** Note values of 1 or 2 bars of 4/4 (quarters, plus eighth pairs and halves when allowed), 4 to 12 notes. */
+/** Note values of 1 or 2 bars of 4/4 (quarters, plus eighth pairs and halves when allowed), at most `MAX_PASSAGE_NOTES` notes. */
 function sightRhythm(rng: Rng, bars: number, values: ReadonlyArray<'half' | 'quarter' | 'eighth'>): string[] {
   return retry(
     20,
@@ -264,7 +264,8 @@ function sightRhythm(rng: Rng, bars: number, values: ReadonlyArray<'half' | 'qua
       }
       return out;
     },
-    (durations) => durations.length >= 4 && durations.length <= MAX_PASSAGE_NOTES,
+    // Halves may thin a bar out, but a passage still needs a few notes to read.
+    (durations) => durations.length >= (bars === 1 ? 3 : 5) && durations.length <= MAX_PASSAGE_NOTES,
     () => Array.from({ length: bars * 4 }, () => 'q'),
   );
 }

@@ -17,7 +17,7 @@ import type {
 } from '../../types';
 import { RichText, usePlainText } from '../RichText';
 import { canPlaySlow } from '../logic/sound';
-import { marksNeedHeadroom, tabMarks, tabNoteWords, type TabMarks } from '../logic/tabMarks';
+import { marksNeedHeadroom, tabMarks, tabNoteWords, tabNoteXs, type TabMarks } from '../logic/tabMarks';
 import { useSoundPlayer } from '../useSound';
 import { dotColor } from './colors';
 import { ScrollHint } from './ScrollHint';
@@ -332,10 +332,11 @@ export function TabFigureView({ figure, size = 'md' }: FigureProps<TabFigure>) {
   // Bends, vibrato and H/P sit above their string: give the top string room for them.
   const top = marksNeedHeadroom(marks) ? 30 : 12;
   const step = 34;
-  const width = TAB_PAD + 12 + Math.max(4, resolved.notes.length) * step;
+  // Notes are spaced by duration, with room for a P between two eighths and a bend after the last.
+  const layout = tabNoteXs(resolved.notes, { start: TAB_PAD + 18, step, tail: marks.some((m) => m?.bend || m?.slideOut || m?.vibrato) ? 44 : 30 });
+  const width = Math.max(layout.end, TAB_PAD + 12 + 4 * step);
   const height = top + (strings - 1) * TAB_GAP + 12;
-  const total = Math.max(1, resolved.totalTicks);
-  const xOf = (tick: number): number => TAB_PAD + 18 + (tick / total) * (width - TAB_PAD - 30);
+  const xOf = (index: number): number => layout.xs[index];
   const yOf = (string: number): number => top + (string - 1) * TAB_GAP;
   const labels = [...resolved.tuning.notes].reverse().map((n) => noteText(n, naming));
   const words = resolved.notes.map(tabNoteWords).join('; ');
@@ -355,14 +356,14 @@ export function TabFigureView({ figure, size = 'md' }: FigureProps<TabFigure>) {
           <line x1={TAB_PAD} x2={TAB_PAD} y1={top} y2={top + (strings - 1) * TAB_GAP} className={styles.tabBar} />
           {resolved.notes.map((n, i) =>
             n.rest || n.string === null ? (
-              <text key={i} x={xOf(n.tick)} y={top + ((strings - 1) / 2) * TAB_GAP + 4} className={styles.tabRest} textAnchor="middle">
+              <text key={i} x={xOf(i)} y={top + ((strings - 1) / 2) * TAB_GAP + 4} className={styles.tabRest} textAnchor="middle">
                 rest
               </text>
             ) : (
               <g key={i}>
-                <TabNoteMarks marks={marks[i]} x={xOf(n.tick)} y={yOf(n.string)} fromX={marks[i]?.legato ? xOf(resolved.notes[marks[i]!.legato!.from].tick) : 0} />
-                <rect x={xOf(n.tick) - 9} y={yOf(n.string) - 9} width={18} height={18} rx={4} className={styles.tabKnock} />
-                <text x={xOf(n.tick)} y={yOf(n.string) + 5} className={styles.tabFret} textAnchor="middle">
+                <TabNoteMarks marks={marks[i]} x={xOf(i)} y={yOf(n.string)} fromX={marks[i]?.legato ? xOf(marks[i]!.legato!.from) : 0} />
+                <rect x={xOf(i) - 9} y={yOf(n.string) - 9} width={18} height={18} rx={4} className={styles.tabKnock} />
+                <text x={xOf(i)} y={yOf(n.string) + 5} className={styles.tabFret} textAnchor="middle">
                   {n.fret}
                 </text>
               </g>
