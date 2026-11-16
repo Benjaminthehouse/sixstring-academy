@@ -320,7 +320,7 @@ const fifthPosition: Lesson = {
     {
       type: 'card',
       title: 'The natural notes of fifth position',
-      body: 'Put your first finger at fret 5. Each finger keeps its own fret: 1 on fret 5, 2 on 6, 3 on 7, 4 on 8. The natural notes fall under those fingers on every string, from the {n:A} at string 6, fret 5 up to the {n:C} at string 1, fret 8.',
+      body: 'Put your first finger at fret 5. Each finger keeps its own fret: 1 on fret 5, 2 on 6, 3 on 7, 4 on 8. Almost every natural note falls under those fingers, from the {n:A} at string 6, fret 5 up to the {n:C} at string 1, fret 8. One needs a small stretch: you will meet it soon.',
       figure: {
         kind: 'fretboard',
         frets: [4, 8],
@@ -603,7 +603,7 @@ const ledgerLinesAbove: Lesson = {
     {
       type: 'card',
       title: 'Above the staff',
-      body: 'Notes higher than the top line, {n:F}, go on {t:ledger-line|ledger lines} above the staff. Read them like the staff itself: space, line, space, line. On the guitar they are string 1 notes, from {n:G} at fret 3 up to {n:E} at fret 12.',
+      body: 'Above the top line, {n:F}, notes climb on short {t:ledger-line|ledger lines}. Read them like the staff itself, space then line: {n:G} sits just above the staff, {n:A} on the first ledger line, {n:B} above it, {n:C} on the second. On string 1 they run from {n:G} at fret 3 up to {n:E} at fret 12.',
       figure: { kind: 'staff', notes: ABOVE_STAFF.map(([, fret, note]) => ({ note, duration: 'q', label: String(fret) })), caption: 'Written {n:G} to {n:E} above the staff: string 1, frets 3 to 12.' },
       tip: 'Count the ledger lines first: one line is {n:A}, two lines is {n:C}, three lines is {n:E}.',
     },
@@ -761,7 +761,7 @@ const sightReadingRoutine: Lesson = {
         { text: 'Only the first {n:F} is sharp', why: 'A key signature lasts the whole piece, in every bar and every octave.' },
         { text: 'Play the whole piece a half step higher', why: 'Only the {n:F} notes change. Every other note stays as written.' },
       ],
-      explain: 'One sharp means {k:G major}: every {n:F} is {n:F#}, such as the ones at string 1, fret 2 in bars 7 and 9.',
+      explain: 'One sharp, {n:F#}: here the key is {k:G major}. Every {n:F} is played as {n:F#}, such as the ones at string 1, fret 2 in bars 7 and 9.',
       fact: 'reading-up-scan-first',
     },
     {
@@ -917,7 +917,7 @@ const unit: Unit = {
           { text: 'Fourth position', correct: true },
           { text: 'First position', why: 'The high {n:A} and {n:B} on string 1, at frets 5 and 7, are above first position.' },
           { text: 'Fifth position', why: '{n:C#} on string 5, {n:F#} on string 4 and {n:G#} on string 1 all sit at fret 4, below the hand.' },
-          { text: 'Ninth position', why: 'The low {n:B} at string 6, fret 7 is below the hand, and it has no other place.' },
+          { text: 'Second position', why: 'The top {n:B} at string 1, fret 7 is above the hand: second position stops at fret 5.' },
         ],
         explain: '{k:A major} lies well in fourth position: every note from string 6, fret 5 to string 1, fret 7 is between frets 4 and 7.',
       },

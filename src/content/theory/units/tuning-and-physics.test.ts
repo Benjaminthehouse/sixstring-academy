@@ -287,6 +287,54 @@ describe('tuning-and-physics: alternate tunings', () => {
     for (const id of ['drop-d', 'dadgad', 'open-g']) expect(hasStandardIntervals(id), id).toBe(false);
   });
 
+  it('the DADGAD-only review of the tunings fact is now a match of all three tunings, spelled by the engine', () => {
+    const fact = unit.lessons.flatMap((l) => l.facts ?? []).find((f) => f.id === 'physics-tunings-common')!;
+    const ask = fact.ask as { type: string; pairs: Array<{ left: string; right: string }> };
+    expect(ask.type).toBe('match-pairs');
+    const ids: Record<string, string> = { 'Drop D': 'drop-d', DADGAD: 'dadgad', 'Open G': 'open-g' };
+    for (const { left, right } of ask.pairs) expect(right, left).toBe(tuning(ids[left]).notes.map((n) => n.replace(/\d/, '')).join(' '));
+  });
+
+  it('drop D changes only string 6, as the play-chord prompt and the checkpoint say', () => {
+    expect(retuneSteps('drop-d').filter((s) => s.semitones !== 0)).toEqual([expect.objectContaining({ string: 6, semitones: -2 })]);
+    const play = collect<{ type: string; prompt: string }>((v) => v.type === 'play-chord')[0];
+    expect(plainText(play.prompt)).toMatch(/changes only string 6/);
+    const q = unit.checkpoint!.steps!.find((s): s is ChoiceExercise => 'type' in s && s.type === 'choice' && plainText(s.prompt).includes('drop D'))!;
+    expect(answerOf(q)).toMatch(/^Lower string 6 a whole step, to D$/);
+    // The distractors: string 1 is still E in drop D; E raised a whole step is F#.
+    expect(tuning('drop-d').notes[5]).toBe('E4');
+    expect(midiAt({ string: 6, fret: 2 })).toBe(noteToMidi('F#2'));
+  });
+
+  it('the checkpoint asks about the pure major third, and "furthest from pure" is limited to the options', () => {
+    const q = unit.checkpoint!.steps!.find((s): s is ChoiceExercise => 'type' in s && s.type === 'choice' && plainText(s.prompt).includes('pure major third'))!;
+    expect(answerOf(q)).toBe('About 14 cents wider');
+    expect(Math.round(400 - cents(5 / 4))).toBe(14);
+    // The pure minor third (6:5) and major sixth (5:3) sit even further from their tempered sizes,
+    // so the lesson question must say "of these three" (third, fifth, octave).
+    expect(Math.abs(300 - cents(6 / 5))).toBeGreaterThan(400 - cents(5 / 4));
+    expect(Math.abs(900 - cents(5 / 3))).toBeGreaterThan(400 - cents(5 / 4));
+    const furthest = exercises(lesson('equal-temperament')).find((e): e is ChoiceExercise => e.type === 'choice' && plainText(e.prompt).includes('furthest'))!;
+    expect(plainText(furthest.prompt)).toMatch(/^Of these three/);
+    expect(furthest.options.map((o) => plainText(o.text ?? ''))).toEqual(['The major third', 'The fifth', 'The octave']);
+    expect(answerOf(furthest)).toBe('The major third');
+  });
+
+  it('the harmonic series audio is labelled as the nearest fretted notes: G#4 sits above harmonic 5', () => {
+    const card = lesson('the-harmonic-series').steps.find((s) => 'figure' in s && s.figure?.kind === 'audio' && 'title' in s && s.title === 'The series on the low E')!;
+    const fig = (card as { figure: { label: string; sound: { notes: string[] } } }).figure;
+    expect(fig.sound.notes).toEqual(['E2', 'E3', 'B3', 'E4', 'G#4']);
+    expect(fig.label).toBe('Hear the nearest notes');
+    expect(hz('G#4')).toBeGreaterThan(5 * hz('E2')); // "a shade above harmonic 5"
+    expect(cents(hz('G#4') / (5 * hz('E2')))).toBeLessThan(15);
+  });
+
+  it('says the frequency (not "the pitch") rises 1.41 times when the tension doubles', () => {
+    const tf = exercises(lesson('what-sets-the-pitch')).find((e) => e.type === 'true-false')!;
+    expect(plainText(tf.explain)).toMatch(/the frequency rises only about 1\.41 times/);
+    expect(Math.sqrt(2)).toBeCloseTo(1.41, 2);
+  });
+
   it('the checkpoint 5th harmonic of 110 Hz is 550 Hz, near C#5', () => {
     expect(5 * 110).toBe(550);
     expect(Math.abs(cents(550 / hz('C#5')))).toBeLessThan(15);

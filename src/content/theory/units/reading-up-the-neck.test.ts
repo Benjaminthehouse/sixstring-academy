@@ -281,15 +281,25 @@ describe('reading-up-the-neck: choosing a position', () => {
     expect(misfits(aMinor, 1)).toContain(midiOf('C5'));
     expect(misfits(aMinor, 2)).toEqual([midiOf('B4'), midiOf('C5')]);
     expect(misfits(scalePositions('A', 'minor').map((p) => p.midi).filter((m) => m >= midiOf('A3') && m <= midiOf('C5')), 2)).toEqual([midiOf('F4'), midiOf('B4'), midiOf('C5')]);
-    // The checkpoint's A major melody, A2 to B4: fourth position; not first, fifth or ninth.
+    // The checkpoint's A major melody, A2 to B4: fourth position; not first, second or fifth.
     const aMajor = scalePositions('A', 'major').map((p) => p.midi).filter((m, i, a) => m >= midiOf('A2') && m <= midiOf('B4') && a.indexOf(m) === i);
     expect(fits(aMajor, 4)).toBe(true);
-    for (const p of [1, 5, 9]) expect(fits(aMajor, p), `position ${p}`).toBe(false);
+    for (const p of [1, 2, 5]) expect(fits(aMajor, p), `position ${p}`).toBe(false);
     expect(misfits(aMajor, 1)).toEqual([midiOf('A4'), midiOf('B4')]);
     expect(misfits(aMajor, 5)).toEqual([midiOf('C#3'), midiOf('F#3'), midiOf('G#4')]);
     expect([midiAt({ string: 5, fret: 4 }), midiAt({ string: 4, fret: 4 }), midiAt({ string: 1, fret: 4 })]).toEqual(misfits(aMajor, 5));
+    // Second position: the top B at string 1, fret 7 has no place between frets 2 and 5 (nor open).
+    expect(misfits(aMajor, 2)).toContain(midiOf('B4'));
+    expect(positionsForMidi(midiOf('B4')).filter((p) => p.fret === 0 || (p.fret >= 2 && p.fret <= 5))).toEqual([]);
+    // Review fix: ninth position was a distractor whose "why" said the low B (string 6, fret 7) had
+    // no other place. It has one (string 5, fret 2), and with the open A string ninth position holds
+    // every other note of the range, so ninth position must not be offered as certainly wrong.
+    expect(positionsForMidi(midiOf('B2')).map(key)).toEqual(['6:7', '5:2']);
     expect(misfits(aMajor, 9)).toEqual([midiOf('B2')]);
-    expect(positionsForMidi(midiOf('B2')).map(key)).toEqual(['6:7', '5:2']); // "no other place"
+    const aMajorQ = unit.checkpoint!.steps!.find((s): s is ChoiceExercise => 'type' in s && s.type === 'choice' && plainText(s.prompt).includes('A major'))!;
+    expect(answerOf(aMajorQ)).toBe('Fourth position');
+    expect(aMajorQ.options.map((o) => plainText(o.text ?? ''))).not.toContain('Ninth position');
+    expect(aMajorQ.options.map((o) => plainText(o.text ?? '')).sort()).toEqual(['Fifth position', 'First position', 'Fourth position', 'Second position']);
     // The G major home position spans F#2 (string 6) to A4 (string 1).
     const gHome = scalePositions('G', 'major', { minFret: 2, maxFret: 5 }).map((p) => p.midi);
     expect([Math.min(...gHome), Math.max(...gHome)]).toEqual([midiOf('F#2'), midiOf('A4')]);
@@ -324,6 +334,30 @@ describe('reading-up-the-neck: ledger lines above and 8va', () => {
     expect(staffPosition('D5')).toMatchObject({ ledgerLines: 2, onLine: false }); // just below the third line
     expect(staffPosition('E5')).toMatchObject({ ledgerLines: 3, onLine: true, written: 'E6' });
     expect(staffPosition('E4').position).toBe(7); // the open string 1: top space
+  });
+
+  it('the card says where each note sits above the staff, and does not tie them to string 1 alone', () => {
+    const card = cards(lesson('ledger-lines-above'))[0];
+    const body = plainText(card.body);
+    // G sits just above the staff (no ledger line); A on the first ledger line; C on the second.
+    expect(body).toMatch(/G sits just above the staff, A on the first ledger line, B above it, C on the second/);
+    expect(staffPosition('G4').ledgerLines).toBe(0);
+    expect(staffPosition('A4')).toMatchObject({ ledgerLines: 1, onLine: true });
+    expect(staffPosition('B4')).toMatchObject({ ledgerLines: 1, onLine: false });
+    expect(staffPosition('C5')).toMatchObject({ ledgerLines: 2, onLine: true });
+    // These notes are not "string 1 notes": fifth position plays G4 at string 2, fret 8, and
+    // G4 to E5 all exist on string 2 too. The card says "On string 1 they run ...".
+    for (const [, , pitch] of ABOVE_STAFF) expect(positionsForMidi(midiOf(pitch)).some((p) => p.string === 2), pitch).toBe(true);
+    expect(FIFTH_HIGH).toContainEqual([2, 8, 'G4', 'q']);
+    expect(body).not.toMatch(/they are string 1 notes/);
+    expect(body).toMatch(/On string 1 they run from G at fret 3 up to E at fret 12/);
+  });
+
+  it('the fifth-position opening card does not claim every natural is under the four fingers', () => {
+    const body = plainText(cards(lesson('fifth-position'))[0].body);
+    expect(body).toMatch(/Almost every natural note/);
+    // The one exception, B on string 3, is at fret 4: below finger 1 at fret 5.
+    expect([...FIFTH_LOW, ...FIFTH_HIGH].filter(([, f]) => f < 5 || f > 8)).toEqual([[3, 4, 'B3', 'q']]);
   });
 
   it('finds the C of the second ledger line at string 1, fret 8 only', () => {

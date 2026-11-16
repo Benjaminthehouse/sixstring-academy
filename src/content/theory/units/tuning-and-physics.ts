@@ -43,7 +43,7 @@ const frequencyAndConcertPitch: Lesson = {
     {
       type: 'card',
       title: 'One agreed A',
-      body: 'Musicians everywhere tune to one reference, {t:concert-pitch}: {n:A4} = **440 {t:hertz|Hz}**. That {n:A}, the one above {t:middle-c|middle C}, vibrates 440 times a second. On your guitar it is string 1, fret 5.',
+      body: 'Most musicians tune to one reference, {t:concert-pitch}: {n:A4} = **440 {t:hertz|Hz}**. That {n:A}, the one above {t:middle-c|middle C}, vibrates 440 times a second. On your guitar it is string 1, fret 5.',
       figure: {
         kind: 'fretboard',
         frets: [0, 5],
@@ -229,7 +229,7 @@ const whatSetsThePitch: Lesson = {
       type: 'true-false',
       statement: 'Doubling the tension of a string raises it by an octave.',
       answer: false,
-      explain: 'Frequency follows the square root of the tension: double the tension and the pitch rises about 1.41 times, six half steps. An octave takes four times the tension.',
+      explain: 'Frequency follows the square root of the tension: double the tension and the frequency rises only about 1.41 times, six half steps. An octave takes four times the tension.',
       fact: 'physics-tension-root',
     },
     {
@@ -299,7 +299,7 @@ const whatSetsThePitch: Lesson = {
     {
       id: 'physics-length-octave',
       front: 'How does a string\'s vibrating length set its frequency?',
-      back: 'Frequency is inversely proportional to length: halve the length and the pitch rises an octave.',
+      back: 'In inverse proportion: half the length gives twice the frequency, one octave up. That is why fret 12 sits halfway along the string.',
     },
     {
       id: 'physics-tension-root',
@@ -335,7 +335,7 @@ const theHarmonicSeries: Lesson = {
       type: 'card',
       title: 'The series on the low E',
       body: 'On string 6, {n:E2} at 82.4 Hz, harmonic 2 is {n:E3} (164.8 Hz), an octave up. Harmonic 3 is {n:B3} (247.2 Hz), an octave and a fifth. Harmonic 4 is {n:E4} (329.6 Hz), two octaves. Harmonic 5, at 412 Hz, is two octaves and a major third, a little below {n:G#4}.',
-      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E2', 'E3', 'B3', 'E4', 'G#4'], tempo: 70 }, label: 'Hear their pitches' },
+      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E2', 'E3', 'B3', 'E4', 'G#4'], tempo: 70 }, label: 'Hear the nearest notes', caption: 'The nearest fretted notes: {n:G#4} is a shade above harmonic 5.' },
     },
     {
       type: 'match-pairs',
@@ -761,7 +761,7 @@ const equalTemperament: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Which interval does equal temperament move furthest from pure?',
+      prompt: 'Of these three, which interval does equal temperament move furthest from pure?',
       options: [
         { text: 'The major third', correct: true },
         { text: 'The fifth', why: 'The fifth is only about 2 cents away from pure.' },
@@ -782,7 +782,7 @@ const equalTemperament: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Two notes together, tuned the way your frets tune them. Is this the fifth or the major third from the picture?',
+      prompt: 'Two notes played together, tuned the way your frets tune them. Which interval is it?',
       sound: { kind: 'interval', from: 'E3', interval: 'M3', play: 'together' },
       options: [{ text: 'The fifth, {n:A2} and {n:E3}' }, { text: 'The major third, {n:E3} and {n:G#3}', correct: true }],
       shuffle: false,
@@ -945,7 +945,7 @@ const alternateTunings: Lesson = {
     },
     {
       type: 'play-chord',
-      prompt: 'Drop D leaves strings 4 to 1 alone, so this {c:D5} shape is the same in both tunings. Strum strings 4, 3 and 2.',
+      prompt: 'Drop D changes only string 6, so this {c:D5} shape on strings 4, 3 and 2 is the same in both tunings. Strum those three.',
       chord: 'D5',
       frets: 'xx023x',
       explain: 'Open string 4 ({n:D}), fret 2 on string 3 ({n:A}) and fret 3 on string 2 ({n:D}): {c:D5}. Shapes that avoid string 6 do not change in drop D.',
@@ -984,7 +984,16 @@ const alternateTunings: Lesson = {
       id: 'physics-tunings-common',
       front: 'Name the open strings of drop D, DADGAD and open G.',
       back: 'Drop D: D A D G B E (string 6 down a whole step). DADGAD: D A D G A D. Open G: D G D G B D.',
-      ask: { generate: 'open-strings', params: { ask: 'order', tuning: 'dadgad' } },
+      ask: {
+        type: 'match-pairs',
+        prompt: 'Match each tuning with its open strings, string 6 to 1.',
+        pairs: [
+          { left: 'Drop D', right: 'D A D G B E' },
+          { left: 'DADGAD', right: 'D A D G A D' },
+          { left: 'Open G', right: 'D G D G B D' },
+        ],
+        explain: 'Each starts from standard E A D G B E and lowers some strings a whole step: drop D string 6; DADGAD strings 6, 2 and 1; open G strings 6, 5 and 1.',
+      },
     },
     {
       id: 'physics-tunings-open-chord',
@@ -1110,6 +1119,17 @@ const unit: Unit = {
       },
       {
         type: 'choice',
+        prompt: 'Compared with a pure major third (ratio 5:4), how wide is the equal-tempered major third?',
+        options: [
+          { text: 'About 14 cents wider', correct: true },
+          { text: 'About 14 cents narrower', why: 'It is the other way round: the pure third, about 386 cents, is the narrower one.' },
+          { text: 'Exactly the same', why: 'Equal temperament keeps only the octave pure. Its major third is 400 cents.' },
+        ],
+        shuffle: false,
+        explain: 'Tempered: 400 cents. Pure: about 386. So the tempered major third is about 14 cents wider than pure.',
+      },
+      {
+        type: 'choice',
         prompt: 'Why does tuning by matching the harmonics at frets 5 and 7 leave the strings slightly off?',
         options: [
           { text: 'It sets a pure fourth, not a tempered one', correct: true },
@@ -1127,6 +1147,16 @@ const unit: Unit = {
           { text: 'Only string 6, down a whole step', why: 'That is drop D.' },
         ],
         explain: 'Open G is {n:D} {n:G} {n:D} {n:G} {n:B} {n:D}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'How do you get from standard tuning to drop D?',
+        options: [
+          { text: 'Lower string 6 a whole step, to {n:D}', correct: true },
+          { text: 'Lower string 1 a whole step, to {n:D}', why: 'String 1 stays {n:E} in drop D. It drops to {n:D} in DADGAD and open G.' },
+          { text: 'Raise string 6 a whole step, to {n:F#}', why: 'Drop means lower: string 6 goes down from {n:E} to {n:D}.' },
+        ],
+        explain: 'Drop D lowers only string 6, {n:E} to {n:D}: {n:D} {n:A} {n:D} {n:G} {n:B} {n:E}. Strings 6, 5 and 4 then ring a {c:D5} power chord.',
       },
       {
         type: 'true-false',
