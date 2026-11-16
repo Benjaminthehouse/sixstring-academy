@@ -6,6 +6,7 @@ import { useImmersion } from './immersive';
 import { WIDE_LAYOUT_QUERY } from './layout';
 import { documentTitleFor, isKnownRoute } from './nav';
 import { Outlet } from './Outlet';
+import { LessonReturn } from './LessonReturn';
 import { useResolvedScreenTitle } from './screenTitle';
 import { useScrollRestoration } from './scroll';
 import { Sidebar } from './Sidebar';
@@ -121,6 +122,7 @@ export function Shell() {
       </a>
       {wide ? <Sidebar def={def} rail={immersion !== 'none'} /> : immersion !== 'bare' && <TopBar def={def} params={params} title={title} immersion={immersion} />}
       <main id="main" data-route={def.name} tabIndex={-1} className={styles.main}>
+        <LessonReturn route={def.name} params={params} />
         <Outlet def={def} params={params} />
       </main>
       {!wide && immersion === 'none' && <TabBar def={def} entering={tabsReturning} />}

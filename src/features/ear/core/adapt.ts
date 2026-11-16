@@ -154,15 +154,20 @@ export interface WeakSpot {
 
 /**
  * The learner's weak spots in a drill, most telling first: confusions that happened at least twice
- * (or once when `min` is 1), limited to answers in `pool` when given.
+ * (or once when `min` is 1), limited to answers in `pool` when given. Without a pool the asked
+ * answer must still be one of the drill's own (a record can hold ids the drill cannot name: from a
+ * level since removed, or from rounds that once shared it, and "you often hear pop-axis as …" is no
+ * help); what it was taken for may be any note, as in a dictation.
  */
 export function weakSpots(drill: DrillDef, record: EarRecord, opts: { pool?: readonly string[]; min?: number; limit?: number } = {}): WeakSpot[] {
   const min = opts.min ?? 2;
+  const own = opts.pool ? null : new Set(drill.levels.flatMap((l) => l.pool));
   const out: WeakSpot[] = [];
   for (const [key, count] of Object.entries(record.mix)) {
     const [answer, chosen] = key.split('>');
     if (count < min) continue;
     if (opts.pool && !(opts.pool.includes(answer) && opts.pool.includes(chosen))) continue;
+    if (own && !own.has(answer)) continue;
     const asked = record.items[answer]?.[0] ?? count;
     const a: OptionInfo = drill.info(answer);
     const c: OptionInfo = drill.info(chosen);

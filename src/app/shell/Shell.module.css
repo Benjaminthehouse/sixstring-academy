@@ -569,3 +569,52 @@
     white-space: nowrap;
   }
 }
+
+/*
+ * "Back to your lesson" (LessonReturn.tsx): one slim bar at the top of a screen the learner reached
+ * from a teacher's task. A full-width tap target on phones; it never covers the screen's content.
+ */
+.lessonReturn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: var(--sp-2) var(--gutter-r, var(--sp-4)) 0 var(--gutter, var(--sp-4));
+  padding: 0 var(--sp-1) 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+.lessonReturnLink {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.lessonReturnLink:hover {
+  text-decoration: underline;
+}
+.lessonReturnLink:focus-visible,
+.lessonReturnClose:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+.lessonReturnClose {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}

@@ -9,8 +9,9 @@ import { formatChord, formatDegree, formatNote, midiToNote } from '@/core/theory
 import { readRecord, weakSpots } from '../core/adapt';
 import { differingDegrees } from '../core/drills/modes';
 import { newInLevel } from '../core/drills';
-import { drillSkillId, levelSkillId, levelStatuses, stepAfter } from '../core/progress';
+import { levelSkillId, levelStatuses, recordSkillId, stepAfter } from '../core/progress';
 import { makeRng } from '../core/rng';
+import { keyForHeard } from '../core/round';
 import type { ChoiceQuestion, DrillDef, LevelDef, OptionInfo, Question } from '../core/types';
 import { ANSWER_KEYS, AnswerPad } from './AnswerPad';
 import { NeckPad } from './NeckPad';
@@ -157,7 +158,7 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
 /** The level's intro: what you will hear (tap to hear each), your record, and Start. */
 function Intro({ drill, level, api, best, back, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; completions: number; unlocked: boolean }; back: { to: string; params: string[]; label: string }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
   const [settings] = useEarSettings();
-  const record = useProgress((s) => s.skills[drillSkillId(drill.id)]?.data);
+  const record = useProgress((s) => s.skills[recordSkillId(drill, level)]?.data);
   const weak = useMemo(() => weakSpots(drill, readRecord(record), { pool: level.pool, limit: 2 }), [drill, record, level.pool]);
   // One example question gives every option's sound on the same root: "hear each one".
   const example = useMemo<Question>(() => level.make({ rng: makeRng(level.n * 7919 + 17), answer: level.pool[0], settings, difficulty: 0.25, index: 0, seed: 1 }), [level, settings]);
@@ -261,8 +262,9 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
   const mic = useMicNotes(
     (midi) => {
       if (q.kind !== 'sequence') return;
-      // Same note name; where the row has it twice (low 5 and 5), the one nearest to what was played.
-      const key = q.keys.filter((k) => k.midi % 12 === midi % 12).sort((a, b) => Math.abs(a.midi - midi) - Math.abs(b.midi - midi))[0];
+      // Same note name; where the row has it twice (low 5 and 5), the one nearest to what was played
+      // (a bass line is played an octave up on the guitar).
+      const key = keyForHeard(q, midi);
       api.tapKey(key ? key.id : `heard-${midi}`, false);
     },
     () => api.playing !== null && api.playing !== 'note',
@@ -326,7 +328,7 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
       </span>
     );
   } else {
-    statusEl = <Text tone="muted">{isChoice ? 'Your answer?' : mic.status === 'on' ? 'Play the notes on your guitar, or tap them.' : q.kind === 'sequence' && q.input === 'neck' ? 'Find the notes on the neck, in order.' : 'Tap the notes you heard, in order.'}</Text>;
+    statusEl = <Text tone="muted">{isChoice ? 'Your answer?' : mic.status === 'on' ? (q.kind === 'sequence' && q.tone ? 'Play the line an octave up on your guitar, or tap it.' : 'Play the notes on your guitar, or tap them.') : q.kind === 'sequence' && q.input === 'neck' ? 'Find the notes on the neck, in order.' : 'Tap the notes you heard, in order.'}</Text>;
   }
 
   const firstName = q.firstNote !== null ? formatNote(midiToNote(q.firstNote), { octave: true }) : null;

@@ -74,12 +74,14 @@ export function readSnapshot(raw: unknown): RoundSnapshot | null {
 
 /**
  * Rebuild the round a snapshot describes, if it belongs to this level and is recent; null
- * otherwise. The last question asked is the one on screen (answered or not).
+ * otherwise. The last question asked is the one on screen (answered or not). A round whose every
+ * question is answered comes back too, on its last answer: it ends (and is recorded) when the
+ * learner moves on, and a round that ended removed its snapshot.
  */
 export function restoreRound(drill: DrillDef, level: LevelDef, snap: RoundSnapshot | null, now: number): Round | null {
   if (!snap || snap.key !== roundKey(drill, level)) return null;
   if (now - snap.savedAt > RESUME_HOURS * 3600_000 || now < snap.startedAt) return null;
-  if (snap.settings.length === 0 || snap.chosen.length >= snap.total) return null;
+  if (snap.settings.length === 0 || snap.chosen.length > snap.total) return null;
   let round = createRound(drill, level, { seed: snap.seed, settings: snap.settings[0], record: snap.startRecord, total: snap.total });
   try {
     for (let i = 0; i < snap.settings.length; i++) {

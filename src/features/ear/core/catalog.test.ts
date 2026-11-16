@@ -5,7 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import { PROGRESSIONS as CATALOG, getProgression } from '@/content/progressions';
 import { chordPcs, chroma, parseChord } from '@/core/theory';
-import { catalogRound, catalogShape, lookAlikes } from './drills/catalog';
+import { emptyRecord, recordAnswer, weakSpots } from './adapt';
+import { DRILLS } from './drills';
+import { CATALOG_RECORD_ID, catalogRound, catalogShape, lookAlikes } from './drills/catalog';
+import { drillSkillId, recordSkillId } from './progress';
 import { makeRng, mixSeed } from './rng';
 import { DEFAULT_SETTINGS } from './settings';
 import { GUITAR_HIGH, GUITAR_LOW, planNotes, subjectEvents } from './sound';
@@ -23,7 +26,7 @@ describe('a progression of the catalog by ear', () => {
       const { level } = found;
       expect(level.pool[0]).toBe(p.id);
       expect(level.pool.length).toBeGreaterThanOrEqual(2);
-      expect(level.special).toEqual({ key: `progression:${p.id}`, skillId: `ear:progression:${p.id}`, params: ['progression', p.id] });
+      expect(level.special).toEqual({ key: `progression:${p.id}`, skillId: `ear:progression:${p.id}`, params: ['progression', p.id], recordId: CATALOG_RECORD_ID });
       const shapes = level.pool.map((id) => catalogShape(getProgression(id)!, catalogShape(p).split('|').length));
       expect(new Set(shapes).size, p.id).toBe(shapes.length);
       for (const id of level.pool.slice(1)) {
@@ -67,5 +70,23 @@ describe('a progression of the catalog by ear', () => {
 
   it('an unknown id has no round', () => {
     expect(catalogRound('no-such-progression')).toBeNull();
+  });
+
+  it('keeps its answers in a record of its own, not in the progressions drill (found in review)', () => {
+    // Catalog answers ("pop-axis") used to be folded into the progressions drill's record, and the
+    // drill screen and the hub then said "you often hear pop-vi-iv-i-v as pop-axis".
+    const found = catalogRound('pop-axis')!;
+    expect(found.drill.id).toBe('progressions');
+    expect(recordSkillId(found.drill, found.level)).toBe(CATALOG_RECORD_ID);
+    expect(recordSkillId(found.drill, found.level)).not.toBe(drillSkillId('progressions'));
+    expect(recordSkillId(DRILLS.progressions, DRILLS.progressions.levels[0])).toBe(drillSkillId('progressions'));
+    // A record that already holds catalog confusions does not show them as the drill's weak spots,
+    // while the catalog round itself names them in words.
+    let record = emptyRecord();
+    for (let i = 0; i < 3; i++) record = recordAnswer(record, found.level.pool[1], 'pop-axis');
+    expect(weakSpots(DRILLS.progressions, record)).toEqual([]);
+    const own = weakSpots(found.drill, record, { pool: found.level.pool });
+    expect(own).toHaveLength(1);
+    expect(own[0].sentence).not.toMatch(/pop-/);
   });
 });

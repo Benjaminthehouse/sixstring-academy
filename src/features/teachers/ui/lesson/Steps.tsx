@@ -32,7 +32,7 @@ export function TeacherLine({ teacher, children, size = 2.5 }: { teacher: Teache
 }
 
 function spokenOf(card: { title?: string; body: CardStep['body']; tip?: CardStep['tip'] }, glossary: GlossaryLookup): string {
-  return [card.title ?? '', speakable(card.body, { glossary }), card.tip ? speakable(card.tip, { glossary }) : ''].filter(Boolean).join('. ');
+  return [card.title ? speakable(card.title, { glossary }) : '', speakable(card.body, { glossary }), card.tip ? speakable(card.tip, { glossary }) : ''].filter(Boolean).join('. ');
 }
 
 /** Swipe left on a touch screen to move on, like the Continue button. */
@@ -68,7 +68,7 @@ export function TeacherCard({ teacher, card, art, onNext }: { teacher: TeacherKe
       <div className={styles.cardMain}>
         {card.title && (
           <Heading level={2} size="2xl" display className={styles.cardTitle}>
-            {card.title}
+            <RichText text={card.title} terms={false} />
           </Heading>
         )}
         <div className={styles.cardBody}>

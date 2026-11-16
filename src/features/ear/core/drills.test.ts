@@ -17,6 +17,7 @@ import { DRONE_LEAD, differingDegrees, modeSteps } from './drills/modes';
 import { PROGRESSIONS, progressionShape } from './drills/progressions';
 import { scaleSteps } from './drills/scales';
 import { makeRng, mixSeed } from './rng';
+import { keyForHeard } from './round';
 import { DEFAULT_SETTINGS } from './settings';
 import { GUITAR_HIGH, GUITAR_LOW, planNotes, subjectEvents } from './sound';
 import type { ChoiceQuestion, DrillDef, EarSettings, LevelDef, Question, SoundPlan } from './types';
@@ -433,5 +434,28 @@ describe('the drills added in pass 2', () => {
     expect(degreeId(-5)).toBe('5,');
     expect(degreeId(24)).toBe("1''");
     expect(idSemitones("b3'")).toBe(15);
+  });
+
+  it('bass lines played back on the guitar, an octave up, fill the right keys (the low fifth too)', () => {
+    // A guitar cannot reach most of a bass line (it lies below E2): the learner plays it an octave
+    // up. That note used to be matched by name to the nearest key, so the low 5 played as B2 went
+    // to the 5 above it, and the tonic played an octave up went to the octave key.
+    let lines = 0;
+    for (const { q } of sweep(DRILLS.bass)) {
+      if (q.kind !== 'sequence') continue;
+      const onGuitar = q.target.map((id) => q.keys.find((k) => k.id === id)!.midi + 12);
+      expect(Math.min(...onGuitar), 'every note is on a guitar an octave up').toBeGreaterThanOrEqual(GUITAR_LOW);
+      expect(onGuitar.map((m) => keyForHeard(q, m)?.id)).toEqual(q.target);
+      lines++;
+    }
+    expect(lines).toBeGreaterThan(20);
+    // A melody (and a dictation on the neck) is matched where it is played.
+    for (const drill of [DRILLS.melody, DRILLS.dictation]) {
+      for (const { q } of sweep(drill)) {
+        if (q.kind !== 'sequence') continue;
+        const midis = q.target.map((id) => q.keys.find((k) => k.id === id)!.midi);
+        expect(midis.map((m) => keyForHeard(q, m)?.id)).toEqual(q.target);
+      }
+    }
   });
 });

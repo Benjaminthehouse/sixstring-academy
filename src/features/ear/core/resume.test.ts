@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyRecord, recordAnswer } from './adapt';
 import { DRILLS } from './drills';
 import { RESUME_HOURS, readSnapshot, restoreRound, roundKey, snapshotOf } from './resume';
-import { answerQuestion, createRound, nextQuestion, scoreRound, type Round } from './round';
+import { answerQuestion, createRound, nextQuestion, roundDone, scoreRound, type Round } from './round';
 import { DEFAULT_SETTINGS } from './settings';
 import type { DrillDef, LevelDef } from './types';
 
@@ -56,10 +56,21 @@ describe('a round survives a reload', () => {
 
   it('reads damaged or foreign data as nothing', () => {
     for (const bad of [null, 3, 'x', {}, { v: 2 }, { v: 1, key: 'a:1', seed: 1, total: 10, settings: [], chosen: [1], startedAt: 0, savedAt: 0 }]) expect(readSnapshot(bad)).toBeNull();
-    // A finished round is not resumed (its summary was shown).
+  });
+
+  it('comes back on the last answer when every question was answered but the round had not ended', () => {
+    // A reload (or a closed tab) on the feedback of the last question used to lose the whole round:
+    // the snapshot held every answer, was not resumed, and nothing had been recorded.
     const drill = DRILLS.pitch;
     const level = drill.levels[0];
     const done = playSome(drill, level, level.questions);
-    expect(restoreRound(drill, level, readSnapshot(snapshotOf(done, 0, 1)), 2)).toBeNull();
+    const back = restoreRound(drill, level, readSnapshot(JSON.parse(JSON.stringify(snapshotOf(done, 0, 1)))), 2)!;
+    expect(back).not.toBeNull();
+    expect(back.answers).toHaveLength(level.questions);
+    expect(roundDone(back)).toBe(true);
+    expect(scoreRound(back)).toEqual(scoreRound(done));
+    // A snapshot claiming more answers than the round has questions is not a round.
+    const snap = snapshotOf(done, 0, 1);
+    expect(restoreRound(drill, level, { ...snap, chosen: [...snap.chosen, 'x'] }, 2)).toBeNull();
   });
 });

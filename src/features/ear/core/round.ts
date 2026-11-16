@@ -4,7 +4,7 @@
  */
 import { difficultyFor, pickAnswer, recentSuccess, recordAnswer, type EarRecord } from './adapt';
 import { makeRng, mixSeed } from './rng';
-import type { DrillDef, EarSettings, LevelDef, Question, SequenceQuestion } from './types';
+import type { DrillDef, EarSettings, LevelDef, Question, RowKey, SequenceQuestion } from './types';
 
 /** Accuracy that passes a level and unlocks the next. */
 export const PASS_ACCURACY = 0.8;
@@ -61,6 +61,16 @@ export function nextQuestion(round: Round, settings: EarSettings = round.setting
   const answer = pickAnswer(rng, round.level.pool, round.record, success, round.questions.map(asked));
   const question = round.level.make({ rng, answer, settings, difficulty: difficultyFor(success), index, seed });
   return { round: { ...round, settings, questions: [...round.questions, question], askedWith: [...round.askedWith, settings] }, question };
+}
+
+/**
+ * The key a note heard through the microphone fills in a sequence question: the same note name,
+ * the nearest in pitch where the row has it more than once. A bass line is played an octave up on
+ * the guitar (most of it lies below the guitar's low E), so it is matched an octave down.
+ */
+export function keyForHeard(q: SequenceQuestion, midi: number): RowKey | undefined {
+  const at = q.tone ? midi - 12 : midi;
+  return q.keys.filter((k) => (((k.midi - at) % 12) + 12) % 12 === 0).sort((a, b) => Math.abs(a.midi - at) - Math.abs(b.midi - at))[0];
 }
 
 /** Per note of a melody: was it right? The given notes count as right. */

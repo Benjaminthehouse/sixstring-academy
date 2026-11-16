@@ -8,7 +8,7 @@ import { playUi } from '@/core/audio';
 import { readJSON, remove, writeJSON } from '@/core/platform';
 import { getProgress, getProgressStore, recordActivity, setSkillData, type ActivityResult, type JsonValue } from '@/core/progress';
 import { readRecord, weakSpots, type WeakSpot } from '../core/adapt';
-import { drillSkillId, levelSkillId, levelStatuses } from '../core/progress';
+import { levelSkillId, levelStatuses, recordSkillId } from '../core/progress';
 import { mixSeed } from '../core/rng';
 import { RESUME_KEY, readSnapshot, restoreRound, snapshotOf } from '../core/resume';
 import { answerQuestion, createRound, nextQuestion, roundDone, scoreRound, sequenceMarks, type Round, type RoundScore } from '../core/round';
@@ -152,7 +152,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
   const start = useCallback(() => {
     clearTimers();
     stopSound();
-    const record = readRecord(getProgress().skills[drillSkillId(drill.id)]?.data);
+    const record = readRecord(getProgress().skills[recordSkillId(drill, level)]?.data);
     const r = createRound(drill, level, { seed: freshSeed(), settings: settingsRef.current, record });
     startedAt.current = Date.now();
     setOutcome(null);
@@ -173,7 +173,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       // A catalog progression is a round of its own: no level of the drill opens with it.
       const special = level.special;
       const before = special ? [] : levelStatuses(drill, getProgress().skills);
-      setSkillData(drillSkillId(drill.id), r.record as unknown as JsonValue);
+      setSkillData(recordSkillId(drill, level), r.record as unknown as JsonValue);
       let activity: ActivityResult | null = null;
       if (completed || score.answered >= 3) {
         activity = recordActivity({
@@ -357,12 +357,12 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       const r = roundRef.current;
       if (!r || phaseRef.current === 'summary' || phaseRef.current === 'intro') return;
       save(r);
-      setSkillData(drillSkillId(drill.id), r.record as unknown as JsonValue);
+      setSkillData(recordSkillId(drill, level), r.record as unknown as JsonValue);
       getProgressStore().flush();
     };
     window.addEventListener('pagehide', onHide);
     return () => window.removeEventListener('pagehide', onHide);
-  }, [drill.id, save]);
+  }, [drill, level, save]);
 
   // The browser check reads the question on screen (a resumed one too).
   useEffect(() => {

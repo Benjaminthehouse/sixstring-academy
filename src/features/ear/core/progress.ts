@@ -1,11 +1,12 @@
 /**
  * How the ear class reads and names its progress. Skill ids: `ear:<drill>:<level>` for each level
  * (one `recordActivity` of kind `ear` per finished round), and `ear:<drill>` for the drill's
- * confusion record (`setSkillData`). Pure functions over the progress store's `skills` map.
+ * confusion record (`setSkillData`). A catalog progression by its link is `ear:progression:<id>`,
+ * with one record for all of them, `ear:progression`. Pure functions over the progress store's `skills` map.
  */
 import { PASS_ACCURACY } from './round';
 import { LADDER, PATH, type PathStep } from './drills';
-import type { DrillDef, DrillId } from './types';
+import type { DrillDef, DrillId, LevelDef } from './types';
 
 /** The part of a progress skill record this module reads. */
 export interface SkillLike {
@@ -23,6 +24,8 @@ export type SkillMap = Readonly<Record<string, SkillLike | undefined>>;
 export const levelSkillId = (drill: DrillId, n: number): string => `ear:${drill}:${n}`;
 /** Skill id that holds a drill's confusion record. */
 export const drillSkillId = (drill: DrillId): string => `ear:${drill}`;
+/** Skill id of the confusion record a round of `level` reads and adds to: the drill's, or a special round's own. */
+export const recordSkillId = (drill: DrillDef, level: LevelDef): string => level.special?.recordId ?? drillSkillId(drill.id);
 
 /** What the screens show about a level. */
 export interface LevelStatus {

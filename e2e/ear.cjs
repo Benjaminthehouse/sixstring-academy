@@ -25,10 +25,13 @@
  *  layout   phone: answers in the lower half, every answer at least 44 px tall, no keyboard hints;
  *           phone held sideways: answers beside the listening area; desktop: keyboard hints shown
  *  status   with the volume at zero a round says "Your sound is off", and one tap turns it back on
- *  pass2    melodic dictation tapped on a neck (right, and an octave off is wrong), a bass line
- *           played on the bass and tapped back, modes over a scheduled drone (and the feedback
- *           naming the note to listen for), a catalog progression opened by #ear--progression--<id>
- *           and left back to its page, the chord shape in feedback explained with its chord box
+ *  pass2    melodic dictation tapped on a neck (right, and an octave off is wrong, with the missed
+ *           note shown on the board), a bass line played on the bass and tapped back, modes over a
+ *           scheduled drone (and the feedback naming the note to listen for), a catalog progression
+ *           opened by #ear--progression--<id> and left back to its page, played through as its own
+ *           skill with its own confusion record (none of it shows on the progressions drill or the
+ *           hub), a reload on the last answer that still ends and records the round, the chord
+ *           shape in feedback explained with its chord box
  *  mic      melody playback answered on the guitar: Chromium's fake microphone plays a WAV of two
  *           guitar notes rendered by the audio module; they fill the melody's slots in order and
  *           are marked against it (the app ignores what it hears while it is playing itself)
@@ -36,7 +39,7 @@
  *           answer labels stay whole inside their buttons (three modes and three progressions at
  *           360 px, scale names at 200 % text) and twelve answers all fit a phone held sideways;
  *           Escape leaves a round; a round left early shows no "Best 0 %"; a reload mid-round
- *           still records what was answered
+ *           comes back to the same question and the round is recorded once when it ends
  *
  * Prints one line per failed check (all with --verbose) and PASSED or FAILED; exits non-zero on failure.
  */
@@ -745,9 +748,10 @@ async function pass2(browser, url) {
     await tapNeck(phone.page, q, wrong);
     await phone.page.waitForSelector('[data-ear-status="wrong"]', { timeout: 10000 }).catch(() => null);
     check('pass2', 'dictation: a note an octave off is wrong', (await phone.page.getAttribute('[data-ear-status]', 'data-ear-status')) === 'wrong');
-    const board = await phone.page.locator('[data-ear-neck] [role="img"]').first().getAttribute('aria-label').catch(() => '');
+    // (The board's own description lists its marks: the missed second note is shown where it is.)
+    const board = (await phone.page.locator('[data-ear-neck] svg desc').allTextContents().catch(() => [])).join(' ');
     await phone.shot('dictation-wrong-phone');
-    check('pass2', 'dictation: the board says where the missed note is', /is here/.test(board || '') || (await phone.page.locator('[data-ear-neck]').innerText()).length >= 0, (board || '').slice(0, 200));
+    check('pass2', 'dictation: the board shows where the missed note is', /note 2 is here/.test(board), board.slice(0, 300));
     check('pass2', 'dictation: no sideways scroll at phone width', (await noSideways(phone.page)) <= 1);
 
     // Bass lines: played on the bass, an octave and more below the guitar drills.
@@ -792,7 +796,7 @@ async function pass2(browser, url) {
     // A progression of the catalog by its link, and back to its page.
     await desk.goto('ear--progression--pop-axis');
     const title = await desk.page.locator('main h1').first().innerText();
-    check('pass2', 'catalog link: #ear--progression--pop-axis opens a round for that progression', /axis/i.test(title) || title.length > 0, title);
+    check('pass2', 'catalog link: #ear--progression--pop-axis opens a round for that progression', /axis/i.test(title), title);
     await desk.page.locator('[data-ear-start]').click();
     await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 30000 });
     q = await currentQuestion(desk.page);
@@ -803,15 +807,69 @@ async function pass2(browser, url) {
     await desk.page.keyboard.press('Escape');
     await desk.page.waitForFunction(() => location.hash.startsWith('#progressions'), null, { timeout: 20000 }).catch(() => null);
     check('pass2', 'catalog link: leaving goes back to the progression\'s page', desk.page.url().endsWith('#progressions--pop-axis'), desk.page.url());
+    // A whole catalog round, every answer wrong: recorded as its own skill, its confusions kept in a
+    // record of their own. (They used to land in the progressions drill's record, and its page and
+    // the hub then said "you often hear pop-vi-iv-i-v as pop-axis".)
+    await desk.goto('ear--progression--pop-axis');
+    await clearToasts(desk.page);
+    await desk.page.locator('[data-ear-start]').click();
+    for (let i = 0; i < 6; i++) {
+      await desk.page.waitForFunction((n) => window.__ear.question && window.__ear.question.index === n && document.querySelector('[data-ear-phase="asking"]'), i, { timeout: 30000 });
+      const cur = await currentQuestion(desk.page);
+      await desk.page.keyboard.press(KEYS[cur.options.findIndex((o) => o.id !== cur.answer)]);
+      await desk.page.waitForSelector('[data-ear-phase="answered"]', { timeout: 10000 });
+      await desk.page.waitForTimeout(150);
+      await desk.page.keyboard.press('Enter');
+    }
+    const ended = await desk.page.waitForFunction(() => /round complete/i.test(document.querySelector('main')?.innerText ?? ''), null, { timeout: 20000 }).then(() => true).catch(() => false);
     const rec = await desk.page.evaluate(async () => {
       const p = await import('/src/core/progress/index.ts');
-      const s = p.getProgress().skills['ear:progression:pop-axis'];
-      return s ? { attempts: s.attempts } : null;
+      const skills = p.getProgress().skills;
+      const own = skills['ear:progression:pop-axis'];
+      return { own: own ? { attempts: own.attempts, completions: own.completions } : null, catalog: Object.keys(skills['ear:progression']?.data?.mix ?? {}), drill: Object.keys(skills['ear:progressions']?.data?.items ?? {}) };
     });
-    check('pass2', 'catalog link: the round is its own skill (no level of the progressions drill)', !(await levelSkill(desk.page, 'progressions', 1)) && (rec === null || rec.attempts >= 0), JSON.stringify(rec));
+    check('pass2', 'catalog link: a whole round is its own skill (no level of the progressions drill)', ended && rec.own && rec.own.attempts === 1 && rec.own.completions === 1 && !(await levelSkill(desk.page, 'progressions', 1)), JSON.stringify(rec));
+    check('pass2', 'catalog link: its confusions are kept apart from the progressions drill (found in review)', rec.catalog.length > 0 && rec.drill.every((id) => !/^pop-|-progression/.test(id)), JSON.stringify(rec));
+    await desk.goto('ear--progressions');
+    const drillText = await desk.page.locator('main').innerText();
+    await desk.goto('ear');
+    const hubText = await desk.page.locator('main').innerText();
+    check('pass2', 'catalog link: no catalog id shows up as a weak spot on the drill page or the hub', !/often hear[^\n]*pop-/.test(drillText + hubText), (drillText + hubText).match(/often hear[^\n]*/g)?.join(' | ') ?? 'none');
     await desk.goto('ear--progression--no-such-thing');
     await desk.page.waitForFunction(() => location.hash === '#ear--progressions', null, { timeout: 20000 }).catch(() => null);
     check('pass2', 'catalog link: an unknown id lands on the progressions drill', desk.page.url().endsWith('#ear--progressions'), desk.page.url());
+
+    // A reload on the feedback of the last question (answered wrong, waiting for Next) used to lose
+    // the whole round: nothing was recorded and it was not picked up again.
+    await desk.goto('ear--pitch--1');
+    await clearToasts(desk.page);
+    await desk.page.locator('[data-ear-start]').click();
+    const total = await desk.page.evaluate(async () => {
+      for (let i = 0; i < 100 && !(await import('/src/core/platform/index.ts')).readJSON('ear.round', null); i++) await new Promise((r) => setTimeout(r, 50));
+      return (await import('/src/core/platform/index.ts')).readJSON('ear.round', null)?.total ?? 0;
+    });
+    for (let i = 0; i < total; i++) {
+      await desk.page.waitForFunction((n) => window.__ear.question && window.__ear.question.index === n && document.querySelector('[data-ear-phase="asking"]'), i, { timeout: 30000 });
+      const cur = await currentQuestion(desk.page);
+      const last = i === total - 1;
+      await desk.page.keyboard.press(KEYS[cur.options.findIndex((o) => (last ? o.id !== cur.answer : o.id === cur.answer))]);
+      await desk.page.waitForSelector('[data-ear-phase="answered"]', { timeout: 10000 });
+      if (!last) {
+        await desk.page.waitForTimeout(150);
+        await desk.page.keyboard.press('Enter');
+      }
+    }
+    await desk.page.waitForTimeout(300);
+    await desk.page.reload({ waitUntil: 'load' });
+    await desk.page.waitForSelector('main[data-route="ear"] [data-ui-page]', { timeout: 60000 });
+    const back = await desk.page.waitForSelector('[data-ear-status="wrong"]', { timeout: 15000 }).then(() => true).catch(() => false);
+    check('pass2', 'a reload on the last answer comes back to it (it used to drop the round)', back, await desk.page.locator('main').innerText().then((t) => t.slice(0, 120)).catch(() => ''));
+    await clearToasts(desk.page);
+    await desk.page.keyboard.press('Enter');
+    const done = await desk.page.waitForFunction(() => /round complete/i.test(document.querySelector('main')?.innerText ?? ''), null, { timeout: 15000 }).then(() => true).catch(() => false);
+    const lastSkill = await levelSkill(desk.page, 'pitch', 1);
+    const leftover = await desk.page.evaluate(async () => (await import('/src/core/platform/index.ts')).readJSON('ear.round', null));
+    check('pass2', 'and Next ends it: recorded once as a finished round, nothing left to resume', done && lastSkill && lastSkill.attempts === 1 && lastSkill.completions === 1 && leftover === null, `${done} ${JSON.stringify(lastSkill)} ${JSON.stringify(leftover)}`);
 
     // The chord shape in the feedback explains itself.
     await desk.goto('ear--chords--1');
