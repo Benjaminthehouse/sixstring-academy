@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { GOAL_CHOICES } from '@/app/onboarding/model';
 import { ROUTE_BY_NAME, type RouteProps } from '@/app/routes';
 import { WeekStrip, openOnboarding, openStats } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
@@ -23,11 +22,13 @@ import {
   type RecentItem,
 } from '@/core/progress';
 import { AnimatedNumber, Badge, Banner, Button, Card, GemChip, Icon, LinkButton, List, ListItem, Page, ProgressBar, ProgressRing, Section, cx } from '@/ui';
+import type { ContentItem } from '@/features/practice/model/content';
+import { usePracticeLibrary } from '@/features/practice/model/library-loader';
 import type { PlanBlock } from '@/features/practice/model/planner';
 import { suggestPracticePlan } from '@/features/practice/model/signals';
 import { getPracticeData } from '@/features/practice/model/store';
 import { greetingLine, setupLine, standingLine, timeAgo } from './greeting';
-import { buildPlan, minutesLeft, nextStep, type PlanStep } from './plan';
+import { buildPlan, continueItems, goalMinutes as minutesForGoal, minutesLeft, nextStep, type PlanStep } from './plan';
 import { tipForDay } from './tips';
 import styles from './Home.module.css';
 
@@ -36,20 +37,23 @@ const QUICK_TOOLS = ['tuner', 'metronome', 'camera', 'scan'] as const;
 /**
  * The practice planner's blocks for today, worked out once per day, level, teacher and goal for the
  * life of the page: the drill a step shows must not change under the learner while they work
- * through the plan (finishing it changes what the planner would pick next).
+ * through the plan (finishing it changes what the planner would pick next). The content library
+ * (technique exercises, songs, unit drills) arrives as a lazy chunk a moment after the first paint;
+ * the plan is worked out once more then, and from then on it stays.
  */
 let plannedToday: { key: string; blocks: PlanBlock[] } | null = null;
-function practiceBlocks(store: ReturnType<typeof useProgressStore>, key: string, minutes: number): PlanBlock[] {
-  if (plannedToday?.key === key) return plannedToday.blocks;
+function practiceBlocks(store: ReturnType<typeof useProgressStore>, key: string, minutes: number, library: readonly ContentItem[] | null): PlanBlock[] {
+  const fullKey = `${key}|${library ? 'library' : 'pool'}`;
+  if (plannedToday?.key === fullKey) return plannedToday.blocks;
   let blocks: PlanBlock[] = [];
   try {
     // The learner's focus goals and practice journal steer it too (pinned goals first).
     const { journal, goals } = getPracticeData();
-    blocks = suggestPracticePlan(store.getState(), store.now(), minutes, { journal, goals });
+    blocks = suggestPracticePlan(store.getState(), store.now(), minutes, { journal, goals }, library ?? undefined);
   } catch {
     blocks = [];
   }
-  plannedToday = { key, blocks };
+  plannedToday = { key: fullKey, blocks };
   return blocks;
 }
 
@@ -67,7 +71,7 @@ function Hero({ plan }: { plan: readonly PlanStep[] }) {
   const next = nextStep(plan);
   const started = plan.some((s) => s.done);
   return (
-    <Card variant="raised" padding="lg" className={styles.hero}>
+    <Card variant="raised" padding="lg" className={styles.hero} data-home-hero="">
       <div className={styles.heroTop}>
         <button type="button" className={styles.ringButton} aria-label={`Daily goal: ${goal.xp} of ${goal.goal} XP. Show details`} onClick={() => openStats('goal')}>
           <ProgressRing value={goal.xp} max={goal.goal} size={116} thickness={11} tone={goal.met ? 'ok' : 'xp'} label="Daily goal">
@@ -93,11 +97,11 @@ function Hero({ plan }: { plan: readonly PlanStep[] }) {
       </div>
       <WeekStrip days={week} />
       {next ? (
-        <LinkButton variant="primary" size="lg" fullWidth wrap to={next.route} params={next.params} iconRight="ArrowRight">
+        <LinkButton variant="primary" size="lg" fullWidth wrap to={next.route} params={next.params} iconRight="ArrowRight" data-home-next="">
           {started ? 'Next' : 'Start'}: {next.title}
         </LinkButton>
       ) : (
-        <LinkButton variant="primary" size="lg" fullWidth to="studio" iconRight="ArrowRight">
+        <LinkButton variant="primary" size="lg" fullWidth to="studio" iconRight="ArrowRight" data-home-next="">
           Plan finished. Keep playing
         </LinkButton>
       )}
@@ -111,7 +115,7 @@ function PlanList({ plan }: { plan: readonly PlanStep[] }) {
   const done = plan.filter((s) => s.done).length;
   return (
     <Section title="Today's plan" description={next ? `${done} of ${plan.length} done · about ${left} ${left === 1 ? 'minute' : 'minutes'} left` : `All ${plan.length} steps done. Nicely played.`}>
-      <List variant="card">
+      <List variant="card" data-home-plan="" data-minutes={left}>
         {plan.map((step, i) => (
           <ListItem
             key={step.id}
@@ -149,7 +153,7 @@ function PlanList({ plan }: { plan: readonly PlanStep[] }) {
 }
 
 function ContinueRow({ recents, now }: { recents: readonly RecentItem[]; now: number }) {
-  const items = recents.filter((r) => ROUTE_BY_NAME[r.route]).slice(0, 4);
+  const items = continueItems(recents, (route) => !!ROUTE_BY_NAME[route]);
   if (items.length === 0) {
     return (
       <Section title="Worth a first look" description="Three things this app does that a book cannot.">
@@ -311,10 +315,11 @@ export default function Home(_props: RouteProps) {
   const today = useProgress((s) => s.meta.today);
   const todayKinds = useProgress((s) => s.days[s.meta.today]?.kinds);
   const now = store.now();
-  const goalMinutes = GOAL_CHOICES.find((c) => c.xp === prefs.dailyGoalXp)?.minutes ?? 10;
+  const goalMinutes = minutesForGoal(prefs.dailyGoalXp);
+  const library = usePracticeLibrary();
   const practice = useMemo(
-    () => practiceBlocks(store, `${today}|${profile.experience}|${profile.teacher}|${goalMinutes}|${store.getState().profile.createdAt}`, goalMinutes),
-    [store, today, profile.experience, profile.teacher, goalMinutes],
+    () => practiceBlocks(store, `${today}|${profile.experience}|${profile.teacher}|${goalMinutes}|${store.getState().profile.createdAt}`, goalMinutes, library),
+    [store, today, profile.experience, profile.teacher, goalMinutes, library],
   );
 
   const plan = useMemo(

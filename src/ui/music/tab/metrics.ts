@@ -103,7 +103,8 @@ export const EFFECT_H: Readonly<Record<EffectKind, number>> = {
   pm: 11,
   letring: 11,
   stroke: 10,
-  text: 13,
+  // An annotation is italic text with descenders: room for them, so it never touches a "let ring" or "P.M." under it.
+  text: 16,
 };
 
 /** How strongly column width grows with duration (0.5 = square root, as engravers space notes). */

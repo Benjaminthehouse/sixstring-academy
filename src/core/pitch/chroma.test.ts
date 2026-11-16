@@ -5,7 +5,7 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { midiToFreq } from '@/core/math/pitch-math';
-import { averageChroma, type ChordSpec, matchChord, pitchClassesOf, rankChords } from './chords';
+import { averageChroma, type ChordSpec, matchChord, pitchClassesOf, rankChords, requiredTones } from './chords';
 import { ChromaExtractor, computeChroma } from './chroma';
 import { analyze } from './engine';
 import { addNoise, mix, pluckedString, seededRandom, silence, strum, whiteNoise } from './signals';
@@ -172,6 +172,48 @@ describe('chord matcher: what is missing, what is wrong', () => {
     expect(m.coverage).toBeCloseTo(2 / 3, 5);
     expect(m.score).toBeLessThan(0.6);
   });
+
+  it('does not pass a four-note chord that is missing one of its tones (the fifth may go)', () => {
+    // G7 320001 with the F on string 1 not sounding is a G major chord: three of four tones used
+    // to be enough to pass.
+    const noF = analyse([43, 47, 50, 55, 59]);
+    expect(matchChord(noF, spec('G7')).score).toBeLessThan(0.4);
+    expect(matchChord(noF, spec('G7')).missing).toEqual([PC.F]);
+    expect(matchChord(noF, { ...spec('G7'), required: [] }).score, 'the old, lenient grading').toBeGreaterThan(0.6);
+    // Without its fifth (D) it is still a G7, as guitarists often play it.
+    expect(matchChord(analyse([43, 47, 55, 59, 65]), spec('G7')).score).toBeGreaterThan(0.6);
+    expect(requiredTones(spec('G7'))).toEqual([PC.F, PC.G, PC.B]);
+    expect(requiredTones({ pcs: [0, 4, 7] })).toEqual([0, 4, 7]);
+    expect(requiredTones({ pcs: [0, 4, 7], required: [16] })).toEqual([4]);
+
+    // Every four-note shape of the test set, every take: whole, it passes; with one of its tones
+    // (not the bass, not the fifth) silent, it does not.
+    let whole = 0;
+    let wholePass = 0;
+    let gapped = 0;
+    let gappedPass = 0;
+    let gappedLenient = 0;
+    for (const name of NAMES.filter((n) => spec(n).pcs.length >= 4)) {
+      const s = spec(name);
+      for (const style of STYLES) {
+        for (let seed = 1; seed <= 4; seed++) {
+          whole++;
+          if (matchChord(computeChroma(strummed(VOICINGS[name], 44100, seed, style), 44100), s).score >= 0.6) wholePass++;
+          for (const pc of requiredTones(s)) {
+            if (pc === s.bass) continue;
+            const frame = computeChroma(strummed(VOICINGS[name].filter((m) => m % 12 !== pc), 44100, seed, style), 44100);
+            gapped++;
+            if (matchChord(frame, s).score >= 0.6) gappedPass++;
+            if (matchChord(frame, { ...s, required: [] }).score >= 0.6) gappedLenient++;
+          }
+        }
+      }
+    }
+    table.push(`4-note chords, a tone silent  ${`${gappedPass}/${gapped}`.padStart(7)} pass (all tones required; ${gappedLenient} before), whole: ${wholePass}/${whole} pass`);
+    expect(wholePass).toBe(whole);
+    expect(gappedPass / gapped).toBeLessThan(0.05);
+    expect(gappedLenient / gapped, 'the lenient grading this replaces').toBeGreaterThan(0.5);
+  }, 60_000);
 
   it('reports a wrong note as extra', () => {
     // C major with the open A string hit as well.

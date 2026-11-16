@@ -230,6 +230,28 @@ describe('curated shapes', () => {
     expect(grip('C6/9', 'x32233')).toBeDefined();
     expect(grip('G6/9', '322233')?.notes.map((n) => n.degree)).toEqual(['1', '3', '6', '9', '5', '1']);
   });
+
+  it('names the fret the root is on, not the lowest fret of the shape', () => {
+    const label = (symbol: string, frets: string) => libraryVoicings(symbol, { maxFret: 16 }).find((v) => formatFrets(v.frets) === frets)?.label;
+    expect(label('Cmaj7', 'x324xx')).toBe('Shell voicing, root on string 5, fret 3');
+    expect(label('E7', 'x767xx')).toBe('Shell voicing, root on string 5, fret 7');
+    expect(label('C13', 'x32335')).toBe('Jazz voicing, root on string 5, fret 3');
+    expect(label('G13b9', '3x3454')).toBe('Jazz voicing, root on string 6, fret 3');
+    expect(label('Gm7b5', '3x332x')).toBe('Jazz voicing, root on string 6, fret 3');
+    // Every placed shape named by its root string, on every root: the named fret holds the root.
+    let checked = 0;
+    for (const v of voicingLibrary()) {
+      const m = /root on string (\d), fret (\d+)$/.exec(v.label) ?? /barre at fret (\d+)$/.exec(v.label);
+      if (!m) continue;
+      const string = m.length === 3 ? Number(m[1]) : v.shape === 'E' ? 6 : 5;
+      const fret = Number(m[m.length - 1]);
+      const note = v.notes.find((n) => n.string === string);
+      expect(note && note.fret, `${v.chord} ${formatFrets(v.frets)} "${v.label}"`).toBe(fret);
+      expect(note && parseNote(note.note).chroma, `${v.chord} ${formatFrets(v.frets)} root`).toBe(parseNote(v.root).chroma);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(500);
+  });
 });
 
 describe('computed families', () => {

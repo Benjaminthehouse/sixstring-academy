@@ -8,15 +8,15 @@
  *
  * The full pipeline with recognizers, progress and cancellation is `recognizePage` in pipeline.ts.
  */
-import { removeSmallComponents } from './image/cc';
-import { type BinaryImage, type GrayImage, type Point, blur3, downscaleInt } from './image/gray';
+import { labelComponents, removeSmallComponents } from './image/cc';
+import { type BinaryImage, type GrayImage, type Point, blur3, cropBinary, downscaleInt } from './image/gray';
 import { flatten } from './image/illumination';
 import { type PreprocessOptions, type PreprocessResult, binarizeLines, binarizeSymbols, preprocess } from './image/preprocess';
 import { type WarpMesh, meshFromFunction, meshMap, meshUnmap, warpGray } from './image/warp';
 import { type LayoutResult, detectLayout } from './staff/layout';
 import { type StaffGeom, type StaffLayout, lineYAt } from './staff/model';
 import { removeStaffLines } from './staff/removal';
-import type { BBox, OmrBarline, OmrEvent, OmrMeasure, OmrPage, OmrPageQuality, OmrStaff, OmrSystem, OmrWarning, StaffInput, StaffReading } from './types';
+import type { BBox, OmrBarline, OmrEvent, OmrMeasure, OmrPage, OmrPageQuality, OmrStaff, OmrSystem, OmrText, OmrWarning, StaffInput, StaffReading } from './types';
 import { tabTuningFor } from './types';
 import { linkSystem } from './reconcile';
 import { fretOnNeck } from './frets';
@@ -358,6 +358,73 @@ export function extractStaff(analysis: PageAnalysis, index: number, opts: Extrac
 }
 
 /**
+ * Words printed above a tab staff that has no notation staff with it: chord symbols, mostly (also
+ * "let ring", "full" over a bend, a tempo mark). Located as boxes, as the notation reader does for
+ * the text above its staff, so OCR or the AI helper can read them; a word that does not read as a
+ * chord is dropped by whoever reads it. Looks between the top line and the staff above (at most
+ * 3.5 staff spaces up), in the normalised page; boxes are returned in page px.
+ */
+export function textOverTabStaff(analysis: PageAnalysis, index: number): OmrText[] {
+  const { pre, layout } = analysis;
+  const st = layout.staves[index];
+  if (!st || st.kind !== 'tab') return [];
+  const sp = st.space;
+  const bin = pre.binary;
+  const x0 = Math.max(0, Math.floor(st.x0 - 0.5 * sp));
+  const x1 = Math.min(bin.width, Math.ceil(st.x1 + 0.5 * sp));
+  let topY = Infinity;
+  for (let x = x0; x < x1; x += Math.max(1, Math.round(sp))) topY = Math.min(topY, lineYAt(st, 0, Math.min(st.x1, Math.max(st.x0, x))));
+  let y0 = Math.floor(topY - 3.5 * sp);
+  const y1 = Math.floor(topY - 0.35 * sp);
+  // Not into the staff above (nor the stems hanging under it).
+  for (const other of layout.staves) {
+    if (other === st || Math.min(other.x1, st.x1) <= Math.max(other.x0, st.x0)) continue;
+    const bottom = lineYAt(other, other.lineCount - 1, (st.x0 + st.x1) / 2);
+    if (bottom < topY) y0 = Math.max(y0, Math.ceil(bottom + (other.kind === 'tab' ? 1.2 : 0.8) * other.space));
+  }
+  y0 = Math.max(0, y0);
+  if (y1 - y0 < 0.6 * sp || x1 - x0 < 2 * sp) return [];
+  const crop = cropBinary(bin, x0, y0, x1 - x0, y1 - y0);
+  const cc = labelComponents(crop);
+  const parts: { x0: number; y0: number; x1: number; y1: number }[] = [];
+  for (let id = 1; id <= cc.count; id++) {
+    const w = cc.x1[id] - cc.x0[id] + 1;
+    const h = cc.y1[id] - cc.y0[id] + 1;
+    if (h < 0.3 * sp || h > 2.2 * sp || w > 4 * sp || cc.area[id] < 0.04 * sp * sp) continue;
+    // Cut off by the top of the band: something taller reaching down (a stem from above, a slur).
+    if (cc.y0[id] === 0 && y0 > 0) continue;
+    // Thin and long: a slur, a tie, a bracket line, the shaft of a bend arrow.
+    if (cc.area[id] / (w * h) < 0.1 || (h < 0.55 * sp && w > 1.5 * sp)) continue;
+    parts.push({ x0: cc.x0[id] + x0, y0: cc.y0[id] + y0, x1: cc.x1[id] + 1 + x0, y1: cc.y1[id] + 1 + y0 });
+  }
+  parts.sort((a, b) => a.x0 - b.x0);
+  const words: typeof parts = [];
+  for (const b of parts) {
+    const wd = words.find((q) => b.x0 - q.x1 < 0.55 * sp && b.x0 >= q.x0 - 0.2 * sp && Math.min(q.y1, b.y1) - Math.max(q.y0, b.y0) > -0.2 * sp);
+    if (wd) {
+      wd.x1 = Math.max(wd.x1, b.x1);
+      wd.y0 = Math.min(wd.y0, b.y0);
+      wd.y1 = Math.max(wd.y1, b.y1);
+    } else words.push({ ...b });
+  }
+  const out: OmrText[] = [];
+  for (const wd of words) {
+    const h = wd.y1 - wd.y0;
+    // Letters of a chord name are at least half a space tall; a lone speck or dot is not a word.
+    if (h < 0.55 * sp || h > 2.4 * sp || wd.x1 - wd.x0 < 0.35 * sp) continue;
+    // Over the very start of the staff: a measure number, not a chord (chords sit over the music).
+    if (wd.x1 < st.x0 + 1.2 * sp) continue;
+    const box = mapBox(pre.mesh, { x: wd.x0, y: wd.y0, w: wd.x1 - wd.x0, h });
+    // The root of a chord name sits over its beat: its first letter, not the whole word.
+    const x = box.x + Math.min(box.w / 2, 0.45 * box.h);
+    // A long line of words ("Guitar standard tuning", "let ring") is text, not a chord name.
+    const kind = wd.x1 - wd.x0 > 5.5 * sp ? 'other' : 'chord-symbol';
+    out.push({ id: '', bbox: box, confidence: 0, source: 'image', kind, text: '', x, staffId: staffId(st) });
+  }
+  return out;
+}
+
+/**
  * Put staff readings into the page skeleton: events go to their measures by position, clef / key /
  * time are attached to the staff, ids are completed, and notation and tab staves of one system
  * are linked event by event. `readings[i]` belongs to staff i of the layout (null = not read).
@@ -419,6 +486,14 @@ export function assemblePage(analysis: PageAnalysis, readings: (StaffReading | n
       staff.measures.shift();
       staff.measures.forEach((m, k) => { m.index = k; });
     }
+  });
+  // Tab with no notation in its system: the words over it are located here (chord symbols).
+  layout.staves.forEach((st, i) => {
+    const sys = page.systems[st.systemIndex];
+    if (st.kind !== 'tab' || !readings[i] || sys.staves.some((x) => x.kind === 'notation')) return;
+    if ((readings[i]?.texts ?? []).length) return;
+    const staff = sys.staves[st.indexInSystem];
+    textOverTabStaff(analysis, i).forEach((t, k) => sys.texts.push({ ...t, id: `${staff.id}.t${k}`, staffId: staff.id }));
   });
   // Link notation and tab staves of each system: pair events, compare the two readings.
   for (const sys of page.systems) {

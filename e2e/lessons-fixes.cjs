@@ -16,11 +16,14 @@
  *             the microphone step back; a fretboard-find with strings takes taps only there.
  *  landscape  a phone held sideways (844 x 390): a fretboard-find fits without scrolling.
  *  desktop    1280 px: match pairs answer to number keys on the left and letters on the right.
+ *  mic        a fake microphone: a strummed G13 shell (G F B E) passes a play-chord that shows that
+ *             shell (it was graded against all six tones of G13 before), and a C#3 heard on a
+ *             play-note in A major is named C♯3 on screen and in the feedback, never D♭3.
  */
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { withApp, ROOT } = require('./lib/harness.cjs');
+const { withApp, loadTs, ROOT } = require('./lib/harness.cjs');
 
 const argv = process.argv.slice(2);
 const verbose = argv.includes('--verbose');
@@ -215,6 +218,12 @@ async function phone(width) {
       return { text: (b && b.textContent) || '', figure: !!(b && b.querySelector('[data-feedback-rhythm]')) };
     });
     check(group, 'tap-rhythm feedback shows the rhythm and its counting, not code', tap.figure && /1 trip let/.test(tap.text) && !/et et et/.test(tap.text), tap.text);
+    // With counting: false the counts would contradict the exercise: the answer is the rhythm alone.
+    const noCount = await page.evaluate(() => {
+      const b = document.querySelector('[data-option-block="tap-no-count"] [data-preview="tap-rhythm-wrong"] [data-feedback]');
+      return { text: (b && b.textContent) || '', figure: !!(b && b.querySelector('[data-feedback-rhythm] svg')) };
+    });
+    check(group, 'with counting: false the answer is the rhythm without counts', noCount.figure && !/Tap on/.test(noCount.text) && !/\b1, 2\b/.test(noCount.text), noCount.text);
 
     await page.screenshot({ path: path.join(OUT, `fixes-options-${width}.png`) });
     check(group, 'no console errors', errors.length === 0, errors.join(' | '));
@@ -259,7 +268,7 @@ async function player() {
     await cells.first().click();
     const msg = await page.evaluate(() => [...document.querySelectorAll('[data-answer] [aria-live]')].map((e) => e.textContent).join(' '));
     const check1 = await page.$eval('[data-action="check"]', (b) => b.disabled);
-    check(group, 'a tap on a string the question leaves out is not an answer', check1 && /Only string 6 count/.test(msg), msg);
+    check(group, 'a tap on a string the question leaves out is not an answer', check1 && /Only string 6 counts here/.test(msg), msg);
     check(group, 'no console errors', errors.length === 0, errors.join(' | '));
   });
 }
@@ -363,6 +372,73 @@ async function desktop() {
   });
 }
 
+/** A WAV of plucked notes (MIDI), each `gap` seconds after the last: a strum, or one note. */
+async function makeStrumWav(file, midis, gap = 0.018) {
+  const pitch = await loadTs('/src/core/pitch/index.ts');
+  const sr = 48000;
+  const duration = 1.8;
+  const mix = new Float32Array(Math.round(sr * duration));
+  midis.forEach((m, i) => {
+    const freq = 440 * 2 ** ((m - 69) / 12);
+    const one = pitch.pluckedString({ freq, sampleRate: sr, duration: duration - i * gap, amplitude: 0.5 / Math.sqrt(midis.length), seed: 5 + i });
+    const at = Math.round(i * gap * sr);
+    for (let k = 0; k < one.length && at + k < mix.length; k++) mix[at + k] += one[k];
+  });
+  fs.writeFileSync(file, Buffer.from(pitch.encodeWav(mix, sr, { bitDepth: 16 })));
+}
+
+/** Start listening on the play step on screen and wait for its verdict (3 tries on a busy machine). */
+async function listenOnce(page) {
+  await page.waitForSelector('[data-player-bar] [data-action="primary"]', { timeout: 60000 });
+  await page.locator('[data-player-bar] [data-action="primary"]').click();
+  await page.waitForSelector('[data-feedback]', { timeout: 60000 });
+  return { tone: await page.getAttribute('[data-feedback]', 'data-feedback'), text: await page.locator('[data-feedback]').innerText() };
+}
+
+async function mic() {
+  const group = 'mic';
+  const shellWav = path.join(OUT, 'fixes-g13-shell.wav');
+  // G2 (string 6 fret 3), F3 (string 4 fret 3), B3 (string 3 fret 4), E4 (string 2 fret 5).
+  await makeStrumWav(shellWav, [43, 53, 59, 64]);
+  await withApp({ mobile: true, fakeAudio: shellWav }, async ({ page, url, errors }) => {
+    await seed(page);
+    await page.goto(`${url}#kit-lessons--try--opt-play-chord-shell`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-exercise-type="play-chord"]', { timeout: 60000 });
+    let verdict = null;
+    for (let attempt = 0; attempt < 3 && (!verdict || verdict.tone !== 'ok'); attempt++) {
+      if (attempt > 0) {
+        await page.goto(`${url}#kit-lessons--try--opt-play-chord-shell`, { waitUntil: 'load' });
+        await page.waitForSelector('[data-exercise-type="play-chord"]', { timeout: 60000 });
+      }
+      verdict = await listenOnce(page);
+    }
+    await page.screenshot({ path: path.join(OUT, 'fixes-mic-shell.png') });
+    check(group, 'a strummed G13 shell passes the play-chord that shows it', verdict && verdict.tone === 'ok', JSON.stringify(verdict));
+    check(group, 'no console errors (shell)', errors.length === 0, errors.join(' | '));
+  });
+
+  const cSharpWav = path.join(OUT, 'fixes-c-sharp-3.wav');
+  await makeStrumWav(cSharpWav, [49]);
+  await withApp({ mobile: true, fakeAudio: cSharpWav }, async ({ page, url, errors }) => {
+    await seed(page);
+    await page.goto(`${url}#kit-lessons--try--opt-play-note-key`, { waitUntil: 'load' });
+    await page.waitForSelector('[data-exercise-type="play-note"]', { timeout: 60000 });
+    await page.locator('[data-player-bar] [data-action="primary"]').click();
+    // While it listens, the wrong note is named in the key.
+    let live = '';
+    for (let i = 0; i < 60 && !/That was/.test(live); i++) {
+      await page.waitForTimeout(250);
+      live = await page.evaluate(() => (document.querySelector('[data-answer]') || document.body).innerText);
+    }
+    check(group, 'a heard C#3 is named C♯3 while listening (A major), not D♭3', /That was C♯3/.test(live) && !/D♭/.test(live), live.replace(/\s+/g, ' ').slice(0, 300));
+    await page.waitForSelector('[data-feedback]', { timeout: 60000 });
+    const said = await page.locator('[data-feedback]').innerText();
+    await page.screenshot({ path: path.join(OUT, 'fixes-mic-note-key.png') });
+    check(group, 'and the feedback says "I heard C♯3"', /I heard C♯3/.test(said) && !/D♭/.test(said), said.replace(/\s+/g, ' ').slice(0, 300));
+    check(group, 'no console errors (note)', errors.length === 0, errors.join(' | '));
+  });
+}
+
 (async () => {
   try {
     if (want('phone')) {
@@ -372,6 +448,7 @@ async function desktop() {
     if (want('player')) await player();
     if (want('landscape')) await landscape();
     if (want('desktop')) await desktop();
+    if (want('mic')) await mic();
   } catch (error) {
     check('run', 'the check ran to the end', false, error && error.stack);
   }

@@ -204,6 +204,7 @@ async function desktop(wav) {
     check((await attr(page, 'data-support')) === 'ok', 'the browser can record');
     check((await attr(page, 'data-backend')) === 'platform', 'takes are kept in the platform blob store');
     check(await page.getByText('No takes yet').isVisible(), 'an empty takes list explains what to do');
+    check(await page.locator('[data-recorder-key-hint]').isVisible(), 'and names the R key on a desktop');
     check(await page.getByText('Takes stay on this device only').isVisible(), 'the screen says takes are device-only');
     check((await page.getByLabel('Name of the next take').inputValue()) === 'Take 1', 'the first take is called "Take 1"');
 
@@ -263,9 +264,11 @@ async function desktop(wav) {
     // After playing to the end (which puts the position back to 0), a seek while paused moves the
     // slider's value and the time readout too, not only the waveform.
     const area = await page.locator('[data-recorder-wave] canvas').boundingBox();
-    // Aim at the middle of a second, so rounding cannot change which second it is.
-    const expected = Math.max(1, Math.floor(0.8 * duration - 0.5));
-    await page.mouse.click(area.x + (area.width * (expected + 0.5)) / duration, area.y + area.height / 2);
+    // Aim inside the last second: the one the slider last showed while playing (the case that went
+    // wrong when the slider remembered what it wrote instead of looking at what it shows).
+    const target = duration - 0.2;
+    const expected = Math.floor(target);
+    await page.mouse.click(area.x + (area.width * target) / duration, area.y + area.height / 2);
     await page.waitForTimeout(200);
     const seekedTo = Number(await page.getAttribute('[data-recorder-wave]', 'aria-valuenow'));
     const readout = (await page.textContent('[data-recorder-time]')).trim();
@@ -540,6 +543,7 @@ async function phone(wav) {
     await page.addInitScript(() => localStorage.setItem('ssa:recorder.prefs', JSON.stringify({ countIn: false, click: false, bpm: 80, beats: 4 })));
     await goto('record');
     await waitTakes(page, 0);
+    check(!(await page.locator('[data-recorder-key-hint]').isVisible()), 'no keyboard shortcut is offered on a touch phone');
     const dock = await page.$('[data-ui-action-bar] [data-recorder-record]');
     check(!!dock, 'the Record button sits in the bottom bar');
     const b = await page.locator('[data-recorder-record]').boundingBox();

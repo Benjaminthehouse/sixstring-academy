@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, ChipGroup, Select, Sheet, Stack, Text } from '@/ui';
 import { Fretboard, noteText, useMusicSettings } from '@/ui/music';
 import { formatNote, getScale } from '@/core/theory';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { boxOf, commonScales, normalizeFocus, regionOf, scaleLabel, scaleTitle, scalesByFamily, shapesFor, tonicsFor, type Focus } from '../core/focus';
 import { noteMarker } from './kit';
 import styles from './Arcade.module.css';
@@ -27,12 +27,13 @@ export function FocusSheet({ open, focus, onClose, onPick }: FocusSheetProps) {
   const common = useMemo(() => commonScales(), []);
   const families = useMemo(() => scalesByFamily(), []);
   const tonics = useMemo(() => tonicsFor(draft.scale), [draft.scale]);
-  const shapes = useMemo(() => shapesFor(draft.tonic, draft.scale, tuning), [draft.tonic, draft.scale, tuning]);
+  const frets = useMemo(() => fretCount(), []);
+  const shapes = useMemo(() => shapesFor(draft.tonic, draft.scale, tuning, frets), [draft.tonic, draft.scale, tuning, frets]);
   const pattern = shapes.find((p) => p.id === draft.shape) ?? shapes[0];
   const markers = useMemo(() => (pattern ? pattern.notes.map((n) => noteMarker(n, { label: 'degree', color: 'degree' })) : []), [pattern]);
 
   // A new scale starts on its first shape; a new key keeps the shape (box 2 stays box 2).
-  const set = (patch: Partial<Focus>) => setDraft((d) => normalizeFocus(patch.scale ? { tonic: d.tonic, scale: patch.scale } : { ...d, ...patch }, tuning));
+  const set = (patch: Partial<Focus>) => setDraft((d) => normalizeFocus(patch.scale ? { tonic: d.tonic, scale: patch.scale } : { ...d, ...patch }, tuning, frets));
   const isCommon = common.some((s) => s.id === draft.scale);
 
   return (

@@ -16,7 +16,7 @@
  * load timer. Only a signed-out session or a missing table end the listener.
  */
 import type { SyncDatabase, SyncDocRef, SyncDocSnapshot, SyncTimers } from '../sync';
-import { tableErrorCode } from './errors';
+import { isNetworkError, tableErrorCode } from './errors';
 import type { ChangePayload, ChannelLike, ChannelStatus, SupabaseLike } from './types';
 
 /** The one table (see `supabase/schema.sql`). */
@@ -37,6 +37,13 @@ const fail = (code: string, message: string): SyncFailure => ({ code, message })
 
 /** Codes after which a listener stops for good (the engine shuts down or pauses). */
 const FINAL = new Set(['revoked', 'setup_needed']);
+
+/**
+ * Numbers the Realtime channels this page opens. realtime-js hands back an existing channel of the
+ * same name, even one still leaving after `removeChannel`, and such a channel ignores `subscribe()`:
+ * a service restarted at once ("Try again", signing in again) would then hear nothing until a poll.
+ */
+let channelSeq = 0;
 
 /** Options; tests pass fakes for the clock and the page's events. */
 export interface SupabaseDatabaseOptions {
@@ -131,7 +138,8 @@ export function supabaseDatabase(client: SupabaseLike, uid: string, options: Sup
     }
     const session = result.data?.session ?? null;
     if (!session) {
-      if (result.error) throw fail('unavailable', 'The session could not be refreshed yet.');
+      // No answer while refreshing: the session is kept for later. Any other failure ended it.
+      if (isNetworkError(result.error)) throw fail('unavailable', 'The session could not be refreshed yet.');
       throw fail('revoked', 'Signed out.');
     }
     if (session.user?.id !== uid) throw fail('revoked', 'Signed in as someone else now.');
@@ -264,8 +272,9 @@ export function supabaseDatabase(client: SupabaseLike, uid: string, options: Sup
   function startWatching(): void {
     if (channel || closed) return;
     const filter = `user_id=eq.${uid}`;
+    channelSeq += 1;
     channel = client
-      .channel(`sync-docs-${uid}`)
+      .channel(`sync-docs-${uid}-${channelSeq}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: SYNC_TABLE, filter }, onChange)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: SYNC_TABLE, filter }, onChange)
       .subscribe((status) => onStatus(status));

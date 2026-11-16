@@ -3,7 +3,7 @@ import { useScreenTitle } from '@/app/shell';
 import { Button, Card, Icon, LinkButton, Page, Section, Text } from '@/ui';
 import { Fretboard, useMusicSettings } from '@/ui/music';
 import { useSkill } from '@/core/progress';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { boxOf, patternOf, regionOf, scaleTitle, shapeTitle } from '../core/focus';
 import { GAMES, gameById, levelsOf, scopeOf } from '../core/games';
 import { highestOpen, nextLevel, starsIn } from '../core/records';
@@ -22,12 +22,13 @@ export function Hub() {
   const { naming } = useMusicSettings();
   const [sheet, setSheet] = useState(false);
   const tuning = useMemo(() => learnerTuning(), []);
-  const pattern = useMemo(() => patternOf(focus, tuning), [focus, tuning]);
+  const frets = useMemo(() => fretCount(), []);
+  const pattern = useMemo(() => patternOf(focus, tuning, frets), [focus, tuning, frets]);
   const markers = useMemo(() => pattern.notes.map((n) => noteMarker(n, { label: 'degree', color: 'degree' })), [pattern]);
   const skill = useSkill(skillIdFor('note-hunt', focus, 1));
   const today = localDateKey();
   const stages = useMemo(
-    () => dailyChallenge(today, focus, (g) => highestOpen(records, g, scopeOf(g, focus), levelsOf(g, focus, tuning).length)),
+    () => dailyChallenge(today, focus, (g) => highestOpen(records, g, scopeOf(g, focus), levelsOf(g, focus, tuning, frets).length)),
     [today, focus, records, tuning],
   );
   const daily = records.daily?.date === today ? records.daily : null;
@@ -99,7 +100,7 @@ export function Hub() {
       <Section title="Games" description="Each one drills the scale a different way. Stars open new levels.">
         <div className={styles.gameGrid}>
           {GAMES.map((g) => {
-            const levels = levelsOf(g.id, focus, tuning);
+            const levels = levelsOf(g.id, focus, tuning, frets);
             const scope = scopeOf(g.id, focus);
             const st = starsIn(records, g.id, scope, levels.length);
             const best = records.bests[g.id];

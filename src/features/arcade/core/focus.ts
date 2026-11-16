@@ -4,7 +4,7 @@
  * from the guitar engine (`scalePatterns`) and is a real note of the scale inside the shape.
  */
 import { getScale, parseScaleSlug, scaleSlug, simplestTonic, SCALES, SCALE_FAMILIES, formatScaleName, isNote, prettyAccidentals, type ScaleType } from '@/core/theory';
-import { allScalePatterns, patternSystemsFor, scalePatterns, STANDARD_TUNING, type PatternNote, type ScalePattern, type Tuning } from '@/core/guitar';
+import { patternSystemsFor, scalePatterns, STANDARD_TUNING, type PatternNote, type PatternSystem, type ScalePattern, type Tuning } from '@/core/guitar';
 
 /** The scale and shape being practised. */
 export interface Focus {
@@ -44,27 +44,50 @@ export function tonicsFor(scale: string): string[] {
   return Array.from({ length: 12 }, (_, pc) => simplestTonic(pc, scale));
 }
 
-/** The shapes the arcade drills for a scale: its main system (boxes, CAGED or positions), then 3NPS for seven-note scales. */
-export function shapesFor(tonic: string, scale: string, tuning: Tuning = STANDARD_TUNING): ScalePattern[] {
+/** The learner's full-neck setting before they change it (`prefs.fretboard.frets`). */
+export const DEFAULT_NECK_FRETS = 15;
+
+/** The highest fret shapes are laid out to for a fret setting: the Scales screen's range (12 to 24). */
+export function neckFrets(frets: number = DEFAULT_NECK_FRETS): number {
+  return Math.max(12, Math.min(24, Math.round(frets) || DEFAULT_NECK_FRETS));
+}
+
+/** Systems the guitar engine lays out as one climb up the neck (as the Scales screen shows them). */
+const CLIMBING: ReadonlySet<PatternSystem> = new Set(['box', '3nps', 'position', 'diagonal']);
+
+/**
+ * The shapes of one system exactly as the Scales screen lays them out (no capo): climbing systems
+ * go up the neck (A minor pentatonic boxes at frets 5, 7, 9, 12, 14) as far as the learner's neck
+ * reaches, so `box-4` is the same box, in the same octave, on both screens.
+ */
+function systemShapes(tonic: string, scale: string, system: PatternSystem, tuning: Tuning, frets: number): ScalePattern[] {
+  return scalePatterns(tonic, scale, { system, tuning, maxFret: neckFrets(frets), upTheNeck: CLIMBING.has(system) });
+}
+
+/**
+ * The shapes the arcade drills for a scale: its main system (boxes, CAGED or positions), then 3NPS
+ * for seven-note scales. `frets` is the learner's full-neck setting (`fretCount()`).
+ */
+export function shapesFor(tonic: string, scale: string, tuning: Tuning = STANDARD_TUNING, frets: number = DEFAULT_NECK_FRETS): ScalePattern[] {
   const systems = patternSystemsFor(scale, tuning);
   const primary = systems[0];
-  const out = scalePatterns(tonic, scale, { system: primary, tuning });
-  if (primary !== '3nps' && systems.includes('3nps')) out.push(...scalePatterns(tonic, scale, { system: '3nps', tuning }));
+  const out = systemShapes(tonic, scale, primary, tuning, frets);
+  if (primary !== '3nps' && systems.includes('3nps')) out.push(...systemShapes(tonic, scale, '3nps', tuning, frets));
   return out.filter((p) => p.notes.length >= 3);
 }
 
 /**
  * Any shape the guitar engine can build for the scale: the drilled ones first, then the other
- * systems (one string, two strings, diagonal), so a link from the Scales page keeps its shape.
+ * systems (one string, two strings, diagonal), so a link from the Scales page keeps its shape,
+ * laid out where that page draws it.
  */
-export function findShape(tonic: string, scale: string, id: string | undefined, tuning: Tuning = STANDARD_TUNING): ScalePattern | null {
+export function findShape(tonic: string, scale: string, id: string | undefined, tuning: Tuning = STANDARD_TUNING, frets: number = DEFAULT_NECK_FRETS): ScalePattern | null {
   if (!id) return null;
-  const drilled = safeShapes(tonic, scale, tuning).find((p) => p.id === id);
+  const drilled = safeShapes(tonic, scale, tuning, frets).find((p) => p.id === id);
   if (drilled) return drilled;
   try {
-    const all = allScalePatterns(tonic, scale, { tuning });
-    for (const list of Object.values(all)) {
-      const hit = list?.find((p) => p.id === id && p.notes.length >= 3);
+    for (const system of patternSystemsFor(scale, tuning)) {
+      const hit = systemShapes(tonic, scale, system, tuning, frets).find((p) => p.id === id && p.notes.length >= 3);
       if (hit) return hit;
     }
   } catch {
@@ -74,24 +97,24 @@ export function findShape(tonic: string, scale: string, id: string | undefined, 
 }
 
 /** A focus with every part valid: unknown scales, tonics or shapes fall back to sensible ones. */
-export function normalizeFocus(input: Partial<Focus> | null | undefined, tuning: Tuning = STANDARD_TUNING): Focus {
+export function normalizeFocus(input: Partial<Focus> | null | undefined, tuning: Tuning = STANDARD_TUNING, frets: number = DEFAULT_NECK_FRETS): Focus {
   const scale = input?.scale && getScale(input.scale) && input.scale !== 'chromatic' ? getScale(input.scale)!.id : DEFAULT_FOCUS.scale;
   const tonic = input?.tonic && isNote(input.tonic) ? simplestTonic(input.tonic, scale) : scale === DEFAULT_FOCUS.scale ? DEFAULT_FOCUS.tonic : simplestTonic('A', scale);
-  const shape = findShape(tonic, scale, input?.shape, tuning)?.id ?? safeShapes(tonic, scale, tuning)[0]?.id ?? DEFAULT_FOCUS.shape;
+  const shape = findShape(tonic, scale, input?.shape, tuning, frets)?.id ?? safeShapes(tonic, scale, tuning, frets)[0]?.id ?? DEFAULT_FOCUS.shape;
   return { tonic, scale, shape };
 }
 
-function safeShapes(tonic: string, scale: string, tuning: Tuning): ScalePattern[] {
+function safeShapes(tonic: string, scale: string, tuning: Tuning, frets: number): ScalePattern[] {
   try {
-    return shapesFor(tonic, scale, tuning);
+    return shapesFor(tonic, scale, tuning, frets);
   } catch {
     return [];
   }
 }
 
 /** The pattern a focus names (the first shape when its own is missing). */
-export function patternOf(focus: Focus, tuning: Tuning = STANDARD_TUNING): ScalePattern {
-  const found = findShape(focus.tonic, focus.scale, focus.shape, tuning) ?? shapesFor(focus.tonic, focus.scale, tuning)[0];
+export function patternOf(focus: Focus, tuning: Tuning = STANDARD_TUNING, frets: number = DEFAULT_NECK_FRETS): ScalePattern {
+  const found = findShape(focus.tonic, focus.scale, focus.shape, tuning, frets) ?? shapesFor(focus.tonic, focus.scale, tuning, frets)[0];
   if (!found) throw new RangeError(`No playable shape for ${focus.tonic} ${focus.scale}`);
   return found;
 }

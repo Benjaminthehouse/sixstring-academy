@@ -4,14 +4,14 @@
  *
  * A learner four months in builds up, through each feature's own module (the code the screens
  * use): three practice journal entries, arcade records, a saved progression, a rhythm calibration
- * and one of their own songs (imported as text tab), plus an API key and a device notice that must
- * never travel. Then, on Me > Your data:
+ * and one of their own songs (imported as text tab), plus an API key, an account's sign-in and a
+ * device notice that must never travel. Then, on Me > Your data:
  *
  *  holds     "What a backup holds" counts each of them
  *  export    the file is a version-3 backup with the progress, every one of those keys and the
- *            song, and nothing secret
+ *            song, and nothing secret (no AI key, no account session)
  *  reset     with "Also delete my songs" everything is gone (storage, the song library, the
- *            journal and song screens), the AI key and the device notice stay; the page reloads
+ *            journal and song screens), the AI key, the sign-in and the device notice stay; the page reloads
  *            and a toast offers Undo
  *  import    Replace shows "now / after" lines for each thing, then everything is back exactly
  *            (same stored values, same song id and notes, same progress), on the screens too
@@ -43,6 +43,8 @@ if (shots) fs.mkdirSync(OUT, { recursive: true });
 const BENIGN = [/favicon\.ico/i, /Download the React DevTools/i];
 const KEYS = ['practice.data', 'arcade', 'progressions.saved', 'rhythm.calibration'];
 const SECRET = 'sk-ant-api03-PORTABILITY-check-key-never-exported-0123456789abcdef';
+// A signed-in account's session (sync.auth.*, device data): never in a backup, kept by a reset.
+const SESSION = JSON.stringify({ access_token: 'e2e-access-token-never-exported', refresh_token: 'e2e-refresh-token-never-exported', expires_at: 4102444800, user: { id: '00000000-0000-4000-a000-000000000001', email: 'robin@example.com' } });
 const TAB = `Portable riff
 
 e|-----------------|-----------------|
@@ -145,7 +147,7 @@ async function desktop(browser, url, seeds) {
 
   // --- the learner builds things up, through each feature's own module
   const made = await page.evaluate(
-    async ({ tab, secret }) => {
+    async ({ tab, secret, session }) => {
       const practice = await import('/src/features/practice/model/store.ts');
       const arcade = await import('/src/features/arcade/ui/store.ts');
       const saved = await import('/src/features/progressions/model/saved.ts');
@@ -167,9 +169,10 @@ async function desktop(browser, url, seeds) {
       await lib.update(song.listing.id, { notes: 'Palm-mute the low E' });
       storage.writeRaw('ai.anthropic-key', secret);
       storage.writeJSON('player.micNotice', true);
+      storage.writeRaw('sync.auth.session', session);
       return { songId: song.listing.id };
     },
-    { tab: TAB, secret: SECRET },
+    { tab: TAB, secret: SECRET, session: SESSION },
   );
   await page.waitForTimeout(800);
   await ctx.goto('profile--data');
@@ -201,6 +204,7 @@ async function desktop(browser, url, seeds) {
     `${download.suggestedFilename()} keys=${exportedKeys.join(',')} songs=${exported.songs?.length}`,
   );
   check('export', 'nothing secret or device-only is in it', !text.includes('sk-ant') && !text.includes('micNotice') && !exportedKeys.some((k) => /^(ai\.|sync\.|data\.|shell\.)/.test(k)), exportedKeys.join(','));
+  check('export', 'an account’s sign-in (its tokens and email) is not in it', !text.includes('e2e-access-token') && !text.includes('e2e-refresh-token') && !text.includes('sync.auth') && !text.includes('robin@example.com'));
 
   // --- reset, songs too
   await page.locator('[data-card="reset"]').getByRole('button', { name: 'Reset everything' }).click();
@@ -219,6 +223,8 @@ async function desktop(browser, url, seeds) {
   check('reset', 'ticking "Also delete my songs" moves the songs from "Kept" to the erased list', !/own song/.test(keepsAfterTick), keepsAfterTick);
   check('reset', 'after the reload everything is gone: the four keys, the song, the progress', KEYS.every((k) => gone.values[k] === null) && gone.songs.length === 0 && gone.progress && gone.progress.xp.total === 0, JSON.stringify({ values: gone.values, songs: gone.songs.length, xp: gone.progress?.xp?.total }));
   check('reset', 'the AI key and the device notice stay', gone.aiKey === SECRET && gone.notice === 'true', `${!!gone.aiKey} ${gone.notice}`);
+  const sessionKept = await page.evaluate(() => localStorage.getItem('ssa:sync.auth.session'));
+  check('reset', 'the sign-in stays too (a reset is not a sign-out)', sessionKept === SESSION);
   check('reset', 'a toast says so and offers Undo', /Everything was erased/.test(resetToast) && /Undo/.test(resetToast), resetToast);
   const records = await page.evaluate(async () => (await import('/src/features/arcade/ui/store.ts')).getRecords().levels['note-hunt'] ?? null);
   check('reset', 'the arcade, read through its own store after the reload, has no records', records === null, JSON.stringify(records));

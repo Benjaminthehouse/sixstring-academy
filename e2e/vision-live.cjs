@@ -32,6 +32,8 @@
  *   D  the main-thread fallback (`worker: 'off'`): it must run and lock.
  *   E  clean stop: after stop() no frame callbacks, no worker, the page's own video and camera
  *      track untouched; 6 rapid start/stop cycles leave no worker behind.
+ *   F  the worker's own YUV reading (`frame-copy.ts`, planes copied out of a `VideoFrame`) against
+ *      the browser drawing the same camera frame on a canvas: they must agree to a level or two.
  *
  * Exits non-zero if any check fails.
  */
@@ -577,6 +579,45 @@ async function runOnce(fixture, g, runNo) {
     await page.waitForTimeout(QUICK ? 3000 : 4000);
     const logD = await page.evaluate(() => window.__vl.finish('D'));
 
+    // ---- F: the worker's plane copy against the browser's own drawing of the same frame ----------
+    // (`frame-copy.ts` converts YUV itself: its range and matrix must match what Chromium draws.)
+    const colours = await page.evaluate(async () => {
+      if (typeof VideoFrame !== 'function') return null;
+      const { rawToRgba } = await import('/src/core/vision/frame-copy.ts');
+      const W = 640;
+      const H = 360;
+      const canvas = new OffscreenCanvas(W, H);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'medium';
+      const frame = new VideoFrame(window.__vl.video, { timestamp: 0 });
+      try {
+        const buf = new Uint8Array(frame.allocationSize());
+        const layout = await frame.copyTo(buf);
+        const rect = frame.visibleRect;
+        const space = frame.colorSpace;
+        const mine = rawToRgba({ format: frame.format, width: rect.width, height: rect.height, data: buf, layout, matrix: space?.matrix ?? null, fullRange: space?.fullRange ?? null }, W, H);
+        ctx.drawImage(frame, 0, 0, W, H);
+        const ref = ctx.getImageData(0, 0, W, H).data;
+        const info = { format: frame.format, matrix: space?.matrix ?? null, fullRange: space?.fullRange ?? null };
+        if (!mine) return { ...info, readable: false };
+        let sum = 0;
+        let far = 0;
+        for (let i = 0; i < W * H * 4; i += 4) {
+          let worst = 0;
+          for (let c = 0; c < 3; c++) {
+            const d = Math.abs(mine[i + c] - ref[i + c]);
+            sum += d;
+            worst = Math.max(worst, d);
+          }
+          if (worst > 24) far++;
+        }
+        return { ...info, readable: true, mad: sum / (W * H * 3), far: far / (W * H) };
+      } finally {
+        frame.close();
+      }
+    });
+
     // ---- E: churn -------------------------------------------------------------------------------
     const churn = await page.evaluate(() => window.__vl.churn([0, 0, 50, 150, 400, 900]));
     // A terminated worker's 'close' reaches Playwright a little later on a busy machine.
@@ -632,8 +673,12 @@ async function runOnce(fixture, g, runNo) {
     const sC = score(g, truth, logC);
     const widthsC = logC.updates.map((u) => u.w);
     const stepsC = widthsC.filter((w, i) => i > 0 && w !== widthsC[i - 1]).length;
-    report.C = { widths: [...new Set(widthsC)], steps: stepsC, locked: sC.locked, correct: sC.correct, states: sC.states };
-    console.log(`  C: working widths ${[...new Set(widthsC)].join(' -> ')} (${stepsC} changes); ${sC.correct}/${sC.locked} locked frames correct, states ${JSON.stringify(sC.states)}`);
+    const detectsC = logC.updates.filter((u) => u.ran === 'detect').length;
+    const msC = median(logC.updates.map((u) => u.totalMs).filter(Number.isFinite));
+    report.C = { widths: [...new Set(widthsC)], steps: stepsC, locked: sC.locked, correct: sC.correct, states: sC.states, timeline: logC.updates.map((u) => ({ t: Math.round(u.arrivedAt - logC.updates[0].arrivedAt), ran: u.ran, state: u.state, w: u.w, ms: Math.round(u.totalMs), read: Math.round(u.readMs ?? -1), track: Math.round(u.trackMs ?? -1) })) };
+    // The first answers of A, for comparison: a new worker starts cold (C runs only 5 s).
+    report.A.start = logA.updates.slice(0, 14).map((u) => ({ t: Math.round(u.arrivedAt - logA.updates[0].arrivedAt), ran: u.ran, state: u.state, ms: Math.round(u.totalMs), read: Math.round(u.readMs ?? -1), track: Math.round(u.trackMs ?? -1) }));
+    console.log(`  C: working widths ${[...new Set(widthsC)].join(' -> ')} (${stepsC} changes); ${logC.updates.length} answers (${detectsC} full searches), median worker time ${f1(msC)} ms; ${sC.correct}/${sC.locked} locked frames correct, states ${JSON.stringify(sC.states)}`);
     check(Math.min(...widthsC) < Math.max(...widthsC) && widthsC.at(-1) === Math.min(...widthsC), 'C: an impossible budget steps the working size down');
     check(sC.locked > 20 && sC.correct >= 0.95 * sC.locked, `C: tracking stays right across the size changes (${sC.correct}/${sC.locked})`);
 
@@ -642,6 +687,10 @@ async function runOnce(fixture, g, runNo) {
     report.D = { mode: d.mode, locked: sD.locked, correct: sD.correct, fps: fpsD, lockMs: sD.firstLockMs, trackMedian: sD.timing.trackMedian };
     console.log(`  D: mode ${d.mode}, locked after ${f1(sD.firstLockMs)} ms, ${sD.correct}/${sD.locked} correct, ${f1(fpsD)} frames/s, track median ${f1(sD.timing.trackMedian)} ms, frame grab on the main thread ${f1(logD.stats.grabMs)} ms per frame sent (${logD.stats.mainThreadMs.toFixed(2)} ms per video frame, ${(100 * logD.stats.mainThreadShare).toFixed(1)}% of the main thread for the grab alone; the tracker runs on it too)`);
     check(d.mode === 'main' && sD.locked > 10 && sD.correct >= 0.95 * sD.locked, 'D: the main-thread fallback runs, locks and tracks right');
+
+    report.F = colours;
+    if (colours) console.log(`  F: camera frames are ${colours.format} (matrix ${colours.matrix ?? 'unset'}, full range ${colours.fullRange ?? 'unset'}); plane copy vs canvas: ${colours.readable ? `${colours.mad.toFixed(2)} levels mean difference, ${(100 * colours.far).toFixed(2)}% of pixels off by more than 24` : 'not readable (the worker draws these)'}`);
+    check(!colours || (colours.readable && colours.mad < 2 && colours.far < 0.005), "F: the worker's plane copy reads a camera frame as the browser draws it (mean difference < 2 levels, < 0.5% of pixels off by > 24)");
 
     report.E = { churn, workersAfterChurn };
     check(churn.every((c) => c.mode === 'idle' && !c.running) && workersAfterChurn === 0, `E: ${churn.length} rapid start/stop cycles leave nothing running (${workersAfterChurn} workers)`);

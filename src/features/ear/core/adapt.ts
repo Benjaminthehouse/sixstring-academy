@@ -114,11 +114,24 @@ export function pickWeights(pool: readonly string[], record: EarRecord, success:
       weights[ib] += boost * 0.6;
     }
   }
-  // Not the same answer three times running; less likely twice.
+  // Variety, without making the next answer guessable. With many choices: not the same answer
+  // three times running, less likely twice. With two or three, any shaping of repeats is a free
+  // point ("after A, A comes B"), so they stay independent and only a long run is broken.
   const prev = last[last.length - 1];
-  const prev2 = last[last.length - 2];
-  return weights.map((w, i) => (pool[i] === prev ? (prev === prev2 ? 0 : w * 0.45) : w));
+  let run = 0;
+  while (run < last.length && last[last.length - 1 - run] === prev) run++;
+  return weights.map((w, i) => {
+    if (pool[i] !== prev) return w;
+    if (pool.length <= 3) return run >= MAX_RUN_SMALL_POOL ? 0 : w;
+    return run >= 2 ? 0 : w * 0.45;
+  });
 }
+
+/**
+ * Longest run of one answer in a pool of two or three. With two choices four in a row comes up
+ * about once in eight rounds by chance; a fifth would feel stuck.
+ */
+export const MAX_RUN_SMALL_POOL = 4;
 
 /**
  * Choose the answers of a round in advance would ignore what happens during it, so the picker is

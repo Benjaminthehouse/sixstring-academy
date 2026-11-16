@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Dev-server check: the heavy libraries that screens load with import() (alphaTab, Tone.js MIDI,
- * JSZip, VexFlow, pdf.js, Tesseract, MediaPipe) are optimised when the dev server starts, so the
- * first import of one does not make Vite discover a new dependency, re-bundle and reload the page
- * under the developer (or under a browser check halfway through).
+ * JSZip, VexFlow, pdf.js, Tesseract, MediaPipe, the Supabase accounts client) are optimised when
+ * the dev server starts, so the first import of one does not make Vite discover a new dependency,
+ * re-bundle and reload the page under the developer (or under a browser check halfway through).
  *
  * The check starts the dev server with a fresh dependency cache and with discovery pointed at a
  * file that imports none of them (as when the startup scan fails on a file someone is editing),
@@ -19,7 +19,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const { ROOT } = require('./lib/harness.cjs');
 
-const LIBRARIES = ['@coderline/alphatab/core', '@tonejs/midi', 'jszip', 'vexflow/bravura', 'pdfjs-dist', 'tesseract.js', '@mediapipe/tasks-vision'];
+const LIBRARIES = ['@coderline/alphatab/core', '@tonejs/midi', 'jszip', 'vexflow/bravura', 'pdfjs-dist', 'tesseract.js', '@mediapipe/tasks-vision', '@supabase/supabase-js'];
 
 let failures = 0;
 function check(name, ok, detail) {

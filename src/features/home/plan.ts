@@ -3,10 +3,12 @@
  * learner's level, sized to their daily goal, and varied a little from day to day so it never
  * reads like a chore list. The lesson path (tune, theory, the teacher, due reviews) is fixed; the
  * drill and the music come from the practice planner (`suggestPracticePlan`), which knows what is
- * getting rusty, what was neglected this week and the learner's focus goals. Pure: the screen
- * passes in what it read from the progress store.
+ * getting rusty, what was neglected this week and the learner's focus goals. The drill and the
+ * music take whatever time the goal leaves, so the plan adds up to about the goal's minutes
+ * ("about 10 minutes a day") and earns at least its XP. Pure: the screen passes in what it read
+ * from the progress store.
  */
-import { dayNumber, xpFor, type ActivityKind, type DayKey, type ExperienceLevel, type RecentItem, type TeacherId } from '@/core/progress';
+import { DAILY_GOALS, XP_RULES, dayNumber, xpFor, type ActivityKind, type DayKey, type ExperienceLevel, type RecentItem, type TeacherId } from '@/core/progress';
 import { ROUTE_BY_NAME } from '@/app/routes';
 import { teacherById } from '@/app/teachers';
 import type { PlanBlock } from '@/features/practice/model/planner';
@@ -86,20 +88,33 @@ export const PLAN_SLOTS: Readonly<Record<ExperienceLevel, ReadonlyArray<readonly
   expert: [['tune'], ['ear', 'theory'], ['teacher'], ['technique', 'arcade', 'scales'], ['progressions', 'song']],
 };
 
-/** How many steps a daily goal asks for: 3 for a casual goal, 4 for a regular one, 5 above that. */
-export function planLength(dailyGoalXp: number): 3 | 4 | 5 {
-  if (dailyGoalXp <= 10) return 3;
-  return dailyGoalXp <= 20 ? 4 : 5;
+/** The minutes a daily goal stands for (`DAILY_GOALS`: about 10 minutes for the 20 XP goal). */
+export function goalMinutes(dailyGoalXp: number): number {
+  return DAILY_GOALS.find((g) => g.xp === dailyGoalXp)?.minutes ?? Math.max(5, Math.round(dailyGoalXp / 2));
 }
 
-/** Which of the five slots a plan of `length` steps uses on a given day. */
-export function slotsForLength(length: 3 | 4 | 5, day: number): number[] {
-  // Shorter plans alternate between the drill and the music slot, so both come round.
-  const alternate = day % 2 === 0 ? 3 : 4;
-  if (length === 3) return [0, 1, alternate];
-  if (length === 4) return [0, 1, 2, alternate];
+/** How many steps a daily goal asks for: 3 up to a regular goal, 4 for a serious one, 5 for an intense one. */
+export function planLength(dailyGoalXp: number): 3 | 4 | 5 {
+  if (dailyGoalXp <= 20) return 3;
+  return dailyGoalXp <= 30 ? 4 : 5;
+}
+
+/**
+ * Which of the five slots (0 tune, 1 study, 2 lesson, 3 drill, 4 music) a daily goal uses on a day.
+ * Shorter plans alternate so everything comes round: a casual plan tunes, studies, then drills or
+ * plays; a regular one pairs the short theory step with music one day and the teacher's longer
+ * lesson with a short drill the next, so either day comes to about ten minutes.
+ */
+export function slotsFor(dailyGoalXp: number, day: number): number[] {
+  const even = day % 2 === 0;
+  if (dailyGoalXp <= 10) return [0, 1, even ? 3 : 4];
+  if (dailyGoalXp <= 20) return even ? [0, 1, 4] : [0, 2, 3];
+  if (dailyGoalXp <= 30) return [0, 1, 2, even ? 3 : 4];
   return [0, 1, 2, 3, 4];
 }
+
+/** Shortest a drill or music step is ever suggested for. */
+const MIN_FLEX_MINUTES = 2;
 
 /** What counts as having done a step on each screen the practice planner sends the learner to. */
 const KINDS_BY_ROUTE: Readonly<Record<string, readonly ActivityKind[]>> = {
@@ -140,7 +155,7 @@ export function stepFromBlock(block: PlanBlock, doneKinds: ReadonlySet<ActivityK
     detail: block.reason ?? firstLine,
     icon: ROUTE_BY_NAME[target.route]?.icon ?? 'Circle',
     minutes: block.minutes,
-    xp: xpFor(kinds[0], { durationSec: block.minutes * 60, accuracy: 0.8 }),
+    xp: stepXp(kinds[0], block.minutes),
     kinds,
     done: kinds.some((kind) => doneKinds.has(kind)),
   };
@@ -150,14 +165,24 @@ function unfinished(recents: readonly RecentItem[], route: string): RecentItem |
   return recents.find((r) => r.route === route && r.fraction < 1 && r.params.length > 0);
 }
 
-/** Build today's plan. Three to five steps, each a real screen of the app. */
+/** Build today's plan. Three to five steps, each a real screen of the app, adding up to about the goal's minutes. */
 export function buildPlan(ctx: PlanContext): PlanStep[] {
   const day = dayNumber(ctx.today);
   const slots = PLAN_SLOTS[ctx.experience];
-  const slotIds = slotsForLength(planLength(ctx.dailyGoalXp), day);
+  const slotIds = slotsFor(ctx.dailyGoalXp, day);
+  // A lesson left part-way is picked up the same day, even on a day the plan would study the other path.
+  if (ctx.dailyGoalXp <= 20 && ctx.dailyGoalXp > 10) {
+    const openTeacher = !!unfinished(ctx.recents, 'teachers');
+    const openTheory = !!unfinished(ctx.recents, 'learn');
+    if (openTeacher && !openTheory && slotIds[1] === 1) slotIds.splice(1, 2, 2, 3);
+    else if (openTheory && !openTeacher && slotIds[1] === 2) slotIds.splice(1, 2, 1, 4);
+  }
+  // A slot used every day rotates daily; one used every other day rotates on the days it comes up,
+  // so all its options come round (not just the ones that fall on even days).
+  const daily = (slot: number) => slotsFor(ctx.dailyGoalXp, 0).includes(slot) && slotsFor(ctx.dailyGoalXp, 1).includes(slot);
   const ids: StepId[] = slotIds.map((slot) => {
     const options = slots[slot];
-    return options[day % options.length];
+    return options[(daily(slot) ? day : Math.floor(day / 2)) % options.length];
   });
   /** Which of the five slots each step fills (-1: the review step). */
   const slotOf: number[] = [...slotIds];
@@ -188,7 +213,7 @@ export function buildPlan(ctx: PlanContext): PlanStep[] {
   };
 
   const teacher = teacherById(ctx.teacher);
-  return ids.map((id, index) => {
+  const steps = ids.map((id, index): PlanStep => {
     const slot = slotOf[index];
     const planned =
       slot === 3
@@ -232,6 +257,46 @@ export function buildPlan(ctx: PlanContext): PlanStep[] {
       done: !halfDone && template.kinds.some((kind) => ctx.doneKinds.has(kind)),
     };
   });
+  return fitToGoal(steps, slotOf, goalMinutes(ctx.dailyGoalXp));
+}
+
+/**
+ * Give the drill and the music the minutes the goal leaves after the fixed steps (tuning, study,
+ * the teacher, reviews), at least `MIN_FLEX_MINUTES` each, and work out their XP from that time.
+ */
+function fitToGoal(steps: PlanStep[], slotOf: readonly number[], budget: number): PlanStep[] {
+  const flexible = steps.map((_, i) => i).filter((i) => slotOf[i] === 3 || slotOf[i] === 4);
+  if (flexible.length === 0) return steps;
+  const fixed = steps.reduce((sum, s, i) => (flexible.includes(i) ? sum : sum + s.minutes), 0);
+  let left = Math.max(0, budget - fixed);
+  return steps.map((step, i) => {
+    const k = flexible.indexOf(i);
+    if (k < 0) return step;
+    const last = k === flexible.length - 1;
+    const minutes = Math.max(MIN_FLEX_MINUTES, last ? left : Math.floor(left / (flexible.length - k)));
+    left = Math.max(0, left - minutes);
+    return { ...step, minutes, xp: stepXp(step.kinds[0], minutes) };
+  });
+}
+
+/**
+ * About what `minutes` of an activity earns at 80 %: by the minute where its rule counts minutes,
+ * else one round (a game, a drill) every two minutes.
+ */
+export function stepXp(kind: ActivityKind, minutes: number): number {
+  if (XP_RULES[kind].perMinute > 0) return xpFor(kind, { durationSec: minutes * 60, accuracy: 0.8 });
+  return Math.max(1, Math.round(minutes / 2)) * xpFor(kind, { accuracy: 0.8 });
+}
+
+/**
+ * What "Continue where you left off" offers: things with an address of their own (a song, a
+ * lesson, a scale), unfinished ones first. A bare visit to a tool (the tuner, the practice plan
+ * screen) is not something to continue, so it is left out.
+ */
+export function continueItems(recents: readonly RecentItem[], isRoute: (route: string) => boolean, limit = 4): RecentItem[] {
+  const usable = recents.filter((r) => isRoute(r.route) && (r.params.length > 0 || r.fraction < 1));
+  const open = usable.filter((r) => r.fraction > 0 && r.fraction < 1);
+  return [...open, ...usable.filter((r) => !open.includes(r))].slice(0, limit);
 }
 
 /** The first step still to do, or null when the plan is finished. */

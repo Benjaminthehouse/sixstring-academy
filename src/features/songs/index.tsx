@@ -178,6 +178,7 @@ export default function SongsScreen({ params }: RouteProps) {
   const rest = featured ? visible.filter((s) => !pickIds.has(s.id)) : visible;
   const counts = useMemo(() => ({ all: songs.length, mine: songs.filter((s) => s.source === 'mine').length, favourites: songs.filter((s) => favourites.has(s.id)).length }), [songs, favourites]);
   const titleOf = useCallback((id: string) => songs.find((s) => s.id === id)?.title, [songs]);
+  const listingOf = useCallback((id: string) => songs.find((s) => s.id === id), [songs]);
 
   const previewListing = (previewId ? songs.find((s) => s.id === previewId) : null) ?? (featured ? picks[0]?.listing : visible[0]) ?? null;
 
@@ -546,7 +547,7 @@ export default function SongsScreen({ params }: RouteProps) {
             <div className={styles.twoPane}>
               {main}
               <aside className={styles.pane} aria-label="Song details">
-                {previewListing ? <SongDetails key={previewListing.id} listing={previewListing} variant="pane" titleOf={titleOf} /> : null}
+                {previewListing ? <SongDetails key={previewListing.id} listing={previewListing} variant="pane" titleOf={titleOf} listingOf={listingOf} /> : null}
               </aside>
             </div>
           ) : (
@@ -615,7 +616,7 @@ export default function SongsScreen({ params }: RouteProps) {
         />
         <ExportSheet listing={exporting} onClose={() => setExporting(null)} />
         <Sheet open={!!about} onClose={() => setAbout(null)} title={about?.title ?? 'Song'} hideTitle size="md">
-          {about && <SongDetails listing={songs.find((s) => s.id === about.id) ?? about} variant="sheet" titleOf={titleOf} />}
+          {about && <SongDetails listing={songs.find((s) => s.id === about.id) ?? about} variant="sheet" titleOf={titleOf} listingOf={listingOf} />}
         </Sheet>
         {isMobile && (
           <Sheet

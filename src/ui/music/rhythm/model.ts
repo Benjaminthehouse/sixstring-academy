@@ -77,9 +77,11 @@ export function gridStep(notes: readonly Pick<RhythmNote, 'start' | 'ticks'>[], 
 /**
  * The counting syllable of every grid step in a bar. Beats are numbered; the steps between are
  * `&` for halves, `e & a` for quarters of a beat, `& a` in compound time, `trip let` for
- * triplets; odd meters written in eighths count every eighth.
+ * triplets (with `triplets`); odd meters written in eighths count every eighth. A beat cut in six
+ * keeps every name where it belongs: in simple time `1 ta trip & let ta` (an eighth's `&` stays
+ * `&` beside triplets), in a compound beat `1 ta & ta a ta`.
  */
-export function countSyllables(time: TimeSignature, stepTicks: number): string[] {
+export function countSyllables(time: TimeSignature, stepTicks: number, opts: { triplets?: boolean } = {}): string[] {
   const steps = Math.max(1, Math.round(time.barTicks / stepTicks));
   const out: string[] = [];
   if (time.kind === 'odd' && time.denominator === 8 && stepTicks === time.unitTicks) {
@@ -104,20 +106,24 @@ export function countSyllables(time: TimeSignature, stepTicks: number): string[]
       out.push(String(beatIndex + 1));
       continue;
     }
-    out.push(subSyllable(per, k));
+    // A beat of three eighths (compound time, the long beat of an odd meter) counts "& a"; a beat of two counts triplets as "trip let".
+    const compoundBeat = Math.round(beatLen / (PPQ / 2)) === 3 && beatLen % (PPQ / 2) === 0;
+    out.push(subSyllable(per, k, compoundBeat ? 'compound' : opts.triplets ? 'triplet' : 'simple'));
   }
   return out;
 }
 
-function subSyllable(per: number, k: number): string {
+function subSyllable(per: number, k: number, beat: 'simple' | 'triplet' | 'compound' = 'simple'): string {
   if (per === 2) return '&';
-  if (per === 3) return ['', '&', 'a'][k] ?? '';
+  if (per === 3) return beat === 'triplet' ? (['', 'trip', 'let'][k] ?? '') : (['', '&', 'a'][k] ?? '');
   if (per === 4) return ['', 'e', '&', 'a'][k] ?? '';
-  if (per === 6) return ['', 'ta', '&', 'ta', 'a', 'ta'][k] ?? '';
+  // Six to a beat: in a compound beat the sixteenths between "& a"; in a simple beat the eighth's
+  // "&" in the middle and the triplet's "trip let" at the thirds.
+  if (per === 6) return (beat === 'compound' ? ['', 'ta', '&', 'ta', 'a', 'ta'] : ['', 'ta', 'trip', '&', 'let', 'ta'])[k] ?? '';
   return '·';
 }
 
-/** Triplet counting: "1 trip let" instead of "1 & a". */
+/** Triplet counting for a grid of three steps to the beat: "1 trip let" instead of "1 & a". */
 export function tripletSyllables(syllables: readonly string[]): string[] {
   return syllables.map((s) => (s === '&' ? 'trip' : s === 'a' ? 'let' : s));
 }
@@ -155,8 +161,7 @@ export function rhythmGrid(notes: readonly RhythmNote[], timeText = '4/4'): Rhyt
   const total = notes.reduce((s, n) => Math.max(s, n.start + n.ticks), 0);
   const bars = Math.max(1, Math.ceil(total / time.barTicks - 1e-9));
   const triplets = notes.some((n) => n.triplet) && time.kind !== 'compound';
-  let syllables = countSyllables(time, stepTicks);
-  if (triplets) syllables = tripletSyllables(syllables);
+  const syllables = countSyllables(time, stepTicks, { triplets });
   const cells: RhythmCell[] = [];
   let ni = 0;
   for (let step = 0; step < bars * stepsPerBar; step++) {
@@ -272,7 +277,7 @@ export function strumSyllables(count: number, time: TimeSignature, perBeat: numb
     const k = i % perBeat;
     if (k === 0) out.push(String(beat + 1));
     else if (perBeat === 3) out.push(triplet ? ['', 'trip', 'let'][k] : ['', '&', 'a'][k]);
-    else out.push(subSyllable(perBeat, k));
+    else out.push(subSyllable(perBeat, k, time.kind === 'compound' ? 'compound' : 'simple'));
   }
   return out;
 }

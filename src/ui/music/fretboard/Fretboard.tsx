@@ -13,14 +13,17 @@
  */
 import { memo, useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { midiAt, noteAt, tuning as resolveTuning, type FretPosition, type SpellContext, type TuningInput } from '@/core/guitar';
-import { cx, useElementSize } from '@/ui';
-import { labelFontSize, noteText } from '../format';
+import { cx, useElementSize, useMediaQuery } from '@/ui';
+import { noteText } from '../format';
 import { useMusicSettings } from '../settings';
 import tone from '../tone.module.css';
 import type { FretboardInlay, FretboardWood, NoteNaming } from '../types';
-import { boardLayout, fretNumbersFor, inlaysInRange, moveOnBoard, stringLook, type BoardLayout, type BoardOrientation, type FretSpacing, type Point } from './layout';
+import { boardLayout, fretNumbersFor, inlaysInRange, moveOnBoard, stringLook, type BoardLayout, type BoardLayoutInput, type BoardOrientation, type FretSpacing, type Point } from './layout';
+import { Marker, TargetPulses } from './Marker';
 import { cellLabel, type FretBarre, type FretMarker } from './markers';
 import styles from './Fretboard.module.css';
+
+export { Marker, MarkerShape, TargetPulses, type MarkerProps } from './Marker';
 
 /** A tapped cell: where it is and what it sounds. `fret` counts from the capo. */
 export interface FretCell extends FretPosition {
@@ -53,8 +56,14 @@ export interface FretboardProps {
   frets?: readonly [number, number];
   /** Real fret spacing (default) or even spacing. Real spacing blends toward even when the high frets would get too narrow to read. */
   spacing?: FretSpacing;
-  /** `horizontal` (default) or `vertical` (nut on top, like a chord box). */
-  orientation?: BoardOrientation;
+  /**
+   * `horizontal` (default), `vertical` (nut on top, like a chord box), or `auto`: horizontal, but on
+   * an upright phone where the range would scroll sideways, a compact vertical board that shows
+   * every fret at once (the sprint game, the find-the-note drill).
+   */
+  orientation?: BoardOrientation | 'auto';
+  /** Vertical boards: frets as short as reading (or a fingertip, when tappable) allows, evenly spaced, so 12 frets fit an upright phone. `auto` turns it on by itself. */
+  compact?: boolean;
   /** Mirror for left-handed players (default: the learner's setting). */
   leftHanded?: boolean;
   /** String spacing (default `md`; `xl` when the cells are tappable). */
@@ -107,7 +116,7 @@ export function Fretboard(props: FretboardProps) {
     tuning: tuningInput,
     frets = [0, 12] as const,
     spacing = 'proportional',
-    orientation = 'horizontal',
+    orientation: orientationProp = 'horizontal',
     leftHanded = settings.leftHanded,
     fretNumbers = 'inlays',
     stringLabels = true,
@@ -140,35 +149,51 @@ export function Fretboard(props: FretboardProps) {
   const labelWidth = useMemo(() => Math.max(...tuningObj.notes.map((n) => [...noteText(n, naming)].length)) * 7.6 + 8, [tuningObj, naming]);
   const needsOpenColumn = (markers ?? []).some((m) => m.fret === 0 && capo === 0) || (open?.length ?? 0) > 0 || (muted?.length ?? 0) > 0;
   const [fromFret, toFret] = frets;
-  const layout = useMemo(
-    () =>
-      boardLayout({
-        stringCount,
-        frets: [fromFret, toFret],
-        width: measured,
-        orientation,
-        leftHanded,
-        spacing,
-        stringGap: STRING_GAP[size],
-        minFret: minFretWidth ?? (interactive ? 44 : undefined),
-        // Tappable boards are tall already; long frets would only spread the targets.
-        maxFret: maxFretWidth ?? (interactive ? STRING_GAP[size] * 3 : undefined),
-        stringLabels,
-        labelWidth,
-        fretNumbers: fretNumbers !== 'none',
-        openColumn: needsOpenColumn,
-        topGutter: box?.label && orientation === 'horizontal' ? 20 : 0,
-        capo,
-      }),
-    [stringCount, fromFret, toFret, measured, orientation, leftHanded, spacing, size, minFretWidth, maxFretWidth, interactive, stringLabels, labelWidth, fretNumbers, needsOpenColumn, box?.label, capo],
-  );
+  const portrait = useMediaQuery('(orientation: portrait)');
+  const layout = useMemo(() => {
+    const input = (orientation: BoardOrientation, compact: boolean): BoardLayoutInput => ({
+      stringCount,
+      frets: [fromFret, toFret],
+      width: measured,
+      orientation,
+      compact,
+      leftHanded,
+      spacing,
+      stringGap: STRING_GAP[size],
+      minFret: minFretWidth ?? (interactive ? 44 : undefined),
+      // Tappable boards are tall already; long frets would only spread the targets.
+      maxFret: maxFretWidth ?? (interactive ? STRING_GAP[size] * 3 : undefined),
+      stringLabels,
+      labelWidth,
+      fretNumbers: fretNumbers !== 'none',
+      openColumn: needsOpenColumn,
+      topGutter: box?.label && orientation === 'horizontal' ? 20 : 0,
+      capo,
+    });
+    if (orientationProp !== 'auto') return boardLayout(input(orientationProp, !!props.compact));
+    const across = boardLayout(input('horizontal', false));
+    // An upright phone that would have to scroll sideways gets every fret at once, standing up.
+    return measured > 0 && across.overflow && portrait ? boardLayout(input('vertical', true)) : across;
+  }, [stringCount, fromFret, toFret, measured, orientationProp, props.compact, portrait, leftHanded, spacing, size, minFretWidth, maxFretWidth, interactive, stringLabels, labelWidth, fretNumbers, needsOpenColumn, box?.label, capo]);
+  const orientation = layout.orientation;
 
   const shownMarkers = useMemo(() => (markers ?? []).filter((m) => onBoard(layout, m.fret, capo)), [markers, layout, capo]);
   const ariaLabel = props['aria-label'] ?? describeBoard(layout, shownMarkers.length, capo);
   const covered = useMemo(() => coveredInlays(shownMarkers, stringCount, capo), [shownMarkers, stringCount, capo]);
+  const description = useMemo(() => (shownMarkers.length ? markerDescription(shownMarkers, naming) : ''), [shownMarkers, naming]);
+  const pulses = useMemo(
+    () =>
+      shownMarkers
+        .filter((m) => m.state === 'target')
+        .map((m) => {
+          const p = pointFor(layout, m.string, m.fret, capo);
+          return { key: m.id ?? `${m.string}:${m.fret}`, x: p.x, y: p.y, r: (m.root ? layout.markerRadius * 1.06 : layout.markerRadius) * 1.18 };
+        }),
+    [shownMarkers, layout, capo],
+  );
 
   return (
-    <div ref={sizeRef} className={cx(styles.root, className)} data-wood={wood} data-inlay={inlay} data-orientation={orientation}>
+    <div ref={sizeRef} className={cx(styles.root, className)} data-wood={wood} data-inlay={inlay} data-orientation={orientation} data-compact={(orientation === 'vertical' && (orientationProp === 'auto' || props.compact)) || undefined}>
       <div
         className={styles.scroller}
         // A board that scrolls must be reachable by keyboard; one with buttons already is.
@@ -189,13 +214,14 @@ export function Fretboard(props: FretboardProps) {
             <BoardDefs uid={uid} orientation={orientation} />
             <BoardLayer uid={uid} layout={layout} tuningMidi={tuningObj.midi} tuningNotes={tuningObj.notes} naming={naming} fretNumbers={fretNumbers} inlay={inlay} covered={covered} />
             {layout.capoBar && <Capo uid={uid} layout={layout} />}
-            <NutMarks layout={layout} open={open} muted={muted} />
+            <NutMarks layout={layout} open={open} muted={muted} onCapo={capo > 0} />
             {box && <BoxLayer layout={layout} box={box} />}
             {barres && barres.length > 0 && <BarreLayer layout={layout} barres={barres} capo={capo} />}
             {path && <PathLayer uid={uid} layout={layout} capo={capo} points={path === 'markers' ? shownMarkers : path} arrows={pathArrows} />}
             <MarkerLayer layout={layout} markers={shownMarkers} capo={capo} naming={naming} />
-            {shownMarkers.length > 0 && <desc>{markerDescription(shownMarkers, naming)}</desc>}
+            {description && <desc>{description}</desc>}
           </svg>
+          <TargetPulses points={pulses} />
           {interactive && (
             <CellLayer
               layout={layout}
@@ -257,13 +283,19 @@ function describeBoard(layout: BoardLayout, count: number, capo: number): string
   return parts.join(', ');
 }
 
-function markerDescription(markers: readonly FretMarker[], naming: NoteNaming): string {
-  const items = markers.slice(0, 48).map((m) => {
-    const where = m.fret === 0 ? `string ${m.string} open` : `string ${m.string} fret ${m.fret}`;
-    const what = m.note ? noteText(m.note, naming) : m.label || 'note';
-    return `${what} on ${where}${m.description ? ` (${m.description})` : ''}${m.state && m.state !== 'normal' ? `, ${m.state}` : ''}`;
-  });
-  return items.join('; ') + (markers.length > 48 ? `; and ${markers.length - 48} more` : '');
+/**
+ * Every marker in words, in the order given (a sequence or a path reads in playing order):
+ * "C on string 5 fret 3 (root); D on string 4 open, target". Nothing is cut off: a whole-neck
+ * scale is read out in full. Screens and their checks parse this phrase, so keep its shape.
+ */
+export function markerDescription(markers: readonly FretMarker[], naming: NoteNaming): string {
+  return markers
+    .map((m) => {
+      const where = m.fret === 0 ? `string ${m.string} open` : `string ${m.string} fret ${m.fret}`;
+      const what = m.note ? noteText(m.note, naming) : m.label || 'note';
+      return `${what} on ${where}${m.description ? ` (${m.description})` : ''}${m.state && m.state !== 'normal' ? `, ${m.state}` : ''}`;
+    })
+    .join('; ');
 }
 
 // ── static board ─────────────────────────────────────────────────────────────────────────────────
@@ -564,11 +596,12 @@ function Capo({ uid, layout }: { uid: string; layout: BoardLayout }) {
 }
 
 /** `o` and `×` at the nut for open and muted strings. */
-function NutMarks({ layout, open, muted }: { layout: BoardLayout; open?: readonly number[]; muted?: readonly number[] }) {
+function NutMarks({ layout, open, muted, onCapo }: { layout: BoardLayout; open?: readonly number[]; muted?: readonly number[]; onCapo: boolean }) {
   if (!layout.openColumn || (!open?.length && !muted?.length)) return null;
   const r = Math.min(7, layout.stringGap * 0.24);
+  // Behind the nut the marks are on the page (page ink); on a capo they are on the metal (light ink).
   return (
-    <g>
+    <g data-place={onCapo && layout.capoBar ? 'capo' : 'head'}>
       {open?.map((s) => {
         const p = layout.point(s, 0);
         return <circle key={`o${s}`} className={styles.mark} cx={p.x} cy={p.y} r={r} />;
@@ -646,61 +679,36 @@ function PathLayer({ uid, layout, points, capo, arrows }: { uid: string; layout:
   );
 }
 
-/** The note markers. */
+/**
+ * The note markers. Each marker gets primitive props, so when a game changes one marker's state
+ * (and passes a fresh array) only that marker re-renders.
+ */
 const MarkerLayer = memo(function MarkerLayer({ layout, markers, capo, naming }: { layout: BoardLayout; markers: readonly FretMarker[]; capo: number; naming: NoteNaming }) {
   const base = layout.markerRadius;
+  const openColumn = capo === 0 || !layout.capoBar;
   return (
     <g>
       {markers.map((m) => {
         const p = pointFor(layout, m.string, m.fret, capo);
-        const label = m.noteLabel && m.note ? noteText(m.note, naming) : m.label;
-        return <Marker key={m.id ?? `${m.string}:${m.fret}`} marker={label === m.label ? m : { ...m, label }} x={p.x} y={p.y} r={m.root ? base * 1.06 : base} />;
+        const label = m.noteLabel && m.note ? noteText(m.note, naming) : (m.label ?? undefined);
+        return (
+          <Marker
+            key={m.id ?? `${m.string}:${m.fret}`}
+            x={p.x}
+            y={p.y}
+            r={m.root ? base * 1.06 : base}
+            label={label ?? undefined}
+            color={m.color}
+            shape={m.shape}
+            state={m.state}
+            root={m.root}
+            open={m.fret === 0 && openColumn}
+          />
+        );
       })}
     </g>
   );
 });
-
-/** One note marker: shape, label, root halo, state decoration. */
-export const Marker = memo(function Marker({ marker, x, y, r }: { marker: FretMarker; x: number; y: number; r: number }) {
-  const shape = marker.shape ?? 'circle';
-  const state = marker.state ?? 'normal';
-  const label = marker.label ?? '';
-  const fontSize = labelFontSize(label, r);
-  return (
-    <g className={cx(tone.tone, styles.marker)} data-c={marker.color ?? 'neutral'} data-shape={shape} data-state={state} data-root={marker.root || undefined} transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})`}>
-      {state === 'target' && <circle className={styles.pulse} r={r * 1.18} />}
-      <g className={styles.markerBody}>
-        {marker.root && <MarkerShape shape={shape} r={r + 3} className={styles.halo} />}
-        <MarkerShape shape={shape} r={r} className={styles.dot} strokeWidth={shape === 'ring' ? Math.max(2, r * 0.26) : undefined} />
-        {state === 'target' && <circle className={styles.targetRing} r={r + 3.5} />}
-        {label && (
-          <text className={styles.label} y={0.5} fontSize={fontSize}>
-            {label}
-          </text>
-        )}
-      </g>
-      {(state === 'hit' || state === 'miss') && (
-        <g transform={`translate(${(r * 0.78).toFixed(2)} ${(-r * 0.78).toFixed(2)})`}>
-          <circle className={styles.badge} data-kind={state} r={Math.max(5.5, r * 0.5)} />
-          <path
-            className={styles.badgeMark}
-            d={state === 'hit' ? `M${-r * 0.22} 0 L${-r * 0.05} ${r * 0.18} L${r * 0.25} ${-r * 0.18}` : `M${-r * 0.18} ${-r * 0.18} L${r * 0.18} ${r * 0.18} M${r * 0.18} ${-r * 0.18} L${-r * 0.18} ${r * 0.18}`}
-          />
-        </g>
-      )}
-    </g>
-  );
-});
-
-/** A marker's outline as an SVG shape centred on 0,0. */
-export function MarkerShape({ shape, r, className, strokeWidth }: { shape: string; r: number; className?: string; strokeWidth?: number }) {
-  if (shape === 'square') return <rect className={className} x={-r * 0.92} y={-r * 0.92} width={r * 1.84} height={r * 1.84} rx={r * 0.32} strokeWidth={strokeWidth} />;
-  if (shape === 'diamond') {
-    const d = r * 1.18;
-    return <path className={className} d={`M0 ${-d} L${d} 0 L0 ${d} L${-d} 0 Z`} strokeLinejoin="round" strokeWidth={strokeWidth} />;
-  }
-  return <circle className={className} r={r} strokeWidth={strokeWidth} />;
-}
 
 // ── touch cells ──────────────────────────────────────────────────────────────────────────────────
 

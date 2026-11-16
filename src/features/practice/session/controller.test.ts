@@ -5,6 +5,7 @@ import { setProgressStore } from '@/core/progress';
 import { makeRig, type TestRig } from '@/core/progress/testkit';
 import { getPracticeData, setPracticeDataForTests, emptyPracticeData, PRACTICE_DATA_KEY } from '../model/store';
 import type { PlanBlock } from '../model/planner';
+import { parseSession } from '../model/session';
 import {
   SESSION_KEY,
   dismissPractice,
@@ -77,11 +78,11 @@ describe('the session controller', () => {
     const log = state.log.filter((e) => e.kind === 'practice');
     expect(log).toHaveLength(1);
     expect(log[0].durationSec).toBe(300);
-    expect(log[0].xp).toBe(8); // 1.5 XP a minute, rounded
+    expect(log[0].xp).toBe(10); // 2 XP a minute
     expect(state.xp.total - xpBefore).toBe(view?.state.result?.xp);
     // Refreshed when the session ended (300 s in, at the tick that crossed it).
     expect(state.skills['scale:a-minor-pentatonic:box-2'].lastAt).toBe(startedAt + 305_000);
-    expect(getPracticeData().journal[0]).toMatchObject({ practisedSec: 300, xp: 8, title: '5-minute plan' });
+    expect(getPracticeData().journal[0]).toMatchObject({ practisedSec: 300, xp: 10, title: '5-minute plan' });
     // More ticks after the end change nothing and log nothing.
     wait(60);
     expect(rig.store.getState().log.filter((e) => e.kind === 'practice')).toHaveLength(1);
@@ -149,5 +150,31 @@ describe('the session controller', () => {
     rig.actions.recordActivity({ kind: 'scale-game', durationSec: 60, accuracy: 0.8 });
     wait(200);
     expect(getSessionView()?.state.result?.loggedSec).toBe(240);
+  });
+
+  it('keeps the practised time when another activity was recorded during a pause', () => {
+    startPracticeSession(blocks, { title: 'Plan' });
+    wait(60);
+    pausePractice();
+    wait(200);
+    // A two-minute scale game, finished while the session's clock stood still.
+    rig.actions.recordActivity({ kind: 'scale-game', durationSec: 120, accuracy: 0.8 });
+    wait(10);
+    resumePractice();
+    wait(60);
+    endPractice();
+    const view = getSessionView();
+    expect(view?.practisedSec).toBe(120);
+    expect(view?.state.runs.length).toBe(2);
+    expect(view?.state.result?.loggedSec).toBe(120);
+  });
+
+  it('reads a session saved before practice spans were kept as one span from start to end', () => {
+    startPracticeSession(blocks, { title: 'Plan' });
+    wait(40);
+    const saved = JSON.parse(JSON.stringify(getSessionView()!.state)) as Record<string, unknown>;
+    delete saved.runs;
+    const parsed = parseSession(saved);
+    expect(parsed?.runs).toEqual([[parsed!.startedAt, parsed!.seenAt]]);
   });
 });

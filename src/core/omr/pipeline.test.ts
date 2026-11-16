@@ -11,7 +11,9 @@ import { oracleRecognizers } from './eval/oracle';
 import { type GrayImage, createGray, grayToRgba } from './image/gray';
 import { type OmrProgress, OmrCancelledError, isCancelled, measuresAt, recognizeDocument, recognizePage } from './pipeline';
 import { summarizeDocument, summarizePage } from './summary';
-import { type OmrNotationEvent, type OmrTabEvent, isNotationEvent, isTabEvent } from './types';
+import { fillMissingDurations, flagMeasuresOffMetre, suggestMetreFix } from './reconcile';
+import { omrToSong } from './to-song';
+import { type OmrMeasure, type OmrNotationEvent, type OmrStaff, type OmrTabEvent, durationTicks, isNotationEvent, isTabEvent } from './types';
 import { createOmrWorker } from './worker/client';
 
 describe('recognizePage', () => {
@@ -85,6 +87,90 @@ describe('recognizePage', () => {
     expect(summary.headline).toBe('No music found');
     expect(summary.verdict).toBe('poor');
   });
+});
+
+describe('the metre sanity pass', () => {
+  const tabEvent = (x: number, value?: 'quarter' | 'eighth' | 'half', confidence = 0.9): OmrTabEvent => ({
+    id: `e${x}`, bbox: { x, y: 0, w: 5, h: 5 }, confidence: 0.9, source: 'image', kind: 'tab', x,
+    notes: [{ id: `n${x}`, bbox: { x, y: 0, w: 5, h: 5 }, confidence: 0.9, source: 'image', string: 1, fret: 0, midi: 64 }],
+    ...(value ? { duration: { value, dots: 0, ticks: durationTicks(value), confidence, source: 'image' as const } } : {}),
+  });
+  const measure = (events: OmrTabEvent[], addsUp?: boolean): OmrMeasure => ({ id: 'm', bbox: { x: 0, y: 0, w: 400, h: 50 }, confidence: 1, index: 1, x0: 0, x1: 400, events, ...(addsUp !== undefined ? { addsUp } : {}) });
+
+  it('gives columns a bad photo left without a stem the length the rest of the measure lacks, instead of dropping them', () => {
+    // 4/4: two quarters read, two columns without stems, evenly spaced.
+    const m = measure([tabEvent(20, 'quarter'), tabEvent(120, 'quarter'), tabEvent(220), tabEvent(320)]);
+    expect(fillMissingDurations(m, 3840)).toBe(2);
+    const filled = m.events.slice(2) as OmrTabEvent[];
+    expect(filled.map((e) => e.duration?.value)).toEqual(['quarter', 'quarter']);
+    expect(filled.every((e) => e.duration!.source === 'inferred' && e.duration!.confidence < 0.5 && e.issues?.[0].code === 'rhythm-estimated')).toBe(true);
+    // A measure with nothing printed at all is left to the spacing estimate.
+    expect(fillMissingDurations(measure([tabEvent(20), tabEvent(120)]), 3840)).toBe(0);
+  });
+
+  it('offers the one doubtful length that would make a measure fit as its fix, marked, without changing it', () => {
+    // 3/4 read as quarter, quarter, half (a half that may really be a quarter, read with little confidence).
+    const m = measure([tabEvent(20, 'quarter'), tabEvent(120, 'quarter'), tabEvent(220, 'half', 0.6)], false);
+    (m.events[2] as OmrTabEvent).duration!.alternatives = [{ value: { value: 'quarter', dots: 0 }, confidence: 0.35 }];
+    expect(suggestMetreFix(m, 2880, '3/4')).toBe(true);
+    const d = (m.events[2] as OmrTabEvent).duration!;
+    expect(d.value).toBe('half');
+    expect(d.confidence).toBeLessThan(0.5);
+    expect(d.alternatives?.[0].value).toEqual({ value: 'quarter', dots: 0 });
+    expect(m.events[2].issues?.[0]).toMatchObject({ code: 'measure-does-not-fit', message: expect.stringMatching(/does not fit 3\/4; a quarter here instead of a half would make it fit/) });
+  });
+
+  it('offers nothing for a clearly read measure or two equally good fixes, but says the measure does not fit', () => {
+    const sure = measure([tabEvent(20, 'quarter'), tabEvent(120, 'quarter'), tabEvent(220, 'half')], false);
+    expect(suggestMetreFix(sure, 2880, '3/4')).toBe(false);
+    const twoWays = measure([tabEvent(20, 'half', 0.4), tabEvent(120, 'half', 0.4)], false);
+    expect(suggestMetreFix(twoWays, 2880, '3/4')).toBe(false);
+    const staff = { measures: [{ ...sure, ticks: 3840, expectedTicks: 2880 }], timeInForce: { beats: 3, beatValue: 4, source: 'printed' } } as unknown as OmrStaff;
+    expect(flagMeasuresOffMetre(staff)).toBe(1);
+    expect(staff.measures[0].issues?.[0]).toMatchObject({ code: 'measure-does-not-fit', message: expect.stringMatching(/does not fit 3\/4: .* 4 quarter notes, .* 3/) });
+  });
+});
+
+describe('a staff printed in cue-size notes', () => {
+  it('is read (the small notes are the music there) and says so; a normal staff is not', async () => {
+    const fx = loadFixture('un-cue-bravura-s12', 'unseen');
+    const page = await recognizePage(fx.gray);
+    const s = scorePage(page, fx.truth);
+    // Before: the second line, printed small throughout, read as two notes of 34.
+    expect(s.notes.tp / (s.notes.tp + s.notes.fn)).toBeGreaterThan(0.6);
+    expect(s.notes.tp / (s.notes.tp + s.notes.fp)).toBeGreaterThan(0.95);
+    expect(page.warnings.some((w) => w.code === 'small-notes')).toBe(true);
+    expect(summarizePage(page).lines.join(' ')).toMatch(/small \(cue-size\) notes/);
+    const normal = await recognizePage(loadFixture('linked-ode-bravura-100').gray);
+    expect(normal.warnings.some((w) => w.code === 'small-notes')).toBe(false);
+  }, 60_000);
+});
+
+describe('words over a tab staff', () => {
+  it('locates the chord symbols printed over tab that has no notation, so OCR or the AI can read them', async () => {
+    const fx = loadFixture('tab-open-chords-ins-150');
+    const page = await recognizePage(fx.gray);
+    const located = page.systems.flatMap((s) => s.texts).filter((t) => t.kind === 'chord-symbol');
+    const chords = fx.truth.texts.filter((t) => t.kind === 'chord');
+    expect(chords.length).toBe(8);
+    expect(located.length).toBe(8);
+    for (const c of chords) {
+      const [x, y, w, h] = c.bbox as unknown as [number, number, number, number];
+      expect(located.some((t) => x + w / 2 >= t.bbox.x - 2 && x + w / 2 <= t.bbox.x + t.bbox.w + 2 && y + h / 2 >= t.bbox.y - 2 && y + h / 2 <= t.bbox.y + t.bbox.h + 2), c.text).toBe(true);
+    }
+    // Once read (here: as OCR would), they become the song's chords, each at its beat.
+    located.sort((a, b) => a.bbox.x - b.bbox.x).forEach((t, i) => { t.text = ['C', 'G', 'Am', 'F', 'Em', 'D', 'G', 'C'][i]; });
+    const { song } = omrToSong(page);
+    expect(song.chords.map((c) => c.symbol)).toEqual(['C', 'G', 'Am', 'F', 'Em', 'D', 'G', 'C']);
+    expect(song.chords.map((c) => c.bar)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  }, 60_000);
+
+  it('does not take a measure number or a line of words for a chord', async () => {
+    // alphaTab prints a measure number and "Guitar Standard Tuning" over the first staff.
+    const fx = loadFixture('ua-tab-plain-e', 'unseen');
+    const page = await recognizePage(fx.gray);
+    expect(page.systems.flatMap((s) => s.texts).filter((t) => t.kind === 'chord-symbol')).toHaveLength(0);
+  }, 60_000);
 });
 
 describe('recognizeDocument', () => {
@@ -170,6 +256,26 @@ describe('the worker protocol (in this thread)', () => {
     expect(strip(page)).toEqual(strip(direct));
     expect(seen.length).toBeGreaterThan(4);
     expect((await omr.classifyPage(gray)).kind).toBe('both');
+    omr.terminate();
+  }, 60_000);
+
+  it('returns the quick look: the layout without symbols, the paper and the cleaned page', async () => {
+    const omr = createOmrWorker({ worker: 'inline' });
+    const look = await omr.lookAtPage(gray, { cleanSide: 500 });
+    expect(look.classification.kind).toBe('both');
+    expect(look.page?.systems.flatMap((sys) => sys.staves).map((st) => st.kind)).toEqual(['notation', 'tab', 'notation', 'tab']);
+    // Geometry only: measures are there, their events are not read yet.
+    expect(look.page!.systems[0].staves[0].measures.length).toBeGreaterThan(1);
+    expect(look.page!.systems.flatMap((sys) => sys.staves).flatMap((st) => st.measures).every((m) => m.events.length === 0)).toBe(true);
+    expect(look.paper.desk).toBe(false);
+    expect(look.clean).not.toBeNull();
+    expect(Math.max(look.clean!.width, look.clean!.height)).toBeLessThanOrEqual(500);
+    expect(look.clean!.data.length).toBe(look.clean!.width * look.clean!.height);
+    // Without a size, no cleaned page; a picture with no music has no layout.
+    expect((await omr.lookAtPage(gray)).clean).toBeNull();
+    const blank = await omr.lookAtPage(createGray(400, 500), { cleanSide: 300 });
+    expect(blank.page).toBeNull();
+    expect(blank.clean).toBeNull();
     omr.terminate();
   }, 60_000);
 

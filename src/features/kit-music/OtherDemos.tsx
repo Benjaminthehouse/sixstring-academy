@@ -262,6 +262,8 @@ const RHYTHMS: Array<{ title: string; rhythm: string; time?: string; note: strin
   { title: 'Compound time', rhythm: 'q. e e e | q e q.', time: '6/8', note: 'Two beats of three: “1 & a 2 & a”.' },
   { title: 'Triplets', rhythm: 'et et et q h', note: 'Three in the time of two: “1 trip let”.' },
   { title: 'A tie and a dotted note', rhythm: 'q. e ~e e q', note: 'The tied eighth is held, not played.' },
+  { title: 'Eighths beside triplets', rhythm: 'e e et et et q e e', note: 'Two eighths count “1 &”, three triplets “2 trip let”: each keeps its own words.' },
+  { title: 'Swing figures over two bars', rhythm: 'qt et et qt qt et et qt | qt et et qt qt et et qt', note: 'A triplet quarter and eighth per beat: every bar bracketed the same way.' },
 ];
 
 const STRUMS: Array<{ title: string; pattern: string; time?: string; note: string }> = [

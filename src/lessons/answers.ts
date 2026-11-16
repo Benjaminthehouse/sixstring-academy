@@ -216,7 +216,8 @@ export function normalizeNumber(raw: string): number | null {
 /**
  * A comparison key for free text: lower case, no accents, no punctuation, single spaces. A minus
  * right after a number is kept, because it is part of the answer: "6-" is the Nashville number of
- * a minor chord on 6, and "6" alone is a major one. Every other dash separates words.
+ * a minor chord on 6, and "6" alone is a major one; so is "6 -" at the very end. Every other dash
+ * separates words, spaced or not: "2 - 5 - 1" is "2-5-1" is "2 5 1".
  */
 export function normalizeText(raw: string): string {
   return ascii(raw)
@@ -224,7 +225,8 @@ export function normalizeText(raw: string): string {
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[‐-―−]/g, '-')
-    .replace(/(\d)\s*-(?![\da-z])/g, '$1\u0000')
+    .replace(/(\d)-(?![\da-z])/g, '$1\u0000')
+    .replace(/(\d)\s+-\s*$/, '$1\u0000')
     .replace(/[^a-z0-9#°+/\u0000 ]+/g, ' ')
     .replace(/\u0000/g, '-')
     .replace(/\s+/g, ' ')

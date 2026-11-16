@@ -17,7 +17,7 @@ import type { GrayImage } from './image/gray';
 import { rgbaToGray } from './image/gray';
 import { type AnalyzeOptions, type ExtractOptions, type PageAnalysis, analyzePage, assemblePage, extractStaff } from './page';
 import { recognizeNotationStaff } from './notation';
-import { checkMeasures, estimateRhythmFromSpacing, metreTicks, reconcileRhythm, typicalLeftPad } from './reconcile';
+import { checkMeasures, estimateRhythmFromSpacing, fillMissingDurations, flagMeasuresOffMetre, suggestMetreFix, metreTicks, reconcileRhythm, typicalLeftPad } from './reconcile';
 import { recognizeTabStaff } from './tab';
 import {
   type ClefType, type OmrContextSource, type OmrMeasure, type OmrPage, type OmrStaff, type OmrVisionModel, type OmrWarning, type RecognizeNotationStaff,
@@ -186,9 +186,20 @@ function finishPage(page: OmrPage, firstStaffOfPiece: boolean, estimate: boolean
       const t = st.timeInForce ?? { beats: 4, beatValue: 4 };
       const pad = typicalLeftPad(st);
       for (const m of st.measures) if (estimateRhythmFromSpacing(m, metreTicks(t.beats, t.beatValue), pad)) estimated++;
+      // Columns a bad photo left without a stem, among others that have one: lengths from the rest of the measure.
+      if (!st.linkedStaffId) for (const m of st.measures) estimated += fillMissingDurations(m, metreTicks(t.beats, t.beatValue));
     }
     if (estimated) check();
   }
+  // The metre sanity pass: every measure that does not fit its time signature says so, and where
+  // one doubtful length would make it fit, that reading is offered first as the fix.
+  for (const st of staves) {
+    const t = st.timeInForce;
+    // (Tab under notation plays the notation's rhythm: the notation measure is the one to look at.)
+    if (!t || (st.kind === 'tab' && st.linkedStaffId)) continue;
+    for (const m of st.measures) suggestMetreFix(m, metreTicks(t.beats, t.beatValue), `${t.beats}/${t.beatValue}`);
+  }
+  for (const st of staves) flagMeasuresOffMetre(st);
 }
 
 /**

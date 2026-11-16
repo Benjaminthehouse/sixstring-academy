@@ -9,7 +9,7 @@
  * nobody has answered included, waits until the hold ends: at the next summary, or when the learner
  * leaves. A lost heart's flash is the lesson's own feedback and still shows at once.
  */
-import { useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 let holds = 0;
 const listeners = new Set<() => void>();
@@ -53,6 +53,28 @@ export function subscribeRewardHold(listener: () => void): () => void {
  */
 export function useRewardHold(active = true): void {
   useEffect(() => (active ? holdRewards() : undefined), [active]);
+}
+
+/**
+ * For a summary's "Next lesson": returns `handOff()`, which holds the rewards from that tap until
+ * this component unmounts (the next lesson's screen holds them from then on). Without it the
+ * summary's card stayed up until the next lesson had rendered, and faded out over its first card.
+ *
+ *   const handOff = useRewardHandoff();
+ *   const goNext = () => { handOff(); navigate('teachers', teacher, next.lessonId); };
+ */
+export function useRewardHandoff(): () => void {
+  const release = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      release.current?.();
+      release.current = null;
+    },
+    [],
+  );
+  return useCallback(() => {
+    release.current ??= holdRewards();
+  }, []);
 }
 
 /** Whether the rewards are held right now (re-renders on change). */

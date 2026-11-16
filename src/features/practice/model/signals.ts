@@ -20,13 +20,14 @@ import {
 import { KIND_AREA, areaOfSkill, skillName, target, type Area } from './areas';
 import { goalSignals, type FocusGoal } from './goals';
 import { areaSeconds, type JournalEntry } from './journal';
+import type { ContentItem } from './content';
 import { buildPlan, type PlanBlock, type PlannerInput, type SkillSignal } from './planner';
 
 /** Skills the planner looks at, at most. */
 const MAX_SKILLS = 16;
 
 /** Prefixes whose ids are opaque slugs: their screens' titles read better than a guess. */
-const TITLED_PREFIXES = new Set(['song', 'theory', 'teacher']);
+const TITLED_PREFIXES = new Set(['song', 'theory', 'teacher', 'technique']);
 
 /** Rusty and weak skills, most urgent first, with names and (where known) a link back to them. */
 export function skillSignals(state: ProgressState, now: number): SkillSignal[] {
@@ -96,13 +97,27 @@ export function weekAreaMinutes(state: ProgressState, journal: readonly JournalE
   return out;
 }
 
-/** What the planner is given, read from the stores. */
+/** Theory Path units with at least one finished lesson (from the `theory:<unit>:<lesson>` skills). */
+export function studiedUnits(state: Pick<ProgressState, 'skills'>): string[] {
+  const units = new Set<string>();
+  for (const id in state.skills) {
+    const [prefix, unit, lesson] = id.split(':');
+    if (prefix === 'theory' && unit && lesson && state.skills[id].completed) units.add(unit);
+  }
+  return [...units];
+}
+
+/**
+ * What the planner is given, read from the stores. `library` adds the exercises of the app's
+ * content (`PRACTICE_LIBRARY` from `library.ts`; leave it out for the hand-written pool alone).
+ */
 export function plannerInputFrom(
   state: ProgressState,
   now: number,
   practice: { journal: readonly JournalEntry[]; goals: readonly FocusGoal[] },
   minutes: number,
   seed = 0,
+  library?: readonly ContentItem[],
 ): PlannerInput {
   const song = state.recents.find((r) => (r.route === 'play' || r.route === 'songs') && r.params.length > 0 && r.fraction > 0 && r.fraction < 1 && ROUTE_BY_NAME[r.route]);
   const last = practice.journal[0];
@@ -120,6 +135,8 @@ export function plannerInputFrom(
     openSong: song ? { title: song.title, target: target(song.route, `Continue ${song.title}`, song.params) } : null,
     lastAreas: [...new Set(recent)],
     practiceDays: practiceDayCount(state),
+    library,
+    studiedUnits: studiedUnits(state),
   };
 }
 
@@ -135,7 +152,8 @@ export function practiceDayCount(state: ProgressState): number {
 
 /**
  * A ready plan for `minutes` minutes from the learner's progress (and, when given, their journal
- * and focus goals). For other screens that want to offer a planned session.
+ * and focus goals, and the content library: `loadPracticeLibrary()`). For other screens that want
+ * to offer a planned session.
  *   const plan = suggestPracticePlan(getProgress(), Date.now(), 10);
  */
 export function suggestPracticePlan(
@@ -143,6 +161,7 @@ export function suggestPracticePlan(
   now: number,
   minutes: number,
   practice: { journal: readonly JournalEntry[]; goals: readonly FocusGoal[] } = { journal: [], goals: [] },
+  library?: readonly ContentItem[],
 ): PlanBlock[] {
-  return buildPlan(plannerInputFrom(state, now, practice, minutes));
+  return buildPlan(plannerInputFrom(state, now, practice, minutes, 0, library));
 }

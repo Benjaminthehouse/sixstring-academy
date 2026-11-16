@@ -13,7 +13,7 @@ import { cx } from '@/ui';
 import { noteText } from '../format';
 import { useMusicSettings } from '../settings';
 import type { NoteNaming } from '../types';
-import { circleSlots, circleWedges, moveOnCircle, polar, signatureText, slotOfKey, wedgePath, type CircleRing, type WedgeInfo } from './model';
+import { circleSlots, circleWedges, moveOnCircle, polar, signatureText, signatureWords, slotOfKey, wedgeLabel, wedgePath, type CircleRing, type WedgeInfo } from './model';
 import styles from './CircleOfFifths.module.css';
 
 /** Props of `<CircleOfFifths>`. */
@@ -181,7 +181,6 @@ function Centre({ keyInfo, naming, interactive }: { keyInfo: Key | null; naming:
   }
   const sig = formatKeySignature(keyInfo, { system: naming });
   const count = keyInfo.signature.count;
-  const kind = keyInfo.signature.type === 'sharps' ? (count === 1 ? 'sharp' : 'sharps') : count === 1 ? 'flat' : 'flats';
   return (
     <g>
       <circle className={styles.centre} cx={C} cy={C} r={R_IN - 4} />
@@ -189,7 +188,7 @@ function Centre({ keyInfo, naming, interactive }: { keyInfo: Key | null; naming:
         {formatKey(keyInfo, { system: naming })}
       </text>
       <text className={styles.centreSig} x={C} y={C + 8}>
-        {count === 0 ? 'no sharps or flats' : `${count} ${kind}`}
+        {signatureWords(keyInfo.signature)}
       </text>
       {count > 0 && (
         <text className={styles.centreNotes} x={C} y={C + 27}>
@@ -198,13 +197,6 @@ function Centre({ keyInfo, naming, interactive }: { keyInfo: Key | null; naming:
       )}
     </g>
   );
-}
-
-function wedgeLabel(w: WedgeInfo, naming: NoteNaming): string {
-  const names = w.keys.map((k) => formatKey(k, { system: naming })).join(' or ');
-  const f = w.keys[0].signature;
-  const sig = f.count === 0 ? 'no sharps or flats' : `${f.count} ${f.type}`;
-  return `${names}, ${sig}${w.roman ? `, ${w.roman} chord of the selected key` : ''}`;
 }
 
 function describeDiatonic(k: Key, naming: NoteNaming): string {

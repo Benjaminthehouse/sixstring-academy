@@ -22,8 +22,11 @@ export interface CloudConfig {
   fake: boolean;
 }
 
-/** Why accounts are not offered here. */
-export type CloudUnavailable = 'artifact' | 'not-configured' | 'misconfigured';
+/**
+ * Why accounts are not offered here. `secret-key`: the build was given a secret key (the
+ * `service_role` key, or an `sb_secret_` key) instead of the anon public one; it is never used.
+ */
+export type CloudUnavailable = 'artifact' | 'not-configured' | 'misconfigured' | 'secret-key';
 
 /** The function a browser check exposes to stand in for Supabase: one JSON request in, one JSON answer out. */
 export type CloudFakeBinding = (request: string) => Promise<string>;
@@ -55,6 +58,8 @@ function cleanUrl(value: unknown): string | null {
     // A Supabase project is served over HTTPS; plain http only for a project running on this computer.
     if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) return null;
     if (url.username || url.password || url.search || url.hash) return null;
+    // The Project URL is the bare address; `.../rest/v1` (shown beside it in some dashboards) is not.
+    if (url.pathname !== '/' && url.pathname !== '') return null;
     return text;
   } catch {
     return null;
@@ -67,6 +72,27 @@ function cleanKey(value: unknown): string | null {
   return key.length >= 20 && !/\s/.test(key) ? key : null;
 }
 
+/** The `role` a legacy Supabase key (a JWT) claims, or null when it is not one. */
+function jwtRole(key: string): string | null {
+  const part = key.split('.')[1];
+  if (!part) return null;
+  try {
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64)) as { role?: unknown };
+    return typeof payload.role === 'string' ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True for a key that must never be in a web page: it skips row-level security, so anyone who
+ * opens the page could read and change every learner's rows.
+ */
+export function isSecretKey(key: string): boolean {
+  return /^sb_secret_/i.test(key) || jwtRole(key) === 'service_role';
+}
+
 /** The configuration, or why there is none. Pure, for tests. */
 export function readCloudConfig(env: CloudEnv): { config: CloudConfig; reason: null } | { config: null; reason: CloudUnavailable } {
   if (env.artifact) return { config: null, reason: 'artifact' };
@@ -75,6 +101,7 @@ export function readCloudConfig(env: CloudEnv): { config: CloudConfig; reason: n
   if (!given) return { config: null, reason: 'not-configured' };
   const url = cleanUrl(env.url);
   const anonKey = cleanKey(env.anonKey);
+  if (anonKey && isSecretKey(anonKey)) return { config: null, reason: 'secret-key' };
   if (!url || !anonKey) return { config: null, reason: 'misconfigured' };
   return { config: { url, anonKey, fake: false }, reason: null };
 }

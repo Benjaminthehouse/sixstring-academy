@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { circleSlots, circleWedges, moveOnCircle, polar, signatureText, slotOfKey, wedgePath } from './model';
+import { circleSlots, circleWedges, moveOnCircle, polar, signatureText, signatureWords, slotOfKey, wedgeLabel, wedgePath } from './model';
 
 const romanAt = (key: string) => {
   const out: Record<string, string> = {};
@@ -49,6 +49,22 @@ describe('circle of fifths model', () => {
     expect(signatureText(slots[2])).toBe('2♯');
     expect(signatureText(slots[10])).toBe('2♭');
     expect(signatureText(slots[6])).toBe('6♯ 6♭');
+  });
+
+  it('says signatures in words, singular for one (no "1 sharps")', () => {
+    const slots = circleSlots();
+    expect(signatureWords(slots[0].major[0].signature)).toBe('no sharps or flats');
+    expect(signatureWords(slots[1].major[0].signature)).toBe('1 sharp');
+    expect(signatureWords(slots[11].major[0].signature)).toBe('1 flat');
+    expect(signatureWords(slots[3].major[0].signature)).toBe('3 sharps');
+    const wedges = circleWedges('C major');
+    const g = wedges.find((w) => w.ring === 'major' && w.index === 1)!;
+    expect(wedgeLabel(g)).toBe('G major, 1 sharp, V chord of the selected key');
+    expect(wedgeLabel(wedges.find((w) => w.ring === 'minor' && w.index === 11)!)).toBe('D minor, 1 flat, ii chord of the selected key');
+    // Both spellings at an enharmonic slot, each with its own signature.
+    expect(wedgeLabel(wedges.find((w) => w.ring === 'major' && w.index === 6)!)).toBe('F♯ major, 6 sharps, or G♭ major, 6 flats');
+    expect(wedgeLabel(g, 'solfege')).toMatch(/^Sol major, 1 sharp/);
+    for (const w of circleWedges(null)) expect(wedgeLabel(w)).not.toMatch(/\b1 (sharps|flats)\b/);
   });
 
   it('draws wedges and walks the circle with the arrow keys', () => {

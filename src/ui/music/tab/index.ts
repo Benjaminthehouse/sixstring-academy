@@ -7,7 +7,7 @@
 export { TabView, type TabViewProps, type TabViewHandle, type TabCursor, type TabRange, type TabSeek, type TabSize, type TabNoteState } from './TabView';
 export { TabSnippet, snippetSource, type TabSnippetProps } from './TabSnippet';
 export { ScoreView, type ScoreViewProps } from './ScoreView';
-export { buildTabModel, noteKey, isBarRest, tempoText, type TabModel, type TabMeasure, type TabColumn, type TabNote, type TabChord, type TabModelOptions, type NoteRef, type ColumnFlags } from './model';
+export { buildTabModel, noteKey, isBarRest, tempoText, holdSpans, thinHeldNotes, type TabModel, type TabMeasure, type TabColumn, type TabNote, type TabChord, type TabModelOptions, type NoteRef, type ColumnFlags } from './model';
 export {
   layoutTab,
   breakSystems,
@@ -40,6 +40,6 @@ export {
 } from './layout';
 export { drawSystem, glyphsIn, type TabGlyph, type SystemDrawing, type GlyphClass } from './draw';
 export { beamGroups, beamSegments, beamBoundaries, beamCount, tupletGroups, bendText, writtenTicks, type BeamSegment, type TupletGroup, type RhythmEvent } from './rhythm';
-export { buildScore, scoreSpacing, writtenStep, regionMetrics, columnReach, type ScoreModel, type ScoreColumn, type ScoreMeasure } from './score';
+export { buildScore, scoreSpacing, writtenStep, regionMetrics, columnReach, type ScoreModel, type ScoreColumn, type ScoreMeasure, type BuildScoreOptions } from './score';
 export { RIVERSIDE_MORNING, longStudy } from './demo';
 export { tabMetrics, estimateText, FONT_PX, EFFECT_H, ROW_ORDER, type TabMetrics, type TabFont, type TextMeasurer, type RowKind, type EffectKind } from './metrics';

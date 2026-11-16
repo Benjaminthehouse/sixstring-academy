@@ -22,6 +22,7 @@ import { dateText, durationText, hoursNumber, plural, thousands, timeAgo } from 
 import { Medal } from '../parts/Medal';
 import { ActivityTime, PracticeCalendar, WeekMinutes } from './Charts';
 import { CALENDAR_TEXT, crownsText, rustiestSkills, strongestSkills, STRENGTH_TEXT, type SkillLine } from './model';
+import { AccountSuggestion } from '../account/Suggestion';
 import styles from './Overview.module.css';
 
 function Hero() {
@@ -345,6 +346,7 @@ function RecentPractice() {
 export default function Overview() {
   return (
     <div className={styles.overview}>
+      <AccountSuggestion />
       <Hero />
       <Numbers />
       <Section title="Practice calendar" description={CALENDAR_TEXT.description}>

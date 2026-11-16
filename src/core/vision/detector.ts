@@ -333,6 +333,8 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   let coasting = 0;
   /** Usual speed of the tracked board, fret cells per ms (what a jump is measured against). */
   let motion = 0;
+  /** The move `jumpOf` measured last: speed in fret cells per ms, and the fret cell in pixels. */
+  let lastMove = { speed: 0, cell: 1 };
 
   /** Polished line pose (working pixels of the line view) -> candidate with the evidence of both approaches. */
   const describe = (source: 'lines' | 'align', Hline: Mat3, refine: RefineResult, lv: LineView, av: AlignView, model: NeckModel, polarity: 1 | -1, movedStrings = 0): BoardCandidate => {
@@ -474,9 +476,11 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   const jumpOf = (before: FretboardPose, after: FretboardPose, dtMs: number): boolean => {
     const vis = after.visibleFrets;
     const mid = vis.max >= vis.min ? Math.max(1, Math.round((vis.min + vis.max) / 2)) : 6;
-    const moved = poseDistancePx(before, after) / Math.max(1e-6, fretSpacingPx(after, mid));
+    const cell = Math.max(1e-6, fretSpacingPx(after, mid));
+    const moved = poseDistancePx(before, after) / cell;
     if (!Number.isFinite(moved)) return false;
     const dt = Math.max(1, Math.min(500, Number.isFinite(dtMs) ? dtMs : 33));
+    lastMove = { speed: moved / dt, cell };
     if (moved > Math.max(JUMP_CELLS, JUMP_RATIO * motion * dt)) return true;
     motion += MOTION_RATE * (moved / dt - motion);
     return false;
@@ -725,6 +729,10 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
       // finds nothing better backed.
       const fresh = detect(frame, { ...input, previousPose: undefined });
       const freshStats = fresh.diagnostics.stats ?? {};
+      // The fresh search found this board where the track put it, with the same numbers: the board
+      // really moved that fast (or a busy machine skipped frames before the usual speed was known).
+      // That is the speed to expect now; otherwise every later frame would be searched afresh too.
+      if (fresh.pose && poseDistancePx(fresh.pose, pose) < JUMP_CELLS * lastMove.cell) motion = Math.max(motion, lastMove.speed);
       if (fresh.pose && (freshStats.evidence ?? -Infinity) >= best.evidence) {
         timings.redetect = fresh.diagnostics.timings.total;
         timings.total = performance.now() - t0;

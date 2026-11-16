@@ -201,7 +201,7 @@ async function checkArtifactBuild(temp) {
   await buildInto(dist, { mode: 'artifact' });
   check('elsewhere', 'the artifact build writes no sw.js and no manifest', !fs.existsSync(path.join(dist, 'sw.js')) && !fs.existsSync(path.join(dist, 'manifest.webmanifest')));
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
-  check('elsewhere', 'its index.html links no manifest and carries no route preloader', !html.includes('rel="manifest"') && !html.includes('modulepreload\'') && !/<script>\(function\(f,r\)/.test(html));
+  check('elsewhere', 'its index.html links no manifest and carries no route preloader', !html.includes('rel="manifest"') && !html.includes('modulepreload\'') && !/<script>\(function\(f,r/.test(html));
   const server = await serveDir(dist);
   const browser = await chromium.launch();
   try {

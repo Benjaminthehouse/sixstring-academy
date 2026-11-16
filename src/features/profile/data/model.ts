@@ -261,11 +261,12 @@ export function includedLines(input: { progress: StateSummary; counts: { items: 
 }
 
 /** What never leaves this device, line by line. */
-export function staysLines(input: { hasApiKey: boolean }): Array<{ id: string; icon: string; label: string; detail: string }> {
+export function staysLines(input: { hasApiKey: boolean; signedIn?: boolean }): Array<{ id: string; icon: string; label: string; detail: string }> {
   const lines = [
     { id: 'device', icon: 'Smartphone', label: 'About this device', detail: 'Notices you have already seen, open sidebar groups, the guitar-at-hand and sound switches.' },
     { id: 'session', icon: 'Hourglass', label: 'Work in progress', detail: 'A practice session that is running, a lesson half done, where you were in each song. A reset clears these too.' },
   ];
+  if (input.signedIn) lines.unshift({ id: 'sign-in', icon: 'User', label: 'Your sign-in', detail: 'Who is signed in on this device. Never in a backup or the cloud, and a reset keeps it. Sign out under Me, Account.' });
   if (input.hasApiKey) lines.unshift({ id: 'key', icon: 'KeyRound', label: 'Your API key', detail: 'Never in a backup or the cloud, and a reset keeps it. Remove it under Settings, AI helper.' });
   return lines;
 }

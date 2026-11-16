@@ -213,10 +213,10 @@ function finalize(s: SessionState, sound: boolean): SessionState {
   if (practisedSec < MIN_SAVED_SEC) {
     return withResult(s, { saved: false, xp: 0, loggedSec: 0, goalMet: false, goalMetNow: false, streak: 0, streakExtended: false, leveledUp: false, level: 0 });
   }
-  const endedAt = s.endedAt ?? now();
-  // Time spent in activities that other screens recorded during the session (a scale game the
-  // learner opened from a block) is already in the log: do not count it twice.
-  const overlap = overlapSeconds(getProgress().log, s.startedAt, endedAt);
+  // Time spent in activities that other screens recorded while the session's clock ran (a scale
+  // game the learner opened from a block) is already in the log: do not count it twice. One done
+  // during a pause was never on the session's clock, so it takes nothing off.
+  const overlap = overlapSeconds(getProgress().log, s.runs);
   const loggedSec = Math.max(0, practisedSec - overlap);
   const planned = Math.max(1, Math.round(plannedMs(s) / 1000));
   const done = s.outcome.filter((o) => o === 'done').length;

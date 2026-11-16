@@ -273,8 +273,13 @@ function ringSeeds(strip: Strip, xFrom: number, xTo: number): Seed[] {
 /** Hole darkness below which a head is open: filled heads measure >= 1.0, open ones <= 0.8 up to mild photo blur. */
 export const HOLE_SPLIT = 0.9;
 
+/** Solid core (largest inscribed radius, staff spaces) below which a filled head is too small for a real one. */
+export const MIN_HEAD_CORE = 0.38;
+/** The same for cue-size notes (about two thirds of the normal size), read on a staff printed in them. */
+export const MIN_CUE_CORE = 0.26;
+
 /** Decide the kind of a measured candidate; null when it is not a note head. */
-export function classifyHead(feat: HeadFeatures, from: 'core' | 'ring', minScore: number): { kind: HeadKind; score: number; kindScore: number } | null {
+export function classifyHead(feat: HeadFeatures, from: 'core' | 'ring', minScore: number, minCore = MIN_HEAD_CORE): { kind: HeadKind; score: number; kindScore: number } | null {
   const { zFilled, zOpen, zWhole, holeOpen, holeWhole } = feat;
   const hole = Math.min(holeOpen, holeWhole, 1.2);
   const margin = Math.min(1, Math.abs(hole - HOLE_SPLIT) / 0.25);
@@ -283,7 +288,7 @@ export function classifyHead(feat: HeadFeatures, from: 'core' | 'ring', minScore
     // has a core too, but does not look like a head).
     if (from === 'ring' || zFilled < Math.max(minScore, 0.62)) return null;
     // A grace note is two thirds the size: its solid core is too small for a real head.
-    if (feat.core < 0.38) return null;
+    if (feat.core < minCore) return null;
     return { kind: 'filled', score: zFilled, kindScore: margin };
   }
   const whole = zWhole > zOpen + 0.04;
@@ -303,6 +308,10 @@ export interface HeadOptions {
   minScore?: number;
   /** Thin vertical strokes: solid ink beside one, on a staff position, is tried as a head of a chord. */
   strokes?: { x: number; top: number; bottom: number; barline: boolean }[];
+  /** Accept cue-size heads (two thirds of the normal size) as notes: a staff printed in small notes. */
+  cue?: boolean;
+  /** Filled in: candidates turned down only for being too small (grace or cue notes). */
+  stats?: { small: number };
 }
 
 /**
@@ -377,8 +386,11 @@ export function findHeads(strip: Strip, xFrom: number, xTo: number, opts: HeadOp
     const tries = seed.from === 'core' ? [pos0] : [pos0];
     for (const pos of tries) {
       const { feat, matches } = measureHead(strip, seed.x, posY(strip, pos), seed.from === 'core' ? 2 : 4, 2, seed.from === 'core');
-      const c = classifyHead(feat, seed.from, minScore);
-      if (!c) continue;
+      const c = classifyHead(feat, seed.from, minScore, opts.cue ? MIN_CUE_CORE : MIN_HEAD_CORE);
+      if (!c) {
+        if (opts.stats && !opts.cue && classifyHead(feat, seed.from, minScore, MIN_CUE_CORE)) opts.stats.small++;
+        continue;
+      }
       const m = matches[c.kind] as Match;
       const t = m.template;
       const head: Head = { x: m.x + t.glyphWidth / 2, y: m.y, pos, kind: c.kind, score: c.score, kindScore: c.kindScore, w: t.glyphWidth, h: t.glyphHeight, feat };

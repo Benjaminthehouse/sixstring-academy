@@ -7,6 +7,7 @@ import {
   applyAttempt,
   isRusty,
   nextCrown,
+  skillBest,
   skillStrength,
   starsForAccuracy,
   strengthLabel,
@@ -104,6 +105,24 @@ describe('scores, stars and history', () => {
     expect(out.record).toMatchObject({ bestScore: 120, lastScore: 90, bestAccuracy: 0.9, lastAccuracy: 0.9, attempts: 2, completions: 2, timeSec: 75 });
     out = applyAttempt(out.record, { score: 300, accuracy: 0.2, completed: false }, 3);
     expect(out.record).toMatchObject({ bestScore: 120, lastScore: 300, bestAccuracy: 0.9, lastAccuracy: 0.2, attempts: 3, completions: 2 });
+  });
+
+  it('has no best until a finished attempt sets one, so a screen never shows "Best 0%"', () => {
+    const rig = makeRig();
+    // A round left part-way: kept as an attempt, but it sets no best.
+    rig.actions.recordActivity({ kind: 'scale-game', id: 'scale:a-major:position-1', accuracy: 0.67, score: 40, completed: false, durationSec: 30 });
+    let state = rig.store.getState();
+    expect(state.skills['scale:a-major:position-1']).toMatchObject({ attempts: 1, completions: 0, bestAccuracy: 0, bestScore: 0 });
+    expect(skillBest(state.skills['scale:a-major:position-1'])).toEqual({ accuracy: null, score: null });
+    expect(skillView(state, 'scale:a-major:position-1', rig.clock.now()).best).toEqual({ accuracy: null, score: null });
+    expect(skillView(state, 'scale:never-tried', rig.clock.now()).best).toEqual({ accuracy: null, score: null });
+    // The first finished round sets it.
+    rig.actions.recordActivity({ kind: 'scale-game', id: 'scale:a-major:position-1', accuracy: 0.75, score: 75, durationSec: 40 });
+    state = rig.store.getState();
+    expect(skillView(state, 'scale:a-major:position-1', rig.clock.now()).best).toEqual({ accuracy: 0.75, score: 75 });
+    // A finished round with nothing to show (no accuracy measured) still is not "Best 0%".
+    expect(skillBest(applyAttempt(undefined, { completed: true }, 1).record)).toEqual({ accuracy: null, score: null });
+    expect(skillBest(undefined)).toEqual({ accuracy: null, score: null });
   });
 
   it('keeps a bounded accuracy history in percent, oldest first', () => {

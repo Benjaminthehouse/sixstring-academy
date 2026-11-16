@@ -373,6 +373,19 @@ describe('the songs that landed in the library', () => {
     // A tool that is not in the app falls back too, and without a fallback the task can only be skipped.
     expect(resolveTaskTarget(mo!, { songAvailable: true, toolAvailable: (t) => t.tool !== 'player' }).unavailable).toBe(true);
   });
+
+  // Review: the task said "slide lightly into each long note from two frets below", but in the
+  // library only the long Ds slide up (from two frets below); the last G slides down from A.
+  it("Mo Li Hua's task describes the library's slides: up into each long D", async () => {
+    const text = await loadSongText('mo-li-hua');
+    const open = [40, 45, 50, 55, 59, 64];
+    const slidUpInto = [...text.matchAll(/\/(\d):(\d+)/g)].map(([, s, f]) => (open[6 - Number(s)] + Number(f)) % 12);
+    expect(slidUpInto.length).toBeGreaterThan(0);
+    expect(new Set(slidUpInto)).toEqual(new Set([2]));
+    const mo = (await course('dev')).units.flatMap((u) => u.lessons.flatMap((l) => l.steps)).find((s) => isTaskStep(s) && s.id === 'mo-li-hua') as TaskStep;
+    expect(mo.body).toMatch(/slide up into each long \{n:D\} from two frets below/);
+    expect(mo.body).not.toMatch(/each long note/);
+  });
 });
 
 describe('Mia', () => {

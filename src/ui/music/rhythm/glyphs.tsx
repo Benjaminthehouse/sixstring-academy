@@ -5,11 +5,14 @@
  */
 import type { NoteValueId } from '@/core/theory';
 
-/** A note or rest symbol, about 1 em wide and 1.6 em tall. */
-export function NoteGlyph({ value, dots = 0, rest = false, className }: { value: NoteValueId; dots?: number; rest?: boolean; className?: string }) {
+/**
+ * A note or rest symbol, 1 em wide and 1.5 em tall. The stem stands at x 15 of 24 and reaches up to
+ * y 3 of 36, the head is centred at (10, 29): `beamed` drops the flags so a beam can join the stems.
+ */
+export function NoteGlyph({ value, dots = 0, rest = false, beamed = false, className }: { value: NoteValueId; dots?: number; rest?: boolean; beamed?: boolean; className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 36" width="1em" height="1.5em" aria-hidden="true" focusable="false">
-      {rest ? <RestShape value={value} /> : <NoteShape value={value} />}
+      {rest ? <RestShape value={value} /> : <NoteShape value={value} beamed={beamed} />}
       {Array.from({ length: dots }, (_unused, i) => (
         <circle key={i} cx={19 + i * 4} cy={rest ? 16 : 29} r={1.6} fill="currentColor" />
       ))}
@@ -17,11 +20,11 @@ export function NoteGlyph({ value, dots = 0, rest = false, className }: { value:
   );
 }
 
-function NoteShape({ value }: { value: NoteValueId }) {
+function NoteShape({ value, beamed = false }: { value: NoteValueId; beamed?: boolean }) {
   const hollow = value === 'whole' || value === 'half' || value === 'double-whole';
   const head = <ellipse cx={value === 'whole' ? 12 : 10} cy={29} rx={5.6} ry={4} transform={`rotate(-22 ${value === 'whole' ? 12 : 10} 29)`} fill={hollow ? 'none' : 'currentColor'} stroke="currentColor" strokeWidth={hollow ? 2 : 1} />;
   if (value === 'whole' || value === 'double-whole') return head;
-  const flags = value === 'eighth' ? 1 : value === 'sixteenth' ? 2 : value === 'thirty-second' ? 3 : 0;
+  const flags = beamed ? 0 : value === 'eighth' ? 1 : value === 'sixteenth' ? 2 : value === 'thirty-second' ? 3 : 0;
   return (
     <g>
       {head}
@@ -67,15 +70,6 @@ function RestShape({ value }: { value: NoteValueId }) {
       );
     }
   }
-}
-
-/** A tie: the note before is held on, nothing new is played. */
-export function TieGlyph({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 36" width="1em" height="1.5em" aria-hidden="true" focusable="false">
-      <path d="M1 25 C6 33 18 33 23 25 C18 30 6 30 1 25 Z" fill="currentColor" stroke="currentColor" strokeWidth={1} strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 /** A strum arrow. `down` points down (a downstroke: low strings to high). */

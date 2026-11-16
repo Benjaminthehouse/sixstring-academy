@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useImmersive, useScreenTitle } from '@/app/shell';
 import { Banner, Button, Heading, Icon, MediaBlocked, Page, SegmentedControl, Switch, Text, cx, useEventListener, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { recordActivity, type ActivityResult } from '@/core/progress';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { audioState, unlockAudio } from '@/core/audio';
 import { readJSON, type MediaFailure } from '@/core/platform';
 import { getScale } from '@/core/theory';
@@ -79,15 +79,16 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
   const records = useRecords();
   const { naming } = useMusicSettings();
   const tuning = useMemo(() => learnerTuning(), []);
-  const levels = useMemo(() => levelsOf(game.id, focus, tuning), [game.id, focus, tuning]);
+  const frets = useMemo(() => fretCount(), []);
+  const levels = useMemo(() => levelsOf(game.id, focus, tuning, frets), [game.id, focus, tuning, frets]);
   const info = levels.find((l) => l.n === level) ?? levels[0];
   // Shape Builder's levels are the shapes themselves; every other game uses the focus shape.
   const shapeFocus = useMemo<Focus>(() => {
     if (game.id !== 'shape-builder') return focus;
-    const shapes = shapesFor(focus.tonic, focus.scale, tuning);
+    const shapes = shapesFor(focus.tonic, focus.scale, tuning, frets);
     return { ...focus, shape: shapes[level - 1]?.id ?? focus.shape };
-  }, [game.id, focus, level, tuning]);
-  const pattern = useMemo(() => patternOf(shapeFocus, tuning), [shapeFocus, tuning]);
+  }, [game.id, focus, level, tuning, frets]);
+  const pattern = useMemo(() => patternOf(shapeFocus, tuning, frets), [shapeFocus, tuning, frets]);
   const scale = useMemo(() => getScale(focus.scale)!, [focus.scale]);
   const scaleName = scaleTitle(focus, naming);
   const scope = scopeOf(game.id, focus);

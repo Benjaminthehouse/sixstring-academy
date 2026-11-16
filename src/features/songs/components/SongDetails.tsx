@@ -10,7 +10,7 @@ import { ChordDiagram, TabView, TuningLabel } from '@/ui/music';
 import { useSong, useSongSummary, KIND_NAMES, STYLE_NAMES, type SongListing } from '@/core/library';
 import { songMenuItems, useSongActions } from '../actions';
 import { songChordShapes } from '../chords';
-import { bandLabel, bandTone, lengthLabel, originLine, sortedWarnings, tempoLabel, withoutRhythmNote } from '../format';
+import { bandLabel, bandTone, historyLine, lengthLabel, originLine, songKeyLabel, sortedWarnings, tempoLabel, withoutRhythmNote } from '../format';
 import { useSongSkill } from '../hooks';
 import styles from './SongDetails.module.css';
 
@@ -25,6 +25,8 @@ export interface SongDetailsProps {
   variant: 'pane' | 'sheet';
   /** Title of another song by id (for "Your copy of ..."). */
   titleOf?: (id: string) => string | undefined;
+  /** Another song's listing by id (a copy shows where the original's music comes from). */
+  listingOf?: (id: string) => SongListing | undefined;
 }
 
 /** The importer's notes on one of the learner's songs, the least certain first. */
@@ -68,7 +70,7 @@ function ImportNotes({ listing }: { listing: SongListing }) {
 }
 
 /** The details of one song. */
-export function SongDetails({ listing, variant, titleOf }: SongDetailsProps) {
+export function SongDetails({ listing, variant, titleOf, listingOf }: SongDetailsProps) {
   const actions = useSongActions();
   const { song, loading, error } = useSong(listing.id);
   const { summary } = useSongSummary(listing, true);
@@ -77,6 +79,10 @@ export function SongDetails({ listing, variant, titleOf }: SongDetailsProps) {
   const chords = useMemo(() => (song ? songChordShapes(song) : []), [song]);
   const length = summary ? lengthLabel(summary.seconds) : null;
   const origin = originLine(listing, titleOf);
+  // Where the music comes from ("... as it is commonly sung today ..."), kept on a copy too.
+  const history = historyLine(listing, listingOf);
+  // The key with its mode ("A Dorian"); for the learner's own songs, read from the song itself.
+  const keyLabel = songKeyLabel(listing, song?.key);
   const nonStandard = summary && (summary.tuning.join(',') !== STANDARD.join(',') || summary.capo > 0);
   const bars = song ? Math.min(PREVIEW_BARS + (song.bars[0]?.length !== undefined ? 1 : 0), song.bars.length) : 0;
   const Title = variant === 'pane' ? 'h2' : 'h3';
@@ -86,8 +92,10 @@ export function SongDetails({ listing, variant, titleOf }: SongDetailsProps) {
       <header className={styles.head}>
         <p className={styles.eyebrow}>{listing.source === 'mine' ? 'Your song' : listing.kind ? KIND_NAMES[listing.kind] : 'Song'}</p>
         <Title className={styles.title}>{listing.title}</Title>
-        {(listing.composer || listing.origin || origin) && (
-          <p className={styles.by}>{[listing.composer, listing.source === 'mine' ? origin : listing.origin].filter(Boolean).join(' · ')}</p>
+        {(listing.composer || history || origin) && (
+          <p className={styles.by} data-song-origin="">
+            {[listing.composer, listing.source === 'mine' ? origin : null, history].filter(Boolean).join(' · ')}
+          </p>
         )}
       </header>
 
@@ -96,7 +104,7 @@ export function SongDetails({ listing, variant, titleOf }: SongDetailsProps) {
           Level {listing.level} · {bandLabel(listing.level)}
         </Badge>
         {listing.style && <Tag>{STYLE_NAMES[listing.style]}</Tag>}
-        {listing.key && <Tag>{listing.key}</Tag>}
+        {keyLabel && <Tag data-song-key="">{keyLabel}</Tag>}
         {summary && <Tag mono>{summary.time}</Tag>}
         {summary && (
           <Tag mono>

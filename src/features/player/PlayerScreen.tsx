@@ -8,10 +8,13 @@
  *  wide  desktop: the score and fretboard with a side panel holding every control.
  *
  * The engine (`engine/engine.ts`) does the work; this file arranges it, maps the keyboard, keeps
- * the screen awake while practising and asks for full-screen focus.
+ * the screen awake while practising and asks for full-screen focus. The engine plays the song as
+ * the learner plays it (`model/arrange.ts`: moved to their capo and key); changing either builds
+ * a fresh engine from the session the old one leaves, so tempo, loop, place and mode carry over.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useImmersive } from '@/app/shell';
+import { songEntry } from '@/content/songs';
 import type { SongListing } from '@/core/library';
 import { setPrefs, touchRecent, usePrefs, useSkill } from '@/core/progress';
 import { readJSON, writeJSON, type MediaFailure } from '@/core/platform';
@@ -21,12 +24,14 @@ import { Button, ChipGroup, Icon, IconButton, MediaBlocked, Page, PlayButton, Sh
 import { TuningLabel, type TabRange, type TabSeek } from '@/ui/music';
 import { PlayerEngine, readSavedSession, type EngineState } from './engine/engine';
 import { MicInput } from './engine/mic';
+import { arrangeForPlayer, arrangementWords, keyName, type Arranged } from './model/arrange';
 import { commandFor } from './model/keys';
 import { loopLabel, sectionAtBar, sectionChips } from './model/loop';
+import { countInWords, tempoMark } from './model/meter';
 import { requestKey, resolveRequest, parsePlayerParams } from './model/params';
-import { readSongData, type Suggestion } from './model/results';
-import { openingState, sanitizeSession, type OpeningState } from './model/session';
-import { MODE_HINTS, MODE_NAMES, needsMic, type PracticeMode } from './model/types';
+import { micUsable, readSongData, withoutMic, type Suggestion } from './model/results';
+import { openingState, sanitizeSession, type OpeningState, type PlayerSession } from './model/session';
+import { MODE_HINTS, MODE_NAMES, needsMic, type Arrangement, type PracticeMode, type ScoreLayer } from './model/types';
 import { CountIn, Judgement, MicLevel, WaitPrompt } from './components/Hud';
 import { LoopButton, LoopOptions, ModePicker, MoreOptions, TempoCompact, TempoFull } from './components/Controls';
 import { Neck } from './components/Neck';
@@ -52,21 +57,42 @@ export function PlayerScreen({ song, songId, listing, params }: PlayerScreenProp
     const req = resolveRequest(parsePlayerParams(params), song);
     const shape = { barCount: song.bars.length, totalTicks: Number.MAX_SAFE_INTEGER, trackIds: song.tracks.map((t) => t.id) };
     const saved = sanitizeSession(readSavedSession(songId), shape);
-    const o = openingState(saved, req, key, { now: Date.now(), layer: showNotation(prefs) ? 'both' : 'tab', micBlocked: MicInput.blockedByHost() });
+    // A reading study opens with the staff shown (the learner can still pick another view).
+    const prefersNotation = songEntry(songId)?.prefersNotation === true;
+    const o = openingState(saved, req, key, { now: Date.now(), layer: showNotation(prefs) ? 'both' : 'tab', micBlocked: MicInput.blockedByHost(), prefersNotation });
     return { ...o, problems: req.problems, startBar: req.startBar };
   });
+  // The learner's capo and key: the engine plays the song moved to them.
+  const [arrangement, setArrangement] = useState<Arrangement>(() => ({ transpose: opening.session.transpose, capo: opening.session.capo }));
+  const arranged = useMemo<Arranged>(() => arrangeForPlayer(song, arrangement), [song, arrangement]);
+  // The session the last engine left, for the next one (a new capo or key builds a new engine).
+  const session = useRef<PlayerSession>(opening.session);
   const [engine, setEngine] = useState<PlayerEngine | null>(null);
   useEffect(() => {
     const e = new PlayerEngine({
-      song, songId, title: song.meta.title || listing?.title || 'Song', session: opening.session, tone: prefs.sound.guitarTone, clickSound: prefs.sound.clickSound,
+      song: arranged.song, songId, title: song.meta.title || listing?.title || 'Song', session: session.current, tone: prefs.sound.guitarTone, clickSound: prefs.sound.clickSound,
+      arrangement,
       ...(opening.startBar !== null ? { startBar: opening.startBar } : {}),
     });
     e.setOpened(key);
     setEngine(e);
-    return () => e.dispose();
-    // The engine lives as long as this song is open; settings changes are passed to it below.
+    return () => {
+      session.current = e.session(key);
+      e.dispose();
+    };
+    // The engine lives as long as this song is open in this capo and key; settings changes are passed to it below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song]);
+  }, [arranged]);
+  const changeArrangement = useCallback((a: Arrangement) => {
+    setArrangement((prev) => (prev.transpose === a.transpose && prev.capo === a.capo ? prev : a));
+  }, []);
+  // What the arranger had to change ("moved 1 octave up to fit the guitar") is said once, with the move.
+  useEffect(() => {
+    if (!arranged.warnings.length) return;
+    const n = Math.abs(arranged.sounding);
+    const title = arranged.sounding ? `Moved ${n} ${n === 1 ? 'semitone' : 'semitones'} ${arranged.sounding > 0 ? 'up' : 'down'}` : 'Moved to your capo';
+    toast.info(title, { description: arranged.warnings.map((w) => w.replace(/^The part\b/, 'One part')).join(' '), id: 'player-arrange' });
+  }, [arranged]);
 
   useEffect(() => {
     for (const p of opening.problems) toast.info(p);
@@ -87,12 +113,12 @@ export function PlayerScreen({ song, songId, listing, params }: PlayerScreenProp
       </Page>
     );
   }
-  return <PlayerView engine={engine} song={song} resumed={opening.resumed} />;
+  return <PlayerView engine={engine} song={arranged.song} written={song} resumed={opening.resumed} onArrangement={changeArrangement} />;
 }
 
 type Layout = 'bar' | 'rail' | 'wide';
 
-function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Song; resumed: boolean }) {
+function PlayerView({ engine, song, written, resumed, onArrangement }: { engine: PlayerEngine; song: Song; written: Song; resumed: boolean; onArrangement: (a: Arrangement) => void }) {
   const s = useSyncExternalStore(engine.subscribe, engine.getState);
   const prefs = usePrefs();
   const skill = useSkill(`song:${engine.songId}`);
@@ -130,6 +156,8 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
   }, [running]);
 
   const micAvailable = !MicInput.blockedByHost() && s.mic.failure !== 'blocked-by-host' && s.mic.failure !== 'unsupported' && s.mic.failure !== 'insecure-context';
+  // After a refusal (or with no microphone found) results never suggest Wait or Flow.
+  const micSuggestable = micAvailable && micUsable(s.mic.failure, false);
 
   // ── loop picking by taps or a drag on the score ──
   const [picking, setPicking] = useState(false);
@@ -277,6 +305,18 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
   }, [engine, chooseMode, picking]);
 
   const bpm = engine.timeline.tempo.bpmAt(s.tick) * (s.tempo / 100);
+  // Every tempo is counted in the meter's own beat: ♩. = 60 in 6/8, as the score and the count-in.
+  const meter = song.bars[s.bar]?.time ?? song.bars[0]?.time ?? null;
+  const mark = tempoMark(bpm, meter);
+  const words = arrangementWords(written, s.arrangement);
+  const tempoAt = useCallback((p: number) => engine.tempoAt(p), [engine]);
+  const fretboardHidden = () => toast.info('The fretboard is hidden too', { description: 'It would give the answers away. Turn it back on under Fretboard.', id: 'player-neck' });
+  const onLayer = (l: ScoreLayer) => {
+    if (engine.setLayer(l)) fretboardHidden();
+  };
+  const onHideChart = (on: boolean) => {
+    if (engine.setHideChart(on)) fretboardHidden();
+  };
   const trackInfo = song.tracks.find((t) => t.id === s.track);
   const strumPart = trackInfo?.role === 'rhythm';
   const currentSection = sectionAtBar(sections, s.bar);
@@ -310,7 +350,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     </Button>
   ) : null;
 
-  const tempo = <TempoCompact tempo={s.tempo} bpm={bpm} onChange={(p) => engine.setTempo(p)} vertical={layout === 'rail'} />;
+  const tempo = <TempoCompact tempo={s.tempo} mark={mark} onChange={(p) => engine.setTempo(p)} vertical={layout === 'rail'} />;
   const loopBtn = <LoopButton loop={s.loop} picking={picking} compact={layout !== 'wide'} onClick={() => (picking ? setPicking(false) : s.loop ? setLoopOpen(true) : startPicking())} />;
   const micChip = needsMic(s.mode) ? (
     s.mic.status === 'on' ? (
@@ -323,20 +363,25 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
   ) : null;
 
   const loopOptions = (
-    <LoopOptions state={s} sections={sections} judged={s.mode === 'flow' || s.mode === 'tap'} onTrainer={(t) => engine.setTrainer(t)} onLoop={(r) => engine.setLoop(r)} onPick={startPicking} />
+    <LoopOptions state={s} sections={sections} judged={s.mode === 'flow' || s.mode === 'tap'} onTrainer={(t) => engine.setTrainer(t)} onLoop={(r) => engine.setLoop(r)} onPick={startPicking} tempoAt={tempoAt} />
   );
   const moreOptions = (
     <MoreOptions
       state={s}
       song={song}
+      written={written}
+      words={words}
+      countInText={countInWords(meter)}
       onCountIn={(on) => engine.setCountIn(on)}
       onMetronome={(on) => engine.setMetronome(on)}
       onTrack={(id) => engine.setTrack(id)}
       onMute={(id, on) => engine.setMuted(id, on)}
       onSolo={(id, on) => engine.setSolo(id, on)}
       onPartAudible={(on) => engine.setPartAudible(on)}
-      onLayer={(l) => engine.setLayer(l)}
+      onLayer={onLayer}
       onNeck={(on) => engine.setNeck(on)}
+      onHideChart={onHideChart}
+      onArrangement={onArrangement}
       onTone={(t) => setPrefs({ sound: { guitarTone: t } })}
       showKeys={layout === 'wide'}
     />
@@ -354,6 +399,14 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     <div className={styles.banner} data-tone="info" role="status">
       <Icon name="Repeat" size="sm" />
       <span>The loop starts at bar {s.pick.from + 1}. Press L again at its last bar.</span>
+    </div>
+  ) : s.hideChart && !active && !showResumed ? (
+    <div className={styles.banner} role="status" data-player-chart-hidden="">
+      <Icon name="EyeOff" size="sm" />
+      <span>Chord names hidden: play it from memory.</span>
+      <Button size="sm" variant="ghost" iconLeft="Eye" onClick={() => engine.setHideChart(false)}>
+        Show them
+      </Button>
     </div>
   ) : showResumed && s.tick > 0 && !active ? (
     <div className={styles.banner} role="status" data-player-resumed="">
@@ -405,6 +458,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
       heat={s.results ? s.results.summary.heat : null}
       size={layout === 'wide' ? 'lg' : layout === 'rail' ? 'sm' : 'md'}
       diagrams={strumPart}
+      hideChart={s.hideChart}
       {...(s.mode === 'tap' && running ? { onTapDown: (t: number) => engine.tap(t) } : {})}
     >
       <CountIn engine={engine} />
@@ -413,7 +467,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     </Score>
   );
   const bannerRow = banner ? <div className={styles.bannerWrap}>{banner}</div> : null;
-  const waitPrompt = s.wait ? <WaitPrompt wait={s.wait} onHint={() => engine.hint()} onSkip={() => engine.skip()} compact={layout === 'rail'} /> : null;
+  const waitPrompt = s.wait ? <WaitPrompt wait={s.wait} onHint={() => engine.hint()} onSkip={() => engine.skip()} compact={layout === 'rail'} hideChart={s.hideChart} /> : null;
 
   const neck = s.neck ? <Neck engine={engine} track={s.track} maxFret={fretCount(prefs)} minSpan={phone || layout === 'rail' ? 5 : 7} size={layout === 'wide' ? 'md' : 'sm'} className={styles.neck} /> : null;
 
@@ -423,7 +477,14 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         {song.meta.title}
       </p>
       <p className={styles.meta}>
-        {[song.meta.composer || song.meta.artist, song.key ? keyName(song.key) : null, `${Math.round(engine.timeline.tempo.points[0]?.bpm ?? 0)} bpm`, timeSig(song)].filter(Boolean).join(' · ')}
+        {[
+          song.meta.composer || song.meta.artist,
+          song.key ? `${keyName(song.key)}${words.shift ? ` (${words.shift})` : ''}` : words.shift ? `${words.shift} semitones` : null,
+          tempoMark(engine.timeline.tempo.points[0]?.bpm ?? 0, song.bars[0]?.time).short,
+          timeSig(song),
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         {(song.capo > 0 || !isStandard(song.tuning)) && (
           <>
             {' · '}
@@ -439,6 +500,15 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
       )}
     </div>
   );
+
+  // On phones the header is not shown: a moved song says so beside the sections (tap: the options).
+  const moved = layout === 'bar' && (s.arrangement.transpose !== 0 || (s.arrangement.capo ?? written.capo) !== written.capo);
+  const capoNow = s.arrangement.capo ?? written.capo;
+  const movedChip = moved ? (
+    <Button size="sm" variant="ghost" iconLeft="Music2" onClick={() => setMoreOpen(true)} className={styles.movedChip} data-player-moved="" aria-label={`${words.line} Change it in the options`}>
+      {[words.sounds ? `${words.sounds}${words.shift ? ` ${words.shift}` : ''}` : words.shift, capoNow ? `capo ${capoNow}` : null].filter(Boolean).join(' · ')}
+    </Button>
+  ) : null;
 
   const chips = sections.length > 1 ? (
     <ChipGroup
@@ -464,7 +534,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
 
   return (
     <Page title={song.meta.title} hideHeader width="full" className={styles.page}>
-      <div className={cx(styles.screen, styles[layout])} data-layout={layout} data-chips={(layout === 'wide' ? chips : chips || micChip) ? 'yes' : 'no'} data-player="" data-mode={s.mode} data-phase={s.phase}>
+      <div className={cx(styles.screen, styles[layout])} data-layout={layout} data-chips={(layout === 'wide' ? chips : chips || micChip || movedChip) ? 'yes' : 'no'} data-player="" data-mode={s.mode} data-phase={s.phase} data-bar={s.bar}>
         {layout === 'wide' && (
           <>
             <header className={styles.head}>
@@ -497,7 +567,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
                   {currentSection && sections.length > 1 && <span className={styles.positionOf}>{currentSection.name}</span>}
                 </div>
               </div>
-              <TempoFull tempo={s.tempo} bpm={bpm} onChange={(p) => engine.setTempo(p)} />
+              <TempoFull tempo={s.tempo} mark={mark} onChange={(p) => engine.setTempo(p)} />
               <div className={styles.sideBlock}>{loopOptions}</div>
               <div className={styles.sideBlock}>{moreOptions}</div>
             </aside>
@@ -506,9 +576,10 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
 
         {layout === 'bar' && (
           <>
-            {chips || micChip ? (
+            {chips || micChip || movedChip ? (
               <div className={styles.chipRow}>
                 {chips}
+                {movedChip}
                 {micChip}
               </div>
             ) : null}
@@ -602,7 +673,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         )}
       </Sheet>
 
-      <Results results={micAvailable ? s.results : withoutMic(s.results)} barCount={song.bars.length} onClose={() => engine.closeResults()} onAgain={again} onSuggestion={onSuggestion} />
+      <Results results={micSuggestable ? s.results : resultsWithoutMic(s.results)} micUsable={micSuggestable} barCount={song.bars.length} onClose={() => engine.closeResults()} onAgain={again} onSuggestion={onSuggestion} />
       <span className="sr-only" aria-live="polite">
         {modeAnnouncement(s)}
       </span>
@@ -610,12 +681,9 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
   );
 }
 
-/** Where no microphone can be had, a suggestion of wait or flow mode becomes tap-along. */
-function withoutMic(r: EngineState['results']): EngineState['results'] {
-  const sg = r?.summary.suggestion;
-  if (!r || !sg || !needsMic(sg.mode)) return r;
-  const text = sg.loop ? sg.text : 'Now tap along in time with the notes';
-  return { ...r, summary: { ...r.summary, suggestion: { ...sg, mode: 'tap', text } } };
+/** Where no microphone can be had (or it was refused), a suggestion of wait or flow mode becomes tap-along. */
+function resultsWithoutMic(r: EngineState['results']): EngineState['results'] {
+  return r ? { ...r, summary: withoutMic(r.summary) } : r;
 }
 
 function modeAnnouncement(s: EngineState): string {
@@ -630,13 +698,6 @@ function safeMatches(el: Element, selector: string): boolean {
   } catch {
     return false;
   }
-}
-
-function keyName(key: string): string {
-  const k = key.trim();
-  if (/minor|major/i.test(k)) return k.replace(/#/g, '♯').replace(/b(?=\s|$)/, '♭');
-  if (/m$/.test(k)) return `${k.slice(0, -1).replace('#', '♯').replace(/b$/, '♭')} minor`;
-  return `${k.replace('#', '♯').replace(/b$/, '♭')} major`;
 }
 
 function timeSig(song: Song): string | null {

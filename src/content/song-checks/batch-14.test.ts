@@ -887,7 +887,8 @@ describe('batch 14: st-bossa-groove', () => {
     // Gap note (integration pass 2): it used to land at 3, with the off-beat chords between steady
     // thumb notes not counted as syncopated and Am7 and D7 scored by name. The estimate now scores
     // the grips held (5x555x, x5453x), counts the chords held across the beat as syncopation and
-    // sees the fingers moving off the thumb's half-bar pulse (thumb independence): 4, a better
+    // sees the fingers pinching with the thumb and pushing chords across the beat against its
+    // half-bar pulse (thumb independence): 4, a better
     // estimate, still below the plan's 7, whose demand is keeping the bossa feel relaxed and even.
     const est = estimate(await load('st-bossa-groove'), 'Your part');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(3);

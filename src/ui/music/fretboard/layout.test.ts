@@ -181,3 +181,27 @@ describe('strings, numbers, inlays, keys', () => {
     expect(moveOnBoard({ string: 6, fret: 12 }, 'right', board)).toEqual({ string: 6, fret: 12 });
   });
 });
+
+describe('compact vertical boards', () => {
+  it('stand frets 0-12 up inside an upright phone: no sideways scroll, 44 px touch cells', () => {
+    // A tappable board (xl strings, 44 px frets) in a 330 px column of a 360 px phone.
+    const across = boardLayout({ stringCount: 6, frets: [0, 12], width: 330, stringGap: 44, minFret: 44, maxFret: 132, labelWidth: 16 });
+    expect(across.overflow).toBe(true);
+    const up = boardLayout({ stringCount: 6, frets: [0, 12], width: 330, orientation: 'vertical', compact: true, stringGap: 44, minFret: 44, maxFret: 132, labelWidth: 16 });
+    expect(up.overflow).toBe(false);
+    expect(up.width).toBeLessThanOrEqual(330);
+    // Every fret a 44 px cell, evenly spaced; the whole board about 620 px tall.
+    for (let fret = 1; fret <= 12; fret++) {
+      const cell = up.cell(3, fret);
+      expect(cell.h).toBeGreaterThanOrEqual(43.5);
+      expect(cell.w).toBeGreaterThanOrEqual(43.5);
+    }
+    expect(up.height).toBeLessThan(680);
+    // A plain vertical board of the same range is half as tall again.
+    const tall = boardLayout({ stringCount: 6, frets: [0, 12], width: 330, orientation: 'vertical', stringGap: 44, minFret: 44, maxFret: 132, labelWidth: 16 });
+    expect(tall.height).toBeGreaterThan(up.height * 1.4);
+    // Static boards get shorter still.
+    const glance = boardLayout({ stringCount: 6, frets: [0, 12], width: 330, orientation: 'vertical', compact: true, stringGap: 28 });
+    expect(glance.height).toBeLessThan(360);
+  });
+});

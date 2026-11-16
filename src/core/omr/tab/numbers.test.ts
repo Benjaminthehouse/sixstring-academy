@@ -48,16 +48,19 @@ describe('buildNumber', () => {
     for (const a of n.alternatives) expect(a.confidence).toBeLessThanOrEqual(n.confidence);
   });
 
-  it('does not report a fret above 24 as fact: it takes a plausible reading if one is close and keeps the raw one visible', () => {
+  it('never reports a fret above 24: it takes a plausible reading if one is close, else a reading of its digits, as a guess', () => {
     const swap = buildNumber([glyph(0, [['7', 0.9], ['1', 0.85]]), glyph(13, [['2', 0.95], ['7', 0.5]])], 19);
     expect(swap.fret).toBe(12);
     expect(swap.confidence).toBeLessThan(0.5);
-    expect(swap.alternatives.map((a) => a.value)).toContain(72);
+    // Only frets the neck has are offered as fixes (72 is not one).
+    expect(swap.alternatives.every((a) => a.value <= MAX_FRET)).toBe(true);
     expect(swap.flags).toContain('implausible-fret');
+    expect(swap.readAs).toBeUndefined();
     const stuck = buildNumber([glyph(0, [['9', 0.97]]), glyph(13, [['9', 0.97]])], 19);
-    expect(stuck.fret).toBe(99);
-    expect(stuck.fret).toBeGreaterThan(MAX_FRET);
+    expect(stuck.fret).toBe(9);
+    expect(stuck.readAs).toBe(99);
     expect(stuck.confidence).toBeLessThanOrEqual(0.2);
+    expect(stuck.alternatives.every((a) => a.value <= MAX_FRET)).toBe(true);
   });
 
   it('doubts a leading zero and a wide gap inside a number', () => {
@@ -76,7 +79,10 @@ describe('assembleLine', () => {
 
   it('joins neighbouring digits and separates distant ones', () => {
     const nums = assembleLine([d(0, '1'), d(13, '2'), d(60, '5'), d(120, '7'), d(133, '9')], 19);
-    expect(nums.map((n) => n.fret)).toEqual([12, 5, 79]);
+    // "79" is past the neck: its first digit is the reading (a guess), the other one the fix on offer.
+    expect(nums.map((n) => n.fret)).toEqual([12, 5, 7]);
+    expect(nums[2].readAs).toBe(79);
+    expect(nums[2].alternatives.map((a) => a.value)).toContain(9);
     expect(nums[2].confidence).toBeLessThan(0.5);
     // Three digits in a row cannot be one fret.
     expect(assembleLine([d(0, '1'), d(13, '2'), d(26, '3')], 19).map((n) => n.fret)).toEqual([12, 3]);

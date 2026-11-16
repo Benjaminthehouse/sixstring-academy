@@ -72,6 +72,12 @@ export interface SessionState {
   /** Why it is paused. */
   pausedBy: 'learner' | 'away' | null;
   startedAt: number;
+  /**
+   * The wall-clock spans `[from, to]` (epoch ms) that counted as practice, oldest first. Paused
+   * time is not in them, so an activity another screen recorded during a pause is not taken off
+   * the session's time (`overlapSeconds`).
+   */
+  runs: Array<[number, number]>;
   /** The last moment the clock was looked at. */
   seenAt: number;
   endedAt: number | null;
@@ -104,6 +110,8 @@ export const AWAY_LIMIT_MS = 15 * 60_000;
 export const SKIP_BELOW_MS = 10_000;
 /** Longest a block can be made by adding time. */
 export const MAX_BLOCK_SEC = 60 * 60;
+/** Most practice spans a session keeps (one per stretch between pauses); older ones are joined. */
+export const MAX_RUNS = 120;
 
 /** Start a session from plan blocks. */
 export function startSession(blocks: readonly PlanBlock[], now: number, meta: { id: string; title: string; routineId?: string }): SessionState {
@@ -133,6 +141,7 @@ export function startSession(blocks: readonly PlanBlock[], now: number, meta: { 
     status: list.length > 0 ? 'running' : 'finished',
     pausedBy: null,
     startedAt: now,
+    runs: [],
     seenAt: now,
     endedAt: list.length > 0 ? null : now,
     endedEarly: false,
@@ -142,11 +151,24 @@ export function startSession(blocks: readonly PlanBlock[], now: number, meta: { 
 }
 
 function clone(s: SessionState): SessionState {
-  return { ...s, spentMs: [...s.spentMs], outcome: [...s.outcome], blocks: s.blocks.map((b) => ({ ...b })) };
+  return { ...s, spentMs: [...s.spentMs], outcome: [...s.outcome], blocks: s.blocks.map((b) => ({ ...b })), runs: s.runs.map(([a, b]) => [a, b]) };
 }
 
 function plannedMsOf(s: SessionState, i: number): number {
   return (s.blocks[i]?.plannedSec ?? 0) * 1000;
+}
+
+/** Note that `[from, to]` counted as practice: it extends the last span when it carries straight on. */
+function addRun(s: SessionState, from: number, to: number): void {
+  if (!(to > from)) return;
+  const last = s.runs[s.runs.length - 1];
+  if (last && from <= last[1] && from >= last[0]) {
+    last[1] = Math.max(last[1], to);
+    return;
+  }
+  s.runs.push([from, to]);
+  // A session paused hundreds of times keeps its total: the two oldest spans become one.
+  if (s.runs.length > MAX_RUNS) s.runs.splice(0, 2, [s.runs[0][0], s.runs[1][1]]);
 }
 
 /** Credit `ms` of practice starting at `from`; finishes blocks (and the session) as their time runs out. */
@@ -158,9 +180,11 @@ function credit(s: SessionState, ms: number, from: number, events: SessionEvent[
     const rem = plannedMsOf(s, i) - s.spentMs[i];
     if (left < rem) {
       s.spentMs[i] += left;
+      addRun(s, at, at + left);
       return;
     }
     s.spentMs[i] = plannedMsOf(s, i);
+    addRun(s, at, at + Math.max(0, rem));
     left -= Math.max(0, rem);
     at += Math.max(0, rem);
     s.outcome[i] = 'done';
@@ -360,6 +384,17 @@ function parseBlock(v: unknown): SessionBlock | null {
 
 const OUTCOMES: readonly BlockOutcome[] = ['pending', 'done', 'partial', 'skipped'];
 
+/** Saved practice spans; a session saved before spans were kept counts from start to end, as it did then. */
+function parseRuns(v: unknown, startedAt: number, endedAt: number): Array<[number, number]> {
+  if (!Array.isArray(v)) return endedAt > startedAt ? [[startedAt, endedAt]] : [];
+  const out: Array<[number, number]> = [];
+  for (const r of v) {
+    if (!Array.isArray(r) || !isNum(r[0]) || !isNum(r[1]) || r[1] <= r[0]) continue;
+    out.push([r[0], r[1]]);
+  }
+  return out.slice(-MAX_RUNS);
+}
+
 function parseResult(v: unknown): SessionResult | null {
   if (!isObj(v) || typeof v.saved !== 'boolean') return null;
   return {
@@ -400,6 +435,7 @@ export function parseSession(value: unknown): SessionState | null {
     status,
     pausedBy: value.pausedBy === 'learner' || value.pausedBy === 'away' ? value.pausedBy : status === 'paused' ? 'learner' : null,
     startedAt: value.startedAt,
+    runs: parseRuns(value.runs, value.startedAt, isNum(value.endedAt) ? value.endedAt : value.seenAt),
     seenAt: value.seenAt,
     endedAt: isNum(value.endedAt) ? value.endedAt : status === 'finished' ? value.seenAt : null,
     endedEarly: value.endedEarly === true,

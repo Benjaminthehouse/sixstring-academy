@@ -260,19 +260,40 @@ export function GlobalFeedback() {
       }
     };
     const release = () => {
+      // A card that waited behind a dialog the learner answered just as the lesson started (Keep
+      // going, then Next at once) goes up first, so the news held since joins it and its XP is the
+      // newest. Shown after it, the old card replaced the new XP with the last lesson's.
+      if (!activeRef.current && !closing.current && queue.current.length === 0) {
+        for (const show of deferred.current.splice(0)) show();
+      }
       const plans = heldPlans.current.splice(0);
       if (plans.length > 0) apply(mergePlans(plans));
       // A dialog held back (or the toasts waiting behind one) comes now.
       if (!activeRef.current && !closing.current && (queue.current.length > 0 || deferred.current.length > 0)) showNext();
     };
     if (held) engage();
-    return subscribeRewardHold(() => {
+    let alive = true;
+    const stop = subscribeRewardHold(() => {
       const now = rewardsHeld();
       if (now === held) return;
-      held = now;
-      if (now) engage();
-      else release();
+      if (now) {
+        held = true;
+        engage();
+        return;
+      }
+      // One screen lets go as the next takes hold (a summary's "Next lesson", then the next lesson)
+      // in the same commit: let news through only if the hold is still off a moment later. Released
+      // at once, the held level-up fired its confetti and sound over the next lesson's first card.
+      queueMicrotask(() => {
+        if (!alive || !held || rewardsHeld()) return;
+        held = false;
+        release();
+      });
     });
+    return () => {
+      alive = false;
+      stop();
+    };
   }, [apply, showNext]);
 
   useEffect(() => {

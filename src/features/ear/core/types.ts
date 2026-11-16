@@ -3,6 +3,7 @@
  * `SoundPlan`), and every answer option carries the plan of what that option would have sounded
  * like. The screen only ever plays these plans, so what is heard is exactly what is graded.
  */
+import type { ToneName } from '@/core/audio';
 import type { Rng } from './rng';
 
 /** The drills, in no particular order (the ladder order lives in `drills/index.ts`). */
@@ -17,6 +18,9 @@ export type DrillId =
   | 'degrees'
   | 'progressions'
   | 'melody'
+  | 'dictation'
+  | 'bass'
+  | 'modes'
   | 'tuning';
 
 /** How the notes of one event are struck. */
@@ -41,6 +45,8 @@ export interface SoundEvent {
   direction?: 'down' | 'up';
   /** `subject`: what the question is about. `context`: what sets it up (a cadence, a reference). */
   role: 'subject' | 'context';
+  /** An instrument of its own for these notes (the bass-line drill plays a bass); default: the learner's guitar. */
+  tone?: Extract<ToneName, 'bass-finger' | 'bass-pick' | 'bass-upright'>;
 }
 
 /** A chord for the backing band: pitch classes, C = 0. */
@@ -126,14 +132,20 @@ export interface ChoiceQuestion extends QuestionBase {
   answer: string;
 }
 
-/** A key of the note row (melody playback). */
+/** A key of the note row (melody playback), or a pitch on the neck (dictation). */
 export interface RowKey {
   id: string;
   midi: number;
-  /** Scale degree (`1`, `b3`, `1'` for the octave). */
+  /** Scale degree (`1`, `b3`, `1'` for the octave), or the note's name on the neck. */
   label: string;
-  /** Movable-do syllable. */
+  /** Movable-do syllable, or the degree on the neck. */
   sub: string;
+}
+
+/** The part of the neck a dictation is played back on. */
+export interface NeckArea {
+  /** First and last fret shown (0 = with the open strings). */
+  frets: [number, number];
 }
 
 /** Rebuild a melody note by note. */
@@ -146,6 +158,12 @@ export interface SequenceQuestion extends QuestionBase {
   given: number;
   /** Seconds between notes when a sequence is played back. */
   noteGap: number;
+  /** How the learner enters it: the note row (default) or a guitar neck. */
+  input?: 'row' | 'neck';
+  /** With `input: 'neck'`: where on the neck; `keys` are then every pitch in that area. */
+  neck?: NeckArea;
+  /** The tone the sequence is played in when it is played back (the bass line). */
+  tone?: SoundEvent['tone'];
 }
 
 export type Question = ChoiceQuestion | SequenceQuestion;

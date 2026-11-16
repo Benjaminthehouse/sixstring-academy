@@ -66,6 +66,8 @@ export interface TabViewProps {
   rhythm?: boolean;
   /** Standard notation above the tab (VexFlow, loaded on demand; tab-only while it loads or if it cannot). */
   notation?: boolean;
+  /** Note names the staff uses whenever their pitch class sounds (`['Bb']`), over the key's and the line's choice. */
+  spellings?: readonly string[];
   /** Chord symbols above the staff (default true); `diagrams` adds a small chord box above each change. */
   chords?: boolean | 'diagrams';
   /** With a capo, name chords by the shape played (default) or by what sounds. */
@@ -153,6 +155,7 @@ export const TabView = forwardRef<TabViewHandle, TabViewProps>(function TabView(
     size = 'md',
     bars,
     notation = false,
+    spellings,
     chords = true,
     chordNames = 'shapes',
     lyrics = true,
@@ -196,7 +199,10 @@ export const TabView = forwardRef<TabViewHandle, TabViewProps>(function TabView(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song, track, barsKey, chordNames, naming]);
 
-  const score = useScoreSpacing(model, notation);
+  const spellingsKey = spellings?.join(' ') ?? '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableSpellings = useMemo(() => spellings, [spellingsKey]);
+  const score = useScoreSpacing(model, notation, stableSpellings);
   const spacing: NotationSpacing | null = score.ready ? score.spacing : null;
   const layout = useMemo(() => {
     if (!model || width <= 0) return null;

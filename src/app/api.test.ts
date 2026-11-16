@@ -19,7 +19,7 @@ describe('src/app/API.md', () => {
   });
 
   it('only names things the shell really exports', () => {
-    const named = ['useImmersive', 'useScreenTitle', 'useRewardHold', 'holdRewards', 'rewardsHeld', 'openStats', 'openOnboarding', 'WeekStrip', 'WIDE_LAYOUT_QUERY', 'TOPBAR_HEIGHT', 'IMMERSIVE_ROUTES', 'DESTINATIONS', 'destinationFor', 'hubRoutes'];
+    const named = ['useImmersive', 'useScreenTitle', 'useRewardHold', 'useRewardHandoff', 'holdRewards', 'rewardsHeld', 'openStats', 'openOnboarding', 'WeekStrip', 'WIDE_LAYOUT_QUERY', 'TOPBAR_HEIGHT', 'IMMERSIVE_ROUTES', 'DESTINATIONS', 'destinationFor', 'hubRoutes'];
     for (const name of named) {
       expect(doc, name).toContain(name);
       expect((shell as Record<string, unknown>)[name], name).toBeDefined();

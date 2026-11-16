@@ -16,6 +16,7 @@ export {
   matchChord,
   pitchClassesOf,
   rankChords,
+  requiredTones,
 } from './chords';
 export { type AnalyzeOptions, type EngineConfigPatch, type PitchEngineOptions, PitchEngine, analyze } from './engine';
 export {

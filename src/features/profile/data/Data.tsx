@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { SONG_SYNC_LIMITS, canSaveFile, copyText, getSyncStatus, hasApiKey, host, isPersistent, readFileText, saveFile, subscribeSyncStatus, syncNow } from '@/core/platform';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { SONG_SYNC_LIMITS, canSaveFile, copyText, hasApiKey, host, isPersistent, readFileText, saveFile } from '@/core/platform';
 import { getLearnerData } from '@/core/platform/storage-scope';
 import { useSongList } from '@/core/library';
 import {
@@ -19,7 +19,9 @@ import {
   useProgressStore,
   type MergeStrategy,
 } from '@/core/progress';
-import { Banner, Button, Card, Checkbox, FileDrop, Icon, Modal, RadioGroup, Section, TextField, toast } from '@/ui';
+import { Banner, Button, Card, Checkbox, FileDrop, Icon, LinkButton, Modal, RadioGroup, Section, TextField, toast } from '@/ui';
+import { useAccount, useNow, useSyncAction, useSyncStatus } from '../account/hooks';
+import { syncView } from '../account/model';
 import { dateTimeText, listText, plural, thousands, timeAgo } from '../format';
 import {
   MAX_IMPORT_BYTES,
@@ -137,41 +139,31 @@ function Storage() {
   );
 }
 
+/**
+ * Where the cloud copy stands: inside Claude, the viewer's own sync; in a copy with accounts, the
+ * signed-in account (or a way to sign in); otherwise a plain "off here". Same words as Me > Account.
+ */
 function CloudSync() {
-  const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus, getSyncStatus);
+  const sync = useSyncStatus();
   const store = useProgressStore();
-  const [busy, setBusy] = useState(false);
+  useNow(30_000);
+  const { busy, run } = useSyncAction();
   const offered = sync.state !== 'off';
-  const tone = sync.state === 'synced' ? 'ok' : sync.state === 'error' ? 'warn' : sync.state === 'syncing' ? 'busy' : 'info';
-  const title = sync.state === 'synced' ? 'Synced with your Claude account' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'error' ? 'Cloud sync has a problem' : 'Cloud sync is off here';
+  const view = syncView(sync, store.now());
   const songs = offered ? songSyncText(sync.songs, SONG_SYNC_LIMITS) : null;
-  const run = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      await syncNow();
-      const after = getSyncStatus();
-      if (after.state === 'synced') toast.ok('Synced');
-      else if (after.state === 'error') toast.warn('Could not sync right now', { description: after.message });
-    } finally {
-      setBusy(false);
-    }
-  };
+  const action =
+    view.action === 'sign-in' ? (
+      <LinkButton size="sm" to="profile" params={['account']} iconLeft="LogIn">
+        Sign in
+      </LinkButton>
+    ) : view.action ? (
+      <Button size="sm" iconLeft={view.action === 'retry' ? 'RotateCw' : 'RefreshCw'} loading={busy || sync.state === 'syncing'} onClick={() => void run(view.action)}>
+        {view.action === 'retry' ? 'Try again' : 'Sync now'}
+      </Button>
+    ) : undefined;
   return (
-    <StatusRow
-      name="sync"
-      tone={tone}
-      title={title}
-      action={
-        offered ? (
-          <Button size="sm" iconLeft="RefreshCw" loading={busy || sync.state === 'syncing'} onClick={run}>
-            Sync now
-          </Button>
-        ) : undefined
-      }
-    >
-      {sync.message}
-      {offered && sync.lastSyncedAt ? ` Last synced ${timeAgo(sync.lastSyncedAt, store.now())}.` : ''}
-      {offered && sync.pending ? ' Changes are waiting to be sent.' : ''}
+    <StatusRow name="sync" tone={view.tone} title={view.title} action={action}>
+      {view.text}
       {offered ? ` ${SYNC_CARRIES}` : ''}
       {songs ? (
         <span className={styles.statusSongs} data-sync-songs={sync.songs?.synced ? 'synced' : 'local'}>
@@ -188,7 +180,8 @@ function Included() {
   const data = useLearnerData();
   const songs = useMySongs();
   const { lines, later } = useMemo(() => includedLines({ progress: summarise(state), counts: countLearnerData(data), songs: songs.ready ? songs : null }), [state, data, songs]);
-  const stays = useMemo(() => staysLines({ hasApiKey: hasApiKey() }), []);
+  const signedIn = useAccount().phase === 'signed-in';
+  const stays = useMemo(() => staysLines({ hasApiKey: hasApiKey(), signedIn }), [signedIn]);
   return (
     <Card className={styles.included} data-card="included">
       <div className={styles.includedColumn}>

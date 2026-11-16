@@ -580,6 +580,147 @@ export function estimateRhythmFromSpacing(m: OmrMeasure, measureTicks: number, l
   return true;
 }
 
+// ------------------------------------------------------------------------------------------
+// The metre sanity pass: every measure must fit its time signature, or say that it does not
+// ------------------------------------------------------------------------------------------
+
+/** Values a missing or doubtful length may take, longest first, in ticks. */
+const FIT_VALUES: { value: DurationValue; dots: 0 | 1; ticks: number }[] = (['whole', 'half', 'quarter', 'eighth', '16th', '32nd'] as DurationValue[])
+  .flatMap((value) => [1, 0].map((dots) => ({ value, dots: dots as 0 | 1, ticks: durationTicks(value, dots) })))
+  .filter((v) => !(v.value === '32nd' && v.dots));
+
+/** The value of a length in ticks, or the nearest one below it. */
+function valueOfTicks(ticks: number): { value: DurationValue; dots: 0 | 1; ticks: number } {
+  return FIT_VALUES.find((v) => v.ticks <= ticks + 1) ?? FIT_VALUES[FIT_VALUES.length - 1];
+}
+
+/**
+ * Lengths for the columns of a tab measure that got none (no stem was found under them on a bad
+ * photo) while others did: what the measure still lacks is shared out by the room after each of
+ * them, in note values that fill it exactly. Without that, they would be dropped from the song.
+ * When the rest of the measure leaves nothing (or no exact fill exists) they get the length their
+ * spacing suggests and the measure is left to the check below. Returns the number filled.
+ */
+export function fillMissingDurations(m: OmrMeasure, measureTicks: number): number {
+  const events = m.events.filter(isTabEvent).slice().sort((a, b) => a.x - b.x);
+  const missing = events.filter((e) => !e.duration && e.kind === 'tab');
+  if (!missing.length || missing.length === events.length) return 0;
+  const room = (e: OmrTabEvent): number => {
+    const i = events.indexOf(e);
+    const next = events[i + 1];
+    return Math.max(1, (next ? next.x : m.x1) - e.x);
+  };
+  // Ticks per pixel, from the columns whose length was read.
+  const rates = events.filter((e) => e.duration).map((e) => (e.duration as OmrDuration).ticks / room(e)).sort((a, b) => a - b);
+  const rate = rates[rates.length >> 1];
+  const known = events.reduce((a, e) => a + (e.duration?.ticks ?? 0), 0);
+  const remaining = measureTicks - known;
+  const want = missing.map((e) => room(e) * rate);
+  let chosen: { value: DurationValue; dots: 0 | 1; ticks: number }[] | null = null;
+  if (remaining > 0) {
+    // Exact fill on a grid of sixteenths (thirty-seconds when crowded): dynamic programming, as for spacing.
+    const unit = missing.length * 240 > remaining ? 120 : 240;
+    const U = Math.round(remaining / unit);
+    if (U * unit === remaining && U >= missing.length) {
+      const sizes = FIT_VALUES.filter((v) => v.ticks % unit === 0 && v.ticks <= remaining);
+      const INF = Number.POSITIVE_INFINITY;
+      const cost: number[][] = Array.from({ length: missing.length + 1 }, () => new Array<number>(U + 1).fill(INF));
+      const pick: number[][] = Array.from({ length: missing.length + 1 }, () => new Array<number>(U + 1).fill(-1));
+      cost[0][0] = 0;
+      for (let i = 0; i < missing.length; i++) {
+        for (let u = 0; u <= U; u++) {
+          if (cost[i][u] === INF) continue;
+          sizes.forEach((v, k) => {
+            const n = v.ticks / unit;
+            if (u + n > U) return;
+            const c = cost[i][u] + Math.log(v.ticks / Math.max(1, want[i])) ** 2;
+            if (c < cost[i + 1][u + n]) {
+              cost[i + 1][u + n] = c;
+              pick[i + 1][u + n] = k;
+            }
+          });
+        }
+      }
+      if (cost[missing.length][U] < INF) {
+        chosen = [];
+        for (let i = missing.length, u = U; i > 0; i--) {
+          const v = sizes[pick[i][u]];
+          chosen.unshift(v);
+          u -= v.ticks / unit;
+        }
+      }
+    }
+  }
+  const exact = !!chosen;
+  chosen ??= want.map((w) => valueOfTicks(Math.max(120, w)));
+  missing.forEach((e, i) => {
+    const v = chosen![i];
+    e.duration = { value: v.value, dots: v.dots, ticks: v.ticks, confidence: exact ? 0.3 : 0.2, source: 'inferred' };
+    addIssue(e, { code: 'rhythm-estimated', message: 'No stem was found under this number: its length was worked out from the spacing and the rest of the measure.' });
+  });
+  return missing.length;
+}
+
+/**
+ * A measure that does not fit its metre, with one voice, where a single doubtful length has a
+ * runner-up (or a dot more or less) that would make it fit exactly, and no other change would do
+ * as well: that reading is offered first as the one-tap fix, and the length is marked as a guess
+ * saying so. The length itself is not changed: measured on both corpora, changing it was right
+ * less often than not (a measure that does not add up is more often missing a note than holding a
+ * wrong length). Returns true when it offered one.
+ */
+export function suggestMetreFix(m: OmrMeasure, measureTicks: number, metre: string): boolean {
+  if (m.addsUp !== false || m.pickup) return false;
+  const events = m.events.filter((e) => e.duration && !(isNotationEvent(e) && e.grace));
+  if (!events.length || events.some((e) => isNotationEvent(e) && (e.voice ?? 1) !== 1)) return false;
+  const sum = events.reduce((a, e) => a + (e.duration as OmrDuration).ticks, 0);
+  const diff = sum - measureTicks;
+  if (!diff) return false;
+  const options: { e: (typeof events)[number]; value: DurationValue; dots: 0 | 1 | 2; cost: number }[] = [];
+  for (const e of events) {
+    const d = e.duration as OmrDuration;
+    // A length read clearly is not questioned; nor is a triplet (its group decides it).
+    if (d.confidence >= 0.8 || d.tuplet) continue;
+    const tried = new Set<string>([`${d.value}.${d.dots}`]);
+    const consider = (value: DurationValue, dots: 0 | 1 | 2, prior: number) => {
+      const key = `${value}.${dots}`;
+      if (tried.has(key)) return;
+      tried.add(key);
+      if (d.ticks - durationTicks(value, dots) !== diff) return;
+      options.push({ e, value, dots, cost: d.confidence + (1 - prior) });
+    };
+    for (const a of d.alternatives ?? []) consider(a.value.value, a.value.dots, a.confidence);
+    // A dot is the easiest thing to miss or to see in a speck.
+    if (d.dots === 0) consider(d.value, 1, 0.35);
+    if (d.dots === 1) consider(d.value, 0, 0.35);
+  }
+  if (!options.length) return false;
+  options.sort((a, b) => a.cost - b.cost);
+  // Two equally good ways to make it fit: no way to tell which one to offer.
+  if (options.length > 1 && options[1].cost - options[0].cost < 0.15) return false;
+  const best = options[0];
+  const d = best.e.duration as OmrDuration;
+  const fix = { value: best.value, dots: best.dots };
+  d.alternatives = [{ value: fix, confidence: r2(Math.min(0.45, Math.max(0.3, 1 - best.cost / 2))) }, ...(d.alternatives ?? []).filter((a) => !(a.value.value === fix.value && a.value.dots === fix.dots))];
+  d.confidence = r2(Math.min(d.confidence, 0.45));
+  addIssue(best.e, { code: 'measure-does-not-fit', message: `This measure does not fit ${metre}; ${describe(fix)} here instead of ${describe(d)} would make it fit. Check it by ear.` });
+  return true;
+}
+
+/** Mark every measure that still does not fit its metre (one issue on the measure, saying by how much). */
+export function flagMeasuresOffMetre(staff: OmrStaff): number {
+  let n = 0;
+  for (const m of staff.measures) {
+    if (m.addsUp !== false || !m.expectedTicks || m.ticks === undefined) continue;
+    const t = staff.timeInForce;
+    const metre = t ? `${t.beats}/${t.beatValue}` : 'the time signature';
+    const q = (v: number) => `${Math.round((v / 960) * 100) / 100}`;
+    addIssue(m, { code: 'measure-does-not-fit', message: `This measure does not fit ${metre}: its notes and rests add up to ${q(m.ticks)} quarter notes, the time signature asks for ${q(m.expectedTicks)}.` });
+    n++;
+  }
+  return n;
+}
+
 /** Room between the opening bar line and the first column, typical over a staff (for the spacing estimate). */
 export function typicalLeftPad(staff: OmrStaff): number {
   const pads: number[] = [];

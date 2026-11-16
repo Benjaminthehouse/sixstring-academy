@@ -21,7 +21,7 @@ export function schedulePlan(plan: SoundPlan, t0: number, target: PlanTarget, to
   const voices: VoiceHandle[] = [];
   for (const e of plan.events) {
     const when = t0 + e.at;
-    const common = { tone, duration: e.dur, ...(e.cents ? { cents: e.cents } : {}), ...(e.velocity !== undefined ? { velocity: e.velocity } : {}) };
+    const common = { tone: e.tone ?? tone, duration: e.dur, ...(e.cents ? { cents: e.cents } : {}), ...(e.velocity !== undefined ? { velocity: e.velocity } : {}) };
     if (e.strike === 'strum' && e.midis.length > 1) {
       const strings = e.strings && e.strings.every((s): s is number => typeof s === 'number') ? e.strings : undefined;
       voices.push(...target.strum(e.midis, when, { ...common, direction: e.direction ?? 'down', ...(strings ? { strings } : {}) }));
@@ -35,21 +35,24 @@ export function schedulePlan(plan: SoundPlan, t0: number, target: PlanTarget, to
   return voices;
 }
 
-/** Every distinct note of a plan, for preloading. */
-function preloadList(plan: SoundPlan): Array<{ midi: number; string?: number }> {
+/** Every distinct note of a plan, for preloading (in its own tone where the event has one). */
+function preloadList(plan: SoundPlan): Array<{ midi: number; string?: number; tone?: ToneName }> {
   const seen = new Set<string>();
-  const out: Array<{ midi: number; string?: number }> = [];
+  const out: Array<{ midi: number; string?: number; tone?: ToneName }> = [];
   for (const e of plan.events) {
     e.midis.forEach((m, i) => {
       const s = e.strings?.[i] ?? undefined;
-      const key = `${m}:${s ?? ''}`;
+      const key = `${m}:${s ?? ''}:${e.tone ?? ''}`;
       if (seen.has(key)) return;
       seen.add(key);
-      out.push(typeof s === 'number' ? { midi: m, string: s } : { midi: m });
+      out.push({ midi: m, ...(typeof s === 'number' ? { string: s } : {}), ...(e.tone ? { tone: e.tone } : {}) });
     });
   }
   return out;
 }
+
+/** Seconds the drone fades in and out. */
+const DRONE_FADE = 0.25;
 
 /** How a play ended. */
 export interface PlayOutcome {
@@ -75,7 +78,6 @@ export interface PlayRequest {
 export class EarPlayer {
   private voices: VoiceHandle[] = [];
   private drone: DroneHandle | null = null;
-  private droneTimer: ReturnType<typeof setTimeout> | null = null;
   private band: BackingBand | null = null;
   private bandOff: (() => void) | null = null;
   private doneTimer: ReturnType<typeof setTimeout> | null = null;
@@ -103,9 +105,9 @@ export class EarPlayer {
     const t0 = audioNow() + 0.08;
     this.voices = schedulePlan(plan, t0, getGuitar(), req.tone);
     if (plan.drone) {
+      // On the audio clock with the notes: it starts and ends exactly where the plan says.
       const drone = plan.drone;
-      this.drone = startDrone({ root: drone.midi, fifth: true, volume: 0.55, fadeIn: 0.25 });
-      this.droneTimer = setTimeout(() => this.stopDrone(), Math.max(0, (t0 + drone.to - audioNow()) * 1000));
+      this.drone = startDrone({ root: drone.midi, fifth: true, volume: 0.55, fadeIn: DRONE_FADE, when: t0 + drone.from, duration: Math.max(0.1, drone.to - drone.from), fadeOut: DRONE_FADE });
     }
     notePlay({ plan, t0, label: req.label ?? 'play', band: false });
     return new Promise<PlayOutcome>((resolve) => {
@@ -142,8 +144,6 @@ export class EarPlayer {
   }
 
   private stopDrone(): void {
-    if (this.droneTimer) clearTimeout(this.droneTimer);
-    this.droneTimer = null;
     this.drone?.stop(0.3);
     this.drone = null;
   }
@@ -174,6 +174,6 @@ export class EarPlayer {
 export function schedulePlanOffline(engine: AudioEngine, plan: SoundPlan, tone: ToneName, t0 = 0.1): GuitarSynth {
   const synth = new GuitarSynth({ engine, tone });
   schedulePlan(plan, t0, synth, tone);
-  if (plan.drone) startDrone({ root: plan.drone.midi, fifth: true, volume: 0.55 }, engine);
+  if (plan.drone) startDrone({ root: plan.drone.midi, fifth: true, volume: 0.55, when: t0 + plan.drone.from, duration: Math.max(0.1, plan.drone.to - plan.drone.from), fadeIn: DRONE_FADE, fadeOut: DRONE_FADE }, engine);
   return synth;
 }

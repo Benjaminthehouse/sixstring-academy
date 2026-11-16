@@ -13,7 +13,8 @@
 import { memo, useMemo, type CSSProperties } from 'react';
 import { NOTE_VALUES } from '@/core/theory';
 import { cx } from '@/ui';
-import { NoteGlyph, TieGlyph } from './glyphs';
+import { barMarks } from './engrave';
+import { NoteGlyph } from './glyphs';
 import { parseRhythm, rhythmGrid, type RhythmGrid, type RhythmNote } from './model';
 import styles from './Rhythm.module.css';
 
@@ -45,10 +46,13 @@ export function rhythmNoteName(n: RhythmNote): string {
 export const RhythmView = memo(function RhythmView({ rhythm, time = '4/4', current = null, counting = true, className, ...rest }: RhythmViewProps) {
   const grid = useMemo<RhythmGrid>(() => rhythmGrid(typeof rhythm === 'string' ? parseRhythm(rhythm).notes : [...rhythm], time), [rhythm, time]);
   const label = rest['aria-label'] ?? `Rhythm in ${grid.time.text}: ${grid.notes.map(rhythmNoteName).join(', ')}.`;
-  const minStep = grid.stepsPerBar <= 8 ? '1.9rem' : grid.stepsPerBar <= 12 ? '1.55rem' : '1.3rem';
+  // Six steps to a beat (eighths beside triplets) still fits a phone: notes there are two steps apart at least.
+  const minStep = grid.stepsPerBar <= 8 ? '1.9rem' : grid.stepsPerBar <= 12 ? '1.55rem' : grid.stepsPerBar <= 16 ? '1.3rem' : '0.85rem';
+  // A row above the notes for accents and tuplet numbers, when the rhythm has any (the same in every bar, so bars line up).
+  const marksRow = grid.notes.some((n) => n.accent || n.triplet);
   return (
     <div className={cx(styles.root, className)} role="group" aria-label={label}>
-      <div className={styles.bars} aria-hidden="true">
+      <div className={styles.bars} aria-hidden="true" data-marks={marksRow || undefined}>
         {Array.from({ length: grid.bars }, (_unused, bar) => (
           <Bar key={bar} grid={grid} bar={bar} current={current} counting={counting} minStep={minStep} />
         ))}
@@ -56,6 +60,15 @@ export const RhythmView = memo(function RhythmView({ rhythm, time = '4/4', curre
     </div>
   );
 });
+
+/** A tie as a filled crescent under the note heads, stretched to the box it is given. */
+function TieArc({ kind, style }: { kind: 'prev' | 'barline' | 'out'; style?: CSSProperties }) {
+  return (
+    <svg className={styles.tie} data-kind={kind} style={style} viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M1 1 Q50 13 99 1 Q50 6.5 1 1 Z" fill="currentColor" stroke="currentColor" strokeWidth={0.6} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 
 function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar: number; current: number | null; counting: boolean; minStep: string }) {
   const cells = grid.cells.filter((c) => c.bar === bar);
@@ -69,28 +82,22 @@ function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar:
     else segments.push({ note: c.note, from: c.inBar, to: c.inBar + 1, onset: c.onset === c.note });
   }
   const style = { '--steps': grid.stepsPerBar, '--min-step': minStep } as CSSProperties;
-  const tripletStarts = useMemo(() => {
-    const starts = new Set<number>();
-    let run = 0;
-    grid.notes.forEach((n, i) => {
-      if (!n.triplet) {
-        run = 0;
-        return;
-      }
-      if (run % 3 === 0) starts.add(i);
-      run++;
-    });
-    return starts;
-  }, [grid.notes]);
+  // Beams, tuplets and ties by the engraving rules, bar by bar (so bar 2 is drawn like bar 1).
+  const marks = useMemo(() => new Map(barMarks(grid, bar).map((m) => [m.note, m])), [grid, bar]);
   const local = current !== null && current >= first && current < first + grid.stepsPerBar ? current - first : null;
+  // A beat cut in six has more names than room: say the beats and what is played, not every "ta".
+  const sparse = grid.stepsPerBar / Math.max(1, grid.time.beats) >= 6;
   return (
-    <div className={styles.bar} style={style}>
+    <div className={styles.bar} style={style} data-sparse={sparse || undefined}>
       {local !== null && <div className={styles.playhead} style={{ gridColumn: `${local + 1} / span 1` }} />}
       {cells.map((c) => (
         <div key={`g${c.step}`} className={styles.gridLine} data-beat={c.beat || undefined} data-first={c.inBar === 0 || undefined} style={{ gridColumn: `${c.inBar + 1} / span 1` }} />
       ))}
       {segments.map((s) => {
         const n = grid.notes[s.note];
+        const mk = s.onset ? marks.get(s.note) : undefined;
+        const cols = s.to - s.from;
+        const pct = (steps: number) => `${(steps / cols) * 100}%`;
         return (
           <div
             key={`n${s.note}-${s.from}`}
@@ -100,14 +107,21 @@ function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar:
             data-onset={s.onset || undefined}
             data-tied={(n.tied && s.onset) || undefined}
             data-tie-out={grid.notes[s.note + 1]?.tied || undefined}
+            data-beamed={mk?.beamed || undefined}
             data-current={local !== null && local >= s.from && local < s.to ? true : undefined}
             style={{ gridColumn: `${s.from + 1} / ${s.to + 1}` }}
           >
-            <span className={styles.glyphRow}>
-              {s.onset && n.accent && <span className={styles.accent}>&gt;</span>}
-              {s.onset && tripletStarts.has(s.note) && <span className={styles.tuplet}>3</span>}
-              {s.onset && (n.tied ? <TieGlyph className={styles.glyph} /> : <NoteGlyph value={n.value} dots={n.dots} rest={n.rest} className={styles.glyph} />)}
-            </span>
+            <span className={styles.glyphRow}>{s.onset && <NoteGlyph value={n.value} dots={n.dots} rest={n.rest} beamed={mk?.beamed} className={styles.glyph} />}</span>
+            {s.onset && n.accent && <span className={styles.accent}>&gt;</span>}
+            {mk?.tuplet && (
+              <span className={styles.tuplet} data-bracket={mk.tuplet.bracket || undefined} style={{ ['--span' as string]: pct(mk.tuplet.spanCols) }}>
+                <span className={styles.tupletNumber}>{mk.tuplet.number}</span>
+              </span>
+            )}
+            {mk?.beams.map((b, i) => <span key={i} className={styles.beam} data-level={b.level} data-to={b.to} />)}
+            {mk?.tie?.from === 'prev' && <TieArc kind="prev" style={{ ['--back' as string]: pct(mk.tie.prevCols) }} />}
+            {mk?.tie?.from === 'barline' && <TieArc kind="barline" />}
+            {mk?.tieOut && <TieArc kind="out" />}
             <span className={styles.sustain} />
           </div>
         );
@@ -118,7 +132,7 @@ function Bar({ grid, bar, current, counting, minStep }: { grid: RhythmGrid; bar:
           const played = c.onset !== null && n && !n.rest && !n.tied;
           return (
             <span key={`c${c.step}`} className={styles.count} data-long={c.syllable.length > 2 || undefined} data-beat={c.beat || undefined} data-played={played || undefined} data-current={local === c.inBar || undefined} style={{ gridColumn: `${c.inBar + 1} / span 1` }}>
-              {c.syllable}
+              {sparse && !c.beat && !played ? '' : c.syllable}
             </span>
           );
         })}

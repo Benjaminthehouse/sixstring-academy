@@ -98,10 +98,14 @@ export function MicLevel({ engine, label, compact }: { engine: PlayerEngine; lab
   );
 }
 
-/** Wait mode: what to play now, what went wrong, a hint and a way past it. */
-export function WaitPrompt({ wait, onHint, onSkip, compact }: { wait: WaitView; onHint: () => void; onSkip: () => void; compact?: boolean }) {
+/**
+ * Wait mode: what to play now, what went wrong, a hint and a way past it. With the chord chart
+ * hidden (playing from memory) a chord is not named until the learner asks ("Show me").
+ */
+export function WaitPrompt({ wait, onHint, onSkip, compact, hideChart }: { wait: WaitView; onHint: () => void; onSkip: () => void; compact?: boolean; hideChart?: boolean }) {
   const t = wait.target;
   const what = t.symbol ? 'Strum' : t.chord ? 'Play together' : 'Play';
+  const secret = !!t.symbol && !!hideChart && !wait.hint;
   return (
     <div className={cx(styles.wait, compact && styles.waitCompact)} data-player-wait="" data-index={wait.index}>
       <div className={styles.waitMain}>
@@ -109,7 +113,7 @@ export function WaitPrompt({ wait, onHint, onSkip, compact }: { wait: WaitView; 
           Note {wait.index + 1} of {wait.total}
         </p>
         <p className={styles.waitWhat} aria-live="polite">
-          {what} <strong className={styles.waitName}>{t.symbol ? wait.name : wait.hint ? wait.where : wait.name}</strong>
+          {what} <strong className={styles.waitName}>{secret ? 'the next chord' : t.symbol ? wait.name : wait.hint ? wait.where : wait.name}</strong>
         </p>
         {wait.feedback && (
           <p className={styles.waitFeedback} data-tone={wait.feedback.tone} role="status">

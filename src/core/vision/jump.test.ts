@@ -75,6 +75,38 @@ describe('a swaying neck on a busy machine', () => {
     expect(locked).toBeGreaterThan(gaps.length / 2);
     expect(wrong).toBe(0);
   }, 120_000);
+
+  it('learns the speed from a fresh look that agrees, so a slow machine does not search frame after frame afresh', () => {
+    // Every 15th video frame from the very first one (a machine managing 2 frames a second): the
+    // track has no usual speed yet, so a big move is checked against a fresh search. That search
+    // finds the same board with the same numbers, so the move was motion, not a cut. Before the
+    // speed was learned from it, the next frames were taken for jumps too (4 of 16 frames here),
+    // each a full search at several times the cost of tracking: under load the gaps then grew and
+    // a live pipeline could stall at a frame or two a second.
+    const spec = altCondition('typical').build(12);
+    const cache = createAltCache();
+    const inner = createFretboardDetector();
+    let last: DetectionResult | null = null;
+    const detector: Detector = { name: 'watched', detect: (f, o) => (last = inner.detect(f, o)), track: (f, p, o) => (last = inner.track(f, p, o)), reset: () => inner.reset?.() };
+    const tracker = new FretboardTracker({ model: spec.hints.model, detector });
+    let jumps = 0;
+    let locked = 0;
+    const misnumbered: number[] = [];
+    for (let i = 0; i < 15 * 16; i += 15) {
+      const { frame, truth } = renderAlt(spec, i, cache);
+      last = null;
+      const u = tracker.update(frame, i * (1000 / 30));
+      if ((last as DetectionResult | null)?.diagnostics.stats?.jump === 1) jumps++;
+      if (u.state === 'locked' && u.pose) {
+        locked++;
+        const score = scoreAlt(u.pose, truth);
+        if (score.cells > 0 && score.offset !== 0) misnumbered.push(i);
+      }
+    }
+    expect(jumps).toBeLessThanOrEqual(1);
+    expect(locked).toBeGreaterThanOrEqual(12);
+    expect(misnumbered).toEqual([]);
+  }, 120_000);
 });
 
 describe('a jump to another guitar while locked', () => {

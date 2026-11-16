@@ -528,8 +528,13 @@ export function erasedHeadDoc(now: number): Record<string, unknown> {
   return { app: APP_ID, kind: 'erased', v: FORMAT, at: now };
 }
 
+/** True when a head document is the marker "delete my cloud data" left (see `erasedHeadDoc`). */
+export function isErasedHeadDoc(data: Record<string, unknown> | undefined): data is Record<string, unknown> {
+  return !!data && data.kind === 'erased';
+}
+
 function parseHead(data: Record<string, unknown> | undefined): Head | null {
-  if (data && data.kind === 'erased') return { v: FORMAT, gen: `erased-${String(num(data.at) ?? 0)}`, stamp: '', epoch: 0, chars: 0, sum: '', parts: 0, erased: true };
+  if (isErasedHeadDoc(data)) return { v: FORMAT, gen: `erased-${String(num(data.at) ?? 0)}`, stamp: '', epoch: 0, chars: 0, sum: '', parts: 0, erased: true };
   if (!data || data.kind !== 'progress-sync') return null;
   const v = num(data.v);
   const parts = num(data.parts);
@@ -1466,7 +1471,12 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     try {
       link = await deps.account();
     } catch {
-      link = null;
+      // Signed in, but the account service cannot be reached yet (offline on a first visit).
+      if (stopped) return snapshot;
+      provider = 'account';
+      off = 'unreachable';
+      settle();
+      return snapshot;
     }
     if (stopped) return snapshot;
     if (!link) {

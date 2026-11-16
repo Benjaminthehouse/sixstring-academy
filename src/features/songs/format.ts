@@ -3,6 +3,8 @@
  * warnings. Pure, so the wording is tested once.
  */
 import { FORMAT_NAMES, detectTextFormat, difficultyBand, type ImportWarning } from '@/core/song';
+import { formatKey, parseKey } from '@/core/theory';
+import { tempoMark } from '@/features/player/model/meter';
 import { LEVEL_BAND_NAMES, type SongListing, type SongSummary } from '@/core/library';
 
 /** `75` -> `{ short: '1:15', spoken: '1 minute 15 seconds' }`. */
@@ -17,16 +19,50 @@ export function lengthLabel(seconds: number): { short: string; spoken: string } 
 }
 
 /**
- * The tempo the way a player counts it: quarter notes per minute, or dotted quarters in 6/8,
- * 9/8 and 12/8 (two, three or four beats in a bar). `bpm` is quarter notes per minute.
+ * The tempo the way a player counts it, in the meter's own beat, as the Player, its count-in and
+ * its click count it: quarter notes per minute, dotted quarters in 6/8, 9/8 and 12/8 (two, three
+ * or four beats in a bar), eighths in 3/8. `bpm` is quarter notes per minute.
  */
 export function tempoLabel(bpm: number, time: string): { short: string; spoken: string } {
   const m = /^(\d+)\/(\d+)$/.exec(time);
-  const compound = !!m && Number(m[2]) === 8 && Number(m[1]) % 3 === 0 && Number(m[1]) > 3;
-  const beats = Math.round(compound ? (bpm * 2) / 3 : bpm);
-  return compound
-    ? { short: `\u2669. = ${beats}`, spoken: `${beats} dotted-quarter beats per minute` }
-    : { short: `${beats} BPM`, spoken: `${beats} beats per minute` };
+  const mark = tempoMark(bpm, m ? { numerator: Number(m[1]), denominator: Number(m[2]) } : null);
+  return mark.beat.glyph
+    ? { short: mark.short, spoken: `${mark.value} ${mark.beat.name} beats per minute` }
+    : { short: `${mark.value} BPM`, spoken: `${mark.value} beats per minute` };
+}
+
+/** A key as the learner reads it, the mode included: `A dorian` -> `A Dorian`, `F#m` -> `F♯ minor`. Null when it is not a key. */
+export function keyText(key: string | null | undefined): string | null {
+  if (!key || !key.trim()) return null;
+  try {
+    const k = parseKey(key.trim());
+    return k ? formatKey(k) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The key a song's details show. A built-in song's key is written by hand ("E Dorian"). For the
+ * learner's own songs the library keeps only major or minor ("A minor" for A Dorian), so once the
+ * song itself is loaded its own key, mode and all, is shown instead.
+ */
+export function songKeyLabel(listing: Pick<SongListing, 'source' | 'key'>, songKey?: string | null): string | null {
+  if (listing.source === 'mine' && songKey) return keyText(songKey) ?? listing.key ?? null;
+  return listing.key ?? null;
+}
+
+/**
+ * Where a song's music comes from, for the line under its title: the built-in song's own origin
+ * ("... The melody is given as it is commonly sung or played today ..."), and for the learner's
+ * copy of a built-in song, the origin of the song it was copied from, which the copy does not keep.
+ */
+export function historyLine(listing: SongListing, listingOf: (id: string) => SongListing | undefined = () => undefined): string | null {
+  if (listing.source !== 'mine') return listing.origin ?? null;
+  if (listing.origin) return listing.origin;
+  const o = listing.imported?.origin;
+  if (o?.kind === 'duplicate' && o.from) return listingOf(o.from)?.origin ?? null;
+  return null;
 }
 
 /** Importer notes without the ones that only say the rhythm was estimated (shown on their own). */

@@ -134,7 +134,9 @@ has it. Never define a term with the answer to a question that links it (the sec
 The plan lists, for most lessons, the Theory Path lessons behind it (`theory`: `'unit/lesson'`).
 `outline.ts` carries them as `THEORY_LINKS` (generated with the outline; the test checks each is a
 lesson of the path), and the lesson's summary lists them ("The theory behind it"), each a tap away,
-with a tick for those done.
+with a tick for those done. A link is a side trip: the finished lesson's address (which would start
+the lesson over) is replaced by the teacher's course page, so Back from the theory lesson lands
+there.
 
 ## Rules the content follows
 

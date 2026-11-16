@@ -166,6 +166,27 @@ export function applyAttempt(previous: SkillRecord | undefined, attempt: SkillAt
   return { record: next, masteryBefore, starsBefore, newBest, firstCompletion, attemptStars };
 }
 
+/** A skill's best result, as a screen shows it ("Best 85%", "Best 1,240"). */
+export interface SkillBest {
+  /** 0 to 1, or null when no finished attempt has set one. */
+  accuracy: number | null;
+  /** The owning screen's score, or null when no finished attempt has set one. */
+  score: number | null;
+}
+
+/**
+ * The best a finished attempt reached. Only finished attempts set a best (`applyAttempt`), so the
+ * record of a round left part-way still holds `bestAccuracy: 0`: read it through this, which gives
+ * null there (and for a best of 0), and show "no best yet" rather than "Best 0%".
+ */
+export function skillBest(record: Pick<SkillRecord, 'completions' | 'bestAccuracy' | 'bestScore'> | null | undefined): SkillBest {
+  const finished = !!record && record.completions > 0;
+  return {
+    accuracy: finished && record.bestAccuracy > 0 ? record.bestAccuracy : null,
+    score: finished && record.bestScore > 0 ? record.bestScore : null,
+  };
+}
+
 /** A skill that was attempted, or marked as learned by its screen. */
 function hasStarted(record: SkillRecord): boolean {
   return record.attempts > 0 || record.completed || record.mastery > 0;

@@ -54,7 +54,8 @@ export function FeedbackPanel({ exercise, feedback, seed, combo, heartsLeft = nu
       {copy.answer && exercise.type === 'tap-rhythm' ? (
         // A rhythm is shown as a rhythm, with the counting a learner says: never as its code.
         <div className={styles.feedbackAnswer} data-feedback-rhythm="">
-          <span className={styles.feedbackLabel}>Answer</span> <span>Tap on {copy.answer}</span>
+          {/* With counting: false the counts would contradict the exercise: the rhythm alone. */}
+          <span className={styles.feedbackLabel}>Answer</span> {exercise.counting !== false && <span>Tap on {copy.answer}</span>}
           <div className={styles.feedbackRhythm}>
             <RhythmView rhythm={exercise.rhythm.pattern} time={exercise.rhythm.time} counting={exercise.counting !== false} />
           </div>

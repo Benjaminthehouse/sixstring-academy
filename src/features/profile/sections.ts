@@ -4,7 +4,7 @@
  */
 
 /** Ids of the parts, which are also their route params (the overview has none). */
-export type SectionId = 'overview' | 'achievements' | 'shop' | 'settings' | 'data' | 'about';
+export type SectionId = 'overview' | 'achievements' | 'shop' | 'settings' | 'account' | 'data' | 'about';
 
 /** One part of the Me area. */
 export interface SectionDef {
@@ -25,6 +25,7 @@ export const SECTIONS: readonly SectionDef[] = [
   { id: 'achievements', param: 'achievements', label: 'Achievements', title: 'Achievements', icon: 'Trophy' },
   { id: 'shop', param: 'shop', label: 'Shop', title: 'Shop', icon: 'Gem' },
   { id: 'settings', param: 'settings', label: 'Settings', title: 'Settings', icon: 'SlidersHorizontal' },
+  { id: 'account', param: 'account', label: 'Account', title: 'Account', icon: 'User' },
   { id: 'data', param: 'data', label: 'Your data', title: 'Your data', icon: 'HardDrive' },
   { id: 'about', param: 'about', label: 'About', title: 'About', icon: 'Info' },
 ];
@@ -43,6 +44,12 @@ const ALIASES: Readonly<Record<string, SectionId>> = {
   settings: 'settings',
   preferences: 'settings',
   options: 'settings',
+  account: 'account',
+  'sign-in': 'account',
+  signin: 'account',
+  login: 'account',
+  sync: 'account',
+  devices: 'account',
   data: 'data',
   backup: 'data',
   export: 'data',

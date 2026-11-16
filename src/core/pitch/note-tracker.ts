@@ -27,6 +27,12 @@ export interface NoteTrackerOptions extends NoiseGateOptions {
   clarityOn?: number;
   /** Clarity down to which a sounding note is kept (default 0.5). */
   clarityOff?: number;
+  /**
+   * A reading less clear than `clarityOn` (typically the end of a note fading into the room) only
+   * moves the smoothed pitch when it lies within this many cents of it (default 6); otherwise the
+   * note keeps its last good pitch.
+   */
+  unsureCents?: number;
   /** Consecutive agreeing frames needed to start a note (default 3). */
   stableFrames?: number;
   /** How closely those frames must agree, in cents (default 35). */
@@ -136,6 +142,7 @@ export class NoteTracker {
   private a4: number;
   private readonly clarityOn: number;
   private readonly clarityOff: number;
+  private readonly unsureSemis: number;
   private readonly stableFrames: number;
   private readonly stableSemis: number;
   private readonly centreSemis: number;
@@ -174,6 +181,7 @@ export class NoteTracker {
     this.a4 = opts.a4 ?? DEFAULT_A4;
     this.clarityOn = opts.clarityOn ?? 0.7;
     this.clarityOff = opts.clarityOff ?? 0.5;
+    this.unsureSemis = (opts.unsureCents ?? 6) / 100;
     this.stableFrames = Math.max(1, opts.stableFrames ?? 3);
     this.stableSemis = (opts.stableCents ?? 35) / 100;
     this.centreSemis = (opts.centreCents ?? 20) / 100;
@@ -301,8 +309,13 @@ export class NoteTracker {
             this.beginNote([pitch], at, frame, levelDb, true, out);
           }
         } else if (!inAttack) {
-          note.buf.push(pitch);
-          if (note.buf.length > this.medianSize) note.buf.shift();
+          // An unsure frame (fading into the room) is often a few cents off, and several in a
+          // row would carry the median with them: it may only confirm the pitch, not move it.
+          const sure = frame.clarity >= this.clarityOn;
+          if (sure || note.buf.length === 0 || Math.abs(pitch - medianOf(note.buf)) <= this.unsureSemis) {
+            note.buf.push(pitch);
+            if (note.buf.length > this.medianSize) note.buf.shift();
+          }
           this.emitPitch(note, frame, levelDb, out);
           this.checkHum(note, time, levelDb, out);
         }

@@ -268,6 +268,17 @@ describe('8. cadences in minor, whole-tone and diminished scales, roman numerals
     }
   });
 
+  it('says a borrowed iv, v or ii° in a major key is borrowed, and leaves the key\'s own chords alone', () => {
+    // Review fix: "iv is the minor chord on the 4th note" was true but never said why Fm is not in C major.
+    const iv = plainText(explainNumeral(roman('iv'), getKey('C major')!, 'Fm')!);
+    expect(iv).toBe('iv is the minor chord on the 4th note of the scale. In C major that note is F, so the chord is Fm. It is not in the key itself: major keys borrow it from C minor.');
+    expect(plainText(explainNumeral(roman('ii°'), getKey('E major')!, 'F#dim')!)).toMatch(/major keys borrow it from E minor\.$/);
+    expect(plainText(explainNumeral(roman('IV'), getKey('C major')!, 'F')!)).not.toMatch(/borrow/);
+    expect(plainText(explainNumeral(roman('iv'), getKey('A minor')!, 'Dm')!)).not.toMatch(/borrow/);
+    // A secondary dominant on a scale note (II = V/V) is not called borrowed.
+    expect(plainText(explainNumeral(roman('II'), getKey('C major')!, 'D')!)).not.toMatch(/borrow/);
+  });
+
   it('generatorProblems refuses numerals it cannot explain', () => {
     expect(generatorProblems({ generate: 'roman-chord', params: { numerals: ['I', 'subV7'] } })[0]).toMatch(/"subV7".*cannot spell or explain/);
     expect(generatorProblems({ generate: 'roman-chord', params: { numerals: ['bbVII'] } }).join(' ')).toMatch(/bbVII/);

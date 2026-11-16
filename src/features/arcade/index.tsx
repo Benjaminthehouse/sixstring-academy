@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from 'react';
 import { navigate, redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { focusFromParams, normalizeFocus } from './core/focus';
 import { gameById, isGameId } from './core/games';
 import { gameParams, parseLevelParam } from './core/skill';
@@ -32,7 +32,8 @@ export default function Arcade({ params }: RouteProps) {
   const isGame = isGameId(first);
   const fromParams = useMemo(() => (isGame ? focusFromParams(slug, shape) : first && first !== 'daily' ? focusFromParams(first, slug) : null), [isGame, first, slug, shape]);
   const tuning = useMemo(() => learnerTuning(), []);
-  const focus = useMemo(() => normalizeFocus({ ...records.focus, ...(fromParams ?? {}) }, tuning), [records.focus, fromParams, tuning]);
+  const frets = useMemo(() => fretCount(), []);
+  const focus = useMemo(() => normalizeFocus({ ...records.focus, ...(fromParams ?? {}) }, tuning, frets), [records.focus, fromParams, tuning, frets]);
   const level = parseLevelParam(levelParam);
 
   // A link names a scale: it becomes what the learner practises (and is there next time).

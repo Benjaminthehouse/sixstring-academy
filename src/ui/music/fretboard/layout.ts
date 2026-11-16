@@ -155,6 +155,11 @@ export interface BoardLayoutInput {
   /** Width of the container for a horizontal board (px); 0 or less when unknown. */
   width: number;
   orientation?: BoardOrientation;
+  /**
+   * Vertical boards only: each fret as short as `minFret` allows, evenly spaced, so a long range
+   * stands on an upright phone without scrolling sideways (0–12 at 44 px frets is about 620 px tall).
+   */
+  compact?: boolean;
   leftHanded?: boolean;
   spacing?: FretSpacing;
   /** Distance between strings, px. */
@@ -272,8 +277,9 @@ export function boardLayout(input: BoardLayoutInput): BoardLayout {
     const container = input.width > 0 ? input.width : 720;
     available = container - fixedBefore - tailGuess - END_PAD;
   } else {
-    // A vertical board is as long as it needs to be: about 1.6 string gaps per fret.
-    available = (toFret - fromFret + 1) * gap * 1.6;
+    // A vertical board is as long as it needs to be: about 1.6 string gaps per fret, or in a
+    // compact board the shortest readable (tappable) fret, so all twelve fit an upright phone.
+    available = (toFret - fromFret + 1) * (input.compact ? minFret : gap * 1.6);
   }
   const fit = fitFrets({ available, fromFret, toFret, proportional: (input.spacing ?? 'proportional') === 'proportional', minFret, maxFret });
   const fractions = fretFractions(fromFret, toFret, fit.blend);

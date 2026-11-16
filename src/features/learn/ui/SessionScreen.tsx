@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { ActionBar, Button, EmptyState, Icon, IconButton, Page, Skeleton, Stack, Text } from '@/ui';
 import { navigate } from '@/app/router';
-import { useImmersive, useRewardHold } from '@/app/shell';
+import { useImmersive, useRewardHandoff, useRewardHold } from '@/app/shell';
 import { getProgress, useProgress } from '@/core/progress';
 import { courseMap } from '@/lessons';
 import { LessonPlayer, type NextStep } from '@/lessons/ui';
@@ -85,6 +85,8 @@ export function SessionScreen({ view }: { view: SessionView }) {
   const playerDone = usePlayerDone(runRef, resolved.status === 'ready' && !celebrating);
   useRewardHold(!celebrating && ((resolved.status === 'loading' && failed.size === 0) || (resolved.status === 'ready' && !playerDone)));
   const [aheadClosed, setAheadClosed] = useState(false);
+  // Straight on to the next lesson: held from the tap, so the summary's card leaves before it shows.
+  const handOff = useRewardHandoff();
 
   if (celebrating) {
     return (
@@ -139,8 +141,12 @@ export function SessionScreen({ view }: { view: SessionView }) {
     else go();
   };
   const onNext = (step: NextStep) => {
-    if (step.kind === 'lesson') leave(() => navigate('learn', ...learnParams({ kind: 'lesson', unitId: step.unitId, lessonId: step.lessonId })), `Next lesson: ${step.title}`);
-    else if (step.kind === 'practice') leave(() => navigate('learn', step.unitId, 'practice'), 'Practise to refill hearts');
+    if (step.kind === 'lesson') {
+      leave(() => {
+        handOff();
+        navigate('learn', ...learnParams({ kind: 'lesson', unitId: step.unitId, lessonId: step.lessonId }));
+      }, `Next lesson: ${step.title}`);
+    } else if (step.kind === 'practice') leave(() => navigate('learn', step.unitId, 'practice'), 'Practise to refill hearts');
     else leave(backToPath, null);
   };
   const key = `${source.mode}:${params.join('--')}`;

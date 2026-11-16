@@ -183,7 +183,7 @@ function summarize(pages: OmrPage[], opts: { limit?: number }): OmrSummary {
   if (counts.measuresChecked) lines.push(counts.measuresWrong ? `${plural(counts.measuresWrong, 'measure does', 'measures do')} not add up to the time signature.` : `All ${plural(counts.measuresChecked, 'measure')} that could be checked add up.`);
   if (keys.size) lines.push(`Key: ${[...keys].map((k) => keyWords(Number(k))).join(', then ')}${unknownKey ? ' (no clef or key signature was seen: assumed)' : ''}.`);
   if (times.size && staffCount) lines.push(`Time: ${[...times].join(', then ')}${assumedTime ? ' (none printed: assumed)' : ''}.`);
-  for (const pg of pages) for (const w of pg.warnings) if (w.code === 'no-staves' || w.code === 'low-resolution') lines.push(w.message);
+  for (const pg of pages) for (const w of pg.warnings) if ((w.code === 'no-staves' || w.code === 'low-resolution' || w.code === 'small-notes') && !lines.includes(w.message)) lines.push(w.message);
 
   const doubtful = counts.tabUncertain + counts.notesUncertain + counts.measuresWrong + counts.linkedDisagree;
   const found = counts.tabNumbers + counts.notes;

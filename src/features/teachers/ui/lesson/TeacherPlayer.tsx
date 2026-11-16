@@ -23,7 +23,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '@/app/router';
-import { useImmersive, useRewardHold, useScreenTitle } from '@/app/shell';
+import { useImmersive, useRewardHandoff, useRewardHold, useScreenTitle } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
 import { playUi } from '@/core/audio';
 import { isArtifact } from '@/core/platform';
@@ -90,6 +90,8 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
   useWakeLock(!done);
   // The shell's rewards (the previous lesson's card, a new level) wait for the summary, never over a step.
   useRewardHold(!done);
+  // "Next lesson" holds them from the tap, so the summary's card leaves before the next lesson shows.
+  const handOff = useRewardHandoff();
 
   // The step as authored (a task, a card with a drawing, the unit's performance).
   const head = state.queue[0];
@@ -265,8 +267,10 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
   }, [done, state.summary, state.lessonId, course, source.mode, results]);
   const exitLabel = `Back to ${card.first}'s course`;
   const goNext = () => {
-    if (next.kind === 'lesson') navigate('teachers', teacher, next.lessonId);
-    else onExit();
+    if (next.kind === 'lesson') {
+      handOff();
+      navigate('teachers', teacher, next.lessonId);
+    } else onExit();
   };
 
   // The one keyboard listener of the lesson.
@@ -404,7 +408,7 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                     </div>
                   )}
                   <SummaryView report={report} teacher="none" />
-                  {state.mode === 'lesson' && state.lessonId && report.outcome !== 'quit' && <TheoryLinks lessonId={state.lessonId} />}
+                  {state.mode === 'lesson' && state.lessonId && report.outcome !== 'quit' && <TheoryLinks teacher={teacher} lessonId={state.lessonId} />}
                 </div>
               ) : task && taskState ? (
                 <TaskCard teacher={teacher} task={task} state={taskState} backLine={backLine} />

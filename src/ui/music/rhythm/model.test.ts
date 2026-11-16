@@ -37,6 +37,17 @@ describe('grids and counting', () => {
     expect(rhythmGrid(parseRhythm('et et et q h').notes).cells.slice(0, 6).map((c) => c.syllable)).toEqual(['1', 'trip', 'let', '2', 'trip', 'let']);
   });
 
+  it('keeps an eighth\'s "&" as "&" in a bar that mixes eighths and triplets', () => {
+    const g = rhythmGrid(parseRhythm('e e et et et h').notes);
+    expect(g.stepTicks).toBe(160);
+    expect(g.cells.slice(0, 12).map((c) => c.syllable)).toEqual(['1', 'ta', 'trip', '&', 'let', 'ta', '2', 'ta', 'trip', '&', 'let', 'ta']);
+    // The played syllables: the eighths on 1 and its "&", the triplets on 2, trip, let.
+    expect(g.cells.filter((c) => c.onset !== null && c.bar === 0).map((c) => c.syllable)).toEqual(['1', '&', '2', 'trip', 'let', '3']);
+    // A compound beat cut in six still counts "1 ta & ta a ta".
+    expect(countSyllables(ts('6/8'), 240)).toEqual(['1', 'ta', '&', 'ta', 'a', 'ta', '2', 'ta', '&', 'ta', 'a', 'ta']);
+    expect(strumSyllables(6, ts('6/8'), 6)).toEqual(['1', 'ta', '&', 'ta', 'a', 'ta']);
+  });
+
   it('chooses the coarsest grid that holds every note', () => {
     expect(gridStep(parseRhythm('q q h').notes, ts('4/4'))).toBe(480);
     expect(gridStep(parseRhythm('q e e s s e q').notes, ts('4/4'))).toBe(240);

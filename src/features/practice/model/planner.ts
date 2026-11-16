@@ -97,6 +97,13 @@ export interface PlannerInput {
   lastAreas?: readonly Area[];
   /** Days the learner has practised on so far; a beginner's harder exercises wait for these. Unknown: nothing is held back. */
   practiceDays?: number;
+  /**
+   * Exercises from the app's content (technique exercises, songs and studies, Theory Path unit
+   * drills: `PRACTICE_LIBRARY` in `library.ts`), drawn from alongside the hand-written pool.
+   */
+  library?: readonly ContentItem[];
+  /** Theory Path units with a finished lesson: their drills can be offered. */
+  studiedUnits?: readonly string[];
 }
 
 /** The skeleton of a plan for a number of minutes. */
@@ -290,7 +297,7 @@ function teacherItem(teacher: TeacherId): ContentItem {
 
 /** The exercises of an area for this learner (the teacher's course joins the theory pool). */
 function poolOf(area: Area, input: PlannerInput): ContentItem[] {
-  const pool = poolFor(area, input.level, input.practiceDays);
+  const pool = poolFor(area, input.level, input.practiceDays, input.library, input.studiedUnits);
   return area === 'theory' ? [...pool, teacherItem(input.teacher)] : pool;
 }
 
@@ -588,9 +595,14 @@ export function addBlock(blocks: readonly PlanBlock[], block: PlanBlock): PlanBl
   return [...blocks, fresh];
 }
 
-/** Rebuild a block from an authored item (used when a saved routine names an exercise). */
-export function blockFromItem(itemId: string, minutes: number): PlanBlock | null {
-  const item = CONTENT_BY_ID[itemId];
+/** An exercise by id, from the hand-written pool or the app's content (`library`), or null. */
+export function findItem(itemId: string, library: readonly ContentItem[] = []): ContentItem | null {
+  return CONTENT_BY_ID[itemId] ?? library.find((c) => c.id === itemId) ?? null;
+}
+
+/** Rebuild a block from an exercise (used when a saved routine names one); null when it no longer exists. */
+export function blockFromItem(itemId: string, minutes: number, library: readonly ContentItem[] = []): PlanBlock | null {
+  const item = findItem(itemId, library);
   return item ? fromItem(item, Math.max(1, Math.round(minutes)), undefined, undefined) : null;
 }
 

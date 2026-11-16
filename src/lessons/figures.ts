@@ -19,7 +19,7 @@ import {
 import { COUNT_LIMITS, MAX_FRET } from './limits';
 import { parseDuration, parseRhythm, parseStrum, type ParsedRhythm, type RhythmEvent, type StrumSlot } from './rhythm';
 import { hasTechnique, soundPlan, soundProblems, tabProblems, type SoundPlan } from './sound';
-import { inferSpelling, keySpelling, spellPitch, spellingOfName, tabMidi, type SpellContext } from './spelling';
+import { figureSpelling, keySpelling, spellPitch, spellingOfName, tabMidi, textSpelling, type SpellContext } from './spelling';
 import type {
   AudioFigure, ChordFigure, CircleFigure, DotRole, Figure, FretboardFigure, FretDot, KeyboardFigure, RhythmFigure,
   StaffAccidental, StaffFigure, TabFigure, TabTechnique,
@@ -278,16 +278,18 @@ function fretboardSpelling(figure: FretboardFigure, dots: readonly FretDot[], op
   const d = figure.derive;
   if (d && 'scale' in d) return { tonic: d.tonic, scale: d.scale };
   if (d && 'chord' in d) return { chord: d.chord };
+  const named = textSpelling([figure.caption]);
   for (const dot of dots) {
     const claimed = spellingOfName(dot.note);
-    if (claimed) return claimed;
+    if (claimed) return named ? { names: named, base: claimed } : claimed;
   }
   const midis: number[] = [];
   for (const dot of dots) {
     if (positionProblem(dot, opts)) continue;
     midis.push(midiAt(dot, opts));
   }
-  return inferSpelling(midis) ?? undefined;
+  // The names the caption writes win; the rest follow the key the dots imply.
+  return figureSpelling(undefined, figure.caption, midis);
 }
 
 // ── Chord ──────────────────────────────────────────────────────────────────────────────────────
@@ -714,7 +716,7 @@ function resolveTab(figure: TabFigure): ResolvedTab {
   const capo = figure.capo ?? 0;
   const notes: ResolvedTab['notes'] = [];
   // Named in the phrase's key: an A major line has C♯, never D♭.
-  const context = keySpelling(figure.key) ?? inferSpelling(tabMidi(figure.notes, { tuning: figure.tuning, capo })) ?? undefined;
+  const context = figureSpelling(figure.key, figure.caption, tabMidi(figure.notes, { tuning: figure.tuning, capo }));
   let tick = 0;
   for (const n of figure.notes) {
     const d = parseDuration(n.duration);

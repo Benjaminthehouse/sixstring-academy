@@ -43,7 +43,8 @@ Conventions that hold for the whole kit:
 | `tuning` | `TuningInput` [standard] | String count, labels and string gauges follow it (7-string, bass, ukulele…). |
 | `frets` | `[from, to]` [`[0, 12]`] | Frets on the wood. `0` adds the open-string column and the nut; `[5, 9]` starts mid-neck (first fret numbered). Up to 24. |
 | `spacing` | `'proportional' \| 'even'` [proportional] | Real fret spacing blends toward even only as much as the width needs. |
-| `orientation` | `'horizontal' \| 'vertical'` [horizontal] | Vertical: nut on top, low string on the left (a chord-box view). |
+| `orientation` | `'horizontal' \| 'vertical' \| 'auto'` [horizontal] | Vertical: nut on top, low string on the left (a chord-box view). `auto`: horizontal, but on an upright phone where the range would scroll sideways, a compact vertical board (games and drills over frets 0–12). |
+| `compact` | `boolean` | Vertical boards: each fret as short as reading allows (44 px when tappable), evenly spaced, so 0–12 stand on a phone (about 620 px tall tappable, 330 px static) with no sideways scroll. |
 | `leftHanded` | `boolean` [setting] | Mirror: nut on the right (bottom-to-top stays string 6 → 1). |
 | `size` | `'sm' \| 'md' \| 'lg' \| 'xl'` [md; xl when tappable] | String spacing 20 / 28 / 36 / 44 px. |
 | `fretNumbers` | `'inlays' \| 'all' \| 'none'` [inlays] | Under the board (beyond the low string). |
@@ -61,9 +62,19 @@ Conventions that hold for the whole kit:
 | `minFretWidth`, `maxFretWidth` | px | Narrowest fret before scrolling (default fits a dot; 44 when tappable), widest fret (3.9 string gaps; 3 when tappable). |
 
 **Fitting.** The board measures its container. Frets 0–12 fit a 390 px phone without scrolling;
-longer ranges (or a 360 px screen) scroll sideways inside the board's own box, never the page.
+longer ranges (or a 360 px screen, or tappable 44 px cells) scroll sideways inside the board's own
+box, never the page, unless `orientation="auto"` stands them up on an upright phone.
 Keyboard: one Tab stop for the cell grid; arrows move the way the board looks (mirrored/vertical
 aware), Home/End jump to the first/last fret.
+
+**Look and speed.** Behind the nut is the page, not wood: the open-string column is a stub tinted
+toward the page surface (light in the light theme, dark in the dark one), and rings, `o`/`×` marks and
+labels there use page ink. Markers re-render one by one (primitive props: a game that passes a fresh
+array with one changed state re-renders that one marker). A `target` pulses with an HTML ring over the
+board animating transform and opacity only, so it never repaints the SVG (54–63 paints in 3 s with
+six target boards before, 0 after). The screen-reader description lists every marker in the order
+given, however many there are (`markerDescription(markers, naming)`: `C on string 5 fret 3 (root); …`;
+screens' checks parse that phrase).
 
 **`FretMarker`** `{ string, fret, label?, color?, shape?: 'circle'|'square'|'diamond'|'ring',
 state?: 'normal'|'target'|'hit'|'miss'|'ghost', root?, note?, noteLabel?, description?, id? }`.
@@ -123,7 +134,9 @@ Props: `value`, `onChange?` (without it the circle is a picture), `show?: 'both'
 signature count, relative minors inside, both spellings at B/C♭, F♯/G♭, D♭/C♯. The selected key is
 filled with the accent; the wedges of its seven diatonic chords show their numerals (minor keys
 use `i ii° bIII iv v bVI bVII`, from `core/theory`). Keyboard: radios; ←/→ go round, ↑/↓ switch
-ring, Home goes to the top (C or Am). Pure: `circleWedges(key)`, `slotOfKey`, `circleSlots`, `wedgePath`, `polar`.
+ring, Home goes to the top (C or Am). A wedge is announced as `G major, 1 sharp, V chord of the
+selected key` (enharmonic slots name both keys, each with its own signature). Pure: `circleWedges(key)`,
+`slotOfKey`, `circleSlots`, `wedgePath`, `polar`, `signatureWords(signature)` (`1 sharp`, `3 flats`), `wedgeLabel(wedge, naming)`.
 
 ## NotationView (VexFlow 4, loaded on first use)
 
@@ -151,6 +164,14 @@ the e2e script). A placeholder of the right height shows while it loads; if it c
 notes are listed in words. Pure helpers: `parseNotation`, `normaliseItems`, `splitMeasures`,
 `measureAccidentals`, `keySpec`, `vexKey`, `breakLines`, `stretchLine`; `loadVexFlow()` preloads.
 
+**Spelling a line from MIDI** (`spellLine(events, { spellings? })`, used by the tab's staff): each event
+is `{ midi[], key, chord?, tied? }`; a pitch in the key takes the key's name, a chord tone the chord's
+(D7 in C: F♯; B♭7: A♭); otherwise an explicit hint wins (`spellings: ['Bb']`), then the blues (a line
+using the key's ♭3 and ♭7 and not its leading tone writes ♭3, ♭5 and ♭7 flat: E blues has B♭ even
+where it slides up to B), then, for a black key, the direction the line takes (G G♯ A rises, A A♭ G
+falls), then the key's chromatic scale. A held note keeps its name; white keys keep their natural name.
+`isBluesLine(pitchClasses, tonicPc)`.
+
 ## PianoKeys
 
 ```tsx
@@ -175,13 +196,18 @@ E♭ not D♯), `labels?: 'c'|'white'|'none'` [c], `onKeyPress?` (keys become bu
 `RhythmView`: `rhythm` (compact codes `w h q e s` + `.` dot, `t` triplet, `r` rest, `~` tie, `>`
 accent, `|` bar — the lesson notation — or parsed `RhythmNote[]`), `time` [4/4], `current` (step
 index across bars), `counting` [true]. Each step is a column; notes show a glyph where they start
-and a bar as long as they last (rests hollow, ties joined); the count runs underneath ("1 e & a",
-"1 & a" in compound time, "1 trip let" for triplets, numbers in odd eighths meters) with played
-syllables bold. Bars wrap on phones.
+and a bar as long as they last (rests hollow, ties joined). Eighths and shorter are beamed by the
+beat (the tab's rules: a half bar of plain eighths under one beam in 4/4, sixteenth beams and stubs),
+a tied note is a second head joined by an arc, accents and tuplet numbers sit in a row above, and
+tuplets are grouped bar by bar by duration (a bracket unless one beam holds exactly their notes).
+The count runs underneath ("1 e & a", "1 & a" in compound time, "1 trip let" for triplets, numbers
+in odd eighths meters, and with eighths beside triplets "1 ta trip & let ta": an eighth's "&" stays
+"&") with played syllables bold; a beat cut in six shows only beats and played syllables. Bars wrap on phones.
 `StrumPattern`: `pattern`, `time`, `grid?: 'eighth'|'sixteenth'|'triplet'` (default from the slot
 count), `current`, `counting`. Missed strokes are faint dashed arrows: the hand keeps moving.
-Pure: `parseRhythm`, `rhythmGrid`, `gridStep`, `countSyllables`, `stepAt(grid, tick)`,
-`parseStrum`, `strumSlotsPerBeat`, `strumSyllables`; glyphs `NoteGlyph`, `StrokeGlyph`.
+Pure: `parseRhythm`, `rhythmGrid`, `gridStep`, `countSyllables(time, step, { triplets? })`, `stepAt(grid, tick)`,
+`barMarks(grid, bar)` (per note: beamed, beam pieces, tuplet, tie in/out), `parseStrum`,
+`strumSlotsPerBeat`, `strumSyllables`; glyphs `NoteGlyph` (`beamed` drops the flag), `StrokeGlyph`.
 
 ## Small pieces
 
@@ -233,8 +259,11 @@ Draws: string lines broken around every fret number (no strike-through, highligh
 barlines, repeats with dots, `×3`, first/second-time brackets, time signatures (first bar and changes), tuning letters and
 TAB on every system, section boxes, tempo (`♩ = 90`, `♩. =` in compound time), capo; rhythm under the staff (stems,
 half-length half-note stems, beams with stubs for dotted rhythms, flags, dots, tuplet numbers/brackets) and rests on the
-staff; ties `(5)` with an arc, hammer-on/pull-off slurs with H/P, legato slides, slides in/out, bends with arrow and
-`full`/`½`/`1½` (release, pre-bend), vibrato, P.M. and let ring spans, natural harmonics `<12>`, A.H., dead `x`, ghost
+staff; ties `(5)` with an arc (a note held through several columns shows its fret once per bar: the struck note, then
+the last held piece of each bar, tied from it; `thinHeldNotes`), hammer-on/pull-off slurs with H/P, legato slides, slides
+in/out, bends with arrow and `full`/`½`/`1½` (release, pre-bend), vibrato, P.M. and let ring spans written once per
+stretch (`holdSpans`: a let-ring note rings until its string is struck again, a rest or the bar's end; a P.M. stretch runs
+from one muted note to the next, across barlines, while no muted string is struck open), natural harmonics `<12>`, A.H., dead `x`, ghost
 `(5)`, accents, staccato, tapping `T`, left-hand fingers (subscript), p i m a, pick/strum strokes ⊓ V, rhythm slashes
 (muted `x`); chord symbols (capo shapes by default) and optional `xs` chord boxes; lyrics with hyphens; annotations.
 
@@ -246,6 +275,7 @@ staff; ties `(5)` with an arc, hammer-on/pull-off slurs with H/P, legato slides,
 | `bars` | `[from, to)` | Show only these bars (lessons, loops). Tempo in force is shown. |
 | `rhythm` | `boolean` [true; false with `notation`] | Stems and beams under the staff. |
 | `notation` | `boolean` [false] | Treble-8vb staff above, spelled in the key, aligned to the tab. See "Notation support". |
+| `spellings` | `string[]` | Names the staff uses whenever their pitch class sounds (`['Bb']`), over the key's and the line's choice: match the lesson text. Also on `TabSnippet`. |
 | `chords` | `boolean \| 'diagrams'` [true] | Symbols; `diagrams` adds a chord box over each change. `chordNames: 'shapes' \| 'sounding'` with a capo. |
 | `lyrics`, `barNumbers` | `boolean` [true] | |
 | `maxBarsPerSystem` | `number` | Cap for the line breaker. |
@@ -272,8 +302,9 @@ Helpers: `xAtTick`, `locate`, `hitTest`, `columnSpan`, `barRangeRects`, `barBoun
 `beamSegments`, `tupletGroups`. Only systems near the viewport are drawn (line mode: 1400 px tiles); 200 bars lay out in
 about 20 ms and draw lazily.
 
-**Notation support** (`notation`): single voice per track; notes and chords spelled with `spellInKey` in the key in force
-(key changes reprint the signature), bar-long accidentals and naturals, ties (split at system edges), dots, tuplets,
+**Notation support** (`notation`): single voice per track; notes and chords spelled along the line by `spellLine` (key in
+force, chord in force, the blues' flat notes, the line's direction, `spellings`; key changes reprint the signature),
+bar-long accidentals and naturals (a bar's first accidental kept clear of the barline), ties (split at system edges), dots, tuplets,
 beams from the tab's own groups, rests (whole-bar rests centred), accents, staccato, dead notes as x heads, natural
 harmonics at their sounding pitch, rhythm slashes, time signatures, repeats and final barlines. Not on the staff
 (they are on the tab): bends, slides, slurs, vibrato, palm mute, fingering; a note held past its beat (`length`, merged

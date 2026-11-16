@@ -63,9 +63,40 @@ describe('adaptive picking', () => {
     expect(w[pool.indexOf('M6')]).toBeGreaterThan(w[pool.indexOf('P5')]);
   });
 
-  it('never asks the same answer three times running', () => {
-    const w = pickWeights(['a', 'b'], emptyRecord(), 0.8, ['a', 'a']);
+  it('never asks the same answer three times running when there are many choices', () => {
+    const w = pickWeights(['a', 'b', 'c', 'd'], emptyRecord(), 0.8, ['a', 'a']);
     expect(w[0]).toBe(0);
+    expect(pickWeights(['a', 'b', 'c', 'd'], emptyRecord(), 0.8, ['b', 'a'])[0]).toBeGreaterThan(0);
+  });
+
+  it('with two choices, the history gives nothing away: "after A A comes B" is a coin toss (found in review)', () => {
+    // Real rounds of a two-choice level, answered right every time. Before, three in a row could
+    // not happen, so after two of a kind the other one was certain: a free point.
+    const level = DRILLS.pitch.levels[0];
+    let afterPair = 0;
+    let other = 0;
+    for (let s = 0; s < 600; s++) {
+      let round = createRound(DRILLS.pitch, level, { seed: 7000 + s, settings: DEFAULT_SETTINGS, record: emptyRecord() });
+      const seen: string[] = [];
+      for (let i = 0; i < level.questions; i++) {
+        const next = nextQuestion(round);
+        const q = next.question;
+        if (q.kind !== 'choice') throw new Error('choice expected');
+        const n = seen.length;
+        if (n >= 2 && seen[n - 1] === seen[n - 2] && (n < 4 || seen[n - 3] !== seen[n - 1] || seen[n - 4] !== seen[n - 1])) {
+          afterPair++;
+          if (q.answer !== seen[n - 1]) other++;
+        }
+        round = answerQuestion(next.round, q.answer).round;
+        seen.push(q.answer);
+      }
+    }
+    expect(afterPair).toBeGreaterThan(500);
+    expect(other / afterPair).toBeGreaterThan(0.4);
+    expect(other / afterPair).toBeLessThan(0.6);
+    // Only a run of four is broken.
+    expect(pickWeights(['a', 'b'], emptyRecord(), 0.8, ['a', 'a', 'a', 'a'])[0]).toBe(0);
+    expect(pickWeights(['a', 'b'], emptyRecord(), 0.8, ['b', 'a', 'a', 'a'])[0]).toBeGreaterThan(0);
   });
 
   it('moves difficulty to hold success near 80 %', () => {

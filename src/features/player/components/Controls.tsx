@@ -1,9 +1,10 @@
 /**
  * The player's controls, built from the kit: the mode picker, tempo (compact − 100 % + with a
- * slider one tap away, or the full stepper and slider in the side panel), the loop button, and
- * the options (count-in, click, speed trainer, parts with mute and solo, what the score shows,
- * the guitar sound, keyboard shortcuts). The side panel on wide screens and the "More" sheet on
- * phones render the same options.
+ * slider one tap away, or the full stepper and slider in the side panel; the beats a minute are
+ * counted in the meter's own beat, ♩. = 60 in 6/8), the loop button, and the options (count-in,
+ * click, speed trainer, parts with mute and solo, what the score shows, hiding the chord chart,
+ * key and capo, the guitar sound, keyboard shortcuts). The side panel on wide screens and the
+ * "More" sheet on phones render the same options.
  */
 import { TONE_NAMES } from '@/core/audio';
 import type { Song } from '@/core/song';
@@ -12,8 +13,10 @@ import type { EngineState } from '../engine/engine';
 import { SHORTCUTS } from '../model/keys';
 import { loopLabel, loopShort, type SectionChip } from '../model/loop';
 import { tempoStep } from '../model/keys';
+import type { ArrangementWords } from '../model/arrange';
+import type { TempoMark } from '../model/meter';
 import { passesToTarget, TRAINER_STEPS, trainerSummary, type TrainerSettings } from '../model/trainer';
-import { MAX_TEMPO, MIN_TEMPO, MODE_HINTS, MODE_NAMES, type PracticeMode, type ScoreLayer } from '../model/types';
+import { MAX_CAPO, MAX_TEMPO, MAX_TRANSPOSE, MIN_TEMPO, MODE_HINTS, MODE_NAMES, type Arrangement, type PracticeMode, type ScoreLayer } from '../model/types';
 import styles from './Controls.module.css';
 
 const MODE_ICONS: Record<PracticeMode, string> = { listen: 'Ear', wait: 'Hourglass', flow: 'Zap', tap: 'Pointer' };
@@ -35,8 +38,8 @@ export function ModePicker({ mode, micAvailable, onChange, size = 'md', icons = 
   );
 }
 
-/** − 100 % +, with the slider one tap away on the number. */
-export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number; bpm: number; onChange: (p: number) => void; vertical?: boolean }) {
+/** − 100 % +, with the slider one tap away on the number. `mark` is the tempo in the meter's own beat. */
+export function TempoCompact({ tempo, mark, onChange, vertical }: { tempo: number; mark: TempoMark; onChange: (p: number) => void; vertical?: boolean }) {
   // On a touch screen the popover must not focus the number field: the on-screen keyboard would
   // cover the slider the learner opened it for. Focus lands on the panel; the field is a tap away.
   const touch = useIsTouch();
@@ -48,18 +51,18 @@ export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number
         placement={vertical ? 'left' : 'top'}
         align="center"
         trigger={
-          <button type="button" className={cx(styles.tempoValue, focusRing)} aria-label={`Tempo ${tempo} percent, ${Math.round(bpm)} beats a minute. Change it`} data-player-tempo={tempo}>
+          <button type="button" className={cx(styles.tempoValue, focusRing)} aria-label={`Tempo ${tempo} percent, ${mark.spoken}. Change it`} data-player-tempo={tempo} data-player-bpm={mark.value}>
             <span className={styles.tempoNum}>{tempo}%</span>
-            <span className={styles.tempoBpm}>{Math.round(bpm)} bpm</span>
+            <span className={styles.tempoBpm}>{mark.short}</span>
           </button>
         }
       >
         {touch ? (
           <div tabIndex={-1} data-autofocus="" className={styles.tempoPanel}>
-            <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
+            <TempoFull tempo={tempo} mark={mark} onChange={onChange} />
           </div>
         ) : (
-          <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
+          <TempoFull tempo={tempo} mark={mark} onChange={onChange} />
         )}
       </Popover>
       <IconButton icon="Plus" label={`Faster (${SHORTCUTS.faster})`} onClick={() => onChange(tempoStep(tempo, 1))} disabled={tempo >= MAX_TEMPO} />
@@ -70,10 +73,11 @@ export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number
 const PRESETS = [50, 75, 100];
 
 /** Tempo as an exact stepper, a slider and three presets. */
-export function TempoFull({ tempo, bpm, onChange }: { tempo: number; bpm: number; onChange: (p: number) => void }) {
+export function TempoFull({ tempo, mark, onChange }: { tempo: number; mark: TempoMark; onChange: (p: number) => void }) {
+  const hint = mark.beat.glyph ? `${mark.spoken} (${mark.short}). The pitch stays the same.` : `${mark.spoken[0].toUpperCase()}${mark.spoken.slice(1)}. The pitch stays the same.`;
   return (
-    <div className={styles.tempoFull} data-player-tempo={tempo}>
-      <Stepper label="Tempo" unit="%" min={MIN_TEMPO} max={MAX_TEMPO} step={5} value={tempo} onChange={onChange} format={(v) => `${v} percent`} hint={`${Math.round(bpm)} beats a minute. The pitch stays the same.`} />
+    <div className={styles.tempoFull} data-player-tempo={tempo} data-player-bpm={mark.value}>
+      <Stepper label="Tempo" unit="%" min={MIN_TEMPO} max={MAX_TEMPO} step={5} value={tempo} onChange={onChange} format={(v) => `${v} percent`} hint={`${hint[0].toUpperCase()}${hint.slice(1)}`} />
       <Slider label="Tempo" hideLabel min={MIN_TEMPO} max={MAX_TEMPO} step={1} value={tempo} onChange={onChange} format={(v) => `${v} %`} marks={[{ value: 50, label: '50' }, { value: 100, label: '100' }, { value: 150, label: '150' }]} showValue={false} />
       <ButtonGroup>
         {PRESETS.map((p) => (
@@ -107,13 +111,15 @@ export function LoopButton({ loop, picking, onClick, compact }: { loop: EngineSt
 }
 
 /** The loop's own settings: the speed trainer, quick loops of each section, change or clear. */
-export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick }: {
+export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick, tempoAt }: {
   state: EngineState;
   sections: readonly SectionChip[];
   judged: boolean;
   onTrainer: (t: TrainerSettings) => void;
   onLoop: (r: EngineState['loop']) => void;
   onPick: () => void;
+  /** A tempo percent in the meter's own beat ("♩. = 42"). */
+  tempoAt?: (percent: number) => string;
 }) {
   const t = state.trainer;
   return (
@@ -147,7 +153,7 @@ export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick
       )}
       <Switch
         label="Speed trainer"
-        description={trainerSummary(t, judged)}
+        description={trainerSummary(t, judged, tempoAt)}
         checked={t.on}
         onChange={(on) => onTrainer({ ...t, on })}
         data-player-trainer=""
@@ -172,10 +178,24 @@ export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick
 const TONE_LABELS: Record<string, string> = { steel: 'Steel acoustic', nylon: 'Nylon classical', clean: 'Clean electric', driven: 'Driven electric' };
 const GUITAR_TONES = TONE_NAMES.filter((t) => t in TONE_LABELS);
 
-/** Count-in, click, parts, score and sound. */
-export function MoreOptions({ state, song, onCountIn, onMetronome, onTrack, onMute, onSolo, onPartAudible, onLayer, onNeck, onTone, showKeys }: {
+/** What the score can show, in picker order. The middle one's label is named in song texts ("Tab and notes"). */
+const LAYER_OPTIONS: Array<{ value: ScoreLayer; label: string; ariaLabel: string }> = [
+  { value: 'tab', label: 'Tab', ariaLabel: 'Tab only' },
+  { value: 'both', label: 'Tab and notes', ariaLabel: 'Tab with the notes on a staff above it' },
+  { value: 'notation', label: 'Notes only', ariaLabel: 'Notes only: the tab is covered, for reading the staff' },
+];
+
+/** Count-in, click, parts, score, chord chart, key and capo, and sound. */
+export function MoreOptions({ state, song, written, words, countInText, onCountIn, onMetronome, onTrack, onMute, onSolo, onPartAudible, onLayer, onNeck, onHideChart, onArrangement, onTone, showKeys }: {
   state: EngineState;
+  /** The song as played (arranged to the learner's capo and key). */
   song: Song;
+  /** The song as written: its own capo, and whether it has chords. */
+  written: Pick<Song, 'capo' | 'chords'>;
+  /** What the key and capo come to ("Sounds in A major. You play G major shapes with a capo on fret 2."). */
+  words: ArrangementWords;
+  /** "One bar of clicks before the music starts: 2 dotted-quarter beats." */
+  countInText: string;
   onCountIn: (on: boolean) => void;
   onMetronome: (on: boolean) => void;
   onTrack: (id: string) => void;
@@ -184,14 +204,19 @@ export function MoreOptions({ state, song, onCountIn, onMetronome, onTrack, onMu
   onPartAudible: (on: boolean) => void;
   onLayer: (l: ScoreLayer) => void;
   onNeck: (on: boolean) => void;
+  onHideChart: (on: boolean) => void;
+  onArrangement: (a: Arrangement) => void;
   onTone: (t: string) => void;
   showKeys: boolean;
 }) {
   const micMode = state.mode === 'wait' || state.mode === 'flow';
+  const a = state.arrangement;
+  const capo = a.capo ?? written.capo;
+  const changed = a.transpose !== 0 || capo !== written.capo;
   return (
     <div className={styles.more}>
       <section className={styles.group} aria-label="Timing">
-        <Switch label="Count-in" description="One bar of clicks before the music starts." checked={state.countIn} onChange={onCountIn} />
+        <Switch label="Count-in" description={countInText} checked={state.countIn} onChange={onCountIn} />
         <Switch label={`Click (${SHORTCUTS.metronome})`} description="A metronome click on every beat." checked={state.metronome} onChange={onMetronome} data-player-metronome="" />
       </section>
 
@@ -231,9 +256,65 @@ export function MoreOptions({ state, song, onCountIn, onMetronome, onTrack, onMu
       <section className={styles.group} aria-label="Score">
         <div className={styles.field}>
           <Text variant="label">Score</Text>
-          <SegmentedControl aria-label="Score" fullWidth value={state.layer} onChange={(v) => onLayer(v as ScoreLayer)} options={[{ value: 'tab', label: 'Tab' }, { value: 'both', label: 'Tab and notes' }]} />
+          <SegmentedControl aria-label="Score" fullWidth value={state.layer} onChange={(v) => onLayer(v as ScoreLayer)} options={LAYER_OPTIONS} data-player-layer={state.layer} />
+          {state.layer === 'notation' && (
+            <Text variant="caption" tone="muted">
+              Read the notes from the staff: the tab under it is covered.
+            </Text>
+          )}
         </div>
+        {written.chords.length > 0 && (
+          <Switch
+            label="Hide the chord names"
+            description="Play it from memory: chord names and boxes are hidden. Wait mode still listens and tells you what it heard."
+            checked={state.hideChart}
+            onChange={onHideChart}
+            data-player-hide-chart=""
+          />
+        )}
         <Switch label="Fretboard" description="The notes to play now, lit on the neck; the next ones dimmed." checked={state.neck} onChange={onNeck} />
+      </section>
+
+      <section className={styles.group} aria-labelledby="player-key" data-player-arrangement={`${a.transpose}:${capo}`}>
+        <Text variant="label" id="player-key">
+          Key and capo
+        </Text>
+        <Stepper
+          label="Your capo"
+          min={0}
+          max={MAX_CAPO}
+          value={capo}
+          onChange={(v) => onArrangement({ ...a, capo: v })}
+          format={(v) => (v === 0 ? 'no capo' : `capo on fret ${v}`)}
+          hint="Put it on and play the same shapes: the song moves up with it."
+        />
+        <Stepper
+          label="Move the song"
+          unit="semitones"
+          min={-MAX_TRANSPOSE}
+          max={MAX_TRANSPOSE}
+          value={a.transpose}
+          onChange={(v) => onArrangement({ ...a, transpose: v })}
+          format={(v) => (v === 0 ? 'as written' : `${Math.abs(v)} ${Math.abs(v) === 1 ? 'semitone' : 'semitones'} ${v > 0 ? 'up' : 'down'}`)}
+          hint="Up or down to suit your voice. The tab and the chords change to match."
+        />
+        <Text size="sm" data-player-sounds="">
+          {words.line}
+        </Text>
+        {(changed || (a.transpose > 0 && capo === written.capo && capo + a.transpose <= MAX_CAPO)) && (
+          <ButtonGroup>
+            {a.transpose > 0 && capo + a.transpose <= MAX_CAPO && (
+              <Button size="sm" iconLeft="Shapes" onClick={() => onArrangement({ transpose: 0, capo: capo + a.transpose })}>
+                Same key, easier shapes: capo {capo + a.transpose}
+              </Button>
+            )}
+            {changed && (
+              <Button size="sm" variant="ghost" iconLeft="RotateCcw" onClick={() => onArrangement({ transpose: 0, capo: null })} data-player-as-written="">
+                As written
+              </Button>
+            )}
+          </ButtonGroup>
+        )}
       </section>
 
       <section className={styles.group} aria-label="Guitar sound">

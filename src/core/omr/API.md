@@ -26,6 +26,14 @@ try {
 ```
 
 `imageData` is a canvas `ImageData` (RGBA) or a `GrayImage`; add `transfer: true` to move its buffer.
+
+The quick look, before reading (same worker, about a second a page): `const look = await
+omr.lookAtPage(imageData, { cleanSide: 1400 })` -> `OmrLook { classification, paper {box, cover,
+desk}, page (layout only: systems, staves with their lines, bar lines, empty measures, quality,
+warnings; null for text / no music), clean (the reader's flattened, straightened page, grey, long
+side <= cleanSide; null without it) }`. Direct call: `lookAtPage(image, opts)`. One worker serves the
+look and the reading, so a screen ships the reader once (`e2e/omr-build.cjs` checks the production
+build: the worker is its own bundled file and reads the sample there).
 Several pages (a PDF): `omr.recognizeDocument([p1, p2], opts)` -> `OmrDocument { pages, measures
 (joined across systems and pages), context }`; key and time carry over. Same calls without a worker
 (tests, Node): `recognizePage(image, opts)`, `recognizeDocument`, `classifyPage`. Options:
@@ -47,14 +55,26 @@ OmrPage { width, height, staffSpace, systems, texts, quality {source, score, noi
              OmrNote { staffPosition, head, pitch {step, alter, octave, written, midi = sounding}, accidental,
                        tieStart/Stop, string?, fret? (from the linked tab) }
           └ OmrTabEvent { kind 'tab'|'tab-rest', x, notes: OmrTabNote[], duration?, linkedEventId }
-             OmrTabNote { string (1 = top line = high E), fret, midi, technique?, parenthesized?, tieStop? }
+             OmrTabNote { string (1 = top line = high E), fret (always 0-24), midi, technique?, parenthesized?, tieStop? }
 ```
 
 Every element: `id` (stable within a run), `bbox` in px of the ORIGINAL picture (draw it straight over
 the photo), `confidence`, `source` (`image` | `merged` | `inferred` | `ai`), `alternatives` (best
 first, for one-tap fixes), `issues?: { code, message }[]` with codes `staves-disagree`,
-`rhythm-disagree`, `unlinked`, `rhythm-estimated`, `resolved`, `ai-disagree`, `ai-only`.
+`rhythm-disagree`, `unlinked`, `rhythm-estimated`, `resolved`, `ai-disagree`, `ai-only`, `past-the-neck`, `measure-does-not-fit`.
 Pitch is sounding MIDI (guitar sounds an octave below the treble staff), ticks 960 per quarter.
+
+**Tab tuning follows the staff.** `staff.tuning` is the tuning the frets were read with: the one given
+(`tuning` option) when it has a string per line, else the usual one for the line count (`TAB_TUNINGS`,
+`tabTuningFor(lines)`: 4 lines = bass E A D G, 5 = B E A D G, 6 = guitar, 7 = low B), set from the
+skeleton on (`analyzePage`) and reported by the reader (`StaffReading.tuning`). `omrToSong` takes it
+(a four- or five-line staff becomes a bass track).
+
+**No fret past the neck.** A number read above 24 ("92", "121": two numbers side by side, a smudge)
+becomes a reading of its own digits on the neck (`fretOnNeck`, `fretsInDigits`: the recognizer's own
+runner-up on the neck first, then two-digit runs, then single digits, from the left), confidence
+<= 0.2, the other readings as one-tap `alternatives` (all on the neck), and a `past-the-neck` issue
+saying what was read. The tab reader does it per number; the assembler does it for any recognizer.
 
 ## Notation + tab, reconciled
 
@@ -64,6 +84,27 @@ raises both confidences; a disagreement one reader had as its runner-up is settl
 `resolved`; any other leaves both below 0.5 with the other reading as alternative. Tab without
 rhythm takes the notation's (`source: 'merged'`); tab with no rhythm anywhere gets durations
 estimated from spacing (`inferred`, 0.25). Measures are checked against the metre in force.
+
+**The metre sanity pass** (after the checks): columns a bad photo left without a stem, among others
+that have one, get the length the rest of the measure lacks (by spacing, exactly filling it when
+possible; `inferred`, 0.2-0.3, issue `rhythm-estimated`), instead of being dropped by `omrToSong`;
+every measure that still does not fit gets a `measure-does-not-fit` issue saying by how much; and
+where one doubtful length (below 0.8) has a runner-up or a dot more or less that would make it fit,
+and no other change would do as well, that reading is offered first in its `alternatives` and the
+length is marked a guess (`suggestMetreFix`). The length is NOT changed: measured on both corpora,
+changing it was wrong more often than right (photo-good dur 94.3 -> 93.9 %, measures exact 70.1 ->
+68.3 %), since a measure that does not fit is more often missing a note than holding a wrong length.
+
+**Words over tab-only staves.** Tab with no notation staff in its system gets the words printed over
+it located as `chord-symbol` boxes (`text: ''`; long lines of words as `other`; measure numbers at the
+staff start left out), as the notation reader does over its staff, so OCR or the AI helper can read
+them (`textOverTabStaff`). Found 16 of 16 chord names on the corpus's tab pages at every tier, with
+one stray box per tier over 25 tab pages without chords (it does not read as a chord and is dropped).
+
+**Cue-size notes.** A staff printed in small (cue-size) notes throughout (at least 6 small solid heads
+and 1.5 times as many as normal ones) is read with the small heads accepted, and says so (`small-notes`
+warning, in the summary's lines). Grace notes and the odd small note on a normal staff stay ignored
+(no normal staff of either corpus triggers it, at any tier).
 
 ## Honest summary and proofreading
 
@@ -111,13 +152,18 @@ whole-pipeline seconds per page (mean, loaded 4-core machine). Unseen tab before
 | original scan | 161/161 | 100 / 100 | 100 | 100 | 100 | 100 / 100 | 99.9 | 98.6 | 1.2 |
 | original photo-good | 161/161 | 100 / 100 | 100 | 100 | 99.1 | 99.9 / 99.9 | 99.5 | 95.4 | 0.8 |
 | original photo-bad | 149/161 | 84.0 / 99.3 | 98.1 | 83.5 | 50.1 | 70.7 / 82.5 | 69.2 | 23.4 | 1.1 |
-| unseen clean | 82/82 | 91.0 / 99.6 | 99.9 | 98.4 | 82.6 | 87.4 -> 97.6 / 95.2 -> 98.5 | 97.6 | 66.5 -> 78.0 | 1.2 |
+| unseen clean | 82/82 | 91.0 -> 94.6 / 99.6 | 99.9 | 98.4 -> 98.3 | 82.6 -> 83.2 | 87.4 -> 97.6 / 95.2 -> 98.5 | 97.6 | 66.5 -> 78.0 | 1.2 |
 | unseen scan | 82/82 | 94.1 / 99.9 | 99.3 | 96.8 | 80.2 | 88.9 -> 95.9 / 92.1 -> 94.5 | 96.5 | 62.6 -> 69.8 | 1.1 |
 | unseen photo-good | 81/82 | 86.1 / 99.7 | 98.9 | 94.3 | 70.1 | 89.1 -> 94.3 / 93.7 -> 96.0 | 93.8 | 52.7 -> 56.0 | 1.3 |
-| unseen photo-bad | 66/82 | 44.7 / 99.5 | 96.7 | 65.7 | 20.4 | 69.4 -> 69.0 / 84.0 -> 82.9 | 74.5 | 20.9 -> 20.9 | 1.2 |
+| unseen photo-bad | 66/82 | 44.7 / 99.5 | 96.7 | 65.7 | 20.4 | 69.4 -> 69.0 / 84.0 -> 82.9 | 74.5 -> 74.8 | 20.9 -> 20.9 | 1.2 |
 
-Unseen notation recall without the two pages printed in cue-size notes (deliberately not read):
-98.5 / 98.1 / 97.0 % (clean / scan / photo-good). No notation fix was kept: those columns are first contact.
+Second integration pass (the "->" in the notes and fret columns of unseen clean / photo-bad): cue-size
+staves are read (notes R 91.0 -> 94.6 % at clean, the two cue pages 18.3 -> 57.3 %; accidentals on
+matched notes 92.5 -> 90.7 %, the cue pages' small accidentals not being read) and frets past the neck
+become readings of their digits (photo-bad fret 74.5 -> 74.8 %). Every other number of both corpora,
+every tier, is unchanged by this pass (re-measured; scans and photos blur cue heads into normal-looking
+ones, so the cue pages read as before there). Unseen notation recall without the two cue pages:
+98.5 / 98.1 / 97.0 % (clean / scan / photo-good).
 Original corpus after the tab fixes: clean, scan, photo-good unchanged mistake for mistake;
 photo-bad tab-only 87.7 -> 87.2 % P, 68.8 -> 68.7 % R (linked photo-bad R 72.9 -> 73.8 %).
 Browser (`node e2e/omr-page.cjs`, three full 1240 x 1754 pages in the worker): 100 % on all three,
@@ -135,10 +181,13 @@ the staff or hanging from it, rests, TAB clef, time signature, h p / \ b r x <> 
 
 ## Not supported / limits
 
-Grace and cue-size notes are ignored (a page printed entirely in small notes reads nearly empty);
+Grace notes are ignored; cue-size notes only on a staff printed in them throughout, and there their
+small rests, flags and beams are often missed (cue pages: 18 -> 57 % of the notes at clean; scans and
+photos blur the heads so they read as before, about 55 %);
 tuplets other than 3, double sharps / flats, clef / key / time changes inside a staff, C clefs, 8va,
-voltas, dynamics, articulations, fingerings, slurs, lyrics are not read; chord symbols, titles and
-tempo are located but not read (`text: ''`) unless the AI path or the caller's OCR fills them.
+voltas, dynamics, articulations, fingerings, slurs, lyrics are not read; chord symbols (over notation
+and over tab), titles and tempo are located but not read (`text: ''`) unless the AI path or the
+caller's OCR fills them.
 Unseen digit faces with unusual 0s (slashed, dotted) and pixel fonts read below 0.5 more often.
 Photo-bad captures (blur ~0.16 space + JPEG) lose a quarter to half of the notes: the summary says
 "poor"; ask for a sharper picture. Rhythm estimated from spacing is a guess. The AI path was tested

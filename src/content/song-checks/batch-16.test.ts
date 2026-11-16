@@ -725,14 +725,17 @@ describe('batch 16: st-two-voice-invention (E minor, two voices)', () => {
     }
   });
 
-  it('estimates well below the plan (9): the estimate cannot see two independent voices', async () => {
-    // At 56 bpm the notes are no faster than a level-4 single line, and that is what the estimate
-    // scores. The difficulty of an invention is holding one line while the other moves: here
-    // two thirds of all the beats have one voice held while the other plays.
+  it('estimates below the plan (9): it now sees the two voices, not the counterpoint', async () => {
+    // At 56 bpm the notes are no faster than a level-4 single line. The difficulty of an invention
+    // is holding one line while the other moves: here two thirds of all the beats have one voice
+    // held while the other plays. Gap note (integration pass 2): this read 4, with no factor for
+    // independent voices; the voices factor (notes held under moving ones) now scores it at its
+    // maximum and the estimate is 6, a better one. Shaping two lines at once is what it cannot see.
     const song = await load('st-two-voice-invention');
     const est = estimate(song);
-    expect(est.level).toBeGreaterThanOrEqual(3);
+    expect(est.level).toBeGreaterThanOrEqual(5);
     expect(est.level).toBeLessThan(9);
+    expect(est.factors.voices, JSON.stringify(est)).toBeGreaterThan(0.6);
     const beats = song.tracks[0].measures.flatMap((m) => m.beats);
     const heldUnder = beats.filter((b) => b.notes.some((n) => n.tie) && b.notes.some((n) => !n.tie)).length;
     expect(heldUnder / beats.length).toBeGreaterThan(0.5);
@@ -885,13 +888,17 @@ describe('batch 16: st-concert-tremolo-etude (p a m i, D minor and D major)', ()
     expect(problems).toEqual([]);
   });
 
-  it('estimates within two levels of the plan (10): the estimate does not count endurance', async () => {
-    // Over eight notes a second for nearly two minutes, frets to 15 and constant shifts: the
-    // estimate gives 8. Level 10 is the stamina and evenness of a concert tremolo, which the
-    // estimate does not measure.
+  it('estimates within one level of the plan (10): speed, height on the neck and tremolo endurance', async () => {
+    // Over eight notes a second for nearly two minutes, frets to 15 and constant shifts. Gap note
+    // (integration pass 2): this read 8, with no factor for endurance. The estimate now measures
+    // the longest unbroken run of fast notes (here the whole piece, named as tremolo) and scores
+    // the three hardest factors without averaging in the easy ones: 9, a better estimate. What
+    // it still cannot measure is the evenness of p a m i that a concert tremolo is judged by.
     const est = estimate(await load('st-concert-tremolo-etude'));
-    expect(est.level).toBeGreaterThanOrEqual(8);
+    expect(est.level).toBeGreaterThanOrEqual(9);
     expect(est.factors.speed).toBeGreaterThan(0.8);
+    expect(est.factors.endurance).toBeGreaterThan(0.7);
+    expect(est.reasons.join(' ')).toMatch(/tremolo/);
   });
 });
 
@@ -1041,14 +1048,17 @@ describe('batch 16: st-fugue-exposition (three voices, drop D)', () => {
     expect(name(Math.max(...all))).toBe('G5');
   });
 
-  it('estimates well below the plan (10): the estimate cannot see three independent voices', async () => {
+  it('estimates below the plan (10): it sees held voices, not three lines of counterpoint', async () => {
     // Quarters and eighths at 60 bpm score as a level-6 single line with some high frets.
     // A fugue's difficulty is voicing three lines on one instrument: here most beats hold
-    // at least one tied note under the notes being played.
+    // at least one tied note under the notes being played. Gap note (integration pass 2): the
+    // voices factor (notes held under moving ones) now counts that, at its maximum, and the
+    // estimate is 7 rather than 6; three voices score no higher than two, which is the gap left.
     const song = await load('st-fugue-exposition');
     const est = estimate(song);
-    expect(est.level).toBeGreaterThanOrEqual(4);
+    expect(est.level).toBeGreaterThanOrEqual(6);
     expect(est.level).toBeLessThan(10);
+    expect(est.factors.voices, JSON.stringify(est)).toBeGreaterThan(0.6);
     const beats = song.tracks[0].measures.flatMap((m) => m.beats);
     const threeAtOnce = beats.filter((b) => b.notes.length >= 3).length;
     expect(threeAtOnce / beats.length).toBeGreaterThan(0.4);

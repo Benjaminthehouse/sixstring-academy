@@ -371,7 +371,7 @@ export interface OmrPageQuality {
 
 /** A non-fatal problem worth showing to the user. */
 export interface OmrWarning {
-  code: 'no-staves' | 'low-resolution' | 'low-quality' | 'kind-uncertain' | 'measure-mismatch' | 'ai-unavailable' | 'other';
+  code: 'no-staves' | 'low-resolution' | 'low-quality' | 'kind-uncertain' | 'measure-mismatch' | 'ai-unavailable' | 'small-notes' | 'other';
   message: string;
   staffId?: string;
 }

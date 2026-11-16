@@ -36,6 +36,7 @@ export const CREDITS: readonly Credit[] = [
   { pkg: 'pdfjs-dist', name: 'PDF.js', use: 'Opens PDF sheets for the scanner.', licence: 'Apache-2.0', by: 'Mozilla and contributors', url: 'https://mozilla.github.io/pdf.js/' },
   { pkg: 'tesseract.js', name: 'Tesseract.js', use: 'Reads printed text and tab numbers on scanned sheets, on your device.', licence: 'Apache-2.0', by: 'Naptha and the Tesseract OCR authors', url: 'https://tesseract.projectnaptha.com' },
   { pkg: '@mediapipe/tasks-vision', name: 'MediaPipe Tasks Vision', use: 'Finds your fretting hand in the camera picture, on your device.', licence: 'Apache-2.0', by: 'Google', url: 'https://ai.google.dev/edge/mediapipe' },
+  { pkg: '@supabase/supabase-js', name: 'Supabase JS', use: 'Signs you in with an email code and syncs your progress between devices, where this copy offers accounts.', licence: 'MIT', by: 'Supabase and contributors', url: 'https://supabase.com' },
 ];
 
 /** Bundled data files that are not npm packages of their own. */

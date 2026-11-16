@@ -101,3 +101,28 @@
     opacity: 1;
   }
 }
+
+/* ── "Notes only": a band over the tab rows of every line, so the staff above is what is read ── */
+.cover {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.coverBand {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--sp-2);
+  border-radius: var(--r-sm);
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 7px, color-mix(in srgb, var(--line) 55%, transparent) 7px 8px),
+    var(--surface-2);
+}
+.coverLabel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+  background: var(--surface-2);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-sm);
+}

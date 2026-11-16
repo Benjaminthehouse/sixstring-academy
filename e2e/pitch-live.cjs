@@ -101,7 +101,7 @@ function listenToSession({ total, chords, rivals }) {
     tracker.onStatus((s, fault) => log.statuses.push(fault ? `${s}:${fault}` : s));
     tracker.on('noteon', (e) => log.noteOns.push({ midi: e.midi, time: e.time, detectedAt: e.detectedAt, retrigger: e.retrigger }));
     tracker.on('noteoff', (e) => log.noteOffs.push({ midi: e.midi, time: e.time }));
-    tracker.on('pitch', (e) => { now = e.time; log.pitches.push({ time: e.time, midi: e.midi, cents: e.cents, clarity: e.clarity, age: e.noteAge }); });
+    tracker.on('pitch', (e) => { now = e.time; log.pitches.push({ time: e.time, midi: e.midi, cents: e.cents, raw: 1200 * Math.log2(e.rawFreq / (440 * Math.pow(2, (e.midi - 69) / 12))), clarity: e.clarity, age: e.noteAge, db: e.levelDb }); });
     tracker.on('onset', (e) => log.onsets.push(e.time));
     tracker.on('silence', (e) => log.silences.push(e.time));
     tracker.on('level', (e) => { log.levels++; if (e.clipping) log.clipping++; if (e.hum) log.hum.push({ time: e.time, db: e.db, gateDb: e.gateDb }); });
@@ -369,6 +369,31 @@ function checkSession(out, check) {
       `${states.length} states, needle error median ${median(needle).toFixed(2)} max ${Math.max(...needle).toFixed(2)}, in tune: ${everInTune}${firstIn ? ` after ${((ft(firstIn.time) - at) * 1000).toFixed(0)} ms` : ''}, hint ${[...new Set(states.map((r) => r.hint))].join('/')}`,
     );
   });
+  // Readings by clarity, over each string's whole turn and the last string's ring-out: a reading
+  // the detector is unsure of (clarity under 0.7, typically the end of a note) must not drag the
+  // smoothed pitch off the string.
+  const byClarity = [[0.5, 0.7], [0.7, 0.9], [0.9, 1.01]].map(([a, b]) => {
+    const errs = [];
+    TUNING.forEach((s, i) => {
+      const at = TUNE_AT + i * TUNE_STEP;
+      const until = i === TUNING.length - 1 ? TUNE_END + 0.2 : at + TUNE_STEP;
+      for (const p of log.pitches) if (p.midi === s.midi && p.clarity >= a && p.clarity < b && inside(p.time, at + 0.3, until)) errs.push(p.cents - s.cents);
+    });
+    return { a, b, errs };
+  });
+  const low = byClarity[0].errs;
+  // PITCH_LIVE_DEBUG=1 lists the unsure readings one by one.
+  if (process.env.PITCH_LIVE_DEBUG) {
+    for (const p of log.pitches) if (p.clarity < 0.75 && inside(p.time, 0, TUNE_END + 1)) {
+      const off = log.noteOffs.find((o) => o.time >= p.time - 0.001);
+      console.log(`    low clarity ${p.clarity.toFixed(2)} m${p.midi} t ${ft(p.time).toFixed(3)} age ${p.age.toFixed(2)} cents ${p.cents.toFixed(2)} raw ${p.raw.toFixed(2)} db ${p.db.toFixed(1)} off in ${off ? ((off.time - p.time) * 1000).toFixed(0) : '-'} ms`);
+    }
+  }
+  check(
+    'tuning: unsure readings (clarity under 0.7) are not flat or sharp',
+    low.length === 0 || (Math.abs(median(low)) <= 1 && quant(low.map(Math.abs), 0.9) <= 3 && Math.max(...low.map(Math.abs)) <= 6),
+    byClarity.map((r) => `clarity ${r.a}-${Math.min(1, r.b)}: ${r.errs.length} readings, median ${r.errs.length ? median(r.errs).toFixed(2) : '-'}, |p90| ${r.errs.length ? quant(r.errs.map(Math.abs), 0.9).toFixed(2) : '-'}, worst ${r.errs.length ? Math.max(...r.errs.map(Math.abs)).toFixed(2) : '-'}`).join('; '),
+  );
   const wantTuned = TUNING.map((s) => Math.abs(s.cents) <= 2);
   const tunedOrder = log.tuned.filter((t) => inside(t.time, 0, TUNE_END + 0.2)).map((t) => t.index);
   const lastState = [...log.tuner].reverse().find((r) => inside(r.time, 0, TUNE_END + 0.2));

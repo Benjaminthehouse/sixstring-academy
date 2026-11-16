@@ -42,6 +42,16 @@ export const OPTION_EXERCISES: Record<string, Exercise> = {
   'play-chord-capo': {
     type: 'play-chord', prompt: 'Capo on fret 2: play the {c:G} shape. It sounds as {c:A}.', chord: 'A', frets: '320003', capo: 2, explain: 'Two frets up from {c:G} is {c:A}.', alternative: tapIt,
   },
+  // A shell voicing: the microphone listens for the four notes the box shows, not all six of G13.
+  'play-chord-shell': {
+    type: 'play-chord', prompt: 'Strum this {c:G13} shell: root, seventh, third and thirteenth.', chord: 'G13', frets: '3x345x',
+    explain: 'The shell keeps {n:G}, {n:F}, {n:B} and {n:E}: root, seventh, third and thirteenth. The fifth ({n:D}) and the ninth ({n:A}) are left to the band.', alternative: tapIt,
+  },
+  // A heard wrong note is named in the key: C#3 in A major, never Db3.
+  'play-note-key': {
+    type: 'play-note', prompt: 'Play the open {n:A} string.', note: 'A2', octave: 'exact', key: 'A major', where: { string: 5, fret: 0 },
+    explain: 'String 5 played open is {n:A}, the root of {k:A major}.', alternative: tapIt,
+  },
   'choice-chords': {
     type: 'choice', prompt: 'Which box is {c:G}?', explain: '{c:G} is the shape with fret 3 on both E strings.',
     options: [{ figure: { kind: 'chord', symbol: 'G' }, correct: true }, { figure: { kind: 'chord', symbol: 'C' } }, { figure: { kind: 'chord', symbol: 'D' } }],

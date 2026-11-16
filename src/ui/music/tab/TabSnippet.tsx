@@ -27,6 +27,8 @@ export interface TabSnippetProps {
   size?: TabSize;
   rhythm?: boolean;
   notation?: boolean;
+  /** Note names the staff uses for their pitch classes (`['Bb']`): match the lesson text's spelling. */
+  spellings?: readonly string[];
   /** Show a play button; called with the parsed song. */
   onPlay?: (song: Song) => void;
   playing?: boolean;
@@ -49,7 +51,7 @@ export function snippetSource(tab: string, opts: { time?: string; tempo?: number
 
 /** The snippet. See the module comment. */
 export const TabSnippet = forwardRef<TabViewHandle, TabSnippetProps>(function TabSnippet(props, ref) {
-  const { tab, time, tempo, tuning, keyName, bars, track, size = 'md', rhythm, notation, onPlay, playing = false, playLabel, caption, className } = props;
+  const { tab, time, tempo, tuning, keyName, bars, track, size = 'md', rhythm, notation, spellings, onPlay, playing = false, playLabel, caption, className } = props;
   const parsed = useMemo(() => {
     if (typeof tab !== 'string') return { song: tab, error: null as string | null, text: '' };
     const text = snippetSource(tab, { time, tempo, tuning, keyName });
@@ -68,7 +70,7 @@ export const TabSnippet = forwardRef<TabViewHandle, TabSnippetProps>(function Ta
   const song = parsed.song;
   return (
     <figure className={className ? `${styles.snippet} ${className}` : styles.snippet}>
-      <TabView ref={ref} song={song} track={track} bars={bars} size={size} rhythm={rhythm} notation={notation} pick="none" autoScroll={false} aria-label={props['aria-label']} />
+      <TabView ref={ref} song={song} track={track} bars={bars} size={size} rhythm={rhythm} notation={notation} spellings={spellings} pick="none" autoScroll={false} aria-label={props['aria-label']} />
       {(onPlay || caption) && (
         <figcaption className={styles.snippetBar}>
           {onPlay && <IconButton icon={playing ? 'Square' : 'Play'} label={playing ? 'Stop' : playLabel ?? 'Play this example'} variant="secondary" round size="sm" pressed={playing} onClick={() => onPlay(song)} />}

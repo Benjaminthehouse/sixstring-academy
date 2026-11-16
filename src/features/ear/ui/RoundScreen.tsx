@@ -154,7 +154,7 @@ function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: 
   const example = useMemo<Question>(() => level.make({ rng: makeRng(level.n * 7919 + 17), answer: level.pool[0], settings, difficulty: 0.25, index: 0, seed: 1 }), [level, settings]);
   const fresh = new Set(newInLevel(drill, level.n));
   const options: Array<OptionInfo & { plan?: Question['plan'] }> =
-    example.kind === 'choice' ? example.options : example.keys.map((k) => ({ id: k.id, label: k.label, name: k.sub, detail: k.sub, plan: { events: [{ at: 0, midis: [k.midi], dur: 1, strike: 'pluck', role: 'subject' }], length: 0.8 } }));
+    example.kind === 'choice' ? example.options : example.keys.map((k) => ({ id: k.id, label: k.label, name: k.sub, detail: k.sub, plan: { events: [{ at: 0, midis: [k.midi], dur: 1, strike: 'pluck', role: 'subject', ...(example.tone ? { tone: example.tone } : {}) }], length: 0.8 } }));
   const locked = !best.unlocked;
 
   return (

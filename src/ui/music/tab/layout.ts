@@ -161,6 +161,7 @@ export function columnExtent(c: TabColumn, m: TabMetrics, rhythm: boolean, beame
   let left = 0;
   let right = 0;
   for (const n of c.notes) {
+    if (n.hidden) continue;
     let half = (n.text.length * m.digitW) / 2;
     if (n.paren || n.harmonic) half += 3.2 * z;
     let l = half;
@@ -698,8 +699,9 @@ export function collectEffects(model: TabModel, line: readonly number[], measure
   }
   for (const [kind, flag, label] of [
     ['vibrato', 'vibrato', ''],
-    ['pm', 'palmMute', 'P.M.'],
-    ['letring', 'letRing', 'let ring'],
+    // Palm mute and let ring are written once per stretch (see `holdSpans`), not on every note.
+    ['pm', 'muted', 'P.M.'],
+    ['letring', 'ringing', 'let ring'],
   ] as const) {
     for (const run of columnRuns(model, line, measures, mx, (c) => c.flags[flag])) {
       const lw = label ? measureText(label, 'label') * z + 7 * z : 0;

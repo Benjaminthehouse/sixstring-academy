@@ -35,6 +35,11 @@ export interface TabNote {
   key: string;
   /** The earlier note on this string that this one is tied, slurred or slid from. */
   from?: NoteRef;
+  /**
+   * A held piece that is not drawn: a note held through several columns shows its fret once per
+   * bar (the struck note, then the last held piece of each bar, tied from it), not a run of `(5)`s.
+   */
+  hidden?: boolean;
 }
 
 /** One rhythmic event of a measure: a beat, or a tied piece of a beat that no single value can write. */
@@ -61,6 +66,10 @@ export interface TabColumn extends RhythmEvent {
 export interface ColumnFlags {
   palmMute: boolean;
   letRing: boolean;
+  /** A let-ring note is still sounding here: from its column until its string is struck again, a rest, or the bar's end. */
+  ringing: boolean;
+  /** Inside a palm-mute stretch: between P.M. notes, while no muted string is struck open again (the thumb muted under a melody). */
+  muted: boolean;
   vibrato: boolean;
   accent: boolean;
   staccato: boolean;
@@ -227,6 +236,8 @@ export function buildTabModel(song: Song, opts: TabModelOptions = {}): TabModel 
       tuplets: tupletGroups(events),
     });
   }
+  holdSpans(measures);
+  thinHeldNotes(measures);
   // A range that starts mid-song still shows the tempo in force.
   if (measures.length && !measures[0].tempo.some((t) => t.tick === 0)) {
     const inForce = [...song.tempo].filter((t) => t.bar < from || (t.bar === from && (t.tick ?? 0) === 0)).pop() ?? song.tempo[0];
@@ -257,7 +268,7 @@ function chordText(symbol: string, capo: number, names: 'shapes' | 'sounding', n
 }
 
 function emptyFlags(): ColumnFlags {
-  return { palmMute: false, letRing: false, vibrato: false, accent: false, staccato: false, tap: false, artificial: false, bend: false, pluck: false, finger: false };
+  return { palmMute: false, letRing: false, ringing: false, muted: false, vibrato: false, accent: false, staccato: false, tap: false, artificial: false, bend: false, pluck: false, finger: false };
 }
 
 function buildColumns(track: Track, bar: number, length: number, measureIndex: number, last: Map<number, NoteRef>): TabColumn[] {
@@ -342,6 +353,64 @@ function buildColumns(track: Track, bar: number, length: number, measureIndex: n
     });
   });
   return out;
+}
+
+/**
+ * Where let ring and palm mute last, so each is written once per stretch rather than on every
+ * note: a let-ring note rings until its string is struck again (without let ring), a rest, or the
+ * end of the bar; a palm-mute stretch runs from one P.M. note to the next, across barlines, while
+ * no muted string is struck again unmuted (the thumb muting the bass under a fingered melody).
+ */
+export function holdSpans(measures: ReadonlyArray<{ columns: readonly TabColumn[] }>): void {
+  const ring = new Set<number>();
+  const mute = new Set<number>();
+  let pending: TabColumn[] = [];
+  for (const m of measures) {
+    ring.clear();
+    for (const c of m.columns) {
+      if (c.rest) {
+        ring.clear();
+        mute.clear();
+        pending = [];
+        continue;
+      }
+      for (const n of c.notes) {
+        if (n.tied) continue;
+        if (n.note.letRing) ring.add(n.string);
+        else ring.delete(n.string);
+        if (n.note.palmMute) mute.add(n.string);
+        else mute.delete(n.string);
+      }
+      c.flags.ringing = c.flags.letRing || ring.size > 0;
+      if (c.flags.palmMute) {
+        for (const p of pending) p.flags.muted = true;
+        pending = [];
+        c.flags.muted = true;
+      } else if (mute.size > 0) pending.push(c);
+      else pending = [];
+    }
+  }
+}
+
+/**
+ * Thin out held notes: within a bar, a tied piece followed by another tied piece of the same note
+ * is hidden and the later piece is tied straight from the note before. A note held through a bar
+ * then reads `5 ⌒ (5)`, once, instead of `5 (5) (5) (5)`.
+ */
+export function thinHeldNotes(measures: readonly TabMeasure[]): void {
+  for (const m of measures) {
+    m.columns.forEach((c, ci) => {
+      for (const n of c.notes) {
+        const from = n.from;
+        if (!n.tied || !from || from.measure !== m.index || from.col >= ci) continue;
+        const prev = m.columns[from.col]?.notes.find((x) => x.string === from.string);
+        if (!prev || !prev.tied || prev.hidden) continue;
+        prev.hidden = true;
+        if (prev.from) n.from = prev.from;
+        else delete n.from;
+      }
+    });
+  }
 }
 
 function restColumn(beat: number, piece: number, start: number, duration: number): TabColumn {

@@ -13,10 +13,13 @@
  *   persist     after a reload the five imported songs are still in "My songs" (IndexedDB)
  *   export      SixTab and MusicXML files download and hold the song
  *   manage      edit details (rename), delete with undo, one click on a row opens #play--<id>
+ *   details     a modal song shows its mode ("E Dorian"); a recovered traditional song shows its origin
+ *               line ("... as it is commonly sung ..."), and so does the learner's copy of it; the
+ *               learner's own song in A Dorian shows "A Dorian", not "A minor"; on desktop and phone
  * Phone (390 x 844, touch, dark and light) and a phone on its side: filters in a bottom sheet, the
  * details sheet, no sideways scroll, no console errors. Screenshots go to e2e/out/songs-*.png.
  *
- * Prints PASSED or FAILED and exits non-zero on failure.
+ * Prints PASSED or FAILED and exits non-zero on failure. `--only details` runs that group alone.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -408,6 +411,60 @@ async function phone(theme) {
   });
 }
 
+async function details() {
+  for (const mobile of [false, true]) {
+    const tag = mobile ? 'phone' : 'desktop';
+    await withApp(mobile ? { mobile: true } : { size: 'desktop' }, async ({ page, context, goto, errors }) => {
+      await seed(context);
+      await goto('songs');
+      await ready(page);
+      // Open one song's details: the pane on desktop, the sheet (from the row's menu) on a phone.
+      const show = async (id, title) => {
+        if (mobile) {
+          await closeDialogs(page);
+          // Find it by its title, as a learner would.
+          if (title) {
+            await page.locator('input[type="search"]').first().fill(title);
+            await page.waitForTimeout(500);
+          }
+          await page.locator(`[data-song-row="${id}"]`).scrollIntoViewIfNeeded();
+          await openRowMenu(page, id, 'About this song');
+          await page.waitForSelector(`[role="dialog"] [data-song-details="${id}"]`, { timeout: 15000 });
+        } else {
+          await goto('songs', id);
+          await ready(page);
+          await page.waitForSelector(`${PANE} [data-song-details="${id}"]`, { timeout: 15000 });
+        }
+        await page.waitForTimeout(1200);
+        return page.locator(`[data-song-details="${id}"]`).first();
+      };
+      let d = await show('drunken-sailor', 'Drunken Sailor');
+      check('details', `${tag}: a modal song shows its mode (E Dorian)`, (await d.locator('[data-song-key]').innerText()) === 'E Dorian', await d.locator('[data-song-key]').innerText());
+      d = await show('mo-li-hua', 'Mo Li Hua');
+      const origin = await d.locator('[data-song-origin]').innerText();
+      check('details', `${tag}: a recovered song shows its origin line (as commonly sung today)`, /commonly sung or played today/.test(origin), origin);
+      // The learner's own songs: a copy of the recovered song, and a song typed in A Dorian.
+      const ids = await page.evaluate(async () => {
+        const lib = (await import('/src/core/library/index.ts')).getLibrary();
+        const copy = await lib.duplicate('mo-li-hua');
+        const typed = await lib.importText('title: Dorian Sketch\ntempo: 90\ntime: 4/4\nkey: A dorian\n| q 3:2 3:4 2:1 2:3 | w 3:2 ||\n', { kind: 'typed' });
+        return { copy: copy.id, typed: typed.listing.id, typedKey: typed.listing.key };
+      });
+      await page.waitForTimeout(800);
+      d = await show(ids.copy, 'Mo Li Hua (Jasmine Flower) (my copy)');
+      const copyOrigin = await d.locator('[data-song-origin]').innerText();
+      check('details', `${tag}: the learner's copy keeps the origin line too`, /Your copy of Mo Li Hua/.test(copyOrigin) && /commonly sung or played today/.test(copyOrigin), copyOrigin);
+      d = await show(ids.typed, 'Dorian Sketch');
+      const key = await d.locator('[data-song-key]').innerText();
+      check('details', `${tag}: the learner's song in A Dorian says A Dorian (the library kept "${ids.typedKey}")`, key === 'A Dorian', key);
+      await page.screenshot({ path: path.join(OUT, `songs-${tag}-modal-details.png`) });
+      check('details', `${tag}: no sideways scroll`, (await overflow(page)) <= 1);
+      const errs = errors.filter((e) => !BENIGN.some((b) => b.test(e)));
+      check('details', `${tag}: no console errors`, errs.length === 0, errs.join(' | '));
+    });
+  }
+}
+
 async function sideways() {
   await withApp({ mobile: true, viewport: { width: 844, height: 390 } }, async ({ page, context, goto, errors }) => {
     await seed(context);
@@ -423,10 +480,15 @@ async function sideways() {
 (async () => {
   const started = Date.now();
   try {
-    await desktop();
-    await phone('dark');
-    await phone('light');
-    await sideways();
+    if (process.argv.includes('--only')) {
+      if (process.argv[process.argv.indexOf('--only') + 1] === 'details') await details();
+    } else {
+      await desktop();
+      await details();
+      await phone('dark');
+      await phone('light');
+      await sideways();
+    }
   } catch (e) {
     check('run', 'the script ran to the end', false, e && e.stack ? e.stack.split('\n').slice(0, 4).join(' | ') : String(e));
   }

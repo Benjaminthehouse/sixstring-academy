@@ -99,12 +99,18 @@ export interface TrackStats {
   syncopation: number;
   /** Chord grips played in the tab (three or more notes struck together), most used first. */
   shapes: ChordShapeStat[];
-  /** Held voices (0–1): the share of onsets where new notes are struck while another voice holds a note (a tie, or a held length). */
+  /**
+   * Held voices (0–1): the share of onsets where new notes are struck while another voice holds a
+   * note: a tie, or a note held by its length while a finger moves to another fret (a let-ring
+   * arpeggio over one chord shape is one voice).
+   */
   heldVoices: number;
   /**
-   * Thumb independence (0–1): the share of onsets where the fingers alone move off a steady bass
-   * pulse (a thumb stroke, on the two lowest strings, alone on the third, or marked p, on at least
-   * 70% of the beats or of the half bars), as in alternating-bass picking.
+   * Thumb independence (0–1): over a steady bass pulse (a thumb stroke, on the two lowest strings,
+   * alone on the third, or marked p, on at least 70% of the beats or of the half bars), the share of
+   * onsets where the fingers pinch with the thumb or strike between its strokes: anywhere off a thumb
+   * on every beat (alternating-bass picking), only syncopated against a thumb on the half bars (a
+   * bossa; a p-i-m-a arpeggio or a boom-chick strum is one stream, not two voices).
    */
   thumbVoices: number;
   /** Longest run of fast notes (onsets at most 0.2 s apart) without a break, in seconds at the written tempo. */
@@ -185,10 +191,13 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
   // Held voices: a note struck earlier still sounds (tied on, or held by its length) when new notes are struck.
   let heldOnsets = 0;
   const heldUntil = new Map<number, number>();
+  // The fret each string was last struck at since the last rest.
+  const lastFret = new Map<number, number>();
   for (const b of beats) {
     if (!b.notes.length && !b.source.slash) {
       lastStruck.clear();
       heldUntil.clear();
+      lastFret.clear();
       continue;
     }
     if (b.source.slash) ends.set(b, b.tick + b.duration);
@@ -198,9 +207,14 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
       const from = lastStruck.get(n.string);
       if (from) ends.set(from, Math.max(ends.get(from) ?? 0, b.tick + b.duration));
     }
-    const holding = tied.length > 0 || [...heldUntil].some(([s, until]) => until > b.tick && !struck.some((n) => n.string === s));
-    if (struck.length && holding) heldOnsets++;
+    // A tie under new notes is a second voice by how it is written. A note left ringing by its length
+    // (an imported file's sustain) is one only when a finger moves meanwhile: an arpeggio left to
+    // ring over one chord shape is a single voice, however long its notes sound.
+    const ringing = [...heldUntil].some(([s, until]) => until > b.tick && !struck.some((n) => n.string === s));
+    const moves = struck.some((n) => lastFret.has(n.string) && lastFret.get(n.string) !== n.fret);
+    if (struck.length && (tied.length > 0 || (ringing && moves))) heldOnsets++;
     for (const n of struck) {
+      lastFret.set(n.string, n.fret);
       lastStruck.set(n.string, b);
       ends.set(b, Math.max(ends.get(b) ?? 0, b.tick + (n.length ?? b.duration)));
       if (n.length !== undefined && n.length > b.duration) heldUntil.set(n.string, b.tick + n.length);
@@ -221,11 +235,24 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
   let switches = 0;
   const shapes = new Map<string, ChordShapeStat>();
   const bassOnsets: number[] = [];
-  const trebleOnly: number[] = [];
+  // Onsets of the fingers alone, and whether each is syncopated.
+  const trebleOnly: Array<{ tick: number; syncopated: boolean }> = [];
+  // Pinches: the thumb and the fingers struck together (see `isPinch`).
+  let pinches = 0;
   // The thumb's strokes: a note on one of the two lowest strings, a lone note on the third lowest,
   // or any note marked for the thumb (p). A group on strings 4-2 is the fingers' (i m a).
-  const thumbStrikes = (struck: Note[]) =>
-    struck.some((n) => n.pluck === 'p' || n.string >= tuning.length - 1) || (struck.length === 1 && struck[0].string >= tuning.length - 2);
+  const thumbNote = (n: Note) => n.pluck === 'p' || n.string >= tuning.length - 1;
+  const thumbStrikes = (struck: Note[]) => struck.some(thumbNote) || (struck.length === 1 && struck[0].string >= tuning.length - 2);
+  // A pinch: the thumb and the fingers at once, a string or more apart, the fingers reaching the two
+  // top strings. A chord grip on neighbouring strings (a shell, a power chord) is not one.
+  const isPinch = (struck: Note[]): boolean => {
+    if (struck.length < 2 || struck.length > 4) return false;
+    const thumb = struck.filter(thumbNote);
+    const fingers = struck.filter((n) => !thumbNote(n));
+    if (!thumb.length || !fingers.length) return false;
+    const fingerStrings = fingers.map((n) => n.string);
+    return Math.min(...thumb.map((n) => n.string)) - Math.max(...fingerStrings) >= 2 && Math.min(...fingerStrings) <= 2;
+  };
 
   for (const b of beats) {
     const src = b.source;
@@ -245,17 +272,21 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
       const bar = tl.barAt(b.tick);
       const beatTicks = (PPQ * 4) / bar.time.denominator;
       const inBar = b.tick - bar.start;
+      let offBeatSyncopated = false;
       if (inBar % beatTicks !== 0) {
         const nextBeat = bar.start + (Math.floor(inBar / beatTicks) + 1) * beatTicks;
         const accented = !!src.accent || struck.some((n) => n.accent);
         const heldOver = (ends.get(b) ?? 0) > nextBeat;
-        if (accented || heldOver || !onsetTicks.has(nextBeat)) syncopated++;
+        offBeatSyncopated = accented || heldOver || !onsetTicks.has(nextBeat);
+        if (offBeatSyncopated) syncopated++;
       }
       // Bass pulse and treble moving around it.
       if (!src.slash) {
         const hasBass = thumbStrikes(struck);
-        if (hasBass) bassOnsets.push(b.tick);
-        else if (struck.length) trebleOnly.push(b.tick);
+        if (hasBass) {
+          bassOnsets.push(b.tick);
+          if (isPinch(struck)) pinches++;
+        } else if (struck.length) trebleOnly.push({ tick: b.tick, syncopated: offBeatSyncopated });
       }
       // Muting between strums: a muted strum, or a chord all palm-muted or dead.
       const chordStrike = src.slash || struck.length >= 3;
@@ -366,7 +397,13 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
   };
   const beatTicks = (PPQ * 4) / (song.bars[0]?.time.denominator ?? 4);
   const pulse = [beatTicks, beatTicks * 2].find((step) => pulseShare(step) >= 0.7);
-  const offPulse = pulse ? trebleOnly.filter((t) => (t - (beats[0]?.tick ?? 0)) % pulse !== 0).length : 0;
+  // The fingers move on their own when they pinch with the thumb, or strike between its strokes:
+  // anywhere off a thumb that keeps every beat (Travis picking), but only syncopated against a thumb
+  // that keeps the half bars (a bossa), since there the notes between are otherwise just the rest of
+  // the arpeggio or the "chick" of a boom-chick, one hand's single stream.
+  const offPulse = pulse
+    ? trebleOnly.filter((t) => (t.tick - (beats[0]?.tick ?? 0)) % pulse !== 0 && (pulse === beatTicks || t.syncopated)).length
+    : 0;
   const nonSlashOnsets = Math.max(1, onsets - (techniques.strumming ?? 0));
 
   return {
@@ -391,7 +428,7 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
     syncopation: onsets ? syncopated / onsets : 0,
     shapes: [...shapes.values()].sort((a, b) => b.count - a.count),
     heldVoices: Math.round((heldOnsets / nonSlashOnsets) * 1000) / 1000,
-    thumbVoices: pulse ? Math.round((offPulse / nonSlashOnsets) * 1000) / 1000 : 0,
+    thumbVoices: pulse ? Math.round((Math.min(nonSlashOnsets, offPulse + pinches) / nonSlashOnsets) * 1000) / 1000 : 0,
     enduranceSeconds: Math.round(bestRun * 100) / 100,
     enduranceRepeats: Math.round(bestRepeats * 100) / 100,
     mutedStrums: strums ? muted / strums : 0,
@@ -549,10 +586,11 @@ export function estimateDifficulty(song: Song, opts: { track?: string | number; 
       reasons.push({ score: f.chords, text: names ? `Chords: ${names}${kind}.` : `Chord shapes${kind || ' held in the tab'}.` });
     }
   }
+  // The hardest element dominates, the next counts a third as much, the third a little. (Never the
+  // mean of the factors above zero: then a small factor falling to zero made the song score harder.)
   const values = Object.values(f).sort((a, b) => b - a);
-  const considered = values.filter((v) => v > 0);
-  const mean = considered.length ? considered.reduce((s, x) => s + x, 0) / considered.length : 0;
-  const score = clamp01(0.55 * values[0] + 0.25 * values[1] + 0.2 * mean);
+  const top3 = (values[0] + values[1] + values[2]) / 3;
+  const score = clamp01(0.55 * values[0] + 0.25 * values[1] + 0.2 * top3);
   const level = Math.max(1, Math.min(10, Math.round(1 + 9 * score)));
   f = Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * 100) / 100])) as unknown as DifficultyFactors;
   return {

@@ -147,3 +147,36 @@ describe('Run the Scale timing, against offsets a person really plays (60 BPM, o
     expect(play('exact')).toBe('on-time,on-time,on-time,on-time,on-time,late,early,late,missed,on-time,missed,on-time');
   });
 });
+
+describe('shape ids match the Scales screen (bug: findShape did not lay shapes out up the neck, so `box-4` was another octave)', () => {
+  // The Scales screen with the learner's fret setting and no capo (`features/scales/model/neck.ts`).
+  const scalesShape = async (tonic: string, scale: string, id: string, frets: number) => {
+    const { resolveShape } = await import('@/features/scales/model/neck');
+    return resolveShape(tonic, scale, id, { lastFret: Math.max(12, Math.min(24, frets)) }).shape;
+  };
+  const cases: Array<[string, string, string]> = [
+    ['A', 'minor-pentatonic', 'box-4'],
+    ['A', 'minor-pentatonic', 'box-5'],
+    ['E', 'minor-pentatonic', 'box-3'],
+    ['G', 'major', '3nps-6'],
+    ['A', 'minor-blues', 'position-3'],
+    ['A', 'minor-pentatonic', 'diagonal-1'],
+    ['A', 'minor-pentatonic', 'string-3'],
+    ['D', 'dorian', 'caged-g'],
+  ];
+
+  it.each(cases)('%s %s %s sits on the same frets in both screens', async (tonic, scale, id) => {
+    for (const frets of [15, 22]) {
+      const theirs = await scalesShape(tonic, scale, id, frets);
+      expect(theirs, `${id} exists on the Scales screen`).toBeTruthy();
+      const ours = patternOf({ tonic, scale, shape: id }, undefined, frets);
+      expect(ours.id).toBe(id);
+      expect(ours.notes.map((n) => `${n.string}:${n.fret}`), `${tonic} ${scale} ${id}, ${frets} frets`).toEqual(theirs!.notes.map((n) => `${n.string}:${n.fret}`));
+    }
+  });
+
+  it('climbs A minor pentatonic like the Scales screen: box 4 at the 12th fret, box 5 up at 14 when the neck reaches', () => {
+    expect(shapesFor('A', 'minor-pentatonic', undefined, 22).map((p) => p.minFret)).toEqual([5, 7, 9, 12, 14]);
+    expect(patternOf({ tonic: 'A', scale: 'minor-pentatonic', shape: 'box-4' }).minFret).toBe(12);
+  });
+});

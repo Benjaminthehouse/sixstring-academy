@@ -3,10 +3,13 @@
  * path: every level of every drill interleaved into one course, so "Continue" always has an answer.
  */
 import type { DrillDef, DrillId, LevelDef } from '../types';
+import { bassDrill } from './bass';
 import { chordsDrill } from './chords';
 import { degreesDrill } from './degrees';
+import { dictationDrill } from './dictation';
 import { compoundDrill, intervalsDownDrill, intervalsTogetherDrill, intervalsUpDrill } from './intervals';
 import { melodyDrill } from './melody';
+import { modesDrill } from './modes';
 import { pitchDrill } from './pitch';
 import { progressionsDrill } from './progressions';
 import { scalesDrill } from './scales';
@@ -19,8 +22,11 @@ const ALL: DrillDef[] = [
   tuningDrill,
   degreesDrill,
   melodyDrill,
+  dictationDrill,
   scalesDrill,
   progressionsDrill,
+  bassDrill,
+  modesDrill,
   intervalsDownDrill,
   intervalsTogetherDrill,
   compoundDrill,

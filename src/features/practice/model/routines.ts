@@ -7,40 +7,14 @@
  * A few good routines ship built in; those can be started and duplicated, not changed.
  */
 import type { ExperienceLevel } from '@/core/progress';
-import { AREA_INFO, isArea, type Area } from './areas';
+import { AREA_INFO, type Area } from './areas';
 import { CONTENT_BY_ID } from './content';
-import { blockFromItem, chooseForArea, type PlanBlock, type PlannerInput } from './planner';
+import { PRACTICE_LIBRARY } from './library';
+import { blockFromItem, chooseForArea, findItem, type PlanBlock, type PlannerInput } from './planner';
 import { makeId } from './random';
+import { MAX_ROUTINE_NAME, cleanRoutineName, type Routine, type RoutineBlock } from './routine-data';
 
-/** One block of a routine. */
-export interface RoutineBlock {
-  area: Area;
-  minutes: number;
-  /** An authored exercise. */
-  itemId?: string;
-  /** The learner's own wording (when there is no item). */
-  title?: string;
-  goal?: string;
-}
-
-/** A saved routine. */
-export interface Routine {
-  id: string;
-  name: string;
-  /** One line about what it is for. */
-  description: string;
-  /** Who it suits; `any` for everyone. */
-  level: ExperienceLevel | 'any';
-  blocks: RoutineBlock[];
-  builtIn: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-/** Saved routines at most. */
-export const MAX_ROUTINES = 30;
-/** Longest routine name. */
-export const MAX_ROUTINE_NAME = 60;
+export { MAX_ROUTINES, MAX_ROUTINE_NAME, parseRoutine, type Routine, type RoutineBlock } from './routine-data';
 
 const choice = (area: Area, minutes: number): RoutineBlock => ({ area, minutes });
 const item = (itemId: string, minutes: number): RoutineBlock => ({ area: CONTENT_BY_ID[itemId]?.area ?? 'free', minutes, itemId });
@@ -116,10 +90,6 @@ export function builtInsFor(level: ExperienceLevel): Routine[] {
   return [...own, ...any, ...others];
 }
 
-function cleanName(name: string): string {
-  return name.replace(/\s+/g, ' ').trim().slice(0, MAX_ROUTINE_NAME);
-}
-
 /**
  * Turn the blocks of a plan (or of a finished session) into routine blocks. Authored exercises
  * stay as they are; whatever the planner made for that day (a rusty skill, a goal, "Review 7
@@ -128,7 +98,7 @@ function cleanName(name: string): string {
  */
 export function routineBlocksFromPlan(blocks: ReadonlyArray<Pick<PlanBlock, 'area' | 'title' | 'goal' | 'itemId' | 'skillId' | 'goalId' | 'reasonKind'> & { minutes: number }>): RoutineBlock[] {
   return blocks.map((b) => {
-    if (b.itemId && CONTENT_BY_ID[b.itemId]) return { area: b.area, minutes: b.minutes, itemId: b.itemId };
+    if (b.itemId && findItem(b.itemId, PRACTICE_LIBRARY)) return { area: b.area, minutes: b.minutes, itemId: b.itemId };
     if (b.itemId || b.skillId || b.goalId || b.reasonKind === 'due' || b.reasonKind === 'continue') return { area: b.area, minutes: b.minutes };
     return { area: b.area, minutes: b.minutes, title: b.title, goal: b.goal };
   });
@@ -138,7 +108,7 @@ export function routineBlocksFromPlan(blocks: ReadonlyArray<Pick<PlanBlock, 'are
 export function createRoutine(name: string, blocks: readonly PlanBlock[], now: number, id = makeId('r')): Routine {
   return {
     id,
-    name: cleanName(name) || 'My routine',
+    name: cleanRoutineName(name) || 'My routine',
     description: '',
     level: 'any',
     blocks: routineBlocksFromPlan(blocks),
@@ -150,7 +120,7 @@ export function createRoutine(name: string, blocks: readonly PlanBlock[], now: n
 
 /** A name for a copy that is not taken yet: "Lead guitar warm-up (copy)", "(copy 2)" ... */
 export function copyName(name: string, taken: readonly string[]): string {
-  const base = cleanName(name).replace(/ \(copy(?: \d+)?\)$/, '');
+  const base = cleanRoutineName(name).replace(/ \(copy(?: \d+)?\)$/, '');
   const names = new Set(taken);
   let candidate = `${base} (copy)`;
   for (let n = 2; names.has(candidate); n++) candidate = `${base} (copy ${n})`;
@@ -164,7 +134,7 @@ export function duplicateRoutine(r: Routine, taken: readonly string[], now: numb
 
 /** Rename (an empty name keeps the old one). */
 export function renameRoutine(r: Routine, name: string, now: number): Routine {
-  const clean = cleanName(name);
+  const clean = cleanRoutineName(name);
   return clean ? { ...r, name: clean, updatedAt: now } : r;
 }
 
@@ -174,15 +144,17 @@ export function updateRoutineBlocks(r: Routine, blocks: readonly PlanBlock[], no
 }
 
 /**
- * The plan a routine runs as today: authored exercises as written, the learner's own text as
- * written, and "planner's choice" blocks filled from today's signals.
+ * The plan a routine runs as today: exercises as written, the learner's own text as written, and
+ * "planner's choice" blocks filled from today's signals. An exercise that no longer exists (a
+ * routine saved by an older version, or synced from one) becomes planner's choice for its area.
  */
 export function planFromRoutine(r: Pick<Routine, 'blocks' | 'name'>, input: PlannerInput): PlanBlock[] {
   const out: PlanBlock[] = [];
+  const library = input.library ?? PRACTICE_LIBRARY;
   for (const b of r.blocks) {
     const minutes = Math.max(1, Math.round(b.minutes));
     let block: PlanBlock | null = null;
-    if (b.itemId) block = blockFromItem(b.itemId, minutes);
+    if (b.itemId) block = blockFromItem(b.itemId, minutes, library) ?? chooseForArea(b.area, minutes, input, out);
     else if (b.title) {
       block = { id: makeId('b'), area: b.area, minutes, title: b.title, goal: b.goal ?? '', target: AREA_INFO[b.area].target };
     } else {
@@ -193,40 +165,4 @@ export function planFromRoutine(r: Pick<Routine, 'blocks' | 'name'>, input: Plan
     );
   }
   return out;
-}
-
-// ---------------------------------------------------------------------------------------------
-// Loading
-// ---------------------------------------------------------------------------------------------
-
-const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-
-function parseBlock(v: unknown): RoutineBlock | null {
-  if (!isObj(v) || !isArea(v.area) || typeof v.minutes !== 'number' || !Number.isFinite(v.minutes)) return null;
-  const minutes = Math.min(60, Math.max(1, Math.round(v.minutes)));
-  const block: RoutineBlock = { area: v.area, minutes };
-  if (typeof v.itemId === 'string' && CONTENT_BY_ID[v.itemId]) block.itemId = v.itemId;
-  else if (typeof v.title === 'string' && v.title.trim()) {
-    block.title = v.title.trim().slice(0, 120);
-    if (typeof v.goal === 'string') block.goal = v.goal.slice(0, 400);
-  }
-  return block;
-}
-
-/** A user routine from saved data, or null when it is malformed. */
-export function parseRoutine(v: unknown): Routine | null {
-  if (!isObj(v) || typeof v.id !== 'string' || typeof v.name !== 'string' || !Array.isArray(v.blocks)) return null;
-  const blocks = v.blocks.map(parseBlock).filter((b): b is RoutineBlock => b !== null);
-  if (blocks.length === 0) return null;
-  const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
-  return {
-    id: v.id,
-    name: cleanName(v.name) || 'My routine',
-    description: typeof v.description === 'string' ? v.description.slice(0, 200) : '',
-    level: v.level === 'beginner' || v.level === 'intermediate' || v.level === 'expert' ? v.level : 'any',
-    blocks,
-    builtIn: false,
-    createdAt: num(v.createdAt),
-    updatedAt: num(v.updatedAt),
-  };
 }

@@ -123,11 +123,14 @@ function pwa(): Plugin {
 }
 
 /**
- * Start downloading the first screen's code together with the app's own, instead of one round
- * trip after it: an inline script reads the address (#scales, #learn--…) and adds
- * <link rel="modulepreload"> for that route's chunk and the chunks it imports, from a table made
- * at build time from src/app/routes.ts. On a slow phone network that is one round trip (about half
- * a second) less before every first screen.
+ * Start downloading the first screen's code together with the app's own, instead of after it has
+ * started: an inline script reads the address (#scales, #learn--…) and adds
+ * <link rel="modulepreload"> for that route's chunk and the chunks it imports (and preloads its
+ * CSS), from a table made at build time from src/app/routes.ts. On a slow phone network the first
+ * screen is ready 0.2 to 0.9 s sooner. The price is that the entry script shares the line with the
+ * route's code, so React's first paint comes later; index.html's splash (painted from the HTML and
+ * CSS alone) covers that. Measured with e2e/perf.cjs: waiting for the entry script before
+ * preloading kept the old first paint but saved almost nothing.
  */
 function routePreload(): Plugin {
   return {
@@ -169,11 +172,14 @@ function routePreload(): Plugin {
           table[m[1]] = [...js, ...css].map(index);
         }
         if (!table.home) return;
+        // Every link is crossorigin, like the ones Vite adds when the route loads (its stylesheets
+        // too). A preload in another mode is not used: the stylesheet is requested again (from the
+        // HTTP cache at best) and Chrome warns about the unused preload on every first load.
         const script =
           `(function(f,r){var n=location.hash.slice(1).split('--')[0];var l=r[n]||r.home;` +
           `for(var i=0;i<l.length;i++){var p=f[l[i]],e=document.createElement('link');` +
-          `if(/\\.css$/.test(p)){e.rel='preload';e.as='style'}else{e.rel='modulepreload';e.crossOrigin=''}` +
-          `e.href='./'+p;document.head.appendChild(e)}})(${JSON.stringify(files)},${JSON.stringify(table)})`;
+          `if(/\\.css$/.test(p)){e.rel='preload';e.as='style'}else{e.rel='modulepreload'}` +
+          `e.crossOrigin='';e.href='./'+p;document.head.appendChild(e)}})(${JSON.stringify(files)},${JSON.stringify(table)})`;
         const tags: HtmlTagDescriptor[] = [{ tag: 'script', children: script, injectTo: 'head' }];
         return tags;
       },
@@ -192,7 +198,7 @@ export default defineConfig(({ mode }) => {
     // Libraries loaded with import() at the point of use: optimised up front, so the first import
     // in the dev server does not discover a new dependency and reload the page.
     optimizeDeps: {
-      include: ['@coderline/alphatab/core', '@tonejs/midi', 'jszip', 'vexflow/bravura', 'pdfjs-dist', 'tesseract.js', '@mediapipe/tasks-vision'],
+      include: ['@coderline/alphatab/core', '@tonejs/midi', 'jszip', 'vexflow/bravura', 'pdfjs-dist', 'tesseract.js', '@mediapipe/tasks-vision', '@supabase/supabase-js'],
     },
     build: {
       outDir: artifact ? 'dist-artifact' : 'dist',

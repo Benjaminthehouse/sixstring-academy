@@ -4,7 +4,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { readJSON, writeJSON } from '@/core/platform';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { normalizeFocus, type Focus } from '../core/focus';
 import { sanitizeRecords, type ArcadeRecords } from '../core/records';
 
@@ -17,7 +17,7 @@ const listeners = new Set<() => void>();
 function load(): ArcadeRecords {
   if (!state) {
     const raw = sanitizeRecords(readJSON<unknown>(ARCADE_KEY, null));
-    state = { ...raw, focus: normalizeFocus(raw.focus, safeTuning()) };
+    state = { ...raw, focus: normalizeFocus(raw.focus, safeTuning(), safeFrets()) };
   }
   return state;
 }
@@ -25,6 +25,14 @@ function load(): ArcadeRecords {
 function safeTuning() {
   try {
     return learnerTuning();
+  } catch {
+    return undefined;
+  }
+}
+
+function safeFrets(): number | undefined {
+  try {
+    return fretCount();
   } catch {
     return undefined;
   }
@@ -48,7 +56,7 @@ export function updateRecords(fn: (r: ArcadeRecords) => ArcadeRecords): ArcadeRe
 /** Set what is being practised (validated against the engine first). */
 export function setFocus(focus: Partial<Focus>): Focus {
   const current = load().focus;
-  const next = normalizeFocus({ ...current, ...focus }, safeTuning());
+  const next = normalizeFocus({ ...current, ...focus }, safeTuning(), safeFrets());
   if (next.tonic !== current.tonic || next.scale !== current.scale || next.shape !== current.shape) updateRecords((r) => ({ ...r, focus: next }));
   return next;
 }

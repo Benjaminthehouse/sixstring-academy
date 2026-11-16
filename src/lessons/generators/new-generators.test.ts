@@ -7,12 +7,14 @@
 import { describe, expect, it } from 'vitest';
 import { chordVoicings, fretAtDistance, fretDistance, identifyFretted, midiAt } from '@/core/guitar';
 import { chordPcs, getKey, keyFromSignature, parseChord, parseNote, parseTimeSignature, romanToChord, scalePcs } from '@/core/theory';
+import { parseRhythm as viewRhythm, rhythmGrid } from '@/ui/music/rhythm/model';
 import { exerciseProblems } from '../check';
 import { grade, solve } from '../grade';
 import { parseRhythm } from '../rhythm';
 import { plainText } from '../text';
 import type { ChoiceExercise, Exercise, FretboardFigure, GeneratedStep, StaffFigure, TabFigure } from '../types';
 import { generateStrict, generatorProblems } from './index';
+import { feelCounts, feelCountText } from './time';
 
 const SEEDS = 120;
 const runs = (step: GeneratedStep, n = SEEDS): Exercise[] => Array.from({ length: n }, (_u, seed) => generateStrict(step, { seed, difficulty: (seed % 5) / 4 }));
@@ -155,16 +157,46 @@ describe('rhythm-read: triplets and compound bars are full and counted where the
         else expect(ts.kind).toBe('compound');
         if (ask === 'count') {
           const said = plainText(String(right(e).text)).replace(/,/g, '').split(' ');
+          // Compound time is counted by dotted-quarter beat, "1 & a 2 & a"; 4/4 with triplets "1 trip let 2 &".
           const expected = parsed.onsets.map((tick) => {
-            if (ts.kind === 'compound') return String(tick / EIGHTH + 1);
+            if (ts.kind === 'compound') {
+              const eighth = (tick % (3 * EIGHTH)) / EIGHTH;
+              return eighth === 0 ? String(Math.floor(tick / (3 * EIGHTH)) + 1) : eighth === 1 ? '&' : 'a';
+            }
             const beat = Math.floor(tick / 960) + 1;
             const within = tick % 960;
             return within === 0 ? String(beat) : within === 480 ? '&' : within === 320 ? 'trip' : 'let';
           });
           expect(said).toEqual(expected);
+          // The counts depend on the meter, so the prompt names it.
+          expect(plainText(String((e as ChoiceExercise).prompt))).toContain(ts.text === '4/4' ? '4/4 with triplets' : `bar of ${ts.text}`);
         }
       }
     }
+  });
+
+  it('says the counts the notation draws under the notes (compound time "1 & a", not "1 2 3 4 5 6")', () => {
+    // Review fix: the tap and ear pictures count 6/8 "1 & a 2 & a" under the notes, so an
+    // explanation that numbered every eighth ("1 3, 4 5 6") contradicted what the learner read.
+    // The syllable drawn under every note that starts (rests are drawn on the grid too, but not said).
+    const drawn = (pattern: string, time: string): string[] => {
+      const grid = rhythmGrid(viewRhythm(pattern).notes, time);
+      return grid.cells.filter((c) => c.onset !== null && !grid.notes[c.onset].rest).map((c) => c.syllable);
+    };
+    let compound = 0;
+    let triplets = 0;
+    for (const e of runs({ generate: 'rhythm-read', params: { ask: 'tap', feels: ['triplets', '6/8', '9/8', '12/8'], rests: true } }, 300)) {
+      if (e.type !== 'tap-rhythm') throw new Error(e.type);
+      const { pattern, time } = e.rhythm as { pattern: string; time: string };
+      expect(feelCounts(pattern, time), `${time} ${pattern}`).toEqual(drawn(pattern, time));
+      expect(plainText(String(e.explain))).toContain(`The notes start on ${feelCountText(pattern, time)}.`);
+      if (time === '4/4') triplets++;
+      else compound++;
+    }
+    expect(compound).toBeGreaterThan(150);
+    expect(triplets).toBeGreaterThan(5);
+    expect(feelCountText('e e e q.', '6/8')).toBe('1 & a, 2');
+    expect(feelCountText('q e qr e', '6/8')).toBe('1 a, a');
   });
 });
 
@@ -276,6 +308,20 @@ describe('sight-reading: a passage in one key, in reach of one hand position', (
       const alt = e.alternative as ChoiceExercise;
       expect(pcs(tags(String(right(alt).text), 'n'))).toEqual(midis.map((m) => m % 12));
       expect(((alt.figure as StaffFigure).notes).map((n) => parseNote(typeof n === 'string' ? n : n.note)!.midi)).toEqual(midis);
+    }
+  });
+
+  it('refuses a tab question of two bars: measured in the lesson UI, every two-bar tab answer was wider than its button', () => {
+    // Review fix: 72 of 72 two-bar tab answers needed sideways scrolling inside their button, on a
+    // phone and on a desktop (one-bar tabs: 0 of 216), and the tab's scroll arrow is a button inside a button.
+    expect(generatorProblems({ generate: 'sight-reading', params: { ask: 'tab', bars: 2 } })[0]).toMatch(/"bars": 2 makes every tab answer wider than its button/);
+    expect(generatorProblems({ generate: 'sight-reading', params: { ask: 'tab', bars: 1, values: ['quarter', 'eighth'] } })).toEqual([]);
+    expect(generatorProblems({ generate: 'sight-reading', params: { ask: 'notes', bars: 2 } })).toEqual([]);
+    // The default of a tab question stays one bar.
+    for (const e of runs({ generate: 'sight-reading', params: { ask: 'tab', values: ['quarter', 'eighth', 'half'] } }, 40)) {
+      const tab = right(e).figure as TabFigure;
+      const beats = tab.notes.reduce((t, n) => t + ({ w: 4, h: 2, q: 1, e: 0.5 } as Record<string, number>)[n.duration.replace(/r$/, '')], 0);
+      expect(beats).toBe(4);
     }
   });
 

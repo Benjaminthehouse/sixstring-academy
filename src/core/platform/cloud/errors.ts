@@ -79,8 +79,8 @@ export function sendCodeError(error: AuthErrorLike, online: boolean): AccountErr
   if (code === 'over_email_send_rate_limit' || (error.status === 429 && /email/i.test(error.message))) return accountError('too-many-emails');
   if (code === 'over_request_rate_limit' || error.status === 429) return accountError('too-many-tries');
   if (code === 'email_address_invalid' || code === 'validation_failed' || /invalid.*email|email.*invalid/i.test(error.message)) return accountError('invalid-email');
-  if (code === 'signup_disabled' || /signups? not allowed/i.test(error.message)) return accountError('signups-closed');
   if (code === 'otp_disabled' || code === 'email_provider_disabled' || code === 'provider_disabled') return accountError('not-set-up');
+  if (code === 'signup_disabled' || /signups? not allowed/i.test(error.message)) return accountError('signups-closed');
   return accountError('server');
 }
 
@@ -114,8 +114,9 @@ export function tableErrorCode(error: PgErrorLike | null, status: number): strin
   if (status === 404) return 'setup_needed';
   // An expired or refused token: the auth client refreshes it, so try again shortly.
   if (status === 401 || /^PGRST30[0-3]$/.test(code)) return 'unauthenticated';
-  // The project is over its database size (read-only), or this account hit its row limit.
-  if (code === '25006' || code === '53100' || code === '54000' || status === 413) return 'quota_exceeded';
+  // The project is over its database size (read-only), this account hit its row limit, or one
+  // document is over the size the table allows: none of them gets better by retrying soon.
+  if (code === '25006' || code === '53100' || code === '54000' || code === '23514' || status === 413) return 'quota_exceeded';
   if (status === 429) return 'resource_exhausted';
   return 'unavailable';
 }

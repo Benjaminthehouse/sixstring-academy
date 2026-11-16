@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Player (src/features/player). Run:
- *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,strum,flow,reload,nomic,address,artifact,long,review,layouts]
+ *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,strum,chordwait,flow,reload,nomic,address,artifact,long,review,layouts,reading,meter,chart,capo,part,refused]
  *
  * Real Chromium, real Web Audio, Chromium's fake microphone playing WAV files rendered by the
  * audio module (the app's own guitar synth).
@@ -42,6 +42,22 @@
  *           the mode picker's row, with no jump; sideways: the top of the control column; desktop:
  *           beside Play); the tempo popover on a touch screen does not focus a text field (no
  *           on-screen keyboard over its slider); a very long title gives way to the mode picker
+ *  reading  a reading study opens in "Tab and notes"; `notes` covers the tab rows of every line (every
+ *           fret number under the cover), draws the staff and turns the fretboard off; the options
+ *           switch views and say when the fretboard goes (desktop and phone)
+ *  meter    6/8 counts dotted quarters on the tempo button (♩. = 54, as the score), in the count-in
+ *           switch, the speed trainer and the count-in itself (two beats); 3/8 counts eighths
+ *           (♪ = 120); 4/4 stays plain bpm
+ *  chart    "Hide the chord names" takes the symbols off the score and the fretboard away, with a
+ *           line to show them again; `hide-chart` hides them for one visit
+ *  capo     `capo2` keeps the shapes and sounds two semitones higher (the fretboard names E for the
+ *           open D string), the header and panel say the key; "As written" goes back keeping the
+ *           tempo; moving the song down 2 sounds in F; "Same key, easier shapes" (desktop and phone)
+ *  part     `part-teacher` makes the Teacher part the learner's, `mute-your-strum` mutes the strum,
+ *           an unknown part says so
+ *  refused  the microphone refused: the listen results suggest tapping along, never Wait
+ *  chordwait  phone, fake microphone: a C strum while wait mode wants G is named ("That sounded
+ *           like C. The chart says G"), then a G strum moves on
  *  layouts  phone upright (controls in the lower half), phone sideways (score above the
  *           fretboard, controls in a column on the right, one-line tab), tablet, desktop (side
  *           panel); light and dark; no sideways scroll; no console errors
@@ -659,6 +675,8 @@ async function address(browser, url) {
     const visit = async (hash) => {
       await page.goto(`${url}#${hash}`, { waitUntil: 'load' });
       await page.waitForSelector('main[data-route="play"] h1', { timeout: 60000 });
+      // The screen's code may still be loading on a busy machine (the shell says "Loading Player").
+      await page.waitForFunction(() => !/Loading Player/.test(document.querySelector('main')?.textContent ?? ''), null, { timeout: 60000 }).catch(() => {});
       await page.waitForTimeout(1500);
       return page.locator('main').innerText();
     };
@@ -930,6 +948,333 @@ async function layouts(browser, url) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// reading: notes only (the tab covered) and reading studies that open with the notation
+// ---------------------------------------------------------------------------------------------
+async function reading(browser, url) {
+  for (const mobile of [false, true]) {
+    const tag = mobile ? 'phone' : 'desktop';
+    const s = await open(browser, url, { mobile });
+    const { page } = s;
+    try {
+      // A reading study (prefersNotation in its meta) opens with the notes above the tab.
+      await s.goto('play--st-read-first-g');
+      const layer = await page.locator('[data-player-score]').getAttribute('data-layer');
+      check('reading', `${tag}: a reading study opens in "Tab and notes"`, layer === 'both', layer);
+      // `notes`: the notation alone, the tab rows covered on every line, the fretboard off.
+      await s.goto('play--st-read-first-g--notes');
+      await page.waitForSelector('[data-player-tab-cover]', { timeout: 30000 }).catch(() => {});
+      const cover = await page.evaluate(() => {
+        const c = document.querySelector('[data-player-tab-cover]');
+        const bands = c ? Array.from(c.children).map((b) => b.getBoundingClientRect()) : [];
+        // Every fret number drawn must lie under a band.
+        const frets = Array.from(document.querySelectorAll('[data-tab-view] [data-beat] text')).map((t) => t.getBoundingClientRect()).filter((r) => r.width > 0);
+        const under = frets.filter((r) => bands.some((b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1));
+        return { lines: c ? Number(c.getAttribute('data-player-tab-cover')) : 0, bands: bands.length, frets: frets.length, under: under.length };
+      });
+      check('reading', `${tag}: "notes" covers the tab on every line`, (await page.locator('[data-player-score]').getAttribute('data-layer')) === 'notation' && cover.lines >= 2 && cover.bands === cover.lines, JSON.stringify(cover));
+      check('reading', `${tag}: every fret number drawn is under the cover`, cover.frets > 0 && cover.under === cover.frets, JSON.stringify(cover));
+      check('reading', `${tag}: the staff is drawn (VexFlow)`, (await page.locator('[data-tab-view] svg').count()) > 0 && (await page.evaluate(() => document.querySelectorAll('[data-tab-view] .vf-stavenote, [data-tab-view] [class*="vf-"]').length)) > 0);
+      check('reading', `${tag}: the fretboard is off (it would give the notes away)`, (await page.locator('[data-player-neck]').count()) === 0);
+      // A tap on a covered line still starts there (taps go through the cover to the tab).
+      const before = Number(await page.locator('[data-player]').getAttribute('data-bar'));
+      const box = await page.locator('[data-player-tab-cover] > *').nth(1).boundingBox();
+      if (box) await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5);
+      await page.waitForTimeout(600);
+      const after = Number(await page.locator('[data-player]').getAttribute('data-bar'));
+      check('reading', `${tag}: a tap on the covered tab of line 2 starts there`, before === 0 && after > 0, `${before} -> ${after}`);
+      await s.shot(`reading-${tag}`);
+      // Back to tab and notes from the options: the cover goes.
+      if (mobile) await page.locator('[data-player-more]').click();
+      await page.getByRole('radio', { name: /Tab with the notes/ }).first().click();
+      await page.waitForTimeout(600);
+      check('reading', `${tag}: "Tab and notes" from the options takes the cover away`, (await page.locator('[data-player-tab-cover]').count()) === 0 && (await page.locator('[data-player-score]').getAttribute('data-layer')) === 'both');
+      // And "Notes only" from the options, with the fretboard on, says it hides the fretboard too.
+      await page.getByRole('switch', { name: /^Fretboard/ }).first().click().catch(() => {});
+      await page.waitForTimeout(300);
+      await page.getByRole('radio', { name: /^Notes only/ }).first().click();
+      const toastSaid = await page.getByText('The fretboard is hidden too').first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
+      check('reading', `${tag}: choosing "Notes only" says the fretboard is hidden too`, toastSaid && (await page.locator('[data-player-score]').getAttribute('data-layer')) === 'notation');
+      check('reading', `${tag}: no sideways scroll`, (await s.sideways()) <= 1, await s.sideways());
+      const errors = s.takeErrors();
+      check('reading', `${tag}: no console errors`, errors.length === 0, errors.join(' | '));
+    } finally {
+      await s.close();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// meter: 6/8 and 3/8 count their own beat (tempo button, panel, header, trainer, count-in)
+// ---------------------------------------------------------------------------------------------
+async function meter(browser, url) {
+  const s = await open(browser, url, { mobile: true });
+  const { page } = s;
+  try {
+    // Greensleeves (melody), 6/8 at ♩. = 54 (81 quarters a minute).
+    await s.goto('play--greensleeves-melody');
+    const btn = page.locator('button[data-player-bpm]').first();
+    const bpm = await btn.getAttribute('data-player-bpm');
+    const text = (await btn.innerText()).replace(/\s+/g, ' ');
+    check('meter', '6/8: the tempo button counts dotted quarters, as the score (♩. = 54)', bpm === '54' && text.includes('♩. = 54'), `${bpm} ${text}`);
+    check('meter', '6/8: its spoken name says so', /54 dotted-quarter beats a minute/.test((await btn.getAttribute('aria-label')) || ''), await btn.getAttribute('aria-label'));
+    await page.locator('[data-player-more]').click();
+    await page.waitForTimeout(500);
+    const sheet = (await page.locator('[role="dialog"]').last().innerText()).replace(/\s+/g, ' ');
+    check('meter', '6/8: the count-in says two dotted-quarter beats', /2 dotted-quarter beats/.test(sheet), sheet.slice(0, 200));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    // With a loop, the loop button opens the loop's sheet: the speed trainer is there.
+    await s.goto('play--greensleeves-melody--m2-3');
+    await page.locator('button[data-player-loop]').first().click();
+    await page.waitForSelector('[role="dialog"] [data-player-loop-options]', { timeout: 10000 }).catch(() => {});
+    const loopSheet = (await page.locator('[role="dialog"]').last().innerText().catch(() => '')).replace(/\s+/g, ' ');
+    check('meter', '6/8: the speed trainer counts dotted quarters (♩. = 38 to ♩. = 54)', /70 % \(♩\. = 38\) to 100 % \(♩\. = 54\)/.test(loopSheet), loopSheet.slice(0, 300));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await page.locator('button[data-player-loop]').first().click();
+    await page.waitForSelector('[role="dialog"] [data-player-loop-options]', { timeout: 10000 }).catch(() => {});
+    await page.locator('[role="dialog"]').last().getByRole('button', { name: 'Clear' }).click().catch(() => {});
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    // At 50 % the button follows: ♩. = 27.
+    for (let i = 0; i < 10; i++) await page.keyboard.press('-');
+    await page.waitForTimeout(300);
+    check('meter', '6/8 at 50 %: ♩. = 27', (await btn.getAttribute('data-player-bpm')) === '27', await btn.getAttribute('data-player-bpm'));
+    // The count-in: two beats, as the click counts them.
+    await page.locator('[data-player-play]').click();
+    const beats = await page.waitForFunction(() => {
+      const el = document.querySelector('[data-player-countin]');
+      return el?.hasAttribute('data-show') ? el.textContent : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => null);
+    check('meter', '6/8: the count-in counts two beats in the bar ("1 •")', beats === '1•', beats);
+    await page.keyboard.press('Escape');
+    // Für Elise, 3/8 at 60 quarters: three eighths a bar at ♪ = 120, as the click.
+    await s.goto('play--fur-elise-theme');
+    const fur = page.locator('button[data-player-bpm]').first();
+    check('meter', '3/8: the tempo button counts eighths (♪ = 120)', (await fur.getAttribute('data-player-bpm')) === '120' && (await fur.innerText()).includes('♪ = 120'), await fur.innerText());
+    // 4/4 stays plain bpm.
+    await s.goto(`play--${SONG}`);
+    check('meter', '4/4: plain bpm', /\d+ bpm/.test(await page.locator('button[data-player-bpm]').first().innerText()), await page.locator('button[data-player-bpm]').first().innerText());
+    const errors = s.takeErrors();
+    check('meter', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// chart: hide the chord names and boxes (play it from memory)
+// ---------------------------------------------------------------------------------------------
+async function chart(browser, url) {
+  const s = await open(browser, url);
+  const { page } = s;
+  try {
+    const tabText = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-tab-view] text')).map((t) => t.textContent).join(' '));
+    await s.goto('play--amazing-grace');
+    await page.waitForTimeout(800);
+    check('chart', 'chords shown by default (D7 on the score)', /\bD7\b/.test(await tabText()) && (await page.locator('[data-player-score]').getAttribute('data-chords')) === 'shown');
+    await page.getByRole('switch', { name: /Hide the chord names/ }).click();
+    await page.waitForTimeout(800);
+    check('chart', '"Hide the chord names" takes every chord symbol off the score', !/\bD7\b/.test(await tabText()) && (await page.locator('[data-player-score]').getAttribute('data-chords')) === 'hidden');
+    check('chart', 'and the fretboard (it would show the shapes), saying so', (await page.locator('[data-player-neck]').count()) === 0 && (await page.getByText('The fretboard is hidden too').count()) >= 1);
+    check('chart', 'a line over the score says they are hidden, with a way back', (await page.locator('[data-player-chart-hidden]').count()) === 1);
+    await s.shot('chart-hidden');
+    await page.locator('[data-player-chart-hidden]').getByRole('button', { name: 'Show them' }).click();
+    await page.waitForTimeout(800);
+    check('chart', '"Show them" brings the chords back', /\bD7\b/.test(await tabText()));
+    // The address hides them for one visit.
+    await s.goto('play--amazing-grace--hide-chart');
+    await page.waitForTimeout(800);
+    check('chart', '#…--hide-chart opens with the chords hidden', !/\bD7\b/.test(await tabText()));
+    await s.goto('play--amazing-grace');
+    await page.waitForTimeout(800);
+    check('chart', 'and the next plain visit shows them again', /\bD7\b/.test(await tabText()));
+    const errors = s.takeErrors();
+    check('chart', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// capo: follow the learner's capo; move the song for singing
+// ---------------------------------------------------------------------------------------------
+async function capo(browser, url) {
+  for (const mobile of [false, true]) {
+    const tag = mobile ? 'phone' : 'desktop';
+    const s = await open(browser, url, { mobile });
+    const { page } = s;
+    try {
+      const neckLabel = () => page.locator('[data-player-neck] [role="img"]').first().getAttribute('aria-label');
+      const meta = () => page.locator('[data-player]').innerText();
+      // The tune of Amazing Grace starts on the open D string (D3).
+      await s.goto('play--amazing-grace--part-tune--t70');
+      check('capo', `${tag}: as written, the first note is D on string 4, open`, /D string 4 fret 0/.test((await neckLabel()) || ''), await neckLabel());
+      await s.goto('play--amazing-grace--part-tune--t70--capo2');
+      check('capo', `${tag}: capo 2: the same shape (string 4, open) now sounds E`, /E string 4 fret 0/.test((await neckLabel()) || ''), await neckLabel());
+      const keyShown = mobile ? await page.locator('[data-player-moved]').innerText().catch(() => '') : await meta();
+      check('capo', `${tag}: the ${mobile ? 'chip beside the sections' : 'header'} says the key it sounds in (A major +2)`, mobile ? /A major \+2 · capo 2/.test(keyShown) : /A major \(\+2\)/.test(keyShown), keyShown.slice(0, 200));
+      if (mobile) await page.locator('[data-player-more]').click();
+      await page.waitForTimeout(500);
+      const line = (await page.locator('[data-player-sounds]').first().innerText()).trim();
+      check('capo', `${tag}: "Sounds in A major. You play G major shapes with a capo on fret 2."`, line === 'Sounds in A major. You play G major shapes with a capo on fret 2.', line);
+      // Move the song two semitones down from there: E string 4 open -> D, now on the capo at fret 2 shapes.
+      await page.getByRole('button', { name: 'As written' }).first().click();
+      await page.waitForTimeout(1200);
+      check('capo', `${tag}: "As written" goes back: D on string 4, open, no capo`, /D string 4 fret 0/.test((await neckLabel()) || '') && (await page.locator('[data-player-arrangement]').first().getAttribute('data-player-arrangement')) === '0:0', await neckLabel());
+      check('capo', `${tag}: the tempo carried over the change (70 %)`, (await page.locator('[data-player-tempo]').first().getAttribute('data-player-tempo')) === '70');
+      // "Move the song" down 2: the first note is C (on string 5, fret 3) and it sounds in F major.
+      const down = page.getByRole('button', { name: /Decrease Move the song|Move the song.*(less|down|decrease)/i }).first();
+      if (await down.count()) {
+        await down.click();
+        await down.click();
+      } else {
+        await s.goto('play--amazing-grace--part-tune--down2');
+        if (mobile) await page.locator('[data-player-more]').click();
+      }
+      await page.waitForTimeout(1500);
+      check('capo', `${tag}: two semitones down sounds in F major, first note C`, /Sounds in F major/.test(await page.locator('[data-player-sounds]').first().innerText()) && /^Play now: C /.test((await neckLabel()) || ''), `${await page.locator('[data-player-sounds]').first().innerText()} / ${await neckLabel()}`);
+      await s.shot(`capo-${tag}`);
+      // Moved up 2, the panel offers the same key with easier shapes.
+      await s.goto('play--amazing-grace--part-tune--up2');
+      if (mobile) await page.locator('[data-player-more]').click();
+      await page.waitForTimeout(500);
+      const easier = page.getByRole('button', { name: /Same key, easier shapes: capo 2/ }).first();
+      check('capo', `${tag}: moved up 2, "Same key, easier shapes: capo 2" is offered`, (await easier.count()) === 1);
+      if (await easier.count()) {
+        await easier.click();
+        await page.waitForTimeout(1500);
+        check('capo', `${tag}: it keeps the sound (A major) with the written shapes on a capo`, /Sounds in A major\. You play G major shapes with a capo on fret 2\./.test(await page.locator('[data-player-sounds]').first().innerText()) && /E string 4 fret 0/.test((await neckLabel()) || ''), await page.locator('[data-player-sounds]').first().innerText());
+      }
+      check('capo', `${tag}: no sideways scroll`, (await s.sideways()) <= 1, await s.sideways());
+      const errors = s.takeErrors();
+      check('capo', `${tag}: no console errors`, errors.length === 0, errors.join(' | '));
+    } finally {
+      await s.close();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// part: the address picks the learner's part and mutes others
+// ---------------------------------------------------------------------------------------------
+async function part(browser, url) {
+  const s = await open(browser, url);
+  const { page } = s;
+  try {
+    await s.goto('play--frere-jacques--part-teacher--mute-your-strum');
+    const mine = await page.locator('aside button[aria-pressed="true"]').filter({ hasText: 'You play this' }).innerText().catch(() => '');
+    check('part', '#…--part-teacher: the Teacher part is the learner’s', /Teacher/.test(mine), mine);
+    const muted = await page.getByRole('button', { name: /^Unmute Your strum/ }).count();
+    check('part', '#…--mute-your-strum: Your strum is muted', muted === 1);
+    await s.goto('play--frere-jacques--part-bass');
+    await page.waitForTimeout(600);
+    const said = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+    check('part', 'a part the song does not have: the first part, and it says so', /no part called "bass"/.test(said), said.slice(0, 300));
+    const errors = s.takeErrors();
+    check('part', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// refused: after the microphone was refused, results never suggest Wait or Flow
+// ---------------------------------------------------------------------------------------------
+async function refused(browser, url) {
+  const s = await open(browser, url, {
+    mobile: true,
+    init: () => {
+      if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = () => Promise.reject(Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }));
+    },
+  });
+  const { page } = s;
+  try {
+    await s.goto(`play--${SONG}--t150`);
+    await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
+    await page.waitForSelector('[role="dialog"]', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    // Listen to the whole song: the results suggest the next step.
+    await page.locator('[data-player-play]').click();
+    await page.waitForSelector('[data-player-results]', { timeout: 40000 }).catch(() => {});
+    const sug = await page.locator('[data-player-suggestion]').innerText().catch(() => '');
+    const next = await page.locator('[data-player-next-step]').innerText().catch(() => '');
+    check('refused', 'the suggestion is tap-along, not Wait', /tap along/i.test(sug) && !/wait/i.test(sug), sug);
+    check('refused', 'the next step points to Tap along, not the microphone', /Tap along/.test(next) && !/microphone and moves on/.test(next), next);
+    await s.shot('refused-results');
+    const errors = s.takeErrors().filter((e) => !/NotAllowedError|Permission denied/i.test(e));
+    check('refused', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// chordwait: a wrong chord in wait mode is named from its sound
+// ---------------------------------------------------------------------------------------------
+async function chordWait() {
+  // Frère Jacques (strum-along) waits for G. A C strum (x32010) first, then G strums.
+  const C = [[48, 5], [52, 4], [55, 3], [60, 2], [64, 1]];
+  const G = [[50, 4], [55, 3], [59, 2], [67, 1]];
+  const notes = [];
+  C.forEach(([midi, string], k) => notes.push({ time: 4.0 + k * 0.012, midi, string, velocity: 0.75 }));
+  for (const t of [7.0, 8.6]) G.forEach(([midi, string], k) => notes.push({ time: t + k * 0.012, midi, string, velocity: 0.7 }));
+  const file = await wav('chordwait', notes, 11);
+  try {
+    // Once with the chord chart shown, once from memory (`hide-chart`): the chord is then not named until asked.
+    for (const hidden of [false, true]) await withMic(file, async (browser, url) => {
+      const s = await open(browser, url, { mobile: true, permissions: ['microphone'] });
+      const { page } = s;
+      try {
+        if (hidden) {
+          await s.goto('play--frere-jacques--hide-chart');
+          await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
+          await page.waitForFunction(() => window.__pl.mode === 'wait', null, { timeout: 15000 });
+          await page.locator('[data-player-play]').click();
+          await page.waitForSelector('[data-player-wait]', { timeout: 15000 });
+          const prompt = (await page.locator('[data-player-wait]').innerText()).replace(/\s+/g, ' ');
+          check('chordwait', 'from memory: the prompt does not name the chord ("Strum the next chord")', /Strum the next chord/.test(prompt) && !/Strum G\b/.test(prompt), prompt);
+          const fb = await page.waitForFunction(() => {
+            const t = document.querySelector('[data-player-wait]')?.textContent ?? '';
+            return /sounded like/.test(t) ? t : null;
+          }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => '');
+          check('chordwait', 'from memory: a wrong chord is named, the chart is not ("not the chord here")', /That sounded like C, not the chord here/.test(fb) && !/chart says/.test(fb), fb);
+          await page.locator('[data-player-wait]').getByRole('button', { name: 'Show me' }).click();
+          await page.waitForTimeout(300);
+          check('chordwait', 'from memory: "Show me" names it', /Strum G/.test(await page.locator('[data-player-wait]').innerText()));
+          const errors = s.takeErrors();
+          check('chordwait', 'from memory: no console errors', errors.length === 0, errors.join(' | '));
+          return;
+        }
+        await s.goto('play--frere-jacques');
+        await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
+        await page.waitForFunction(() => window.__pl.mode === 'wait', null, { timeout: 15000 });
+        await page.locator('[data-player-play]').click();
+        await page.waitForSelector('[data-player-wait]', { timeout: 15000 });
+        // The C strum: the song waits, and says what it heard.
+        const fb = await page.waitForFunction(() => {
+          const t = document.querySelector('[data-player-wait]')?.textContent ?? '';
+          return /sounded like/.test(t) ? t : null;
+        }, null, { timeout: 15000 }).then((h) => h.jsonValue()).catch(() => '');
+        const d = await dbg(page);
+        check('chordwait', 'a C strum while G is wanted: "That sounded like C. The chart says G"', /That sounded like C\. The chart says G/.test(fb) && d.waitIndex === 0, `${fb} | index ${d.waitIndex} | ${d.notes.map((n) => n.result).join(' ')}`);
+        await s.shot('chordwait');
+        await page.waitForFunction(() => window.__pl.waitIndex >= 1, null, { timeout: 15000 }).catch(() => {});
+        check('chordwait', 'then a G strum moves the song on', (await dbg(page)).waitIndex >= 1, (await dbg(page)).waitIndex);
+        const errors = s.takeErrors();
+        check('chordwait', 'no console errors', errors.length === 0, errors.join(' | '));
+      } finally {
+        await s.close();
+      }
+    });
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 
 (async () => {
   const started = Date.now();
@@ -945,6 +1290,12 @@ async function layouts(browser, url) {
     ['long', long],
     ['review', review],
     ['layouts', layouts],
+    ['reading', reading],
+    ['meter', meter],
+    ['chart', chart],
+    ['capo', capo],
+    ['part', part],
+    ['refused', refused],
   ].filter(([g]) => wants(g));
   if (groups.length) {
     const server = await startServer();
@@ -965,7 +1316,7 @@ async function layouts(browser, url) {
       await server.close();
     }
   }
-  for (const [name, fn] of [['wait', wait], ['strum', strumWait], ['flow', () => flow(facts)]]) {
+  for (const [name, fn] of [['wait', wait], ['strum', strumWait], ['chordwait', chordWait], ['flow', () => flow(facts)]]) {
     if (!wants(name)) continue;
     const t = Date.now();
     try {

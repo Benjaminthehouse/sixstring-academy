@@ -5,3 +5,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Optional accounts (sign in on several devices): add these two in the Netlify UI, not here,
+  # under Site configuration > Environment variables, then trigger a new deploy:
+  #   VITE_SUPABASE_URL       the Supabase Project URL, https://<project>.supabase.co
+  #   VITE_SUPABASE_ANON_KEY  the Supabase "anon public" (or "publishable") key, never the service_role key
+  # Without them the app is built without accounts. Step by step: docs/accounts-setup.md

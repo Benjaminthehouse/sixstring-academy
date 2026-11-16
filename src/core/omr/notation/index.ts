@@ -418,7 +418,15 @@ export function analyzeNotationStaff(input: StaffInput, options: RecognizeOption
 
   const strokes = findStrokes(strip, musicX0, musicX1);
   lap('stems');
-  let heads = findHeads(strip, musicX0, musicX1, { strokes });
+  const small = { small: 0 };
+  let heads = findHeads(strip, musicX0, musicX1, { strokes, stats: small });
+  // A staff printed in cue-size notes (small heads throughout, few normal ones): read them as the
+  // notes they are. A few grace notes on a normal staff stay ignored.
+  const cue = small.small >= 6 && small.small >= 1.5 * heads.length;
+  if (cue) {
+    heads = findHeads(strip, musicX0, musicX1, { strokes, cue: true });
+    warnings.push({ code: 'small-notes', message: 'A line printed in small (cue-size) notes was read as notes to play. If they show another instrument\'s part, leave them out.' });
+  }
   lap('heads');
   // Heads off the staff need their ledger lines; this is also what keeps letters of the text
   // above the staff ("o", "d") from being read as notes.

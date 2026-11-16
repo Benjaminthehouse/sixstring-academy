@@ -10,7 +10,7 @@ import { ACTIVITY_KINDS, CONSUMABLES, COSMETICS, MAX_HEARTS, MAX_STREAK_FREEZES,
 import { heartsView, type HeartsView } from './hearts';
 import { levelInfo, type LevelInfo } from './levels';
 import { describeQuest, type QuestView } from './quests';
-import { isRusty, nextCrown, skillStrength, strengthLabel, type StrengthLabel } from './skills';
+import { isRusty, nextCrown, skillBest, skillStrength, strengthLabel, type SkillBest, type StrengthLabel } from './skills';
 import { dueQueue, reviewCounts, type ReviewCounts, type ReviewQuery } from './srs';
 import { addDays, dayRange, weekStartOf, weekday } from './time';
 import type { ActivityKind, DayKey, Favourite, MasteryLevel, ProgressState, RecentItem, ReviewItem, SkillRecord, Stars } from './types';
@@ -243,6 +243,8 @@ export interface SkillView {
   rusty: boolean;
   /** What the next crown takes, or null at five crowns. */
   next: { level: MasteryLevel; repsLeft: number; minAccuracy: number } | null;
+  /** The best a finished attempt reached (`skillBest`): null parts until one has, so never "Best 0%". */
+  best: SkillBest;
 }
 
 /** One skill with strength and next-crown info at `now`. */
@@ -258,6 +260,7 @@ export function skillView(state: ProgressState, id: string, now: number): SkillV
     label: strengthLabel(record, now),
     rusty: isRusty(record, now),
     next: nextCrown(record),
+    best: skillBest(record),
   };
 }
 

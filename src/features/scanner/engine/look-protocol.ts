@@ -1,4 +1,4 @@
-/** Messages between the screen and the quick-look worker (`look.worker.ts`). */
+/** What the quick look found, as the screen uses it (`look.ts`), and the messages of the old quick-look worker. */
 import type { GrayImage } from '@/core/omr/image/gray';
 import type { BBox } from '@/core/omr/types';
 import type { PageKind } from '../model/pages';

@@ -3,7 +3,7 @@ import { navigate } from '@/app/router';
 import { useImmersive, useScreenTitle } from '@/app/shell';
 import { ActionBar, AnimatedNumber, Badge, Button, Celebration, Heading, Icon, LinkButton, Page, StarRating, Text } from '@/ui';
 import { useMusicSettings } from '@/ui/music';
-import { learnerTuning } from '@/core/settings';
+import { fretCount, learnerTuning } from '@/core/settings';
 import { scaleTitle, type Focus } from '../core/focus';
 import { gameById, levelsOf, scopeOf } from '../core/games';
 import { applyDaily, highestOpen } from '../core/records';
@@ -21,7 +21,7 @@ export function Daily({ focus }: { focus: Focus }) {
   // Fixed when the challenge opens, so levels opened along the way do not change it under you.
   const [stages] = useState<DailyStage[]>(() => {
     const rec = getRecords();
-    return dailyChallenge(localDateKey(), focus, (g) => highestOpen(rec, g, scopeOf(g, focus), levelsOf(g, focus, tuning).length));
+    return dailyChallenge(localDateKey(), focus, (g) => highestOpen(rec, g, scopeOf(g, focus), levelsOf(g, focus, tuning, fretCount()).length));
   });
   const [step, setStep] = useState(0);
   const [between, setBetween] = useState(false);
@@ -163,7 +163,7 @@ export function Daily({ focus }: { focus: Focus }) {
       key={step}
       game={game}
       focus={focus}
-      level={Math.min(stage.level, levelsOf(game.id, focus, tuning).length)}
+      level={Math.min(stage.level, levelsOf(game.id, focus, tuning, fretCount()).length)}
       seed={stage.seed}
       size={stage.size}
       eyebrow={`Today’s challenge · ${step + 1} of ${stages.length}`}

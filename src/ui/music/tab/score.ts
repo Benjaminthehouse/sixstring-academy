@@ -12,8 +12,8 @@
  * (`length`, from merged voices) is written with the beat's length.
  */
 import { soundingPitch } from '@/core/song';
-import { spellInKey } from '@/core/theory';
 import { keySpec, measureAccidentals, type AccidentalGlyph } from '../notation/model';
+import { spellLine, type SpellEvent } from '../notation/spell';
 import type { NotationSpacing } from './layout';
 import type { TabColumn, TabMeasure, TabModel } from './model';
 
@@ -64,26 +64,50 @@ export function staffOffset(step: number): number {
   return 38 - step;
 }
 
-function spell(midi: number, key: string): string {
-  try {
-    return spellInKey(midi, key);
-  } catch {
-    try {
-      return spellInKey(midi, 'C');
-    } catch {
-      return 'C4';
-    }
-  }
+/** Options of `buildScore`. */
+export interface BuildScoreOptions {
+  /** Names that win whenever their pitch class sounds (`['Bb']`): the text's spelling of a blue note, say. */
+  spellings?: readonly string[];
 }
 
-/** Build the staff model of a tab model (pure). */
-export function buildScore(model: TabModel): ScoreModel {
+/** A column's pitches as they sound, low to high, with the tab note each one comes from. */
+function pitchedNotes(c: TabColumn): Array<{ midi: number; n: TabColumn['notes'][number] }> {
+  if (c.rest || (c.slash && !c.notes.length)) return [];
+  return c.notes
+    .map((n) => ({ midi: n.note.dead ? n.note.midi : n.note.harmonic === 'natural' ? soundingPitch(n.note) ?? n.note.midi : n.note.midi, n }))
+    .sort((a, b) => a.midi - b.midi);
+}
+
+/**
+ * Build the staff model of a tab model (pure). Pitches are spelled along the whole line (see
+ * `spellLine`): in the key, as chord tones of the chord in force, the blues' flat notes, by the
+ * direction the line takes, or as `opts.spellings` says.
+ */
+export function buildScore(model: TabModel, opts: BuildScoreOptions = {}): ScoreModel {
+  // The line: every column of every measure in order, with the key and chord in force.
+  const events: SpellEvent[] = [];
+  const pitched: Array<ReturnType<typeof pitchedNotes>> = [];
+  let chord: string | null = null;
+  for (const m of model.measures) {
+    let ci = 0;
+    for (const c of m.columns) {
+      while (ci < m.chords.length && m.chords[ci].tick <= c.start) chord = m.chords[ci++].symbol;
+      const notes = pitchedNotes(c);
+      pitched.push(notes);
+      events.push({ midi: notes.map((p) => p.midi), key: m.key, chord, tied: notes.map((p) => p.n.tied) });
+    }
+    while (ci < m.chords.length) chord = m.chords[ci++].symbol;
+  }
+  const names = spellLine(events, { spellings: opts.spellings });
+
   const measures: ScoreMeasure[] = [];
   let prevKeys: string[] = [];
+  let at = 0;
   for (const m of model.measures) {
     const spec = keySpec(m.key);
     const columns: ScoreColumn[] = m.columns.map((c) => {
-      const col = scoreColumn(c, m, prevKeys);
+      const col = scoreColumn(c, pitched[at], names[at], prevKeys);
+      at++;
       if (!c.rest) prevKeys = col.keys;
       else prevKeys = [];
       return col;
@@ -101,31 +125,25 @@ export function buildScore(model: TabModel): ScoreModel {
   return { measures };
 }
 
-function scoreColumn(c: TabColumn, m: TabMeasure, prevKeys: readonly string[]): ScoreColumn {
+function scoreColumn(c: TabColumn, pitched: ReturnType<typeof pitchedNotes>, spelled: readonly string[], prevKeys: readonly string[]): ScoreColumn {
   const value = c.value;
   const duration = DURATION[value?.base ?? 4] ?? 'q';
   const dots = value?.dots ?? 0;
   if (c.rest || (c.slash && !c.notes.length)) {
     return { keys: [], steps: [], accidentals: [], rest: c.rest, slash: c.slash, dead: [], tiedFrom: [], duration, dots, accent: false, staccato: false };
   }
-  const pitched = c.notes
-    .map((n) => {
-      const sounding = n.note.dead ? n.note.midi : n.note.harmonic === 'natural' ? soundingPitch(n.note) ?? n.note.midi : n.note.midi;
-      return { midi: sounding, n };
-    })
-    .sort((a, b) => a.midi - b.midi);
   const seen = new Set<string>();
   const keys: string[] = [];
   const dead: boolean[] = [];
   const tiedFrom: boolean[] = [];
-  for (const p of pitched) {
-    const name = spell(p.midi, m.key);
-    if (seen.has(name)) continue;
+  pitched.forEach((p, i) => {
+    const name = spelled[i];
+    if (seen.has(name)) return;
     seen.add(name);
     keys.push(name);
     dead.push(!!p.n.note.dead);
     tiedFrom.push(p.n.tied && prevKeys.includes(name));
-  }
+  });
   return {
     keys,
     steps: keys.map(writtenStep),
@@ -202,7 +220,9 @@ export function scoreSpacing(score: ScoreModel, model: TabModel): NotationSpacin
       const accCols = Math.min(3, c.accidentals.filter(Boolean).length);
       const second = c.steps.some((s, k) => k > 0 && s - c.steps[k - 1] === 1);
       const flagged = ['8', '16', '32', '64'].includes(c.duration);
-      return { left: 6.5 + accCols * 9, right: 6.5 + c.dots * 5 + (second ? 10 : 0) + (flagged ? 3 : 0) };
+      // VexFlow sets an accidental about 3 px off the head and a flat or sharp is 8-10 px wide: room
+      // for that and a little air, so the first note of a bar never draws its accidental over the barline.
+      return { left: 6.5 + accCols * 10.5 + (accCols ? 3.5 : 0), right: 6.5 + c.dots * 5 + (second ? 10 : 0) + (flagged ? 3 : 0) };
     },
     regionHeight: (indices) => regionMetrics(score, indices).height,
     measureLead: (mi) => {

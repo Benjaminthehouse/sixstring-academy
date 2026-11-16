@@ -6,7 +6,7 @@
 import { formatDegree, formatKey, formatNote } from '@/core/theory';
 import { MINOR_TONICS, ROOT_NAMES, pcOf, placeNote } from '../question';
 import { melodic, planNotes } from '../sound';
-import type { DrillDef, GenContext, LevelDef, OptionInfo, RowKey, SequenceQuestion, SoundPlan } from '../types';
+import type { DrillDef, GenContext, LevelDef, OptionInfo, RowKey, SequenceQuestion, SoundEvent, SoundPlan } from '../types';
 import { SOLFEGE, degreeSemitones } from './degrees';
 
 /** Row degrees: `1'` is the octave above the tonic, `5,` the fifth below it. */
@@ -26,10 +26,11 @@ export function melodyInfo(id: string): OptionInfo {
   return { id, label, name: `${label} (${sub})`, detail: sub };
 }
 
-/** The plan of a sequence of row keys. */
-export function sequencePlan(keys: readonly RowKey[], ids: readonly string[], gap: number): SoundPlan {
+/** The plan of a sequence of row keys (in `tone` when the drill has an instrument of its own, the bass). */
+export function sequencePlan(keys: readonly RowKey[], ids: readonly string[], gap: number, tone?: SoundEvent['tone']): SoundPlan {
   const midis = ids.map((id) => keys.find((k) => k.id === id)?.midi).filter((m): m is number => m !== undefined);
-  return melodic(midis, { gap, dur: gap * 1.5, tail: 0.6 });
+  const plan = melodic(midis, { gap, dur: gap * 1.5, tail: 0.6 });
+  return tone ? { ...plan, events: plan.events.map((e) => ({ ...e, tone })) } : plan;
 }
 
 interface MelodyParams {

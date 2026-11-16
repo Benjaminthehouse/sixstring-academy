@@ -10,6 +10,29 @@ import { RIVERSIDE_MORNING, TabSnippet, TabView, longStudy, noteKey, type TabNot
 
 type ThemeChoice = 'system' | 'light' | 'dark';
 
+// Two bars of an original fingerstyle blues in E: the thumb muted on every beat, the blue note B flat sliding to B.
+const BLUES_IN_E = `title: Blues in E
+tempo: 84
+key: E
+
+| ^"Thumb: steady quarters, lightly muted" "E7" q (6:0{pm} /1:3) q3 (6:0{pm} 1:0) e3 2:3 q (6:0{pm} 2:0) 6:0{pm} |
+| q3 (6:0{pm} 3:3) e3 3:4s q3 (6:0{pm} 3:2) e3 3:0 q 6:0{pm} q3 6:0{pm} e3 1:0 |
+| q3 (6:0{pm} 3:3) e3 3:4s q (6:0{pm} 3:2) (6:0{pm} 3:0) 6:0{pm} |
+| h (6:0 2:0 1:0) (6:- 2:- 1:-) ||
+`;
+
+// An original tremolo bar over a let-ring bass, then two voices with the bass held under the tune.
+const LET_RING_AND_HELD = `title: Let ring and held notes
+tempo: 60
+time: 3/4
+key: Dm
+
+| ^"p a m i over a let-ring bass" "Dm" s 5:5{lr} 1:5 1:5 1:5 4:7 1:5 1:5 1:5 3:7 1:5 1:5 1:5 |
+| "Gm/D" s 5:5{lr} 1:6 1:6 1:6 4:5 1:6 1:6 1:6 3:7 1:5 1:5 1:5 |
+| ^"The bass held under the tune" "Dm" e (5:5 1:5) (5:- 1:6) (5:- 1:8) (5:- 1:6) q (5:- 1:5) |
+| "A7" e (5:0 2:6) (5:- 2:8) (5:- 1:5) (5:- 2:8) q (5:- 2:6) ||
+`;
+
 /**
  * Gallery of the music UI kit (`#kit-music`): every music component in realistic configurations,
  * for visual checks in both themes, both hands, every naming system and every width.
@@ -96,6 +119,8 @@ function TabGroup() {
   const grace = useMemo(() => sixTab(AMAZING_GRACE), []);
   const groove = useMemo(() => sixTab(CAMPFIRE_GROOVE), []);
   const long = useMemo(() => sixTab(longStudy(200)), []);
+  const blues = useMemo(() => sixTab(BLUES_IN_E), []);
+  const held = useMemo(() => sixTab(LET_RING_AND_HELD), []);
   const [size, setSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [boxes, setBoxes] = useState(false);
   const [staff, setStaff] = useState(false);
@@ -136,6 +161,12 @@ function TabGroup() {
         </Demo>
         <Demo wide title="Notation above the tab" note="Amazing Grace in G with its pickup: the staff (treble clef, sounding an octave lower) is engraved from the same bars, note for note above the frets.">
           <TabView song={grace} notation />
+        </Demo>
+        <Demo wide title="A blues with its blue note" note="E blues over a steady thumb: B♭ is written as the flat five even where it slides up to B, the thumb's P.M. is written once per stretch, and the held bass of the last bar once.">
+          <TabView song={blues} notation />
+        </Demo>
+        <Demo wide title="Let ring and held notes" note="A tremolo bar with a let-ring bass, and two voices where the bass is held under the tune: “let ring” once per stretch, each held note once, tied from where it was struck.">
+          <TabView song={held} />
         </Demo>
         <Demo
           wide

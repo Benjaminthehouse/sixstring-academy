@@ -12,7 +12,7 @@ because something is missing: each returns a typed "not available" result with a
 |---|---|---|
 | `ask`, `askJson` | `sample: { images: true }` (`sample: {}` allows text only) | `aiStatus().available === false` |
 | `saveFile` | `downloads: true` | `{ ok: false, reason: 'unavailable' }` |
-| cloud sync | `db: {}` **and** `user: {}` (no rules: `data/users/<id>/` is private by default) | status `off` |
+| cloud sync | `db: {}` **and** `user: {}` (no rules: `data/users/<id>/` is private by default) | status `off` (the standalone app syncs through accounts instead, see below) |
 | `speak` | `tts: {}` | the browser's own voice if the frame has one, else unavailable |
 
 All of it: `capabilities: { sample: { images: true }, downloads: true, db: {}, user: {}, tts: {} }`.
@@ -35,7 +35,7 @@ anyone listing it. `classifyKey(key)` gives the class; the exceptions, each with
 | `learner` (default) | everything not below | yes / yes | erased |
 | `learner`, `sync: false` | `rhythm.calibration` (this device's own audio delay) | yes / no | erased |
 | `session` | `practice.session`, `lesson-session.*`, `player.session.*`, `teachers.task`, `shell.onboarding` | no / no | erased |
-| `device` | `sync.*`, `data.*`, `shell.nav-open`, `learn.conditions`, `player.micNotice`, `camera.blockedOnce`, `camera.capoAskedAt`, `kit.*`, `arcade.test-seed`, `__probe` | no / no | kept |
+| `device` | `sync.*` (sync memory; the account session `sync.auth.*`, the pending sign-in code), `data.*`, `shell.nav-open`, `learn.conditions`, `player.micNotice`, `camera.blockedOnce`, `camera.capoAskedAt`, `kit.*`, `arcade.test-seed`, `__probe` | no / no | kept |
 | `secret` | `ai.*` (the API key) | never / never | kept |
 | `progress` | `progress`, `progress.*` | via the progress export | via `resetProgress` |
 | `songs` | `library.*` (the songs' key-value fallback) | song by song (`@/core/library`) | only with "also delete my songs" |
@@ -187,15 +187,23 @@ Viewer `tts` voice in an artifact, otherwise an on-device browser voice chosen p
 current one unless `queue`. Always keep the text on screen; hide speaker buttons when `speechAvailable()` is false.
 `const s = useSyncExternalStore(subscribeSpeech, getSpeechState)` gives `{ speaking, available, provider, voice }`.
 
-## Cloud sync (`sync.ts`), artifact host only
+## Cloud sync (`sync.ts`): the Claude viewer's database, or the learner's own account
 
 ```ts
-startCloudSync(): Promise<SyncStatus>   syncNow()   stopCloudSync()   getSyncStatus()   subscribeSyncStatus(listener)
-// SyncStatus = { state: 'off' | 'syncing' | 'synced' | 'error', issue, message, lastSyncedAt, pending, songs }
+startCloudSync(): Promise<SyncStatus>   restartCloudSync()   syncNow()   stopCloudSync()   getSyncStatus()   subscribeSyncStatus(listener)
+// SyncStatus = { state: 'off' | 'syncing' | 'synced' | 'error' | 'offline', issue, provider: 'claude' | 'account' | null,
+//                message, lastSyncedAt, pending, songs }
 ```
 
-**Shell: call `startCloudSync()` once at startup** (in standalone it only starts the data tracker; never throws,
-never reloads the page). It keeps one copy in `data/users/<viewer id>/progress` (plus `progress.<gen>.<n>` parts
+One engine, two backends with the same document interface (`SyncDatabase`: `doc(path).get/set/delete/onSnapshot`):
+inside Claude the viewer's `db` + `user` capabilities (as before, `provider: 'claude'`); in the standalone app, when
+this copy offers accounts and someone is signed in, the learner's rows of one Supabase table (`cloud/db.ts`,
+`provider: 'account'`). Merging, songs, limits, epochs and backoff below are identical for both.
+
+**Shell: call `startCloudSync()` once at startup, in every host** (with no backend it only starts the data tracker;
+never throws, never reloads the page; safe to call again: the Me area does). `restartCloudSync()` replaces the service
+(signing in or out does it; also "Try again"); status listeners stay subscribed. It keeps one copy in
+`data/users/<viewer id>/progress` (plus `progress.<gen>.<n>` parts
 when it exceeds one 256 KiB document): the progress export, merged with `importProgress(..., 'newest-wins')` and
 then guarded so total XP is not below either side and two halves of one unbroken streak are joined; and `data`,
 every learner key `syncsKey` accepts, merged per key with `planDataSync` (newest change wins for a setting or a
@@ -209,14 +217,61 @@ that song changed) and the list in the copy, merged song by song the same three-
 device and `status.songs` says why: `{ synced, count, bytes, reason: 'count' | 'size' | 'total' | 'elsewhere' | null }`.
 
 Writes: debounced 5 s, at least 20 s apart, one at a time, only on change, never before the first confirmed read,
-exponential backoff. `issue`: `standalone not-offered unreachable retrying read-only storage-full update-needed revoked`.
+exponential backoff. `issue`: `standalone` (no accounts in this copy) `not-offered signed-out offline unreachable retrying
+read-only storage-full update-needed setup-needed erased revoked`. `offline` (state `offline`) and `setup-needed` (the
+owner has not run `supabase/schema.sql`; state `error`, writes paused until a restart) come only from accounts; the
+messages name the account rather than Claude where the provider is `account`. With an account, `syncNow()` also asks
+the table for other devices' changes first. "Delete my cloud data" leaves `erasedHeadDoc()` in place of the head: a
+device that had synced stops, forgets its sync memory and signs out (`erased`); one signing in afresh starts a new copy.
 A copy written by an older app (no `data`, no song list) leaves this device's data and songs alone. Tests:
-`createCloudSync({ progress: () => appDataPort(store, createLearnerData(memoryKv()), songSyncPort(lib)) })`.
+`createCloudSync({ progress: () => appDataPort(store, createLearnerData(memoryKv()), songSyncPort(lib)) })`; for
+accounts pass `host: () => 'standalone', accountsOffered: () => true, account: async () => ({ database, uid })`.
 
 ```tsx
 const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);   // profile screen
 <StatusRow tone={sync.state} text={sync.message} action={sync.pending ? { label: 'Sync now', run: syncNow } : undefined} />
 ```
+
+### Accounts (`cloud/`; import from `@/core/platform/cloud`)
+
+Optional accounts for the standalone app on Supabase (free tier). **Offered only when the build had
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`** (Netlify environment variables; owner guide: `docs/accounts-setup.md`);
+never inside Claude. Without them nothing loads and Me > Account says so in one line. `@supabase/supabase-js` is loaded
+on demand by `cloud/client.ts`, so copies without accounts never download it.
+
+```ts
+accountsOffered()  cloudConfig()  cloudUnavailableReason(): 'artifact' | 'not-configured' | 'misconfigured' | null
+getAccounts(): Accounts   getAccountState()   subscribeAccount(listener)        // useSyncExternalStore pair
+// AccountState = { phase: 'unavailable' | 'starting' | 'signed-out' | 'code-sent' | 'signed-in', unavailable, email, userId,
+//                  sentAt, busy: 'sending' | 'verifying' | 'signing-out' | 'deleting' | null, error: AccountError | null,
+//                  notice: 'signed-out' | 'erased' | 'deleted' | 'removed' | null }
+accounts.ready()  sendCode(email)  verifyCode(code)  changeEmail()  signOut({ removeLocal })  deleteCloudData()  clearError()  clearNotice()
+```
+
+- **Sign-in is an emailed 6-digit code** (`signInWithOtp({ shouldCreateUser: true })`, then `verifyOtp({ type: 'email' })`),
+  never a magic link (a link opens the browser, not the app on the home screen). "Enter the code" survives a reload
+  (`sync.account.pending`). Errors are `AccountError { kind, message, retryInSec? }` with kind words for: `invalid-email
+  invalid-code wrong-code expired-code too-many-emails too-many-tries wait offline not-set-up signups-closed unsynced server`.
+- **The session lives in `sync.auth.*`** (class `device`: never in a backup, never synced, kept by a reset). The
+  client refreshes tokens itself; an offline start with an expired token stays signed in (status `offline`); a session
+  that can no longer be refreshed signs out with `notice: 'signed-out'`. Nothing logs tokens.
+- **Signing in** restarts sync on the account: a device with progress merges it with the cloud copy (never wiped); an
+  untouched device takes the cloud copy as it is. **`signOut({ removeLocal: false })`** keeps this device's progress;
+  `removeLocal: true` first waits up to 10 s for unsent changes, refuses (`unsynced`) if they cannot reach the cloud, then
+  erases this device's progress, data and songs (no Undo copy) and reloads. **`deleteCloudData()`** writes the erased
+  marker, deletes the rest of the learner's rows, signs out everywhere and keeps this device's progress.
+- **The table** (`supabase/schema.sql`): `sync_docs(id uuid pk, user_id → auth.users on delete cascade, path, data
+  jsonb, updated_at)`, unique `(user_id, path)`, row-level security (select/insert/update/delete only `user_id =
+  auth.uid()`, nothing for `anon`), 300 rows and 300 KB a row per learner, in the Realtime publication.
+  `supabaseDatabase(client, uid, { timers })` maps `data/users/<uid>/<name>` to row `(uid, name)`, refuses any other
+  path before a request, hears other devices through Realtime (inserts and updates of the learner's own rows) and also
+  polls: when a listener starts, on focus, visibility and `online`, when the channel reconnects, and every 3 minutes
+  (a cheap `updated_at` look first). Network trouble never reaches the listener; a signed-out session (`revoked`) or a
+  missing table (`setup_needed`) end it.
+- **Tests and browser checks** run on `cloud/fake.ts`: `createFakeServer()` (codes with Supabase's limits, sessions,
+  row security as in the schema, Realtime) + `createFakeClient(memoryTransport(server), { storage })`; `cloud/testing.ts`
+  builds whole simulated devices. A development build that finds `window.__ssaCloudFake` (exposed by `e2e/account.cjs`)
+  uses `bindingTransport` to a server in the check's Node process; production builds leave that path out.
 
 ## Wake lock (`wake-lock.ts`)
 
@@ -260,6 +315,12 @@ createServiceWorkerUpdater(deps)    // tests: the same logic on fakes
   to the Tuner, Metronome, Theory Path and Songs). Icons in `public/icons/` are drawn by
   `node scripts/make-icons.cjs` from the token colours: `icon.svg` (also the favicon), `icon-192.png`,
   `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`.
+- **First load (build, `vite.config.ts` + `index.html`).** `index.html` paints a splash (the icon on the page
+  background) from the HTML and CSS alone, and an inline script made by the `ssa-route-preload` plugin starts
+  downloading the address's own screen code (`#scales`, `#learn--…`) together with the app's entry instead of
+  after it. Its links (scripts and stylesheets) are `crossorigin` like the ones Vite adds when the screen
+  loads, so every preload is used, not fetched again. React replaces the splash on its first render. `node e2e/perf.cjs` measures first load, a tap and a
+  repeat visit on an emulated mid-range phone (4x CPU, slow 4G) and lists the largest chunks.
 - **Checks.** `src/core/platform/service-worker.test.ts` runs `sw.js` itself in a fake worker scope (install,
   reuse on update, cleanup, offline answers, vendor caching, SKIP_WAITING) and the page side on fakes.
   `node e2e/pwa.cjs` builds the app and checks install, offline (a never-opened screen too), the update toast

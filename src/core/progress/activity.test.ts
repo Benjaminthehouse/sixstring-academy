@@ -38,8 +38,8 @@ describe('XP guideline', () => {
     expect(xpFor('song', { durationSec: 600, accuracy: 1, perfect: true })).toBe(30);
     expect(xpFor('song', {})).toBe(8);
     expect(xpFor('scale-practice', { durationSec: 300 })).toBe(10);
-    expect(xpFor('practice', { durationSec: 20 * 60 })).toBe(30);
-    expect(xpFor('practice', { durationSec: 3 * 3600 })).toBe(45);
+    expect(xpFor('practice', { durationSec: 20 * 60 })).toBe(40);
+    expect(xpFor('practice', { durationSec: 3 * 3600 })).toBe(120);
     expect(xpFor('tuner')).toBe(5);
     expect(xpFor('scan')).toBe(10);
     expect(xpFor('metronome', { durationSec: 240 })).toBe(4);
@@ -72,6 +72,19 @@ describe('XP guideline', () => {
 
   it('daily goals are the four documented levels', () => {
     expect(DAILY_GOALS.map((g) => [g.xp, g.id])).toEqual([[10, 'casual'], [20, 'regular'], [30, 'serious'], [50, 'intense']]);
+  });
+
+  it('a planned session as long as a goal says meets that goal, the Intense one included', () => {
+    for (const g of DAILY_GOALS) {
+      expect(g.blurb, g.id).toBe(`About ${g.minutes} minutes a day.`);
+      // "About 10 minutes" means 10 minutes is enough, and a minute less is not quite.
+      expect(xpFor('practice', { durationSec: g.minutes * 60 }), g.id).toBeGreaterThanOrEqual(g.xp);
+      expect(xpFor('practice', { durationSec: (g.minutes - 1) * 60 }), g.id).toBeLessThan(g.xp);
+    }
+    // One session can meet the highest goal: the cap is above it.
+    expect(XP_RULES.practice.max).toBeGreaterThanOrEqual(Math.max(...DAILY_GOALS.map((g) => g.xp)));
+    // An hour, the longest duration the Practice screen offers, counts in full.
+    expect(xpFor('practice', { durationSec: 3600 })).toBe(120);
   });
 });
 

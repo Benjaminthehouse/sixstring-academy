@@ -150,8 +150,16 @@ function computedShapes(rootPc: number, type: ChordType): Shape[] {
   return out;
 }
 
-function movableLabel(def: MovableShape, baseFret: number): string {
-  return def.category === 'barre' ? `${def.name} at fret ${baseFret}` : `${def.name}, fret ${baseFret}`;
+/**
+ * The label of a placed movable shape. A shape named by its root string ("Shell voicing, root on
+ * string 5") and a barre name the fret the root is on (x324xx is "root on string 5, fret 3", not
+ * the lowest fret 2); a CAGED form names where the shape sits on the neck.
+ */
+function movableLabel(def: MovableShape, frets: readonly (number | null)[], baseFret: number): string {
+  const rootFret = frets[frets.length - def.rootString];
+  const byRoot = def.category === 'barre' || /root on string/.test(def.name);
+  const fret = byRoot && typeof rootFret === 'number' ? rootFret : baseFret;
+  return def.category === 'barre' ? `${def.name} at fret ${fret}` : `${def.name}, fret ${fret}`;
 }
 
 /** Every curated shape (standard-tuning frets) that sounds a root and type, for one bass or for all. */
@@ -173,7 +181,7 @@ function shapesFor(rootPc: number, type: ChordType, bassPc: number | null, withI
       if (written + shift - 12 >= 1) shift -= 12;
       const frets = m.frets.map((f) => (f === null ? null : f + shift));
       const base = written + shift;
-      out.push({ frets, fingers: m.def.fingers, label: movableLabel(m.def, base), category: m.def.category, shape: m.def.shape, bonus: m.def.bonus });
+      out.push({ frets, fingers: m.def.fingers, label: movableLabel(m.def, frets, base), category: m.def.category, shape: m.def.shape, bonus: m.def.bonus });
     }
   }
   for (const shape of computedShapes(rootPc, type)) out.push(shape);

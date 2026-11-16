@@ -2,7 +2,7 @@
  * Messages between the page and the OMR worker, and the worker-side handler. The handler is plain
  * code (no `self`), so tests drive it directly and the worker file stays a three-line shell.
  *
- *   page -> worker: recognize | classify | cancel | ai-answer
+ *   page -> worker: recognize | classify | look | cancel | ai-answer
  *   worker -> page: progress | result | error | ai-ask
  *
  * A vision model cannot live in the worker (it needs the page's consent dialog and network
@@ -11,6 +11,7 @@
  */
 import { type PageClassification, classifyPage } from '../classify-page';
 import type { GrayImage } from '../image/gray';
+import { type LookOptions, type OmrLook, lookAtPage } from '../look';
 import { type OmrDocument, type OmrImageInput, type OmrProgress, type RecognizePageOptions, isCancelled, recognizeDocument, recognizePage } from '../pipeline';
 import type { OmrPage, OmrVisionModel } from '../types';
 
@@ -21,13 +22,14 @@ export type WorkerRecognizeOptions = Omit<RecognizePageOptions, 'tab' | 'notatio
 export type OmrRequest =
   | { type: 'recognize'; id: number; images: OmrImageInput[]; document: boolean; options: WorkerRecognizeOptions; ai: boolean }
   | { type: 'classify'; id: number; image: OmrImageInput; maxSide?: number }
+  | { type: 'look'; id: number; image: OmrImageInput; options: LookOptions }
   | { type: 'cancel'; id: number }
   | { type: 'ai-answer'; id: number; askId: number; value: unknown };
 
 /** Worker -> page. */
 export type OmrResponse =
   | { type: 'progress'; id: number; progress: OmrProgress }
-  | { type: 'result'; id: number; page?: OmrPage; document?: OmrDocument; classification?: PageClassification }
+  | { type: 'result'; id: number; page?: OmrPage; document?: OmrDocument; classification?: PageClassification; look?: OmrLook }
   | { type: 'error'; id: number; name: string; message: string }
   | { type: 'ai-ask'; id: number; askId: number; image: { gray: GrayImage } | { rgba: Uint8ClampedArray; width: number; height: number }; prompt: string };
 
@@ -76,7 +78,9 @@ export function createOmrWorkerHandler(post: PostFn): (msg: OmrRequest) => void 
     jobs.set(id, ctl);
     try {
       const result = await work(ctl.signal);
-      post({ type: 'result', id, ...result });
+      // The cleaned page of a look is moved, not copied.
+      const transfer = result.look?.clean ? [result.look.clean.data.buffer as ArrayBuffer] : undefined;
+      post({ type: 'result', id, ...result }, transfer);
     } catch (err) {
       const e = err as { name?: string; message?: string };
       post({ type: 'error', id, name: isCancelled(err) ? 'AbortError' : e?.name ?? 'Error', message: e?.message ?? String(err) });
@@ -101,6 +105,9 @@ export function createOmrWorkerHandler(post: PostFn): (msg: OmrRequest) => void 
         break;
       case 'classify':
         void run(msg.id, async () => ({ classification: classifyPage(msg.image, { maxSide: msg.maxSide }) }));
+        break;
+      case 'look':
+        void run(msg.id, async () => ({ look: lookAtPage(msg.image, msg.options) }));
         break;
       case 'cancel':
         jobs.get(msg.id)?.abort();

@@ -10,12 +10,15 @@ import type { ActivityKind, AchievementTier, DailyGoalXp, SkillTag } from './typ
 // Daily goals, avatars
 // ---------------------------------------------------------------------------------------------
 
-/** The four daily goals. */
-export const DAILY_GOALS: ReadonlyArray<{ xp: DailyGoalXp; id: string; label: string; blurb: string }> = [
-  { xp: 10, id: 'casual', label: 'Casual', blurb: 'About 5 minutes a day.' },
-  { xp: 20, id: 'regular', label: 'Regular', blurb: 'About 10 minutes a day.' },
-  { xp: 30, id: 'serious', label: 'Serious', blurb: 'About 15 minutes a day.' },
-  { xp: 50, id: 'intense', label: 'Intense', blurb: 'About 25 minutes a day.' },
+/**
+ * The four daily goals and the minutes each stands for. A planned practice session earns 2 XP a
+ * minute (`XP_RULES.practice`), so that many minutes of it meet the goal on their own.
+ */
+export const DAILY_GOALS: ReadonlyArray<{ xp: DailyGoalXp; id: string; label: string; blurb: string; minutes: number }> = [
+  { xp: 10, id: 'casual', label: 'Casual', blurb: 'About 5 minutes a day.', minutes: 5 },
+  { xp: 20, id: 'regular', label: 'Regular', blurb: 'About 10 minutes a day.', minutes: 10 },
+  { xp: 30, id: 'serious', label: 'Serious', blurb: 'About 15 minutes a day.', minutes: 15 },
+  { xp: 50, id: 'intense', label: 'Intense', blurb: 'About 25 minutes a day.', minutes: 25 },
 ];
 
 /** Profile pictures: an id, a label and the lucide icon that draws it. */
@@ -122,7 +125,9 @@ export const XP_RULES: Readonly<Record<ActivityKind, XpRule>> = {
   metronome: rule({ perMinute: 1, min: 1, max: 10, dailyCap: 20 }),
   camera: rule({ base: 3, perMinute: 1, min: 3, max: 10, dailyCap: 20 }),
   scan: rule({ base: 10, min: 10, max: 10, dailyCap: 20 }),
-  practice: rule({ perMinute: 1.5, min: 2, max: 45 }),
+  // 2 XP a minute: the daily goals promise "about 10 minutes" for 20 XP (DAILY_GOALS), and one
+  // session of up to an hour counts in full, so even the 50 XP goal can be met in one sitting.
+  practice: rule({ perMinute: 2, min: 2, max: 120 }),
   other: rule({ max: 0 }),
 };
 

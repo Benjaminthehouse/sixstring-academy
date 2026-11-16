@@ -336,7 +336,7 @@ export const sightReading = defineGenerator({
     { name: 'ask', type: "'notes' | 'tab'", default: "'notes'", description: 'Which notes the passage plays; or which tab plays it in the position.' },
     { name: 'positions', type: 'number[]', default: '[1]', description: 'Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings.' },
     { name: 'keys', type: 'string[]', default: 'C major, A minor, G major, E minor, F major, D major', description: 'Keys, easiest first. Minor keys use their natural minor notes.' },
-    { name: 'bars', type: 'number', default: '2 (1 for a tab question)', description: 'Bars of 4/4, 1 or 2.' },
+    { name: 'bars', type: 'number', default: '2 (1 for a tab question)', description: 'Bars of 4/4, 1 or 2 (a tab question takes 1, so each tab answer fits its button).' },
     { name: 'values', type: "('half' | 'quarter' | 'eighth')[]", default: "['quarter']", description: 'Note values the rhythm may use (quarter among them).' },
   ],
   check: (p) => {
@@ -346,7 +346,10 @@ export const sightReading = defineGenerator({
       .keys('keys', p.keys)
       .int('bars', p.bars, 1, 2)
       .list('values', p.values, (v) => v === 'half' || v === 'quarter' || v === 'eighth', "['quarter', 'eighth']")
-      .need(!p.values || p.values.includes('quarter'), '"values" must include quarter: the passage is built on quarter-note beats, with eighths and halves mixed in.');
+      .need(!p.values || p.values.includes('quarter'), '"values" must include quarter: the passage is built on quarter-note beats, with eighths and halves mixed in.')
+      // Measured: every two-bar tab is wider than an answer button, on a phone and on a desktop, so
+      // part of each answer would hide behind a scroll inside the button.
+      .need(!(p.ask === 'tab' && p.bars === 2), '"bars": 2 makes every tab answer wider than its button, so part of it would hide. A tab question takes one bar: remove "bars", or ask for the notes of two bars.');
     if (check.problems.length > 0) return check.problems;
     for (const key of keysFromList(p.keys ?? SIGHT_KEYS)) {
       for (const position of p.positions ?? [1]) {

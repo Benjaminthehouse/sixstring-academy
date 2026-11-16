@@ -126,13 +126,13 @@ export function isGameId(id: string | undefined): id is GameId {
   return !!id && BY_ID.has(id as GameId);
 }
 
-/** The levels of a game for a focus (Shape Builder's levels are the scale's shapes). */
-export function levelsOf(game: GameId, focus: Focus, tuning: Tuning = STANDARD_TUNING): LevelInfo[] {
+/** The levels of a game for a focus (Shape Builder's levels are the scale's shapes; `frets`: the learner's neck setting). */
+export function levelsOf(game: GameId, focus: Focus, tuning: Tuning = STANDARD_TUNING, frets?: number): LevelInfo[] {
   switch (game) {
     case 'note-hunt':
       return [...NOTE_HUNT_LEVELS];
     case 'shape-builder':
-      return shapeBuilderLevels(shapesFor(focus.tonic, focus.scale, tuning));
+      return shapeBuilderLevels(shapesFor(focus.tonic, focus.scale, tuning, frets));
     case 'run-the-scale':
       return [...RUN_LEVELS];
     case 'degree-darts':

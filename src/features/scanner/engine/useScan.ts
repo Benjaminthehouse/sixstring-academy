@@ -251,7 +251,7 @@ export function useScan() {
   // ---- the quick look --------------------------------------------------------------------------
   const lookAt = useCallback(
     async (page: Page) => {
-      looker.current ??= createLooker();
+      looker.current ??= createLooker(() => (omr.current ??= createOmrWorker()));
       try {
         const gray = await grayOf(page.blob);
         const r = await looker.current.look(gray);

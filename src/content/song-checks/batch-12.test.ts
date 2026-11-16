@@ -517,9 +517,17 @@ describe('batch 12: st-bluegrass-g-run', () => {
     expect(Math.max(...beats.flatMap((b) => b.notes.map((n) => n.fret)))).toBe(3);
   });
 
-  it('estimates near level 5', async () => {
+  it('estimates within two levels below the plan (5): bass-strum with a pick, the G run too short to weigh', async () => {
+    // Gap note (integration pass 2): this read 4 only because the new thumb-independence measure
+    // took the picked bass note and strum ("boom-chick") for two voices. Its review limited that
+    // measure to real independence (pinches, or finger notes off a thumb that keeps every beat or
+    // syncopated against it), and this part is one pick doing one stream: 3, the honest physical
+    // estimate. The level-5 demand is the G run at 120 with strict alternate picking (one bar of
+    // eighths in each phrase, a hammer-on to finish), which the averages of speed and rhythm cannot weigh.
     const est = estimate(await load('st-bluegrass-g-run'), 'Your part');
-    expect(Math.abs(est.level - 5), est.text).toBeLessThanOrEqual(1);
+    expect(est.level, est.text).toBeGreaterThanOrEqual(3);
+    expect(est.level, est.text).toBeLessThanOrEqual(6);
+    expect(est.text).toMatch(/"voices":0[,}]/);
   });
 });
 
@@ -661,14 +669,17 @@ describe('batch 12: st-delta-blues-e', () => {
     expect([...new Set(marks)].sort()).toEqual(['i:2', 'i:3', 'm:1', 'p:6']);
   });
 
-  it('estimates at level 4 against the plan\'s 6: thumb independence shows only a little', async () => {
+  it('estimates at level 5 against the plan\'s 6: the thumb independence shows', async () => {
     // Note for note this is swung eighths in open position; what makes it level 6 is a thumb that
     // keeps a steady muted beat while the fingers syncopate above it. Gap note (integration pass 2):
-    // the estimate now has a thumb-independence measure (fingers moving off a steady thumb), but
-    // here most finger notes land with the thumb, so it adds little and the estimate stays 4.
+    // the estimate first counted only finger notes between the thumb's strokes, and here most of
+    // them land with the thumb, so it stayed 4. Its review made the measure count those pinches
+    // too (thumb and finger struck together, strings apart), so the thumb independence shows in
+    // full and the estimate is 5, a better one.
     const est = estimate(await load('st-delta-blues-e'), 'Guitar');
-    expect(est.level, est.text).toBeGreaterThanOrEqual(4);
+    expect(est.level, est.text).toBeGreaterThanOrEqual(5);
     expect(est.level, est.text).toBeLessThanOrEqual(6);
+    expect(est.text).toMatch(/"voices":0\.3[0-9]/);
   });
 });
 

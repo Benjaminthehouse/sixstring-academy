@@ -1,12 +1,14 @@
-import { Suspense, lazy, useEffect, useRef, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { href, redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
 import { useScreenTitle } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
+import { cloudUnavailableReason, getAccountState, subscribeAccount } from '@/core/platform/cloud';
 import { AVATARS, useAchievements, useGems, useProfile, useProgress } from '@/core/progress';
 import { Avatar, GemChip, Icon, Page, Skeleton, cx } from '@/ui';
 import pkg from '../../../package.json';
 import About from './about/About';
+import AccountScreen from './account/Account';
 import Achievements from './achievements/Achievements';
 import DataScreen from './data/Data';
 import Overview from './overview/Overview';
@@ -68,6 +70,7 @@ function useHeader(section: SectionDef): { title: ReactNode; subtitle: ReactNode
   const gems = useGems();
   const achievements = useAchievements();
   const activeDays = useProgress((s) => s.stats['active.days'] ?? 0);
+  const account = useSyncExternalStore(subscribeAccount, getAccountState, getAccountState);
   switch (section.id) {
     case 'overview': {
       const teacher = teacherById(profile.teacher);
@@ -94,6 +97,18 @@ function useHeader(section: SectionDef): { title: ReactNode; subtitle: ReactNode
       return { title: 'Shop', subtitle: 'Spend the gems you earn by playing. Nothing here costs money.', actions: <GemChip value={gems} size="lg" /> };
     case 'settings':
       return { title: 'Settings', subtitle: 'Every change applies straight away. There is nothing to save.' };
+    case 'account': {
+      const reason = cloudUnavailableReason();
+      const subtitle =
+        reason === 'artifact'
+          ? 'Your progress follows your Claude account.'
+          : reason !== null
+            ? 'How your progress moves between devices.'
+            : account.phase === 'signed-in'
+              ? 'Your progress follows you to every device you sign in on.'
+              : 'Keep your progress on your phone, your laptop and every other device you practise on.';
+      return { title: 'Account', subtitle };
+    }
     case 'data':
       return { title: 'Your data', subtitle: 'Back up your progress, move it to another device, or start over.' };
     default:
@@ -102,7 +117,7 @@ function useHeader(section: SectionDef): { title: ReactNode; subtitle: ReactNode
 }
 
 /**
- * The Me area (`#profile`): overview, achievements, shop, settings, data and about. Each part is
+ * The Me area (`#profile`): overview, achievements, shop, settings, account, data and about. Each part is
  * its own address (`#profile--shop` ...), so back, forward, reload and links from elsewhere all
  * work. A strip of links stays in reach on a phone; wide screens get a side list beside the part.
  */
@@ -131,6 +146,7 @@ export default function Profile({ params }: RouteProps) {
               <Settings focus={detail} />
             </Suspense>
           )}
+          {section.id === 'account' && <AccountScreen />}
           {section.id === 'data' && <DataScreen />}
           {section.id === 'about' && <About />}
         </div>

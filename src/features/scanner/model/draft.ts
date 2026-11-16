@@ -12,8 +12,8 @@
  * length as a time signature, a short one gets a rest), and `finalSong` makes it valid.
  *
  * Built like `omrToSong` in `@/core/omr` (same bars, beats and frets; the tests check that), plus:
- * provenance for the proofreader, and the right tuning for four-, five- and seven-line tab staves
- * (the page assembler labels every tab staff with guitar tuning).
+ * provenance for the proofreader, and the track named for the instrument (a four- or five-line tab
+ * staff is a bass); the tuning is the one the tab staff was read with.
  */
 import { type Beat, type ChordEvent, type NoteValue, type Note, type Song, barLength, createSong, describeTicks, isChordWord, midiOf, valueFromTicks, valueTicks } from '@/core/song';
 import type { OmrDocument } from '@/core/omr/pipeline';
@@ -259,15 +259,21 @@ export interface BuildDraftOptions {
 
 /** The tab line count of a reading (the first tab staff), or 0 when it has no tab. */
 export function tabLinesOf(doc: OmrDocument): number {
-  for (const p of doc.pages) for (const s of p.systems) for (const st of s.staves) if (st.kind === 'tab') return st.lineCount;
-  return 0;
+  return firstTab(doc)?.lineCount ?? 0;
+}
+
+function firstTab(doc: OmrDocument): OmrStaff | undefined {
+  for (const p of doc.pages) for (const s of p.systems) for (const st of s.staves) if (st.kind === 'tab') return st;
+  return undefined;
 }
 
 /** Build the draft from a reading (see the file comment). */
 export function buildDraft(doc: OmrDocument, opts: BuildDraftOptions = {}): Draft {
   const lines = tabLinesOf(doc);
   const line = LINE_TUNINGS[lines];
-  const tuning = line ? line.tuning.slice() : STANDARD.slice();
+  // The tuning the tab staff was read with (the reader picks the usual one for its line count).
+  const read = firstTab(doc)?.tuning;
+  const tuning = read && read.length === lines ? read.slice() : line ? line.tuning.slice() : STANDARD.slice();
   const notes: string[] = [];
   if (lines && lines !== 6) notes.push(line ? `This tab has ${lines} lines, so it is read as ${line.name}.` : `This tab has ${lines} lines; it is read with guitar tuning. Check the tuning.`);
   const dropped = { count: 0 };

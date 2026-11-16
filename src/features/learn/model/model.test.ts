@@ -114,26 +114,28 @@ describe('on the go', () => {
     expect(adaptUnit(unit, { guitar: true, sound: true })).toBe(unit);
   });
 
-  it('keeps every written unit runnable in every condition (the engine still accepts it)', async () => {
-    const theory = assembleTheory(await loadWrittenUnits());
-    for (const c of [{ guitar: false, sound: true }, { guitar: true, sound: false }, { guitar: false, sound: false }]) {
-      const course = adaptCourse(theory.course, c);
-      const errors = validateCourse(course).filter((p) => p.severity === 'error' && p.code !== 'lesson.length');
-      expect(errors, formatProblems(errors)).toEqual([]);
-      for (const unit of course.units) {
-        for (const l of unit.lessons) {
-          if (!c.guitar || !c.sound) expect(l.steps.some(isPlayStep), `${l.id} has no play step without guitar/sound`).toBe(false);
-          if (!c.sound && !adaptLesson(theory.course.units.find((u) => u.id === unit.id)!.lessons.find((x) => x.id === l.id)!, c).needsSound) {
-            expect(l.steps.some(isListeningStep), `${l.id} has no listening step without sound`).toBe(false);
-          }
-          const s = startSession({ mode: 'lesson', course, lessonId: l.id }, fresh(), NOW, { seed: 7 });
-          expect(s.total).toBeGreaterThan(0);
+  // One condition per test, so each stays well inside its timeout on a busy shared machine (all three
+  // in one test took 25 s alone and over 240 s under load).
+  let written: ReturnType<typeof loadWrittenUnits> | null = null;
+  it.each([{ guitar: false, sound: true }, { guitar: true, sound: false }, { guitar: false, sound: false }])('keeps every written unit runnable with guitar $guitar and sound $sound (the engine still accepts it)', async (c) => {
+    written ??= loadWrittenUnits();
+    const theory = assembleTheory(await written);
+    const course = adaptCourse(theory.course, c);
+    const errors = validateCourse(course).filter((p) => p.severity === 'error' && p.code !== 'lesson.length');
+    expect(errors, formatProblems(errors)).toEqual([]);
+    for (const unit of course.units) {
+      for (const l of unit.lessons) {
+        if (!c.guitar || !c.sound) expect(l.steps.some(isPlayStep), `${l.id} has no play step without guitar/sound`).toBe(false);
+        if (!c.sound && !adaptLesson(theory.course.units.find((u) => u.id === unit.id)!.lessons.find((x) => x.id === l.id)!, c).needsSound) {
+          expect(l.steps.some(isListeningStep), `${l.id} has no listening step without sound`).toBe(false);
         }
-        const drill = startSession(practiceSource(course, unit.id, fresh()), fresh(), NOW, { seed: 3 });
-        expect(drill.total).toBeGreaterThan(0);
+        const s = startSession({ mode: 'lesson', course, lessonId: l.id }, fresh(), NOW, { seed: 7 });
+        expect(s.total).toBeGreaterThan(0);
       }
+      const drill = startSession(practiceSource(course, unit.id, fresh()), fresh(), NOW, { seed: 3 });
+      expect(drill.total).toBeGreaterThan(0);
     }
-    // Every unit of the path, three times over: about 25 s alone, longer on a shared machine.
+    // Every unit of the path: about 8 s alone, longer on a shared machine.
   }, 180_000);
 });
 

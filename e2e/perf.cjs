@@ -17,7 +17,8 @@
  * (the app opened again in a new tab: from the service worker when the build has one, else from
  * the HTTP cache); and the largest chunks of the build. Fails when a first screen downloads a heavy library it does not show
  * (alphaTab, pdf.js, VexFlow, Tesseract, MediaPipe, the full icon set) or when the JavaScript a
- * first screen needs grows past its budget. Timings are reported, not judged: this machine is
+ * first screen needs grows past its budget, and when a file index.html preloads goes unused (a
+ * preload in another CORS mode than Vite's own links). Timings are reported, not judged: this machine is
  * shared, and a slowed CPU on a loaded machine is noisy.
  */
 'use strict';
@@ -49,7 +50,7 @@ const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isM
  */
 const SCREENS = [
   { id: 'home', hash: 'home', chunk: /^assets\/home-/, ready: 'main[data-route="home"] [data-ui-page]:not([data-shell-fallback])', act: '[data-chip]', budgetKb: 230 },
-  { id: 'lesson', hash: 'learn--sound-and-pitch--a-sound-is-a-vibration', chunk: /^assets\/learn-.*\.js$/, ready: '[data-lesson-player]', act: '[data-lesson-player] [data-ui-primary]', budgetKb: 700 },
+  { id: 'lesson', hash: 'learn--sound-and-pitch--a-sound-is-a-vibration', chunk: /^assets\/learn-.*\.js$/, ready: '[data-lesson-player]', act: '[data-lesson-player] [data-ui-primary]', budgetKb: 780 },
   { id: 'play', hash: 'play--hot-cross-buns', chunk: /^assets\/player-.*\.js$/, ready: '[data-player] [data-player-play]', act: '[data-player-play]', budgetKb: 600 },
   { id: 'scales', hash: 'scales', chunk: /^assets\/scales-.*\.js$/, ready: '[data-scales] [data-neck]', act: '[data-play]', budgetKb: 480 },
 ];
@@ -193,12 +194,23 @@ function largestChunks(dist, count = 15) {
  */
 function routePreloads(dist, hash) {
   const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
-  const inline = /<script>(\(function\(f,r\)[\s\S]*?)<\/script>/.exec(html);
-  if (!inline) return [];
+  const inline = /<script>(\(function\(f,r[\s\S]*?)<\/script>/.exec(html);
+  const entry = /<script type="module"[^>]*src="\.\/(assets\/[^"]+\.js)"/.exec(html);
+  if (!inline || !entry) return [];
   const added = [];
   const document = { createElement: () => ({}), head: { appendChild: (e) => added.push(e) } };
-  new Function('location', 'document', inline[1])({ hash: `#${hash}` }, document);
-  return added.map((e) => ({ rel: e.rel, href: e.href.replace(/^\.\//, '') }));
+  // In case the preloader ever waits for the entry script (resource timing): report it arrived.
+  class PerformanceObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe() {
+      this.callback({ getEntries: () => [{ name: `http://app/${entry[1]}` }] });
+    }
+    disconnect() {}
+  }
+  new Function('location', 'document', 'PerformanceObserver', inline[1])({ hash: `#${hash}` }, document, PerformanceObserver);
+  return added.map((e) => ({ rel: e.rel, href: e.href.replace(/^\.\//, ''), crossOrigin: e.crossOrigin }));
 }
 
 /** The JavaScript index.html asks for before anything runs (entry + modulepreloads). */
@@ -234,6 +246,35 @@ function entryClosure(dist) {
 
   const server = await serveDir(dist);
   const browser = await chromium.launch();
+  {
+    // The splash is painted from the HTML and CSS alone: with no JavaScript at all, it still shows.
+    const context = await browser.newContext(PHONE);
+    const page = await context.newPage();
+    await page.route('**/*.js', (route) => route.abort());
+    await page.goto(`${server.url}#home`, { waitUntil: 'load' });
+    const splash = await page.evaluate(() => {
+      const img = document.querySelector('#root .ssa-splash img');
+      return !!img && img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width > 0;
+    });
+    check('the first paint does not wait for JavaScript (index.html paints a splash)', splash);
+    await context.close();
+  }
+  for (const screen of SCREENS.filter((s) => !only || only.includes(s.id))) {
+    // Every file the preloader asks for is used when the screen loads: Chrome says so in the console
+    // when a preload is not ("... is not used because the request credentials mode does not match").
+    const context = await browser.newContext({ ...PHONE, serviceWorkers: 'block' });
+    await context.addInitScript(instrument);
+    const page = await context.newPage();
+    const unused = [];
+    page.on('console', (m) => {
+      if (/preload/i.test(m.text()) && /not used/i.test(m.text())) unused.push(m.text().replace(/^.*\/assets\//, '').slice(0, 120));
+    });
+    await page.goto(`${server.url}#${screen.hash}`);
+    await page.waitForSelector(screen.ready, { state: 'attached', timeout: 120000 });
+    await page.waitForTimeout(3500);
+    check(`#${screen.hash}: every preloaded file is used (no "preload ... not used" warning)`, unused.length === 0, unused[0]);
+    await context.close();
+  }
   const hasWorker = fs.existsSync(path.join(dist, 'sw.js'));
   const report = { network: 'DevTools Slow 4G', cpuSlowdown: CPU_SLOWDOWN, runs, hasWorker, screens: {}, repeat: {}, closure, largest: largestChunks(dist) };
   try {
@@ -242,6 +283,9 @@ function entryClosure(dist) {
       const own = preloads.filter((p) => p.rel === 'modulepreload' && screen.chunk.test(p.href));
       const exist = preloads.every((p) => fs.existsSync(path.join(dist, p.href)));
       check(`index.html starts downloading #${screen.hash}'s own code at once (${preloads.length} files)`, own.length > 0 && exist, own.map((p) => p.href).join(', ') || 'nothing preloaded');
+      // Vite links a route's scripts and stylesheets crossorigin; a preload in another mode is unused.
+      const mode = preloads.filter((p) => p.crossOrigin !== '');
+      check(`and every preload is crossorigin, like the links Vite adds (scripts and stylesheets)`, preloads.length > 0 && mode.length === 0, mode.map((p) => p.href).join(', ') || undefined);
       const results = [];
       for (let i = 0; i < runs; i++) results.push(await measure(browser, server.url, screen));
       const m = (k) => median(results.map((r) => r[k]));

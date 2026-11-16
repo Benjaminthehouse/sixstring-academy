@@ -3,8 +3,8 @@ import { parseHash } from '@/app/router';
 import { SECTIONS, locate, paramsFor, sectionById } from './sections';
 
 describe('the parts of the Me area', () => {
-  it('lists the six parts once each, overview first', () => {
-    expect(SECTIONS.map((s) => s.id)).toEqual(['overview', 'achievements', 'shop', 'settings', 'data', 'about']);
+  it('lists the seven parts once each, overview first, Account beside Your data', () => {
+    expect(SECTIONS.map((s) => s.id)).toEqual(['overview', 'achievements', 'shop', 'settings', 'account', 'data', 'about']);
     expect(new Set(SECTIONS.map((s) => s.label)).size).toBe(SECTIONS.length);
     expect(SECTIONS[0].param).toBeUndefined();
   });
@@ -34,6 +34,8 @@ describe('the parts of the Me area', () => {
     expect(locate(['trophies']).section.id).toBe('achievements');
     expect(locate(['backup']).section.id).toBe('data');
     expect(locate(['credits']).section.id).toBe('about');
+    expect(locate(['sign-in']).section.id).toBe('account');
+    expect(locate(['sync']).section.id).toBe('account');
   });
 
   it('falls back to the overview for an address that names no part, and says so', () => {

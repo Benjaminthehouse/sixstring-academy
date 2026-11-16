@@ -266,6 +266,46 @@ describe('cloud sync is a no-op outside a capable artifact', () => {
     expect(db.log).toEqual([]);
     expect(db.subscriptions).toBe(0);
   });
+
+  it('standalone: says whether this copy offers accounts, and never asks the account layer when it does not', async () => {
+    const account = vi.fn(async () => null);
+    const none = createCloudSync({ host: () => 'standalone', accountsOffered: () => false, account });
+    expect(await none.start()).toMatchObject({ state: 'off', issue: 'standalone', provider: null });
+    expect(none.status().message).toMatch(/no accounts set up/);
+    expect(account).not.toHaveBeenCalled();
+
+    const offered = createCloudSync({ host: () => 'standalone', accountsOffered: () => true, account });
+    expect(offered.status()).toMatchObject({ state: 'off', issue: 'signed-out' });
+    expect(await offered.start()).toMatchObject({ state: 'off', issue: 'signed-out' });
+    expect(offered.status().message).toMatch(/Sign in under Me, Account/);
+    expect(account).toHaveBeenCalledTimes(1);
+  });
+
+  it('inside Claude the provider is "claude" and the words name the Claude account, as before', async () => {
+    const db = new FakeDb();
+    const d = device(db, 'laptop');
+    await d.sync.start();
+    await pass(200);
+    expect(d.status()).toMatchObject({ state: 'synced', provider: 'claude', message: 'Your progress is backed up to your Claude account.' });
+  });
+});
+
+describe('the shared service', () => {
+  it('restartCloudSync replaces the service and keeps the screen’s status listeners', async () => {
+    const sync = await import('./sync');
+    const heard = vi.fn();
+    const off = sync.subscribeSyncStatus(heard);
+    const before = sync.getSyncStatus();
+    await sync.restartCloudSync();
+    expect(heard).toHaveBeenCalled();
+    expect(sync.getSyncStatus()).not.toBe(before);
+    expect(sync.getSyncStatus().state).toBe('off');
+    off();
+    heard.mockClear();
+    await sync.restartCloudSync();
+    expect(heard).not.toHaveBeenCalled();
+    sync.stopCloudSync();
+  });
 });
 
 // ---------------------------------------------------------------------------------------------

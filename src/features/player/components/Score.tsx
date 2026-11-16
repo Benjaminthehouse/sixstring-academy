@@ -3,13 +3,17 @@
  * lyrics, in its own scroll box. The cursor follows the audio clock every frame through the
  * TabView handle (no React render), the view keeps the line being played and the next one in
  * sight, a tap starts there, and after a run a heat strip marks the bars that went wrong.
+ *
+ * "Notes only" (sight reading) draws the notation over the tab and covers the tab's rows with a
+ * band on every line: the cursor, taps, the loop and the heat strip keep working as they do with
+ * both shown. "Hide the chord names" leaves out the chord symbols and boxes.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { audioSoundingNow } from '@/core/audio';
 import type { Song } from '@/core/song';
 import { cx, usePrefersReducedMotion, useRafLoop } from '@/ui';
-import { TabView, barRangeRects, type TabLayout, type TabNoteState, type TabRange, type TabSeek, type TabViewHandle } from '@/ui/music/tab';
+import { TabView, barRangeRects, regionBottom, type TabLayout, type TabNoteState, type TabRange, type TabSeek, type TabViewHandle } from '@/ui/music/tab';
 import { playerDebug } from '../debug';
 import type { PlayerEngine } from '../engine/engine';
 import type { BarHeatCell } from '../model/results';
@@ -37,6 +41,8 @@ export interface ScoreProps {
   size: 'sm' | 'md' | 'lg';
   /** Strum parts show chord boxes above each change. */
   diagrams: boolean;
+  /** No chord names or boxes: playing it from memory. */
+  hideChart?: boolean;
   /** Tap along: the whole score is a tap pad (pointer down, timed by the event). */
   onTapDown?: (timeStamp: number) => void;
   /** Things drawn over the score box (count-in, prompts). */
@@ -45,7 +51,9 @@ export interface ScoreProps {
 
 /** The score box. */
 export function Score(props: ScoreProps) {
-  const { engine, song, track, layer, line, running, loop, picking, onLoopChange, onSeek, noteStates, heat, size, diagrams, onTapDown, children } = props;
+  const { engine, song, track, layer, line, running, loop, picking, onLoopChange, onSeek, noteStates, heat, size, diagrams, hideChart = false, onTapDown, children } = props;
+  const notation = layer !== 'tab';
+  const covered = layer === 'notation';
   const tab = useRef<TabViewHandle>(null);
   const box = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -142,7 +150,7 @@ export function Score(props: ScoreProps) {
       cancelAnimationFrame(first);
       clearInterval(slow);
     };
-  }, [song, track, layer, line, size]);
+  }, [song, track, layer, line, size, hideChart]);
 
   return (
     <div className={cx(styles.wrap, line && styles.wrapLine)}>
@@ -150,6 +158,8 @@ export function Score(props: ScoreProps) {
         ref={box}
         className={cx(styles.box, line && styles.boxLine, picking && styles.picking, onTapDown && styles.tapping)}
         data-player-score=""
+        data-layer={layer}
+        data-chords={hideChart ? 'hidden' : 'shown'}
         onPointerDown={
           onTapDown
             ? (e) => {
@@ -165,8 +175,8 @@ export function Score(props: ScoreProps) {
           track={track}
           layout={line ? 'line' : 'wrap'}
           size={size}
-          notation={layer === 'both'}
-          chords={diagrams ? 'diagrams' : true}
+          notation={notation}
+          chords={hideChart ? false : diagrams ? 'diagrams' : true}
           loop={loop}
           onLoopChange={onLoopChange}
           onSeek={onTapDown ? undefined : onSeek}
@@ -174,11 +184,37 @@ export function Score(props: ScoreProps) {
           noteStates={noteStates}
           autoScroll={line}
           className={styles.tab}
-          aria-label={`${song.meta.title}: ${layer === 'both' ? 'notation and tab' : 'tab'}. Tap a bar to start there.`}
+          aria-label={`${song.meta.title}: ${covered ? 'notation (the tab is covered)' : notation ? 'notation and tab' : 'tab'}. Tap a bar to start there.`}
         />
+        {covered && layout && content && layout.options.notation && createPortal(<TabCover layout={layout} />, content)}
         {heat && layout && content && createPortal(<HeatStrip layout={layout} heat={heat} />, content)}
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Sight reading: a band over the tab rows of every line (fret numbers and string lines), so only
+ * the staff above is read. Taps go through it to the tab view (start here, loop handles).
+ */
+function TabCover({ layout }: { layout: TabLayout }) {
+  // Above the top string: just past the fret numbers on it, so a text line above the tab
+  // ("First position") stays whole. Below: past the current-beat band (0.85 of a string gap).
+  const padTop = layout.metrics.lineGap * 0.6;
+  const pad = layout.metrics.lineGap * 0.95;
+  return (
+    <div className={styles.cover} aria-hidden="true" data-player-tab-cover={layout.systems.length}>
+      {layout.systems.map((sys) => {
+        // From just above the top string to the bottom of the music (the current-beat band reaches it).
+        const top = sys.y + sys.staffTop - padTop;
+        const bottom = sys.y + Math.max(sys.staffBottom + pad, regionBottom(sys) + 2);
+        return (
+          <div key={sys.index} className={styles.coverBand} style={{ left: 0, top, width: layout.width, height: bottom - top }}>
+            <span className={styles.coverLabel}>Tab hidden</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

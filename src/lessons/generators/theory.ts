@@ -690,7 +690,9 @@ export function explainNumeral(numeral: RomanNumeral, key: Key, symbol: string):
   if (pcOf(ownNote) === pcOf(chord.root)) {
     // Numerals take their accidental from the major scale (the engine's convention), so ♭III in A minor needs a word.
     const flatNote = key.mode === 'minor' && numeral.alt < 0 ? ` The ${numeral.alt === -1 ? 'flat' : 'double flat'} says it sits lower than in the major scale.` : '';
-    return `{r:${numeral.text}} is the ${kind} on the ${ordinal(degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.${flatNote}`;
+    // iv, v, ii° in a major key: the key's own note, but the chord of its parallel minor.
+    const borrowed = key.mode === 'major' && /parallel minor/.test(chordToRoman(symbol, key).explanation) ? ` It is not in the key itself: major keys borrow it from {k:${key.tonic} minor}.` : '';
+    return `{r:${numeral.text}} is the ${kind} on the ${ordinal(degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.${flatNote}${borrowed}`;
   }
   const majorNote = scaleNotes(key.tonic, 'major')[degree - 1];
   if (numeral.alt !== 0 && pcOf(majorNote) === pcOf(ownNote)) {

@@ -212,7 +212,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       if (right) await play(right.plan, 'answer', right.id, `compare:answer:${right.id}`);
     } else {
       const ids = (a.chosen as string[]).filter((id) => q.keys.some((k) => k.id === id));
-      if (!(await play(sequencePlan(q.keys, ids, q.noteGap), 'chosen', null, 'compare:chosen'))) return;
+      if (!(await play(sequencePlan(q.keys, ids, q.noteGap, q.tone), 'chosen', null, 'compare:chosen'))) return;
       await new Promise((res) => window.setTimeout(res, 350));
       if (phaseRef.current !== 'answered') return;
       await play(q.plan, 'answer', null, 'compare:answer');
@@ -232,7 +232,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
         if (o) void play(o.plan, which, o.id, `compare:${which}:${o.id}`);
       } else {
         const ids = which === 'chosen' ? (a.chosen as string[]).filter((id) => q.keys.some((k) => k.id === id)) : q.target;
-        void play(sequencePlan(q.keys, ids, q.noteGap), which, null, `compare:${which}`);
+        void play(sequencePlan(q.keys, ids, q.noteGap, q.tone), which, null, `compare:${which}`);
       }
     },
     [clearTimers, play],
@@ -267,7 +267,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       const q = question;
       if (!q || q.kind !== 'sequence' || phaseRef.current !== 'asking') return;
       const key = q.keys.find((k) => k.id === id);
-      if (key && sound) void play({ events: [{ at: 0, midis: [key.midi], dur: 0.9, strike: 'pluck', role: 'subject' }], length: 0.6 }, 'note', null, `key:${id}`);
+      if (key && sound) void play({ events: [{ at: 0, midis: [key.midi], dur: 0.9, strike: 'pluck', role: 'subject', ...(q.tone ? { tone: q.tone } : {}) }], length: 0.6 }, 'note', null, `key:${id}`);
       const prev = enteredRef.current;
       if (prev.length >= q.target.length) return;
       const nextEntered = [...prev, id];

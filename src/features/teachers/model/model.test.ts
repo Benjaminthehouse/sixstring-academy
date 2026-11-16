@@ -171,6 +171,11 @@ describe('tasks', () => {
     expect(playAlongPractice({ tool: 'player', params: ['hot-cross-buns', 'wait'] }, { openedAt: 0, now: 300_000, minutes: 4, title: 'x', logged: null })).toBeNull();
     expect(playAlongPractice(along, { openedAt: 0, now: 300_000, minutes: 4, title: 'x', logged: entry({}) })).toBeNull();
     expect(playAlongLine(null)).toBeNull();
+    // Review bug: 20 to 89 s read "your 1 minute of playing along count as practice".
+    const brief = playAlongPractice(along, { openedAt: 0, now: 25_000, minutes: 4, title: 'x', logged: null });
+    expect(brief?.durationSec).toBe(25);
+    expect(playAlongLine(brief)).toBe('Continue, and your time playing along counts as practice.');
+    expect(playAlongLine(playAlongPractice(along, { openedAt: 0, now: 100_000, minutes: 4, title: 'x', logged: null }))).toBe('Continue, and your 2 minutes of playing along count as practice.');
   });
 
   describe('the pending task', () => {

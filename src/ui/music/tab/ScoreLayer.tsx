@@ -28,7 +28,7 @@ export interface ScoreState {
 let loaded: VexFlowModule | null = null;
 
 /** Build the staff model and load VexFlow when `enabled`. */
-export function useScoreSpacing(model: TabModel | null, enabled: boolean): ScoreState {
+export function useScoreSpacing(model: TabModel | null, enabled: boolean, spellings?: readonly string[]): ScoreState {
   const [vf, setVf] = useState<VexFlowModule | null>(loaded);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -47,7 +47,7 @@ export function useScoreSpacing(model: TabModel | null, enabled: boolean): Score
       cancelled = true;
     };
   }, [enabled, vf]);
-  const score = useMemo(() => (enabled && model && !failed ? buildScore(model) : null), [enabled, model, failed]);
+  const score = useMemo(() => (enabled && model && !failed ? buildScore(model, { spellings }) : null), [enabled, model, failed, spellings]);
   const spacing = useMemo(() => (score && model ? scoreSpacing(score, model) : null), [score, model]);
   return useMemo(() => ({ ready: !!(enabled && !failed && spacing), spacing, score, vf }), [enabled, failed, spacing, score, vf]);
 }

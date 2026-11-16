@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'r
 import { readJSON, writeJSON } from '@/core/platform';
 import { getProgress, getProgressStore, useProgress, type DayKey, type ProgressState } from '@/core/progress';
 import { isArea } from './model/areas';
+import { PRACTICE_LIBRARY } from './model/library';
 import { buildPlan, type PlanBlock, type PlannerInput } from './model/planner';
 import { planFromRoutine, type Routine } from './model/routines';
 import { plannerInputFrom } from './model/signals';
@@ -82,10 +83,10 @@ function subscribeDraft(listener: () => void): () => void {
   };
 }
 
-/** The planner input for now, from the progress store and the practice data. */
+/** The planner input for now, from the progress store, the practice data and the app's content. */
 export function currentPlannerInput(minutes: number, seed = 0, state: ProgressState = getProgress()): PlannerInput {
   const data = getPracticeData();
-  return plannerInputFrom(state, getProgressStore().now(), { journal: data.journal, goals: data.goals }, minutes, seed);
+  return plannerInputFrom(state, getProgressStore().now(), { journal: data.journal, goals: data.goals }, minutes, seed, PRACTICE_LIBRARY);
 }
 
 /** A fresh automatic plan. */

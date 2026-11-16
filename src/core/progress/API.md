@@ -38,7 +38,7 @@ useProgressEvent(type, handler) useProgressStore()`. `useHearts` and `useXpBoost
 Selectors (pure; `now` = `store.now()`): `selectLevel selectDailyGoal selectStreak selectWeek selectQuests
 selectAchievements selectPracticeTotals selectContinue` (memoised), and `heartsOf(s, now) canStartLesson(s, now)
 xpBoostOf(s, now) xpHistory(s, days) practiceHeatmap(s, weeks) minutesByKind(s, 'today'|'week'|'all')
-skillView(s, id, now) skillsWithPrefix(s, prefix) rustySkills(s, now, {prefix, limit}) masterySummary(s, prefix)
+skillView(s, id, now) skillBest(record) skillsWithPrefix(s, prefix) rustySkills(s, now, {prefix, limit}) masterySummary(s, prefix)
 dueReviews(s, now, {kinds, limit, includeNew}) reviewCountsOf(s, now) favouritesOf(s, kind?) isFavourite(s, kind, id)
 shopOf(s, now)`. Outside React: `getProgress()` returns the current state, and
 `subscribeSelector(getProgressStore(), selector, listener, isEqual?)` calls back only when a slice changes.
@@ -90,13 +90,14 @@ recordActivity({ kind: 'song', id: 'song:greensleeves', title: 'Greensleeves', a
 recordActivity({ kind: 'tuner', durationSec, route: 'tuner' });
 ```
 
-**Skill id conventions** (achievements and quests rely on the prefixes): `scale:<scale>:<position>` (pentatonic
-boxes end in `box-1` … `box-5`), `chord:<symbol>` (first completion = "learned a new chord"), `chord-change:<a>-<b>`,
-`song:<id>`, `theory:<unit>:<lesson>`, `teacher:<mia|dev|elena>:<lesson>`. Flags without an attempt use `markSkill`:
-`markSkill('fretboard:string-6', { completed: true })` when every note on a string is learned, and
-`markSkill('teacher:mia:course', { completed: true })` when a teacher's course is finished.
+**Skill ids** (lower-case; achievements, quests and the planner read the prefixes): `scale:<scale>:<position>` (boxes
+`box-1` … `box-5`), `chord:<symbol>` (first completion = a new chord), `chord-change:<a>-<b>`, `progression:<id>` (kind
+`progression`, id from `progressionSkillId` in `@/content/progressions`; the builder: `progression:builder`), `song:<id>`,
+`technique:<id>`, `theory:<unit>:<lesson>`, `teacher:<mia|dev|elena>:<lesson>`, `ear:<drill>`, `rhythm:<activity>:<level>`.
+`markSkill` sets flags: `fretboard:string-6` (a string learned), `teacher:mia:course` (a course finished). **Bests**: only
+finished attempts set `bestScore`/`bestAccuracy`, so read them via `skillBest(record)` or `skillView(...).best` (null until set): never "Best 0%".
 
-### XP guideline (`xpFor(kind, factors)`; `XP_RULES`) — daily goals are 10 / 20 / 30 / 50 XP
+### XP guideline (`xpFor(kind, factors)`; `XP_RULES`) — daily goals 10 / 20 / 30 / 50 XP = `DAILY_GOALS[].minutes` 5 / 10 / 15 / 25 of planned practice
 
 | kind | formula (clamped to range) | range | daily cap |
 |---|---|---|---|
@@ -108,14 +109,13 @@ boxes end in `box-1` … `box-5`), `chord:<symbol>` (first completion = "learned
 | chord-change | 3 + 1/min + 5 × accuracy | 3–12 | |
 | scale-practice, chord-practice, technique, progression | 2 + 1.5/min | 2–20 | |
 | song | 8 + 1/min + 8 × accuracy, +4 if perfect | 8–30 | |
-| practice (planned routine) | 1.5/min | 2–45 | |
+| practice (planned routine) | 2/min | 2–120 | |
 | tuner | 5 | 5 | 5 |
 | metronome | 1/min | 1–10 | 20 |
 | camera | 3 + 1/min | 3–10 | 20 |
 | scan | 10 per import | 10 | 20 |
 
-Not completed = half. A single activity never awards more than 250. Rule of thumb for anything new: about
-2 XP per focused minute, 10–15 for a finished lesson-sized unit.
+Not completed = half; one activity never awards more than 250. Anything new: about 2 XP a focused minute, 10–15 a lesson.
 
 ## Rules
 

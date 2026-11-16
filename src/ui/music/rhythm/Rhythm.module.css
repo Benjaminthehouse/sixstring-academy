@@ -10,11 +10,26 @@
   scrollbar-width: thin;
 }
 .bars {
+  /*
+   * Note geometry (the glyph is 1.5rem wide and 2.25rem tall in a 2.4rem row, 5px in from its
+   * segment's edge): the stem at x 15/24 of the glyph and its top at y 3/36, the head centred at
+   * (10/24, 29/36). Beams, ties and tuplet marks are placed from these.
+   */
+  --marks-h: 0rem;
+  --stem-x: calc(5px + 0.9375rem);
+  --head-x: calc(5px + 0.625rem);
+  --stem-top: calc(var(--marks-h) + 0.3375rem);
+  --head-y: calc(var(--marks-h) + 1.9625rem);
+  --beam-h: 0.22rem;
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-3) 0;
   /* Room for the last bar's closing line, which overlaps by its width. */
   padding-right: 2px;
+}
+/* Accents and tuplet numbers get a row of their own above the notes. */
+.bars[data-marks] {
+  --marks-h: 1.05rem;
 }
 .bar {
   position: relative;
@@ -56,13 +71,13 @@
   align-items: flex-start;
   gap: var(--sp-1);
   padding-inline: 3px;
+  padding-top: var(--marks-h);
   min-width: 0;
   color: var(--fg);
 }
 .glyphRow {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
   height: 2.4rem;
   padding-left: 2px;
   font-size: 1.5rem;
@@ -73,11 +88,98 @@
   flex: none;
 }
 .accent {
-  align-self: flex-start;
+  position: absolute;
+  top: 0;
+  left: calc(var(--head-x) - 0.5rem);
+  width: 1rem;
+  text-align: center;
   font-family: var(--font-body);
   font-size: var(--text-md);
   font-weight: 800;
+  line-height: var(--marks-h);
   color: var(--fg);
+}
+/* Beams join the stems: a piece from this stem to the next one (the next segment starts where this one ends), or a stub. */
+.beam {
+  position: absolute;
+  top: var(--stem-top);
+  left: calc(var(--stem-x) - 0.05rem);
+  width: calc(100% + 0.1rem);
+  height: var(--beam-h);
+  background: currentColor;
+  pointer-events: none;
+}
+.beam[data-level='2'] {
+  top: calc(var(--stem-top) + 0.36rem);
+}
+.beam[data-level='3'] {
+  top: calc(var(--stem-top) + 0.72rem);
+}
+.beam[data-to='stub-right'] {
+  width: 0.6rem;
+}
+.beam[data-to='stub-left'] {
+  left: calc(var(--stem-x) - 0.6rem);
+  width: 0.65rem;
+}
+/* A tie: a second note head joined to the one before by an arc under both heads. */
+.tie {
+  position: absolute;
+  top: calc(var(--head-y) + 0.32rem);
+  height: 0.42rem;
+  color: var(--fg);
+  overflow: visible;
+  pointer-events: none;
+}
+.tie[data-kind='prev'] {
+  left: calc(var(--head-x) - var(--back) + 0.4rem);
+  width: calc(var(--back) - 0.8rem);
+}
+.tie[data-kind='barline'] {
+  left: -2px;
+  width: calc(var(--head-x) - 0.35rem);
+}
+.tie[data-kind='out'] {
+  left: calc(var(--head-x) + 0.4rem);
+  right: -2px;
+}
+/* A tuplet number centred over its notes (stem to stem); a bracket when no single beam holds exactly them. */
+.tuplet {
+  position: absolute;
+  top: 0;
+  height: var(--marks-h);
+  left: calc(var(--stem-x) - 0.45rem);
+  width: calc(var(--span) + 0.9rem);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+.tupletNumber {
+  margin-inline: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+.tuplet[data-bracket]::before,
+.tuplet[data-bracket]::after {
+  content: '';
+  flex: 1;
+  align-self: flex-end;
+  height: 0.4rem;
+  margin-bottom: 0.15rem;
+  border-top: 1.5px solid currentColor;
+}
+.tuplet[data-bracket]::before {
+  border-left: 1.5px solid currentColor;
+}
+.tuplet[data-bracket]::after {
+  border-right: 1.5px solid currentColor;
+}
+.tuplet[data-bracket] .tupletNumber {
+  margin-inline: 0;
 }
 .sustain {
   display: block;
@@ -107,13 +209,6 @@
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.tuplet {
-  align-self: flex-start;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--fg-muted);
-}
 .segment[data-accent] .sustain {
   height: 0.7rem;
 }
@@ -138,6 +233,11 @@
 .count[data-long] {
   font-size: var(--text-xs);
   letter-spacing: -0.03em;
+}
+/* Six steps to a beat: "trip" and "let" are two narrow steps apart. */
+.bar[data-sparse] .count[data-long] {
+  font-size: 0.66rem;
+  letter-spacing: -0.05em;
 }
 .count[data-played] {
   color: var(--fg);
@@ -176,6 +276,7 @@
   top: 0;
   left: 50%;
   transform: translateX(-50%);
+  line-height: 1;
 }
 .stroke {
   display: block;

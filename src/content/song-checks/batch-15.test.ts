@@ -358,8 +358,11 @@ describe('batch 15: st-solea-compas', () => {
   it('estimates within two levels below the plan (7): the cycle, not the hands, is the hard part', async () => {
     // The estimate sees sixteenth-note strokes on E and F (about 5); what makes it level 7 is
     // holding a 12-count cycle whose accents cross the bar lines. Gap note (integration pass 2): it
-    // used to read 6 because the F was scored by its symbol as the full barre; the core now scores
-    // the small F the song writes (xx3211), the better estimate, 5.
+    // used to read 6 partly because the F was scored by its symbol as the full barre; the core now
+    // scores the small F the song writes (xx3211). It still reads 6: the fast strokes and the
+    // sixteenths are what the estimate weighs, and its review made the score depend on the three
+    // hardest factors only, so the easy factors (the open chords, few techniques) no longer pull it
+    // down through an average.
     const est = estimate(await load('st-solea-compas'), 'Your part');
     expect(est.level, JSON.stringify(est)).toBeGreaterThanOrEqual(5);
     expect(est.level).toBeLessThanOrEqual(8);

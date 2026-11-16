@@ -3,7 +3,9 @@
  * signals that have no onsets. A summary table is printed.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { renderSequence, strumPlan, type SequenceNote } from '@/core/audio';
 import { midiToFreq } from '@/core/math/pitch-math';
+import { LEAD_S, midiAt, renderNote, singleNoteScene } from './adversarial-kit';
 import { detectOnsets, OnsetDetector } from './onset';
 import { addHum, addNoise, harmonicTone, mix, pluckedString, seededRandom, silence, strum, whiteNoise } from './signals';
 import type { OnsetEvent } from './types';
@@ -132,6 +134,69 @@ describe('onset timing', () => {
       expect(detectOnsets(slow, sr, { minIntervalMs: 25 }).length).toBeGreaterThanOrEqual(2);
     }
   });
+});
+
+/**
+ * Sixteenth-note strumming on the audio engine's guitar (not the strings the detector was built
+ * on): a downstroke on all six strings, then the light upstroke on the top four one sixteenth
+ * later while the chord still rings. The upstroke barely moves either energy envelope.
+ */
+function sixteenthStrumming(bpm: number, sr: number): { x: Float32Array; downs: number[]; ups: number[] } {
+  const em = [40, 47, 52, 55, 59, 64];
+  const sixteenth = 60 / bpm / 4;
+  const notes: SequenceNote[] = [];
+  const downs: number[] = [];
+  const ups: number[] = [];
+  // "1 e & a": down, up, down, up ... for four bars.
+  for (let i = 0; i < 64; i++) {
+    const t = 0.5 + i * sixteenth;
+    const up = i % 2 === 1;
+    const midis = up ? em.slice(2) : em;
+    const strings = up ? [4, 3, 2, 1] : [6, 5, 4, 3, 2, 1];
+    const plan = strumPlan(midis, { direction: up ? 'up' : 'down', velocity: up ? 0.56 : 0.76, spread: up ? 0.014 : 0.02, strings, align: 'start' });
+    for (const p of plan) notes.push({ time: t + p.offset, midi: p.midi, velocity: p.velocity, string: p.string, direction: p.direction });
+    (up ? ups : downs).push(t);
+  }
+  return { x: addNoise(renderSequence(notes, { sampleRate: sr, tail: 1, tone: 'steel' }), 40, bpm), downs, ups };
+}
+
+describe('quick upstrokes over a ringing chord', () => {
+  it('hears every one, on time, with nothing extra', () => {
+    const lines: string[] = [];
+    for (const sr of [44100, 48000]) {
+      for (const bpm of [70, 90, 110]) {
+        const { x, downs, ups } = sixteenthStrumming(bpm, sr);
+        const found = (onsets: readonly OnsetEvent[], at: readonly number[]) => at.map((t) => onsets.find((o) => Math.abs(o.time - t) < 0.03));
+        const onsets = detectOnsets(x, sr);
+        const upHits = found(onsets, ups);
+        const errs = upHits.flatMap((o, i) => (o ? [Math.abs(o.time - ups[i]) * 1000] : []));
+        // The two envelopes alone (the detector before the high-band flux) miss most of them.
+        const before = found(detectOnsets(x, sr, { fluxThreshold: 0 }), ups).filter(Boolean).length;
+        lines.push(`  ${sr / 1000}k ${bpm} BPM: upstrokes heard ${errs.length}/${ups.length} (envelopes alone ${before}), downstrokes ${found(onsets, downs).filter(Boolean).length}/${downs.length}, worst ${Math.max(...errs).toFixed(1)} ms`);
+        expect(errs.length, `${sr} ${bpm}: upstrokes`).toBe(ups.length);
+        expect(found(onsets, downs).every(Boolean), `${sr} ${bpm}: downstrokes`).toBe(true);
+        expect(onsets.length, `${sr} ${bpm}: one onset per stroke`).toBe(ups.length + downs.length);
+        expect(Math.max(...errs), `${sr} ${bpm}: worst upstroke timing`).toBeLessThan(6);
+        expect(before, `${sr} ${bpm}: the envelopes alone`).toBeLessThan(ups.length / 2);
+      }
+    }
+    table.push(`\nUpstrokes a sixteenth after a ringing downstroke (audio-engine guitar)\n${lines.join('\n')}`);
+  }, 60_000);
+
+  it('does not hear a single ringing note of the audio-engine guitar as more strokes', () => {
+    // A bright low string sends one burst of treble per period; the flux compares each frame
+    // with a whole period of earlier ones, so those bursts are not new sound.
+    for (const tone of ['steel', 'nylon', 'clean', 'driven'] as const) {
+      for (let string = 1; string <= 6; string++) {
+        for (const fret of [0, 3]) {
+          const x = renderNote({ string, fret, tone, velocity: 0.95, cents: 0, sampleRate: 48000 }, 0.7);
+          const scene = singleNoteScene(x, 48000, midiAt(string, fret), 0, 0.7);
+          const late = detectOnsets(scene.samples, 48000).filter((o) => o.time > LEAD_S + 0.03 && o.time < LEAD_S + 0.68);
+          expect(late.map((o) => o.time - LEAD_S), `${tone} string ${string} fret ${fret}`).toEqual([]);
+        }
+      }
+    }
+  }, 60_000);
 });
 
 describe('onset false alarms', () => {

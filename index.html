@@ -8,9 +8,24 @@
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Sixstring" />
+    <style>
+      /* The splash: painted from this page and the stylesheet alone, while the app's code is still
+         on its way over a slow line. React replaces it with the shell on its first render. */
+      .ssa-splash {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+      }
+      .ssa-splash img {
+        display: block;
+        width: 72px;
+        height: 72px;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="ssa-splash" aria-hidden="true"><img src="./icons/icon.svg" alt="" width="72" height="72" /></div></div>
+    <noscript>Sixstring Academy needs JavaScript to run. Turn it on in your browser's settings and reload the page.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

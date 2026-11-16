@@ -413,7 +413,7 @@ export interface SightReadingParams {
   positions?: number[];
   /** Keys, easiest first. Default: C major, A minor, G major, E minor, F major, D major. */
   keys?: string[];
-  /** Bars of 4/4, 1 or 2. Default 2. */
+  /** Bars of 4/4, 1 or 2. Default 2 (1 for a tab question, which takes one bar so each tab answer fits its button). */
   bars?: number;
   /** Note values allowed, easiest first. Default `['quarter']`. */
   values?: Array<'half' | 'quarter' | 'eighth'>;

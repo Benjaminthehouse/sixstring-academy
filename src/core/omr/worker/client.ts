@@ -5,6 +5,7 @@
  *   const omr = createOmrWorker();                       // one per screen; terminate() on unmount
  *   const page = await omr.recognizePage(imageData, { onProgress: setProgress, signal });
  *   const kind = await omr.classifyPage(imageData);
+ *   const look = await omr.lookAtPage(imageData, { cleanSide: 1400 });   // layout, paper, cleaned page
  *
  * Cancelling (`signal`) asks the worker to stop between staves; if it has not stopped within
  * `cancelGraceMs` (a staff can take a second on a slow phone) the worker is terminated and a new
@@ -14,6 +15,7 @@
  * opinion; `createOmrWorker({ worker: 'inline' })` runs everything in this thread (tests, Node).
  */
 import type { PageClassification } from '../classify-page';
+import type { LookOptions, OmrLook } from '../look';
 import type { OmrDocument, OmrImageInput, OmrProgress } from '../pipeline';
 import type { OmrPage, OmrVisionModel } from '../types';
 import type { OmrRequest, OmrResponse, WorkerRecognizeOptions } from './protocol';
@@ -49,6 +51,8 @@ export interface OmrWorkerClient {
   recognizePage(image: OmrImageInput, options?: OmrRunOptions): Promise<OmrPage>;
   recognizeDocument(images: OmrImageInput[], options?: OmrRunOptions): Promise<OmrDocument>;
   classifyPage(image: OmrImageInput, options?: { maxSide?: number; signal?: AbortSignal; transfer?: boolean }): Promise<PageClassification>;
+  /** The quick look: kind, paper, layout without symbols, and (with `cleanSide`) the cleaned page. */
+  lookAtPage(image: OmrImageInput, options?: LookOptions & { signal?: AbortSignal; transfer?: boolean }): Promise<OmrLook>;
   /** Stop the worker; runs still going reject as cancelled. */
   terminate(): void;
 }
@@ -150,7 +154,10 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
     return w;
   };
 
-  type StartRequest = { type: 'recognize'; images: OmrImageInput[]; document: boolean; options: WorkerRecognizeOptions; ai: boolean } | { type: 'classify'; image: OmrImageInput; maxSide?: number };
+  type StartRequest =
+    | { type: 'recognize'; images: OmrImageInput[]; document: boolean; options: WorkerRecognizeOptions; ai: boolean }
+    | { type: 'classify'; image: OmrImageInput; maxSide?: number }
+    | { type: 'look'; image: OmrImageInput; options: LookOptions };
   const start = (request: StartRequest, transfer: Transferable[], job: Omit<Job, 'resolve' | 'reject'>): Promise<Extract<OmrResponse, { type: 'result' }>> => {
     if (job.signal?.aborted) return Promise.reject(new CancelledError());
     const id = nextId++;
@@ -192,6 +199,11 @@ export function createOmrWorker(opts: OmrClientOptions = {}): OmrWorkerClient {
     async classifyPage(image, options = {}) {
       const r = await start({ type: 'classify', image, maxSide: options.maxSide }, options.transfer ? buffersOf([image]) : [], { signal: options.signal });
       return r.classification as PageClassification;
+    },
+    async lookAtPage(image, options = {}) {
+      const { signal, transfer, ...look } = options;
+      const r = await start({ type: 'look', image, options: look }, transfer ? buffersOf([image]) : [], { signal });
+      return r.look as OmrLook;
     },
     terminate() {
       kill();

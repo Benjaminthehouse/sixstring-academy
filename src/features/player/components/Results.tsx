@@ -17,12 +17,14 @@ export interface ResultsProps {
   onClose: () => void;
   onAgain: () => void;
   onSuggestion: (s: Suggestion) => void;
+  /** False where no microphone can be had or it was refused: nothing then points to Wait or Flow. */
+  micUsable?: boolean;
 }
 
 const LEVEL_WORDS = ['Clean', 'A slip', 'Some trouble', 'Mostly wrong'];
 
 /** The results sheet. */
-export function Results({ results, barCount, onClose, onAgain, onSuggestion }: ResultsProps) {
+export function Results({ results, barCount, onClose, onAgain, onSuggestion, micUsable = true }: ResultsProps) {
   const s = results?.summary;
   const open = !!results;
   const pct = s && s.accuracy !== null ? Math.round(s.accuracy * 100) : null;
@@ -122,7 +124,13 @@ export function Results({ results, barCount, onClose, onAgain, onSuggestion }: R
               )}
             </section>
           )}
-          {s.mode === 'listen' && <Text tone="muted">{`Next, let the song wait for you: ${MODE_NAMES.wait} mode listens through the microphone and moves on when you play each note.`}</Text>}
+          {s.mode === 'listen' && (
+            <Text tone="muted" data-player-next-step="">
+              {micUsable
+                ? `Next, let the song wait for you: ${MODE_NAMES.wait} mode listens through the microphone and moves on when you play each note.`
+                : `Next, play along without a microphone: ${MODE_NAMES.tap} gives every tap a timing score.`}
+            </Text>
+          )}
           <Celebration fire={s.stars >= 2 || results.newBest ? results.serial : 0} intensity={s.stars === 3 ? 'high' : 'medium'} contained />
         </div>
       )}

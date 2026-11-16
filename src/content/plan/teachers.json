@@ -1193,7 +1193,7 @@
               "practice": [
                 "Mic (play-chord): E5, A5 and D5. Without a microphone: chord-build.",
                 "Technique: Fretting-Hand Muting, first part: hold E5 and strum all six strings; only strings 6, 5 and 4 should sound.",
-                "Player: Power Chords: Open Riff, bars 1 to 4, eighth-note downstrokes at 80 bpm."
+                "Player: Power Chords: Open Riff, bars 1 to 4, eighth-note downstrokes at 80 bpm: you play E5, D5 and A5, and the Player plays C5 and G5 (they come next lesson) while you rest and come back in on time."
               ],
               "music": [
                 "st-power-chords-open",
@@ -3434,7 +3434,7 @@
               "kind": "concept",
               "goal": "Practise deliberately: one precise target, slow enough to be right, immediate feedback and small steps up.",
               "explain": "Repetition is not practice; repetition of the right thing, attended to, is. Choose one target per block, find the tempo at which it is correct nine times out of ten, and raise it in small steps only when it stays correct. Spacing practice across days and mixing topics within a session generally beats long blocks of one thing, even though the blocks feel more productive at the time; and a recording made at the start and the end of a session tells you more than how it felt.",
-              "show": "The tempo-ladder graph from the Technique screen: a passage climbing from 60 to 120 bpm in 4 bpm steps, stepping back two rungs after each failure; a sample interleaved session plan.",
+              "show": "The tempo-ladder graph from the Technique screen: a passage climbing from 60 to 120 bpm in 4 bpm steps, one rung up after each clean pass and one rung back after two passes in a row that are not clean; a sample interleaved session plan.",
               "practice": [
                 "Technique: choose one exercise (for example String Crossing Both Ways), find the tempo at which it is clean, and climb the ladder for ten minutes; log the top clean tempo.",
                 "Practice Plan: rebuild your routine as interleaved blocks of 8 to 12 minutes.",

@@ -148,6 +148,9 @@ export function playAlongPractice(target: TaskTarget, opts: { openedAt: number; 
 /** What the back card says a play-along will count as ("4 min of playing along"), or null. */
 export function playAlongLine(input: ActivityInput | null): string | null {
   if (!input) return null;
-  const min = Math.max(1, Math.round((input.durationSec ?? 0) / 60));
-  return `Continue, and your ${min} ${min === 1 ? 'minute' : 'minutes'} of playing along count as practice.`;
+  const sec = input.durationSec ?? 0;
+  // Under a minute and a half there is no honest count of minutes ("your 1 minute ... count" was
+  // both inflated for 20 s and ungrammatical).
+  if (sec < 90) return 'Continue, and your time playing along counts as practice.';
+  return `Continue, and your ${Math.round(sec / 60)} minutes of playing along count as practice.`;
 }

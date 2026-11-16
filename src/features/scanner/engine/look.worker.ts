@@ -1,4 +1,8 @@
 /**
+ * NO LONGER USED: the quick look now runs in the sheet reader's own worker (`omr.lookAtPage`, see
+ * `look.ts`), so the reader is not bundled twice. Kept only because the lane that replaced it did
+ * not create it; safe to delete.
+ *
  * The quick look at a page, off the main thread: what it holds (tab, notation, text), where its
  * staves and bar lines are, how good the picture is, where the paper is, and the reader's cleaned,
  * straightened version of it (shown so the learner sees what will be read).

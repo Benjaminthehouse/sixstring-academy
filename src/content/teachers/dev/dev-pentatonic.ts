@@ -683,7 +683,7 @@ const majorPentatonic: TeacherLesson = {
       song: 'mo-li-hua',
       tempo: 85,
       minutes: 5,
-      body: 'Play it at 85 % (about 56 BPM), then 100 % (66 BPM): the first half of the verse, twice. The first time plain; the second time slide lightly into each long note from two frets below, as the tab shows. Every note is {n:G}, {n:A}, {n:B}, {n:D} or {n:E}.',
+      body: 'Play it at 85 % (about 56 BPM), then 100 % (66 BPM): the first half of the verse, twice. The first time plain; the second time as the tab shows, with light slurs and a quick slide up into each long {n:D} from two frets below. Every note is {n:G}, {n:A}, {n:B}, {n:D} or {n:E}.',
       tip: 'A slide into a note is an ornament: quick and light, so the long note itself still lands on the beat.',
       fallback: {
         tool: 'player',

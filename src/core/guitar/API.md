@@ -109,7 +109,9 @@ A sequence is the pattern's own note objects in playing order: position, pitch, 
 // Voicing = { id ('c-major-x32010'), chord ('C', 'C/E'), root, type (theory id), bass, inversion, tuning, capo,
 //   frets: (number|null)[], fingers: (0–4|null)[], barres: { fret, finger, fromString, toString }[], baseFret, span,
 //   notes: { string, fret, midi, note, degree, isRoot, interval, role, finger }[], midi[], omitted ['5'], rootless, difficulty 1–10,
-//   label ('Open', 'E-shape barre at fret 3', 'Drop 2, strings 4–1, root position'), category, shape, movable, source: 'library'|'generated' }
+//   label ('Open', 'E-shape barre at fret 3', 'Shell voicing, root on string 5, fret 3', 'Drop 2, strings 4–1, root position'), category, shape, movable, source: 'library'|'generated' }
+//   A barre or a shape named by its root string names the fret the root is on (Cmaj7 x324xx: "root on string 5, fret 3", not
+//   its lowest fret 2); a CAGED form ('C shape, fret 1') names where the shape sits.
 // category: open | barre | caged | power | shell | triad | jazz | drop2 | drop3 | generated
 buildVoicing('C', 'x32010' | [null,3,2,0,1,0], { tuning?, capo?, fingers?, label?, category?, allowIncomplete? }): Voicing   // throws with the reason
 tryBuildVoicing(…): Voicing | null       voicingProblem(…): string | null       essentialTones(chord): ChordTone[]

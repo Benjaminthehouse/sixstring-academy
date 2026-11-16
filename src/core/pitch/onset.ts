@@ -34,7 +34,7 @@ export interface OnsetOptions {
   minFreq?: number;
   /**
    * Spectral flux between 1 and 8 kHz (mean rise in natural-log magnitude per bin) that counts as a
-   * stroke on its own (default 0.75; 0 switches this detector off). Room noise sits near 0.5.
+   * stroke on its own (default 0.15; 0 switches this detector off). Room noise stays below about 0.12, ringing strings below 0.09.
    */
   fluxThreshold?: number;
 }
@@ -52,7 +52,7 @@ const FLUX_KEEP = 0.3;
 /** Where in a flux frame the attack sits when the frame first shows it, as a fraction of the frame from its end. */
 const FLUX_LAG = 0.42;
 
-/** The rising part of the onset detector that works on spectra; see the file comment. */
+/** The part of the onset detector that works on spectra; see the file comment. */
 class HighBandFlux {
   readonly size: number;
   private readonly ring: Float32Array;
@@ -62,11 +62,14 @@ class HighBandFlux {
   private readonly floor: number;
   private readonly re: Float64Array;
   private readonly im: Float64Array;
-  private prev: Float64Array;
-  private cur: Float64Array;
-  private havePrev = false;
+  private readonly raw: Float64Array;
+  /** The last few frames, each already spread over neighbouring bins (see `frame`). */
+  private readonly hist: Float64Array[];
+  private histPos = 0;
+  private histFill = 0;
 
-  constructor(sampleRate: number, minLevelDb: number) {
+  /** `depth`: how many earlier frames a bin is compared with (they must span a period of the lowest note). */
+  constructor(sampleRate: number, minLevelDb: number, depth: number) {
     // About 11 ms: short enough to place the attack, long enough to resolve the 1 kHz edge.
     this.size = nextPow2(Math.round(sampleRate * 0.0105));
     this.ring = new Float32Array(this.size);
@@ -76,14 +79,16 @@ class HighBandFlux {
     this.floor = Math.pow(10, (minLevelDb - 15) / 20) * Math.sqrt((3 * this.size) / 8);
     this.re = new Float64Array(this.size);
     this.im = new Float64Array(this.size);
-    this.prev = new Float64Array(this.k1 - this.k0 + 1);
-    this.cur = new Float64Array(this.k1 - this.k0 + 1);
+    // One bin either side of the band as well, for the spread over neighbours.
+    this.raw = new Float64Array(this.k1 - this.k0 + 3);
+    this.hist = Array.from({ length: Math.max(1, depth) }, () => new Float64Array(this.k1 - this.k0 + 1));
   }
 
   reset(): void {
     this.ring.fill(0);
     this.pos = 0;
-    this.havePrev = false;
+    this.histPos = 0;
+    this.histFill = 0;
   }
 
   push(x: number): void {
@@ -91,7 +96,7 @@ class HighBandFlux {
     this.pos = (this.pos + 1) & (this.size - 1);
   }
 
-  /** Flux of the newest frame against the one before it (0 for the first frame). */
+  /** Flux of the newest frame against the frames before it (0 until there are enough of them). */
   frame(): number {
     const n = this.size;
     const w = hannWindow(n);
@@ -102,20 +107,30 @@ class HighBandFlux {
       im[i] = 0;
     }
     fftPlan(n).forward(re, im);
-    const cur = this.cur;
-    const prev = this.prev;
+    const raw = this.raw;
+    for (let k = this.k0 - 1, j = 0; k <= this.k1 + 1; k++, j++) raw[j] = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
+    const hist = this.hist;
+    const depth = hist.length;
+    const ready = this.histFill >= depth;
     const floor = this.floor;
+    const bins = raw.length - 2;
     let sum = 0;
-    for (let k = this.k0, j = 0; k <= this.k1; k++, j++) {
-      const m = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
-      cur[j] = m;
-      if (this.havePrev && m > prev[j]) sum += Math.log((floor + m) / (floor + prev[j]));
+    if (ready) {
+      for (let j = 0; j < bins; j++) {
+        // A bin is new sound only if it beats every recent frame, and their neighbouring bins too:
+        // a partial that glides (vibrato, a bend) or the pulse train of a bright low string (one
+        // burst of treble per period) is not new.
+        let was = 0;
+        for (let h = 0; h < depth; h++) if (hist[h][j] > was) was = hist[h][j];
+        const m = raw[j + 1];
+        if (m > was) sum += Math.log((floor + m) / (floor + was));
+      }
     }
-    const flux = this.havePrev ? sum / cur.length : 0;
-    this.cur = prev;
-    this.prev = cur;
-    this.havePrev = true;
-    return flux;
+    const into = hist[this.histPos];
+    for (let j = 0; j < bins; j++) into[j] = Math.max(raw[j], raw[j + 1], raw[j + 2]);
+    this.histPos = (this.histPos + 1) % depth;
+    if (this.histFill < depth) this.histFill++;
+    return ready ? sum / bins : 0;
   }
 }
 
@@ -173,9 +188,11 @@ export class OnsetDetector {
     this.thrTreble = opts.trebleThresholdDb ?? 5;
     this.minBlocks = Math.max(1, Math.round((opts.minIntervalMs ?? 60) / blockMs));
     this.minEnergy = Math.pow(10, (opts.minLevelDb ?? -55) / 10);
-    this.fluxThr = opts.fluxThreshold ?? 0.75;
+    this.fluxThr = opts.fluxThreshold ?? 0.15;
     // Below 16 kHz there is too little room above 1 kHz to tell a pick from a ringing string.
-    this.flux = this.fluxThr > 0 && this.sr >= 16000 ? new HighBandFlux(this.sr, opts.minLevelDb ?? -55) : null;
+    // Compared with the frames of the last period of the lowest note (three at 60 Hz).
+    const depth = Math.max(2, Math.ceil(this.sr / (opts.minFreq ?? 60) / (FLUX_EVERY * this.block)));
+    this.flux = this.fluxThr > 0 && this.sr >= 16000 ? new HighBandFlux(this.sr, opts.minLevelDb ?? -55, depth) : null;
   }
 
   /** Forget all state; the next chunk starts a new stream whose first sample is at `originSeconds`. */

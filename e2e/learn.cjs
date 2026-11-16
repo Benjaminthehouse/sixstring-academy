@@ -243,7 +243,8 @@ async function runPhone(L) {
     // nothing of the last lesson's rewards covers the new lesson's first card. It used to, for seconds.
     for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 0; i++) {
       // Forced: the confetti over the dialog keeps Playwright's "stable" check waiting; a finger is not.
-      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true });
+      // A dialog still animating out after the last tap has no button to wait for: go on.
+      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true, timeout: 4000 }).catch(() => null);
       await page.waitForTimeout(80);
     }
     await lib.tap(page, '[data-action="next"]');

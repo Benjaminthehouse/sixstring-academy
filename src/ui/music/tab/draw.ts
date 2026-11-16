@@ -409,7 +409,7 @@ class SystemBuilder {
       return;
     }
     if (c.slash) this.slash(x, c);
-    for (const n of c.notes) this.note(m, c, n, x);
+    for (const n of c.notes) if (!n.hidden) this.note(m, c, n, x);
 
     // Rows below.
     this.pluck(c, x);
@@ -754,7 +754,7 @@ class SystemBuilder {
     for (const mi of sys.measures) {
       const m = layout.model.measures[mi];
       m.columns.forEach((c, ci) => {
-        for (const n of c.notes) if (n.from) this.connect(n, mi, ci, here.has(n.from.measure) ? 'both' : 'end');
+        for (const n of c.notes) if (n.from && !n.hidden) this.connect(n, mi, ci, here.has(n.from.measure) ? 'both' : 'end');
       });
     }
     // Notes on the next system reached from a note here: draw the first half.
@@ -763,7 +763,7 @@ class SystemBuilder {
       for (const mi of next.measures.slice(0, 2)) {
         const m = layout.model.measures[mi];
         m.columns.forEach((c, ci) => {
-          for (const n of c.notes) if (n.from && here.has(n.from.measure)) this.connect(n, mi, ci, 'start');
+          for (const n of c.notes) if (n.from && !n.hidden && here.has(n.from.measure)) this.connect(n, mi, ci, 'start');
         });
       }
     }

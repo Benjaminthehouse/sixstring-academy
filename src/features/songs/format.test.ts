@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseSixTab } from '@/core/song';
 import type { SongListing } from '@/core/library';
-import { bandLabel, bandTone, featureItems, lengthLabel, originLine, pasteHint, sortedWarnings, SIXTAB_TEMPLATE, tempoLabel, warningLine, withoutRhythmNote } from './format';
+import { bandLabel, bandTone, featureItems, historyLine, keyText, lengthLabel, originLine, pasteHint, songKeyLabel, sortedWarnings, SIXTAB_TEMPLATE, tempoLabel, warningLine, withoutRhythmNote } from './format';
 
 function mine(over: Partial<SongListing>): SongListing {
   return { id: 'my-x-0000', source: 'mine', title: 'X', level: 2, levelSource: 'estimated', tags: [], skills: [], teaches: [], addedAt: 0, updatedAt: 0, ...over };
@@ -20,7 +20,29 @@ describe('lengths and levels', () => {
     expect(tempoLabel(84, '3/4').short).toBe('84 BPM');
     expect(tempoLabel(81, '6/8')).toEqual({ short: '\u2669. = 54', spoken: '54 dotted-quarter beats per minute' });
     expect(tempoLabel(90, '12/8').short).toBe('\u2669. = 60');
-    expect(tempoLabel(120, '3/8').short).toBe('120 BPM');
+    // 3/8 is counted in eighths, as the Player's count-in and click count it.
+    expect(tempoLabel(60, '3/8')).toEqual({ short: '\u266A = 120', spoken: '120 eighth-note beats per minute' });
+  });
+
+  it('names a modal key with its mode, and the learner’s own song by its own key', () => {
+    expect(keyText('A dorian')).toBe('A Dorian');
+    expect(keyText('E Phrygian')).toBe('E Phrygian');
+    expect(keyText('F#m')).toBe('F♯ minor');
+    expect(keyText('nonsense')).toBeNull();
+    // The library keeps only major or minor for the learner's songs ("A minor" for A Dorian).
+    expect(songKeyLabel({ source: 'mine', key: 'A minor' }, 'A dorian')).toBe('A Dorian');
+    expect(songKeyLabel({ source: 'mine', key: 'A minor' }, undefined)).toBe('A minor');
+    expect(songKeyLabel({ source: 'built-in', key: 'E Dorian' }, 'E dorian')).toBe('E Dorian');
+  });
+
+  it('keeps a recovered song’s origin line, also on the learner’s copy of it', () => {
+    const origin = 'Folk song of the 18th century. The melody is given as it is commonly sung or played today; older printings vary.';
+    const builtIn: SongListing = { ...mine({}), id: 'mo-li-hua', source: 'built-in', origin };
+    expect(historyLine(builtIn)).toBe(origin);
+    const copy = mine({ imported: { origin: { kind: 'duplicate', from: 'mo-li-hua' }, warnings: [] } });
+    expect(historyLine(copy, (id) => (id === 'mo-li-hua' ? builtIn : undefined))).toBe(origin);
+    expect(historyLine(copy)).toBeNull();
+    expect(historyLine(mine({}))).toBeNull();
   });
 
   it('names the band of a level', () => {

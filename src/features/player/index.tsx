@@ -1,8 +1,10 @@
 /**
- * The Player: `#play--<song-id>` with optional params (see `model/params.ts`): `m9` start at bar
- * 9, `m9-12` loop bars 9 to 12, `t70` tempo 70 %, `wait` / `flow` / `tap` / `listen`, or a
- * section's name (`chorus`) to loop it. Loads the song from the library, then hands over to the
- * player screen. Without an id it offers the song list rather than an empty shell.
+ * The Player: `#play--<song-id>` with optional params (every one is in API.md beside this file;
+ * `model/params.ts` reads them): `m9` start at bar 9, `m9-12` loop bars 9 to 12, `t70` tempo 70 %,
+ * `wait` / `flow` / `tap` / `listen`, `part-<part>` / `mute-<part>`, `tab-only` / `tab-and-notes`
+ * / `notes`, `hide-chart`, `capo2`, `up2` / `down2`, or a section's name (`chorus`) to loop it.
+ * Loads the song from the library, then hands over to the player screen. Without an id it offers
+ * the song list rather than an empty shell.
  */
 import { useMemo } from 'react';
 import type { RouteProps } from '@/app/routes';

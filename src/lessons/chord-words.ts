@@ -83,10 +83,12 @@ export function chordBuildNote(input: ChordShapeInput): string | undefined {
   const strangers = played.filter((p) => !pcs.has(((p.midi % 12) + 12) % 12)).sort((a, b) => b.string - a.string);
   if (strangers.length > 0) {
     const shown = strangers.slice(0, 2);
+    // Two strings on the same wrong note name it once: "Strings 5 and 3 sound A", not "A and A".
+    const notes = [...new Set(shown.map((s) => name(s.midi)))];
     parts.push(
       shown.length === 1
-        ? `String ${shown[0].string} sounds ${name(shown[0].midi)}, which is not in ${sym}.`
-        : `Strings ${list(shown.map((s) => String(s.string)))} sound ${list(shown.map((s) => name(s.midi)))}, which are not in ${sym}.`,
+        ? `String ${shown[0].string} sounds ${notes[0]}, which is not in ${sym}.`
+        : `Strings ${list(shown.map((s) => String(s.string)))} sound ${list(notes)}, which ${notes.length === 1 ? 'is' : 'are'} not in ${sym}.`,
     );
     return parts.join(' ');
   }

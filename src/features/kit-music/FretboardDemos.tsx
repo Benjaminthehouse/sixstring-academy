@@ -111,6 +111,7 @@ export function FretboardGroup() {
         </Demo>
 
         <FindTheNote />
+        <UprightBoards />
 
         <Demo wide title="Woods and inlays" note="Every wood and inlay a learner can equip. Wood is wood: the board looks the same in both themes.">
           <div className={styles.woods}>
@@ -153,6 +154,43 @@ const WOOD_MARKERS: FretMarker[] = [
   { string: 2, fret: 1, label: 'C', color: 'deg-1', root: true },
   { string: 3, fret: 5, label: 'C', color: 'deg-1', root: true, state: 'target' },
 ];
+
+/** Twelve frets on an upright phone: the compact vertical board, and `auto`, which picks it when the board would scroll sideways. */
+function UprightBoards() {
+  const { naming } = useMusicSettings();
+  const cMajor = useMemo(() => scaleMarkers('C', 'major', { maxFret: 12 }), []);
+  const [taps, setTaps] = useState<FretMarker[]>([{ string: 5, fret: 3, label: '?', color: 'accent', state: 'target' }]);
+  const [status, setStatus] = useState('');
+  return (
+    <Demo
+      wide
+      title="Twelve frets, standing up"
+      note="On an upright phone a tap board of frets 0 to 12 would scroll sideways: with orientation auto it stands up instead, compact, every fret in view. The board beside it is the compact vertical board on its own."
+    >
+      <div className={styles.pairs} data-upright="">
+        <div>
+          <Fretboard
+            frets={[0, 12]}
+            orientation="auto"
+            cellLabels="position"
+            markers={taps}
+            aria-label="Find every A: frets 0 to 12"
+            onCellClick={(cell) => {
+              const right = chroma(cell.note) === chroma('A');
+              const name = noteText(cell.note, naming);
+              setTaps((t) => [...t.filter((m) => !(m.string === cell.string && m.fret === cell.fret) && m.state !== 'target'), { string: cell.string, fret: cell.fret, label: name, color: right ? 'ok' : 'bad', state: right ? 'hit' : 'miss', note: cell.note }]);
+              setStatus(right ? `Yes, that is ${name}.` : `That is ${name}. Look for ${noteText('A', naming)}.`);
+            }}
+          />
+          <p className={styles.status} aria-live="polite">
+            {status || `Find every ${noteText('A', naming)} from the nut to fret 12.`}
+          </p>
+        </div>
+        <Fretboard frets={[0, 12]} orientation="vertical" compact markers={cMajor} aria-label="C major, frets 0 to 12, standing up" />
+      </div>
+    </Demo>
+  );
+}
 
 /** A tap-the-note round: every cell is a button. */
 function FindTheNote() {

@@ -3,7 +3,9 @@ import { ACTIVITY_KINDS, addDays, createInitialState, type ActivityKind, type Re
 import type { PlanBlock } from '@/features/practice/model/planner';
 import { suggestPracticePlan } from '@/features/practice/model/signals';
 import { ROUTE_BY_NAME } from '@/app/routes';
-import { PLAN_SLOTS, buildPlan, minutesLeft, nextStep, planLength, slotsForLength, type PlanContext } from './plan';
+import { DAILY_GOALS } from '@/core/progress';
+import { PRACTICE_LIBRARY } from '@/features/practice/model/library';
+import { PLAN_SLOTS, buildPlan, continueItems, goalMinutes, minutesLeft, nextStep, planLength, slotsFor, type PlanContext } from './plan';
 
 const base: PlanContext = { experience: 'beginner', teacher: 'mia', dailyGoalXp: 20, today: '2026-03-02', doneKinds: new Set(), dueReviews: 0, recents: [] };
 const LEVELS = ['beginner', 'intermediate', 'expert'] as const;
@@ -11,15 +13,50 @@ const GOALS = [10, 20, 30, 50] as const;
 const days = Array.from({ length: 28 }, (_, i) => addDays('2026-03-02', i));
 
 describe('planLength', () => {
-  it('gives three steps for a casual goal, four for a regular one, five above', () => {
-    expect(GOALS.map(planLength)).toEqual([3, 4, 5, 5]);
+  it('gives three steps up to a regular goal, four for a serious one, five for an intense one', () => {
+    expect(GOALS.map(planLength)).toEqual([3, 3, 4, 5]);
+    for (const g of GOALS) for (const d of [0, 1]) expect(slotsFor(g, d)).toHaveLength(planLength(g));
   });
-  it('always starts with tuning and a study step, and alternates drill and music in short plans', () => {
-    expect(slotsForLength(3, 0)).toEqual([0, 1, 3]);
-    expect(slotsForLength(3, 1)).toEqual([0, 1, 4]);
-    expect(slotsForLength(4, 0)).toEqual([0, 1, 2, 3]);
-    expect(slotsForLength(4, 1)).toEqual([0, 1, 2, 4]);
-    expect(slotsForLength(5, 9)).toEqual([0, 1, 2, 3, 4]);
+  it('always starts with tuning, and alternates so short plans come round to everything', () => {
+    expect(slotsFor(10, 0)).toEqual([0, 1, 3]);
+    expect(slotsFor(10, 1)).toEqual([0, 1, 4]);
+    // Regular: the short theory step with music one day, the teacher's longer lesson with a drill the next.
+    expect(slotsFor(20, 0)).toEqual([0, 1, 4]);
+    expect(slotsFor(20, 1)).toEqual([0, 2, 3]);
+    expect(slotsFor(30, 0)).toEqual([0, 1, 2, 3]);
+    expect(slotsFor(30, 1)).toEqual([0, 1, 2, 4]);
+    expect(slotsFor(50, 9)).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe('the plan matches the daily goal', () => {
+  it('adds up to about the minutes the goal says and earns at least its XP, every level and day', () => {
+    expect(GOALS.map(goalMinutes)).toEqual(DAILY_GOALS.map((g) => g.minutes));
+    for (const experience of LEVELS) {
+      for (const dailyGoalXp of GOALS) {
+        for (const today of days) {
+          const state = createInitialState({ now: Date.parse(`${today}T10:00:00Z`), timeZone: 'UTC', deviceId: 't' });
+          state.profile.experience = experience;
+          const practice = suggestPracticePlan(state, Date.parse(`${today}T10:00:00Z`), goalMinutes(dailyGoalXp), { journal: [], goals: [] }, PRACTICE_LIBRARY);
+          for (const blocks of [undefined, practice]) {
+            const plan = buildPlan({ ...base, experience, dailyGoalXp, today, practice: blocks });
+            const minutes = minutesLeft(plan);
+            const label = `${experience} ${dailyGoalXp} XP ${today}: ${plan.map((s) => `${s.id}:${s.minutes}`).join(' ')}`;
+            // "About 10 minutes": never more than a couple of minutes either way.
+            expect(Math.abs(minutes - goalMinutes(dailyGoalXp)), label).toBeLessThanOrEqual(2);
+            expect(plan.reduce((sum, s) => sum + s.xp, 0), label).toBeGreaterThanOrEqual(dailyGoalXp);
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps the teacher in a regular plan every other day, and every day while a lesson is open', () => {
+    const week = days.slice(0, 6).map((today) => buildPlan({ ...base, today }).map((s) => s.id));
+    expect(week.filter((ids) => ids.includes('teacher')).length).toBe(3);
+    expect(week.filter((ids) => ids.includes('theory')).length).toBe(3);
+    const open: RecentItem[] = [{ key: 'teachers/mia/lesson-2', route: 'teachers', params: ['mia', 'lesson-2'], title: 'Your first chord', kind: 'teacher-lesson', fraction: 0.4, at: 2 }];
+    for (const today of days.slice(0, 6)) expect(buildPlan({ ...base, today, recents: open }).some((s) => s.id === 'teacher'), today).toBe(true);
   });
 });
 
@@ -98,7 +135,7 @@ describe('buildPlan', () => {
   it('puts due reviews right after tuning and stays within five steps', () => {
     const four = buildPlan({ ...base, dueReviews: 12 });
     expect(four.map((s) => s.id).slice(0, 2)).toEqual(['tune', 'review']);
-    expect(four).toHaveLength(5);
+    expect(four).toHaveLength(4);
     expect(four[1]).toMatchObject({ title: 'Review 12 cards', route: 'learn', minutes: 2 });
     const five = buildPlan({ ...base, dailyGoalXp: 50, dueReviews: 1 });
     expect(five).toHaveLength(5);
@@ -128,6 +165,17 @@ describe('buildPlan', () => {
   });
 });
 
+describe('continueItems', () => {
+  it('offers songs and lessons to continue, unfinished first, and leaves out bare tool visits', () => {
+    const r = (route: string, params: string[], fraction: number, title = route): RecentItem => ({ key: `${route}/${params.join('/')}`, route, params, title, kind: 'other', fraction, at: 0 });
+    const recents = [r('tuner', [], 1, 'Tuner'), r('play', ['lightly-row'], 0.5, 'Lightly Row'), r('practice', [], 1, '10-minute plan'), r('play', ['hot-cross-buns'], 1, 'Hot Cross Buns'), r('gone', ['x'], 0.3)];
+    expect(continueItems(recents, (route) => route !== 'gone').map((x) => x.title)).toEqual(['Lightly Row', 'Hot Cross Buns']);
+    // A tool left part-way (a tuning session cut short) can still be picked up.
+    expect(continueItems([r('tuner', [], 0.4, 'Tuner')], () => true).map((x) => x.title)).toEqual(['Tuner']);
+    expect(continueItems(Array.from({ length: 9 }, (_, i) => r('play', [`s${i}`], 1)), () => true)).toHaveLength(4);
+  });
+});
+
 describe('nextStep and minutesLeft', () => {
   it('point at the first open step and add up what is left', () => {
     const plan = buildPlan({ ...base, dailyGoalXp: 30 });
@@ -154,9 +202,11 @@ describe("Today's drill and music come from the practice planner", () => {
   it('a full plan keeps tune, theory and the teacher, and takes the drill and the song the planner chose', () => {
     const plan = buildPlan({ ...base, dailyGoalXp: 50, practice });
     expect(plan.map((s) => s.route)).toEqual(['tuner', 'learn', 'teachers', 'chords', 'songs']);
-    expect(plan[3]).toMatchObject({ title: 'One-minute changes: G to C', params: ['trainer', 'g-c'], detail: 'Your G to C change is getting rusty', minutes: 4, done: false });
+    // The drill and the song share what the 25-minute goal leaves after tuning, theory and the teacher.
+    expect(plan[3]).toMatchObject({ title: 'One-minute changes: G to C', params: ['trainer', 'g-c'], detail: 'Your G to C change is getting rusty', minutes: 6, done: false });
     expect(plan[3].xp).toBeGreaterThan(0);
-    expect(plan[4]).toMatchObject({ title: 'Strum a two-chord song', detail: 'Do it slowly.', minutes: 5 });
+    expect(plan[4]).toMatchObject({ title: 'Strum a two-chord song', detail: 'Do it slowly.', minutes: 7 });
+    expect(minutesLeft(plan)).toBe(25);
     // Without the planner's blocks the same day still has a plan of its own.
     expect(buildPlan({ ...base, dailyGoalXp: 50 }).map((s) => s.route)).toEqual(buildPlan({ ...base, dailyGoalXp: 50, practice: [] }).map((s) => s.route));
   });

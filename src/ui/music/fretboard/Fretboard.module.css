@@ -4,6 +4,13 @@
  * numbers) follows the page theme. Each wood is a recipe mixed from the material tokens.
  */
 .root {
+  /*
+   * Behind the nut is not wood but the page: a short stub tinted toward the page surface, so it
+   * reads as the end of the neck in both themes (a dark slab on a light page looked like a hole).
+   * Marks and open-string rings drawn there use page ink.
+   */
+  --head-face: color-mix(in srgb, var(--surface-3) 80%, var(--head));
+  --head-edge: color-mix(in srgb, var(--surface-3) 62%, var(--head));
   --wood: var(--fb-wood);
   --wood-edge: var(--fb-wood-2);
   --grain: var(--fb-wood-2);
@@ -92,8 +99,8 @@
 /* ── materials ── */
 .woodStop1 { stop-color: var(--wood-edge); }
 .woodStop2 { stop-color: var(--wood); }
-.headStop1 { stop-color: color-mix(in srgb, var(--head) 80%, var(--fb-dot-edge)); }
-.headStop2 { stop-color: var(--head); }
+.headStop1 { stop-color: var(--head-edge); }
+.headStop2 { stop-color: var(--head-face); }
 .fretStop1 { stop-color: var(--fb-fret-shade); }
 .fretStop2 { stop-color: var(--fb-fret); }
 .fretStop3 { stop-color: color-mix(in srgb, var(--fb-fret) 50%, var(--fb-inlay)); }
@@ -187,9 +194,13 @@
 }
 .mark {
   fill: none;
-  stroke: var(--mark);
+  stroke: var(--fg);
   stroke-width: 1.8;
   stroke-linecap: round;
+}
+/* On a capo the o / x sit on the metal bar. */
+[data-place='capo'] > .mark {
+  stroke: var(--mark);
 }
 
 /* ── overlays ── */
@@ -277,13 +288,39 @@
 .marker[data-state='ghost'] .markerBody {
   opacity: 0.38;
 }
+/* In the open column the marker is on the page, not the wood: page surface and ink. */
+.marker[data-open][data-shape='ring'] .dot {
+  fill: var(--surface);
+}
+.marker[data-open][data-shape='ring'] .label {
+  fill: var(--fg);
+}
+.marker[data-open] .halo {
+  stroke: var(--fg-muted);
+}
+/*
+ * The target pulse: HTML rings over the drawing (see Marker.tsx), animating transform and
+ * opacity only, on their own compositor layer: the SVG is never repainted for it.
+ */
+.pulses {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
 .pulse {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
-  transform-box: fill-box;
-  transform-origin: center;
+  position: absolute;
+  box-sizing: border-box;
+  border: 2.5px solid var(--accent);
+  border-radius: 50%;
+  will-change: transform, opacity;
   animation: pulse 1.3s var(--ease) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 0;
+  }
 }
 @keyframes pulse {
   0% {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { xpFor, type PracticeSession } from '@/core/progress';
+import { GOAL_CHOICES } from '@/app/onboarding/model';
+import { DAILY_GOALS, xpFor, type PracticeSession } from '@/core/progress';
+import { GOAL_CHOICES as SETTINGS_GOALS } from '@/features/profile/settings/model';
 import { DURATIONS } from './planner';
 import { areaSeconds, dayLabel, defaultWeeklyGoal, durationCovering, endSessionText, entryFromSession, formatDuration, groupByDay, minutesForXp, overlapSeconds, parseEntry, spokenDuration, streakNudge, type JournalEntry } from './journal';
 import { advance, endSession, startSession } from './session';
@@ -19,6 +21,15 @@ describe('journal arithmetic', () => {
     }
     expect(minutesForXp(0)).toBe(0);
     expect(minutesForXp(5)).toBe(3);
+    expect(minutesForXp(50)).toBe(25);
+  });
+
+  it('meets each daily goal in the minutes the app says it takes', () => {
+    // Onboarding, Settings and the progress store each say "about N minutes": a planned session of
+    // N minutes earns the goal's XP (and Today and the Practice screen size their plans that way).
+    const claims = [...GOAL_CHOICES.map((c) => [c.xp, c.minutes]), ...SETTINGS_GOALS.map((c) => [c.value, c.minutes]), ...DAILY_GOALS.map((g) => [g.xp, g.minutes])];
+    expect(claims.length).toBe(12);
+    for (const [xp, minutes] of claims) expect(minutesForXp(xp), `${xp} XP in about ${minutes} minutes`).toBe(minutes);
     expect(durationCovering(3, DURATIONS)).toBe(5);
     expect(durationCovering(12, DURATIONS)).toBe(15);
     expect(durationCovering(200, DURATIONS)).toBe(60);
@@ -31,7 +42,8 @@ describe('journal arithmetic', () => {
       text: 'A planned session earns the 5 XP left on your daily goal, and your 4-day streak carries on.',
       minutes: 3,
     });
-    expect(streakNudge({ goal: 20, met: false, remaining: 20 }, { current: 0 }).title).toBe('13 minutes meets today’s goal');
+    // The Regular goal is "about 10 minutes", and 10 minutes of planned practice do meet it.
+    expect(streakNudge({ goal: 20, met: false, remaining: 20 }, { current: 0 }).title).toBe('10 minutes meets today’s goal');
     expect(streakNudge({ goal: 20, met: false, remaining: 20 }, { current: 0 }).text).toBe('A planned session earns the 20 XP your daily goal asks for, and starts a streak.');
     expect(streakNudge({ goal: 20, met: false, remaining: 18 }, { current: 0 }).text).toBe('A planned session earns the 18 XP left on your daily goal, and starts a streak.');
     expect(streakNudge({ goal: 20, met: true, remaining: 0 }, { current: 9 }).title).toBe('Your 9-day streak is safe today');
@@ -46,11 +58,31 @@ describe('journal arithmetic', () => {
     const log: PracticeSession[] = [
       { id: 'a', kind: 'scale-game', title: 'Game', startedAt: T0 + 60_000, durationSec: 120, xp: 8 },
       { id: 'b', kind: 'song', title: 'Song', startedAt: T0 - 60_000, durationSec: 90, xp: 8 }, // 30 s inside
-      { id: 'c', kind: 'practice', title: 'Me', startedAt: T0, durationSec: 300, xp: 8 }, // ignored
+      { id: 'c', kind: 'practice', title: 'Me', startedAt: T0, durationSec: 300, xp: 8, metrics: { blocks: 3, done: 3, plannedMin: 5 } }, // a planned session: ignored
       { id: 'd', kind: 'ear', title: 'Later', startedAt: T0 + 600_000, durationSec: 60, xp: 3 }, // outside
     ];
-    expect(overlapSeconds(log, T0, T0 + 300_000)).toBe(150);
-    expect(overlapSeconds([], T0, T0 + 1)).toBe(0);
+    expect(overlapSeconds(log, [[T0, T0 + 300_000]])).toBe(150);
+    expect(overlapSeconds([], [[T0, T0 + 1]])).toBe(0);
+  });
+
+  it('subtracts nothing for an activity done while the session was paused', () => {
+    // Ran 0-60 s, paused 60-300 s (a scale game 100-220 s), ran again 300-360 s.
+    const runs: Array<[number, number]> = [
+      [T0, T0 + 60_000],
+      [T0 + 300_000, T0 + 360_000],
+    ];
+    const game: PracticeSession = { id: 'g', kind: 'scale-game', title: 'Game', startedAt: T0 + 100_000, durationSec: 120, xp: 8 };
+    expect(overlapSeconds([game], runs)).toBe(0);
+    // Half inside the second stretch: only that half comes off.
+    const song: PracticeSession = { id: 's', kind: 'song', title: 'Song', startedAt: T0 + 270_000, durationSec: 60, xp: 8 };
+    expect(overlapSeconds([song], runs)).toBe(30);
+    // Two activities that overlap each other are taken off once.
+    const ear: PracticeSession = { id: 'e', kind: 'ear', title: 'Ear', startedAt: T0 + 10_000, durationSec: 40, xp: 3 };
+    const fret: PracticeSession = { id: 'f', kind: 'fretboard', title: 'Neck', startedAt: T0 + 20_000, durationSec: 40, xp: 3 };
+    expect(overlapSeconds([ear, fret], runs)).toBe(50);
+    // A Theory Path unit drill is logged as kind `practice` too, but it is not a planned session.
+    const drill: PracticeSession = { id: 'u', kind: 'practice', title: 'Practice: Intervals', startedAt: T0 + 300_000, durationSec: 30, xp: 2 };
+    expect(overlapSeconds([drill], runs)).toBe(30);
   });
 
   it('groups entries by day, newest first, and adds up area time', () => {

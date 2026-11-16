@@ -372,6 +372,33 @@ describe('teachers plan: the order of teaching', () => {
     for (const l of mia) expect(learnerText(l), l.id).not.toMatch(/\b(vibrato|dominant)\b/i);
   });
 
+  it('asks Mia\'s learner to play only the power chords already taught: in the first lesson the Player plays C5 and G5', async () => {
+    // The chords of each bar of the riff, read from the song itself.
+    const { readFileSync } = await import('node:fs');
+    const sixtab = readFileSync(new URL('../songs/st-power-chords-open/song.sixtab', import.meta.url), 'utf8');
+    const bars = sixtab
+      .split('\n')
+      .filter((line) => line.startsWith('|'))
+      .flatMap((line) => line.split('|').slice(1, -1))
+      .filter((bar) => bar.trim() && !/^\|?$/.test(bar.trim()))
+      .map((bar) => [...bar.matchAll(/"([A-G][#b]?5)=/g)].map((m) => m[1]));
+    expect(bars.slice(0, 4)).toEqual([['E5'], ['C5', 'D5'], ['E5'], ['A5', 'G5']]);
+    // Shapes a lesson teaches are the ones it draws: "E5 (022xxx)".
+    const taught = new Set<string>();
+    for (const l of mia) {
+      for (const m of textOf(l).matchAll(/\b([A-G][#b]?5) \(([x0-9]{6})\)/g)) taught.add(m[1]);
+      for (const line of l.practice) {
+        const range = /Power Chords: Open Riff, bars (\d+) to (\d+)/.exec(line);
+        if (!range) continue;
+        const asked = [...new Set(bars.slice(Number(range[1]) - 1, Number(range[2])).flat())];
+        for (const chord of asked.filter((c) => !taught.has(c))) {
+          expect(line, `${l.id}: ${chord} is not taught yet`).toMatch(new RegExp(`Player plays[^.]*\\b${chord}\\b|\\b${chord}\\b[^.]*Player plays`));
+        }
+      }
+    }
+    expect(mia.find((l) => slug(l) === 'power-chords')!.practice.join(' ')).toMatch(/the Player plays C5 and G5 \(they come next lesson\)/);
+  });
+
   it('teaches the techniques Dev\'s pentatonic licks use before the licks that use them', () => {
     const dev = courses[1].units.flatMap((u) => u.lessons);
     const at = (id: string) => dev.findIndex((l) => l.id === id);
@@ -401,6 +428,15 @@ describe('teachers plan: the order of teaching', () => {
     claim('dev/dev-neck-and-reading/reading-sharps-and-rhythm', 'Reading: Second Position, the first 8 bars');
     expect(e.practice.some((s) => s.startsWith('Player: Reading: Second Position, bars 9 to 16'))).toBe(true);
     expect(courses[1].units.flatMap((u) => u.lessons).some((l) => l.music.includes('st-read-fifth-position'))).toBe(false);
+  });
+
+  it('describes the Technique ladder the way the screen runs it: back one rung after two passes in a row that are not clean', () => {
+    // features/technique/model/ladder.ts: up one step after a clean pass, back one after two that are not clean.
+    for (const { lesson: l } of lessons) {
+      expect(textOf(l), l.id).not.toMatch(/two rungs|after each failure|back \w+ rungs?\b(?! after two)/i);
+    }
+    const show = byId.get('elena/elena-practice-and-precision/deliberate-practice')!.show;
+    expect(show).toContain('one rung up after each clean pass and one rung back after two passes in a row that are not clean');
   });
 
   it('never asks anyone to play into pain', () => {

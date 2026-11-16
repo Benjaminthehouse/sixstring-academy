@@ -69,6 +69,12 @@
   min-width: 0;
   flex: 1 1 auto;
 }
+/* "A major +2 · capo 2": a moved song says so on phones, where the header is not shown. */
+.movedChip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .dock {
   grid-area: dock;
   display: grid;

@@ -1131,9 +1131,12 @@ guitar engines, so drills never run out and are always right.
 - A generated step can stand anywhere an exercise can: in a lesson, a checkpoint, a play `alternative`, a fact's `ask`.
 - Distractors are plausible (the usual confusions first) and never accidentally right: no enharmonic twin of the
   answer, no duplicate option, and the grader accepts the generated answer (property-tested for every generator).
-- Only the names a lesson has taught: `spelling` (`'sharps'`, the default, or `'flats'`) on `note-on-string`,
-  `step-up` and `higher-lower` names every in-between note, right or wrong, one way. Key drills (`roman-chord`,
-  `diatonic-chord`, `degree-in-key`, `staff-key`) take an explicit `keys` list instead of `maxAccidentals`.
+- Only the names a lesson has taught: `spelling: 'sharps' | 'flats'` names every in-between note, right or wrong,
+  one way (`note-on-string` and `step-up` default to `'sharps'`; `note-on-string` also takes `'both'`;
+  `higher-lower` defaults to `'auto'`, the everyday name of each). Key drills (`roman-chord`, `diatonic-chord`,
+  `degree-in-key`, `staff-key`) take an explicit `keys` list instead of `maxAccidentals`.
+- Counting follows the notation: compound time is said by beat, "1 & a 2 & a", and triplets "1 trip let", the
+  syllables drawn under the notes.
 - A generator refuses params it cannot make sound questions from (a 13th that does not fit the strings given,
   a numeral `roman-chord` cannot explain), so `validateCourse` reports them before a learner meets them.
 
@@ -1484,7 +1487,7 @@ Triplets and compound meters (6/8, 9/8, 12/8): tap a bar, say on which counts it
 
 | param | type | default | meaning |
 |---|---|---|---|
-| `ask` | `'tap' \| 'count' \| 'ear'` | 'tap' | Tap the bar; choose the counts its notes start on; or hear it and choose it. |
+| `ask` | `'tap' \| 'count' \| 'ear'` | 'tap' | Tap the bar; choose the counts its notes start on ("1 trip let", or "1 & a" per beat of compound time, as the notation counts); or hear it and choose it. |
 | `feels` | `('triplets' \| '6/8' \| '9/8' \| '12/8')[]` | ['6/8', 'triplets'] | Feels in play, easiest first: triplets in 4/4, or a compound meter. |
 | `rests` | `boolean` | false | Allow rests (never on the first beat). |
 | `tempo` | `number` | 60 | The felt beat per minute (the dotted quarter in compound time), 40 to 100. |
@@ -1595,7 +1598,7 @@ A short passage on the staff that stays in one key and one hand position: name i
 | `ask` | `'notes' \| 'tab'` | 'notes' | Which notes the passage plays; or which tab plays it in the position. |
 | `positions` | `number[]` | [1] | Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings. |
 | `keys` | `string[]` | C major, A minor, G major, E minor, F major, D major | Keys, easiest first. Minor keys use their natural minor notes. |
-| `bars` | `number` | 2 (1 for a tab question) | Bars of 4/4, 1 or 2. |
+| `bars` | `number` | 2 (1 for a tab question) | Bars of 4/4, 1 or 2 (a tab question takes 1, so each tab answer fits its button). |
 | `values` | `('half' \| 'quarter' \| 'eighth')[]` | ['quarter'] | Note values the rhythm may use (quarter among them). |
 
 Sample (`{ generate: 'sight-reading' }`, seed 1): choice, "Which notes does this passage play?" → G, G, E, C, B, D, E, G

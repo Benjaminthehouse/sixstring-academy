@@ -15,7 +15,9 @@
  *          to 4 at 75 %) with the lesson's place kept; a run of the song is recorded there through
  *          the app's own progress module (as the Player records one), the shell's Back button
  *          returns, and the task card welcomes the learner back and shows what it saw. The summary,
- *          the stored skill and XP, and "Next lesson" are checked.
+ *          the stored skill and XP are checked; its first theory link opens the Theory Path lesson
+ *          and Back from there lands on Mia's course page (it used to restart the finished lesson),
+ *          whose next lesson is the second one.
  *  show    desktop (1280 x 800, light), a fake microphone that plays Hot Cross Buns once: the
  *          unit's milestone lesson. Its tasks are skipped or visited (the Player task opens the
  *          Player in flow mode and returns), the performance step is framed as the show and hears
@@ -328,9 +330,17 @@ async function runLesson(L, wav) {
     check(group, 'progress: Mia is now the learner\'s teacher', progress && progress.profile.teacher === 'mia', progress && progress.profile.teacher);
     check(group, 'the pending task is forgotten once the lesson is done', (await page.evaluate(() => localStorage.getItem('ssa:teachers.task'))) === null);
     await closeDialogs(page);
-    await press(page, 'touch', '[data-action="next"]');
+    // A theory link is a side trip. Review bug: Back from it went to the finished lesson's address,
+    // which started the lesson over at step 1; now it lands on Mia's course page.
+    await press(page, 'touch', '[data-theory-link]');
+    await page.waitForSelector('[data-lesson-player]', { timeout: 60000 });
+    check(group, 'a theory link on the summary opens the Theory Path lesson', (await page.evaluate(() => location.hash)) === '#learn--the-six-strings--string-numbers', await page.evaluate(() => location.hash));
+    await goBack(page, 'touch');
+    await page.waitForSelector('[data-course-map="mia"]', { timeout: 60000 });
+    check(group, "and Back from it lands on Mia's course page, not on step 1 of the lesson just finished", (await page.evaluate(() => location.hash)) === '#teachers--mia' && (await page.locator('[data-teacher-player]').count()) === 0, await page.evaluate(() => location.hash));
+    await press(page, 'touch', '[data-action="next-lesson"]');
     await page.waitForTimeout(800);
-    check(group, '"Next lesson" opens the next one', (await page.evaluate(() => location.hash)) === '#teachers--mia--sit-and-hold');
+    check(group, 'where the next lesson is offered', (await page.evaluate(() => location.hash)) === '#teachers--mia--sit-and-hold');
     check(group, 'no sideways scroll', (await overflow(page)) <= 1, await overflow(page));
     check(group, 'no console errors', realErrors(errors).length === 0, realErrors(errors).join(' | '));
   });
@@ -658,7 +668,8 @@ async function runBetween(L) {
     // Straight on: the learner answers the level-up dialog and goes to the next lesson at once.
     for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 0; i++) {
       // Forced: the confetti over the dialog keeps Playwright's "stable" check waiting; a finger is not.
-      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true });
+      // A dialog still animating out after the last tap has no button to wait for: go on.
+      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true, timeout: 4000 }).catch(() => null);
       await page.waitForTimeout(80);
     }
     await press(page, 'touch', '[data-action="next"]');

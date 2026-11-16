@@ -588,7 +588,7 @@ export default function RecorderScreen({ params }: RouteProps) {
       <EmptyState icon="AudioLines" title={support.ok ? 'No takes yet' : 'No takes on this device'} level={3}>
         {support.ok ? (
           <>
-            Press Record (or <Kbd>R</Kbd>) and play something, even ten seconds. Then listen back: you will hear things your hands cannot feel yet.
+            Press Record<span className={styles.keyHint} data-recorder-key-hint=""> (or <Kbd>R</Kbd>)</span> and play something, even ten seconds. Then listen back: you will hear things your hands cannot feel yet.
           </>
         ) : (
           'Takes recorded with this browser show up here.'

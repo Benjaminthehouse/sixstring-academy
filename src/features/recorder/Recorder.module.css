@@ -460,8 +460,10 @@
 .keys {
   display: block;
 }
+/* Keyboard hints only where there is a keyboard to press them on. */
 @media (pointer: coarse) {
-  .keys {
+  .keys,
+  .keyHint {
     display: none;
   }
 }

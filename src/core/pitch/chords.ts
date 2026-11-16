@@ -16,6 +16,14 @@ export interface ChordSpec {
   bass?: number;
   /** Label carried through to results, e.g. "G" or "Am7". Optional. */
   name?: string;
+  /**
+   * Pitch classes that must be heard for the chord to pass. Default: every tone, except the fifth
+   * above `bass` when there is one (the tone guitarists leave out most, and the one a chord loses
+   * least by). Each required tone fainter than `requiredThreshold` cuts the score, to a quarter
+   * when it is not there at all, so a G7 whose F was not played no longer passes as G7 on the
+   * strength of its other three notes. Pass `[]` for the old, lenient grading.
+   */
+  required?: readonly number[];
 }
 
 /** Options for {@link matchChord}. */
@@ -24,6 +32,11 @@ export interface ChordMatchOptions {
   presentThreshold?: number;
   /** A non-chord pitch class counts as a wrong note from this fraction (default 0.4). */
   extraThreshold?: number;
+  /**
+   * A required tone at least this strong (relative to the strongest pitch class) costs nothing
+   * (default 0.12); below it the score falls linearly, to a quarter at a quarter of this level.
+   */
+  requiredThreshold?: number;
 }
 
 /** How well a chroma frame fits one chord. */
@@ -56,6 +69,14 @@ function chromaOf(input: ChromaFrame | ArrayLike<number>): ArrayLike<number> {
 /** Pitch classes (sorted, unique) of a list of MIDI notes. */
 export function pitchClassesOf(midis: readonly number[]): number[] {
   return [...new Set(midis.map((m) => ((Math.round(m) % 12) + 12) % 12))].sort((a, b) => a - b);
+}
+
+/** The pitch classes of `chord` that must be heard (see {@link ChordSpec.required}). */
+export function requiredTones(chord: ChordSpec, tones: readonly number[] = pitchClassesOf(chord.pcs)): number[] {
+  if (chord.required) return pitchClassesOf(chord.required);
+  if (chord.bass === undefined) return [...tones];
+  const fifth = (((chord.bass + 7) % 12) + 12) % 12;
+  return tones.filter((pc) => pc !== fifth);
 }
 
 /** Score one chord against a chroma frame (or a bare 12-element chroma). */
@@ -109,6 +130,16 @@ export function matchChord(
   result.purity = inside / total;
   result.coverage = result.present.length / tones.length;
   let score = result.purity * Math.pow(soft / tones.length, 1.5);
+  // Every chord tone that has to be there. A muted tone still leaks into its pitch class through
+  // the overtones of the others (up to 0.18 of the strongest in the tests, 0.09 typically), while
+  // a played one is rarely under 0.25; so the full score needs 0.12. The cut stops at a quarter so
+  // that strums missing a tone still rank among themselves (the best one is reported as the attempt).
+  const full = opts.requiredThreshold ?? 0.12;
+  const none = full / 4;
+  for (const r of requiredTones(chord, tones)) {
+    const rel = Math.max(0, chroma[r]) / max;
+    if (rel < full) score *= 0.25 + 0.75 * Math.max(0, (rel - none) / (full - none));
+  }
   if (chord.bass !== undefined && 'chroma' in input && input.bass >= 0) {
     result.bassOk = input.bass === ((chord.bass % 12) + 12) % 12;
     if (!result.bassOk) score *= 0.88;

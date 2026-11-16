@@ -31,6 +31,8 @@ export interface ContentItem {
    * second month, not the first week.
    */
   beginnerFrom?: number;
+  /** A Theory Path unit id: the item is offered only once a lesson of that unit is done (its drill). */
+  unit?: string;
 }
 
 const ALL: readonly ExperienceLevel[] = ['beginner', 'intermediate', 'expert'];
@@ -546,13 +548,28 @@ export function targetOf(item: ContentItem): BlockTarget {
   return item.target ?? AREA_INFO[item.area].target;
 }
 
+/** Whether an item suits a learner now: their level, a beginner's practice days, a unit they have studied. */
+function suits(c: ContentItem, level: ExperienceLevel, practiceDays: number, studiedUnits: ReadonlySet<string>): boolean {
+  if (!c.levels.includes(level)) return false;
+  if (level === 'beginner' && (c.beginnerFrom ?? 0) > practiceDays) return false;
+  return c.unit === undefined || studiedUnits.has(c.unit);
+}
+
 /**
  * Items for an area that suit a level and, for a beginner, how far along they are (`practiceDays`:
- * days with any practice; leave it out when unknown). Falls back to the nearest level when an area
- * has nothing for this one, so a pool is never empty.
+ * days with any practice; leave it out when unknown), from this pool and the app's content
+ * (`library`, see `library.ts`; a unit drill only for a unit in `studiedUnits`). Falls back to the
+ * nearest level of this pool when an area has nothing for this one, so a pool is never empty.
  */
-export function poolFor(area: Area, level: ExperienceLevel, practiceDays = Number.POSITIVE_INFINITY): ContentItem[] {
+export function poolFor(
+  area: Area,
+  level: ExperienceLevel,
+  practiceDays = Number.POSITIVE_INFINITY,
+  library: readonly ContentItem[] = [],
+  studiedUnits: readonly string[] = [],
+): ContentItem[] {
+  const studied = new Set(studiedUnits);
   const all = CONTENT.filter((c) => c.area === area);
-  const exact = all.filter((c) => c.levels.includes(level) && !(level === 'beginner' && (c.beginnerFrom ?? 0) > practiceDays));
+  const exact = [...all, ...library.filter((c) => c.area === area)].filter((c) => suits(c, level, practiceDays, studied));
   return exact.length > 0 ? exact : all;
 }

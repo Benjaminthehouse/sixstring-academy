@@ -116,7 +116,7 @@ export function FretFindView({ exercise, review, onDraft, hints }: ExerciseViewP
       {!review && (
         <Text variant="caption" tone="muted" aria-live="polite">
           {offString && allowed
-            ? `Only ${stringsText(allowed)} count here: tap there.`
+            ? `Only ${stringsText(allowed)} ${allowed.length === 1 ? 'counts' : 'count'} here: tap there.`
             : exercise.mode === 'all'
               ? `Tap every one${allowed ? ` on ${stringsText(allowed)}` : ''}. ${positions.length} marked; tap a mark again to remove it.`
               : positions.length

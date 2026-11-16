@@ -135,8 +135,8 @@ export class FakeSupabaseServer {
       resendSeconds: options.resendSeconds ?? 60,
       codeTtlSec: options.codeTtlSec ?? 3600,
       accessTtlSec: options.accessTtlSec ?? 3600,
-      maxRowsPerUser: options.maxRowsPerUser ?? 500,
-      maxRowBytes: options.maxRowBytes ?? 262_144,
+      maxRowsPerUser: options.maxRowsPerUser ?? 300,
+      maxRowBytes: options.maxRowBytes ?? 300_000,
       pollWaitMs: options.pollWaitMs ?? 20_000,
     };
   }
@@ -169,10 +169,12 @@ export class FakeSupabaseServer {
     for (const session of this.sessions.values()) session.expiresAt = 0;
   }
 
-  /** End every session of a user (as "sign out everywhere" or the owner does). */
+  /**
+   * End every session of a user (as "sign out everywhere" or the owner does). As on the real
+   * service, access tokens already handed out keep working until they expire; refreshing fails.
+   */
   revokeSessions(userId: string): void {
     for (const token of this.refreshTokens.values()) if (token.userId === userId) token.revoked = true;
-    for (const [access, session] of this.sessions) if (session.userId === userId) this.sessions.delete(access);
   }
 
   /** Remove a user and, through `on delete cascade`, their rows. */
@@ -704,15 +706,22 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
 
   const from = (table: string): TableLike => ({
     select: (columns: string) => new Select(table, columns),
-    upsert: (values: Record<string, unknown>, upsertOptions: { onConflict: string }) => ({
-      then: (onFulfilled, onRejected) => run<null>((t) => ({ op: 'db.upsert', token: t, table, row: clone(values), onConflict: upsertOptions.onConflict })).then(onFulfilled, onRejected),
-    }),
+    upsert: (values: Record<string, unknown>, upsertOptions: { onConflict: string }) => {
+      const row = clone(values);
+      return new Query<null>((t) => ({ op: 'db.upsert', token: t, table, row, onConflict: upsertOptions.onConflict }));
+    },
     delete: () => new Query<null>((t, filters) => ({ op: 'db.delete', token: t, table, filters })),
   });
 
   // -- Realtime -------------------------------------------------------------------------------
 
   const channels = new Map<string, FakeChannel>();
+  /**
+   * Every channel made and not yet fully closed, by name. As in realtime-js, `channel(name)` hands
+   * back the one already there (even one still leaving after `removeChannel`), and only a channel
+   * that has never joined subscribes: a leaving one ignores `subscribe()` and then closes.
+   */
+  const made = new Map<string, FakeChannel>();
   let polling = false;
   let detach: (() => void) | null = null;
 
@@ -749,16 +758,23 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
     private bindings: Array<{ filter: ChangeFilter; callback: (payload: ChangePayload) => void }> = [];
     private status: ((status: ChannelStatus, error?: Error) => void) | undefined;
     private closed = false;
+    private leaving = false;
+    private subscribed = false;
     private joined = false;
     private retry: ReturnType<typeof setTimeout> | null = null;
     constructor(readonly topic: string) {}
 
     on(_type: 'postgres_changes', filter: ChangeFilter, callback: (payload: ChangePayload) => void): ChannelLike {
+      // realtime-js refuses new postgres_changes bindings on a channel that is joining or joined.
+      if (this.subscribed && !this.leaving && !this.closed) throw new Error(`cannot add \`postgres_changes\` callbacks for ${this.topic} after \`subscribe()\`.`);
       this.bindings.push({ filter, callback });
       return this;
     }
 
     subscribe(callback?: (status: ChannelStatus, error?: Error) => void): ChannelLike {
+      // As realtime-js: a channel that is joining, joined or still leaving ignores this call.
+      if (this.subscribed || this.leaving || this.closed) return this;
+      this.subscribed = true;
       this.status = callback;
       channels.set(this.topic, this);
       void this.join();
@@ -766,10 +782,10 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
     }
 
     private async join(): Promise<void> {
-      if (this.closed) return;
+      if (this.closed || this.leaving) return;
       const who = await token();
       const response = 'failed' in who ? null : await call({ op: 'rt.join', token: who.token, conn, topic: this.topic, bindings: this.bindings.map((b) => b.filter) });
-      if (this.closed) return;
+      if (this.closed || this.leaving) return;
       if (!response || response.error) {
         this.joined = false;
         this.status?.('CHANNEL_ERROR', new Error('could not join'));
@@ -786,7 +802,7 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
 
     /** The connection dropped or came back. */
     connection(up: boolean): void {
-      if (this.closed) return;
+      if (this.closed || this.leaving) return;
       if (!up) {
         if (this.joined) this.status?.('CHANNEL_ERROR', new Error('connection lost'));
         this.joined = false;
@@ -794,20 +810,24 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
     }
 
     receive(payload: ChangePayload): void {
-      if (this.closed) return;
+      if (this.closed || this.leaving) return;
       for (const binding of this.bindings) if (binding.filter.event === '*' || binding.filter.event === payload.eventType) binding.callback(clone(payload));
     }
 
     async close(): Promise<void> {
-      if (this.closed) return;
-      this.closed = true;
+      if (this.closed || this.leaving) return;
+      this.leaving = true;
       if (this.retry) clearTimeout(this.retry);
-      channels.delete(this.topic);
+      if (channels.get(this.topic) === this) channels.delete(this.topic);
       if (!channels.size && detach) {
         detach();
         detach = null;
       }
+      // Until the server has answered the leave, the channel is still the one `channel(name)` returns.
       await call({ op: 'rt.leave', conn, topic: this.topic });
+      this.closed = true;
+      this.leaving = false;
+      if (made.get(this.topic) === this) made.delete(this.topic);
       this.status?.('CLOSED');
     }
   }
@@ -815,7 +835,13 @@ export function createFakeClient(transport: FakeTransport, options: FakeClientOp
   return {
     auth,
     from,
-    channel: (name: string) => new FakeChannel(name),
+    channel: (name: string) => {
+      const existing = made.get(name);
+      if (existing) return existing;
+      const created = new FakeChannel(name);
+      made.set(name, created);
+      return created;
+    },
     removeChannel: async (channel: ChannelLike) => {
       if (channel instanceof FakeChannel) await channel.close();
       return 'ok';

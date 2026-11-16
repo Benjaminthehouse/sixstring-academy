@@ -11,7 +11,9 @@
 import { readJSON, writeJSON } from '@/core/platform/storage';
 import { MAX_JOURNAL, parseEntry, type JournalEntry } from './journal';
 import { parseGoal, type FocusGoal } from './goals';
-import { MAX_ROUTINES, parseRoutine, type Routine } from './routines';
+// The routine parser without the exercise pool and the planner (`routines.ts` brings both), for
+// the same reason: this file is part of the session bar on every screen.
+import { MAX_ROUTINES, parseRoutine, type Routine } from './routine-data';
 
 /** Everything saved under `practice.data`. */
 export interface PracticeData {

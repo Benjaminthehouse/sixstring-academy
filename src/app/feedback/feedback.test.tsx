@@ -10,9 +10,22 @@ import { createActions, createProgressStore, memoryStorage, setProgressStore, ty
 import { Sheet, UIProvider, toast } from '@/ui';
 import { statsSheet } from '../shell/stats';
 import { GlobalFeedback } from './GlobalFeedback';
-import { holdRewards, rewardsHeld } from './hold';
+import { holdRewards, rewardsHeld, useRewardHandoff } from './hold';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The interface sounds the shell plays, by name (they are silent in jsdom; this is what was asked for).
+const played = vi.hoisted(() => [] as string[]);
+vi.mock('./sounds', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./sounds')>();
+  return {
+    ...real,
+    playShellSound: (...args: Parameters<typeof real.playShellSound>) => {
+      played.push(args[0]);
+      real.playShellSound(...args);
+    },
+  };
+});
 
 let root: Root;
 let host: HTMLElement;
@@ -459,6 +472,77 @@ describe('rewards between lessons', () => {
     await end();
     await moment(400);
     expect(dialog()).toBeNull();
+  });
+
+  // Review bug: the card that waited behind that dialog was shown after the next lesson's own news,
+  // so the next summary's card lost its XP to the last lesson's ("+25 XP" in the goal line, no "+7 XP").
+  it("a card that waited behind an answered dialog joins the next summary's without hiding its XP", async () => {
+    await act(async () => {
+      actions.awardXp(25, 'test'); // a new level and the daily goal: the card waits behind the dialog
+    });
+    await moment();
+    const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going') as HTMLButtonElement;
+    await act(async () => button.click());
+    const end = await lessonStarts();
+    await moment(400);
+    expect(toasts()).toEqual([]);
+    await act(async () => {
+      actions.awardXp(7, 'the next lesson');
+    });
+    await moment(6000);
+    await end();
+    await moment(400);
+    const text = toasts().map((t) => t.text).join(' ');
+    expect(text).toContain('Daily goal met');
+    expect(text).toContain('+7 XP');
+  });
+
+  // Review bug: a summary's "Next lesson" unmounts one screen and mounts the next in one commit, so
+  // the hold went off and on again at once. In between, the held level-up was let through: its
+  // confetti and sound fired over the next lesson's first card, and its dialog came later without them.
+  it('a hold handed straight from one screen to the next lets nothing through in between', async () => {
+    let first = () => undefined as void;
+    await act(async () => {
+      first = holdRewards();
+    });
+    await act(async () => {
+      actions.awardXp(25, 'test'); // a new level and the daily goal, held
+    });
+    await moment(2000);
+    played.length = 0;
+    let second = () => undefined as void;
+    await act(async () => {
+      first();
+      second = holdRewards();
+    });
+    releases.push(second);
+    await moment(400);
+    expect(played).toEqual([]);
+    expect(dialog()).toBeNull();
+    expect(toasts()).toEqual([]);
+    await act(async () => second());
+    await moment();
+    expect(played).toContain('levelUp');
+    expect(dialog()?.textContent).toContain('Level up');
+  });
+
+  it('useRewardHandoff holds from the tap until the screen that tapped unmounts', async () => {
+    let handOff = () => undefined as void;
+    function Summary() {
+      handOff = useRewardHandoff();
+      return null;
+    }
+    const other = document.createElement('div');
+    const summaryRoot = createRoot(other);
+    await act(async () => summaryRoot.render(<Summary />));
+    expect(rewardsHeld()).toBe(false);
+    await act(async () => {
+      handOff();
+      handOff(); // twice is one hold
+    });
+    expect(rewardsHeld()).toBe(true);
+    await act(async () => summaryRoot.unmount());
+    expect(rewardsHeld()).toBe(false);
   });
 });
 

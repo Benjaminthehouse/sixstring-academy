@@ -296,6 +296,9 @@ describe('the rest of your data', () => {
     expect(includedLines({ progress: summarise(emptyFixture(NOW, 'UTC').store.getState()), counts: { items: [], settings: 0 }, songs: { count: 0, bytes: 0 } }).later).toEqual(['screen settings', 'your own songs']);
     expect(staysLines({ hasApiKey: true })[0].label).toBe('Your API key');
     expect(staysLines({ hasApiKey: false }).some((l) => l.id === 'key')).toBe(false);
+    // Signed in: the sign-in is named as staying here (never exported or synced).
+    expect(staysLines({ hasApiKey: false, signedIn: true })[0]).toMatchObject({ id: 'sign-in', label: 'Your sign-in' });
+    expect(staysLines({ hasApiKey: false, signedIn: false }).some((l) => l.id === 'sign-in')).toBe(false);
   });
 
   it('says whether songs sync, and why not', () => {

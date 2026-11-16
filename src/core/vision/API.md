@@ -249,6 +249,9 @@ confidence 1.0 and locked a fret off until the learner fixed it (`jump.test.ts`;
 fret off to the end 3 -> 0; the 10 left are one second guitar placed half a string off, as without a cut).
 A swaying neck moves 0.05-0.2 cells a frame at 30 fps; the cut measured 0.9. The usual motion is a speed, so a busy
 machine that skips frames (gaps of 6-8 frames move a swaying neck most of a cell) sees no jumps.
+When the fresh search finds the board where the track put it, with the same numbers, the move was
+real motion and its speed becomes the usual speed: a machine managing 2 frames a second from the
+start of a track (no usual speed yet) searches afresh once, not on 4 of 16 frames (`jump.test.ts`).
 `diagnostics.stats.jump` marks the frame.
 
 `TrackerUpdate { state, changed, pose /* smoothed */, measured /* raw */, confidence, numberingConfirmed,

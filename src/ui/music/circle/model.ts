@@ -3,7 +3,8 @@
  * (outer ring) and relative minor (inner ring), and for a selected key the roman numeral of every
  * slot that holds one of its diatonic chords. Pure, derived from `core/theory`.
  */
-import { circleOfFifths, diatonicChords, getKey, note as parseNote, type CircleSlot, type Key } from '@/core/theory';
+import { circleOfFifths, diatonicChords, formatKey, getKey, note as parseNote, type CircleSlot, type Key } from '@/core/theory';
+import type { NoteNaming } from '../types';
 
 /** A ring of the circle. */
 export type CircleRing = 'major' | 'minor';
@@ -84,6 +85,23 @@ export function signatureText(slot: Pick<CircleSlot, 'major'>): string {
       return f === 0 ? '0' : `${Math.abs(f)}${f > 0 ? '♯' : '♭'}`;
     })
     .join(' ');
+}
+
+/** A key signature in words, singular where it is one: `no sharps or flats`, `1 sharp`, `3 flats`. */
+export function signatureWords(signature: Pick<Key['signature'], 'count' | 'type'>): string {
+  if (signature.count === 0) return 'no sharps or flats';
+  const kind = signature.type === 'flats' ? 'flat' : 'sharp';
+  return `${signature.count} ${kind}${signature.count === 1 ? '' : 's'}`;
+}
+
+/**
+ * What a screen reader says for one wedge: each key at the slot with its own signature (the
+ * enharmonic slots name both: `F♯ major, 6 sharps, or G♭ major, 6 flats`), and the numeral it has
+ * in the selected key.
+ */
+export function wedgeLabel(w: Pick<WedgeInfo, 'keys' | 'roman'>, naming: NoteNaming = 'letters'): string {
+  const keys = w.keys.map((k) => `${formatKey(k, { system: naming })}, ${signatureWords(k.signature)}`).join(', or ');
+  return `${keys}${w.roman ? `, ${w.roman} chord of the selected key` : ''}`;
 }
 
 /** A point on a circle: angle in degrees clockwise from the top. */

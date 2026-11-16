@@ -1,0 +1,263 @@
+/* Me > Account. One column that reads well from 320 px to a wide screen and at 200 % text. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+  max-width: 44rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.unavailable {
+  max-width: var(--prose-max);
+  color: var(--fg-muted);
+}
+
+/* ---------- Signing in ---------- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  min-width: 0;
+}
+@media (max-width: 479.98px) {
+  .hero {
+    padding: var(--sp-5) var(--sp-4);
+  }
+}
+
+.devices {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.device {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.link {
+  display: inline-flex;
+  color: var(--fg-faint);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .link {
+    animation: turn 6s var(--ease) infinite;
+  }
+}
+:global(html[data-motion='reduce']) .link {
+  animation: none;
+}
+@keyframes turn {
+  0%,
+  70% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+.lead {
+  max-width: var(--prose-max);
+  color: var(--fg-muted);
+}
+.address {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-4) 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  max-width: var(--prose-max);
+}
+.points li > :first-child {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-3);
+  max-width: 28rem;
+}
+@media (min-width: 720px) {
+  .form > button {
+    align-self: flex-start;
+  }
+}
+
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ---------- Signed in ---------- */
+.who {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  min-width: 0;
+}
+.whoIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.whoText {
+  min-width: 0;
+}
+.whoLabel {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.whoEmail {
+  font-size: var(--text-lg);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* The sync row: the same look as the rows in Your data. */
+.status {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.statusIcon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 1px;
+  color: var(--fg-muted);
+}
+.status[data-tone='ok'] .statusIcon {
+  color: var(--ok);
+}
+.status[data-tone='warn'] .statusIcon {
+  color: var(--warn);
+}
+.status[data-tone='bad'] .statusIcon {
+  color: var(--bad);
+}
+.status[data-tone='info'] .statusIcon,
+.status[data-tone='busy'] .statusIcon {
+  color: var(--info);
+}
+.statusText {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.statusTitle {
+  font-weight: 650;
+}
+.statusBody {
+  margin-top: 2px;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.statusSongs {
+  display: block;
+  margin-top: var(--sp-1);
+}
+.statusAction {
+  flex: none;
+}
+
+.leave {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.leaveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-4);
+}
+.leaveRow + .leaveRow {
+  border-top: 1px solid var(--line);
+}
+.leaveText {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.leaveTitle {
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+@media (max-width: 719.98px) {
+  .leaveRow > button {
+    width: 100%;
+  }
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* ---------- The suggestion (Me overview) ---------- */
+.suggestion {
+  min-width: 0;
+}

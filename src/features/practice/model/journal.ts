@@ -2,7 +2,7 @@
  * The practice journal: one entry per finished session (blocks, minutes, a note and how it felt),
  * grouped by day, plus the arithmetic behind the weekly goal and the streak nudge.
  */
-import { xpFor, type DayKey, type PracticeSession } from '@/core/progress';
+import { XP_RULES, xpFor, type DayKey, type PracticeSession } from '@/core/progress';
 import { isArea, type Area } from './areas';
 import type { BlockOutcome, SessionResult, SessionState } from './session';
 
@@ -80,14 +80,37 @@ export function entryFromSession(s: SessionState, result: Pick<SessionResult, 'x
   };
 }
 
-/** Seconds of other recorded activities (scale games, songs ...) that fall inside `[from, to]`. */
-export function overlapSeconds(log: readonly PracticeSession[], from: number, to: number): number {
+type Span = readonly [number, number];
+
+/** The union of some spans, sorted, so time covered twice counts once. */
+function union(spans: readonly Span[]): Array<[number, number]> {
+  const sorted = spans.filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a).sort((x, y) => x[0] - y[0]);
+  const out: Array<[number, number]> = [];
+  for (const [a, b] of sorted) {
+    const last = out[out.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
+
+/** A planned session's own log entry (it carries the block counts the controller logs), not an activity done during one. */
+function isPlannedSession(e: PracticeSession): boolean {
+  return e.kind === 'practice' && e.metrics?.blocks !== undefined;
+}
+
+/**
+ * Seconds of other recorded activities (scale games, songs, a Theory Path unit drill ...) that fall
+ * inside the spans the session counted as practice (`SessionState.runs`). An activity done while
+ * the session was paused is not inside them: that time was never counted, so nothing is taken off
+ * for it. Two activities that overlap each other are only subtracted once.
+ */
+export function overlapSeconds(log: readonly PracticeSession[], runs: readonly Span[]): number {
+  const others = union(log.filter((e) => !isPlannedSession(e) && e.durationSec > 0).map((e): Span => [e.startedAt, e.startedAt + e.durationSec * 1000]));
+  const counted = union(runs);
   let ms = 0;
-  for (const e of log) {
-    if (e.kind === 'practice' || !(e.durationSec > 0)) continue;
-    const start = e.startedAt;
-    const end = start + e.durationSec * 1000;
-    ms += Math.max(0, Math.min(end, to) - Math.max(start, from));
+  for (const [a, b] of others) {
+    for (const [c, d] of counted) ms += Math.max(0, Math.min(b, d) - Math.max(a, c));
   }
   return Math.round(ms / 1000);
 }
@@ -127,7 +150,7 @@ export function areaSeconds(entries: readonly JournalEntry[], fromDay: DayKey, t
 export function minutesForXp(xp: number): number {
   if (!(xp > 0)) return 0;
   for (let m = 1; m <= 60; m++) if (xpFor('practice', { durationSec: m * 60 }) >= xp) return m;
-  return Math.ceil(xp / 1.5);
+  return Math.ceil(xp / XP_RULES.practice.perMinute);
 }
 
 /** The smallest of the offered durations that covers `minutes` (the longest when none does). */
