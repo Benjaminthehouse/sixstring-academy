@@ -102,8 +102,9 @@ export interface TrackStats {
   /** Held voices (0–1): the share of onsets where new notes are struck while another voice holds a note (a tie, or a held length). */
   heldVoices: number;
   /**
-   * Thumb independence (0–1): the share of onsets where the treble alone moves off a steady bass
-   * pulse (a bass note on at least 70% of the beats or of the half bars), as in alternating-bass picking.
+   * Thumb independence (0–1): the share of onsets where the fingers alone move off a steady bass
+   * pulse (a note on the two lowest strings, or marked for the thumb, on at least 70% of the beats
+   * or of the half bars), as in alternating-bass picking.
    */
   thumbVoices: number;
   /** Longest run of fast notes (onsets at most 0.2 s apart) without a break, in seconds at the written tempo. */
@@ -221,7 +222,8 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
   const shapes = new Map<string, ChordShapeStat>();
   const bassOnsets: number[] = [];
   const trebleOnly: number[] = [];
-  const bassString = (s: number) => s > tuning.length / 2;
+  // The thumb's notes: the two lowest strings, or any note marked for the thumb (p).
+  const isBass = (n: Note) => n.string >= tuning.length - 1 || n.pluck === 'p';
 
   for (const b of beats) {
     const src = b.source;
@@ -249,7 +251,7 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
       }
       // Bass pulse and treble moving around it.
       if (!src.slash) {
-        const hasBass = struck.some((n) => bassString(n.string));
+        const hasBass = struck.some(isBass);
         if (hasBass) bassOnsets.push(b.tick);
         else if (struck.length) trebleOnly.push(b.tick);
       }
@@ -608,12 +610,22 @@ function heldShapeDifficulties(song: Song, tl: SongTimeline, track: Track): Arra
     if (!c.voicing || c.voicing.length !== tuning.length || isNoChord(c.symbol)) continue;
     const key = c.voicing.join(',');
     if (out.has(key)) continue;
+    // Picked from the shape: at least three in four of the notes struck meanwhile are on its frets
+    // (a scale or a melody that only passes through some chord tones does not hold the chord).
     const matched = new Map<number, number>();
+    let struck = 0;
+    let onShape = 0;
     for (const b of beats) {
       if (b.tick < c.tick || b.tick >= c.endTick) continue;
-      for (const n of b.notes) if (!n.tie && !n.dead && c.voicing[tuning.length - n.string] === n.fret) matched.set(n.string, n.fret);
+      for (const n of b.notes) {
+        if (n.tie || n.dead) continue;
+        struck++;
+        if (c.voicing[tuning.length - n.string] !== n.fret) continue;
+        onShape++;
+        matched.set(n.string, n.fret);
+      }
     }
-    if (matched.size >= 2 && [...matched.values()].some((f) => f > 0)) out.set(key, shapeDifficulty([...c.voicing], false));
+    if (matched.size >= 2 && [...matched.values()].some((f) => f > 0) && onShape >= 0.75 * struck) out.set(key, shapeDifficulty([...c.voicing], false));
   }
   return [...out.values()];
 }

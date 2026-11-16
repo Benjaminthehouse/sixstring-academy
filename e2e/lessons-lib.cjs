@@ -177,14 +177,14 @@ async function giveAnswer(page, L, step, answer, how) {
       else await press(page, answer.value ? 't' : 'f');
       return true;
     case 'match-pairs': {
-      const n = ex.pairs.length;
+      // The left column answers to numbers, the right to letters (A for its first tile).
       for (const [l, r] of answer.pairs) {
         if (touch) {
           await tap(page, `[data-left="${l}"]`);
           await tap(page, `[data-right="${r}"]`);
         } else {
           await digit(pres.left.indexOf(l));
-          await digit(n + pres.right.indexOf(r));
+          await press(page, String.fromCharCode(97 + pres.right.indexOf(r)));
         }
       }
       return true;

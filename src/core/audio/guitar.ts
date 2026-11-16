@@ -83,10 +83,12 @@ const BRIGHTNESS_STEPS = 2; // brightness is quantised to halves so the cache st
 /** An accent: velocity up by this factor (about 3 dB at the usual velocities) and half a step brighter. */
 const ACCENT_VELOCITY = 1.3;
 const ACCENT_BRIGHTNESS = 0.5;
-/** Level of the finger's own attack on a hammer-on / pull-off, against a pick stroke of the same velocity. */
-const LEGATO_ATTACK: Record<'hammer' | 'pull', number> = { hammer: 0.42, pull: 0.5 };
+/** Level of a hammer-on / pull-off from a ringing string, against a pick stroke of the same velocity (−5 / −4 dB). */
+const LEGATO_LEVEL: Record<'hammer' | 'pull', number> = { hammer: 0.55, pull: 0.62 };
 /** Level of a hammer-on or pull-off with nothing ringing to carry on from, against a pick stroke. */
 const LEGATO_ALONE = 0.62;
+/** Release (s) of the old vibration of a string as a hammer-on or pull-off takes it over: a blend, not a cut. */
+const HANDOVER_RELEASE = 0.15;
 /** Seconds between points of a sampled pitch curve (bends, vibrato, slides). */
 const CURVE_STEP = 0.004;
 /** A note that simply rings is drawn as if held this long (where a bend releases, how long vibrato lasts). */
@@ -116,19 +118,11 @@ function inertVoice(startTime: number): VoiceHandle {
   return { startTime, queued: false, stop: () => undefined };
 }
 
-/** A second source sounding as part of a voice: the finger attack of a hammer-on or pull-off. */
-interface Layer {
-  src: AudioBufferSourceNode;
-  gain: GainNode;
-}
-
 class Voice implements VoiceHandle {
   stopAt = Infinity;
   done = false;
   /** Called once when the voice is finished with, however that happens. */
   onDone: (() => void) | null = null;
-  /** Extra sources that belong to this voice (stopped and faded with it). */
-  readonly layers: Layer[] = [];
   /** Playback rate of the note the voice is playing now, before its own bends and vibrato. */
   baseRate = 1;
   /** Audio time the note it plays now was struck or reached (a hammer-on moves it on). */
@@ -160,12 +154,10 @@ class Voice implements VoiceHandle {
   finish(): void {
     if (this.done) return;
     this.done = true;
-    for (const node of [this.gain, ...this.layers.map((l) => l.gain)]) {
-      try {
-        node.disconnect();
-      } catch {
-        // already disconnected
-      }
+    try {
+      this.gain.disconnect();
+    } catch {
+      // already disconnected
     }
     const fn = this.onDone;
     this.onDone = null;
@@ -176,14 +168,12 @@ class Voice implements VoiceHandle {
   cancel(): void {
     if (this.done) return;
     this.stopAt = 0;
-    for (const src of [this.src, ...this.layers.map((l) => l.src)]) {
-      try {
-        src.onended = null;
-        src.stop();
-        src.disconnect();
-      } catch {
-        // already gone
-      }
+    try {
+      this.src.onended = null;
+      this.src.stop();
+      this.src.disconnect();
+    } catch {
+      // already gone
     }
     this.finish();
   }
@@ -204,14 +194,12 @@ class Voice implements VoiceHandle {
     this.stopAt = t;
     const node = this.engine.nodeTime(t);
     const tau = Math.max(0.001, finiteOr(release, this.defaultRelease) / 3);
-    for (const { src, gain } of [{ src: this.src, gain: this.gain }, ...this.layers]) {
-      try {
-        gain.gain.cancelScheduledValues(node);
-        gain.gain.setTargetAtTime(0, node, tau);
-        src.stop(node + tau * 8 + 0.005);
-      } catch {
-        // The source may already have ended.
-      }
+    try {
+      this.gain.gain.cancelScheduledValues(node);
+      this.gain.gain.setTargetAtTime(0, node, tau);
+      this.src.stop(node + tau * 8 + 0.005);
+    } catch {
+      // The source may already have ended.
     }
   }
 
@@ -235,18 +223,6 @@ class Voice implements VoiceHandle {
     return true;
   }
 
-  /** Let the finger-attack layers of the previous note die away quickly from node time `node`. */
-  quietLayers(node: number): void {
-    for (const l of this.layers.splice(0)) {
-      try {
-        l.gain.gain.cancelScheduledValues(node);
-        l.gain.gain.setTargetAtTime(0, node, 0.006);
-        l.src.stop(node + 0.06);
-      } catch {
-        // already ended
-      }
-    }
-  }
 }
 
 /** The automation of a voice's playback rate for one note: its expression curve on top of `baseRate`. */
@@ -414,15 +390,19 @@ export class GuitarSynth {
       brightness = clamp(finiteOr(brightness, 0) + ACCENT_BRIGHTNESS, -1, 1);
     }
     const legato: Legato | undefined = opts.legato === 'hammer' || opts.legato === 'pull' || opts.legato === 'slide' ? opts.legato : undefined;
-    if (legato) {
-      const carried = this.carryOn(midi, when, opts, legato, velocity);
+    if (legato === 'slide') {
+      const carried = this.slideOn(midi, when, opts);
       if (carried) return carried;
     }
-    // Nothing to carry on from: a hammer-on or pull-off is a soft note of the fretting hand alone,
-    // a slide slides in.
-    const alone = legato === 'hammer' || legato === 'pull';
-    const articulation: Articulation | undefined = alone && (opts.articulation === undefined || opts.articulation === 'normal') ? 'legato' : opts.articulation;
-    const expression: NoteExpression = legato === 'slide' && !opts.slideIn ? { ...opts, slideIn: 'below' } : opts;
+    // A hammer-on or pull-off is a note of the fretting hand: no pick, a rounder attack. The string
+    // ringing there hands its vibration over (its pitch steps to the new fret on the beat while it
+    // fades under the new note); with nothing ringing it is a soft note on its own. A slide with
+    // nothing to slide from slides in.
+    const fretted = legato === 'hammer' || legato === 'pull';
+    const handedOver = fretted && this.handOver(midi, when, opts);
+    const articulation: Articulation | undefined = fretted && (opts.articulation === undefined || opts.articulation === 'normal') ? 'legato' : opts.articulation;
+    const legatoLevel = fretted ? (handedOver ? LEGATO_LEVEL[legato as 'hammer' | 'pull'] : LEGATO_ALONE) : 1;
+    const expression: NoteExpression = legato === 'slide' && !opts.slideIn ? { ...opts, slideIn: 'below' } : fretted ? { ...opts, slideIn: undefined } : opts;
     const { buffer, instrument, articulation: played, release } = this.bufferFor(midi, velocity, { ...opts, brightness, articulation });
     // Taken after the buffer exists: rendering a note for the first time takes a few milliseconds.
     const start = engine.startTime(when);
@@ -442,7 +422,7 @@ export class GuitarSynth {
       src.playbackRate.value = baseRate;
     }
     const gain = ctx.createGain();
-    const level = velocityGain(velocity) * clamp(finiteOr(opts.gain, 1), 0, 8) * (alone ? LEGATO_ALONE : 1) * (opts.direction === 'up' ? -1 : 1);
+    const level = velocityGain(velocity) * clamp(finiteOr(opts.gain, 1), 0, 8) * legatoLevel * (opts.direction === 'up' ? -1 : 1);
     gain.gain.value = level;
     src.connect(gain);
     gain.connect(this.input(instrument));
@@ -525,38 +505,60 @@ export class GuitarSynth {
   }
 
   /**
-   * A hammer-on, pull-off or slide that carries on the voice ringing on its string: the same string
-   * keeps sounding, its pitch steps (hammer-on, pull-off) or glides (slide) to the new note on the
-   * audio clock, and a hammer-on or pull-off adds the soft attack of the finger. Null when there is
-   * nothing to carry on (the caller then plays a fresh note).
+   * A hammer-on or pull-off taking over the string ringing there: that vibration's pitch steps to
+   * the new fret on the render quantum nearest the beat, and it fades out under the new note over a
+   * moment instead of being cut. False when nothing usable is ringing (the new note then stands alone).
    */
-  private carryOn(midi: number, when: number | undefined, opts: PlayOptions, legato: Legato, velocity: number): VoiceHandle | null {
+  private handOver(midi: number, when: number | undefined, opts: PlayOptions): boolean {
     const engine = this.engine;
     const tone = normalizeTone(opts.tone ?? this.tone, this.tone);
-    const { instrument } = resolveTone(tone, opts.articulation, this.baseTone);
+    const { instrument } = resolveTone(tone, undefined, this.baseTone);
+    const string = validString(opts.string, INSTRUMENTS[instrument].openStrings.length);
+    const start = engine.startTime(when);
+    const prev = this.voiceToCarry(this.keyFor(string, midi), string !== undefined || this.mono, start, instrument, midi);
+    if (!prev) return false;
+    // Already fading (it was stopped before the hammer): nothing is left to hand over.
+    if (prev.stopAt !== Infinity && engine.nodeTime(prev.stopAt) <= engine.now() + 0.002) return false;
+    const node = engine.nodeTime(start);
+    const from = Math.max(quantumTime(node, engine.sampleRate), engine.now());
+    const rate = prev.src.playbackRate;
+    try {
+      // Its own pitch movement (a bend, vibrato) ends where the new note begins.
+      if (prev.rateBusyUntil > from && !holdAt(rate, from)) throw new Error('cannot cut automation short');
+      rate.setValueAtTime(this.rateFor(midi, prev.bufferMidi, opts), from);
+      prev.rateBusyUntil = from;
+    } catch {
+      // The browser would not take it: the old note simply gives way, as on any new note.
+      prev.stop(start, STEAL_FADE * 3);
+      return true;
+    }
+    // Its planned end (usually exactly here) becomes a gentle hand-over.
+    if (prev.revive()) prev.stop(start, HANDOVER_RELEASE);
+    return true;
+  }
+
+  /**
+   * A slide that carries on the voice ringing on its string: the same vibration glides to the new
+   * fret, arriving on the beat, and rings on as the new note (no new attack). Null when there is
+   * nothing to carry on (the caller then slides into a fresh note).
+   */
+  private slideOn(midi: number, when: number | undefined, opts: PlayOptions): VoiceHandle | null {
+    const engine = this.engine;
+    const tone = normalizeTone(opts.tone ?? this.tone, this.tone);
+    const { instrument } = resolveTone(tone, undefined, this.baseTone);
     const string = validString(opts.string, INSTRUMENTS[instrument].openStrings.length);
     const key = this.keyFor(string, midi);
-    // Rendered before the clock is read, like every note.
-    const attack = legato === 'slide' ? null : this.bufferFor(midi, velocity, { ...opts, articulation: 'legato', brightness: undefined });
     const start = engine.startTime(when);
     const prev = this.voiceToCarry(key, string !== undefined || this.mono, start, instrument, midi);
     if (!prev) return null;
     const node = engine.nodeTime(start);
     const rate = prev.src.playbackRate;
     const newBase = this.rateFor(midi, prev.bufferMidi, opts);
-    // Where the new note's pitch movement begins on the old source.
-    let from: number;
-    let glide = 0;
-    if (legato === 'slide') {
-      glide = slideGlideSeconds(start - prev.noteStart);
-      from = Math.max(node - glide, engine.now() + 0.001);
-      glide = node - from;
-    } else {
-      from = Math.max(quantumTime(node, engine.sampleRate), engine.now());
-    }
-    // The previous note's automation (a bend still rising, vibrato) must be cut off where the new
-    // note's begins, and its release taken back. Where the browser cannot cut automation short, or
-    // the release has already begun, the caller plays a fresh note instead.
+    const from = Math.max(node - slideGlideSeconds(start - prev.noteStart), engine.now() + 0.001);
+    const glide = node - from;
+    // The previous note's automation (a bend still rising, vibrato) must be cut off where the glide
+    // begins, and its release taken back. Where the browser cannot cut automation short, or the
+    // release has already begun, the caller plays a fresh note instead.
     const busy = prev.rateBusyUntil > from;
     if (busy && typeof rate.cancelAndHoldAtTime !== 'function') return null;
     if (prev.stopAt !== Infinity && engine.nodeTime(prev.stopAt) <= engine.now() + 0.002) return null;
@@ -570,7 +572,6 @@ export class GuitarSynth {
         prev.gain.gain.cancelScheduledValues(Math.min(prev.fadeAt, from));
         prev.fadeAt = null;
       }
-      prev.quietLayers(from);
       if (glide > 0.005) {
         const fromRate = prev.baseRate;
         const n = Math.max(2, Math.ceil(glide / CURVE_STEP) + 1);
@@ -589,31 +590,6 @@ export class GuitarSynth {
     }
     prev.baseRate = newBase;
     prev.noteStart = start;
-
-    if (attack) {
-      // The finger's own attack: a short, soft, pick-less note at the new pitch, dying away as the
-      // string carries on.
-      const ctx = engine.ctx;
-      const src = ctx.createBufferSource();
-      src.buffer = attack.buffer;
-      const base = this.rateFor(midi, Math.round(midi), opts);
-      try {
-        applyCurve(src, base, curve, node, engine, true);
-      } catch {
-        src.playbackRate.value = base;
-      }
-      const g = ctx.createGain();
-      const peak = velocityGain(velocity) * LEGATO_ATTACK[legato as 'hammer' | 'pull'] * clamp(finiteOr(opts.gain, 1), 0, 8);
-      // It decays about as a freshly struck note does at first (the ringing string carries the rest).
-      g.gain.setValueAtTime(peak, node);
-      g.gain.setTargetAtTime(0, node + 0.03, 0.16);
-      src.connect(g);
-      g.connect(this.input(attack.instrument));
-      src.start(node);
-      src.stop(node + 1.2);
-      prev.layers.push({ src, gain: g });
-    }
-
     // The voice now plays the new note: under its key, released when the new note ends.
     if (prev.key !== key) {
       this.forget(prev);
@@ -624,10 +600,9 @@ export class GuitarSynth {
     const duration = finiteOr(opts.duration, NaN);
     if (duration >= 0 && !opts.letRing) prev.stop(start + Math.max(0.01, duration));
     engine.touch(Math.min(prev.naturalEnd + 2, prev.stopAt + 0.5) + 1.5);
-    const queued = !engine.audible;
     return {
       startTime: start,
-      queued,
+      queued: !engine.audible,
       stop: (at?: number, release?: number) => prev.stop(at === undefined ? undefined : Math.max(at, start), release),
     };
   }

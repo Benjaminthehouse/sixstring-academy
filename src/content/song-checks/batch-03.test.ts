@@ -132,11 +132,11 @@ const ESTIMATE_GAPS: Record<string, { min?: number; max?: number; why: string }>
   'joy-to-the-world': {
     max: 5,
     why:
-      'Two things lift it. The plan asks for "to the" as a dotted eighth and a sixteenth at 72, which the core rates as a ' +
-      'sixteenth-note rhythm and a fast note (about 5 a second), though it happens once per verse. And the core reports a ' +
-      '5-fret stretch that is not there: its hand window starts at the first fretted note (D, string 2 fret 3), so the C# at ' +
-      'fret 2 looks like a reach below the window. The whole tune sits in first position, one finger per fret (frets 0-4, ' +
-      'fingers equal to frets), which the first-position check confirms.',
+      'The plan asks for "to the" as a dotted eighth and a sixteenth at 72, which the core rates as a sixteenth-note rhythm ' +
+      'and a fast note (about 5 a second), though it happens once per verse. Gap note (integration pass 2): the core also ' +
+      'used to report a 5-fret stretch that is not there (its hand window started at the first fretted note, D on string 2 ' +
+      'fret 3, so the C# at fret 2 looked like a reach); the hand model now fits the whole part into first position and the ' +
+      'stretch is gone, which the test checks. The sixteenth alone still lifts it to 5.',
   },
 };
 
@@ -414,6 +414,8 @@ describe('batch 3: the plan details', () => {
     const gap = ESTIMATE_GAPS[id];
     expect(yours.level).toBeGreaterThanOrEqual(gap.min ?? songEntry(id)!.level - 1);
     expect(yours.level, yours.reasons.join(' ')).toBeLessThanOrEqual(gap.max!);
+    // First position, one finger per fret: no stretch (the old hand window reported one).
+    expect(yours.factors.stretch).toBe(0);
   });
 
   it('coming-round-the-mountain lands near its level in the estimate', () => {

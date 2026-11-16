@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the layers above a screen: toasts, sheets and dialogs, the bars at the bottom,
- * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose] [--only toasts,back]
+ * and the shell at a large text size. Run: node e2e/overlays.cjs [--verbose] [--only toasts,clearance,text,hold,immersive,back,keyboard]
  *
  * What it checks (phone 390 x 844 unless it says desktop 1280 x 800):
  *  toasts      a moment's rewards never cover an open sheet: they wait and show once it closes,
@@ -13,7 +13,11 @@
  *              bar, and an immersive screen does not lift toasts for a tab bar it hides
  *  text 200 %  on 390 and 360 px: the tab bar's labels are whole and on screen, the top bar's chips
  *              stay inside the bar with the title showing, the pill tabs on #chords and the segmented
- *              controls on #tuner and the player never cut a label; at the normal size nothing moved
+ *              controls on #tuner and the player never cut a label, a lesson's reward card stays
+ *              small (one short line per piece of news, no clipped words) with icons that grow with
+ *              the text; at the normal size nothing moved
+ *  hold        rewards that arrive while a lesson's steps are on screen (a new level included) do
+ *              not cover it; they show, dialog first, once the learner leaves the lesson
  *  immersive   no scroll padding is kept for the tab bar an immersive screen hides
  *  back        Back closes an open sheet and stays on the screen (phone and desktop); a link inside a
  *              sheet, then Back, returns to the screen; a sheet opened from the address
@@ -323,6 +327,37 @@ async function largeText(browser, url, seeds) {
       check(group, `${width} px #${route}: no segmented label is cut short or broken inside a word, none runs off the page`, segs.every((s) => s.cut.length === 0 && s.right <= width + 0.5), JSON.stringify(segs.filter((s) => s.cut.length || s.right > width)));
       if (width === 390) await ctx.shot(`${route.split('--')[0]}-200-phone`);
     }
+    // A lesson's worth of rewards. Review bug: at 200 % the card covered most of the lesson summary
+    // for about 7 s, its lines were clamped ("3 achieveme…") and its icons stayed at 14 and 20 px.
+    await ctx.goto('home');
+    await progress(page, (p) => {
+      p.setPrefs({ dailyGoalXp: 50 });
+      p.recordActivity({ kind: 'theory-lesson', id: 'theory:sound-and-pitch:a-sound-is-a-vibration', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240, route: 'learn' });
+    });
+    let card = null;
+    for (let i = 0; i < 30 && !card; i++) {
+      if ((await page.locator('[role="dialog"]').count()) > 0) await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().click({ force: true });
+      await page.waitForTimeout(250);
+      card = await page.evaluate(() => {
+        const t = document.querySelector('[data-toast="shell-reward"]');
+        if (!t || getComputedStyle(t).opacity === '0') return null;
+        const lines = [...t.querySelectorAll('li')];
+        const icon = t.querySelector('[data-toast-icon] svg');
+        const lineIcon = t.querySelector('li svg');
+        return {
+          height: t.getBoundingClientRect().height,
+          lines: lines.map((l) => l.textContent),
+          clipped: lines.filter((l) => { const x = l.lastElementChild; return x.scrollHeight > x.clientHeight + 1 || x.scrollWidth > x.clientWidth + 1; }).length,
+          icon: icon ? icon.getBoundingClientRect().width : 0,
+          lineIcon: lineIcon ? lineIcon.getBoundingClientRect().width : 0,
+        };
+      });
+    }
+    check(group, `${width} px: the reward card keeps each line to its title (no details, no clipped words)`, card && card.lines.length > 0 && card.lines.every((l) => !l.includes(' · ')) && card.clipped === 0, JSON.stringify(card));
+    check(group, `${width} px: and stays under half the screen`, card && card.height <= 844 / 2, card && Math.round(card.height));
+    check(group, `${width} px: its icons grow with the text (sized in rem)`, card && card.icon >= 36 && card.lineIcon >= 18, card && JSON.stringify({ icon: card.icon, line: card.lineIcon }));
+    if (width === 390) await ctx.shot('reward-card-200-phone');
+
     check(group, `${width} px: no console errors`, ctx.errors.length === 0, ctx.errors.slice(0, 2).join(' | '));
     await ctx.close();
   }
@@ -337,6 +372,42 @@ async function largeText(browser, url, seeds) {
   const shell = await normal.page.evaluate(() => ({ nav: document.querySelector('nav[aria-label="Main"]').getBoundingClientRect().height, fit: document.querySelector('header').dataset.fit }));
   check('normal text', 'segments share one row, the tab bar is 60 px, the top bar shows everything', rows === 1 && Math.round(shell.nav) === 60 && shell.fit === 'all', JSON.stringify({ rows, ...shell }));
   await normal.close();
+}
+
+// -----------------------------------------------------------------------------------------------
+async function hold(browser, url) {
+  const group = 'hold';
+  const ctx = await open(browser, url);
+  const { page } = ctx;
+  await ctx.goto('learn--sound-and-pitch--a-sound-is-a-vibration', '[data-lesson-player][data-phase="step"]', 1200);
+  // A moment of news while the lesson's first card is up (a level, the daily goal, achievements).
+  await progress(page, (p) => p.recordActivity({ kind: 'theory-lesson', id: 'theory:sound-and-pitch:a-sound-is-a-vibration', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240, route: 'learn' }));
+  const seen = [];
+  for (let i = 0; i < 8; i++) {
+    seen.push(
+      ...(await page.evaluate(() => [
+        ...[...document.querySelectorAll('[data-toast]')].filter((t) => (t.getAttribute('data-toast') || '').startsWith('shell-')).map((t) => t.getAttribute('data-toast')),
+        ...(document.querySelector('[role="dialog"]') ? ['dialog'] : []),
+      ])),
+    );
+    await page.waitForTimeout(250);
+  }
+  check(group, 'news that arrives during a lesson does not cover it', seen.length === 0, [...new Set(seen)].join(' '));
+  await ctx.shot('hold-lesson-phone');
+  // The learner leaves the lesson: everything held shows, the new level first.
+  await ctx.goto('learn', '[data-learn-map]', 400);
+  let dialog = false;
+  for (let i = 0; i < 12 && !dialog; i++) {
+    dialog = (await page.locator('[role="dialog"]').count()) > 0;
+    if (!dialog) await page.waitForTimeout(250);
+  }
+  check(group, 'once the lesson is left, the held level-up dialog shows', dialog);
+  await closeDialogs(page);
+  await page.waitForTimeout(600);
+  const after = await toastsOnScreen(page);
+  check(group, 'and then the held rewards, on one card', after.some((t) => /XP|goal/i.test(t.text)), JSON.stringify(after.map((t) => t.text.slice(0, 60))));
+  check(group, 'no console errors', ctx.errors.length === 0, ctx.errors.slice(0, 2).join(' | '));
+  await ctx.close();
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -461,6 +532,7 @@ async function keyboard(browser, url) {
       ['toasts', () => toasts(browser, server.url)],
       ['clearance', () => clearance(browser, server.url)],
       ['text', () => largeText(browser, server.url, seeds)],
+      ['hold', () => hold(browser, server.url)],
       ['immersive', () => immersive(browser, server.url)],
       ['back', () => back(browser, server.url)],
       ['keyboard', () => keyboard(browser, server.url)],

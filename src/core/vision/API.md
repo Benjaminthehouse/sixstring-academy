@@ -236,8 +236,8 @@ const u = tracker.update(frame, timeMs);   // TrackerUpdate, plain data
 | `locked` | geometry and numbering trusted; numbers survive the nut leaving the frame (and are read again after a jump, below) | draw the notes |
 | `lost` | board vanished < 1 s ago; `u.pose` is the last pose, `u.confidence` falls | fade the overlay |
 
-**Jumps.** A tracked board that moves more than half a fret cell in one frame and more than four
-times its usual motion (a cut, the camera knocked, the trackers latching onto the wires of another
+**Jumps.** A tracked board that moves more than half a fret cell since the last frame and more than
+four times what its usual speed covers in that time (a cut, the camera knocked, the trackers latching onto the wires of another
 board) is searched for afresh on that frame, numbers read off the nut, inlays or markers of that
 frame alone; when the fresh detection is weaker the tracked pose stays but its numbers become a
 guess (`numberingConfidence` 0.45: the board drops to `candidate` and is re-read every frame, the
@@ -245,7 +245,9 @@ trusted pose from before the jump voting too). Before this, a cut kept the old n
 confidence 1.0 and locked a fret off until the learner fixed it (`jump.test.ts`; alt bench 'typical',
 30 seeds x 2 cut points: locked frames with wrong cells after the cut 70 of 1077 -> 10, cuts locked a
 fret off to the end 3 -> 0; the 10 left are one second guitar placed half a string off, as without a cut).
-A swaying neck moves 0.05-0.2 cells a frame; the cut measured 0.9. `diagnostics.stats.jump` marks the frame.
+A swaying neck moves 0.05-0.2 cells a frame at 30 fps; the cut measured 0.9. The usual motion is a speed, so a busy
+machine that skips frames (gaps of 6-8 frames move a swaying neck most of a cell) sees no jumps.
+`diagnostics.stats.jump` marks the frame.
 
 `TrackerUpdate { state, changed, pose /* smoothed */, measured /* raw */, confidence, numberingConfirmed,
 question: { point, fret } | null, ran, reason?, ms, timeMs, searchingMs, suggestCalibration, hint, markers,

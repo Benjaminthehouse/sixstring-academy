@@ -44,6 +44,39 @@ function runCut(seed: number, cut: number, after: number) {
   return frames;
 }
 
+describe('a swaying neck on a busy machine', () => {
+  it('is never taken for a jump when frames are skipped (the usual motion is a speed, not a step)', () => {
+    // The same neck throughout, swaying, processed with gaps of 1 to 8 video frames as a loaded
+    // machine does (a gap of 8 frames moves a swaying neck almost a fret cell).
+    const spec = altCondition('typical').build(12);
+    const cache = createAltCache();
+    const inner = createFretboardDetector();
+    let last: DetectionResult | null = null;
+    const detector: Detector = { name: 'watched', detect: (f, o) => (last = inner.detect(f, o)), track: (f, p, o) => (last = inner.track(f, p, o)), reset: () => inner.reset?.() };
+    const tracker = new FretboardTracker({ model: spec.hints.model, detector });
+    const gaps = [1, 1, 1, 1, 1, 1, 8, 1, 1, 7, 1, 2, 8, 1, 1, 6, 1, 8, 1, 1, 7];
+    let i = 0;
+    let jumps = 0;
+    let wrong = 0;
+    let locked = 0;
+    for (const gap of gaps) {
+      i += gap;
+      const { frame, truth } = renderAlt(spec, i, cache);
+      last = null;
+      const u = tracker.update(frame, i * (1000 / 30));
+      if ((last as DetectionResult | null)?.diagnostics.stats?.jump === 1) jumps++;
+      if (u.state === 'locked' && u.pose) {
+        const score = scoreAlt(u.pose, truth);
+        locked++;
+        if (score.cells > 0 && score.accuracy < 0.9) wrong++;
+      }
+    }
+    expect(jumps).toBe(0);
+    expect(locked).toBeGreaterThan(gaps.length / 2);
+    expect(wrong).toBe(0);
+  }, 120_000);
+});
+
 describe('a jump to another guitar while locked', () => {
   it.each([
     [21, 12],

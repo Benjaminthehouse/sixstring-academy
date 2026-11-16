@@ -125,8 +125,8 @@ export const nashville = defineGenerator({
           prompt: `In {k:${key.name}} the chart reads ${numbersIn.map(numberText).join(' ')}. Which chords do you play?`,
           explain: `In {k:${key.name}} the scale is ${noteList(scaleNotes(key.tonic, 'major'))}. Count up it from 1: ${numbersIn.map((n, i) => `${numberText(n)} is {c:${right[i]}}`).join(', ')}.`,
         },
-        right.map((s) => `{c:${s}}`).join(' '),
-        wrong.map((list) => list.map((s) => `{c:${s}}`).join(' ')),
+        right.map((s) => `{c:${s}}`).join(', '),
+        wrong.map((list) => list.map((s) => `{c:${s}}`).join(', ')),
       );
     }
     const text = rng.pick(numbers);
