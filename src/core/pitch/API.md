@@ -294,7 +294,12 @@ frames fall (the five strings ringing under it raise the noise floor by 3 dB whe
   thumb over a ringing string (the thumb used to be missed 1 time in 8). A light upstroke a sixteenth
   after a downstroke that is still ringing (audio-engine guitar, 70–110 BPM) is heard every time:
   192 of 192 within 4.5 ms, where the energy envelopes alone hear none of them; so are all 592
-  strokes of the rhythm library's strum patterns, with nothing extra (`features/rhythm`). Such a
+  strokes of the rhythm library's strum patterns, with nothing extra (`features/rhythm`). The flux was
+  tuned on that guitar; on an independent string model (a string restarts when struck, so a light
+  upstroke adds little energy; upstrokes 5 dB under the downstrokes, 80 and 100 BPM) it hears 29 of 32
+  such upstrokes (the envelopes alone: none) and all 64 other strokes, with one extra onset. Lighter
+  still (7 dB under) at 100 BPM it hears only 3 of 16: a very light upstroke at speed can go unheard,
+  which is why the rhythm game forgives one (`quietUpstroke`). Such a
   stroke, heard only by the high-band flux, is reported about 12 ms later than an envelope onset.
   Flux-only onsets are not passed on by `PitchEngine` while the input clips or around a dropped
   buffer. Nothing is reported in the first 40 ms of a stream.

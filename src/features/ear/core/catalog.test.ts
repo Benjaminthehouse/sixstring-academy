@@ -7,7 +7,7 @@ import { PROGRESSIONS as CATALOG, getProgression } from '@/content/progressions'
 import { chordPcs, chroma, parseChord } from '@/core/theory';
 import { emptyRecord, recordAnswer, weakSpots } from './adapt';
 import { DRILLS } from './drills';
-import { CATALOG_RECORD_ID, catalogRound, catalogShape, lookAlikes } from './drills/catalog';
+import { CATALOG_RECORD_ID, catalogInfo, catalogRound, catalogShape, lookAlikes } from './drills/catalog';
 import { drillSkillId, recordSkillId } from './progress';
 import { makeRng, mixSeed } from './rng';
 import { DEFAULT_SETTINGS } from './settings';
@@ -70,6 +70,25 @@ describe('a progression of the catalog by ear', () => {
 
   it('an unknown id has no round', () => {
     expect(catalogRound('no-such-progression')).toBeNull();
+  });
+
+  it('labels each choice by its numerals once, with what the name adds underneath (found in review)', () => {
+    // "I–V–vi–IV" used to carry "I–V–vi–IV (the axis progression)" under it.
+    expect(catalogInfo('pop-axis')).toMatchObject({ label: 'I–V–vi–IV', detail: 'the axis progression', name: 'I–V–vi–IV (the axis progression)' });
+    let rounds = 0;
+    for (const p of CATALOG) {
+      const found = catalogRound(p.id);
+      if (!found) continue;
+      rounds++;
+      const shown = found.level.pool.map((id) => catalogInfo(id)).map((o) => `${o.label} | ${o.detail ?? ''}`);
+      // Every choice can be told apart on screen, and no detail repeats its label.
+      expect(new Set(shown).size, `${p.id}: ${shown.join(' / ')}`).toBe(shown.length);
+      for (const id of found.level.pool) {
+        const o = catalogInfo(id);
+        if (o.detail) expect(o.detail.startsWith(o.label), id).toBe(false);
+      }
+    }
+    expect(rounds).toBeGreaterThan(100);
   });
 
   it('keeps its answers in a record of its own, not in the progressions drill (found in review)', () => {

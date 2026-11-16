@@ -14,7 +14,9 @@
  *  reload     a reload in the middle of a visit keeps what was done: three clean passes, then a
  *             reload, and the best clean tempo is saved and the next visit starts one rung under it
  *  take       a microphone take with a fake microphone (Chromium plays a WAV as the mic): with the
- *             click on, the result says where the notes sat against the click; with it off: the
+ *             click on, a take played steadily behind the click is said to be behind it, by the
+ *             amount the page measures from the microphone and the click on the audio clock (within
+ *             15 ms), and is not clean; with it off: the
  *             G major two-octave scale played evenly at 60 BPM is judged clean and the ladder
  *             climbs; the same scale played with uneven timing is not clean, and the result says
  *             how far from an even pulse the notes were; one wrong note with perfect timing is not
@@ -41,6 +43,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const { startServer, loadTs, VIEWPORTS, ROOT } = require('./lib/harness.cjs');
+const { installPageTools } = require('./audio-lib.cjs');
 
 const argv = process.argv.slice(2);
 const verbose = argv.includes('--verbose');
@@ -64,7 +67,7 @@ function check(group, name, pass, detail = '') {
 let server = null;
 
 /** A fresh browser on the shared server; `fakeAudio` plays a WAV as the microphone. */
-async function launch({ mobile = false, viewport, theme = 'dark', fakeAudio } = {}) {
+async function launch({ mobile = false, viewport, theme = 'dark', fakeAudio, tapAudio = false } = {}) {
   const args = ['--autoplay-policy=no-user-gesture-required'];
   if (fakeAudio) args.push('--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${fakeAudio}`);
   const browser = await chromium.launch({ args });
@@ -82,6 +85,22 @@ async function launch({ mobile = false, viewport, theme = 'dark', fakeAudio } = 
       /* no storage */
     }
   }, SEED);
+  if (tapAudio) {
+    // The truth for timing checks: every microphone source the app opens is remembered, so the page
+    // can record it (and the engine's output, with the click) on the audio clock. The device delay is
+    // stored as measured and zero: Chromium's fake microphone adds none.
+    await context.addInitScript(() => {
+      localStorage.setItem('ssa:rhythm.calibration', JSON.stringify({ v: 1, tapMs: 0, micMs: 0, tapAt: Date.now(), micAt: Date.now(), offered: true, micOffered: true, bleed: null }));
+      const orig = AudioContext.prototype.createMediaStreamSource;
+      window.__micSources = [];
+      AudioContext.prototype.createMediaStreamSource = function (stream) {
+        const node = orig.call(this, stream);
+        window.__micSources.push({ ctx: this, node });
+        return node;
+      };
+    });
+    await installPageTools(context);
+  }
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -138,10 +157,15 @@ function writeWav(name, samples) {
 }
 
 /** The G major scale part at 60 BPM, plucked at its times plus `err(i)` seconds, after `lead` seconds. */
-function scaleTake(name, err, lead = 3.2, pitch = () => 0) {
+/** The notes of the G major scale part at 60 BPM: pitch, time from beat 1 and length, in seconds. */
+function scaleNotes() {
   const e = content.getExercise('tech-alternate-scale-g');
   const song = content.partSong(e, e.parts[0], 60);
-  const notes = song.tracks[0].measures.flatMap((m, bar) => m.beats.flatMap((b) => b.notes.map((n) => ({ midi: n.midi, t: bar * 4 + b.start / 960, dur: b.duration / 960 }))));
+  return song.tracks[0].measures.flatMap((m, bar) => m.beats.flatMap((b) => b.notes.map((n) => ({ midi: n.midi, t: bar * 4 + b.start / 960, dur: b.duration / 960 }))));
+}
+
+function scaleTake(name, err, lead = 3.2, pitch = () => 0) {
+  const notes = scaleNotes();
   const total = lead + 16 + 2;
   const x = new Float32Array(Math.round(total * SR));
   notes.forEach((n, i) => {
@@ -384,9 +408,14 @@ async function largeTextGroup() {
   }
 }
 
-/** One microphone take of the G major scale; returns the result attributes. `click: false` turns the take's click off. */
-async function scaleTakeRun(fakeAudio, { click = true } = {}) {
-  const s = await launch({ fakeAudio });
+/**
+ * One microphone take of the G major scale; returns the result attributes. `click: false` turns the
+ * take's click off. `measure: true` also records the microphone and the engine's output on the audio
+ * clock and returns `truth`: the median distance (ms) of the recorded notes from their beats, beat 1
+ * being one bar (four clicks) after the first count-in click.
+ */
+async function scaleTakeRun(fakeAudio, { click = true, measure = false } = {}) {
+  const s = await launch({ fakeAudio, tapAudio: measure });
   const p = s.page;
   try {
     await s.goto('technique', 'tech-alternate-scale-g');
@@ -402,10 +431,48 @@ async function scaleTakeRun(fakeAudio, { click = true } = {}) {
       out0.clickOff = !(await sw.isChecked());
     }
     await p.locator('[data-technique-primary]').first().click();
+    if (measure) {
+      await p.waitForFunction(() => window.__micSources.length > 0, null, { timeout: 20000 });
+      await p.evaluate(async () => {
+        const audio = await import('/src/core/audio/index.ts');
+        const { ctx, node } = window.__micSources[window.__micSources.length - 1];
+        window.__stopMic = (await window.__audioTools.recorder(ctx, node)).capture();
+        window.__stopOut = (await window.__audioTools.recorder(ctx, audio.getEngine().output)).capture();
+      });
+    }
     await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-mic') === 'ready', root, { timeout: 20000 });
     const meter = await p.waitForSelector('[role="meter"][aria-label="Microphone level"]', { timeout: 10000 }).then(() => true).catch(() => false);
     await p.waitForSelector('[data-technique-take]', { timeout: 45000 });
+    let truth = null;
+    if (measure) {
+      const heard = await p.evaluate(async () => {
+        const pitch = await import('/src/core/pitch/index.ts');
+        const mic = window.__stopMic();
+        const out = window.__stopOut();
+        const fs = window.__micSources[window.__micSources.length - 1].ctx.sampleRate;
+        const onsets = pitch.detectOnsets(mic.samples, fs).map((o) => mic.start / fs + o.time);
+        // Clicks: the 1 ms envelope of the engine's output rising from quiet.
+        const clicks = [];
+        const x = out.samples;
+        const win = Math.round(fs * 0.001);
+        let last = -1;
+        for (let i = win; i < x.length; i += win) {
+          let e = 0;
+          for (let k = i - win; k < i; k++) e += x[k] * x[k];
+          const loud = Math.sqrt(e / win) > 0.02;
+          if (loud && (last < 0 || (i - last) / fs > 0.3)) clicks.push((out.start + i - win) / fs);
+          if (loud) last = i;
+        }
+        return { onsets, clicks };
+      });
+      const notes = scaleNotes();
+      const beat1 = heard.clicks[0] + 4; // 60 BPM, a one-bar count-in in 4/4
+      // The recorded notes in order (the file holds nothing else): each against its own beat.
+      const errs = heard.onsets.length >= notes.length ? notes.map((n, i) => (heard.onsets[i] - beat1 - n.t) * 1000).sort((a, b) => a - b) : [];
+      truth = errs.length ? errs[errs.length >> 1] : null;
+    }
     const out = {
+      truth,
       verdict: await attr(p, '[data-technique-take]', 'data-technique-take'),
       text: await p.textContent('[data-technique-take]'),
       clickOffset: Number(await attr(p, '[data-technique-take]', 'data-click-offset')),
@@ -426,12 +493,17 @@ async function scaleTakeRun(fakeAudio, { click = true } = {}) {
 
 async function takeGroup() {
   // With the click on, a take is judged against the click itself (its first beat on the
-  // microphone's clock). Where Chromium's fake microphone file lands against the click varies by
-  // hundreds of ms from page to page under load, so here the browser shows that the judging is
-  // wired up (the result names the click and its offset); the unit tests in model/takes.test.ts
-  // show the verdicts (on the click: clean; an even take 120 ms behind: not clean).
-  const probe = await scaleTakeRun(scaleTake('scale-probe', () => 0).fakeAudio);
-  check('take', 'a take played to the click is judged against the click and says where it sat', Number.isFinite(probe.clickOffset) && ['with', 'ahead', 'behind'].includes(probe.click) && /the click/.test(probe.text || '') && (probe.click === 'with' || probe.verdict !== 'clean'), `${probe.verdict} (${probe.click} ${probe.clickOffset} ms): ${probe.text}`);
+  // microphone's clock). Chromium's fake microphone starts its file when the microphone opens, a
+  // little before the count-in, so where the notes land against the click varies from run to run:
+  // the page records the microphone and the engine's output on the audio clock, and the app's figure
+  // is checked against where the notes really were. The file plays every note 180 ms after its beat
+  // (from a lead that puts the first note near beat 1), so the take is steadily behind the click.
+  const late = await scaleTakeRun(scaleTake('scale-late', () => 0.18, 4.15).fakeAudio, { measure: true });
+  const truth = late.truth;
+  check('take', 'a take played to the click: the app\'s offset from the click is where the notes really were (within 15 ms)', truth !== null && Number.isFinite(late.clickOffset) && Math.abs(late.clickOffset - truth) <= 15, `app ${late.clickOffset} ms, measured ${truth === null ? '?' : Math.round(truth)} ms`);
+  // The allowance at 60 BPM eighths with a measured delay is 30 ms (model/takes.ts clickToleranceMs).
+  const expect = truth === null ? null : truth > 30 ? 'behind' : truth < -30 ? 'ahead' : 'with';
+  check('take', 'and the verdict follows it: steadily behind the click is said so, and is not clean', expect !== null && (Math.abs(Math.abs(truth) - 30) < 8 || late.click === expect) && (late.click === 'with' || late.verdict !== 'clean') && /the click/.test(late.text || ''), `${late.verdict} (${late.click} ${late.clickOffset} ms, measured ${truth === null ? '?' : Math.round(truth)}): ${(late.text || '').slice(0, 200)}`);
   // The rest are taken with the click off after the count-in (no click to line up with: evenness and tempo).
   const even = scaleTake('scale-even', () => 0);
   const r1 = await scaleTakeRun(even.fakeAudio, { click: false });

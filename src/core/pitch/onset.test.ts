@@ -161,6 +161,89 @@ function sixteenthStrumming(bpm: number, sr: number): { x: Float32Array; downs: 
   return { x: addNoise(renderSequence(notes, { sampleRate: sr, tail: 1, tone: 'steel' }), 40, bpm), downs, ups };
 }
 
+/**
+ * One string of a strummed guitar, written apart from the pitch module's test strings and the audio
+ * engine: each pluck replaces what the string was doing (a 4 ms hand-over), partial k decays at
+ * 1.2 (1 + 0.6 (k - 1)) per second (the treble dies first, as on steel strings), and the pick adds a
+ * short burst of noise in the treble.
+ */
+function addIndependentString(buf: Float64Array, sr: number, plucks: ReadonlyArray<{ t: number; midi: number; amp: number; noise: number }>, seed: number): void {
+  const rand = seededRandom(seed);
+  for (let p = 0; p < plucks.length; p++) {
+    const pl = plucks[p];
+    const start = Math.round(pl.t * sr);
+    const end = Math.min(buf.length, p + 1 < plucks.length ? Math.round(plucks[p + 1].t * sr) : buf.length);
+    const fade = Math.round(0.004 * sr);
+    const f0 = midiToFreq(pl.midi);
+    const pos = 0.12 + 0.1 * rand();
+    for (let k = 1; k <= 40; k++) {
+      const f = f0 * k * Math.sqrt(1 + 4e-5 * k * k);
+      if (f > 9500) break;
+      const amp = (pl.amp * Math.abs(Math.sin(Math.PI * k * pos))) / Math.pow(k, 0.9);
+      const w = (2 * Math.PI * f) / sr;
+      const d = Math.exp(-(1.2 * (1 + 0.6 * (k - 1))) / sr);
+      const phase = rand() * 2 * Math.PI;
+      let c = Math.cos(phase);
+      let s = Math.sin(phase);
+      const cw = Math.cos(w) * d;
+      const sw = Math.sin(w) * d;
+      const stop = Math.min(buf.length, end + fade);
+      for (let i = start; i < stop; i++) {
+        let g = amp * (1 - Math.exp(-(i - start) / (0.0007 * sr)));
+        if (i >= end) g *= 1 - (i - end) / fade;
+        buf[i] += g * s;
+        const c2 = c * cw - s * sw;
+        s = s * cw + c * sw;
+        c = c2;
+      }
+    }
+    let lp = 0;
+    let prev = 0;
+    for (let i = 0; i < Math.round(0.006 * sr) && start + i < buf.length; i++) {
+      lp += 0.6 * (rand() * 2 - 1 - lp);
+      buf[start + i] += pl.amp * pl.noise * (lp - prev) * Math.exp(-i / (0.0015 * sr));
+      prev = lp;
+    }
+  }
+}
+
+/** Em, G, C and D as frets, low string first (null: not played). */
+const INDEPENDENT_SHAPES: ReadonlyArray<ReadonlyArray<number | null>> = [[0, 2, 2, 0, 0, 0], [3, 2, 0, 0, 0, 3], [null, 3, 2, 0, 1, 0], [null, null, 0, 2, 3, 2]];
+
+/** Two bars of "D . D U . U D U" in sixteenths on `shape`; `quick` marks the upstrokes right after a downstroke. */
+function independentStrumming(bpm: number, shape: ReadonlyArray<number | null>, seed: number, sr: number): { x: Float32Array; targets: Array<{ t: number; quick: boolean }> } {
+  const OPEN = [40, 45, 50, 55, 59, 64];
+  const six = 60 / bpm / 4;
+  const per: Array<Array<{ t: number; midi: number; amp: number; noise: number }>> = OPEN.map(() => []);
+  const targets: Array<{ t: number; quick: boolean }> = [];
+  const pattern = ['D', '-', 'D', 'U', '-', 'U', 'D', 'U'];
+  for (let bar = 0; bar < 2; bar++) {
+    pattern.forEach((stroke, j) => {
+      if (stroke === '-') return;
+      const t = 0.4 + (bar * 8 + j) * six;
+      const up = stroke === 'U';
+      const strings = shape.flatMap((f, i) => (f === null ? [] : [i]));
+      const hit = up ? strings.filter((i) => i >= 2).reverse().slice(0, 4) : strings;
+      const spread = up ? 0.009 : 0.016;
+      hit.forEach((si, n) => per[si].push({ t: t + (n * spread) / Math.max(1, hit.length - 1), midi: OPEN[si] + (shape[si] ?? 0), amp: up ? 0.45 : 0.8, noise: up ? 0.25 : 0.3 }));
+      targets.push({ t, quick: up && (j === 3 || j === 7) });
+    });
+  }
+  const buf = new Float64Array(Math.round((0.4 + 16 * six + 1.2) * sr));
+  per.forEach((plucks, si) => addIndependentString(buf, sr, plucks, 100 * seed + si + bpm));
+  let max = 0;
+  for (const v of buf) max = Math.max(max, Math.abs(v));
+  const rand = seededRandom(bpm + seed);
+  const x = new Float32Array(buf.length);
+  let pink = 0;
+  for (let i = 0; i < x.length; i++) {
+    const w = rand() * 2 - 1;
+    pink = 0.97 * pink + 0.03 * w;
+    x[i] = (buf[i] / max) * 0.5 + 0.004 * w + 0.05 * pink;
+  }
+  return { x, targets };
+}
+
 describe('quick upstrokes over a ringing chord', () => {
   it('hears every one, on time, with nothing extra', () => {
     const lines: string[] = [];
@@ -182,6 +265,54 @@ describe('quick upstrokes over a ringing chord', () => {
       }
     }
     table.push(`\nUpstrokes a sixteenth after a ringing downstroke (audio-engine guitar)\n${lines.join('\n')}`);
+  }, 60_000);
+
+  it('hears most of them on strings it was not tuned on (review: an independent string model)', () => {
+    // The flux was tuned on the audio engine's guitar. Here each string is written afresh: a pluck
+    // REPLACES what the string was doing (so an upstroke adds little energy), the treble dies first,
+    // and the pick is a short noise burst. Strokes "D . D U . U D U" in sixteenths, two bars, on four
+    // open chords, upstrokes 5 dB under the downstrokes, a little room noise.
+    const sr = 44100;
+    const lines: string[] = [];
+    let quick = 0;
+    let quickHeard = 0;
+    let quickBefore = 0;
+    let other = 0;
+    let otherHeard = 0;
+    let extra = 0;
+    for (const bpm of [80, 100]) {
+      for (const [ci, shape] of INDEPENDENT_SHAPES.entries()) {
+        const { x, targets } = independentStrumming(bpm, shape, ci, sr);
+        const match = (times: readonly number[]) => {
+          const used = new Set<number>();
+          return targets.map((tg) => {
+            const i = times.findIndex((o, k) => !used.has(k) && Math.abs(o - tg.t) < 0.03);
+            if (i >= 0) used.add(i);
+            return i >= 0;
+          });
+        };
+        const times = detectOnsets(x, sr).map((o) => o.time);
+        const hit = match(times);
+        const envelopesOnly = match(detectOnsets(x, sr, { fluxThreshold: 0 }).map((o) => o.time));
+        targets.forEach((tg, i) => {
+          if (tg.quick) {
+            quick++;
+            if (hit[i]) quickHeard++;
+            if (envelopesOnly[i]) quickBefore++;
+          } else {
+            other++;
+            if (hit[i]) otherHeard++;
+          }
+        });
+        extra += times.length - hit.filter(Boolean).length;
+      }
+      lines.push(`  ${bpm} BPM: so far quick upstrokes ${quickHeard}/${quick} (envelopes alone ${quickBefore}), other strokes ${otherHeard}/${other}, extra ${extra}`);
+    }
+    table.push(`\nThe same on an independent string model (strings restart when struck; 44.1k)\n${lines.join('\n')}`);
+    expect(quickBefore, 'the envelopes alone hear almost none').toBeLessThanOrEqual(2);
+    expect(quickHeard, 'quick upstrokes').toBeGreaterThanOrEqual(Math.ceil(quick * 0.75));
+    expect(otherHeard, 'every other stroke').toBe(other);
+    expect(extra, 'nothing extra').toBeLessThanOrEqual(2);
   }, 60_000);
 
   it('does not hear a single ringing note of the audio-engine guitar as more strokes', () => {

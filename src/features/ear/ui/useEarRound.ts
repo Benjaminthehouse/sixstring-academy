@@ -325,6 +325,25 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
     roundRef.current = null;
   };
 
+  /**
+   * Leave the round on purpose (the X, Escape): it ends as left early, and the screen goes back to
+   * the level's start. The screen may not unmount at once (the shell keeps it, hidden, while the
+   * next screen loads), and coming straight back must find a start, not a round with nothing behind it.
+   */
+  const end = useCallback(() => {
+    abandonRef.current();
+    clearTimers();
+    stopSound();
+    roundRef.current = null;
+    setRound(null);
+    setQuestion(null);
+    setFeedback(null);
+    enteredRef.current = [];
+    setEntered([]);
+    setPhase('intro');
+    earDebug.question = null;
+  }, [clearTimers, stopSound]);
+
   // Leaving the screen ends the round. The decision waits a tick: a screen that is mounted again at
   // once (React's development double mount, which a resumed round meets on its very first render)
   // is not leaving.
@@ -394,7 +413,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
     stopSound,
     /** Play any plan from the intro ("hear each one"). */
     preview: (plan: SoundPlan, option: string) => void play(plan, 'example', option, `example:${option}`),
-    end: () => abandonRef.current(),
+    end,
   };
 }
 

@@ -155,6 +155,13 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
   );
 }
 
+/** Roughly how long a round takes, in words ("a minute and a half", "4 minutes"). */
+function durationWords(seconds: number): string {
+  if (seconds < 100) return 'a minute and a half';
+  if (seconds < 150) return 'two minutes';
+  return `${Math.round(seconds / 60)} minutes`;
+}
+
 /** The level's intro: what you will hear (tap to hear each), your record, and Start. */
 function Intro({ drill, level, api, best, back, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; completions: number; unlocked: boolean }; back: { to: string; params: string[]; label: string }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
   const [settings] = useEarSettings();
@@ -220,8 +227,11 @@ function Intro({ drill, level, api, best, back, onSettings, problem, aids }: { d
                 </Text>
               </div>
             ) : (
-              <Text tone="muted">
-                New level. {level.questions} questions, about {level.questions * 8 < 100 ? 'a minute and a half' : 'two minutes'}. Get {Math.ceil(level.questions * 0.8)} right to open the next one.
+              <Text tone="muted" data-ear-new-level>
+                {level.special
+                  ? // A progression of the catalog: no level opens after it, and a long form takes a while to hear.
+                    `${level.questions} questions, about ${durationWords(level.questions * (example.plan.length + 5))}. Get ${Math.ceil(level.questions * 0.8)} right and you know it by ear.`
+                  : `New level. ${level.questions} questions, about ${level.questions * 8 < 100 ? 'a minute and a half' : 'two minutes'}. Get ${Math.ceil(level.questions * 0.8)} right to open the next one.`}
               </Text>
             )}
             {weak.length > 0 && (

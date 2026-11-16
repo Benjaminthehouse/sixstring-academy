@@ -797,6 +797,8 @@ async function pass2(browser, url) {
     await desk.goto('ear--progression--pop-axis');
     const title = await desk.page.locator('main h1').first().innerText();
     check('pass2', 'catalog link: #ear--progression--pop-axis opens a round for that progression', /axis/i.test(title), title);
+    const intro = await desk.page.locator('[data-ear-new-level]').innerText().catch(() => '');
+    check('pass2', 'catalog link: its intro promises no next level to open (there is none)', /you know it by ear/.test(intro) && !/next one/.test(intro), intro);
     await desk.page.locator('[data-ear-start]').click();
     await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 30000 });
     q = await currentQuestion(desk.page);
@@ -810,8 +812,11 @@ async function pass2(browser, url) {
     // A whole catalog round, every answer wrong: recorded as its own skill, its confusions kept in a
     // record of their own. (They used to land in the progressions drill's record, and its page and
     // the hub then said "you often hear pop-vi-iv-i-v as pop-axis".)
+    // Straight back to it: a fresh start (the screen left is kept, hidden, while the progression page
+    // loads, and used to come back as the old round with nothing behind it: answers did nothing).
     await desk.goto('ear--progression--pop-axis');
-    await desk.page.waitForSelector('[data-ear-start]', { timeout: 30000 }).catch(async () => console.log('    (no Start: at', desk.page.url(), (await desk.page.locator('main').innerText()).slice(0, 160).replace(/\s+/g, ' '), ')'));
+    const fresh = await desk.page.waitForSelector('[data-ear-start]', { timeout: 30000 }).then(() => true).catch(() => false);
+    check('pass2', 'catalog link: coming straight back after leaving starts afresh (found in review)', fresh, (await desk.page.locator('main').innerText()).slice(0, 160).replace(/\s+/g, ' '));
     await clearToasts(desk.page);
     await desk.page.locator('[data-ear-start]').click();
     for (let i = 0; i < 6; i++) {

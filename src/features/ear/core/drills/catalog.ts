@@ -93,8 +93,13 @@ export function catalogInfo(id: string): OptionInfo {
   const tokens = p.bars.slice(0, barsPlayed(p)).flat();
   // Held chords are shown once ("I–IV–V–I", not "I–I–IV–IV…").
   const shown = tokens.filter((t, i) => i === 0 || t !== tokens[i - 1]).map((t) => formatSlot(t));
-  const label = shown.length <= 6 ? shown.join('–') : formatProgressionName(p.name);
-  return { id, label, name: formatProgressionName(p.name), detail: shown.length <= 6 ? formatProgressionName(p.name) : shown.slice(0, 6).join('–') + '…' };
+  const name = formatProgressionName(p.name);
+  if (shown.length > 6) return { id, label: name, name, detail: shown.slice(0, 6).join('–') + '…' };
+  const label = shown.join('–');
+  // The name often starts with the numerals the label already shows ("I–V–vi–IV (the axis
+  // progression)"): under the label, only what it adds.
+  const extra = name.startsWith(label) ? name.slice(label.length).trim().replace(/^\((.*)\)$/, '$1').trim() : name;
+  return { id, label, name, ...(extra && extra !== label ? { detail: extra } : {}) };
 }
 
 /** A shape that a guitar can strum for a chord symbol (a slash chord is played without its slash bass if need be). */
