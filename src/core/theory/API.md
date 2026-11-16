@@ -102,18 +102,26 @@ scaleSlug('F#', 'dorian'): 'f-sharp-dorian'   parseScaleSlug('a-minor'): { tonic
 
 ## Keys — `key.ts`
 ```ts
-getKey('A minor' | 'F#m' | 'Bb' | 'key of G' | 'fis-Moll' | 'f-sharp-minor' | { tonic, mode }): Key | null      key(x): Key      parseKey(s)
-// Key = { id, name, short, tonic, mode, fifths, signature: { fifths, type, count, accidentals }, scale,
+getKey('A minor' | 'F#m' | 'Bb' | 'key of G' | 'fis-Moll' | 'f-sharp-minor' | 'A dorian' | { tonic, mode, modal? }): Key | null      key(x): Key      parseKey(s): KeyRef | null
+// Key = { id, name, short, tonic, mode, modal?, fifths, signature: { fifths, type, count, accidentals }, scale,
 //         harmonicMinor|null, melodicMinor|null, relative, parallel, theoretical }
-MAJOR_KEYS  MINOR_KEYS  ALL_KEYS (15 + 15)    majorKey(t)   minorKey(t)   keySignature(fifths)
-keyFromSignature(3): A major    keyFromSignature(-3, 'minor'): C minor    keysWithSignature(fifths): { major, minor }
+// The seven modes of the major scale are keys: 'A dorian', 'E phrygian', 'F lydian', 'G mixolydian', 'B locrian' ('A Dorian',
+// 'A dor', 'a-dorian', 'A mixo' parse too; 'C ionian' = C major, 'A aeolian' = A minor). A modal key carries `modal`, keeps
+// `mode: 'minor'` (so code that draws a signature from `mode === 'major' ? tonic : relative` still finds the parent major),
+// has the parent major's signature, `relative` = the parent major (A dorian -> G major), `parallel` = major or minor by its third,
+// `short` = its name, no harmonic/melodic forms. Never write `${tonic} ${mode}` for a key: use keyModeName(k) or formatKey(k).
+KEY_MODE_NAMES (lydian … locrian, brightest first)   MODAL_MODES   type KeyModeName = 'major'|'minor'|ModalMode
+keyModeName(k): 'dorian' | 'major' | …     modeQuality('mixolydian'): 'major'     isModalKey(k)
+MAJOR_KEYS  MINOR_KEYS  ALL_KEYS (15 + 15, no modal keys)    majorKey(t)   minorKey(t)   keySignature(fifths)
+keyFromSignature(3): A major    keyFromSignature(-3, 'minor'): C minor    keyFromSignature(1, 'dorian'): A dorian    keysWithSignature(fifths): { major, minor }
 relativeKey(k)   parallelKey(k)   enharmonicKey('F#'): Gb major | null   practicalKey('G# major'): Ab major
 neighborKeys(k): { dominant, subdominant, relative, parallel, dominantRelative, subdominantRelative }   closelyRelatedKeys(k)
 circleOfFifths(): { index, angle, major: Key[], minor: Key[], pc }[]     // 12 slots clockwise from C; B/Cb, F#/Gb, Db/C# doubled
 keyScale(k, 'natural'|'harmonic'|'melodic')
 diatonicChords(k, { sevenths?, minor?: 'natural'|'harmonic'|'melodic' }): (ScaleChord & { function, variant })[]
 //   function: 'tonic' | 'subdominant' | 'dominant' (table: DEGREE_FUNCTIONS).  `k` is a KeyInput: string | { tonic, mode } | Key
-keyChords(k, { sevenths? })   // minor keys: natural-minor chords plus the major V and the diminished vii
+keyChords(k, { sevenths? })   // minor keys: natural-minor chords plus the major V and the diminished vii; modal keys: their seven
+//   diatonic chords (A dorian: Am Bm C D Em F#dim G), chord functions read from the major or minor table by the mode's third
 spellInKey(66, 'Gb major'): 'Gb4'    spellInKey(6, 'G'): 'F#'    accidentalPreference(k): 'sharps' | 'flats'
 //   outside notes lose double accidentals (b6 of Gb -> 'D') unless { strict: true }; the key's own (F## in G# minor) stay
 degreeInKey('Eb', 'C'): 'b3'   noteAtDegree('Eb major', 'b7'): 'Db'   inKey(note, k, variant?)   chordInKey('Dm7', 'C')
@@ -156,7 +164,7 @@ toneAt(map, midiOrPc): ToneInfo     hasTone(map, midiOrPc): boolean     spellWit
 ```ts
 formatScaleName('Bb', 'lydian-sharp-2', opts): 'B♭ Lydian ♯2'     formatScaleNotes('F', 'major', { system: 'german' }): ['F','G','A','B','C','D','E']
 formatScaleDegrees('dorian'): ['1','2','♭3','4','5','6','♭7']      formatChordNotes('Bbm7b5', opts)     formatChordDegrees('C7#9')
-formatKey('Bb minor', { short?, system? }): 'B♭ minor' | 'B♭m'     formatKeySignature('A major'): ['F♯','C♯','G♯']
+formatKey('Bb minor', { short?, system? }): 'B♭ minor' | 'B♭m'   formatKey('A dorian'): 'A Dorian' (no short form)   formatKeySignature('A major'): ['F♯','C♯','G♯']
 formatChords(['C','N.C.','F#m7b5','??'], opts): ['C','N.C.','F♯m7♭5','??']    // never throws; opts = FormatNoteOptions (+ jazz)
 ```
 

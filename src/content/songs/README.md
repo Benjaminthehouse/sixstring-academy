@@ -48,12 +48,13 @@ lists them, and the Player opens them. The song's notes are loaded only when som
 | `level` | 1 (first week) to 10 (concert level). Use the plan's level when it has one. |
 | `style` | One of `SONG_STYLES` in `types.ts` (folk, children, classical, blues, ...). |
 | `kind` | How it is arranged: `melody`, `strum-and-sing`, `melody-with-chords`, `fingerstyle`, `classical-solo`, `flatpicking`, `duet`, `riff`, `study`. |
-| `key` | For people: `G major`, `A minor`. Same key as `key:` in the SixTab file. |
+| `key` | For people: `G major`, `A minor`, or a mode for modal music: `A Dorian`, `E Phrygian`, `G Mixolydian`. Same key as `key:` in the SixTab file (which takes `A dorian` too and draws the parent major's signature). |
 | `teaches` | Two to four short phrases a learner understands: `Your first chord: a one-finger G`. |
 | `skills` | One to four filter categories from `SONG_SKILLS`. The test checks the music backs them up: `singing` needs lyrics, `strumming` needs strummed slashes, `chords` needs chord symbols. |
 | `tags` | Lower-case search words: `round`, `12-bar`, `6/8`. |
 | `about` | Two to four sentences for a learner alone with a guitar: what it should feel and sound like, the common mistake, and how to fix it. Second person, plain words, no exclamation marks. |
 | `plan` | The repertoire plan id, when the song comes from the plan (it must equal the folder name). |
+| `prefersNotation` | `true` for a reading study (the point is to read the staff): the Player opens it with the notation above the tab. Leave it out otherwise. |
 | `added` | Today's date, `YYYY-MM-DD`. |
 
 ## Writing the music
@@ -64,7 +65,10 @@ lists them, and the Player opens them. The song's notes are loaded only when som
 - **Spell it for a guitarist.** Fingerings that a teacher would give: put the hand in one position,
   use `{1}`–`{4}` for left-hand fingers where they help, `{P}{I}{M}{A}` for the right hand in
   fingerstyle, and only on the bars where the learner needs them.
-- **Chord symbols name what sounds.** Give a shape when it is not the usual one: `"G=xx0003"`.
+- **Chord symbols name what sounds.** Give a shape when it is not the usual one: `"G=xx0003"`. The
+  symbol must name the shape's chord, inversion included (`"Dm/F=xx3235"`, not `"Dm=xx3235"`):
+  the test fails on a mislabel, except for a triad with its fifth in the bass and a shape over a
+  bass part that plays the root.
 - **Lyrics** go on the line right under the music they are sung to, one syllable per note
   (`pen- ny`); `_` skips a note.
 - **A strum-along song** puts the learner's part first (`track: Your strum`, `role: rhythm`, slashes

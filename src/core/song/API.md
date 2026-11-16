@@ -250,6 +250,11 @@ tones), the rest of it ignored. A note more than `ok` early is not a hit: the ta
 - Durations are sticky across bars but reset per `track:`; write one at the start of every track.
 - `lyrics:` belongs to the music line directly above; ties are not sung on.
 - Chord symbols are sounding pitch; give shapes as `"A=x02220"` frets **behind the capo** (`validateSong` warns when a shape does not sound its symbol).
+- A shape must sound the chord its symbol names, inversion included: `"Dm=xx3235"` is Dm/F, write `"Dm/F=xx3235"` (or `xx0231` for Dm).
+  The `chord-voicing-label` warning allows a triad with its fifth in the bass (`G=xx0003`, `D=x00232`: guitarists' usage) and
+  a shape over a bass part that plays the root lower down (the bass names the chord).
+- A modal key (`key: A dorian`) reads back as `mode: 'minor'` plus `modal: 'dorian'` (`mixolydian`/`lydian` too): `mode` is only the
+  quality that picks the parent signature. Name it with `keyModeName(k)` / `formatKey(k)`, never `${tonic} ${mode}`.
 - ASCII tab (unless it has a rhythm row) and chord sheets carry no rhythm: results say `estimatedRhythm`; tell the learner to check.
 - `FlowTarget` times follow the practice tempo: after a tempo change call `flow.setTempoPercent`, or the targets drift from `songTimeAt`.
 - In the Vite dev server the first dynamic import of alphaTab/@tonejs/midi can fail once while Vite optimises it (the page reloads); builds are unaffected.
