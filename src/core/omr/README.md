@@ -483,7 +483,12 @@ printed signatures win), the systems are joined into one list of measures (`OmrD
 | Song | `to-song.ts` | `omrToSong(pageOrDoc)`: one guitar track, one bar per measure, tab strings / frets (notation alone: frets low on the neck), durations as read, measures padded / cut to the metre with warnings, chord symbols that were read, ties, dead notes, harmonics; `estimatedRhythm` when spacing was used. Always a valid Song. |
 
 Measured with `node e2e/omr-page.cjs` (three full 1240 x 1754 corpus pages, Chromium, dev server,
-machine under load 8-11): BROWSER_NUMBERS
+machine under load 8-11), two runs: every page read 100 % (notes, pitch, duration, tab numbers,
+frets, measures); 1.9-4.7 s per page in the worker (first page includes loading the worker); the
+main thread's 16 ms timer never waited more than 44-100 ms and no long task was observed, while the
+same page read on the main thread froze it for 1.2-1.7 s (6 long tasks). Cancel: the run rejects
+225-240 ms after the abort and the worker is usable afterwards. `classifyPage` in the worker:
+0.5-0.8 s per page, all three right.
 
 `classifyPage` over the corpora (`cli.cjs --classify [--corpus unseen]`, expected kind from the
 subset): original corpus 66 / 66 right at clean, scan and photo-good, 60 / 66 at photo-bad (the
@@ -525,7 +530,28 @@ TAB letters (section 9.1). Fixes to the generator itself (not the reader) where 
 SVG strokes leaking onto knock-out boxes, header widths that let the first chord overprint the key
 and time signature on Petaluma pages, triplet numbers placed four spaces away from their beam.
 
-UNSEEN_TABLE
+`node src/core/omr/eval/cli.cjs --corpus unseen --no-strips`, seed 1; before = the same pipeline
+with the recognizers as they were (a copy of the tree with the three tab changes reverted), after =
+this build. Notation columns did not change (no notation fix was kept).
+
+| Tier | staves | bar F1 | noteR % | noteP % | pitch % | dur % | measEx % | key % | time % | tabR % before -> after | tabP % | fret % | tabMeasEx % | s / page |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| clean | 82/82 | 0.985 | 91.0 | 99.6 | 99.9 | 98.4 | 82.6 | 100 | 87.5 | 87.4 -> 97.6 | 95.2 -> 98.5 | 97.9 -> 97.6 | 66.5 -> 78.0 | 1.2 |
+| scan | 82/82 | 0.988 | 94.1 | 99.9 | 99.3 | 96.8 | 80.2 | 100 | 87.5 | 88.9 -> 95.9 | 92.1 -> 94.5 | 96.7 -> 96.5 | 62.6 -> 69.8 | 1.1 |
+| photo-good | 81/82 | 0.970 | 86.1 | 99.7 | 98.9 | 94.3 | 70.1 | 97.4 | 86.7 | 89.1 -> 94.3 | 93.7 -> 96.0 | 93.7 -> 93.8 | 52.7 -> 56.0 | 1.3 |
+| photo-bad | 66/82 | 0.874 | 44.7 | 99.5 | 96.7 | 65.7 | 20.4 | 96.6 | 83.3 | 69.4 -> 69.0 | 84.0 -> 82.9 | 73.8 -> 74.5 | 20.9 -> 20.9 | 1.2 |
+
+By subset at clean (after): tab-only R / P 96.5 / 97.7, fret 96.5, tabMeasEx 63.5 (before 86.6 /
+92.8, 96.8, 50.0); linked R 99.7, fret 99.7, tabMeasEx 97.4 (before 88.9, 100, 88.5). Notation recall
+without the two cue-size pages: 98.5 / 98.1 / 97.0 % at clean / scan / photo-good.
+
+Original corpus with the final build (`cli.cjs --no-strips`, all 66 pages): clean 100 % on every
+column; scan and photo-good identical to before, mistake for mistake (scan fret 99.9 %, tabMeasEx
+98.6 %; photo-good tab P / R 99.9 / 99.9, fret 99.5, notation measEx 99.1 %); photo-bad notation
+unchanged (R 84.0, pitch 98.1, dur 83.5), tab-only P / R 87.7 / 68.8 -> 87.2 / 68.7 % and tabMeasEx
+11.9 -> 10.9 %, linked R 72.9 -> 73.8 %, tabMeasEx 31.6 -> 34.2 %. The tab reader's own pages
+(`tab-eval.cjs --own`, held-out Carlito / Caladea, marks, bass): clean and scan identical, photo-good
+P / R / fret 98.5 / 97.7 / 92.9 -> 98.8 / 99.2 / 93.2, photo-bad 77.4 / 74.4 / 29.2 -> 77.1 / 73.0 / 29.0.
 
 Not fixed (documented limits): cue-size notes are treated like grace notes by design (both cue pages
 read nearly empty: notation recall stays near 92 % overall at clean); Petaluma's hand-drawn time

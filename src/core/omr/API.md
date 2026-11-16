@@ -98,7 +98,29 @@ is marked. Never treat it as ground truth. Unavailable / declined / turned off i
 
 ## Measured (seed 1; `node src/core/omr/eval/cli.cjs [--corpus unseen] --no-strips`)
 
-ACCURACY_TABLES
+Original corpus (66 VexFlow pages, 161 staves, 1786 heads, 1111 tab numbers) and the UNSEEN corpus
+(27 pages from an independent engraver + alphaTab, 82 staves, 877 heads, 1126 tab numbers; section
+12 of the README). Recall / precision %, accuracy % on matched items, measures exactly right %,
+whole-pipeline seconds per page (mean, loaded 4-core machine). Unseen tab before -> after the fixes.
+
+| Corpus / tier | staves | notes R / P | pitch | dur | meas. exact | tab R / P | fret | tab meas. | s |
+|---|---|---|---|---|---|---|---|---|---|
+| original clean | 161/161 | 100 / 100 | 100 | 100 | 100 | 100 / 100 | 100 | 100 | 1.0 |
+| original scan | 161/161 | 100 / 100 | 100 | 100 | 100 | 100 / 100 | 99.9 | 98.6 | 1.2 |
+| original photo-good | 161/161 | 100 / 100 | 100 | 100 | 99.1 | 99.9 / 99.9 | 99.5 | 95.4 | 0.8 |
+| original photo-bad | 149/161 | 84.0 / 99.3 | 98.1 | 83.5 | 50.1 | 70.7 / 82.5 | 69.2 | 23.4 | 1.1 |
+| unseen clean | 82/82 | 91.0 / 99.6 | 99.9 | 98.4 | 82.6 | 87.4 -> 97.6 / 95.2 -> 98.5 | 97.6 | 66.5 -> 78.0 | 1.2 |
+| unseen scan | 82/82 | 94.1 / 99.9 | 99.3 | 96.8 | 80.2 | 88.9 -> 95.9 / 92.1 -> 94.5 | 96.5 | 62.6 -> 69.8 | 1.1 |
+| unseen photo-good | 81/82 | 86.1 / 99.7 | 98.9 | 94.3 | 70.1 | 89.1 -> 94.3 / 93.7 -> 96.0 | 93.8 | 52.7 -> 56.0 | 1.3 |
+| unseen photo-bad | 66/82 | 44.7 / 99.5 | 96.7 | 65.7 | 20.4 | 69.4 -> 69.0 / 84.0 -> 82.9 | 74.5 | 20.9 -> 20.9 | 1.2 |
+
+Unseen notation recall without the two pages printed in cue-size notes (deliberately not read):
+98.5 / 98.1 / 97.0 % (clean / scan / photo-good). Notation on unseen material was not changed.
+Original corpus after the tab fixes: clean, scan, photo-good unchanged mistake for mistake;
+photo-bad tab-only 87.7 -> 87.2 % P, 68.8 -> 68.7 % R (linked photo-bad R 72.9 -> 73.8 %).
+Browser (`node e2e/omr-page.cjs`, three full 1240 x 1754 pages in the worker): 100 % on all three,
+1.9-4.7 s each, main thread never blocked over 100 ms (no long tasks; 1.2-1.7 s when run on it).
+Page classifier: every clean / scan / photo-good page of both corpora right; photo-bad 60/66, 20/27.
 
 ## Supported
 

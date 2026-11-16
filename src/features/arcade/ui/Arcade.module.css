@@ -657,6 +657,12 @@
   .roundWide .promptHint {
     display: none;
   }
+  .roundWide .prompt {
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 var(--sp-3);
+  }
   .roundWide .statusLine {
     justify-content: flex-end;
     text-align: right;

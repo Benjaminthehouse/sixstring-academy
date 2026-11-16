@@ -63,7 +63,7 @@ describe('analyzeTake on recorded notes', () => {
     expect(r.timing.evenness).not.toBe('even');
     expect(r.verdict).not.toBe('clean');
     expect(r.worst).not.toBeNull();
-    expect(r.messages.some((m) => /furthest was bar \d, beat \d/.test(m))).toBe(true);
+    expect(r.messages.some((m) => /furthest was bar \d, note \d/.test(m))).toBe(true);
   });
 
   it('notices wrong notes and rushing', () => {
@@ -85,14 +85,14 @@ describe('analyzeTake on recorded notes', () => {
     expect(r.timing.evenness).toBe('even');
     expect(r.verdict).toBe('close');
     expect(r.messages[0]).toBe('Nearly there.');
-    expect(r.messages).toContain('1 of 16 notes was a different note: bar 2, beat 2 should be C♯4.');
+    expect(r.messages).toContain('1 of 16 notes was a different note: bar 2, note 2 should be C♯4.');
   });
 
   it('forgives a note the microphone did not catch, and says so', () => {
     const take = EXPECTED.filter((_, i) => i !== 9).map((e) => note(e.midi!, 3 + e.time));
     const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: take });
     expect(r.verdict).toBe('clean');
-    expect(r.messages).toContain('1 of 16 notes did not come through; the first at bar 2, beat 2 (C♯4).');
+    expect(r.messages).toContain('1 of 16 notes did not come through; the first at bar 2, note 2 (C♯4).');
   });
 
   it('reports intonation when asked', () => {

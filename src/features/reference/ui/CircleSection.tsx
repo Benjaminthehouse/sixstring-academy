@@ -98,24 +98,6 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
             </div>
           </div>
 
-          <div className={styles.chordCells} role="list" aria-label={`Chords of ${fmt.key(k.name)}`}>
-            {mainChords.map((c, i) => (
-              <ChordCell key={`${c.roman}-${i}`} chord={c} fmt={fmt} active={step >= 0 && cadence.romans[step] === c.roman} onPlay={() => sounder.toggle(`chord:${k.id}:${c.roman}`, () => strumChord(c.symbol, tuning))} />
-            ))}
-          </div>
-          {borrowed.length > 0 && (
-            <div className={styles.borrowed}>
-              <Text variant="caption" tone="muted">
-                From harmonic minor, which raises the 7th to {fmt.note(raisedSeventh(k) ?? '')}:
-              </Text>
-              <div className={styles.chordCells} role="list" aria-label="Chords from harmonic minor">
-                {borrowed.map((c, i) => (
-                  <ChordCell key={`h-${c.roman}-${i}`} chord={c} fmt={fmt} active={step >= 0 && cadence.romans[step] === c.roman} onPlay={() => sounder.toggle(`chord:${k.id}:h${c.roman}`, () => strumChord(c.symbol, tuning))} />
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className={styles.playRow}>
             <Button variant="primary" size="lg" iconLeft={playingCadence ? 'Square' : 'Play'} onClick={playCadence} pressed={playingCadence} aria-label={playingCadence ? 'Stop' : `Play ${cadenceLabel} in ${fmt.key(k.name)}`}>
               {playingCadence ? 'Stop' : `Play ${cadenceLabel}`}
@@ -125,6 +107,27 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
             </Text>
           </div>
         </div>
+      </div>
+
+      <div className={styles.keyChords}>
+        <p className={styles.blockLabel}>Chords of {fmt.key(k.name)} · tap one to hear it</p>
+        <div className={styles.chordCells} role="list" aria-label={`Chords of ${fmt.key(k.name)}`}>
+          {mainChords.map((c, i) => (
+            <ChordCell key={`${c.roman}-${i}`} chord={c} fmt={fmt} active={step >= 0 && cadence.romans[step] === c.roman} onPlay={() => sounder.toggle(`chord:${k.id}:${c.roman}`, () => strumChord(c.symbol, tuning))} />
+          ))}
+        </div>
+        {borrowed.length > 0 && (
+          <div className={styles.borrowed}>
+            <Text variant="caption" tone="muted">
+              From harmonic minor, which raises the 7th to {fmt.note(raisedSeventh(k) ?? '')}:
+            </Text>
+            <div className={styles.chordCells} role="list" aria-label="Chords from harmonic minor">
+              {borrowed.map((c, i) => (
+                <ChordCell key={`h-${c.roman}-${i}`} chord={c} fmt={fmt} active={step >= 0 && cadence.romans[step] === c.roman} onPlay={() => sounder.toggle(`chord:${k.id}:h${c.roman}`, () => strumChord(c.symbol, tuning))} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <Section level={level} title="Neighbours" description="Keys one step around the circle differ by one sharp or flat: the easiest places to move to.">

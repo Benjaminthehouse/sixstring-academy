@@ -23,6 +23,10 @@ approaches the pipeline is built from: `lines/README.md` (A, bottom-up line stru
 | `protocol.ts`, `vision.worker.ts` | Web Worker host (frames, bitmaps, commands, colour sampling) and entry |
 | `pipeline.test.ts`, `hardening.test.ts`, `marker-mode.test.ts` | Runtime logic with stand-ins; jitter, long negatives, occlusion, held hard scenes; marker mode |
 | `testing/compare.test.ts` | Side-by-side benchmark of detectors over seed sets, false-lock count, best-of-N timing |
+| `guidance.ts` | Coaching (`TrackerUpdate.guidance`): frame and view statistics, `OPERATING_LIMITS`, `guide()` |
+| `string-count.ts` | Reads how many strings the board in view has (wrong guitar type: no lock) |
+| `inlay-polarity.ts` | Which way the inlays stand out, from the cells themselves (both numbering readers) |
+| `testing/alt-scenes.ts`, `testing/alt-bench.ts`, `testing/alt-scenes.test.ts` | The independent second generator, its scoring and the alt suite (conditions, sweeps) |
 
 ## Evaluation of the two approaches
 
@@ -266,6 +270,96 @@ Measured with `hardening.test.ts` (FretboardTracker as the app runs it) and `com
   never confident while hidden.
 - **Graceful failure**: `TrackerUpdate.hint` / `suggestCalibration` / `searchingMs` (see API.md).
 
+## Verification pass: an independent second generator (alt bench)
+
+Everything above was measured on one renderer, the one the detector was built on. `testing/alt-scenes.ts`
+draws the same kind of picture by a different route so that what the module learned about that
+renderer stops counting as knowledge about guitars: a full 3-D camera (axis-angle tilt, inverse radial
+distortion with k1 and k2), strings 1.5-7 mm and a capo 6-10 mm ABOVE the board (parallax), plane-space
+shading at 2x adaptive supersampling with Gaussian-prefiltered wires and strings, Blinn-Phong crowns
+and strings, cast shadows of frets and strings, its own fBm / white-noise textures, a filmic shoulder,
+Poisson-Gaussian noise with chroma blotches, 4:2:0 chroma, 4x4 luma quantisation, interlaced fields and
+rolling flicker. Its truth is computed there too, and `alt-bench.ts` scores what the overlay draws by
+tracing each dot back through the TRUE camera: right only if it is between the right two wire crowns
+and on the right string as seen. 41 conditions, one factor changed at a time from a typical scene (a
+steel-string in a room, hand on frets 2-9, a decent webcam): textures, strings, necks (7-string, bass),
+occluders (sleeve, capo at 2 / 4 / 3 with the nut out of view, strap, music-stand edge), light
+(raking, stage colours, dim, window), distractors with and without a guitar, camera (portrait,
+wide-angle, 320x240, interlaced, flicker), orientation.
+
+**What it found, and what changed** (all four are genuine and none is a tuning to seeds):
+
+1. **Inlay polarity was taken from the wires.** Both numbering readers assumed the dots stand out the
+   same way as the fret wires. The first renderer always darkens wires on maple, so it holds there; a
+   real maple neck has bright nickel wires and black dots. With the sign reversed every dot reads as
+   "less inlay than a plain cell" and the pattern match prefers a shift that puts the dots on plain
+   frets: a maple board was locked one fret off at confidence 0.64 (a second guitar on the wall
+   behind, seed 2; the top-down reader scored the wrong shift +2.6 and the right one -19.5), and a
+   capo scene with the nut out of view likewise (capo-far 3 and 7, seed 2). Fix
+   (`inlay-polarity.ts`): inlays are sparse, so the median cell is plain board and the sign of the
+   cells that stand out is the inlays' polarity; the wire polarity is the fallback when nothing
+   stands out. Original bench (fretboard detector, sets 0 / 3000 / 6000 / 8000, 96 scenes and 24
+   negatives each): identical before and after (detection score 79.7 / 85.4 / 83.0 / 81.9, 0 false
+   positives); unit tests fail without the fix.
+2. **Strings are not in the board plane.** The first renderer draws strings flat on the wood. Real
+   strings sit 1.5-7 mm above it, so a steep view sees them shifted by height x tan(angle), up to a
+   string spacing at the 12th fret. The detector fits the board itself very well (cells judged
+   against the strings' footprint on the wood: 98-100% up to 62 degrees), but the dots, drawn on the
+   wood, appeared next to the wrong string: 89% / 66% / 49% of cells right at 48 / 55 / 62 degrees.
+   Fix (overlay only; the pose maths and every benchmark of poses are unchanged): `cameraCentre(pose)`
+   recovers the camera from the homography and `projectMarkerSeen` puts each dot where the learner
+   reads it, on the string as seen and between the wire crowns as seen (a dot on the raised string
+   itself can show past its wire). With it the tracker's dots were 98-100% right from 0 to 62 degrees
+   (distortion-free check, seeds 0 and 2; the true pose scores 100% through the same scoring, which
+   is the consistency check of the scoring).
+3. **The wire spacing cannot tell a bass or a 7-string from a guitar.** A bass is a guitar scaled up
+   (a homography absorbs it) and a 7-string has the same wires; under the guitar preset both locked
+   at full confidence with every fret right and every dot between two strings (bass 3 of 4 scenes,
+   7-string 4 of 4, 0% of those frames right). Fix (`string-count.ts`, in `FretboardTracker`): the
+   board's brightness profile across the strings, averaged over several cells and normalised to the
+   board width, is correlated with combs of model-2 .. model+2 strings; another count leading by 0.3
+   (normalised correlation) over a few reads holds the board back from locking and sets
+   `guidance: check-guitar-type` / `stringsSeen`. False alarms: 0 of 96 detector poses on the
+   original bench (the largest lead there was 0.29) and 0 on every six-string alt scene. After: bass
+   0 locks (coached), 7-string 2 of 4 scenes still lock wrongly when the six-string model is fitted
+   onto six of the seven strings (the reader then sees a clean six-comb).
+4. **Coaching and honest limits** (`guidance.ts`): see API.md. The limits come from one-knob sweeps:
+   neck size (nothing found below about 3 px between strings; right from 3.4 px), view angle (right to
+   62 degrees with the raised-string dots), light (right down to mean brightness 34 with the camera
+   gain capped at 8x; half the scenes lost at 26, all at 21), capo at frets 1-7 with and without the
+   nut in view.
+
+**Alt bench after the fixes** (`ALT_SEEDS=1,2,3,4 ALT_FRAMES=24`, cold start, 14 still frames then a
+sway; "right" = locked frames with >= 90% of the cells right; 645 s on the loaded sandbox):
+
+| condition | locked (scenes) | right | numbered | wrong-lock scenes (frames) |
+|---|---|---|---|---|
+| plain, typical, gold-hw, black-hw, sleeve, capo-2, capo-4, stage-light, dim, flicker, mirrored, lefty, portrait, bass-model | 4/4 each | 100% | 100% | 0 |
+| no-nut, grain-wear, worn-frets, photo-noise, dull-strings, coated-strings, nylon, stand-edge, blinds-behind, keyboard-behind | 3/4 or 4/4 | 100% | 100% | 0 (the missing scene: never found) |
+| capo-nonut, strap, window, wall-guitar, interlaced | 3/4 or 4/4 | 98-99% | 100% | 1 frame each |
+| low-res (320x240), seven-model | 4/4, 3/4 | 97% | 100% | 3 frames, 2 frames |
+| side-light (raking) | 4/4 | 75% | 100% | 1 scene (22 frames, high frets) |
+| wide-angle (strong barrel) | 3/4 | 0% | 100% | 3 scenes (65 frames; cells ~80%) |
+| seven-preset (7-string, guitar preset) | 2/4 | 0% | - | 2 scenes (40 frames) |
+| bass-preset (bass, guitar preset) | 0/4 | - | - | 0 (coached: check-guitar-type) |
+| mirror-untold (mirrored frames, tracker not told) | 0/4 | - | - | 0 (never locks) |
+| 5 negatives (keyboard, bookshelf, blinds, radiator, striped shirt) | 0 | - | - | 0 frames shown |
+
+Before the fixes the same run had bass-preset 3/4 scenes locked wrong (66 frames), seven-preset 4/4
+(74 frames), wall-guitar 2/4 (13 frames, one mis-numbered by a fret). Jitter of the drawn markers on a
+still guitar: 0.002-0.07 px per frame (median per condition). The scene never found in a condition is
+nearly always a maple board whose nickel frets are about as bright as the wood (the first renderer
+darkens them): a real limit worth checking on a real maple neck, but a safe one.
+
+Not fixed (documented in API.md, "What to expect on a real guitar"): strong wide-angle distortion (a
+homography cannot bend; nothing tells the tracker), hard light raking along the neck (the wires' long
+shadows bias the fitted wires toward the body, half a fret beyond the 12th; fixing it means changing
+the detector's ridge measurement), the 7-string fitted onto six strings, faint frets on maple.
+
+Cost of the new per-frame work (sandbox, loaded): frame statistics 0.35 ms (every third frame),
+string-count read 1.3 ms (each frame while a candidate, every tenth while locked), raised dots 0.06 ms
+per overlay draw.
+
 ## Reproduce
 
 ```bash
@@ -282,5 +376,8 @@ HARDEN_SEEDS=0,1000,2000,3000,6000,7000,13000 HARDEN_NEG=40 HARDEN_NEG_FRAMES=15
 HARDEN_TIERS=hard,extreme HARDEN_SCENES=24 HARDEN_FRAMES=45 HARDEN_OFFSET=15000 \
   npx vitest run src/core/vision/hardening.test.ts -t "held for a moment" --silent=false
 MARKER_SCENES=16 MARKER_OFFSET=1000 npx vitest run src/core/vision/marker-mode.test.ts --silent=false
+npx vitest run src/core/vision/testing/alt-scenes.test.ts --silent=false     # alt suite (22 conditions, asserted)
+ALT_SEEDS=1,2,3,4 ALT_FRAMES=24 npx vitest run src/core/vision/testing/alt-scenes.test.ts -t reports --silent=false   # full table
+ALT_SWEEP=span,tilt,light,capo,capo-far ALT_SEEDS=0,1,2 npx vitest run src/core/vision/testing/alt-scenes.test.ts -t sweep --silent=false
 node e2e/vision-live.cjs --repeat 3                                         # live, in Chromium
 ```

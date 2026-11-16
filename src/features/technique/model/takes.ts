@@ -114,7 +114,8 @@ function nameOf(midi: number): string {
   return `${names[((m % 12) + 12) % 12]}${Math.floor(m / 12) - 1}`;
 }
 
-const where = (e: ExpectedNote): string => `bar ${e.bar + 1}, beat ${e.beat + 1}`;
+/** Where a note is, as the learner finds it in the tab: "bar 2, note 4" (not "beat": with eighths the 4th note is on beat 2). */
+const where = (e: ExpectedNote): string => `bar ${e.bar + 1}, note ${e.beat + 1}`;
 
 /**
  * Judge a take.
@@ -226,7 +227,7 @@ export function analyzeTake(input: {
       if (evenness === 'even') messages.push(`Timing: on average ${Math.round(fit.rmsMs)} ms from an even pulse.`);
       else messages.push(`Timing: on average ${Math.round(fit.rmsMs)} ms from an even pulse (aim for under ${Math.round(limit)} ms).`);
       if (worst && Math.abs(worst.ms) >= limit * 1.5 && evenness !== 'even') {
-        messages.push(`The furthest was bar ${worst.bar}, beat ${worst.beat}: ${Math.abs(worst.ms)} ms ${worst.ms > 0 ? 'late' : 'early'}.`);
+        messages.push(`The furthest was bar ${worst.bar}, note ${worst.beat}: ${Math.abs(worst.ms)} ms ${worst.ms > 0 ? 'late' : 'early'}.`);
       }
       if (tempo === 'rushing') messages.push(`You were rushing: about ${playedBpm} BPM against the click at ${Math.round(bpm)}.`);
       if (tempo === 'dragging') messages.push(`You were dragging: about ${playedBpm} BPM against the click at ${Math.round(bpm)}.`);

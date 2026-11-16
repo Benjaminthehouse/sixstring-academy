@@ -1,0 +1,177 @@
+/* Controls: compact tempo, the loop button, and the grouped options of the side panel and sheet. */
+.modes {
+  min-width: 0;
+}
+
+.tempo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+.tempoVertical {
+  flex-direction: column-reverse;
+  border-radius: var(--r-lg);
+}
+.tempoValue {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 3.5rem;
+  min-height: var(--tap);
+  padding-inline: var(--sp-1);
+  line-height: 1.05;
+}
+.tempoNum {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.tempoBpm {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tempoFull {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: min(18rem, 80vw);
+}
+
+.loopBtn {
+  min-width: 0;
+}
+.loopBtnCompact .loopText {
+  max-width: 5.5rem;
+}
+.loopText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.more {
+  display: grid;
+  gap: var(--sp-5);
+}
+.group {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.field {
+  display: grid;
+  gap: var(--sp-2);
+}
+.loopRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.quick {
+  display: grid;
+  gap: var(--sp-1);
+}
+.quickRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.trainer {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-1);
+}
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+}
+.trackMine {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.trackPick {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap);
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.trackPick:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media (hover: hover) {
+  .trackPick:hover {
+    background: var(--surface-2);
+  }
+}
+.trackName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.trackRole {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.trackMine .trackRole {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.keys {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-1);
+}
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+}
+.keyRow dt {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 4.5rem;
+}
+.keyRow dd {
+  margin: 0;
+  color: var(--fg-muted);
+}

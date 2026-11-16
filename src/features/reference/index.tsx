@@ -88,7 +88,7 @@ export default function ReferenceScreen({ params }: RouteProps) {
       onChange={setQuery}
       onSubmit={openFirst}
       label="Search the Reference"
-      placeholder="Search keys, chords, scales, symbols…"
+      placeholder="Search the Reference"
       size="lg"
       autoFocus={autoFocus}
       data-autofocus={autoFocus ? '' : undefined}
@@ -110,6 +110,7 @@ export default function ReferenceScreen({ params }: RouteProps) {
         <div className={styles.split}>
           <aside className={styles.side} aria-label="Reference sections">
             {searchBox()}
+            {!query.trim() && <Text variant="caption" tone="muted">Try “G major”, “m3”, “drop D”. Press / to search.</Text>}
             {query.trim() ? results : <SectionNav current={section} />}
           </aside>
           <article className={styles.article} aria-labelledby="reference-section-title">
@@ -165,7 +166,10 @@ export default function ReferenceScreen({ params }: RouteProps) {
   // ── phone: the list ───────────────────────────────────────────────────────────────────
   return (
     <Page title="Reference" subtitle="Look anything up: keys, intervals, chords, scales, symbols and words." data-section="" data-item="" data-layout="phone">
-      <div className={styles.indexTop}>{searchBox()}</div>
+      <div className={styles.indexTop}>
+        {searchBox()}
+        {!query.trim() && <Text variant="caption" tone="muted">Try “G major”, “m3”, “maj7”, “drop D” or “barre”.</Text>}
+      </div>
       {query.trim() ? (
         results
       ) : (

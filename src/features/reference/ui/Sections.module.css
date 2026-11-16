@@ -234,10 +234,30 @@
   color: var(--fg-muted);
 }
 
+.keyChords {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: calc(-1 * var(--sp-4));
+}
+
+.blockLabel {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
 .chordCells {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.4rem, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-2);
+}
+
+@container refbody (min-width: 560px) {
+  .chordCells {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
 }
 
 .chordCellItem {
@@ -656,12 +676,7 @@
   color: var(--fg-muted);
 }
 
-/* Phones: inversion and "from C" share a line, the two neck moves share the next. */
-.ivRow > .ivCell:nth-of-type(3),
-.ivRow > .ivCell:nth-of-type(5) {
-  display: inline;
-}
-
+/* Phones: the name on top, then inversion and "from C", then the two neck moves, two to a line. */
 @container refbody (max-width: 619px) {
   .ivRow {
     grid-template-columns: 2.25rem minmax(0, 1fr) minmax(0, 1fr);

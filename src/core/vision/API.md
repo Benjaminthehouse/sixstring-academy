@@ -108,6 +108,31 @@ blur) · `'confirm-fret'` (numbers are a guess: show `update.question` as "Is th
 after 3 losses within 20 s, or after 6 s of a board that never locks: offer the four-tap calibration.
 `searchingMs` says how long nothing has been shown.
 
+### Coaching the learner: `TrackerUpdate.guidance` (`guidance.ts`)
+One line of coaching per frame, most urgent first, and how far the drawn notes can be trusted:
+```ts
+const g = u.guidance;   // { code, trust, message, measures: { brightness, clipped, noise, stringSpacingPx, offNormalDeg, visibleFrets, nutInView } }
+if (g.trust === 'auto') drawNotes(); else showLine(g.message);   // set React state only when g.code changes
+```
+| `code` | when | `trust` |
+|---|---|---|
+| `ok` | locked, inside the operating limits | `auto`: draw the notes |
+| `point-camera` | nothing found yet | `wait` |
+| `too-dark` | mean brightness < 30 or sensor noise > 16 grey levels (`OPERATING_LIMITS`) | `wait` |
+| `too-bright` | > 30% of the picture clipped (a window or lamp behind the player) | `wait` |
+| `move-closer` | strings < 3.5 px apart at the working size | `wait` |
+| `tilt-toward-camera` | board seen more than 58 degrees off its normal | `wait` |
+| `hold-still` | lost, coasting through blur, or a new board not yet held 3 frames | `wait` |
+| `show-nut` | numbers are a guess and the nut is out of view | `confirm` |
+| `confirm-fret` | the "Is this fret N?" question is up (`message` names the fret) | `confirm`: one tap |
+| `check-guitar-type` | the strings in view do not match the neck model (`u.stringsSeen` = how many there seem to be); the board is never locked meanwhile | `confirm`: pick the guitar type or calibrate |
+| `calibrate` | `suggestCalibration` and nothing more specific to say | `calibrate`: offer the four taps |
+
+`trust` is `auto` only for a locked board inside the limits; a locked board outside them still
+draws (state `locked`) but is coached back inside. Calibration (`calibrate(pose)`) overrides the
+string-count check: the learner's word wins. `frameStats(frame)`, `viewStats(pose)` and
+`guide(input)` are exported for screens that want the measurements themselves.
+
 ## Drawing the overlay (`draw.ts`, `overlay.ts`)
 ```ts
 const dpr = fitOverlayCanvas(canvas, cssW, cssH);            // backing store at the pixel ratio (cheap if unchanged)
@@ -115,6 +140,11 @@ const res = drawVisionOverlay(ctx, { view, pose, notes, state, confidence, numbe
   stringNames /* low to high, default E A D G B E */, reducedMotion, outline, wires, fretNumbers, allFretNumbers,
   stringLabels, indicator /* all default true but allFretNumbers */ });
 res.markers  // [{ string, fret, x, y, radius, visible, note }] in CSS px: hit-test taps on notes
+// Notes are drawn where the learner reads them: on the string as the camera sees it (strings sit
+// 1.3-7 mm above the wood) and between the wire crowns as seen. The camera is recovered from the
+// tracked frame's pose (`cameraCentre(pose)`); `placeMarkers(pose, notes, camera)` / `projectMarkerSeen`
+// do the same for your own drawing. Front-on this is `projectMarker`; 55 degrees off it moves a dot by
+// up to a string spacing (without it, cells were 49-89% right at 48-62 degrees on the alt bench, with it 98-100%).
 OverlayNote { string, fret, label?: 'R' | 'b3' | 'C#' | '2'..., degree?: 1..7 /* --deg-N fill, --deg-N-fg text */, target?: boolean /* pulse */, ghost?: boolean }
 readOverlayPalette(element)   // tokens: --deg-1..7(-fg), --deg-x, --accent, --surface, --fg, --bg, --ok, --warn, --bad, fonts
 ```
@@ -172,7 +202,14 @@ const u = tracker.update(frame, timeMs);   // TrackerUpdate, plain data
 | `lost` | board vanished < 1 s ago; `u.pose` is the last pose, `u.confidence` falls | fade the overlay |
 
 `TrackerUpdate { state, changed, pose /* smoothed */, measured /* raw */, confidence, numberingConfirmed,
-question: { point, fret } | null, ran, reason?, ms, timeMs, searchingMs, suggestCalibration, hint, markers }`.
+question: { point, fret } | null, ran, reason?, ms, timeMs, searchingMs, suggestCalibration, hint, markers,
+guidance, stringsSeen }`.
+Pass the learner's guitar as `model`: 'steel' / 'electric' / 'classical', or a `NeckModel` for
+anything else (a 7-string: `stringCount: 7, nutWidth 48, width12 58, stringSpanNut 41, stringSpanBridge 62`;
+a 4-string bass: `scaleLength 864, stringCount 4, nutWidth 40, width12 56, stringSpanNut 31, stringSpanBridge 57`).
+The wire spacing cannot tell a bass or a 7-string from a guitar; the string-count check
+(`readStringCount`) holds such a board back from locking under the wrong model and says so in
+`guidance` (`check-guitar-type`).
 Methods: `calibrate(pose, timeMs?)`, `confirmFret(point, fret)`, `shiftNumbering(delta)`,
 `confirmNumbering()`, `setOptions(changes)` (orientation/neck changes reset), `rescale(w, h)`
 (automatic when the frame size changes), `reset()`. Options (defaults): `model` 'steel' |
@@ -217,6 +254,60 @@ extreme 54% / 38%, most misses honest ("weak evidence": nothing drawn, calibrati
 view held 1.5 s (fresh set 15000, 24 scenes): 14 lock right (at frame 2, median), 5 keep asking,
 3 find nothing, 2 lock wrong at some point; extreme 10 / 6 / 6 / 2.
 
+## What to expect on a real guitar
+**All validation so far is synthetic.** Two independent renderers (the bench in `testing/` that the
+detector was built on, and `testing/alt-scenes.ts`, written later by a different route to catch
+overfitting: its own camera with k1/k2 lens distortion, strings and capo raised above the board,
+plane-space shading with shadows, its own textures, noise and compression) and one synthetic video
+in Chromium. No real webcam footage has been run. Treat every number here as "works on two
+different drawings of a guitar", not "works on yours".
+
+On the alt bench (`ALT_SEEDS=1,2,3,4 ALT_FRAMES=24`, cold start, 4 scenes x 24 frames per condition):
+- **Works** (locked frames >= 97% with >= 90% of the note cells right, numbering 100%): clean and
+  typical rooms with a hand on the neck, nut out of view (inlays), heavy grain, worn first positions,
+  oxidised low-contrast frets, gold or black hardware, dull / coated / nylon strings, a classical
+  neck without dots, 7-string and bass necks given the right `NeckModel`, a long sleeve, a capo at
+  any fret 1-7 (numbering always that of the board; the capo is never taken for the nut), a strap
+  over the nut, a music-stand edge across the neck, saturated stage light, a very dim gain-cranked
+  room, a window behind, blinds / keyboard / a second guitar behind, portrait phone (360x640),
+  320x240, interlaced fields, rolling flicker, mirrored frames, left-handed. Without a guitar
+  (keyboard, bookshelf, blinds, radiator, striped shirt): nothing shown, ever.
+- **Misses, safely** (nothing drawn, coaching shown): in most conditions one scene in four, nearly
+  always a maple board whose nickel frets are about as bright as the wood; frames that are mirrored
+  while the tracker is told they are not; a bass or 7-string under a guitar preset (no lock;
+  `check-guitar-type`).
+- **Fails unsafely** (locks with wrong cells; coaching says ok):
+  - strong wide-angle distortion (phone ultra-wide lens, fisheye webcam; 3 of 4 scenes, cells
+    about 80%): a homography cannot bend. Use the main lens and keep the neck away from the
+    picture's edges.
+  - hard light raking along the neck from a low angle: the wires' long shadows pull the fitted wires
+    toward the body, up to half a fret beyond the 12th (1 scene of 4; frets 1-12 right). Soften or
+    raise the light.
+  - a 7-string under the 6-string preset when the six-string model is fitted onto six of the seven
+    strings (2 of 4 scenes): the string-count check cannot see the seventh. Pick the right guitar type.
+
+**Operating limits** (`OPERATING_LIMITS`, from one-knob sweeps on the alt bench): strings at least
+3.5 px apart at the 640-wide working frame (nothing is found below about 3 px); up to about 58
+degrees off the board normal (measured right to 62); mean brightness 30 or more (tracking failed in
+half the scenes at 26, in all at 21); noise verified up to about 15 grey levels.
+
+**When to ask, when to calibrate.** Automatic lock is trusted (`trust: 'auto'`) only when locked
+with numbers that rest on the nut, the inlays, markers or the learner, inside the limits above.
+Numbers read from nothing are a guess: the tracker never locks them; it asks to show the nut, then
+"Is this fret N?" after 1.2 s. Calibration is offered after 6 s without a board, 3 losses in 20 s,
+or 6 s without a lock, and coaching names the reason first when it knows one (dark, small, oblique,
+wrong guitar type).
+
+**Check these first with a real webcam** (in this order; each takes a minute with the camera screen
+and a guitar): (1) a steel-string and a maple-board electric, front-on at arm's length: does it lock
+in under a second and do the dots sit on the strings? (2) the same 45 degrees from the side: do the
+dots stay on the strings at the 12th fret (raised-string correction, `cameraCentre`)? (3) the nut
+out of view: is the numbering right, or does it ask? (4) a capo at 2 and at 5: are the dots still
+numbered from the nut? (5) a dim evening room and a window behind: what does `guidance` say? (6) a
+phone on a stand in portrait, and a laptop webcam's real lens distortion at the picture's edge
+(4-taps calibration as the fallback). (7) walk the camera over a keyboard, shelves and blinds without
+a guitar: nothing may be drawn. Record what fails as frames; they are the first real test set.
+
 ## Limits
 - Measured on synthetic scenes and a synthetic video only; no real webcam footage was available.
 - Classical guitars: the slotted headstock's rollers can continue the fret comb, so the "nut" may be
@@ -232,5 +323,10 @@ view held 1.5 s (fresh set 15000, 24 scenes): 14 lock right (at frame 2, median)
   widens narrow frames to 640, so portrait costs more.
 - Marker pose acquisition (markers seen, detector blind) is a weak fallback; marker numbering is
   the strong part.
+- The raised-string correction of the overlay uses typical string heights per preset
+  (`STRING_HEIGHT_MM`) and a camera recovered with the principal point at the frame centre; a guitar
+  with very high action, or a cropped / digitally zoomed picture, shifts dots slightly at steep views.
+- Lens distortion is not modelled (see above): a mild webcam barrel moves dots by up to a millimetre
+  or two near the frame corners; a strong one breaks the fit.
 - `vision.worker.ts` must be created by `VisionPipeline` (or `new Worker(new URL('./vision.worker.ts',
   import.meta.url), { type: 'module' })` in this directory) so Vite bundles it.

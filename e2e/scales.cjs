@@ -534,6 +534,15 @@ async function phone(theme) {
       await shot(page, 'phone-practice');
       await page.locator('h2', { hasText: 'Relatives' }).scrollIntoViewIfNeeded();
       await shot(page, 'phone-relatives');
+      // Review: with text at 200 % the intervals grid (13rem columns) pushed the page 42 px sideways.
+      await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+      await page.waitForTimeout(600);
+      const bigText = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      await page.getByText('Intervals from the root').first().scrollIntoViewIfNeeded();
+      await shot(page, 'phone-text-200');
+      await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+      await page.waitForTimeout(300);
+      check('phone: text at 200 % still never scrolls the page sideways', bigText <= 1, bigText);
     } else {
       check('phone light: no sideways page scroll', geo.overflow <= 1, geo.overflow);
       await shot(page, 'phone-light');

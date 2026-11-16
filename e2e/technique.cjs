@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Technique screen (#technique, #technique--<exercise>).
- * Run: node e2e/technique.cjs [--verbose] [--no-shots] [--only hub,ladder,take,bend,health,routine,changes,shots]
+ * Run: node e2e/technique.cjs [--verbose] [--no-shots] [--only hub,ladder,reload,take,bend,health,routine,changes,large,shots]
  *
  * What it checks, in the pre-installed Chromium with one dev server:
  *
@@ -9,18 +9,25 @@
  *             filter narrows the list; the next step is the warm-up for a new learner
  *  ladder     an exercise with the tempo ladder and the click: Start counts in and plays (the
  *             tab cursor moves), Enter = clean goes up a rung, two "not yet" step back down,
- *             arrows change the tempo, Space stops; Finish records the visit (best clean tempo,
- *             summary sheet with XP)
+ *             arrows change the tempo, Space stops; the ladder shows the visit's best clean tempo
+ *             before it is saved; Finish records the visit (best clean tempo, summary sheet with XP)
+ *  reload     a reload in the middle of a visit keeps what was done: three clean passes, then a
+ *             reload, and the best clean tempo is saved and the next visit starts one rung under it
  *  take       a microphone take with a fake microphone (Chromium plays a WAV as the mic): the
  *             G major two-octave scale played evenly at 60 BPM is judged clean and the ladder
  *             climbs; the same scale played with uneven timing is not clean, and the result says
- *             how far from an even pulse the notes were
+ *             how far from an even pulse the notes were; one wrong note with perfect timing is not
+ *             clean and the result names the bar, the beat and the right note
  *  bend       the whole-step bend: a recording that stops about 45 cents short of E is caught and
  *             the message says how far short; one bent all the way is in tune
  *  health     the tension check and the break prompt after a long stretch of playing (the clock
  *             is advanced through the screen's development hook), "Keep going" dismisses it
- *  routine    the warm-up counts down, moves between steps, plays its material
- *  changes    one-minute changes: pick a pair, the minute starts with a count-in and stops
+ *  routine    the warm-up counts down, moves between steps, plays its material; run to the end
+ *             (on Playwright's clock) "Again from the top" really starts again; a finished warm-up
+ *             is recorded once, even after "Save and finish" and leaving
+ *  changes    one-minute changes: pick a pair, the minute starts with a count-in and stops; the
+ *             plan's pairs are all there and two pairs with the same chords have different names
+ *  large      text at 200 percent on a 360 px phone: no sideways scroll on the exercise screens
  *  shots      phone and desktop, dark and light, phone sideways: e2e/out/technique-*.png; no
  *             sideways scrolling and no console errors anywhere
  *
@@ -129,14 +136,14 @@ function writeWav(name, samples) {
 }
 
 /** The G major scale part at 60 BPM, plucked at its times plus `err(i)` seconds, after `lead` seconds. */
-function scaleTake(name, err, lead = 3.2) {
+function scaleTake(name, err, lead = 3.2, pitch = () => 0) {
   const e = content.getExercise('tech-alternate-scale-g');
   const song = content.partSong(e, e.parts[0], 60);
   const notes = song.tracks[0].measures.flatMap((m, bar) => m.beats.flatMap((b) => b.notes.map((n) => ({ midi: n.midi, t: bar * 4 + b.start / 960, dur: b.duration / 960 }))));
   const total = lead + 16 + 2;
   const x = new Float32Array(Math.round(total * SR));
   notes.forEach((n, i) => {
-    const freq = 440 * 2 ** ((n.midi - 69) / 12);
+    const freq = 440 * 2 ** ((n.midi + pitch(i) - 69) / 12);
     const dur = Math.min(1.6, Math.max(0.42, n.dur * 0.95));
     const p = sig.pluckedString({ freq, sampleRate: SR, duration: dur, amplitude: 0.45, attackNoise: 0.3, seed: 11 + i });
     const fade = Math.round(0.02 * SR);
@@ -223,6 +230,8 @@ async function ladderGroup() {
     check('ladder', 'Enter (clean) goes up a rung: 55 BPM', (await attr(p, root, 'data-tempo')) === '55', await attr(p, root, 'data-tempo'));
     const note = await p.textContent('[data-technique-note]');
     check('ladder', 'the screen says so', /Clean\. Up to 55 BPM/.test(note || ''), note);
+    const rungs = await p.textContent('[data-technique-ladder]');
+    check('ladder', 'the ladder shows the clean pass at once: "Best 50" (it said "No clean pass yet")', /Best 50/.test(rungs || '') && !/No clean pass yet/.test(rungs || ''), (rungs || '').slice(0, 120));
     await p.keyboard.press('n');
     await p.waitForTimeout(150);
     await p.keyboard.press('n');
@@ -247,6 +256,99 @@ async function ladderGroup() {
     check('ladder', 'after a reload the best clean tempo (50) is kept in the learner’s progress', (await attr(p, root, 'data-best')) === '50', await attr(p, root, 'data-best'));
     check('ladder', 'and the next visit starts on a warm-up rung at the ladder start', (await attr(p, root, 'data-tempo')) === '50');
     check('ladder', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+async function reloadGroup() {
+  const s = await launch();
+  const p = s.page;
+  try {
+    await s.goto('technique', 'tech-permutations-2');
+    const root = '[data-technique-screen="exercise"]';
+    await p.waitForSelector(root, { timeout: 30000 });
+    await p.locator('[data-technique-primary]').first().click();
+    await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-mode') === 'practice', root, { timeout: 15000 });
+    for (let i = 0; i < 3; i++) {
+      await p.locator('[data-technique-clean]').first().click();
+      await p.waitForTimeout(250);
+    }
+    check('reload', 'three clean passes climb to 65 BPM', (await attr(p, root, 'data-tempo')) === '65', await attr(p, root, 'data-tempo'));
+    await p.reload({ waitUntil: 'load' });
+    await p.waitForSelector(root, { timeout: 30000 });
+    check('reload', 'after a reload mid-visit the best clean tempo (60) is kept (it was lost)', (await attr(p, root, 'data-best')) === '60', await attr(p, root, 'data-best'));
+    check('reload', 'and the next visit starts one rung under it, at 55', (await attr(p, root, 'data-tempo')) === '55', await attr(p, root, 'data-tempo'));
+    check('reload', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+/** The learner's saved progress, read from storage. */
+const progressOf = (page) => page.evaluate(() => {
+  try {
+    const raw = localStorage.getItem('ssa:progress');
+    return raw ? JSON.parse(raw).state : null;
+  } catch {
+    return null;
+  }
+});
+
+async function routineEndGroup() {
+  const s = await launch();
+  const p = s.page;
+  try {
+    await p.clock.install();
+    await s.goto('technique', 'tech-warm-up');
+    const root = '[data-technique-screen="routine"]';
+    await p.waitForSelector(root, { timeout: 30000 });
+    await p.locator('[data-technique-primary]').first().click();
+    await p.clock.runFor(301_000);
+    await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-finished') === 'true', root, { timeout: 10000 });
+    check('routine', 'five minutes later the warm-up is finished', true);
+    const label = (await p.textContent('[data-technique-primary]')) || '';
+    check('routine', 'the main button offers to start again', /Again from the top/.test(label), label);
+    await p.locator('[data-technique-primary]').first().click();
+    await p.clock.runFor(2_000);
+    check('routine', '"Again from the top" starts again on step one (it used to finish again at once)', (await attr(p, root, 'data-finished')) === 'false' && (await attr(p, root, 'data-running')) === 'true' && (await attr(p, root, 'data-step')) === 'open-strings', `${await attr(p, root, 'data-step')} running=${await attr(p, root, 'data-running')} finished=${await attr(p, root, 'data-finished')}`);
+    await p.clock.runFor(300_000);
+    await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-finished') === 'true', root, { timeout: 10000 });
+    await p.locator('[data-technique-finish]').first().click();
+    await p.waitForSelector('[data-technique-summary]', { timeout: 10000 });
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(400);
+    check('routine', 'after saving, the screen is ready for another run (no second "Save and finish")', (await p.$('[data-technique-finish]')) === null);
+    await s.goto('technique');
+    await p.waitForSelector('[data-technique-screen="hub"]', { timeout: 30000 });
+    await p.clock.runFor(2_000);
+    const state = await progressOf(p);
+    const skill = state && state.skills && state.skills['technique:tech-warm-up'];
+    check('routine', 'the finished warm-up is recorded once, even after leaving (it was recorded twice)', !!skill && skill.attempts === 1 && skill.completions === 1, JSON.stringify(skill && { attempts: skill.attempts, completions: skill.completions }));
+    check('routine', 'the hub then moves on from the warm-up', (await attr(p, '[data-technique-today]', 'data-technique-today')) !== 'warm-up');
+    check('routine', 'no console errors (to the end)', s.errors.length === 0, s.errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+async function largeTextGroup() {
+  const s = await launch({ mobile: true, viewport: { width: 360, height: 740 }, theme: 'light' });
+  const p = s.page;
+  try {
+    for (const route of [['technique'], ['technique', 'tech-spider'], ['technique', 'tech-bend-whole-step'], ['technique', 'tech-changes-pairs-3'], ['technique', 'tech-warm-up']]) {
+      await s.goto(...route);
+      await p.waitForSelector('[data-technique-screen]', { timeout: 30000 });
+      await p.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+      await p.waitForTimeout(600);
+      const over = await overflow(p);
+      check('large', `${route.join('--')} at 200% text, 360 px: no sideways scroll (the tempo stepper pushed it 128 px)`, over <= 1, `${over}px`);
+      if (!noShots && route.length === 2 && route[1] === 'tech-spider') {
+        await p.evaluate(() => document.querySelector('[data-technique-ladder]')?.scrollIntoView({ block: 'center' }));
+        await p.screenshot({ path: path.join(OUT, 'technique-large-text-phone.png') });
+      }
+    }
+    check('large', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
   } finally {
     await s.close();
   }
@@ -295,6 +397,13 @@ async function takeGroup() {
   check('take', 'it says how far from an even pulse the notes were', /Timing: on average \d+ ms from an even pulse/.test(r2.text || ''), r2.text);
   check('take', 'and the ladder does not climb', r2.tempo === '60', r2.tempo);
   check('take', 'no console errors (uneven take)', r2.errors.length === 0, r2.errors.join(' | '));
+
+  // Perfect timing, one wrong note (bar 2, note 4: D4 played as C#4). It used to be "Clean" and climb.
+  const wrong = scaleTake('scale-wrong-note', () => 0, 3.2, (i) => (i === 11 ? -1 : 0));
+  const r3 = await scaleTakeRun(wrong.fakeAudio);
+  check('take', 'a take with one wrong note is not clean, however even', r3.verdict !== 'clean', `${r3.verdict}: ${r3.text}`);
+  check('take', 'it names the bar, the note and the right pitch', /1 of 29 notes was a different note: bar 2, note 4 should be D4\./.test(r3.text || ''), r3.text);
+  check('take', 'and the ladder does not climb on a wrong note', r3.tempo === '60', r3.tempo);
 }
 
 async function bendRun(fakeAudio) {
@@ -393,6 +502,11 @@ async function changesGroup() {
     await p.getByRole('button', { name: 'Stop' }).click();
     await p.waitForTimeout(300);
     check('changes', 'Stop ends it', (await attr(p, root, 'data-phase')) === 'ready');
+    await s.goto('technique', 'tech-changes-pairs-3');
+    await p.waitForSelector(root, { timeout: 30000 });
+    const chips = await p.$$eval('[role="radiogroup"][aria-label="Chord pair"] [role="radio"]', (els) => els.map((e) => e.textContent.trim()));
+    check('changes', 'every pair the plan names is there, D – small F♯m included (it was missing)', chips.length === 6 && chips.includes('D – small F♯m'), chips.join(' | '));
+    check('changes', 'two pairs with the same chords have different names (both said "C – F")', new Set(chips).size === chips.length && chips.includes('C – small F') && chips.includes('C – barre F'), chips.join(' | '));
     check('changes', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
   } finally {
     await s.close();
@@ -446,11 +560,16 @@ async function shotsGroup() {
   try {
     await group('hub', hubGroup);
     await group('ladder', ladderGroup);
+    await group('reload', reloadGroup);
     await group('take', takeGroup);
     await group('bend', bendGroup);
     await group('health', healthGroup);
-    await group('routine', routineGroup);
+    await group('routine', async () => {
+      await routineGroup();
+      await routineEndGroup();
+    });
     await group('changes', changesGroup);
+    await group('large', largeTextGroup);
     if (!noShots || want('shots')) await group('shots', shotsGroup);
   } finally {
     await server.close();

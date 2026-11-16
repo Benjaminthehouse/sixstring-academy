@@ -24,8 +24,8 @@ import type { ChartPos } from '../model/jam';
 import type { ShapeMode } from '../model/voicings';
 import { Chart, ChordShapes, KeyPicker } from './Pieces';
 import { chordName, dialogOpen, keyName, noteName, ownsKey, scaleName, useRemembered } from './shared';
-import styles from './Progressions.module.css';
 import { BACKING_STYLES } from '@/core/audio';
+import styles from './Progressions.module.css';
 
 /** Props for {@link ProgressionPage}. */
 export interface ProgressionPageProps {
@@ -98,13 +98,12 @@ export function ProgressionPage({ progression: p, tonic }: ProgressionPageProps)
   }, [p, tonic, shapeOf]);
   const playing = now !== null;
 
-  const tapChord = useCallback((c: ResolvedChord, pos: ChartPos) => {
-    setNow(null);
+  const tapChord = useCallback((c: ResolvedChord) => {
+    stopPreview(owner.current);
     void strumChord(c.symbol, shapeOf.get(c.symbol));
-    void pos;
   }, [shapeOf]);
   const tapShape = useCallback((c: ChordCard) => {
-    setNow(null);
+    stopPreview(owner.current);
     void strumChord(c.symbol, c.voicing?.midi);
   }, []);
 
