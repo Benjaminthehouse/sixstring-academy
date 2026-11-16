@@ -446,3 +446,91 @@ describe('explanations say exactly what the exercise shows', () => {
     expect(seen).toBeGreaterThan(0);
   });
 });
+
+// Found by an independent review that sampled 240 exercises per parameter variant and checked them
+// from first principles (letters and half steps counted by hand), not with the engine.
+describe('review: faults an outside check found', () => {
+  const text = (e: Exercise): string => plainText(('prompt' in e && e.prompt ? e.prompt : '') as string) + ' || ' + plainText(('explain' in e ? e.explain : '') as string);
+  const LETTERS = 'CDEFGAB';
+  /** Spelled interval from a to b counted by hand: letters for the number, half steps for the quality. */
+  const byHand = (a: string, b: string): string => {
+    const pa = parseNote(a)!;
+    const pb = parseNote(b)!;
+    const number = ((LETTERS.indexOf(pb.letter) - LETTERS.indexOf(pa.letter) + 7) % 7) + 1;
+    const semis = (pb.midi ?? 0) - (pa.midi ?? 0);
+    const base = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11 }[number]!;
+    const perfect = [1, 4, 5].includes(number);
+    const d = ((semis % 12) + 12) % 12 - base;
+    const quality = perfect ? { [-1]: 'd', 0: 'P', 1: 'A' }[d] : { [-2]: 'd', [-1]: 'm', 0: 'M', 1: 'A' }[d];
+    return number === 1 && semis === 12 ? 'P8' : `${quality ?? '?'}${number}`;
+  };
+
+  it('interval-ear names the two notes with the spelling of the interval played (no "E♭ up to E" for a minor second)', () => {
+    for (const play of ['up', 'down', 'together'] as const) {
+      for (let seed = 0; seed < 240; seed++) {
+        const e = generateStrict({ generate: 'interval-ear', params: { play } }, { seed, difficulty: (seed % 4) / 3 });
+        if (e.type !== 'listen-choice' || e.sound.kind !== 'interval') throw new Error('expected an interval');
+        const t = plainText(e.explain ?? '');
+        const m = /here (\S+) (?:up to|down to|and) (\S+?)(?: together)?\.$/.exec(t);
+        expect(m, t).not.toBeNull();
+        const [lower, upper] = play === 'down' ? [m![2], m![1]] : [m![1], m![2]];
+        expect(byHand(lower.replace('♯', '#').replace('♭', 'b'), upper.replace('♯', '#').replace('♭', 'b')), `seed ${seed}: ${t}`).toBe(e.sound.interval);
+        expect(parseNote(lower.replace('♯', '#').replace('♭', 'b'))!.midi, t).toBe(parseNote(e.sound.from)!.midi);
+        expect(Math.abs(parseNote(upper.replace('♯', '#').replace('♭', 'b'))!.alt), `${t}: no double accidentals`).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('interval-name never offers "Perfect unison" or a ninth beside an octave', () => {
+    let octaves = 0;
+    for (let seed = 0; seed < 400; seed++) {
+      const e = generateStrict({ generate: 'interval-name' }, { seed, difficulty: 1 });
+      if (e.type !== 'choice') throw new Error('expected a choice');
+      const texts = e.options.map((o) => plainText(String(o.text)));
+      if (texts.some((t, i) => e.options[i].correct && t === 'Perfect octave')) octaves++;
+      expect(texts.join(', '), `seed ${seed}`).not.toMatch(/unison|ninth|tenth/i);
+    }
+    expect(octaves).toBeGreaterThan(5);
+  });
+
+  it('diatonic-chord in a minor key says it means the natural minor scale, and mentions the raised 7th for the 5th degree', () => {
+    let fifths = 0;
+    for (const ask of ['chord', 'quality'] as const) {
+      for (let seed = 0; seed < 240; seed++) {
+        const e = generateStrict({ generate: 'diatonic-chord', params: { ask, modes: ['minor'], maxAccidentals: 7, sevenths: seed % 2 === 0 } }, { seed, difficulty: 1 });
+        const t = text(e);
+        expect(t, `seed ${seed}`).toMatch(/note of the natural minor scale/);
+        expect(t, `seed ${seed}`).toMatch(/natural minor scale:/);
+        if (/the 5th note/.test(t)) {
+          fifths++;
+          expect(t, `seed ${seed}`).toMatch(/raised \(harmonic minor\) it becomes [A-G][♯♭]?(7)?,/);
+        }
+      }
+    }
+    expect(fifths).toBeGreaterThan(10);
+    // Major keys keep the short wording.
+    const major = generateStrict({ generate: 'diatonic-chord' }, { seed: 3 });
+    expect(text(major)).toMatch(/note of the scale\?/);
+  });
+
+  it('note-value-math: no dotted note unless dotted notes are switched on, and no dotted whole note "in 4/4"', () => {
+    for (let seed = 0; seed < 400; seed++) {
+      const sum = generateStrict({ generate: 'note-value-math', params: { ask: 'sum' } }, { seed, difficulty: (seed % 4) / 3 });
+      if (sum.type !== 'choice') throw new Error('expected a choice');
+      expect(sum.options.map((o) => String(o.text)).join(', '), `seed ${seed}`).not.toMatch(/dotted/i);
+      const beats = generateStrict({ generate: 'note-value-math', params: { ask: 'beats', dotted: true } }, { seed, difficulty: 1 });
+      expect(text(beats), `seed ${seed}`).not.toMatch(/dotted whole/);
+    }
+    // With dotted notes on, sums that make a dotted note still come up.
+    const dotted = Array.from({ length: 200 }, (_u, seed) => generateStrict({ generate: 'note-value-math', params: { ask: 'sum', dotted: true } }, { seed, difficulty: 1 }));
+    expect(dotted.some((e) => e.type === 'choice' && e.options.some((o) => o.correct && /Dotted/.test(String(o.text))))).toBe(true);
+  });
+
+  it('enharmonic explains without words a first lesson has not taught yet (fret, half step)', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      const t = text(generateStrict({ generate: 'enharmonic' }, { seed }));
+      expect(t).toMatch(/The note between/);
+      expect(t).not.toMatch(/fret|half step/);
+    }
+  });
+});

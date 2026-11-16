@@ -5,14 +5,14 @@
  */
 import { chordVoicings, midiAt, positionsForMidi, positionsForPitchClass, spellMidi, tuning as resolveTuning } from '@/core/guitar';
 import {
-  chordNotes, chordPcs, distractorIntervals, distractorNotes, getScale, interval, intervalName, parseChord, parseInterval, parseNote, scaleNotes,
+  chordNotes, chordPcs, distractorNotes, getScale, interval, intervalName, parseChord, parseNote, scaleNotes,
   scalePcs, semitonesToDegree, semitonesToInterval,
 } from '@/core/theory';
 import { spellInterval } from '../grade';
 import type {
   ChordBuildExercise, Exercise, FretboardFindExercise, FretboardNameExercise, NeckPosition, OrderExercise, PlayNoteExercise, TypeAnswerExercise,
 } from '../types';
-import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, noteList, ordinal, pool, retry, scaleTitle } from './core';
+import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, noteList, ordinal, pool, retry, scaleTitle } from './core';
 
 const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'P8', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
@@ -80,18 +80,7 @@ export const intervalOnNeck = defineGenerator({
         return out;
       }
       const value = semitonesToInterval(ivl.semitones);
-      // Distractors stay within the simple intervals of the pool (no P1 or m9 next to an octave),
-      // the engine's usual confusions first, one name per size.
-      const simple = (i: string): boolean => {
-        const s = parseInterval(i)?.semitones ?? 0;
-        return s >= 1 && s <= 12;
-      };
-      const wrong = distinct(
-        [...distractorIntervals(value, { count: 6 }).filter(simple), ...rng.shuffle(p.intervals ?? INTERVALS_EASY_FIRST)],
-        (i) => interval(i).semitones,
-        3,
-        [ivl.semitones],
-      );
+      const wrong = intervalDistractors(rng, value, p.intervals ?? INTERVALS_EASY_FIRST);
       const out: FretboardNameExercise = {
         ...base,
         ask: 'interval',

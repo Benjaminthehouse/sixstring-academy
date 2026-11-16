@@ -29,6 +29,7 @@ staff of lone 1s ...).
 
 ```ts
 findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, profileValleys   // segment.ts
+findStackCuts, applyStackCuts                    // segment.ts: split touching chord numbers (README 9.1)
 refineBox, extractPatch, classifyPatch, correlate, lineProfileAt               // glyph.ts
 readCluster, assembleLine, buildNumber, glyphConfidence, MAX_FRET               // numbers.ts
 templatesAtBlur(level), struckTemplates(level, centre, thickness), loadTemplates // templates.ts

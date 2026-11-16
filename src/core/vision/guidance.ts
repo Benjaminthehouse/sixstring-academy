@@ -79,11 +79,12 @@ export const OPERATING_LIMITS = {
    */
   minStringSpacingPx: 3.5,
   /**
-   * Beyond this the view is too oblique: with markers drawn on the raised strings, cells stayed
-   * 98-100% right up to 62 degrees on the alt sweep "tilt", but nothing beyond was measured and the
-   * angle estimate itself is coarse.
+   * Beyond this the view is too oblique. With the dots drawn on the raised strings, the alt sweep
+   * "tilt" (5 scenes per angle, lens distortion and motion on) kept 99-100% of the cells right up to
+   * 55 degrees and fell to 94% at 62 (81% of locked frames fully right); the angle estimate itself
+   * is good to a few degrees there.
    */
-  maxOffNormalDeg: 58,
+  maxOffNormalDeg: 55,
   /**
    * Sensor noise (gray levels, robust estimate) above which the picture counts as too dark. Tracking
    * held at the highest noise the benches produced (about 15 on the alt "dim" scene, a gain-cranked

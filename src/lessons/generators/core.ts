@@ -2,7 +2,7 @@
  * Shared machinery of the exercise generators: the definition shape, the difficulty-aware pools,
  * parameter checks and small wording helpers.
  */
-import { MAJOR_KEYS, MINOR_KEYS, getChordType, getScale, parseInterval, parseNote, type Key } from '@/core/theory';
+import { MAJOR_KEYS, MINOR_KEYS, distractorIntervals, getChordType, getScale, interval, parseInterval, parseNote, type Key } from '@/core/theory';
 import type { Rng } from '../rng';
 import type { ChoiceExercise, ChoiceOption, CourseLevel, Exercise, ExerciseType, GeneratorKind } from '../types';
 import type { GeneratorParamsMap } from './params';
@@ -138,6 +138,19 @@ export function choiceOf(
   if (fields.shuffle === false) out.shuffle = false;
   if (fields.spelling) out.spelling = fields.spelling;
   return out;
+}
+
+/**
+ * Wrong interval names for a question whose answer is `answer`: the engine's usual confusions
+ * first, then the author's pool, only simple intervals (m2 to P8: no unison or ninth beside an
+ * octave, which a learner could argue for) and one name per size.
+ */
+export function intervalDistractors(rng: Rng, answer: string, poolList: readonly string[], n = 3): string[] {
+  const simple = (i: string): boolean => {
+    const s = parseInterval(i)?.semitones ?? 0;
+    return s >= 1 && s <= 12;
+  };
+  return distinct([...distractorIntervals(answer, { count: 6 }).filter(simple), ...rng.shuffle(poolList).filter(simple)], (i) => interval(i).semitones, n, [interval(answer).semitones]);
 }
 
 /** Keep the first `n` items whose key has not been seen (and is not in `taken`). */

@@ -1,0 +1,279 @@
+/*
+ * The player fills the screen below the shell's bars: no page scroll, the score scrolls inside
+ * itself. Three arrangements (see PlayerScreen.tsx): bar (upright phones, tablets), rail (a phone
+ * held sideways) and wide (desktop, with a side panel).
+ */
+.page[data-ui-page] {
+  --_pb: 0px;
+  padding-top: var(--sp-2);
+  padding-bottom: 0;
+}
+@media (min-width: 720px) {
+  .page[data-ui-page] {
+    padding-top: var(--sp-4);
+  }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .page[data-ui-page] {
+    --page-gutter: max(var(--sp-3), env(safe-area-inset-left, 0px));
+    padding-top: var(--sp-2);
+  }
+}
+
+.loading {
+  display: grid;
+  gap: var(--sp-4);
+  padding-block: var(--sp-4);
+}
+
+.screen {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+  height: calc(100dvh - var(--sticky-top, 0px) - var(--sticky-bottom, 0px) - var(--sp-2));
+  min-height: 22rem;
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 0;
+  min-width: 0;
+}
+
+.neck {
+  flex: 0 0 auto;
+}
+
+/* ── bar: upright phones and tablets ── */
+.bar {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'chips' 'main' 'dock';
+}
+.bar[data-chips='no'] {
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'main' 'dock';
+}
+.chipRow {
+  grid-area: chips;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.chips {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.dock {
+  grid-area: dock;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0 max(var(--sp-2), env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+}
+.dockRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .dock {
+    padding-inline: var(--sp-2);
+  }
+  .dockRow {
+    justify-content: center;
+    gap: var(--sp-5);
+  }
+}
+
+/* ── rail: a phone held sideways ── */
+.rail {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'main controls';
+  gap: var(--sp-3);
+  height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-2) - env(safe-area-inset-bottom, 0px));
+  min-height: 0;
+}
+.railControls {
+  grid-area: controls;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-1) max(0px, env(safe-area-inset-right, 0px)) var(--sp-2) 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* ── wide: desktop with a side panel ── */
+.wide {
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: 'head side' 'chips side' 'main side';
+  column-gap: var(--sp-6);
+  row-gap: var(--sp-3);
+  height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-4) - var(--sp-4));
+}
+.wide[data-chips='no'] {
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: 'head side' 'main side';
+}
+.head {
+  grid-area: head;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--sp-1) var(--sp-6) var(--sp-6);
+  margin-right: calc(var(--sp-1) * -1);
+  border-left: 1px solid var(--line);
+  scrollbar-width: thin;
+}
+.modeHint {
+  margin-top: calc(var(--sp-2) * -1);
+  min-height: 2.6em;
+}
+.transport {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+.sideBlock {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.info {
+  min-width: 0;
+}
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta {
+  margin: var(--sp-1) 0 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.25em;
+}
+
+/* ── overlays on the score ── */
+.bannerWrap {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  right: var(--sp-2);
+  display: flex;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+.banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 36rem;
+  padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-2);
+  font-size: var(--text-sm);
+}
+.banner[data-tone='info'] {
+  border-color: var(--info);
+  color: var(--fg);
+}
+.banner > span {
+  min-width: 0;
+}
+.runBadge {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: calc(100% - 9rem);
+  z-index: 4;
+}
+.runBadge :global(button) {
+  background: var(--surface-2);
+  box-shadow: var(--shadow-1);
+}
+.pass {
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--info-soft);
+  color: var(--info-text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.trainerNote {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  background: var(--surface-2);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tapPad {
+  min-width: 7rem;
+  min-height: 3.5rem;
+  font-size: var(--text-lg);
+  touch-action: manipulation;
+}
+.rail .tapPad {
+  min-width: 4.5rem;
+  min-height: 4.5rem;
+  border-radius: var(--r-pill);
+}
+
+.hostNotice {
+  flex: 0 0 auto;
+}
+
+.sheetBody {
+  display: grid;
+  gap: var(--sp-5);
+}
+.sheetChips {
+  display: grid;
+  gap: var(--sp-2);
+}

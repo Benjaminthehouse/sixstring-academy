@@ -52,6 +52,17 @@
   min-height: 6rem;
 }
 
+/* Tap along: the score is the pad. */
+.tapping {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.tapping:active {
+  border-color: var(--accent);
+}
+
 /* ── heat strip: drawn inside the tab's content, under the notes, over the bars that went wrong ── */
 .heat {
   position: absolute;

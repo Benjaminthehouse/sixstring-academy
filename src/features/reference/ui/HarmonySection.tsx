@@ -84,8 +84,9 @@ export function HarmonySection({ item, reveal, fmt }: SectionProps) {
         </table>
       </div>
       <Text variant="caption" tone="muted">
-        Numerals count from the major scale, so in minor ♭III is the chord on the lowered third degree (many books write it III).
-        {mode === 'minor' && ' The last two columns come from harmonic minor: its raised 7th turns v into a major V and ♭VII into a diminished vii°, which pull harder toward home.'}
+        {mode === 'minor'
+          ? 'Numerals count from the major scale, so ♭III is the chord on the lowered third degree (many books write it III). The last two columns come from harmonic minor: its raised 7th turns v into a major V and ♭VII into a diminished vii°, which pull harder toward home.'
+          : 'Every major key has the same pattern: major I, IV and V; minor ii, iii and vi; a diminished vii°.'}
       </Text>
     </div>
   );

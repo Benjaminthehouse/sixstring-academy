@@ -137,16 +137,16 @@ const DRAW: Record<string, () => ReactNode> = {
   marcato: () => (
     <>
       <Staff from={20} to={76} />
-      <Note x={46} y={25} />
-      <polyline points="44,8 49,1 54,8" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" />
+      <Note x={46} y={31} />
+      <polyline points="45,8 50,1 55,8" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" />
     </>
   ),
   fermata: () => (
     <>
       <Staff from={20} to={76} />
-      <Note x={46} y={25} />
-      <path d="M38 7 A 11 9 0 0 1 60 7" fill="none" stroke="currentColor" strokeWidth={2} />
-      <circle cx={49} cy={6} r={1.8} fill="currentColor" />
+      <Note x={46} y={31} />
+      <path d="M40 8 A 10 7 0 0 1 60 8" fill="none" stroke="currentColor" strokeWidth={2} />
+      <circle cx={50} cy={6} r={1.6} fill="currentColor" />
     </>
   ),
   slur: () => (

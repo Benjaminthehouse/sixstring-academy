@@ -45,6 +45,7 @@ export function ChordsSection({ item, level, fmt, sounder }: SectionProps) {
           options={[{ value: 'all', label: 'All' }, ...CHORD_CATEGORIES.map((c) => ({ value: c.id as Filter, label: shortTitle(c.title) }))]}
           value={filter}
           onChange={setFilter}
+          className={styles.grow}
         />
       </div>
       <Text variant="caption" tone="muted">
@@ -91,7 +92,7 @@ function ChordItem({ row, fmt, tuning, sounder }: { row: ChordRow; fmt: SectionP
         ))}
       </span>
       <span className={styles.chNotes}>{fmt.notes(row.notes)}</span>
-      <Lazy minHeight="4.75rem" minWidth="3.5rem" className={styles.chShape}>
+      <Lazy minHeight="7rem" minWidth="5.75rem" className={styles.chShape}>
         {() => <ShapeButton symbol={row.symbol} tuning={tuning} fmt={fmt} sounder={sounder} />}
       </Lazy>
     </li>
@@ -110,7 +111,7 @@ function ShapeButton({ symbol, tuning, fmt, sounder }: { symbol: string; tuning:
   const id = `shape:${symbol}`;
   return (
     <button type="button" className={styles.shapeButton} aria-label={`Play ${fmt.chord(symbol)}`} aria-pressed={sounder.playing === id} onClick={() => sounder.toggle(id, () => strumChord(symbol, tuning))}>
-      <ChordDiagram voicing={voicing} size="xs" />
+      <ChordDiagram voicing={voicing} size="sm" title={false} />
     </button>
   );
 }

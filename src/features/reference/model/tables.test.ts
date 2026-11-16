@@ -7,7 +7,7 @@ import { CHORD_TYPES, MAJOR_KEYS, MINOR_KEYS, SCALES, chordNotes, scaleNotes } f
 import { TUNINGS, tuning } from '@/core/guitar';
 import { CHORD_ROOTS, chordGroups } from './chords';
 import { harmonyTable } from './harmony';
-import { scaleGroups } from './scales';
+import { displayAliases, scaleGroups } from './scales';
 import { changeSummary, retuneWords, tuningGroups } from './tunings';
 
 describe('chord formulas', () => {
@@ -78,6 +78,12 @@ describe('scale formulas', () => {
     expect(show('harmonic-minor').startsWith('1 2 b3 4 5 b6 7 | W H W W H')).toBe(true);
     expect(byId['minor-pentatonic'].notes).toEqual(['C', 'Eb', 'F', 'G', 'Bb']);
     expect(byId['minor-blues'].degrees).toEqual(['1', 'b3', '4', 'b5', '5', 'b7']);
+  });
+
+  it('shows only the useful other names', () => {
+    expect(displayAliases('Major', ['Ionian', 'Ionian mode', 'Major scale', 'Bilawal', 'Ajam'])).toEqual(['Ionian', 'Bilawal']);
+    expect(displayAliases('Egyptian', ['Suspended pentatonic', 'Suspended'])).toEqual(['Suspended pentatonic']);
+    expect(displayAliases('Dorian', ['Dorian mode', 'Kafi'])).toEqual(['Kafi']);
   });
 
   it('keeps the modes of the major scale in mode order', () => {

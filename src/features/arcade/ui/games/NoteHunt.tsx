@@ -227,7 +227,7 @@ export function NoteHunt({ ctx, input, mic, anyOctave, running, fx, title, onFin
       timer={timed ? <CountdownRing seconds={level.seconds!} running={running} onDone={onTimeUp} size={44} /> : undefined}
       onEnd={onEnd}
       prompt={prompt}
-      status={status.text ? <Text tone={status.kind === 'hit' ? 'ok' : status.kind === 'miss' ? 'bad' : 'muted'} weight="semibold">{status.text}</Text> : <Text tone="muted">{running ? (input === 'mic' ? 'Listening. Play the note on your guitar, or tap it.' : 'Tap the dot on the neck.') : 'Get ready…'}</Text>}
+      status={status.text ? <Text tone={status.kind === 'hit' ? 'ok' : status.kind === 'miss' ? 'bad' : 'muted'} weight="semibold">{status.text}</Text> : <Text tone="muted">{running ? (input === 'mic' ? 'Listening. Play the note on your guitar, or tap it.' : level.mode === 'lit' ? 'Tap the lit dot on the neck.' : 'Tap it on the neck.') : 'Get ready…'}</Text>}
       statusKind={status.kind}
       board={
         <div ref={boardRef} className={styles.board}>

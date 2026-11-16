@@ -121,7 +121,7 @@ if (g.trust === 'auto') drawNotes(); else showLine(g.message);   // set React st
 | `too-dark` | mean brightness < 30 or sensor noise > 16 grey levels (`OPERATING_LIMITS`) | `wait` |
 | `too-bright` | > 30% of the picture clipped (a window or lamp behind the player) | `wait` |
 | `move-closer` | strings < 3.5 px apart at the working size | `wait` |
-| `tilt-toward-camera` | board seen more than 58 degrees off its normal | `wait` |
+| `tilt-toward-camera` | board seen more than 55 degrees off its normal | `wait` |
 | `hold-still` | lost, coasting through blur, or a new board not yet held 3 frames | `wait` |
 | `show-nut` | numbers are a guess and the nut is out of view | `confirm` |
 | `confirm-fret` | the "Is this fret N?" question is up (`message` names the fret) | `confirm`: one tap |
@@ -144,7 +144,7 @@ res.markers  // [{ string, fret, x, y, radius, visible, note }] in CSS px: hit-t
 // 1.3-7 mm above the wood) and between the wire crowns as seen. The camera is recovered from the
 // tracked frame's pose (`cameraCentre(pose)`); `placeMarkers(pose, notes, camera)` / `projectMarkerSeen`
 // do the same for your own drawing. Front-on this is `projectMarker`; 55 degrees off it moves a dot by
-// up to a string spacing (without it, cells were 49-89% right at 48-62 degrees on the alt bench, with it 98-100%).
+// up to a string spacing (alt bench, 48-62 degrees: cells 49-89% right without it, 94-99% with it).
 OverlayNote { string, fret, label?: 'R' | 'b3' | 'C#' | '2'..., degree?: 1..7 /* --deg-N fill, --deg-N-fg text */, target?: boolean /* pulse */, ghost?: boolean }
 readOverlayPalette(element)   // tokens: --deg-1..7(-fg), --deg-x, --accent, --surface, --fg, --bg, --ok, --warn, --bad, fonts
 ```
@@ -267,7 +267,8 @@ On the alt bench (`ALT_SEEDS=1,2,3,4 ALT_FRAMES=24`, cold start, 4 scenes x 24 f
   typical rooms with a hand on the neck, nut out of view (inlays), heavy grain, worn first positions,
   oxidised low-contrast frets, gold or black hardware, dull / coated / nylon strings, a classical
   neck without dots, 7-string and bass necks given the right `NeckModel`, a long sleeve, a capo at
-  any fret 1-7 (numbering always that of the board; the capo is never taken for the nut), a strap
+  any fret 1-7 with the nut in view or not (70 scenes: numbering always that of the board, the capo
+  never taken for the nut), a strap
   over the nut, a music-stand edge across the neck, saturated stage light, a very dim gain-cranked
   room, a window behind, blinds / keyboard / a second guitar behind, portrait phone (360x640),
   320x240, interlaced fields, rolling flicker, mirrored frames, left-handed. Without a guitar
@@ -287,9 +288,10 @@ On the alt bench (`ALT_SEEDS=1,2,3,4 ALT_FRAMES=24`, cold start, 4 scenes x 24 f
     strings (2 of 4 scenes): the string-count check cannot see the seventh. Pick the right guitar type.
 
 **Operating limits** (`OPERATING_LIMITS`, from one-knob sweeps on the alt bench): strings at least
-3.5 px apart at the 640-wide working frame (nothing is found below about 3 px); up to about 58
-degrees off the board normal (measured right to 62); mean brightness 30 or more (tracking failed in
-half the scenes at 26, in all at 21); noise verified up to about 15 grey levels.
+3.5 px apart at the 640-wide working frame (nothing is found below about 3 px); up to 55 degrees off
+the board normal (cells 99-100% right to 55, 94% at 62; one scene in five was numbered a fret off at
+48); mean brightness 30 or more (tracking failed in half the scenes at 26, in all at 21); noise
+verified up to about 15 grey levels.
 
 **When to ask, when to calibrate.** Automatic lock is trusted (`trust: 'auto'`) only when locked
 with numbers that rest on the nut, the inlays, markers or the learner, inside the limits above.

@@ -40,6 +40,11 @@ function safe(fn: () => string, fallback: string): string {
   }
 }
 
+/** Accidentals in a plain name (`Drop C#` -> `Drop C♯`, `Eb standard` -> `E♭ standard`). */
+export function prettyName(text: string): string {
+  return text.replace(/\b([A-G])#/g, '$1♯').replace(/\b([A-G])b\b/g, '$1♭');
+}
+
 /** The formatters for the learner's naming setting. */
 export function useFmt(): Fmt {
   const { naming } = useMusicSettings();

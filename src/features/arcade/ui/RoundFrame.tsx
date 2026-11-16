@@ -87,7 +87,6 @@ export function RoundFrame({ title, progress, score, combo, timer, onEnd, prompt
           ))}
         </div>
       )}
-      {wide ? null : null}
     </div>
   );
 }

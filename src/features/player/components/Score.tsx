@@ -36,13 +36,15 @@ export interface ScoreProps {
   size: 'sm' | 'md' | 'lg';
   /** Strum parts show chord boxes above each change. */
   diagrams: boolean;
+  /** Tap along: the whole score is a tap pad (pointer down, timed by the event). */
+  onTapDown?: (timeStamp: number) => void;
   /** Things drawn over the score box (count-in, prompts). */
   children?: ReactNode;
 }
 
 /** The score box. */
 export function Score(props: ScoreProps) {
-  const { engine, song, track, layer, line, running, loop, picking, onLoopChange, onSeek, noteStates, heat, size, diagrams, children } = props;
+  const { engine, song, track, layer, line, running, loop, picking, onLoopChange, onSeek, noteStates, heat, size, diagrams, onTapDown, children } = props;
   const tab = useRef<TabViewHandle>(null);
   const box = useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -136,7 +138,19 @@ export function Score(props: ScoreProps) {
 
   return (
     <div className={cx(styles.wrap, line && styles.wrapLine)}>
-      <div ref={box} className={cx(styles.box, line && styles.boxLine, picking && styles.picking)} data-player-score="">
+      <div
+        ref={box}
+        className={cx(styles.box, line && styles.boxLine, picking && styles.picking, onTapDown && styles.tapping)}
+        data-player-score=""
+        onPointerDown={
+          onTapDown
+            ? (e) => {
+                if (e.button !== 0) return;
+                onTapDown(e.timeStamp);
+              }
+            : undefined
+        }
+      >
         <TabView
           ref={tab}
           song={song}
@@ -147,8 +161,8 @@ export function Score(props: ScoreProps) {
           chords={diagrams ? 'diagrams' : true}
           loop={loop}
           onLoopChange={onLoopChange}
-          onSeek={onSeek}
-          pick={picking ? 'loop' : 'seek'}
+          onSeek={onTapDown ? undefined : onSeek}
+          pick={onTapDown ? 'none' : picking ? 'loop' : 'seek'}
           noteStates={noteStates}
           autoScroll={line}
           className={styles.tab}

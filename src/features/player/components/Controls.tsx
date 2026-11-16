@@ -110,7 +110,7 @@ export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick
   return (
     <div className={styles.group} data-player-loop-options="">
       <div className={styles.loopRow}>
-        <Text weight={600}>{state.loop ? `${loopLabel(state.loop)}` : 'No loop yet'}</Text>
+        <Text weight="semibold">{state.loop ? `${loopLabel(state.loop)}` : 'No loop yet'}</Text>
         <ButtonGroup>
           <Button size="sm" iconLeft="MousePointerClick" onClick={onPick}>
             {state.loop ? 'Change bars' : 'Choose bars'}

@@ -8,7 +8,7 @@ import { href } from '@/app/router';
 import { usePrefs } from '@/core/progress';
 import { learnerTuning } from '@/core/settings';
 import { noteSlug } from '@/core/theory';
-import { Button, Icon, LinkButton, Section, Text, cx } from '@/ui';
+import { ActionBar, Button, Icon, LinkButton, Section, Text, cx, useIsMobile } from '@/ui';
 import { CircleOfFifths, DegreeLegend, Fretboard, NotationView, scaleMarkers } from '@/ui/music';
 import { cadenceOf, circleKey, functionLetter, keyChordRow, keyFromParam, neckScaleOf, neighboursOf, signatureWords, DEFAULT_KEY, type KeyChord } from '../model/circle';
 import { raisedSeventh, scaleLine } from '../model/keys';
@@ -29,6 +29,7 @@ export function functionWord(f: KeyChord['function']): string {
 /** The circle of fifths page. */
 export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProps) {
   const prefs = usePrefs();
+  const isPhone = useIsMobile();
   const tuning = useMemo(() => learnerTuning(prefs), [prefs]);
   const [keyName, setKeyName] = useState(() => keyFromParam(item)?.name ?? DEFAULT_KEY);
   useEffect(() => {
@@ -60,6 +61,11 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
   const cadenceLabel = cadence.romans.map(fmt.roman).join('–');
   const mainChords = chords.filter((c) => c.variant !== 'harmonic');
   const borrowed = chords.filter((c) => c.variant === 'harmonic');
+  const playButton = (
+    <Button variant="primary" size="lg" iconLeft={playingCadence ? 'Square' : 'Play'} onClick={playCadence} pressed={playingCadence} aria-label={playingCadence ? 'Stop' : `Play ${cadenceLabel} in ${fmt.key(k.name)}`}>
+      {playingCadence ? 'Stop' : `Play ${cadenceLabel}`}
+    </Button>
+  );
   const relative = keyFromParam(k.relative);
   const parallel = keyFromParam(k.parallel);
 
@@ -98,12 +104,25 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
             </div>
           </div>
 
+          <dl className={styles.facts}>
+            <div>
+              <dt>Scale</dt>
+              <dd className={styles.mono}>{fmt.notes(k.scale)}</dd>
+            </div>
+            <div>
+              <dt>Home chord</dt>
+              <dd>{fmt.chord(chords[0].symbol)}</dd>
+            </div>
+            <div>
+              <dt>{k.mode === 'minor' ? 'Leading tone' : 'Dominant'}</dt>
+              <dd>{k.mode === 'minor' ? `${fmt.note(raisedSeventh(k) ?? '')} (raised 7th)` : fmt.chord(chords[4].symbol)}</dd>
+            </div>
+          </dl>
+
           <div className={styles.playRow}>
-            <Button variant="primary" size="lg" iconLeft={playingCadence ? 'Square' : 'Play'} onClick={playCadence} pressed={playingCadence} aria-label={playingCadence ? 'Stop' : `Play ${cadenceLabel} in ${fmt.key(k.name)}`}>
-              {playingCadence ? 'Stop' : `Play ${cadenceLabel}`}
-            </Button>
+            {!isPhone && playButton}
             <Text variant="caption" tone="muted">
-              {cadence.chords.map(fmt.chord).join(' – ')}
+              {cadenceLabel} in {fmt.key(k.name)}: {cadence.chords.map(fmt.chord).join(' – ')}
             </Text>
           </div>
         </div>
@@ -166,6 +185,7 @@ export function CircleSection({ item, reveal, level, fmt, sounder }: SectionProp
           <Icon name="KeyRound" size="xs" /> All key signatures
         </a>
       </Section>
+      {isPhone && <ActionBar>{playButton}</ActionBar>}
     </div>
   );
 }

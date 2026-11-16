@@ -7,6 +7,7 @@ import { usePrefs } from '@/core/progress';
 import { Badge, LinkButton, Section, Text } from '@/ui';
 import { TuningLabel } from '@/ui/music';
 import { changeSummary, tuningGroups, type TuningRow } from '../model/tunings';
+import { prettyName } from './format';
 import { PlayIcon } from './IntervalsSection';
 import type { SectionProps } from './SectionBody';
 import { playOpenStrings } from './sound';
@@ -45,14 +46,14 @@ function TuningItem({ row, mine, sounder }: { row: TuningRow; mine: boolean; sou
         <PlayIcon playing={sounder.playing === id} label={`Play the open strings of ${row.name}`} onClick={() => sounder.toggle(id, () => playOpenStrings(row.midi))} />
         <div className={styles.tuTitles}>
           <span className={styles.tuName}>
-            {row.name}
+            {prettyName(row.name)}
             {mine && (
               <Badge tone="accent" size="sm" icon="Check">
                 Your tuning
               </Badge>
             )}
           </span>
-          <TuningLabel tuning={row.id} className={styles.tuNotes} />
+          <TuningLabel tuning={row.id} showName={false} className={styles.tuNotes} />
         </div>
       </div>
       <p className={styles.tuText}>{row.description}</p>

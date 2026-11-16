@@ -62,7 +62,8 @@ export const noteValueMath = defineGenerator({
     const ask = p.ask ?? 'fit';
     if (ask === 'beats') {
       const value = rng.pick(values);
-      const dots = p.dotted && value !== 'sixteenth' && rng.chance(0.4) ? 1 : 0;
+      // No dotted whole note: at six beats it cannot fit in a bar of 4/4.
+      const dots = p.dotted && value !== 'sixteenth' && value !== 'whole' && rng.chance(0.4) ? 1 : 0;
       const ticks = dots ? dottedTicks(ticksOf(value)) : ticksOf(value);
       // Wrong answers stay within what the lesson has taught: dotted lengths only when dotted notes are in play.
       const others = [...VALUES.map((v) => ticksOf(v)), ...(p.dotted ? (['half', 'quarter', 'eighth'] as const).map((v) => dottedTicks(ticksOf(v))) : [])];
@@ -77,16 +78,18 @@ export const noteValueMath = defineGenerator({
       );
     }
     if (ask === 'sum') {
+      // Without dotted notes in play, only sums that make a plain note (two quarters make a half).
+      const needsDot = (ticks: number): boolean => !p.dotted && !VALUES.some((v) => ticksOf(v) === ticks);
       const pair = retry(
-        20,
+        40,
         () => [rng.pick(values), rng.pick(values)] as const,
         // Nothing longer than a whole note: a "double whole note" is not worth a beginner's time.
-        ([a, b]) => nameOfTicks(ticksOf(a) + ticksOf(b)) !== null && ticksOf(a) + ticksOf(b) <= ticksOf('whole'),
+        ([a, b]) => nameOfTicks(ticksOf(a) + ticksOf(b)) !== null && ticksOf(a) + ticksOf(b) <= ticksOf('whole') && !needsDot(ticksOf(a) + ticksOf(b)),
         () => ['quarter', 'quarter'] as const,
       );
       const total = ticksOf(pair[0]) + ticksOf(pair[1]);
       const right = nameOfTicks(total)!;
-      const candidates = [...VALUES.map((v) => valueName(v)), valueName('half', 1), valueName('quarter', 1)];
+      const candidates = [...VALUES.map((v) => valueName(v)), ...(p.dotted ? [valueName('half', 1), valueName('quarter', 1)] : [])];
       return choiceOf(
         rng,
         {

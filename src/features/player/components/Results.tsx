@@ -71,11 +71,11 @@ export function Results({ results, barCount, onClose, onAgain, onSuggestion }: R
                     {results.best}
                   </p>
                 )}
-                {results.activity && results.activity.xp > 0 && <XpChip value={results.activity.totalXp} gain={`+${results.activity.xp}`} size="sm" />}
+                {results.activity && results.activity.xp > 0 && <XpChip value={results.activity.xp} gain size="sm" />}
               </div>
             </div>
           )}
-          {!scored && results.activity && results.activity.xp > 0 && <XpChip value={results.activity.totalXp} gain={`+${results.activity.xp}`} size="sm" />}
+          {!scored && results.activity && results.activity.xp > 0 && <XpChip value={results.activity.xp} gain size="sm" />}
 
           {s.counts && (
             <dl className={styles.counts}>

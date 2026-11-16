@@ -30,7 +30,9 @@ Several pages (a PDF): `omr.recognizeDocument([p1, p2], opts)` -> `OmrDocument {
 (joined across systems and pages), context }`; key and time carry over. Same calls without a worker
 (tests, Node): `recognizePage(image, opts)`, `recognizeDocument`, `classifyPage`. Options:
 `tuning`, `context` (key/time known in advance), `ai` (recognizers' own second opinion, see below),
-`tab` / `notation` (replace or `null` to skip a recognizer), `estimateRhythm` (default true).
+`estimateRhythm` (default true); direct calls only: `tab` / `notation` (replace, or `null` to skip).
+The barrel carries the whole reader; for a light screen chunk import the client by path
+(`@/core/omr/worker/client`, ~8 kB) and the reader stays in the worker chunk.
 
 ## The Page model (`types.ts`)
 
@@ -115,7 +117,7 @@ whole-pipeline seconds per page (mean, loaded 4-core machine). Unseen tab before
 | unseen photo-bad | 66/82 | 44.7 / 99.5 | 96.7 | 65.7 | 20.4 | 69.4 -> 69.0 / 84.0 -> 82.9 | 74.5 | 20.9 -> 20.9 | 1.2 |
 
 Unseen notation recall without the two pages printed in cue-size notes (deliberately not read):
-98.5 / 98.1 / 97.0 % (clean / scan / photo-good). Notation on unseen material was not changed.
+98.5 / 98.1 / 97.0 % (clean / scan / photo-good). No notation fix was kept: those columns are first contact.
 Original corpus after the tab fixes: clean, scan, photo-good unchanged mistake for mistake;
 photo-bad tab-only 87.7 -> 87.2 % P, 68.8 -> 68.7 % R (linked photo-bad R 72.9 -> 73.8 %).
 Browser (`node e2e/omr-page.cjs`, three full 1240 x 1754 pages in the worker): 100 % on all three,
@@ -133,7 +135,7 @@ the staff or hanging from it, rests, TAB clef, time signature, h p / \ b r x <> 
 
 ## Not supported / limits
 
-Grace and cue-size notes are ignored (a page printed entirely in small notes reads as empty);
+Grace and cue-size notes are ignored (a page printed entirely in small notes reads nearly empty);
 tuplets other than 3, double sharps / flats, clef / key / time changes inside a staff, C clefs, 8va,
 voltas, dynamics, articulations, fingerings, slurs, lyrics are not read; chord symbols, titles and
 tempo are located but not read (`text: ''`) unless the AI path or the caller's OCR fills them.

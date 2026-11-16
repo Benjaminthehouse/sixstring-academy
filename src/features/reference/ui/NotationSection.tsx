@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import { Button, Section, Text, cx } from '@/ui';
-import { NotationView, TabSnippet } from '@/ui/music';
+import { NoteGlyph, NotationView, TabSnippet } from '@/ui/music';
 import { ARTICULATIONS, DYNAMICS, REPEAT_SIGNS, TAB_TECHNIQUES, beatsWords, lengthExamples, noteValueRows, timeSignatureRows, type SignItem, type TabTechnique, type TimeSignatureRow } from '../model/notation';
 import { SignGlyph } from './Glyphs';
 import { Lazy } from './Lazy';
@@ -39,40 +39,46 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
       </nav>
 
       <div id="notation-reading" className={styles.stack}>
-        <Section level={level} title="Note values" description="How long each note lasts. In 4/4 a quarter note gets one beat." data-ref-item="note-values">
+        <Section level={level} title="Note values and rests" description="How long each note lasts, and the silence of the same length. In 4/4 a quarter note gets one beat." data-ref-item="note-values">
           <div className={styles.staff}>
-            <NotationView clef="treble" notes={values.map((v) => ({ keys: 'B4', duration: v.vex, label: v.name.replace(' note', '') }))} aria-label="Whole, half, quarter, eighth and sixteenth notes" />
+            <NotationView clef="treble" notes={values.flatMap((v, i) => [...(i ? ['|'] : []), { keys: 'B4', duration: v.vex, label: v.name.replace(' note', '') }])} aria-label="Whole, half, quarter, eighth and sixteenth notes" />
           </div>
-          <div className={styles.tableFrame}>
+          <div className={styles.tableFrame} data-ref-item="rests">
             <table className={styles.table}>
               <thead>
                 <tr>
                   <th scope="col">Note</th>
-                  <th scope="col">British name</th>
+                  <th scope="col">Rest</th>
                   <th scope="col">Beats in 4/4</th>
-                  <th scope="col">In one bar of 4/4</th>
+                  <th scope="col">Per bar</th>
+                  <th scope="col">British name</th>
                 </tr>
               </thead>
               <tbody>
                 {values.map((v) => (
                   <tr key={v.id}>
-                    <th scope="row">{v.name}</th>
-                    <td>{v.british}</td>
+                    <th scope="row">
+                      <span className={styles.glyphCell}>
+                        <NoteGlyph value={v.id} className={styles.noteGlyph} />
+                        {v.name}
+                      </span>
+                    </th>
+                    <td>
+                      <span className={styles.glyphCell}>
+                        <NoteGlyph value={v.id} rest className={styles.noteGlyph} />
+                        <span className={styles.srOnly}>{v.restName}</span>
+                      </span>
+                    </td>
                     <td className={styles.num}>{beatsWords(v.beats)}</td>
                     <td className={styles.num}>{v.perBar}</td>
+                    <td>{v.british}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Section>
-
-        <Section level={level} title="Rests" description="A measured silence. Each note value has a rest of the same length." data-ref-item="rests">
-          <div className={styles.staff}>
-            <NotationView clef="treble" notes={values.map((v) => ({ rest: true, duration: v.vex, label: v.name.replace(' note', '') }))} aria-label="Whole, half, quarter, eighth and sixteenth rests" />
-          </div>
           <Text variant="caption" tone="muted">
-            The whole rest hangs below the fourth line; the half rest sits on the middle line. A whole rest also means “rest for the whole bar” in any time signature.
+            On the staff the whole rest hangs below the fourth line and the half rest sits on the middle line. A whole rest also means “rest for the whole bar” in any time signature.
           </Text>
         </Section>
 
@@ -81,7 +87,7 @@ export function NotationSection({ item, level, sounder }: SectionProps) {
             {lengths.map((e) => (
               <figure key={e.id} className={styles.card} data-ref-item={e.id}>
                 <div className={styles.cardStaff}>
-                  <NotationView clef="treble" notes={e.notes.map((n) => ({ keys: 'B4', duration: n.duration, dots: n.dots, tie: n.tie, triplet: n.triplet, label: n.label }))} aria-label={e.name} />
+                  <NotationView clef="treble" notes={e.notes.map((n) => ({ keys: 'B4', duration: n.duration, dots: n.dots, tie: n.tie, triplet: n.triplet, label: n.triplet ? undefined : n.label }))} aria-label={e.name} />
                 </div>
                 <figcaption>
                   <span className={styles.cardTitle}>{e.name}</span>

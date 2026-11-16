@@ -309,9 +309,10 @@ wide-angle, 320x240, interlaced, flicker), orientation.
    Fix (overlay only; the pose maths and every benchmark of poses are unchanged): `cameraCentre(pose)`
    recovers the camera from the homography and `projectMarkerSeen` puts each dot where the learner
    reads it, on the string as seen and between the wire crowns as seen (a dot on the raised string
-   itself can show past its wire). With it the tracker's dots were 98-100% right from 0 to 62 degrees
-   (distortion-free check, seeds 0 and 2; the true pose scores 100% through the same scoring, which
-   is the consistency check of the scoring).
+   itself can show past its wire). With it, cells were 100 / 100 / 99 / 97 / 99 / 94% right at
+   0 / 25 / 40 / 48 / 55 / 62 degrees (tilt sweep, 5 scenes per angle, lens distortion and motion on;
+   locked frames fully right 100 / 98 / 96 / 93 / 96 / 81%). The true pose scores 100% through the
+   same scoring at every angle, which is the consistency check of the scoring.
 3. **The wire spacing cannot tell a bass or a 7-string from a guitar.** A bass is a guitar scaled up
    (a homography absorbs it) and a 7-string has the same wires; under the guitar preset both locked
    at full confidence with every fret right and every dot between two strings (bass 3 of 4 scenes,
@@ -324,10 +325,11 @@ wide-angle, 320x240, interlaced, flicker), orientation.
    0 locks (coached), 7-string 2 of 4 scenes still lock wrongly when the six-string model is fitted
    onto six of the seven strings (the reader then sees a clean six-comb).
 4. **Coaching and honest limits** (`guidance.ts`): see API.md. The limits come from one-knob sweeps:
-   neck size (nothing found below about 3 px between strings; right from 3.4 px), view angle (right to
-   62 degrees with the raised-string dots), light (right down to mean brightness 34 with the camera
-   gain capped at 8x; half the scenes lost at 26, all at 21), capo at frets 1-7 with and without the
-   nut in view.
+   neck size (nothing found below about 3 px between strings; right from 3.4 px), view angle (limit
+   55 degrees, above), light (right down to mean brightness 34 with the camera gain capped at 8x; half
+   the scenes lost at 26, all at 21), capo at frets 1-7 with and without the nut in view (70 scenes
+   after fix 1: 0 wrong locks, 0 mis-numbered; before it, 2 maple scenes with the nut out of view
+   were numbered a fret off).
 
 **Alt bench after the fixes** (`ALT_SEEDS=1,2,3,4 ALT_FRAMES=24`, cold start, 14 still frames then a
 sway; "right" = locked frames with >= 90% of the cells right; 645 s on the loaded sandbox):

@@ -24,7 +24,7 @@ export const recognizeTabStaff: RecognizeTabStaff = (input, options) => {
 export { type TabColumn, type TabDebug, type TabReadingDetail, readTabStaff, tuningFor } from './recognize';
 export { type Glyph, type TabNumber, MAX_FRET, assembleLine, buildNumber, glyphConfidence, readCluster } from './numbers';
 export { type Box, type ClassScore, type GlyphPatch, type LineProfile, classifyPatch, correlate, extractPatch, lineProfileAt, refineBox } from './glyph';
-export { type LineBlob, columnProfile, estimateDigitHeight, findLineBlobs, findWeldedBlobs, groupAdjacent, groupColumns, profileValleys } from './segment';
+export { type LineBlob, type StackCut, applyStackCuts, columnProfile, estimateDigitHeight, findLineBlobs, findStackCuts, findWeldedBlobs, groupAdjacent, groupColumns, profileValleys } from './segment';
 export { type Stem, assignDurations, findStems, solveMeasure } from './rhythm';
 export { type TabMark, findArcs, findBends, findSlides } from './marks';
 export { type RestReading, type TimeSignatureReading, findRests, readTimeSignature } from './header';

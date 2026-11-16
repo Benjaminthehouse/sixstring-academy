@@ -84,7 +84,11 @@ export function Summary({ game, focus, level, levels, outcome, onAgain }: Summar
             </Badge>
           )}
         </div>
-        {!passed && <Text tone="muted" align="center">Get 60% to earn a star and open the next level. You are {Math.max(0, Math.ceil(60 - result.accuracy * 100))} points of accuracy away.</Text>}
+        {!passed && (
+          <Text tone="muted" align="center">
+            A star (and the next level) needs 60% right. This round: {Math.round(result.accuracy * 100)}%. The tip below is the quickest way there.
+          </Text>
+        )}
       </div>
 
       <div className={styles.summaryGrid}>

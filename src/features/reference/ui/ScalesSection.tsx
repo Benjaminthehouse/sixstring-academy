@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { SCALE_FAMILIES, noteToMidi, scaleNotes } from '@/core/theory';
 import { ChipGroup, Section, Select, Text, useLocalState } from '@/ui';
-import { SCALE_ROOTS, scaleGroups, type ScaleRow } from '../model/scales';
+import { SCALE_ROOTS, displayAliases, scaleGroups, type ScaleRow } from '../model/scales';
 import { PlayIcon } from './IntervalsSection';
 import type { SectionProps } from './SectionBody';
 import { playLine } from './sound';
@@ -31,7 +31,7 @@ export function ScalesSection({ item, level, fmt, sounder }: SectionProps) {
           options={SCALE_ROOTS.map((r) => ({ value: String(r.pc), label: r.label.split('/').map(fmt.note).join(' / ') }))}
           className={styles.rootSelect}
         />
-        <ChipGroup aria-label="Scale family" options={[{ value: 'all', label: 'All' }, ...SCALE_FAMILIES.map((f) => ({ value: f.id, label: f.name.replace(' modes', '') }))]} value={family} onChange={setFamily} />
+        <ChipGroup aria-label="Scale family" options={[{ value: 'all', label: 'All' }, ...SCALE_FAMILIES.map((f) => ({ value: f.id, label: f.name.replace(' modes', '') }))]} value={family} onChange={setFamily} className={styles.grow} />
       </div>
       <Text variant="caption" tone="muted">
         A formula counts each note against the major scale on the same root; the steps are W (whole step, 2 frets), H (half step, 1 fret) and larger gaps such as WH (3 frets).
@@ -56,7 +56,7 @@ function ScaleItem({ row, fmt, sounder }: { row: ScaleRow; fmt: SectionProps['fm
       const notes = scaleNotes(`${row.tonic}3`, row.id, { closed: true });
       return playLine(notes.map((n) => noteToMidi(n)), 0.26);
     });
-  const aka = row.aliases.filter((a) => a.toLowerCase() !== row.name.toLowerCase()).slice(0, 2);
+  const aka = displayAliases(row.name, row.aliases);
   return (
     <li className={styles.scRow} data-ref-item={row.id}>
       <div className={styles.scMain}>

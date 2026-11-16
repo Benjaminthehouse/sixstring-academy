@@ -50,6 +50,26 @@ export function firstSentence(text: string): string {
   return m ? m[0] : text;
 }
 
+/**
+ * The other names worth showing beside a scale's name, at most `max`: drops repeats of the name,
+ * "X mode" / "X scale" when X is already listed, and a word that only starts a longer alias.
+ */
+export function displayAliases(name: string, aliases: readonly string[], max = 2): string[] {
+  const norm = (s: string) => s.toLowerCase().trim();
+  const all = [name, ...aliases].map(norm);
+  const kept: string[] = [];
+  for (const a of aliases) {
+    const n = norm(a);
+    if (n === norm(name) || kept.some((k) => norm(k) === n)) continue;
+    const base = n.replace(/ (mode|scale)$/, '');
+    if (base !== n && all.includes(base)) continue;
+    if (all.some((other) => other !== n && other.startsWith(`${n} `) && !/ (mode|scale)$/.test(other))) continue;
+    kept.push(a);
+    if (kept.length === max) break;
+  }
+  return kept;
+}
+
 /** One row for a scale on a root pitch class. */
 export function scaleRow(scale: ScaleType, rootPc = 0): ScaleRow {
   const tonic = simplestTonic(rootPc, scale);

@@ -3,7 +3,7 @@
  * (`sound.ts` turns it into plucks and strums) and whose answer the theory engine names.
  */
 import {
-  chordNotes, classifyCadence, getChordType, getScale, interval, intervalName, midiToNote, parseNote, progressionToChords, type CadenceType,
+  chordNotes, classifyCadence, getChordType, getScale, interval, intervalName, midiToNote, parseNote, progressionToChords, transpose, type CadenceType,
 } from '@/core/theory';
 import type { Rng } from '../rng';
 import type { ChoiceOption, ListenChoiceExercise } from '../types';
@@ -12,6 +12,30 @@ import { article, cap, checkParams, count, defineGenerator, distinct, noteList, 
 const INTERVALS_BY_EAR = ['P8', 'P5', 'M3', 'm3', 'P4', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
 const TYPES_BY_EAR = ['major', 'minor', 'dim', 'aug', 'sus4', '7', 'maj7', 'm7'];
 const SCALES_BY_EAR = ['major', 'minor', 'minor-pentatonic', 'major-pentatonic', 'harmonic-minor', 'dorian', 'mixolydian', 'minor-blues'];
+
+function accidentals(note: string): number {
+  return Math.abs(parseNote(note)?.alt ?? 9);
+}
+
+/**
+ * Name the two notes of an interval whose lower note is `low` (MIDI): the upper note spelled as
+ * that interval (so the names agree with what is named), using the sharp or flat name of the
+ * lower note, whichever needs fewer accidentals in all.
+ */
+export function spellIntervalPair(low: number, ivl: string): { from: string; to: string } {
+  const names = [midiToNote(low), midiToNote(low, { prefer: 'sharps' }), midiToNote(low, { prefer: 'flats' })];
+  let best: { from: string; to: string } | null = null;
+  let cost = Infinity;
+  for (const from of names) {
+    const to = transpose(from, ivl);
+    const c = accidentals(from) + accidentals(to) * 1.01;
+    if (c < cost) {
+      cost = c;
+      best = { from, to };
+    }
+  }
+  return best!;
+}
 
 /** Options for "which of these was it": the right label and up to three others from the pool in play. */
 function labelled<T>(rng: Rng, right: T, others: readonly T[], label: (item: T) => string): ChoiceOption[] {
@@ -74,8 +98,9 @@ export const intervalEar = defineGenerator({
     const inPlay = pool(distinct(p.intervals ?? INTERVALS_BY_EAR, (i) => interval(i).semitones, 99), difficulty, 2);
     const ivl = interval(rng.pick(inPlay));
     const low = rng.range(48, 57);
-    const from = midiToNote(low);
-    const to = midiToNote(low + ivl.semitones);
+    // The upper note is spelled by the interval (a minor third above A♭ is C♭, not B), and the
+    // lower note takes whichever of its names gives the plainer pair.
+    const { from, to } = spellIntervalPair(low, ivl.name);
     const name = intervalName(ivl.name);
     const out: ListenChoiceExercise = {
       type: 'listen-choice',

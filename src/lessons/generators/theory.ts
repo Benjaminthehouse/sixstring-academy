@@ -3,12 +3,12 @@
  * Every fact in a generated exercise is computed by the theory engine.
  */
 import {
-  chordNotes, chordPcs, chordTones, circleOfFifths, diatonicChords, distractorIntervals, distractorNotes, enharmonics,
+  chordNotes, chordPcs, chordTones, circleOfFifths, diatonicChords, distractorNotes, enharmonics,
   getChordType, getScale, interval, intervalName, keySignature, neighborKeys, parallelChord, parseChord, parseInterval, parseNote, parseRoman,
   pcToNote, relativeKey, romanToChord, scaleContains, scaleNotes, similarChordTypes, transpose, type Key,
 } from '@/core/theory';
 import type { ChordBuildExercise, FillBlanksExercise, MatchPairsExercise, OrderExercise } from '../types';
-import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, keysUpTo, noteList, ordinal, pool, retry, scaleTitle } from './core';
+import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, keysUpTo, noteList, ordinal, pool, retry, scaleTitle } from './core';
 
 const NATURALS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'M2', 'm2', 'P8', 'M6', 'm6', 'm7', 'M7', 'A4'];
@@ -61,7 +61,7 @@ export const intervalName_ = defineGenerator({
       () => ({ ivl: intervals[0], root: 'C', upper: transpose('C', intervals[0]) }),
     );
     const ivl = interval(pick.ivl);
-    const wrong = distractorIntervals(ivl.name, { count: 3 });
+    const wrong = intervalDistractors(rng, ivl.name, p.intervals ?? INTERVALS_EASY_FIRST);
     return choiceOf(
       rng,
       {
@@ -187,7 +187,7 @@ export const enharmonic = defineGenerator({
       rng,
       {
         prompt: `Which note sounds the same as {n:${asked}}?`,
-        explain: `The fret between {n:${below}} and {n:${above}} has two names: {n:${a.alt > 0 ? asked : twin}} (a half step above {n:${below}}) and {n:${a.alt > 0 ? twin : asked}} (a half step below {n:${above}}).`,
+        explain: `The note between {n:${below}} and {n:${above}} has two names: {n:${a.alt > 0 ? asked : twin}} (just above {n:${below}}) and {n:${a.alt > 0 ? twin : asked}} (just below {n:${above}}).`,
       },
       `{n:${twin}}`,
       distractorNotes(twin, { count: 3, exclude: [asked] }).map((n) => `{n:${n}}`),
@@ -587,14 +587,20 @@ export const diatonicChord = defineGenerator({
     const chords = diatonicChords(key, { sevenths: p.sevenths === true });
     const degree = rng.pick(pool(DEGREES_EASY_FIRST, difficulty, 4));
     const chord = chords[degree - 1];
-    const stack = `Stack thirds on {n:${chord.root}} using only notes of {k:${key.name}}: ${noteList(chord.notes)} is {c:${chord.symbol}}.`;
+    // A minor key's chords come from its natural minor scale here. Many pieces raise the 7th note,
+    // which makes the chord on the 5th note major: so a minor key always says which scale it means.
+    const minor = key.mode === 'minor';
+    const scaleWords = minor ? `the {k:${key.name}} natural minor scale` : `{k:${key.name}}`;
+    const raised = minor && degree === 5 ? ` With the 7th note raised (harmonic minor) it becomes {c:${chord.root}${p.sevenths ? '7' : ''}}, the usual way back home.` : '';
+    const stack = `Stack thirds on {n:${chord.root}} using only notes of ${scaleWords}: ${noteList(chord.notes)} is {c:${chord.symbol}}.${raised}`;
+    const where = minor ? `of the natural minor scale` : `of the scale`;
     if (p.ask === 'quality') {
       const labels = p.sevenths ? ['maj7', 'm7', '7', 'm7b5'] : ['major', 'minor', 'dim'];
       const right = QUALITY_LABELS[chord.type.id] ?? cap(chord.type.name);
       const wrong = labels.map((id) => QUALITY_LABELS[id]).filter((label) => label !== right);
       const exercise = choiceOf(
         rng,
-        { prompt: `In {k:${key.name}}, what kind of chord is built on the ${ordinal(degree)} note, {n:${chord.root}}?`, explain: stack, shuffle: false },
+        { prompt: `In {k:${key.name}}, what kind of chord is built on the ${ordinal(degree)} note ${where}, {n:${chord.root}}?`, explain: stack, shuffle: false },
         right,
         wrong,
       );
@@ -606,7 +612,7 @@ export const diatonicChord = defineGenerator({
     const others = [flipped, chords[degree % 7].symbol, chords[(degree + 5) % 7].symbol, chords[(degree + 1) % 7].symbol, chords[(degree + 2) % 7].symbol].filter((s): s is string => !!s);
     return choiceOf(
       rng,
-      { prompt: `In {k:${key.name}}, which chord is built on the ${ordinal(degree)} note of the scale?`, explain: stack },
+      { prompt: `In {k:${key.name}}, which chord is built on the ${ordinal(degree)} note ${where}?`, explain: stack },
       `{c:${chord.symbol}}`,
       distinct(others, (s) => `${maskOf(chordNotes(s))}:${pcOf(parseChord(s)!.root)}`, 3, [`${maskOf(chord.notes)}:${pcOf(chord.root)}`]).map((s) => `{c:${s}}`),
     );

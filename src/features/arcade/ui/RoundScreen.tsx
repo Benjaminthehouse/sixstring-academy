@@ -108,7 +108,8 @@ export function RoundScreen({ game, focus, level, seed: fixedSeed, size, eyebrow
   const reduced = usePrefersReducedMotion();
   const shortLandscape = useMediaQuery('(orientation: landscape) and (max-height: 540px)');
   const inRound = phase === 'count' || phase === 'play';
-  useImmersive(phase !== 'summary', shortLandscape && inRound ? 'bare' : 'focus');
+  // The round hides the navigation (all of it on a phone held sideways); the summary brings it back.
+  useImmersive(true, phase === 'summary' ? 'none' : shortLandscape && inRound ? 'bare' : 'focus');
   useWakeLock(inRound);
   const title = `${game.title} · Level ${info.n}`;
   useScreenTitle(`${game.title}: ${info.title}`);
