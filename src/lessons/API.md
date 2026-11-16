@@ -209,12 +209,18 @@ A fretboard-find with `strings` says "Right note, but on string 5: this one asks
 tapped elsewhere.
 
 **Spelling in context.** Pitches that are heard or tapped are named in the music of the exercise, never with the
-key-less commonest name: `exerciseSpelling(exercise)` is the context (its `key`; else the written note of a
-play-note, the chord or scale of a fretboard-find, the chord of a play-chord or chord-build, the key a phrase's
-notes imply), `spellPitch(midi, context, { octave? })` the name (C♯4 in A major, D♯4 in Für Elise, never D♭4).
-`inferSpelling(midis)` is the key a set of pitches implies (null for a single pitch class), `keySpelling(key)`,
-`spellingOfName(name)` (sharps or flats as a written name suggests), `tabMidi(notes, { tuning?, capo? })`. The
-graders, the feedback and the play screens all use them.
+key-less commonest name: `exerciseSpelling(exercise)` is the context (its `key`; else the note names its own words
+write, `{n:Eb}` in the prompt, explanation, options or tapping version, over the written note of a play-note, the
+chord or scale of a fretboard-find, the chord of a play-chord or chord-build, the key a phrase's notes imply),
+`spellPitch(midi, context, { octave? })` the name (C♯4 in A major, D♯4 in Für Elise, never D♭4; E♭4 in a blues
+passage whose explanation says `{n:Eb}`). `inferSpelling(midis)` is the key a set of pitches implies (null for a
+single pitch class); because it is only a guess, it never names a white key with an accidental its scale does not
+own (the lick C, C♯, E is C, never B♯; F♯ major keeps its E♯). `textSpelling(texts)` is the `{n:…}` names some text
+writes by pitch class (a pitch class written two ways is left out), `figureSpelling(key, caption, midis)` a tab or
+fretboard figure's context (its `key`, else its caption's names over the key its notes imply), `keySpelling(key)`,
+`spellingOfName(name)` (sharps or flats as a written name suggests), `tabMidi(notes, { tuning?, capo? })`.
+`SpellContext` is the guitar engine's context or `{ names, base?, guessed? }` (names by pitch class over one). The
+graders, the feedback and the play screens all use them; to force a spelling, give the exercise or figure a `key`.
 
 Answer normalisers, used by the graders and usable for live input hints: `normalizeNote normalizeInterval
 normalizeChord normalizeDegree normalizeRoman normalizeNumber normalizeText`, `compareNoteNames(a, b)`,
@@ -579,8 +585,9 @@ positions must exist, and every note or degree you claim must be what is really 
 | `key?` | key that spells the dots' note names (`'A major'`: C♯, not D♭). Default: the derived chord or scale, else the sharps or flats of the claimed notes, else the key all the dots imply |
 | `caption?` | text under the figure (at most 80 characters) |
 
-On a card the neck is live: tapping it plays the note there, as everywhere in the app. A neck wider than the
-phone scrolls inside its box, with a visible edge and arrow where more is hidden.
+On a card the neck is live: tapping it plays the note there, as everywhere in the app. Frets narrow to 18 px
+before the neck scrolls, so frets 0 to 12 fit a card on a 390 px (and a 360 px) phone; a neck wider than that
+scrolls inside its box, with a visible edge and arrow where more is hidden.
 
 **`chord`** — a chord diagram: a `symbol`, a shape, or both (then the shape is checked against the symbol).
 
@@ -861,7 +868,7 @@ the right ones are added for you), `unordered?` (blanks may be filled in any ord
 | `degree` | `'b3'` | `b3`, `♭3`, `flat 3`, `flat third` | `spelling` required (`any` accepts ♯4 for ♭5) |
 | `roman` | `'IV'` | `IV`, `♭VII`; **case matters** (iv is a different chord) | |
 | `number` | `12` | `12`, `fret 12`, `twelve`, `12th` | |
-| `text` | `'barre'` | compared without case, accents or punctuation; a minus right after a number is kept (`6-`, a Nashville minor, is not `6`) | |
+| `text` | `'barre'` | compared without case, accents or punctuation; a minus right after a number is kept (`6-`, a Nashville minor, is not `6`; so is `6 -` at the end), any other dash separates (`2 - 5 - 1` is `2 5 1`) | |
 
 `input?`: `keypad` (notes, numbers) or `keyboard`.
 
@@ -901,7 +908,7 @@ Options that sound the same (A4 and d5) are always rejected.
 `rhythm` (`{ pattern, time? }`), `tempo` (40 to 160), `show`: `notation`, `audio` or `both`, `level?`
 (default: the course level), `start?`: `count-in` (default) or `first-tap`, `counting?` (default true; `false` hides
 the "1 & 2 &" under the notation when it would contradict the count-in or the pad). The feedback shows the rhythm
-itself and its counting ("Tap on 1, 2 &, 3, 4"), never the pattern code. Graded on timing: a tap counts
+itself and its counting ("Tap on 1, 2 &, 3, 4"; with `counting: false` the rhythm alone), never the pattern code. Graded on timing: a tap counts
 within ±150 ms (beginner), ±100 ms (intermediate) or ±65 ms (expert), never more than 40 % of the shortest gap;
 beginners need 80 % of the notes, intermediates 90 %, experts all; a constant delay of the device (up to
 120 ms) is measured and removed. 2 to 16 notes, 1 or 2 bars, no two notes closer than 140 ms.
@@ -1095,7 +1102,8 @@ from the capo, `chord` names what sounds, the box draws the capo).
 
 `notes` (2 to 16 tab notes), **`octave` required**, `tempo?`, `pass?` (share of notes needed, default 0.8;
 timing is not graded; the microphone listens for twice the phrase's length), `tuning?`, `capo?`, `key?` (spells
-the notes; default: the key they imply, so an A major line shows C♯ and an F major one B♭), `labels?` (`note`
+the notes; default: the names the exercise's own words write, `{n:Eb}`, then the key the notes imply, so an
+A major line shows C♯ and an F major one B♭, and a guessed key never turns C into B♯), `labels?` (`note`
 default, or `place`: "string 5 / fret 3" under the tab), `hideNames?` (numbered pips instead of note names),
 `staffOnly?` (the phrase on a staff only: no tab, no names, a sight-reading test; rests are not drawn). Good
 alternatives: `fretboard-find` for a note, `chord-build` or `{ generate: 'chord-shape' }` for a chord, `order` or

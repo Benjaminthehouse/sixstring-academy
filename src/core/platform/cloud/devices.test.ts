@@ -22,6 +22,17 @@ const journal = (d: TestDevice): string[] => (((d.read('practice.data') as { jou
 const entry = (id: string, endedAt: number) => ({ id, startedAt: endedAt - 600_000, endedAt, day: '2026-11-16', title: `Practice ${id}`, plannedSec: 600, practisedSec: 600, blocks: [], xp: 8, feel: 4, note: '', endedEarly: false });
 const practice = (...entries: Array<ReturnType<typeof entry>>) => ({ v: 1, journal: entries, routines: [], goals: [] });
 
+/** Count the writes of the head document (`progress`) from now on. */
+function countHeadWrites(server: ReturnType<typeof createFakeServer>): () => number {
+  let count = 0;
+  const handle = server.handle.bind(server);
+  server.handle = async (request) => {
+    if (request.op === 'db.upsert' && request.row.path === 'progress') count += 1;
+    return handle(request);
+  };
+  return () => count;
+}
+
 async function device(server: ReturnType<typeof createFakeServer>, name: string, options: Parameters<typeof testDevice>[2] = {}): Promise<TestDevice> {
   const d = testDevice(server, name, options);
   await act(d.start(), 500);
@@ -136,10 +147,14 @@ describe('one learner, two devices', () => {
     await pass(60_000);
     expect(laptop.status().pending).toBe(true);
 
+    const headWrites = countHeadWrites(server);
     laptop.goOnline();
     await pass(60_000);
     phone.goOnline();
     await pass(3 * 60_000);
+    // The laptop's change, then the phone's merge of both: the copy of the laptop's that the phone
+    // had queued while merging it already is old news, not a reason to undo or write again.
+    expect(headWrites()).toBe(2);
 
     for (const d of [laptop, phone]) {
       expect(journal(d)).toEqual(['laptop-morning', 'phone-train', 'shared']);
@@ -149,6 +164,66 @@ describe('one learner, two devices', () => {
       expect(d.status()).toMatchObject({ state: 'synced', pending: false });
     }
     expect(laptop.store.getState().xp.total).toBe(phone.store.getState().xp.total);
+  });
+
+  it('a device restarted while offline with an expired session keeps its changes and sends them once back online', async () => {
+    const server = createFakeServer({ accessTtlSec: 600 });
+    const laptop = await device(server, 'laptop');
+    await act(laptop.signIn('ana@example.com'));
+    await pass(61_000);
+    let phone = await device(server, 'phone');
+    await act(phone.signIn('ana@example.com'));
+    await pass(30_000);
+
+    phone.goOffline();
+    laptop.goOffline();
+    await pass(30 * 60_000); // the access tokens expire meanwhile
+    // The phone app is closed and opened again on the train, still offline.
+    phone = phone.reload();
+    phone.goOffline();
+    await act(phone.start(), 15_000);
+    expect(phone.account().phase).toBe('signed-in');
+    expect(phone.status()).toMatchObject({ state: 'offline', provider: 'account' });
+    lesson(phone, 7);
+    phone.write('practice.data', practice(entry('train-after-restart', Date.now())));
+    laptop.write('practice.data', practice(entry('desk-offline', Date.now() - 60_000)));
+    await pass(60_000);
+
+    phone.goOnline();
+    laptop.goOnline();
+    await pass(3 * 60_000);
+    for (const d of [phone, laptop]) {
+      expect(journal(d)).toEqual(['desk-offline', 'train-after-restart']);
+      expect(d.store.getState().skills['theory:unit-1:lesson-7']?.completed).toBe(true);
+      expect(d.status()).toMatchObject({ state: 'synced', pending: false });
+    }
+  });
+
+  it('two devices sending at the same moment: neither save is lost, and both end with both changes', async () => {
+    const server = createFakeServer();
+    const laptop = await device(server, 'laptop');
+    await act(laptop.signIn('ana@example.com'));
+    await pass(61_000);
+    const phone = await device(server, 'phone');
+    await act(phone.signIn('ana@example.com'));
+    await pass(30_000);
+
+    phone.goOffline();
+    laptop.goOffline();
+    await pass(1000);
+    phone.write('practice.data', practice(entry('phone-side', Date.now())));
+    laptop.write('practice.data', practice(entry('laptop-side', Date.now() - 60_000)));
+    await pass(60_000);
+    // Both come back in the same instant: each reads the cloud copy, then writes over it.
+    phone.goOnline();
+    laptop.goOnline();
+    await pass(3 * 60_000);
+    expect(journal(phone)).toEqual(['laptop-side', 'phone-side']);
+    expect(journal(laptop)).toEqual(['laptop-side', 'phone-side']);
+    const head = server.rowsOf(server.userId('ana@example.com') ?? '').find((row) => row.path === 'progress');
+    expect(JSON.stringify(head?.data)).toContain('laptop-side');
+    expect(JSON.stringify(head?.data)).toContain('phone-side');
+    for (const d of [phone, laptop]) expect(d.status()).toMatchObject({ state: 'synced', pending: false });
   });
 
   it('the learner’s own songs ride along, one row each, within the sync limits', async () => {

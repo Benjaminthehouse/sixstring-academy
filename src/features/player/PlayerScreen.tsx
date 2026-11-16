@@ -310,7 +310,7 @@ function PlayerView({ engine, song, written, resumed, onArrangement }: { engine:
   const mark = tempoMark(bpm, meter);
   const words = arrangementWords(written, s.arrangement);
   const tempoAt = useCallback((p: number) => engine.tempoAt(p), [engine]);
-  const fretboardHidden = () => toast.info('The fretboard is hidden too', { description: 'It would give the answers away. Turn it back on under Fretboard.', id: 'player-neck' });
+  const fretboardHidden = () => toast.info('The fretboard is hidden too', { description: 'It would give the answers away. It comes back when you show them again.', id: 'player-neck' });
   const onLayer = (l: ScoreLayer) => {
     if (engine.setLayer(l)) fretboardHidden();
   };

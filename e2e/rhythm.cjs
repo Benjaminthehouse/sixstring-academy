@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the rhythm trainer. Run:
- *   node e2e/rhythm.cjs [--verbose] [--shots] [--only screens,offer,keys,calibrate,strum,layout,mic,review]
+ *   node e2e/rhythm.cjs [--verbose] [--shots] [--only screens,offer,leave,keys,calibrate,strum,layout,mic,review]
  *
  * Real Chromium, real Web Audio. Every timing assertion is made on audio-clock times, so a busy
  * machine can make the script slow but cannot make it lie.
@@ -9,6 +9,9 @@
  *  screens  every rhythm address opens on a phone and a desktop: one h1, no sideways scroll, no
  *           console errors, the Start button inside the first screen; notation and strum grids
  *           describe what they draw; an address that names nothing lands on a list
+ *  leave    a round left for another screen, or reloaded, mid-way is recorded as a round left early
+ *           (nothing when nothing was played yet); with the microphone chosen and never calibrated,
+ *           the first Start plays the round instead of asking for setup first
  *  offer    a first-time learner is offered the ten-second calibration once, can skip it, and is
  *           not asked again
  *  keys     taps are sent through the keyboard path at exact audio-clock times with a known stored
@@ -238,6 +241,95 @@ async function offer(browser, url) {
   check('offer', 'the second Start does not ask again', (await ctx.page.getByRole('dialog').count()) === 0 && (await ctx.page.locator('[data-rhythm-phase="running"]').count()) === 1);
   check('offer', 'no console errors', ctx.errors.length === 0, ctx.errors.join(' | '));
   await ctx.close();
+}
+
+// ── leaving mid-round, and the microphone without a setup wall (pass 2) ─────────────────────
+
+/** In the page: tap the first `n` notes of the running round on time (Space at the audio-clock moment). */
+async function tapFirst(n) {
+  const audio = await import('/src/core/audio/index.ts');
+  const { rhythmDebug } = await import('/src/features/rhythm/engine/debug.ts');
+  const session = rhythmDebug.session;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const times = session.chart.targets.slice(0, n).map((t) => session.targetTime(t.id));
+  for (const when of times) {
+    const wait = (when - audio.audioSoundingNow()) * 1000 - 14;
+    if (wait > 0) await sleep(wait);
+    while (audio.audioSoundingNow() < when) { /* the last few milliseconds */ }
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true, cancelable: true }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', bubbles: true, cancelable: true }));
+  }
+  await sleep(400);
+  return { state: session.state, judged: session.chart.targets.length };
+}
+
+async function skillOf(page, id) {
+  return page.evaluate(async (skill) => {
+    const p = await import('/src/core/progress/index.ts');
+    const s = p.getProgress().skills[skill];
+    return s ? { attempts: s.attempts, completions: s.completions } : null;
+  }, id);
+}
+
+async function leave(browser, url) {
+  // Another screen in the middle of a round: what was played is recorded as a round left early.
+  let ctx = await open(browser, url, { seed: calibration(0) });
+  try {
+    await ctx.goto('rhythm--read--1');
+    await startRound(ctx.page);
+    const run = await ctx.page.evaluate(tapFirst, 6);
+    check('leave', 'the round was still running after six notes', run.state === 'running', JSON.stringify(run));
+    await ctx.page.evaluate(() => (location.hash = '#rhythm'));
+    await ctx.page.waitForTimeout(1200);
+    const left = await skillOf(ctx.page, 'rhythm:read:1');
+    check('leave', 'leaving for another screen mid-round records what was played (an attempt, no completion)', left && left.attempts === 1 && left.completions === 0, JSON.stringify(left));
+    check('leave', 'no console errors', ctx.errors.length === 0, ctx.errors.join(' | '));
+  } finally {
+    await ctx.close();
+  }
+  // A reload in the middle of a round: the same.
+  ctx = await open(browser, url, { seed: calibration(0) });
+  try {
+    await ctx.goto('rhythm--read--1');
+    await startRound(ctx.page);
+    await ctx.page.evaluate(tapFirst, 6);
+    await ctx.page.reload({ waitUntil: 'load' });
+    await ctx.page.waitForSelector('main[data-route="rhythm"] [data-ui-page]', { timeout: 45000 });
+    const reloaded = await skillOf(ctx.page, 'rhythm:read:1');
+    check('leave', 'a reload mid-round records what was played', reloaded && reloaded.attempts === 1 && reloaded.completions === 0, JSON.stringify(reloaded));
+  } finally {
+    await ctx.close();
+  }
+  // Stopped after a note or two: nothing worth recording, nothing recorded.
+  ctx = await open(browser, url, { seed: calibration(0) });
+  try {
+    await ctx.goto('rhythm--read--1');
+    await startRound(ctx.page);
+    await ctx.page.evaluate(() => (location.hash = '#rhythm'));
+    await ctx.page.waitForTimeout(800);
+    check('leave', 'leaving before anything was played records nothing', (await skillOf(ctx.page, 'rhythm:read:1')) === null);
+  } finally {
+    await ctx.close();
+  }
+  // The microphone chosen, never calibrated: the first Start plays the round instead of asking for setup.
+  ctx = await open(browser, url, { seed: { ...calibration(0, null, { micOffered: false }), 'ssa:rhythm.prefs': JSON.stringify({ source: 'mic' }) } });
+  try {
+    await ctx.goto('rhythm--beat--1');
+    await clearToasts(ctx.page);
+    await ctx.page.locator('[data-rhythm-start]').click();
+    await ctx.page.waitForSelector('[data-rhythm-phase="running"]', { timeout: 30000 }).catch(() => {});
+    const wall = await ctx.page.getByRole('dialog', { name: 'Set up the microphone first' }).count();
+    // This browser has no microphone device: the round goes straight to trying it (and says it is
+    // missing, offering taps); with one it runs (the 'mic' group plays rounds through a fake one).
+    const running = (await ctx.page.locator('[data-rhythm-phase="running"]').count()) === 1;
+    const tried = await ctx.page.getByText('No microphone found').count();
+    check('leave', 'microphone: the first Start tries the microphone at once, no "Set up the microphone first" before trying', wall === 0 && (running || tried > 0), `dialog ${wall}, running ${running}, tried ${tried}`);
+    const stored = await ctx.page.evaluate(() => JSON.parse(localStorage.getItem('ssa:rhythm.calibration') || '{}'));
+    check('leave', 'microphone: not asked again later either (the tip after a round offers calibration when timing shows a device delay)', stored.micOffered === true, JSON.stringify(stored));
+    await ctx.shot('mic-first-start');
+  } finally {
+    await ctx.close();
+  }
 }
 
 // ── keyboard taps at exact audio-clock times ─────────────────────────────────────────────────
@@ -985,7 +1077,7 @@ async function review(browser, url) {
 
 (async () => {
   const scoring = wants('keys') ? await loadTs('/src/features/rhythm/core/scoring.ts') : null;
-  if (['screens', 'offer', 'keys', 'calibrate', 'strum', 'layout', 'mic', 'review'].some(wants)) {
+  if (['screens', 'offer', 'leave', 'keys', 'calibrate', 'strum', 'layout', 'mic', 'review'].some(wants)) {
     await withApp({}, async ({ browser, url }) => {
       const run = async (group, fn) => {
         if (!wants(group)) return;
@@ -998,6 +1090,7 @@ async function review(browser, url) {
       };
       await run('screens', () => screens(browser, url));
       await run('offer', () => offer(browser, url));
+      await run('leave', () => leave(browser, url));
       await run('keys', () => keys(browser, url, scoring));
       await run('calibrate', () => calibrateTaps(browser, url));
       await run('strum', () => strumOnsets(browser, url));

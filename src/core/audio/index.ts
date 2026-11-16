@@ -21,7 +21,7 @@ export type { SoundDefaults, SoundDefaultsSource } from './defaults';
 
 // Guitar and bass synth
 export { GuitarSynth, getBass, getGuitar, playBass, pluck, stopAll, strum } from './guitar';
-export type { GuitarSynthOptions, Legato, PlayOptions, PlayStrumOptions, VoiceHandle } from './guitar';
+export type { GuitarSynthOptions, Legato, PlayOptions, PlayStrumOptions, PreloadNote, VoiceHandle } from './guitar';
 // Expression (bends, slides, vibrato, legato) and phrases
 export { SLIDE_IN_SEMITONES, SLIDE_OUT_SEMITONES, VIBRATO_DEFAULTS, bendOf, parseTabTechnique, pitchCurve, slideGlide, slideGlideSeconds, smoothstep, vibratoOf } from './expression';
 export type { BendSpec, NoteExpression, PitchCurve, TabTechniqueStep, VibratoSpec } from './expression';

@@ -10,9 +10,10 @@ import { useImmersive } from '@/app/shell';
 import { unlockAudio } from '@/core/audio';
 import type { OnsetEvent } from '@/core/pitch';
 import { isArtifact } from '@/core/platform';
-import { getProgress, recordActivity, type ActivityResult } from '@/core/progress';
+import { getProgress, getProgressStore, recordActivity, type ActivityResult } from '@/core/progress';
 import { useLatest, useWakeLock } from '@/ui';
-import { isBleed, isCalibrated, loadCalibration, offsetFor, type InputSource } from '../core/calibration';
+import { isBleed, isCalibrated, loadCalibration, offsetFor, saveCalibration, type InputSource } from '../core/calibration';
+import { activityFor } from '../core/report';
 import type { Chart, Segment, Target } from '../core/charts';
 import { meterInfo, secondsPerTick } from '../core/meter';
 import { MIC_WINDOWS, TAP_WINDOWS, type Judgement } from '../core/scoring';
@@ -163,46 +164,44 @@ export function useRound(spec: RoundSpec): Round {
     alive.current = true;
     return () => {
       alive.current = false;
+      // Leaving mid-round (another screen, Back): what was played still counts, as a round left early.
+      const live = sessionRef.current;
+      if (live && live.state === 'running') live.stop();
       teardown();
       if (rhythmDebug.session && rhythmDebug.session.state !== 'running') rhythmDebug.session = null;
     };
   }, [teardown]);
+
+  // A reload or a closed tab does not unmount the screen: end the round the same way, and save now.
+  useEffect(() => {
+    const onHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return;
+      const live = sessionRef.current;
+      if (!live || live.state !== 'running') return;
+      live.stop();
+      getProgressStore().flush();
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, []);
 
   const finish = useCallback(
     (res: SessionResult) => {
       const s = specRef.current;
       micRef.current?.stop();
       micRef.current = null;
-      setMic((m) => (m.status === 'on' ? { status: 'off' } : m));
       rhythmDebug.lastResult = res;
-      if (!alive.current) return;
       const { stats } = res;
+      // Recorded first, whether or not the screen is still there: a round left early still counts.
+      const activity = activityFor({ skill: s.skill, title: s.title, params: s.params, record: s.record }, res, sessionRef.current?.chart.bpm ?? s.chart.bpm);
+      const recorded: ActivityResult | null = activity ? recordActivity(activity) : null;
+      if (!alive.current) return;
+      setMic((m) => (m.status === 'on' ? { status: 'off' } : m));
       // A round stopped before anything was due has nothing to say: go back to the start.
-      if (!res.completed && (res.due < 4 || stats.hits < 3)) {
+      if (!activity && !res.completed) {
         setPhase('ready');
         setSegment(null);
         return;
-      }
-      let recorded: ActivityResult | null = null;
-      if (s.record !== false) {
-        recorded = recordActivity({
-          kind: 'rhythm',
-          id: s.skill,
-          title: s.title,
-          accuracy: stats.accuracy,
-          stars: res.completed ? stats.stars : 0,
-          score: Math.round(stats.accuracy * 100),
-          mistakes: stats.miss + stats.extra + stats.ok + stats.wrongDirection,
-          combo: stats.bestRun,
-          count: stats.total,
-          durationSec: Math.round(res.durationSec),
-          completed: res.completed,
-          route: 'rhythm',
-          params: s.params,
-          meta: { bpm: sessionRef.current?.chart.bpm ?? 0, meanMs: Math.round(stats.meanMs), sdMs: Math.round(stats.sdMs) },
-          // The tempo the learner chose is where they pick up next time.
-          data: { bpm: sessionRef.current?.chart.bpm ?? s.chart.bpm },
-        });
       }
       setResult(res);
       setOutcome(recorded);
@@ -329,10 +328,10 @@ export function useRound(spec: RoundSpec): Round {
         setOffer('tap');
         return;
       }
-      if (src === 'mic' && !cal.micOffered && cal.micMs === null) {
-        setOffer('mic');
-        return;
-      }
+      // The microphone is not set up before the learner has tried it: the first round uses the
+      // delay the device reports, and if the timing then reads early or late by a steady amount
+      // the tip after the round offers the ten-second calibration.
+      if (src === 'mic' && !cal.micOffered) saveCalibration({ micOffered: true });
     }
     void begin();
   }, [begin, specRef]);

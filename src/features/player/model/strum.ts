@@ -6,7 +6,9 @@
  *
  * After a chord is counted the gate closes. It opens again on the next strum: an `onset` from the
  * pitch tracker later than the chord counted, or, should the tracker miss one, the sound swelling
- * again after it had died down a little. Times are on the audio clock. Pure: unit-tested.
+ * again after it had died down a little. While a chord is waited on, the gate also keeps the notes
+ * of the chord just counted (re-detected as it rings) from saying anything about the next one.
+ * Times are on the audio clock. Pure: unit-tested.
  */
 
 /** How much the level must rise over its low point since the last chord for a new strum (dB). */
@@ -56,5 +58,39 @@ export class StrumGate {
     this.closedAt = null;
     this.peak = -Infinity;
     this.floor = Infinity;
+  }
+}
+
+/** How long after the app sounds a hint the microphone may still be hearing its attack (s). */
+export const HINT_ECHO_S = 0.7;
+
+/**
+ * The app's own hint, heard back. In wait mode "Show me" (or the hint that comes by itself after
+ * a few misses) plays the note or chord through the speakers, and the microphone hears it: without
+ * a guard the app's own chord counted as the learner's ("Yes.") or as another wrong strum. For a
+ * moment after the hint sounds nothing heard counts; the learner listens first, then plays.
+ */
+export class HintEcho {
+  private until = -Infinity;
+
+  /** The app sounded a hint at audio time `now`; the microphone hears it `latency` later. */
+  sounded(now: number, latency: number, seconds = HINT_ECHO_S): void {
+    if (!Number.isFinite(now)) return;
+    this.until = Math.max(this.until, now + Math.max(0, Number.isFinite(latency) ? latency : 0) + seconds);
+  }
+
+  /** Whether something heard at audio time `time` may be the hint itself. */
+  covers(time: number): boolean {
+    return Number.isFinite(time) && time < this.until;
+  }
+
+  /** Audio time the guard lasts until (-Infinity when none). */
+  get end(): number {
+    return this.until;
+  }
+
+  /** Forget it (a new run). */
+  reset(): void {
+    this.until = -Infinity;
   }
 }

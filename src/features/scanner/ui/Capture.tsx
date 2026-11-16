@@ -96,9 +96,11 @@ export function Capture({ scan }: { scan: ScanState }) {
   // The unsaved scan of an earlier visit.
   const pickUp = async () => {
     if (pages.length || draft || text) {
+      // Pasted text has no pages: say what it replaces instead of "0 pages".
+      const now = pages.length ? (pages.length === 1 ? 'one page' : `${pages.length} pages`) : draft ? 'the reading you are checking' : 'the text you brought in';
       const ok = await confirmDialog({
         title: 'Pick up the earlier scan?',
-        description: `It takes the place of what you brought in now (${pages.length === 1 ? 'one page' : `${pages.length} pages`}).`,
+        description: `It takes the place of what you brought in now (${now}).`,
         confirmLabel: 'Pick it up',
         cancelLabel: 'Keep these',
       });

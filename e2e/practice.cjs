@@ -27,6 +27,11 @@
  *                yesterday and last week correctly; a first-day beginner's plans hold back the
  *                F barre chord and the other later exercises.
  *
+ *  library and bar  plans name technique exercises and songs from the app's content and open them
+ *                at their own address (#technique--tech-…, #play--…); with a session running, a fresh
+ *                load of another screen brings the bar up without fetching the exercise pool, the
+ *                planner or any content module.
+ *
  * Prints PASSED or FAILED and exits non-zero on failure.
  */
 const path = require('node:path');
@@ -75,6 +80,8 @@ async function openPage(browser, url, { mobile, theme, viewport }) {
   const go = async (hash) => {
     await page.goto(`${url}#${hash}`, { waitUntil: 'load' });
     await page.waitForSelector('main[data-route]', { timeout: 20000 });
+    // The screen itself, not the shell's loading skeleton (the route is a lazy chunk).
+    await page.waitForSelector('main[data-route] [data-ui-page]:not([data-shell-fallback])', { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(350);
   };
   return { context, page, errors, go };
@@ -193,22 +200,27 @@ async function phoneSession(browser, url) {
   const meta2 = await bar.textContent();
   check(G, `on #${screen2} the bar moved on to block 2 when block 1 ran out`, /2 of 2/.test(meta2 || ''), meta2);
   const before = seconds(await page.locator('[data-practice-bar-time]').textContent());
+  const clockBefore = await page.evaluate(() => Date.now());
   const saved = await page.evaluate(() => localStorage.getItem('ssa:practice.session'));
   check(G, 'the session is saved while it runs', !!saved && JSON.parse(saved).index === 1);
 
   // Reload in the middle of block 2.
   await page.reload({ waitUntil: 'load' });
   await page.waitForSelector('main[data-route]');
-  await page.waitForSelector('[data-practice-bar]', { timeout: 10000 });
+  await page.waitForSelector('[data-practice-bar]', { timeout: 15000 });
   await page.waitForTimeout(500);
   const afterReload = seconds(await page.locator('[data-practice-bar-time]').textContent());
+  // Playwright's clock moves on by the real time the earlier runFor calls took when the page
+  // reloads (tens of seconds on a busy machine): the session must count exactly what the page's
+  // clock says passed, no more and no less.
+  const passed = Math.round(((await page.evaluate(() => Date.now())) - clockBefore) / 1000);
   check(G, 'after a reload the bar is back on the same block', /2 of 2/.test((await bar.textContent()) || ''));
-  check(G, 'after a reload the time carried on from where it was', afterReload <= before && before - afterReload <= 4, `${before} -> ${afterReload}`);
+  check(G, 'after a reload the time carried on from where it was', afterReload <= before && Math.abs(before - afterReload - passed) <= 3, `${before} -> ${afterReload}, the clock moved ${passed} s`);
 
   await page.locator('[data-practice-bar-link]').click();
   await page.waitForFunction(() => location.hash === '#practice--session');
-  await page.waitForTimeout(300);
-  check(G, 'the bar leads back to the runner', (await page.locator('[data-practice-time]').count()) === 1);
+  const runner = await page.waitForSelector('[data-practice-time]', { timeout: 20000 }).then(() => true).catch(() => false);
+  check(G, 'the bar leads back to the runner', runner && (await page.locator('[data-practice-time]').count()) === 1);
   check(G, 'no bar on the practice screen itself', (await page.locator('[data-practice-bar]').count()) === 0);
 
   await page.clock.runFor(5 * 60_000);
@@ -225,7 +237,7 @@ async function phoneSession(browser, url) {
   check(G, 'exactly one practice session in the progress log', logged.length === 1, logged.length);
   const entry = logged[0] || {};
   check(G, 'the log entry is the 300 s practised (the paused minute left out)', entry.durationSec === 300, entry.durationSec);
-  check(G, 'it earned the practice XP (1.5 a minute: 8)', entry.xp === 8, entry.xp);
+  check(G, 'it earned the practice XP (2 a minute: 10, so the minutes of a goal meet it)', entry.xp === 10, entry.xp);
   check(G, 'total XP went up by it', state?.xp?.total >= 8, state?.xp?.total);
   const summaryText = await page.locator('main').textContent();
   check(G, 'the summary shows the same XP', summaryText.includes(`+${entry.xp}`), summaryText.slice(0, 200));
@@ -253,7 +265,8 @@ async function desktopFlows(browser, url) {
   const G = 'desktop';
   const { context, page, errors, go } = await openPage(browser, url, { mobile: false, theme: 'light' });
   await go('practice');
-  check(G, 'two panes: the journal beside the plan', await page.locator('aside[aria-label="Practice journal"]').isVisible());
+  const panes = await page.waitForSelector('aside[aria-label="Practice journal"]', { state: 'visible', timeout: 20000 }).then(() => true).catch(() => false);
+  check(G, 'two panes: the journal beside the plan', panes);
   await page.locator('[data-minutes="10"]').click();
   await page.waitForTimeout(250);
   const summary = () => page.locator('[class*="summary"]').first().textContent();
@@ -546,12 +559,53 @@ async function edgeCases(browser, url) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// The content library in plans, and what the session bar loads on other screens
+// ---------------------------------------------------------------------------------------------
+
+async function libraryAndLightBar(browser, url) {
+  const G = 'library and bar';
+  const { context, page, errors, go } = await openPage(browser, url, { mobile: false, theme: 'dark' });
+  await go('practice');
+  await page.waitForSelector('[data-practice-start]', { timeout: 20000 });
+  // Over a few plans, blocks name real exercises and songs and open them at their own address.
+  const deep = new Set();
+  for (const minutes of [15, 30, 45, 60]) {
+    await page.locator(`[role="radio"][data-minutes="${minutes}"]`).click();
+    for (let mix = 0; mix < 3; mix++) {
+      await page.waitForTimeout(200);
+      const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:practice.draft') || 'null'));
+      for (const b of draft?.blocks ?? []) {
+        if (/^(technique|song):/.test(b.itemId ?? '') && b.target?.params?.length) deep.add(`#${b.target.route}--${b.target.params.join('--')}`);
+      }
+      await page.getByRole('button', { name: 'New mix' }).click();
+    }
+  }
+  check(G, 'plans draw technique exercises and songs from the app’s content, each with its own address', [...deep].some((h) => h.startsWith('#technique--')) && [...deep].some((h) => h.startsWith('#play--')), [...deep].slice(0, 8).join(' '));
+
+  // A running session, then a fresh load of another screen: the bar comes up without the pool.
+  await page.locator('[role="radio"][data-minutes="10"]').click();
+  await page.locator('[data-practice-start]').first().click();
+  await page.waitForFunction(() => location.hash === '#practice--session');
+  const requested = [];
+  page.on('request', (r) => requested.push(r.url()));
+  await page.goto(`${url}#tuner`, { waitUntil: 'load' });
+  const bar = await page.waitForSelector('[data-practice-bar]', { timeout: 20000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(1500);
+  check(G, 'the session bar shows on another screen after a fresh load', bar);
+  const heavy = requested.filter((u) => /features\/practice\/model\/(content|planner|library|routines|signals)\.ts|\/src\/content\//.test(u));
+  check(G, 'the bar loads no exercise pool, planner or content', heavy.length === 0, heavy.map((u) => u.replace(url, '')).join(' '));
+  check(G, 'no console errors', errors.length === 0, errors.join(' | '));
+  await context.close();
+}
+
 withApp({}, async ({ browser, url }) => {
   const steps = [
     ['phone session', () => phoneSession(browser, url)],
     ['desktop', () => desktopFlows(browser, url)],
     ['looks', () => otherLooks(browser, url)],
     ['edge cases', () => edgeCases(browser, url)],
+    ['library and bar', () => libraryAndLightBar(browser, url)],
   ];
   for (const [name, run] of steps) {
     try {

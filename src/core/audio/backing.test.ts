@@ -876,6 +876,72 @@ describe('the band on the transport', () => {
     expect(band.transport.meter.numerator).toBe(3);
   });
 
+  it('a change made just before a pause still comes in after resume; a restart plays the change from the top', () => {
+    const { band, run, clock } = setup();
+    band.load([C, G, Am, F], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 0 });
+    const changes: Array<[string, number]> = [];
+    band.onChord((c) => changes.push([c.segment.chord.symbol, c.time]));
+    band.start();
+    run(0.6);
+    // Bar 0 (C) is playing; the change waits for the bar line at 2.08 s ... but the learner pauses first.
+    band.change([F, F, F, F], { style: 'funk', tempo: 120, loop: true });
+    run(0.9);
+    band.pause();
+    run(clock.t + 1);
+    band.resume();
+    run(clock.t + 6);
+    // (Before, the pause dropped the change: the band went on with G, Am, F in pop-rock.)
+    expect(band.style.id).toBe('funk');
+    expect(band.arrangement?.style).toBe('funk');
+    expect(changes.slice(1).map(([s]) => s).every((s) => s === 'F')).toBe(true);
+
+    // change() then start(): from the top in the new arrangement, not the old one.
+    band.load([C, G], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 0 });
+    band.start();
+    run(clock.t + 0.5);
+    band.change([Am, F], { style: 'waltz', tempo: 120, loop: true });
+    band.setTempo(100); // the newest tempo travels with the waiting change
+    band.start({ countIn: 0 });
+    changes.length = 0;
+    run(clock.t + 3);
+    expect(band.style.id).toBe('waltz');
+    expect(band.tempo).toBe(100);
+    expect(changes[0][0]).toBe('Am');
+    band.load([C], { style: 'folk', loop: true });
+    band.resume();
+    run(clock.t + 2);
+    expect(band.style.id).toBe('folk'); // a load forgets any change still waiting
+  });
+
+  it('a change made just before the bar line and paused there lands on that bar after resume', () => {
+    // With the real timer, start() schedules its first look-ahead at once: resumed 0.08 s before the
+    // bar line, that look-ahead already covers it, so the jump cannot be set again.
+    const clock = new FakeClock();
+    const rec = recorder();
+    const band = new BackingBand({ clock, output: rec.out });
+    const run = (until: number): void => {
+      while (clock.t < until - 1e-9) {
+        clock.t = Math.min(until, clock.t + 0.02);
+        band.transport.process();
+        band.transport.flushVisual();
+      }
+    };
+    band.load([C, G, Am, F], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 0 });
+    const changes: string[] = [];
+    band.onChord((c) => changes.push(c.segment.chord.symbol));
+    band.start();
+    run(1.9);
+    band.change([F, Am, G, C], { style: 'pop-rock', tempo: 120, loop: true });
+    run(2.0); // 0.08 s before the bar line at 2.08
+    band.pause();
+    band.resume(); // its first look-ahead already covers the bar line
+    run(clock.t + 5);
+    expect(band.transport.position().bar).toBeGreaterThanOrEqual(2);
+    // Bar 1 of the new form (Am) comes in, then G and C: the change was not lost.
+    expect(changes.slice(-3)).toEqual(['Am', 'G', 'C']);
+    band.dispose();
+  });
+
   it('a reload and restart (the old way to change a playing band) no longer reports a late stop', () => {
     const { band, run, clock } = setup();
     const heard: string[] = [];

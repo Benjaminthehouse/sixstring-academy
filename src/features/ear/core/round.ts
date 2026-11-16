@@ -36,13 +36,15 @@ export interface Round {
   /** The record with this round's answers folded in. */
   record: EarRecord;
   questions: Question[];
+  /** The sound choices each question was made with (a reload rebuilds the round from them). */
+  askedWith: EarSettings[];
   answers: Answered[];
   total: number;
 }
 
 /** Start a round. Nothing is generated until {@link nextQuestion}. */
 export function createRound(drill: DrillDef, level: LevelDef, opts: { seed: number; settings: EarSettings; record: EarRecord; total?: number }): Round {
-  return { drill, level, seed: opts.seed >>> 0, settings: opts.settings, startRecord: opts.record, record: opts.record, questions: [], answers: [], total: opts.total ?? level.questions };
+  return { drill, level, seed: opts.seed >>> 0, settings: opts.settings, startRecord: opts.record, record: opts.record, questions: [], askedWith: [], answers: [], total: opts.total ?? level.questions };
 }
 
 /** The answer ids a question was about, for the picker's "not three times running". */
@@ -58,7 +60,7 @@ export function nextQuestion(round: Round, settings: EarSettings = round.setting
   const success = recentSuccess(round.record);
   const answer = pickAnswer(rng, round.level.pool, round.record, success, round.questions.map(asked));
   const question = round.level.make({ rng, answer, settings, difficulty: difficultyFor(success), index, seed });
-  return { round: { ...round, settings, questions: [...round.questions, question] }, question };
+  return { round: { ...round, settings, questions: [...round.questions, question], askedWith: [...round.askedWith, settings] }, question };
 }
 
 /** Per note of a melody: was it right? The given notes count as right. */

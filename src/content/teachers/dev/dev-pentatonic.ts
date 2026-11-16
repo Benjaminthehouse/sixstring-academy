@@ -437,7 +437,7 @@ const boxes4And5: TeacherLesson = {
       tool: 'arcade',
       params: ['note-hunt', 'a-minor-pentatonic', 'box-4'],
       minutes: 4,
-      body: 'Play a round of Note Hunt in box 4 (the arcade shows it in open position), then tap Change for box 5, then box 1. Three rounds, climbing the neck in order.',
+      body: 'Play a round of Note Hunt in box 4 (the arcade shows it at frets 12 to 15, where the Scales screen has it), then tap Change for box 5, then box 1. Three rounds, through the boxes in order.',
     }),
     {
       type: 'fretboard-name',

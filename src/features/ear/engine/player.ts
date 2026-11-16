@@ -120,7 +120,7 @@ export class EarPlayer {
     const part = plan.band!;
     this.band ??= new BackingBand();
     const band = this.band;
-    const bars: BackingBar[] = part.bars.map((c) => ({ root: c.root, tones: c.tones, symbol: c.symbol }));
+    const bars: BackingBar[] = part.split ?? part.bars.map((c) => ({ root: c.root, tones: c.tones, symbol: c.symbol }));
     band.load(bars, { style: part.style, tempo: part.tempo, choruses: 1, countInBars: 0, ending: false, fills: false });
     await band.prepare();
     if (token !== this.token) return { finished: false, silent: false };

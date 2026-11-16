@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { practiceTargets, flattenSong, sixTab, WaitMode } from '@/core/song';
-import { StrumGate } from './strum';
+import { HINT_ECHO_S, HintEcho, StrumGate } from './strum';
 
 /** Levels (dBFS) of chroma frames every 50 ms: a strum's attack, then its ring dying away. */
 function strum(peak = -12, frames = 14): number[] {
@@ -73,5 +73,41 @@ describe('one strum, one step', () => {
     play(strum());
     play(strum());
     expect(wait.index).toBe(3);
+  });
+});
+
+describe('the hint, heard back', () => {
+  it('ignores what the microphone hears while the app sounds a hint, then listens again', () => {
+    const e = new HintEcho();
+    expect(e.covers(10)).toBe(false);
+    // "Show me" at 10.0 s on the audio clock, with 0.1 s of speaker and microphone latency.
+    e.sounded(10, 0.1);
+    expect(e.covers(10.05)).toBe(true);
+    expect(e.covers(10.1 + HINT_ECHO_S - 0.01)).toBe(true);
+    expect(e.covers(10.1 + HINT_ECHO_S + 0.01)).toBe(false);
+    // A second hint extends it; a reset forgets it.
+    e.sounded(11, 0);
+    expect(e.covers(11.5)).toBe(true);
+    e.reset();
+    expect(e.covers(11.5)).toBe(false);
+    // Nonsense in, no guard out.
+    e.sounded(Number.NaN, 0.1);
+    expect(e.covers(0)).toBe(false);
+  });
+
+  it('with the gate closed until after the hint, a ringing hint chord never counts; the next strum does', () => {
+    const e = new HintEcho();
+    const g = new StrumGate();
+    e.sounded(20, 0.05);
+    g.close(e.end, -50);
+    // The hint's own attack (an onset inside the guard) is not passed on; its ring keeps falling.
+    for (const [i, db] of [-14, -16, -18, -20, -22, -24].entries()) {
+      const t = 20.8 + i * 0.05;
+      if (!e.covers(t)) g.level(db);
+    }
+    expect(g.open).toBe(false);
+    // The learner strums.
+    g.onset(21.4);
+    expect(g.open).toBe(true);
   });
 });

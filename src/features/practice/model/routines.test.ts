@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTE_BY_NAME } from '@/app/routes';
 import { CONTENT_BY_ID } from './content';
+import { PRACTICE_LIBRARY } from './library';
 import { buildPlan, totalMinutes, type PlannerInput } from './planner';
 import { BUILT_IN_ROUTINES, builtInsFor, copyName, createRoutine, duplicateRoutine, parseRoutine, planFromRoutine, renameRoutine, routineBlocksFromPlan, routineMinutes } from './routines';
 import { startSession } from './session';
@@ -59,6 +60,25 @@ describe('routines', () => {
     expect(renameRoutine(copy, '   ', 9).name).toBe(copy.name);
     expect(renameRoutine(copy, 'Solo prep', 9)).toMatchObject({ name: 'Solo prep', updatedAt: 9 });
     expect(parseRoutine({ id: 'x', name: 'n', blocks: [{ area: 'bad', minutes: 3 }] })).toBeNull();
+  });
+});
+
+describe('routines with exercises from the app\'s content', () => {
+  it('keeps a library exercise, and runs one that no longer exists as planner\'s choice for its area', () => {
+    const saved = parseRoutine({ id: 'r', name: 'Mine', blocks: [
+      { area: 'technique', minutes: 4, itemId: 'technique:tech-spider' },
+      { area: 'repertoire', minutes: 5, itemId: 'song:gone-from-the-library' },
+      { area: 'chords', minutes: 3, itemId: 'Not An Id!' },
+    ] })!;
+    expect(saved.blocks.map((b) => b.itemId)).toEqual(['technique:tech-spider', 'song:gone-from-the-library', undefined]);
+    const plan = planFromRoutine(saved, { ...INPUT, library: PRACTICE_LIBRARY });
+    expect(plan[0]).toMatchObject({ itemId: 'technique:tech-spider', target: { route: 'technique', params: ['tech-spider'] } });
+    expect(plan[1].area).toBe('repertoire');
+    expect(plan[1].itemId).not.toBe('song:gone-from-the-library');
+    expect(plan[1].title.length).toBeGreaterThan(3);
+    expect(totalMinutes(plan)).toBe(12);
+    // Saving a plan keeps the library exercise as the exercise.
+    expect(routineBlocksFromPlan([{ ...plan[0], minutes: 4 }])).toEqual([{ area: plan[0].area, minutes: 4, itemId: 'technique:tech-spider' }]);
   });
 });
 

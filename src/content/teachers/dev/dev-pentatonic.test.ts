@@ -305,14 +305,16 @@ describe('Dev unit 4: the pentatonic, all five boxes', () => {
     ).toEqual([]);
   });
 
-  it('sends the arcade tasks to real scales and shapes (box 4 in open position)', () => {
+  it('sends the arcade tasks to real scales and shapes (box 4 at fret 12, as on the Scales screen)', () => {
     for (const step of tasks.filter((t) => t.tool === 'arcade')) {
       const [, slug, shape] = step.params!;
       const focus = focusFromParams(slug, shape);
       expect(focus, step.id).toMatchObject({ tonic: 'A', scale: 'minor-pentatonic' });
       if (shape) expect(findShape('A', 'minor-pentatonic', shape), `${step.id} ${shape}`).toBeTruthy();
     }
-    expect(findShape('A', 'minor-pentatonic', 'box-4')!.minFret).toBe(0);
+    // The arcade lays the boxes out up the neck like the Scales screen (features/arcade/core/focus.ts).
+    expect(findShape('A', 'minor-pentatonic', 'box-4')!.minFret).toBe(12);
+    expect(plain(tasks.find((t) => t.id === 'boxes-hunt')!.body)).toContain('frets 12 to 15');
   });
 
   it('names the BPM of every Player task as the song tempo times its percentage', async () => {

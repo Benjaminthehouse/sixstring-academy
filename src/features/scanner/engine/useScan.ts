@@ -190,7 +190,8 @@ export function useScan() {
   }, [keep, resume]);
   const buildKeep = useCallback((): KeepInput | null => {
     const s = latest.current;
-    if (!hasWork(s)) return null;
+    // The sample read as it came is ten seconds to redo: not worth offering back.
+    if (!hasWork(s) || !worthWarning(s)) return null;
     return { phase: s.phase, pages: s.pages.map(keptOf), readPages: s.readPages.map(keptOf), readNotes: s.readNotes, text: s.text, aiResult: s.aiResult, history: s.history, doc: s.doc };
   }, []);
   // Keep the work as it changes; not while an earlier scan is on offer (this would replace it).

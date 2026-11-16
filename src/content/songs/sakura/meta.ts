@@ -15,7 +15,7 @@ export default defineSong({
   key: 'E Phrygian',
   teaches: ['The Japanese in scale: E F A B C', 'Half steps: E to F and B to C', 'Playing slowly and evenly', 'A little vibrato on long notes'],
   skills: ['melody', 'technique'],
-  tags: ['japanese', 'in scale', 'pentatonic', 'cherry blossom', 'koto', 'vibrato', 'slow'],
+  tags: ['japanese', 'in scale', 'pentatonic', 'phrygian', 'cherry blossom', 'koto', 'vibrato', 'slow'],
   about:
     'A calm song about cherry blossoms filling the spring sky like mist or clouds: play it as evenly as a koto, every note its full length, never hurried. It uses five notes, E F A B C, the Japanese in scale, so the F is natural, only a half step above E, and that closeness gives the tune its colour. On the long fretted notes, rock the fingertip gently for a little vibrato; if the low B and C on string 5 feel far away, loop bars 5 and 6 slowly until your hand finds them without looking.',
   added: '2026-11-16',

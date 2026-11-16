@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import type { HtmlTagDescriptor, Plugin, ResolvedConfig, Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -187,8 +188,35 @@ function routePreload(): Plugin {
   };
 }
 
+/**
+ * Refuse to build with a Supabase secret key (`sb_secret_…` or a `service_role` token) in
+ * VITE_SUPABASE_ANON_KEY: Vite writes that variable into the page, and such a key skips row-level
+ * security, so anyone who opened the site could read every learner's data. The app also refuses it
+ * at runtime (src/core/platform/cloud/config.ts); this stops it reaching the page at all.
+ */
+function refuseSecretKey(mode: string): void {
+  const key = (loadEnv(mode, ROOT, 'VITE_').VITE_SUPABASE_ANON_KEY ?? '').trim();
+  if (!key) return;
+  let role: unknown = null;
+  const parts = key.split('.');
+  if (parts.length === 3) {
+    try {
+      role = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')).role;
+    } catch {
+      role = null;
+    }
+  }
+  if (/^sb_secret_/i.test(key) || role === 'service_role') {
+    throw new Error(
+      'VITE_SUPABASE_ANON_KEY is a Supabase SECRET key (service_role or sb_secret_). Never put it in the site: ' +
+        'use the "anon public" or "publishable" key instead, and make a new secret key in Supabase if this one was shared.',
+    );
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const artifact = mode === 'artifact';
+  refuseSecretKey(mode);
   return {
     base: './',
     plugins: [react(), themeColour(), mode === 'phone' ? basicSsl() : null, artifact ? null : pwa(), artifact ? null : routePreload()].filter(Boolean),

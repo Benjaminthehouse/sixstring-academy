@@ -56,7 +56,7 @@ function Target({ exercise, heard, reviewed }: { exercise: PlayExercise; heard: 
     if (exercise.staffOnly) {
       return (
         <div className={styles.playTarget} data-play-target="staff">
-          <FigureView figure={{ kind: 'staff', notes: [exercise.note], key: exercise.key }} />
+          <FigureView figure={{ kind: 'staff', notes: [exercise.note], key: exercise.key }} className={styles.playStaff} />
         </div>
       );
     }
@@ -106,7 +106,7 @@ function Target({ exercise, heard, reviewed }: { exercise: PlayExercise; heard: 
   return (
     <div className={styles.playTarget} data-play-target="phrase">
       {exercise.staffOnly ? (
-        <FigureView figure={{ kind: 'staff', notes: phraseStaff(exercise.notes, expected, context), key: exercise.key }} />
+        <FigureView figure={{ kind: 'staff', notes: phraseStaff(exercise.notes, expected, context), key: exercise.key }} className={styles.playStaff} />
       ) : (
         <FigureView figure={{ kind: 'tab', notes: exercise.notes, tempo: exercise.tempo, tuning: exercise.tuning, capo: exercise.capo, key: exercise.key }} />
       )}

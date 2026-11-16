@@ -84,6 +84,20 @@ describe('StrumListener', () => {
   it('says nothing without a strum', () => {
     expect(new StrumListener().frame(3, frame(C), want, candidates)).toBeNull();
   });
+
+  it('says nothing about an onset followed by silence (strings muted, a knock, a click)', () => {
+    // The pitch tracker reports frames below its gate as all zeros.
+    const quiet = new Array<number>(12).fill(0);
+    const l = new StrumListener();
+    l.onset(30);
+    for (const dt of [0.05, 0.1, 0.2, 0.3]) expect(l.frame(30 + SETTLE_S + dt, quiet, want, candidates)).toBeNull();
+    expect(l.frame(30 + SETTLE_S + LISTEN_S + 0.02, quiet, want, candidates)).toBeNull();
+    // A real strum after it is still judged.
+    l.onset(32);
+    l.frame(32 + SETTLE_S + 0.05, frame(C), want, candidates);
+    l.frame(32 + SETTLE_S + 0.15, frame(C), want, candidates);
+    expect(l.frame(32 + SETTLE_S + LISTEN_S + 0.02, frame(C), want, candidates)).toEqual({ kind: 'other', heard: 'C' });
+  });
 });
 
 describe('strumWords', () => {

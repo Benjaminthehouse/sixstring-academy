@@ -8,7 +8,6 @@
  * See `API.md` in this folder for what the shell offers to screens.
  */
 import { lazy, Suspense } from 'react';
-import { isArtifact } from '@/core/platform/env';
 import { getProgressStore } from '@/core/progress';
 import { UIProvider } from '@/ui';
 import './document.css';
@@ -24,11 +23,11 @@ import { StatsSheet } from './shell/StatsSheet';
 // accent settings to <html>, so the first paint is already in the right theme.
 getProgressStore();
 
-// Inside a Claude artifact, progress follows the learner between devices. Standalone there is no
-// cloud, so the sync code is not even loaded.
-if (isArtifact()) {
-  void import('@/core/platform/sync').then((m) => m.startCloudSync()).catch(() => undefined);
-}
+// Progress follows the learner between devices: inside a Claude artifact through its database, on
+// the website through the learner's account when the site has accounts set up. Started in every
+// host and after the first render (the module loads on its own): without a cloud it only keeps the
+// learner data's change ledger, and the account library loads only when accounts are offered.
+void import('@/core/platform/sync').then((m) => m.startCloudSync()).catch(() => undefined);
 
 // The practice feature's "session in progress" bar, shown on every other screen while a session runs.
 const PracticeSessionBar = lazy(() => import('@/features/practice/SessionBar'));

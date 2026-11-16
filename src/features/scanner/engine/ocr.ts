@@ -8,6 +8,7 @@ import type { GrayImage } from '@/core/omr/image/gray';
 import type { BBox } from '@/core/omr/types';
 import { flatten } from '@/core/omr/image/illumination';
 import { isArtifact } from '@/core/platform';
+import { levelledCrop } from '../model/levels';
 import type { TextPiece } from '../model/text-layout';
 import { type AnyCanvas, canvasOfGray, ctx2d, makeCanvas } from './images';
 
@@ -142,20 +143,18 @@ export function ocrCanvas(gray: GrayImage, scale = 1): AnyCanvas {
  * text height and stacked on a strip, the strip is read once, and the lines are given back to the
  * boxes they came from. Boxes with nothing readable get ''.
  */
-export async function readBoxes(ocr: Ocr, gray: GrayImage, boxes: BBox[], opts: { textHeight?: number; pad?: number } = {}): Promise<string[]> {
+export async function readBoxes(ocr: Ocr, gray: GrayImage, boxes: BBox[], opts: { textHeight?: number; pad?: number; allow?: string } = {}): Promise<string[]> {
   if (!boxes.length) return [];
   const th = opts.textHeight ?? 40;
   const gap = Math.round(th * 0.9);
   const pad = opts.pad ?? 4;
-  const src = canvasOfGray(gray);
   const placed: { y0: number; y1: number }[] = [];
-  const parts: { box: BBox; w: number; h: number }[] = boxes.map((b) => {
-    const x = Math.max(0, Math.floor(b.x - pad));
-    const y = Math.max(0, Math.floor(b.y - pad));
-    const w = Math.min(gray.width - x, Math.ceil(b.w + 2 * pad));
-    const h = Math.min(gray.height - y, Math.ceil(b.h + 2 * pad));
-    const s = th / Math.max(1, h);
-    return { box: { x, y, w, h }, w: Math.max(1, Math.round(w * s)), h: th };
+  // Each box levelled on its own (a photo's grey paper turned white): on the white strip, grey paper
+  // reads as a dark patch and nothing in it is read (`model/levels.ts`).
+  const parts = boxes.map((b) => {
+    const crop = levelledCrop(gray, { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad });
+    const s = th / Math.max(1, crop.height);
+    return { crop, w: Math.max(1, Math.round(crop.width * s)), h: th };
   });
   const width = Math.min(4000, Math.max(...parts.map((p) => p.w)) + 2 * gap);
   const height = parts.length * (th + gap) + gap;
@@ -167,11 +166,14 @@ export async function readBoxes(ocr: Ocr, gray: GrayImage, boxes: BBox[], opts: 
   let y = gap;
   for (const p of parts) {
     const w = Math.min(p.w, width - 2 * gap);
-    c.drawImage(src as unknown as CanvasImageSource, p.box.x, p.box.y, p.box.w, p.box.h, gap, y, w, p.h);
+    if (p.crop.width && p.crop.height) {
+      const src = canvasOfGray({ width: p.crop.width, height: p.crop.height, data: p.crop.data });
+      c.drawImage(src as unknown as CanvasImageSource, 0, 0, p.crop.width, p.crop.height, gap, y, w, p.h);
+    }
     placed.push({ y0: y, y1: y + p.h });
     y += p.h + gap;
   }
-  const r = await ocr.read(strip, 'block');
+  const r = await ocr.read(strip, 'block', opts.allow ?? '');
   const out = boxes.map(() => '');
   for (const line of r.lines) {
     const mid = line.box.y + line.box.h / 2;

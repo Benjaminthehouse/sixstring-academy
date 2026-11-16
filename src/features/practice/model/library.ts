@@ -17,7 +17,8 @@
 import type { ExperienceLevel } from '@/core/progress';
 import { technique as TECHNIQUE_PLAN } from '@/content/plan/repertoire.json';
 import { SONG_ENTRIES, type SongEntry } from '@/content/songs';
-import { outlineUnits } from '@/content/theory';
+// The syllabus outline alone: the Theory Path registry would bring its glossary along.
+import { OUTLINE } from '@/content/theory/outline';
 import { target, type Area } from './areas';
 import type { ContentItem } from './content';
 
@@ -218,7 +219,7 @@ export function buildLibrary(parts: {
 export const PRACTICE_LIBRARY: readonly ContentItem[] = buildLibrary({
   technique: TECHNIQUE_PLAN as readonly TechniquePlanEntry[],
   songs: SONG_ENTRIES,
-  units: outlineUnits(),
+  units: OUTLINE.stages.flatMap((stage) => stage.units.map((unit) => ({ unit, stage: stage.id }))),
 });
 
 /** Library items by id. */

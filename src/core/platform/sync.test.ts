@@ -1438,3 +1438,57 @@ describe('song and data helpers', () => {
     expect(bodyKey({ ...body, songs: { carried: true, items: {} } }, false)).toBe(bodyKey(body, false));
   });
 });
+
+describe('saves arriving late or written at the same moment (both hosts share this engine)', () => {
+  const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+  it('an older save delivered again after a newer one was merged changes nothing and writes nothing', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop', { random: seeded(11) });
+    const phone = dataDevice(db, 'phone', { random: seeded(29) });
+    await laptop.sync.start();
+    await phone.sync.start();
+    await pass(30_000);
+    laptop.write('metronome.settings', { bpm: 70 });
+    await pass(30_000);
+    const older = db.docs.get(head());
+    expect(phone.read('metronome.settings')).toEqual({ bpm: 70 });
+    laptop.write('metronome.settings', { bpm: 90 });
+    await pass(30_000);
+    expect(phone.read('metronome.settings')).toEqual({ bpm: 90 });
+
+    // A listener delivers the older save once more (it was queued while the newer one was merged).
+    const writes = db.writes(/progress$/).length;
+    const newer = db.docs.get(head());
+    db.docs.set(head(), older as Record<string, unknown>);
+    db.emit(head());
+    db.docs.set(head(), newer as Record<string, unknown>);
+    await pass(60_000);
+    expect(phone.read('metronome.settings')).toEqual({ bpm: 90 });
+    expect(laptop.read('metronome.settings')).toEqual({ bpm: 90 });
+    expect(db.writes(/progress$/).length).toBe(writes);
+  });
+
+  it('two devices that write over each other in the same moment keep both changes', async () => {
+    const db = new FakeDb();
+    const laptop = dataDevice(db, 'laptop', { random: seeded(11) });
+    const phone = dataDevice(db, 'phone', { random: seeded(29) });
+    await laptop.sync.start();
+    await phone.sync.start();
+    await pass(30_000);
+    // Neither hears the other until both have written.
+    db.delivering = false;
+    laptop.write('practice.data', { v: 1, journal: [{ id: 'desk', endedAt: 2 }], routines: [], goals: [] });
+    phone.write('practice.data', { v: 1, journal: [{ id: 'train', endedAt: 3 }], routines: [], goals: [] });
+    await pass(30_000);
+    expect(db.writes(/progress$/).length).toBeGreaterThanOrEqual(2);
+    db.delivering = true;
+    db.emit(head());
+    await pass(90_000);
+    for (const d of [laptop, phone]) {
+      const ids = ((d.read('practice.data') as { journal: Array<{ id: string }> }).journal ?? []).map((e) => e.id).sort();
+      expect(ids).toEqual(['desk', 'train']);
+      expect(d.status()).toMatchObject({ state: 'synced', pending: false });
+    }
+  });
+});

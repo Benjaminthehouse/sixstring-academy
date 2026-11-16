@@ -57,6 +57,14 @@
  * holds at most 256 KiB, so a large export is split into immutable part documents and a small
  * head document that names them; the head is written last, so readers never see half a save.
  *
+ * TWO DEVICES WRITING AT ONCE. Neither backend can refuse a write made on top of an older copy,
+ * so both devices may read the same copy and then both write: the later write wins the head. Each
+ * head therefore names the save it was built on (`prev`), and each device remembers the base under
+ * its own last save (`meta.wrote`). A device that then sees a head not built on its own save knows
+ * the cloud never kept it, merges against that earlier base (so both sides' changes are joined
+ * rather than the other side's taken as newer) and writes the result. A save this service has
+ * already written or merged, delivered again late, is ignored rather than merged a second time.
+ *
  * "DELETE MY CLOUD DATA" (accounts only) leaves a small marker in place of the head
  * (`erasedHeadDoc`). A device that had synced with that account stops when it sees it, forgets
  * what it knew about the cloud and signs out, instead of writing its copy straight back; a device
@@ -513,6 +521,12 @@ interface Head {
   /** 0 when the body is inline, otherwise the number of part documents. */
   parts: number;
   body?: string;
+  /**
+   * The save the writer had merged (or written) last when it wrote this one ('' for none). A
+   * device whose own save is not this one was overwritten by a writer that never saw it.
+   * Missing in copies written by an older app.
+   */
+  prev?: string;
   /** The learner deleted their cloud data: this is the marker left in place of the copy. */
   erased?: true;
 }
@@ -529,12 +543,12 @@ export function erasedHeadDoc(now: number): Record<string, unknown> {
 }
 
 /** True when a head document is the marker "delete my cloud data" left (see `erasedHeadDoc`). */
-export function isErasedHeadDoc(data: Record<string, unknown> | undefined): data is Record<string, unknown> {
+export function isErasedHeadDoc(data: Record<string, unknown> | undefined): boolean {
   return !!data && data.kind === 'erased';
 }
 
 function parseHead(data: Record<string, unknown> | undefined): Head | null {
-  if (isErasedHeadDoc(data)) return { v: FORMAT, gen: `erased-${String(num(data.at) ?? 0)}`, stamp: '', epoch: 0, chars: 0, sum: '', parts: 0, erased: true };
+  if (data && isErasedHeadDoc(data)) return { v: FORMAT, gen: `erased-${String(num(data.at) ?? 0)}`, stamp: '', epoch: 0, chars: 0, sum: '', parts: 0, erased: true };
   if (!data || data.kind !== 'progress-sync') return null;
   const v = num(data.v);
   const parts = num(data.parts);
@@ -546,6 +560,7 @@ function parseHead(data: Record<string, unknown> | undefined): Head | null {
   if (parts === 0 && typeof data.body !== 'string') return null;
   const head: Head = { v, gen: data.gen, stamp: data.stamp, epoch, chars, sum: data.sum, parts };
   if (typeof data.body === 'string') head.body = data.body;
+  if (typeof data.prev === 'string') head.prev = data.prev;
   return head;
 }
 
@@ -568,6 +583,12 @@ interface LocalMeta {
   base: { data: Record<string, string> | null; songs: Record<string, string> | null };
   /** The song documents in the cloud, as far as this device knows: id -> content fingerprint. */
   songDocs: Record<string, string>;
+  /**
+   * This device's last save and the base it was built on (what the cloud and this device had
+   * agreed before it). If another device's save turns out not to be built on it, the cloud never
+   * kept it: merging goes back to that base, so both sides' changes are joined, not replaced.
+   */
+  wrote: { gen: string; base: { data: Record<string, string> | null; songs: Record<string, string> | null } } | null;
 }
 
 function sumsOf(value: unknown): Record<string, string> | null {
@@ -578,8 +599,11 @@ function sumsOf(value: unknown): Record<string, string> | null {
 }
 
 function readMeta(raw: unknown): LocalMeta {
-  const meta: LocalMeta = { uid: null, gen: null, parts: 0, stamp: null, sum: null, epoch: 0, syncedAt: null, trash: [], base: { data: null, songs: null }, songDocs: {} };
+  const meta: LocalMeta = { uid: null, gen: null, parts: 0, stamp: null, sum: null, epoch: 0, syncedAt: null, trash: [], base: { data: null, songs: null }, songDocs: {}, wrote: null };
   if (!isRec(raw)) return meta;
+  if (isRec(raw.wrote) && typeof raw.wrote.gen === 'string' && isRec(raw.wrote.base)) {
+    meta.wrote = { gen: raw.wrote.gen, base: { data: sumsOf(raw.wrote.base.data), songs: sumsOf(raw.wrote.base.songs) } };
+  }
   if (isRec(raw.base)) meta.base = { data: sumsOf(raw.base.data), songs: sumsOf(raw.base.songs) };
   meta.songDocs = sumsOf(raw.songDocs) ?? {};
   if (typeof raw.uid === 'string') meta.uid = raw.uid;
@@ -838,6 +862,12 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
   let meta: LocalMeta = readMeta(null);
   /** Take the first cloud copy over instead of merging: the local data belongs to another account. */
   let adoptRemote = false;
+  /**
+   * Saves this service has written or merged. One of them delivered again later (the listener
+   * queued it while a write that had already merged it was under way) is old news: merging it
+   * against the newer agreed state would take it for another device's change and undo ours.
+   */
+  const seenGens = new Set<string>();
 
   /** A head the listener delivered that has not been dealt with yet. */
   let incoming: { exists: boolean; head: Head | null } | undefined;
@@ -1086,6 +1116,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
   async function merge(found: { exists: boolean; head: Head | null }): Promise<void> {
     const p = port as SyncProgressPort;
     const acknowledge = (head: Head): void => {
+      seenGens.add(head.gen);
       // Its parts become ours to tidy up once we replace it.
       meta.gen = head.gen;
       meta.parts = head.parts;
@@ -1125,7 +1156,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       needPush = true;
       return;
     }
-    if (head.gen === meta.gen) return; // our own save, or one already merged
+    if (head.gen === meta.gen || seenGens.has(head.gen)) return; // our own save, or one already merged
     if (head.v > FORMAT) {
       blocked = 'update-needed';
       return;
@@ -1164,6 +1195,18 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       needPush = true;
       persist();
       return;
+    }
+
+    // Our last save was written over by a device that had not seen it (both read the cloud copy,
+    // then both wrote): the cloud never kept it. What both sides last agreed on is then the base our
+    // save was built on, so merge against that one: each side's changes are joined rather than the
+    // other side's taken as newer, and the result is written back.
+    let overwritten = false;
+    if (head.prev !== undefined && meta.wrote !== null && meta.wrote.gen === meta.gen && head.prev !== meta.gen) {
+      overwritten = true;
+      meta.base = meta.wrote.base;
+      if (meta.gen !== null && meta.parts > 0) meta.trash.push({ gen: meta.gen, parts: meta.parts }); // our parts nobody names now
+      meta.wrote = null;
     }
 
     const localNow = await localBody();
@@ -1221,7 +1264,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const songsAfter = bothCarry(afterNow.body, remote);
     let ahead = bodyKey(afterNow.body, songsAfter) !== bodyKey(remote, songsAfter);
     // What was local before a take-over is gone, so only a merge can have unsaved local changes.
-    const unsaved = dirtyBefore && !replace;
+    const unsaved = (dirtyBefore || overwritten) && !replace;
     if (ahead && !unsaved) {
       // Writing back only because the result differs must not ping-pong between two devices.
       echoPushes += 1;
@@ -1279,6 +1322,9 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     const now = deps.now();
     const gen = `${Math.floor(now).toString(36)}${Math.floor(deps.random() * 0xffffff).toString(36).padStart(4, '0')}`;
     const parts = pieces.length > 1 ? pieces.length : 0;
+    // The save this one is built on, and what this device and the cloud agreed at that save.
+    const builtOn = meta.gen;
+    const baseBefore = meta.base;
 
     // Each song that changed gets its own document first, so a copy never names a song that is not there.
     const sp = p.songs;
@@ -1317,8 +1363,10 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
       chars: json.length,
       sum: checksum(json),
       parts,
+      prev: builtOn ?? '',
     };
     if (parts === 0) head.body = json;
+    seenGens.add(gen);
     await ref.set(head);
 
     // The new save is live. The one it replaced is now rubbish.
@@ -1327,6 +1375,7 @@ export function createCloudSync(overrides: Partial<SyncDeps> = {}): CloudSync {
     if (previous) meta.trash.push(previous);
     meta.gen = gen;
     meta.parts = parts;
+    meta.wrote = { gen, base: baseBefore };
     meta.stamp = stamp;
     meta.sum = sum;
     meta.syncedAt = now;

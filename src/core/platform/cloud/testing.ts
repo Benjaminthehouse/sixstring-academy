@@ -89,6 +89,10 @@ export function testDevice(server: FakeSupabaseServer, name: string, options: { 
   const transport = storage.transport;
   const client = createFakeClient(transport, { storage: storage.session });
   const port = appDataPort(storage.store, storage.data, storage.songs);
+  // Each device its own repeatable random numbers: two real devices never share them, and save ids
+  // made in the same (fake) millisecond must still differ.
+  let seed = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 2147483647, 7) || 7;
+  const random = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const onlineWatchers = new Set<() => void>();
   const pokes = new Set<() => void>();
   let current: CloudSync | null = null;
@@ -108,7 +112,7 @@ export function testDevice(server: FakeSupabaseServer, name: string, options: { 
       saveMeta: (meta) => {
         storage.memory.meta = JSON.parse(JSON.stringify(meta)) as unknown;
       },
-      random: () => 0.5,
+      random,
     });
 
   const device: TestDevice = {

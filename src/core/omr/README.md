@@ -577,7 +577,13 @@ Fixes from the reviews, each measured on both corpora at every tier (`cli.cjs [-
   (unseen photo-good dur 94.3 -> 93.9 %, measures exact 70.1 -> 68.3 %; original photo-bad 83.5 ->
   82.9 %, 50.1 -> 48.7 %): a measure that does not fit is more often missing a note. Not kept.
 - Words over tab-only staves are located (`textOverTabStaff`): 16 of 16 chord names of the tab pages
-  at every tier, one stray box per tier over the 25 tab pages without chords.
+  at every tier, one stray box per tier over the 25 tab pages without chords. Located is not read:
+  the scanner reads the boxes with OCR. Its review measured that read on `tab-open-chords-*` in the
+  browser: before, a lone "C" came back as "c" (7 of 8 at clean once the band re-read filled one) and
+  a photo's grey paper made every box blank (0 of 8 boxes, 2 of 8 chords after the band re-read, at
+  photo-good; the same on notation pages with chord names). With each box levelled and chord boxes
+  read with chord characters only (`features/scanner/model/levels.ts`, `engine/ocr.ts`): 8 of 8 at
+  clean, scan and photo-good (7 of 8 from a JPEG at quality 88); photo-bad still 0 of 8.
 - Cue-size staves: at least 6 small solid heads and 1.5 times the normal ones -> read with the small
   heads accepted, with a `small-notes` warning. The two cue pages 18.3 -> 57.3 % recall at clean
   (unseen clean notes R 91.0 -> 94.6 %); no normal staff of either corpus triggers it. Their small

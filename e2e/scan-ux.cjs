@@ -252,8 +252,25 @@ async function groupDraft(browser, url) {
   const back = await p.page.waitForSelector('[data-scan-resume]', { timeout: 10000 }).then(() => true, () => false);
   check(g, 'Undo brings the offer back', back);
 
+  // Tab pasted while the earlier scan is on offer has no pages: picking the scan up says it replaces
+  // the text (it said "0 pages"); "Keep these" keeps the text.
+  await p.page.click('[data-scan-paste]');
+  await p.page.fill('[role="dialog"] textarea', ['e|---0---3---|', 'B|---1---0---|', 'G|---0---0---|', 'D|---2---0---|', 'A|---3---2---|', 'E|-------3---|'].join('\n'));
+  await p.page.click('[data-scan-paste-use]');
+  await p.page.waitForFunction(() => window.__ssaScan?.phase === 'text', null, { timeout: 30000 });
+  await p.page.evaluate(() => { location.hash = '#scan'; });
+  await p.page.waitForSelector('[data-scan-resume-go]', { timeout: 30000 });
+  await p.page.click('[data-scan-resume-go]');
+  const ask = p.page.getByRole('alertdialog').or(p.page.getByRole('dialog'));
+  const askText = await ask.first().innerText({ timeout: 10000 }).catch(() => '');
+  check(g, 'picking the scan up over pasted text says it replaces the text, not "0 pages"', /the text you brought in/.test(askText) && !/0 pages/.test(askText), askText.slice(0, 200));
+  await ask.getByRole('button', { name: 'Keep these' }).click();
+  const textKept = await p.page.evaluate(() => !!window.__ssaScan?.text);
+  check(g, '"Keep these" keeps the pasted text and the offer', textKept && !!(await p.page.$('[data-scan-resume]')));
+
   // Saving the song clears the draft: nothing is offered after the next reload.
   await p.page.click('[data-scan-resume-go]');
+  await ask.getByRole('button', { name: 'Pick it up' }).click();
   await p.page.waitForSelector('[data-scan="proof"]', { timeout: 30000 });
   await p.page.click('[data-scan-save]');
   const anyway = p.page.getByRole('button', { name: 'Save anyway' });
@@ -265,14 +282,21 @@ async function groupDraft(browser, url) {
   await p.page.waitForTimeout(2500);
   check(g, 'after saving the song, a reload offers no draft', !(await p.page.$('[data-scan-resume]')));
 
-  // Pages alone (no reading yet) come back too.
+  // The sample read as it came is not kept (ten seconds to redo)...
   await p.page.click('[data-scan-sample]');
   await p.page.waitForFunction(() => window.__ssaScan?.pages.length === 1 && window.__ssaScan.pages[0].look, null, { timeout: 120000 });
+  await p.page.waitForTimeout(1500);
+  check(g, 'the untouched sample is not kept as a draft', (await p.page.evaluate(() => window.__ssaScanDraft?.state)) !== 'saved', await p.page.evaluate(() => window.__ssaScanDraft));
+  // ...but a photo of the learner's own is, before it is even read.
+  await p.page.evaluate(() => { location.hash = '#scan'; });
+  const [chooser] = await Promise.all([p.page.waitForEvent('filechooser', { timeout: 20000 }), p.page.locator('button:has-text("Add a page"), button:has-text("Choose photos or a PDF")').first().click()]);
+  await chooser.setFiles(path.join(ROOT, 'src', 'features', 'scanner', 'assets', 'sample-ode-to-joy.png'));
+  await p.page.waitForFunction(() => window.__ssaScan?.pages.length === 2 && window.__ssaScan.pages.every((x) => x.look), null, { timeout: 120000 });
   await p.page.waitForFunction(() => window.__ssaScanDraft?.state === 'saved', null, { timeout: 15000 }).catch(() => undefined);
   await p.page.reload({ waitUntil: 'load' });
   await p.page.waitForSelector('[data-scan-resume]', { timeout: 60000 });
   await p.page.click('[data-scan-resume-go]');
-  const pagesBack = await p.page.waitForFunction(() => window.__ssaScan?.pages.length === 1 && window.__ssaScan.pages[0].look, null, { timeout: 60000 }).then(() => true, () => false);
+  const pagesBack = await p.page.waitForFunction(() => window.__ssaScan?.pages.length === 2 && window.__ssaScan.pages.every((x) => x.look), null, { timeout: 60000 }).then(() => true, () => false);
   check(g, 'pages not read yet come back too, looked at again', pagesBack);
   check(g, 'no browser errors', p.errors.length === 0, p.errors.slice(0, 3));
   await context.close();

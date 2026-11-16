@@ -12,7 +12,7 @@ export default defineSong({
   style: 'folk',
   kind: 'strum-and-sing',
   key: 'E Dorian',
-  teaches: ['Em and D, four bars each', 'A minor song with a bright C#', 'Downstrums, then down-up eighths', 'A strong beat 1'],
+  teaches: ['Em and D, four bars each', 'Dorian: a minor tune with a bright C#', 'Downstrums, then down-up eighths', 'A strong beat 1'],
   skills: ['strumming', 'chords', 'singing', 'rhythm'],
   tags: ['shanty', 'sea song', 'dorian', '2/4', 'two chords', 'em', 'd', 'lyrics'],
   about:

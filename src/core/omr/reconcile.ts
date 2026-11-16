@@ -714,8 +714,11 @@ export function flagMeasuresOffMetre(staff: OmrStaff): number {
     if (m.addsUp !== false || !m.expectedTicks || m.ticks === undefined) continue;
     const t = staff.timeInForce;
     const metre = t ? `${t.beats}/${t.beatValue}` : 'the time signature';
-    const q = (v: number) => `${Math.round((v / 960) * 100) / 100}`;
-    addIssue(m, { code: 'measure-does-not-fit', message: `This measure does not fit ${metre}: its notes and rests add up to ${q(m.ticks)} quarter notes, the time signature asks for ${q(m.expectedTicks)}.` });
+    const q = (v: number) => {
+      const n = Math.round((v / 960) * 100) / 100;
+      return `${n} quarter ${n === 1 ? 'note' : 'notes'}`;
+    };
+    addIssue(m, { code: 'measure-does-not-fit', message: `This measure does not fit ${metre}: its notes and rests add up to ${q(m.ticks)}, the time signature asks for ${q(m.expectedTicks)}.` });
     n++;
   }
   return n;

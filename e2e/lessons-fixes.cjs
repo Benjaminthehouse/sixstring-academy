@@ -162,8 +162,10 @@ async function phone(width) {
       const rightmost = Math.max(...dots.map((r) => r.right));
       return { cue, scrolls: !!scroller, rightmost, edge: box.right };
     });
-    // At 390 px the fret-12 dots are on screen; narrower, the neck may scroll but then says so.
-    const dotsShown = neck.rightmost <= neck.edge + 1;
+    // At 390 px the whole neck fits (nothing scrolls, so the fret-12 dots are on screen); narrower,
+    // the neck may scroll but then says so. (Comparing the dots with the figure's outer box missed
+    // dots hidden by the scroller.)
+    const dotsShown = !neck.scrolls && !neck.cue;
     check(group, width >= 390 ? 'a 0–12 neck shows its fret-12 dots' : 'a 0–12 neck shows its last dots or a scroll cue', width >= 390 ? dotsShown : dotsShown || (neck.cue && neck.scrolls), JSON.stringify(neck));
     await page.locator('[data-option-figure="neck-twelve"]').screenshot({ path: path.join(OUT, `fixes-neck12-${width}.png`) });
 
@@ -192,11 +194,21 @@ async function phone(width) {
     // Places, hidden names, staff only.
     const place = await page.evaluate(() => (document.querySelector('[data-option-block="play-note-place"] [data-preview="play-note-fresh"] [data-place-label]') || {}).textContent || '');
     check(group, 'a play-note can be labelled by place', /string 6, open/.test(place), place);
-    const staffOnly = await page.evaluate(() => {
+    // The staff must be DRAWN (a notation view draws nothing in a box of no width), for a phrase and a note.
+    const staffWidth = (b) => {
+      const svg = b && b.querySelector('[data-figure="staff"] svg');
+      return svg ? Math.round(svg.getBoundingClientRect().width) : 0;
+    };
+    await page.locator('[data-option-block="play-phrase-staff"]').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    const staffOnly = await page.evaluate((fn) => {
+      const width = new Function(`return (${fn})`)();
       const b = document.querySelector('[data-option-block="play-phrase-staff"] [data-preview="play-phrase-fresh"]');
-      return { tab: !!b.querySelector('svg[aria-label^="Tab"]'), staff: !!b.querySelector('[data-figure="staff"]'), names: [...b.querySelectorAll('ol li')].map((li) => (li.textContent || '').trim()) };
-    });
-    check(group, 'a staff-only phrase shows no tab and no names', !staffOnly.tab && staffOnly.staff && staffOnly.names.every((n) => /^\d+$/.test(n)), JSON.stringify(staffOnly));
+      const note = document.querySelector('[data-option-block="play-note-staff"] [data-preview="play-note-fresh"]');
+      return { tab: !!b.querySelector('svg[aria-label^="Tab"]'), staff: width(b), noteStaff: width(note), names: [...b.querySelectorAll('ol li')].map((li) => (li.textContent || '').trim()) };
+    }, staffWidth.toString());
+    check(group, 'a staff-only phrase shows no tab and no names', !staffOnly.tab && staffOnly.names.every((n) => /^\d+$/.test(n)), JSON.stringify(staffOnly));
+    check(group, 'and its staff is drawn, for a phrase and for a single note', staffOnly.staff > 120 && staffOnly.noteStaff > 120, JSON.stringify(staffOnly));
     const hidden = await page.evaluate(() => {
       const fresh = document.querySelector('[data-option-block="play-chord-hidden"] [data-preview="play-chord-fresh"]');
       const wrong = document.querySelector('[data-option-block="play-chord-hidden"] [data-preview="play-chord-wrong"]');
@@ -360,6 +372,14 @@ async function desktop() {
       await page.waitForTimeout(300);
       return counts;
     };
+    // A neck on a teaching figure plays the note tapped, as everywhere in the app.
+    await page.evaluate(() => Object.assign(window.__audio, { osc: 0, src: 0, rate: 0 }));
+    const cell = page.locator('[data-option-figure="neck-twelve"] [role="group"] button').nth(8);
+    await cell.scrollIntoViewIfNeeded();
+    await cell.click();
+    await page.waitForTimeout(800);
+    const tapped = await page.evaluate(() => ({ ...window.__audio }));
+    check(group, 'a fretboard figure plays the note tapped', tapped.src > 0, JSON.stringify(tapped));
     const drone = await heard('[data-option-figure="audio-drone"] [data-sound-play]');
     check(group, 'a scale over a drone starts the drone', drone.osc > 0, JSON.stringify(drone));
     const plain = await heard('[data-option-figure="tab-a-major"] button:has-text("Hear it")');

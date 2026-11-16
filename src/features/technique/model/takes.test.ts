@@ -153,3 +153,49 @@ describe('analyzeTake through the real pitch pipeline', () => {
     expect(uneven.verdict).not.toBe('clean');
   }, 30000);
 });
+
+describe('analyzeTake against the click (pass 2)', () => {
+  // The click's first beat at audio time 30 s; the microphone stamps a note 80 ms after the click it
+  // was played with. Part 1 starts on its first beat (songTime of note 0 is 0).
+  const click = { zero: 30, latency: 0.08, calibrated: true };
+  const onTime = (shiftMs: number) => EXPECTED.map((e, i) => note(e.midi!, click.zero + click.latency + e.songTime + shiftMs / 1000 + (i % 2 ? 0.004 : -0.004)));
+
+  it('an even take on the click is clean, and says so', () => {
+    const r = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: onTime(0), click });
+    expect(r.verdict).toBe('clean');
+    expect(r.timing.click).toMatchObject({ keeping: 'with' });
+    expect(Math.abs(r.timing.click!.offsetMs)).toBeLessThanOrEqual(5);
+    expect(r.messages.join(' ')).toMatch(/With the click: right on it/);
+  });
+
+  it('an even take a steady 120 ms behind the click is not clean: evenness alone used to pass it', () => {
+    const late = onTime(120);
+    const judged = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: late, click });
+    expect(judged.timing.evenness).toBe('even');
+    expect(judged.timing.click!.keeping).toBe('behind');
+    expect(Math.abs(judged.timing.click!.offsetMs - 120)).toBeLessThanOrEqual(5);
+    expect(judged.verdict).toBe('close');
+    expect(judged.messages.join(' ')).toMatch(/about 12\d ms behind the click/);
+    // Without the click's position (the old judging) the same take is clean.
+    expect(analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: late }).verdict).toBe('clean');
+    expect(judged.score).toBeLessThan(analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: onTime(0), click }).score);
+  });
+
+  it('ahead of the click, and the wider allowance when the delay is only what the browser reports', () => {
+    const early = analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: onTime(-80), click });
+    expect(early.timing.click!.keeping).toBe('ahead');
+    expect(early.messages.join(' ')).toMatch(/ahead of the click/);
+    // 45 ms late: outside a calibrated allowance (30 ms at this tempo), inside an uncalibrated one.
+    expect(analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: onTime(45), click }).timing.click!.keeping).toBe('behind');
+    expect(analyzeTake({ kind: 'notes', expected: EXPECTED, bpm: 60, notes: onTime(45), click: { ...click, calibrated: false } }).timing.click!.keeping).toBe('with');
+  });
+
+  it('strokes of a strum are judged against the click too', () => {
+    const strum = getExercise('tech-strum-constant')!;
+    const ex = expectedFromSong(partSong(strum, strum.parts[0], 60)).slice(0, 24);
+    const onsets = ex.map((e) => click.zero + click.latency + e.songTime + 0.15);
+    const r = analyzeTake({ kind: 'onsets', expected: ex, bpm: 60, onsets, click });
+    expect(r.timing.click!.keeping).toBe('behind');
+    expect(r.verdict).not.toBe('clean');
+  });
+});

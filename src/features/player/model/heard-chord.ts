@@ -66,6 +66,12 @@ export function chordCandidates(symbols: Iterable<string>): ChordSpec[] {
 
 const samePcs = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((x) => b.includes(x));
 
+/** Whether a chroma frame holds any sound (the pitch tracker sends an all-zero frame below its gate). */
+function hasSound(chroma: ArrayLike<number>): boolean {
+  for (let i = 0; i < chroma.length; i++) if (chroma[i] > 0) return true;
+  return false;
+}
+
 /** Name a strum from its averaged chroma, against the chord the chart wants. */
 export function judgeStrum(chroma: ArrayLike<number>, want: ChordSpec, candidates: readonly ChordSpec[]): StrumVerdict {
   const target = matchChord(chroma, want);
@@ -110,10 +116,12 @@ export class StrumListener {
     const since = time - this.start;
     if (since < SETTLE_S) return null;
     if (since <= SETTLE_S + LISTEN_S) {
-      this.frames.push(Array.from(chroma));
+      // A quiet frame (the tracker reports it empty: below its gate) is not part of a strum.
+      if (hasSound(chroma)) this.frames.push(Array.from(chroma));
       return null;
     }
     this.judged = true;
+    // An onset with nothing after it (strings muted, a knock, a click) was not a chord: say nothing.
     if (this.frames.length < 2) return null;
     return judgeStrum(averageChroma(this.frames), want, candidates);
   }

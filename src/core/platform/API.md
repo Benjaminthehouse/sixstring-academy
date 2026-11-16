@@ -217,7 +217,9 @@ that song changed) and the list in the copy, merged song by song the same three-
 device and `status.songs` says why: `{ synced, count, bytes, reason: 'count' | 'size' | 'total' | 'elsewhere' | null }`.
 
 Writes: debounced 5 s, at least 20 s apart, one at a time, only on change, never before the first confirmed read,
-exponential backoff. `issue`: `standalone` (no accounts in this copy) `not-offered signed-out offline unreachable retrying
+exponential backoff. Two devices that read the same copy and then both write are caught afterwards: each head names the
+save it was built on (`prev`), a device whose own save was written over merges against the base under it (both sides'
+changes joined) and writes again; a save already merged or written, delivered again late, is ignored. `issue`: `standalone` (no accounts in this copy) `not-offered signed-out offline unreachable retrying
 read-only storage-full update-needed setup-needed erased revoked`. `offline` (state `offline`) and `setup-needed` (the
 owner has not run `supabase/schema.sql`; state `error`, writes paused until a restart) come only from accounts; the
 messages name the account rather than Claude where the provider is `account`. With an account, `syncNow()` also asks
@@ -237,10 +239,13 @@ const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);   // prof
 Optional accounts for the standalone app on Supabase (free tier). **Offered only when the build had
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`** (Netlify environment variables; owner guide: `docs/accounts-setup.md`);
 never inside Claude. Without them nothing loads and Me > Account says so in one line. `@supabase/supabase-js` is loaded
-on demand by `cloud/client.ts`, so copies without accounts never download it.
+on demand by `cloud/client.ts`, so copies without accounts never download it. `misconfigured`: the URL is not a bare
+`https://<project>.supabase.co` (a pasted `.../rest/v1` is refused) or the key is malformed. `secret-key`: the build was given
+the `service_role` JWT or an `sb_secret_` key, which skips row-level security; it is never used and Me > Account tells the
+owner to replace it (it is still inside the built page, so it must be rotated).
 
 ```ts
-accountsOffered()  cloudConfig()  cloudUnavailableReason(): 'artifact' | 'not-configured' | 'misconfigured' | null
+accountsOffered()  cloudConfig()  cloudUnavailableReason(): 'artifact' | 'not-configured' | 'misconfigured' | 'secret-key' | null
 getAccounts(): Accounts   getAccountState()   subscribeAccount(listener)        // useSyncExternalStore pair
 // AccountState = { phase: 'unavailable' | 'starting' | 'signed-out' | 'code-sent' | 'signed-in', unavailable, email, userId,
 //                  sentAt, busy: 'sending' | 'verifying' | 'signing-out' | 'deleting' | null, error: AccountError | null,
@@ -256,7 +261,9 @@ accounts.ready()  sendCode(email)  verifyCode(code)  changeEmail()  signOut({ re
   client refreshes tokens itself; an offline start with an expired token stays signed in (status `offline`); a session
   that can no longer be refreshed signs out with `notice: 'signed-out'`. Nothing logs tokens.
 - **Signing in** restarts sync on the account: a device with progress merges it with the cloud copy (never wiped); an
-  untouched device takes the cloud copy as it is. **`signOut({ removeLocal: false })`** keeps this device's progress;
+  untouched device takes the cloud copy as it is. Where the cloud holds only the erased marker (`isErasedHeadDoc`), a
+  deliberate sign-in first forgets this device's sync memory, so a device that was signed out before it saw the deletion
+  starts a fresh copy instead of being signed straight out again. **`signOut({ removeLocal: false })`** keeps this device's progress;
   `removeLocal: true` first waits up to 10 s for unsent changes, refuses (`unsynced`) if they cannot reach the cloud, then
   erases this device's progress, data and songs (no Undo copy) and reloads. **`deleteCloudData()`** writes the erased
   marker, deletes the rest of the learner's rows, signs out everywhere and keeps this device's progress.
@@ -267,7 +274,8 @@ accounts.ready()  sendCode(email)  verifyCode(code)  changeEmail()  signOut({ re
   path before a request, hears other devices through Realtime (inserts and updates of the learner's own rows) and also
   polls: when a listener starts, on focus, visibility and `online`, when the channel reconnects, and every 3 minutes
   (a cheap `updated_at` look first). Network trouble never reaches the listener; a signed-out session (`revoked`) or a
-  missing table (`setup_needed`) end it.
+  missing table (`setup_needed`) end it. Each database opens its Realtime channel under a name of its own: realtime-js
+  hands back a same-named channel that is still leaving, and that one ignores `subscribe()` (the fake does the same).
 - **Tests and browser checks** run on `cloud/fake.ts`: `createFakeServer()` (codes with Supabase's limits, sessions,
   row security as in the schema, Realtime) + `createFakeClient(memoryTransport(server), { storage })`; `cloud/testing.ts`
   builds whole simulated devices. A development build that finds `window.__ssaCloudFake` (exposed by `e2e/account.cjs`)

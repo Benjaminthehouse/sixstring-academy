@@ -132,6 +132,7 @@ async function makeFixtures() {
   add('ode-bravura-150', 'clean');
   add('bass-carlito-150', 'clean', 1, { dir: path.join(ROOT, 'src/core/omr/tab/fixtures') });
   add('tab-open-chords-ins-150', 'clean');
+  add('tab-open-chords-ins-150', 'photo-good', 1);
   add('tab-ode-ls-150', 'scan', 2);
   add('linked-aura-lee-leland-150', 'photo-good', 3);
   add('page-tab-ls-150', 'photo-good', 1);
@@ -391,7 +392,18 @@ async function groupClean(browser, url, fx) {
   await waitLooked(p, 1);
   await readIt(p);
   const chords = await p.page.evaluate(() => window.__ssaScan.draft.song.chords.map((c) => c.symbol));
-  check(g, 'chord symbols printed over the tab are read into the song', ['C', 'G', 'Am', 'F', 'Em', 'D'].every((x) => chords.includes(x)), chords);
+  // Every one, in order (a lone "C" read as "c" used to drop the last chord unnoticed).
+  check(g, 'chord symbols printed over the tab are read into the song, every one in order', chords.join(' ') === 'C G Am F Em D G C', chords);
+
+  // The same page as a good phone photo: its grey paper used to make every chord box unreadable.
+  await startOver(p);
+  await upload(p, [fx['tab-open-chords-ins-150:photo-good'].file]);
+  await waitLooked(p, 1);
+  await readIt(p);
+  const photoChords = await p.page.evaluate(() => window.__ssaScan.draft.song.chords.map((c) => c.symbol));
+  const truthChords = ['C', 'G', 'Am', 'F', 'Em', 'D', 'G', 'C'];
+  const inOrder = photoChords.filter((c, i) => c === truthChords[i]).length;
+  check(g, `a good photo of chords over tab: ${inOrder} of 8 chord names read in place (want 7)`, inOrder >= 7 && photoChords.length <= 8, photoChords);
 
   check(g, 'no browser errors', p.errors.length === 0, p.errors.slice(0, 3));
   await p.close();

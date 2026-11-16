@@ -3,7 +3,7 @@
  * `SoundPlan`), and every answer option carries the plan of what that option would have sounded
  * like. The screen only ever plays these plans, so what is heard is exactly what is graded.
  */
-import type { ToneName } from '@/core/audio';
+import type { BackingBar, BackingStyleId, ToneName } from '@/core/audio';
 import type { Rng } from './rng';
 
 /** The drills, in no particular order (the ladder order lives in `drills/index.ts`). */
@@ -58,9 +58,11 @@ export interface BandChord {
 
 /** The band's version of a progression (played instead of the guitar events when chosen). */
 export interface BandPart {
-  /** One chord per bar. */
+  /** One chord per bar (the first, where a bar has two). */
   bars: BandChord[];
-  style: 'pop-rock' | 'blues-shuffle' | 'jazz-swing' | 'ballad';
+  /** The bars as the band takes them, where some hold two chords (catalog progressions). */
+  split?: BackingBar[];
+  style: BackingStyleId;
   /** Tempo in the style's felt beats per minute. */
   tempo: number;
 }
@@ -212,6 +214,11 @@ export interface LevelDef {
   questions: number;
   /** Build a question. */
   make(ctx: GenContext): Question;
+  /**
+   * A round that is not one of the drill's own levels (a progression from the catalog, opened by its
+   * link): where it is saved and reported, and the address that opens it again.
+   */
+  special?: { key: string; skillId: string; params: string[] };
 }
 
 /** One drill: a rung of the ladder. */

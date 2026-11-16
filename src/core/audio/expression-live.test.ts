@@ -292,6 +292,36 @@ describe('phrases', () => {
     playLineOverChord([48, 52, 55], line, 1, { engine: e2, chordVoice: 'organ' });
     expect(c2.count('oscillator')).toBe(3);
   });
+
+  it('a line over a chord asked for "now" starts chord and line together, even when nothing is rendered yet', () => {
+    // Rendering a string takes real time; here every new buffer moves the audio clock on 5 ms.
+    const ctx = new (class extends MockContext {
+      createBuffer(channels: number, length: number, sampleRate: number) {
+        this.currentTime += 0.005;
+        return super.createBuffer(channels, length, sampleRate);
+      }
+    })(FS);
+    ctx.state = 'running';
+    const engine = new AudioEngine(asAudioContext(ctx), { reverb: false });
+    engine.markUnlocked();
+    const before = sources(ctx).length;
+    playLineOverChord([48, 52, 55, 60], [{ midi: 64, at: 0, duration: 0.5, string: 1 }], undefined, { engine });
+    const started = sources(ctx).slice(before).map((s) => s.startedAt!);
+    expect(started).toHaveLength(5);
+    // Before, the clock was read first: the line came 5 ms late and the chord 25 ms late.
+    const line = started[0];
+    const firstString = Math.min(...started.slice(1));
+    expect(Math.abs(firstString - line)).toBeLessThan(0.001);
+  });
+
+  it('a slide down written "7\\5" slides in from above when the string cannot be carried on', () => {
+    expect(tabPhrase('7\\5', 3)!.map((n) => [n.midi, n.legato, n.slideIn])).toEqual([[62, undefined, undefined], [60, 'slide', 'above']]);
+    expect(tabPhrase('5/7', 3)![1].slideIn).toBeUndefined();
+    // With the string still ringing it is a glide of that string, whatever slideIn says.
+    const { ctx, engine } = runningEngine();
+    playPhrase(tabPhrase('7\\5', 3, { noteSeconds: 0.4 })!, 1, { synth: new GuitarSynth({ engine }) });
+    expect(sources(ctx)).toHaveLength(1);
+  });
 });
 
 describe('a drone on the audio clock', () => {

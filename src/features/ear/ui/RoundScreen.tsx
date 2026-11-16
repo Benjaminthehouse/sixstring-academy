@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { navigate } from '@/app/router';
 import { useImmersive, useScreenTitle } from '@/app/shell';
-import { MediaBlocked, ActionBar, Banner, Button, Heading, Icon, IconButton, Kbd, Page, PlayButton, ProgressBar, Section, StarRating, Tag, Text, cx, useEventListener, useMediaQuery, useWakeLock } from '@/ui';
+import { MediaBlocked, ActionBar, Banner, Button, Heading, Icon, IconButton, Kbd, Page, PlayButton, Popover, ProgressBar, Section, StarRating, Tag, Text, cx, useEventListener, useMediaQuery, useWakeLock } from '@/ui';
+import { ChordDiagram } from '@/ui/music';
 import { useProgress } from '@/core/progress';
 import { isArtifact } from '@/core/platform';
-import { formatChord, formatNote, midiToNote } from '@/core/theory';
+import { formatChord, formatDegree, formatNote, midiToNote } from '@/core/theory';
 import { readRecord, weakSpots } from '../core/adapt';
+import { differingDegrees } from '../core/drills/modes';
 import { newInLevel } from '../core/drills';
 import { drillSkillId, levelSkillId, levelStatuses, stepAfter } from '../core/progress';
 import { makeRng } from '../core/rng';
 import type { ChoiceQuestion, DrillDef, LevelDef, OptionInfo, Question } from '../core/types';
 import { ANSWER_KEYS, AnswerPad } from './AnswerPad';
+import { NeckPad } from './NeckPad';
 import { NoteRow, NoteSlots } from './NoteRow';
 import { SoundSheet } from './SoundSheet';
 import { SoundStatus, useSoundProblem } from './SoundStatus';
@@ -54,12 +57,18 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
     if (api.phase !== 'answered') window.scrollTo({ top: 0 });
   }, [api.phase]);
 
-  const status = levelStatuses(drill, skills)[level.n - 1];
-  const next = useMemo(() => (api.phase === 'summary' ? stepAfter(drill.id, level.n, skills) : null), [api.phase, drill.id, level.n, skills]);
+  const special = level.special;
+  const ownSkill = special ? skills[special.skillId] : undefined;
+  const status = special
+    ? { n: 1, best: ownSkill?.bestAccuracy ?? 0, stars: ownSkill?.stars ?? 0, attempts: ownSkill?.attempts ?? 0, completions: ownSkill?.completions ?? 0, passed: false, unlocked: true }
+    : levelStatuses(drill, skills)[level.n - 1];
+  const next = useMemo(() => (api.phase === 'summary' && !special ? stepAfter(drill.id, level.n, skills) : null), [api.phase, drill.id, level.n, skills, special]);
+  // Where "back" goes: the drill's levels, or the progression's own page for a catalog round.
+  const back = special ? { to: 'progressions', params: [special.params[1]], label: 'The progression' } : { to: 'ear', params: [drill.id], label: drill.title };
 
   const endRound = () => {
     api.end();
-    navigate('ear', drill.id);
+    navigate(back.to, ...back.params);
   };
 
   useEventListener(typeof window === 'undefined' ? null : window, 'keydown', (e: KeyboardEvent) => {
@@ -112,7 +121,7 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
     if (q.kind === 'choice' && q.options[i]) {
       e.preventDefault();
       api.submit(q.options[i].id);
-    } else if (q.kind === 'sequence' && q.keys[i]) {
+    } else if (q.kind === 'sequence' && q.input !== 'neck' && q.keys[i]) {
       e.preventDefault();
       api.tapKey(q.keys[i].id);
     }
@@ -122,7 +131,7 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
 
   if (api.phase === 'summary' && api.outcome && api.round) {
     return (
-      <Page title={`${drill.title}: ${level.title}`} eyebrow={`Level ${level.n} of ${drill.levels.length} · round complete`} back={{ to: 'ear', params: [drill.id], label: drill.title }}>
+      <Page title={`${drill.title}: ${level.title}`} eyebrow={special ? 'Round complete' : `Level ${level.n} of ${drill.levels.length} · round complete`} back={back}>
         <Summary drill={drill} level={level} round={api.round} outcome={api.outcome} next={next} onAgain={api.start} />
       </Page>
     );
@@ -131,7 +140,7 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
   if (api.phase === 'intro' || !api.question) {
     return (
       <>
-        <Intro drill={drill} level={level} api={api} best={status} onSettings={() => setSheet(true)} problem={problem} aids={settings.aids} />
+        <Intro drill={drill} level={level} api={api} best={status} back={back} onSettings={() => setSheet(true)} problem={problem} aids={settings.aids} />
         {sheetEl}
       </>
     );
@@ -146,23 +155,25 @@ export function RoundScreen({ drill, level }: RoundScreenProps) {
 }
 
 /** The level's intro: what you will hear (tap to hear each), your record, and Start. */
-function Intro({ drill, level, api, best, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; completions: number; unlocked: boolean }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
+function Intro({ drill, level, api, best, back, onSettings, problem, aids }: { drill: DrillDef; level: LevelDef; api: EarRoundApi; best: { best: number; stars: number; completions: number; unlocked: boolean }; back: { to: string; params: string[]; label: string }; onSettings: () => void; problem: ReturnType<typeof useSoundProblem>; aids: boolean }) {
   const [settings] = useEarSettings();
   const record = useProgress((s) => s.skills[drillSkillId(drill.id)]?.data);
   const weak = useMemo(() => weakSpots(drill, readRecord(record), { pool: level.pool, limit: 2 }), [drill, record, level.pool]);
   // One example question gives every option's sound on the same root: "hear each one".
   const example = useMemo<Question>(() => level.make({ rng: makeRng(level.n * 7919 + 17), answer: level.pool[0], settings, difficulty: 0.25, index: 0, seed: 1 }), [level, settings]);
   const fresh = new Set(newInLevel(drill, level.n));
+  // On the neck every pitch is a key: the intro shows the notes the phrases are made of.
+  const rowKeys = example.kind === 'sequence' ? (example.input === 'neck' ? example.keys.filter((k) => k.id === '1' || level.pool.includes(k.id)) : example.keys) : [];
   const options: Array<OptionInfo & { plan?: Question['plan'] }> =
-    example.kind === 'choice' ? example.options : example.keys.map((k) => ({ id: k.id, label: k.label, name: k.sub, detail: k.sub, plan: { events: [{ at: 0, midis: [k.midi], dur: 1, strike: 'pluck', role: 'subject', ...(example.tone ? { tone: example.tone } : {}) }], length: 0.8 } }));
+    example.kind === 'choice' ? example.options : rowKeys.map((k) => ({ id: k.id, label: k.label, name: k.sub, detail: k.sub, plan: { events: [{ at: 0, midis: [k.midi], dur: 1, strike: 'pluck', role: 'subject', ...(example.tone ? { tone: example.tone } : {}) }], length: 0.8 } }));
   const locked = !best.unlocked;
 
   return (
     <Page
       title={level.title}
-      eyebrow={`${drill.title} · Level ${level.n} of ${drill.levels.length}`}
+      eyebrow={level.special ? drill.title : `${drill.title} · Level ${level.n} of ${drill.levels.length}`}
       subtitle={example.prompt}
-      back={{ to: 'ear', params: [drill.id], label: drill.title }}
+      back={back}
     >
       <div className={styles.intro} data-ear-intro>
         <div className={styles.hubMain}>
@@ -241,6 +252,11 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
   const fb = api.feedback;
   const isChoice = q.kind === 'choice';
   const listening = api.playing === 'question' || api.playing === 'slower' || api.playing === 'spread';
+  // After a reload the round is back where it was, but sound needs a tap before it may start.
+  const [welcomeBack, setWelcomeBack] = useState(api.resumed);
+  useEffect(() => {
+    if (api.playing) setWelcomeBack(false);
+  }, [api.playing]);
   const offerMic = q.kind === 'sequence' && !isArtifact();
   const mic = useMicNotes(
     (midi) => {
@@ -267,11 +283,8 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
           {fb.correct ? 'Right' : 'Not quite'}
         </span>
         {choice && right && <Text tone="muted">{fb.correct ? `That was ${answerPhrase(right)}.` : `It was ${answerPhrase(right)}. Listen to both:`}</Text>}
-        {choice && drill.id === 'chords' && typeof choice.truth.frets === 'string' && choice.truth.frets && (
-          <Text size="sm" tone="muted">
-            Played as {formatChord(String(choice.truth.symbol))}, shape <Text as="span" mono>{choice.truth.frets}</Text>
-          </Text>
-        )}
+        {choice && drill.id === 'chords' && typeof choice.truth.frets === 'string' && choice.truth.frets && <ShapeNote symbol={String(choice.truth.symbol)} frets={choice.truth.frets} />}
+        {choice && drill.id === 'modes' && !fb.correct && right && chosen && <ModeHint answer={right} chosen={chosen} />}
         {!choice && <Text tone="muted">{fb.correct ? 'Every note in place.' : 'The red notes are off. Listen to yours, then the melody:'}</Text>}
         {!fb.correct && (
           <div className={styles.compare}>
@@ -293,6 +306,12 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
         )}
       </>
     );
+  } else if (welcomeBack) {
+    statusEl = (
+      <Text tone="muted" data-ear-resumed>
+        Picked up where you left off. Tap Play again to hear question {q.index + 1}.
+      </Text>
+    );
   } else if (api.silent) {
     statusEl = <Text tone="muted">Nothing could be played. Turn the sound on, then tap play.</Text>;
   } else if (listening) {
@@ -307,10 +326,15 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
       </span>
     );
   } else {
-    statusEl = <Text tone="muted">{isChoice ? 'Your answer?' : mic.status === 'on' ? 'Play the notes on your guitar, or tap them.' : 'Tap the notes you heard, in order.'}</Text>;
+    statusEl = <Text tone="muted">{isChoice ? 'Your answer?' : mic.status === 'on' ? 'Play the notes on your guitar, or tap them.' : q.kind === 'sequence' && q.input === 'neck' ? 'Find the notes on the neck, in order.' : 'Tap the notes you heard, in order.'}</Text>;
   }
 
   const firstName = q.firstNote !== null ? formatNote(midiToNote(q.firstNote), { octave: true }) : null;
+  const micControl = offerMic ? (
+    <Button size="sm" variant={mic.status === 'on' ? 'secondary' : 'ghost'} iconLeft="Mic" pressed={mic.status === 'on'} loading={mic.status === 'starting'} onClick={() => (mic.status === 'on' ? mic.stop() : void mic.start())} data-ear-mic>
+      {mic.status === 'on' ? 'Listening to your guitar' : 'Play it on my guitar'}
+    </Button>
+  ) : undefined;
 
   return (
     <div className={styles.round} data-ear-phase={api.phase} data-ear-question={q.id}>
@@ -373,6 +397,18 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
         ) : (
           q.kind === 'sequence' && (
             <>
+              {q.input === 'neck' ? (
+                <NeckPad
+                  question={q}
+                  entered={fb && Array.isArray(fb.chosen) ? fb.chosen : api.entered}
+                  marks={api.marks}
+                  onTap={(id) => api.tapKey(id)}
+                  onUndo={api.undo}
+                  canUndo={api.entered.length > q.given}
+                  disabled={api.phase !== 'asking'}
+                  mic={micControl}
+                />
+              ) : (
               <NoteRow
                 question={q}
                 onTap={(id) => api.tapKey(id)}
@@ -388,6 +424,7 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
                   ) : undefined
                 }
               />
+              )}
               {mic.status === 'failed' && mic.failure && (
                 <MediaBlocked reason={mic.failure} device="microphone" onRetry={() => void mic.start()} onContinueWithout={mic.stop} continueLabel="Tap the notes instead" level={3} />
               )}
@@ -400,9 +437,11 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
           </Button>
         )}
         <div className={styles.keysHint} aria-hidden="true">
-          <span>
-            <Kbd>1</Kbd>–<Kbd>{ANSWER_KEYS[Math.min(isChoice ? (q as ChoiceQuestion).options.length : q.kind === 'sequence' ? q.keys.length : 1, 12) - 1]}</Kbd> answer
-          </span>
+          {!(q.kind === 'sequence' && q.input === 'neck') && (
+            <span>
+              <Kbd>1</Kbd>–<Kbd>{ANSWER_KEYS[Math.min(isChoice ? (q as ChoiceQuestion).options.length : q.kind === 'sequence' ? q.keys.length : 1, 12) - 1]}</Kbd> answer
+            </span>
+          )}
           <span>
             <Kbd>Space</Kbd> play again
           </span>
@@ -412,5 +451,48 @@ function Asking({ drill, level, api, question: q, showNames, aids, problem, onEn
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * "Played as C, shape x32010", with the shape tappable: what the six characters mean, and the shape
+ * drawn as a chord box (so the notation is learned where it is met).
+ */
+function ShapeNote({ symbol, frets }: { symbol: string; frets: string }) {
+  return (
+    <Text size="sm" tone="muted" as="div" className={styles.shapeNote}>
+      Played as {formatChord(symbol)}, shape{' '}
+      <Popover
+        aria-label={`What the shape ${frets} means`}
+        trigger={
+          <button type="button" className={styles.shapeTrigger} data-ear-shape>
+            <Text as="span" mono>
+              {frets}
+            </Text>
+            <Icon name="Info" size="xs" />
+          </button>
+        }
+      >
+        <div className={styles.shapePop} data-ear-shape-help>
+          <ChordDiagram chord={symbol} frets={frets} size="sm" />
+          <Text size="sm">
+            A chord shape lists the six strings from the thick low E to the thin high E. A number is the fret to press, <Text as="span" mono>0</Text> an open string,{' '}
+            <Text as="span" mono>x</Text> a string you do not play.
+          </Text>
+        </div>
+      </Popover>
+    </Text>
+  );
+}
+
+/** What tells two modes apart, said where the mistake was made: the note that differs, against the drone. */
+function ModeHint({ answer, chosen }: { answer: OptionInfo; chosen: OptionInfo }) {
+  const diff = differingDegrees(answer.id, chosen.id);
+  if (diff.length === 0) return null;
+  const list = diff.map(([a, c]) => `${formatDegree(a)} where ${chosen.label} has ${formatDegree(c)}`).join(', ');
+  return (
+    <Text size="sm" tone="muted" data-ear-mode-hint>
+      {answer.label} has {list}: listen for {diff.length === 1 ? 'that note' : 'those notes'} against the drone.
+    </Text>
   );
 }

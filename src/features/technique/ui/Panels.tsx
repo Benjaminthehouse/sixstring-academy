@@ -293,7 +293,7 @@ export function TakeResult({ take, onPlayBack, onClose, move }: { take: TakeView
   const maxDb = take.bars?.length ? Math.max(...take.bars) : 0;
   const minDb = take.bars?.length ? Math.min(...take.bars) : 0;
   return (
-    <div className={styles.take} data-technique-take={take.verdict} data-technique-take-kind={take.kind} aria-live="polite">
+    <div className={styles.take} data-technique-take={take.verdict} data-technique-take-kind={take.kind} data-click-offset={take.click ? take.click.offsetMs : undefined} data-click={take.click ? take.click.keeping : undefined} aria-live="polite">
       <div className={styles.takeHead}>
         {take.score !== null && (
           <ProgressRing value={take.score} max={100} size={64} tone={take.verdict === 'clean' ? 'ok' : take.verdict === 'close' ? 'info' : 'warn'} label={`Score ${take.score} of 100`}>

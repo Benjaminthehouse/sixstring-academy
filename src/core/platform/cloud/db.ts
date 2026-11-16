@@ -274,7 +274,7 @@ export function supabaseDatabase(client: SupabaseLike, uid: string, options: Sup
     const filter = `user_id=eq.${uid}`;
     channelSeq += 1;
     channel = client
-      .channel(`sync-docs-${uid}`)
+      .channel(`sync-docs-${uid}-${channelSeq}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: SYNC_TABLE, filter }, onChange)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: SYNC_TABLE, filter }, onChange)
       .subscribe((status) => onStatus(status));

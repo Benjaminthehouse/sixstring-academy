@@ -35,7 +35,7 @@ export function NoteSlots({ question: q, entered, marks }: NoteSlotsProps) {
           <span
             key={i}
             role="listitem"
-            className={cx(styles.slot, given && styles.slotGiven, !given && value && styles.slotFilled, !marks && i === nextIndex && styles.slotNext, mark === true && !given && styles.slotRight, mark === false && styles.slotWrong)}
+            className={cx(styles.slot, q.input === 'neck' && styles.slotWide, given && styles.slotGiven, !given && value && styles.slotFilled, !marks && i === nextIndex && styles.slotNext, mark === true && !given && styles.slotRight, mark === false && styles.slotWrong)}
             aria-label={`Note ${i + 1}: ${value ? slotText(q, value) : 'empty'}${given ? ', given' : mark === true ? ', right' : mark === false ? `, wrong, it was ${q.keys.find((k) => k.id === id)?.label}` : ''}`}
           >
             {slotText(q, value)}

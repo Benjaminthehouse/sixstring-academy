@@ -1036,3 +1036,52 @@
   flex-direction: column;
   gap: var(--sp-5);
 }
+
+/* ---------- Dictation on the neck ---------- */
+.neck {
+  min-width: 0;
+}
+.slotWide {
+  width: auto;
+  min-width: 2.75rem;
+  padding: 0 var(--sp-2);
+  font-size: var(--text-md);
+}
+
+/* ---------- Chord shape in feedback ---------- */
+.shapeNote {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+.shapeTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 2.75rem;
+  padding: 0 var(--sp-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .shapeTrigger:hover {
+    background: var(--surface-2);
+  }
+}
+.shapeTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.shapePop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  max-width: 22rem;
+  padding: var(--sp-2);
+}

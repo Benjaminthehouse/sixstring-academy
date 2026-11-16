@@ -5,10 +5,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playUi } from '@/core/audio';
+import { readJSON, remove, writeJSON } from '@/core/platform';
 import { getProgress, getProgressStore, recordActivity, setSkillData, type ActivityResult, type JsonValue } from '@/core/progress';
 import { readRecord, weakSpots, type WeakSpot } from '../core/adapt';
 import { drillSkillId, levelSkillId, levelStatuses } from '../core/progress';
 import { mixSeed } from '../core/rng';
+import { RESUME_KEY, readSnapshot, restoreRound, snapshotOf } from '../core/resume';
 import { answerQuestion, createRound, nextQuestion, roundDone, scoreRound, sequenceMarks, type Round, type RoundScore } from '../core/round';
 import { slower, spread } from '../core/sound';
 import type { DrillDef, EarSettings, LevelDef, Question, SoundPlan } from '../core/types';
@@ -47,6 +49,13 @@ function freshSeed(): number {
   return mixSeed(Date.now(), Math.floor(Math.random() * 1e9));
 }
 
+/** A round of this level left by a reload, rebuilt as it was (null when there is none to pick up). */
+function resumable(drill: DrillDef, level: LevelDef): { round: Round; startedAt: number } | null {
+  const snap = readSnapshot(readJSON<unknown>(RESUME_KEY, null));
+  const round = restoreRound(drill, level, snap, Date.now());
+  return round && snap ? { round, startedAt: snap.startedAt } : null;
+}
+
 /** Drive one level's rounds. */
 export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSettings) {
   const playerRef = useRef<EarPlayer | null>(null);
@@ -54,18 +63,25 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  const [phase, setPhase] = useState<Phase>('intro');
-  const [round, setRound] = useState<Round | null>(null);
-  const roundRef = useRef<Round | null>(null);
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  // A reload in the middle of a round comes back to the same question (audio waits for a tap).
+  const [resumed] = useState(() => resumable(drill, level));
+  const lastAnswer = resumed && resumed.round.answers.length === resumed.round.questions.length ? resumed.round.answers[resumed.round.answers.length - 1] : null;
+  const [phase, setPhase] = useState<Phase>(resumed ? (lastAnswer ? 'answered' : 'asking') : 'intro');
+  const [round, setRound] = useState<Round | null>(resumed?.round ?? null);
+  const roundRef = useRef<Round | null>(resumed?.round ?? null);
+  const [question, setQuestion] = useState<Question | null>(resumed ? resumed.round.questions[resumed.round.questions.length - 1] : null);
+  const [feedback, setFeedback] = useState<Feedback | null>(lastAnswer ? { correct: lastAnswer.correct, chosen: lastAnswer.chosen } : null);
   const [playing, setPlaying] = useState<Playing>(null);
   const [playingOption, setPlayingOption] = useState<string | null>(null);
-  const [entered, setEntered] = useState<string[]>([]);
-  const enteredRef = useRef<string[]>([]);
+  const resumedEntry = (): string[] => {
+    const q = resumed?.round.questions[resumed.round.questions.length - 1];
+    return q && q.kind === 'sequence' && !lastAnswer ? q.target.slice(0, q.given) : [];
+  };
+  const [entered, setEntered] = useState<string[]>(resumedEntry);
+  const enteredRef = useRef<string[]>(entered);
   const [outcome, setOutcome] = useState<RoundOutcome | null>(null);
   const [silent, setSilent] = useState(false);
-  const startedAt = useRef(0);
+  const startedAt = useRef(resumed?.startedAt ?? 0);
   const timers = useRef<number[]>([]);
   const phaseRef = useRef<Phase>('intro');
   phaseRef.current = phase;
@@ -110,10 +126,16 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
     [question, play, clearTimers],
   );
 
+  /** Keep the round in progress where a reload can find it. */
+  const save = useCallback((r: Round) => {
+    writeJSON(RESUME_KEY, snapshotOf(r, startedAt.current, Date.now()));
+  }, []);
+
   const ask = useCallback(
     (r: Round) => {
       const { round: next, question: q } = nextQuestion(r, settingsRef.current);
       roundRef.current = next;
+      save(next);
       setRound(next);
       setQuestion(q);
       earDebug.question = q;
@@ -123,7 +145,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       setPhase('asking');
       later(() => void play(q.plan, 'question', null, 'question'), AUTO_PLAY_MS);
     },
-    [later, play],
+    [later, play, save],
   );
 
   /** Start a round (from the intro, or "again" from the summary). */
@@ -147,13 +169,16 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
         streak = a.correct ? streak + 1 : 0;
         bestStreak = Math.max(bestStreak, streak);
       }
-      const before = levelStatuses(drill, getProgress().skills);
+      remove(RESUME_KEY);
+      // A catalog progression is a round of its own: no level of the drill opens with it.
+      const special = level.special;
+      const before = special ? [] : levelStatuses(drill, getProgress().skills);
       setSkillData(drillSkillId(drill.id), r.record as unknown as JsonValue);
       let activity: ActivityResult | null = null;
       if (completed || score.answered >= 3) {
         activity = recordActivity({
           kind: 'ear',
-          id: levelSkillId(drill.id, level.n),
+          id: special?.skillId ?? levelSkillId(drill.id, level.n),
           title: `${drill.title}: ${level.title}`.slice(0, 80),
           accuracy: score.accuracy,
           ...(completed ? { stars: score.stars } : {}),
@@ -164,12 +189,12 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
           durationSec,
           completed,
           route: 'ear',
-          params: [drill.id, String(level.n)],
+          params: special?.params ?? [drill.id, String(level.n)],
           progress: completed ? 1 : score.answered / score.total,
           meta: { level: level.n, questions: score.answered },
         });
       }
-      const after = levelStatuses(drill, getProgress().skills);
+      const after = special ? [] : levelStatuses(drill, getProgress().skills);
       // Name the level right after this one when it opened; a pass that skipped ahead opens several.
       const opened = after.filter((s, i) => s.unlocked && !before[i].unlocked && s.n !== level.n).map((s) => s.n);
       const unlocked = opened.includes(level.n + 1) ? level.n + 1 : opened.length ? Math.max(...opened) : null;
@@ -246,6 +271,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
       stopSound();
       const res = answerQuestion(r, chosen);
       roundRef.current = res.round;
+      save(res.round);
       setRound(res.round);
       setFeedback({ correct: res.correct, chosen });
       setPhase('answered');
@@ -258,7 +284,7 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
         later(() => void compare(), 450);
       }
     },
-    [clearTimers, stopSound, later, next, compare],
+    [clearTimers, stopSound, later, next, compare, save],
   );
 
   /** Melody: a key of the note row was tapped (plays it unless `sound` is false) or heard; fills the next slot. */
@@ -291,38 +317,64 @@ export function useEarRound(drill: DrillDef, level: LevelDef, settings: EarSetti
   const abandonRef = useRef<() => void>(() => undefined);
   abandonRef.current = () => {
     const r = roundRef.current;
-    if (!r || phaseRef.current === 'summary' || phaseRef.current === 'intro' || r.answers.length === 0) return;
+    if (!r || phaseRef.current === 'summary' || phaseRef.current === 'intro') return;
+    // Left on purpose: nothing to pick up later.
+    remove(RESUME_KEY);
+    if (r.answers.length === 0) return;
     finish(r, false);
     roundRef.current = null;
   };
 
-  useEffect(
-    () => () => {
+  // Leaving the screen ends the round. The decision waits a tick: a screen that is mounted again at
+  // once (React's development double mount, which a resumed round meets on its very first render)
+  // is not leaving.
+  const mounted = useRef(false);
+  const leaving = useRef<number | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    if (leaving.current !== null) window.clearTimeout(leaving.current);
+    leaving.current = null;
+    return () => {
+      mounted.current = false;
       clearTimers();
-      abandonRef.current();
       playerRef.current?.dispose();
       playerRef.current = null;
-      earDebug.question = null;
-    },
-    [clearTimers],
-  );
+      leaving.current = window.setTimeout(() => {
+        leaving.current = null;
+        if (mounted.current) return;
+        abandonRef.current();
+        earDebug.question = null;
+      }, 0);
+    };
+  }, [clearTimers]);
 
-  // A reload or a closed tab ends the round as leaving does: what was answered still counts. The
-  // store saves on hide before this runs, so save again. A page kept for "back" may still go on.
+  // A reload (or a closed tab) keeps the round to pick up where it was: the round is saved after
+  // every question and answer, and what it taught the picker is kept now. A page kept for "back"
+  // may still go on.
   useEffect(() => {
     const onHide = (e: PageTransitionEvent) => {
       if (e.persisted) return;
-      abandonRef.current();
+      const r = roundRef.current;
+      if (!r || phaseRef.current === 'summary' || phaseRef.current === 'intro') return;
+      save(r);
+      setSkillData(drillSkillId(drill.id), r.record as unknown as JsonValue);
       getProgressStore().flush();
     };
     window.addEventListener('pagehide', onHide);
     return () => window.removeEventListener('pagehide', onHide);
-  }, []);
+  }, [drill.id, save]);
+
+  // The browser check reads the question on screen (a resumed one too).
+  useEffect(() => {
+    if (question) earDebug.question = question;
+  }, [question]);
 
   const marks = useMemo(() => (question?.kind === 'sequence' && feedback ? sequenceMarks(question, feedback.chosen as string[]) : null), [question, feedback]);
 
   return {
     phase,
+    /** The round on screen was picked up after a reload (its sound waits for a tap). */
+    resumed: resumed !== null,
     round,
     question,
     feedback,

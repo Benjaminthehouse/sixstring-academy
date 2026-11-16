@@ -9,7 +9,7 @@
  */
 import {
   GuitarSynth, Transport, engineClock, getBass, getGuitar, playClick,
-  type AudioEngine, type ClickSet, type ToneName, type TransportClock,
+  type AudioEngine, type ClickSet, type PreloadNote, type ToneName, type TransportClock,
 } from '@/core/audio';
 import { barCapacity } from './model';
 import { buildPlayEvents, type PlayEvent, type PlayNote, type PlayStrum, type ScheduleOptions } from './schedule';
@@ -83,18 +83,28 @@ export function liveOutput(opts: LiveOutputOptions = {}): SongPlayerOutput {
       takeBack.clear();
     },
     async preload(events) {
-      const guitar: Array<{ midi: number; string?: number }> = [];
-      const bass: Array<{ midi: number; string?: number }> = [];
+      // Each note as it will be played (tone, velocity of the stroke, articulation, accent, a
+      // hammer-on's finger): a buffer is rendered per velocity layer, articulation and brightness, so
+      // an up-stroke or accented strum left out here renders its strings while the music plays.
+      const guitar: PreloadNote[] = [];
+      const bass: PreloadNote[] = [];
       const seen = new Set<string>();
+      const add = (list: PreloadNote[], n: PreloadNote): void => {
+        const k = `${n.midi}:${n.string}:${n.velocity}:${n.tone}:${n.articulation}:${!!n.accent}:${n.legato}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        list.push(n);
+      };
       for (const e of events) {
-        const list = e.instrument === 'bass' ? bass : guitar;
-        const notes = e.kind === 'note' ? [{ midi: e.midi, string: e.string }] : e.midis.map((midi, i) => ({ midi, string: e.strings[i] }));
-        for (const n of notes) {
-          const k = `${e.instrument}:${n.midi}:${n.string}`;
-          if (!seen.has(k)) {
-            seen.add(k);
-            list.push(n);
-          }
+        const isBass = e.instrument === 'bass';
+        const list = isBass ? bass : guitar;
+        const tone = isBass ? opts.bassTone ?? 'bass-finger' : opts.tone;
+        if (e.kind === 'note') {
+          add(list, { midi: e.midi, string: e.string, velocity: e.velocity, tone, articulation: e.articulation, accent: !!e.accent, legato: e.legato });
+        } else {
+          const synth = isBass ? bassSynth() : guitarSynth();
+          const notes = synth.strumNotes(e.midis, { direction: e.direction, strings: e.strings, velocity: e.velocity, tone: opts.tone, accent: !!e.accent, ...(e.muted ? { articulation: 'dead' as const } : {}) });
+          for (const n of notes) add(list, n);
         }
       }
       await Promise.all([guitarSynth().preload(guitar), bassSynth().preload(bass)]);

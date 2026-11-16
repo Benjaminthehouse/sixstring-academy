@@ -11,7 +11,7 @@ export default defineSong({
   key: 'E Phrygian',
   teaches: ['E, F and G on the thickest string', 'Finger 1 on fret 1, finger 3 on fret 3', 'Quarter and half notes', 'The Spanish sound of E against F'],
   skills: ['melody', 'rhythm'],
-  tags: ['string 6', 'low e', 'one string', 'first position', 'spanish'],
+  tags: ['string 6', 'low e', 'one string', 'first position', 'spanish', 'phrygian'],
   about:
     'Three low notes with a Spanish shadow: E, F and G, while the teacher swaps between E minor and F. Keep finger 1 hovering over fret 1 and finger 3 over fret 3 the whole time, so each note is a small press, not a hunt. The common slip is catching string 5 as well: let the pick come to rest against string 5 after each note and only string 6 will sound.',
   plan: 'st-first-notes-string-6',

@@ -8,11 +8,12 @@
  * slides in and out, let ring. Accents (`note.accent`, `beat.accent`) and the place a stroke falls
  * in the beat decide how hard it is played.
  */
+import { resolveMeter } from '@/core/audio';
 import { chordVoicings } from '@/core/guitar';
 import { isNoChord } from '@/core/theory';
-import { soundingPitch, trackCapo, trackTuning } from './model';
+import { barCapacity, soundingPitch, trackCapo, trackTuning } from './model';
 import type { SongTimeline } from './timeline';
-import type { Beat, Note } from './types';
+import type { Beat, Note, TimeSig } from './types';
 import { PPQ } from './types';
 
 /** How a note is played (the audio engine's articulations). */
@@ -94,20 +95,41 @@ export function defaultVoicing(symbol: string, tuning: number[], capo: number): 
   return frets;
 }
 
+/**
+ * How hard a single note is picked. A hammer-on, pull-off or slide is *not* softened here: the
+ * guitar voice already plays it without a pick stroke and at its own lower level (softening it here
+ * as well put a hammered note in a song about 9 dB under the picked note before it).
+ */
 function velocityOf(n: Note, beatAccent: boolean): number {
   let v = 0.78;
   if (n.ghost) v = 0.35;
-  if (n.legato || n.slide) v *= 0.72;
   if (n.accent || beatAccent) v = Math.min(1, v * 1.25);
   return Math.round(v * 100) / 100;
+}
+
+const feltBeatCache = new Map<string, number[]>();
+
+/**
+ * Where the felt beats of a bar fall, in ticks from its bar line: every quarter in 4/4, the two
+ * dotted quarters of 6/8, 2+2+3 eighths in 7/8, the halves of 2/2.
+ */
+export function feltBeats(time: TimeSig): number[] {
+  const key = `${time.numerator}/${time.denominator}`;
+  let beats = feltBeatCache.get(key);
+  if (!beats) {
+    beats = resolveMeter({ numerator: time.numerator, denominator: time.denominator }).beats.map((b) => b.tick);
+    feltBeatCache.set(key, beats);
+  }
+  return beats;
 }
 
 /**
  * How hard a strum is: a down-stroke on the beat is the strongest, one between the beats a little
  * lighter, an up-stroke lighter still (the hand's natural swing); an accent lifts any of them.
+ * `beats` are the felt beats of the bar (`feltBeats`); without them every quarter note is a beat.
  */
-export function strumVelocity(direction: 'down' | 'up', tickInBar: number, accent: boolean): number {
-  const onBeat = Math.abs(tickInBar % PPQ) < 1e-6;
+export function strumVelocity(direction: 'down' | 'up', tickInBar: number, accent: boolean, beats?: readonly number[]): number {
+  const onBeat = beats && beats.length ? beats.some((t) => Math.abs(t - tickInBar) < 1e-6) : Math.abs(tickInBar % PPQ) < 1e-6;
   const base = direction === 'down' ? (onBeat ? 0.8 : 0.72) : 0.62;
   return accent ? Math.min(1, Math.round(base * 1.3 * 100) / 100) : base;
 }
@@ -125,7 +147,12 @@ type Techniques = Pick<PlayNote, 'legato' | 'bend' | 'vibrato' | 'slideIn' | 'sl
 function techniquesOf(n: Note): Techniques {
   const t: Techniques = {};
   if (n.legato) t.legato = n.legato;
-  else if (n.slide) t.legato = 'slide';
+  else if (n.slide) {
+    t.legato = 'slide';
+    // Where the voice cannot carry the string on (the note before was muted or has died away), it
+    // slides into a fresh note: from above when the slide goes down.
+    if (n.slide === 'down') t.slideIn = 'above';
+  }
   if (n.bend && !n.dead && Number.isFinite(n.bend.amount) && n.bend.amount !== 0) {
     t.bend = { amount: n.bend.amount, ...(n.bend.release ? { release: true } : {}), ...(n.bend.pre ? { pre: true } : {}) };
   }
@@ -157,6 +184,11 @@ export function buildPlayEvents(timeline: SongTimeline, opts: ScheduleOptions = 
     for (const b of beats) {
       const src = b.source;
       const accent = beatAccent(src);
+      // Where the beat falls in its bar, for the strength of a stroke (a pickup bar is the end of a bar).
+      const bar = timeline.bars[b.index];
+      const felt = bar ? feltBeats(bar.time) : undefined;
+      const pickup = bar && b.bar === 0 ? Math.max(0, barCapacity(bar.time) - bar.length) : 0;
+      const inBar = src.start + pickup;
       if (src.slash) {
         const chord = timeline.chordAt(b.tick);
         const symbol = chord && !isNoChord(chord.symbol) ? chord.symbol : null;
@@ -174,7 +206,7 @@ export function buildPlayEvents(timeline: SongTimeline, opts: ScheduleOptions = 
             const direction = src.stroke ?? 'down';
             out.push({
               kind: 'strum', tick: b.tick, ticks: b.duration, track: track.id, instrument, midis, strings, direction,
-              velocity: strumVelocity(direction, src.start, accent), muted: !!src.mutedStrum, symbol, ...(accent ? { accent: true } : {}),
+              velocity: strumVelocity(direction, inBar, accent, felt), muted: !!src.mutedStrum, symbol, ...(accent ? { accent: true } : {}),
             });
           }
         }
@@ -196,7 +228,7 @@ export function buildPlayEvents(timeline: SongTimeline, opts: ScheduleOptions = 
         const strong = accent || sorted.some((n) => n.accent);
         out.push({
           kind: 'strum', tick: b.tick, ticks: b.duration, track: track.id, instrument, midis: sorted.map((n) => soundingPitch(n) ?? n.midi), strings: sorted.map((n) => n.string),
-          direction: src.stroke, velocity: strumVelocity(src.stroke, src.start, strong), muted: sorted.every((n) => n.dead), symbol: null,
+          direction: src.stroke, velocity: strumVelocity(src.stroke, inBar, strong, felt), muted: sorted.every((n) => n.dead), symbol: null,
           ...(strong ? { accent: true } : {}), ...(sorted.every((n) => n.letRing) ? { letRing: true } : {}),
         });
         for (const n of struck) ringing.delete(n.string);

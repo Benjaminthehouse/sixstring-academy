@@ -4,7 +4,7 @@
  * now (lit) and the ones coming next (dimmed), in the part's tuning and capo. Pure: unit-tested.
  */
 import { noteAt } from '@/core/guitar';
-import type { PracticeTarget, TimelineBeat } from '@/core/song';
+import { capoShape, type PracticeTarget, type TimelineBeat } from '@/core/song';
 import { formatChord, formatNote, spellInKey } from '@/core/theory';
 import type { FretMarker } from '@/ui/music/fretboard/markers';
 
@@ -122,6 +122,15 @@ function shown(name: string, kind: 'note' | 'chord' = 'note'): string {
 /** A chord symbol as the screen shows it ("F♯m"). */
 export function chordName(symbol: string): string {
   return shown(symbol, 'chord');
+}
+
+/**
+ * The chord a learner behind a capo reads and plays: the shape (`F#7` under capo 2 is the `E7`
+ * shape), as the chart above the tab names it. Song chord symbols are what sounds; with no capo
+ * the two are the same.
+ */
+export function chartSymbol(symbol: string, capo: number): string {
+  return capo > 0 ? capoShape(symbol, capo) : symbol;
 }
 
 /** A spot's note name as the screen shows it ("F♯"), spelled for the song's key. */

@@ -141,7 +141,8 @@ function formatShape(frets: ReadonlyArray<number | null>): string {
  * with its fifth lowest (the one-finger G `xx0003`, D strummed from string 5), whose sound stays the
  * chord's; and any shape over a bass part (`bassMidi`, the lowest note a bass track plays there)
  * that sounds the root below it, so the band plays the plain chord (a drop-2 comp, a reggae chop).
- * A third or a seventh in the bass changes the chord and is always reported.
+ * Without a bass part below it, a third or a seventh as the lowest note changes the chord and is
+ * always reported (`G7=xx0001` included: only plain triads keep their name with the fifth lowest).
  */
 export function voicingLabelProblem(
   symbol: string,

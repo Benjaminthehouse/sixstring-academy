@@ -55,6 +55,7 @@ const PARTS = [
   { id: 'achievements', hash: 'profile--achievements', nav: 'Achievements' },
   { id: 'shop', hash: 'profile--shop', nav: 'Shop' },
   { id: 'settings', hash: 'profile--settings', nav: 'Settings' },
+  { id: 'account', hash: 'profile--account', nav: 'Account' },
   { id: 'data', hash: 'profile--data', nav: 'Your data' },
   { id: 'about', hash: 'profile--about', nav: 'About' },
 ];

@@ -225,6 +225,27 @@ function inPage({ wantWav }) {
         `${fmt(bent, 2)} / ${fmt(plain, 2)} / ${fmt(hammered, 2)} cents`);
       const onset = (() => { const x = r.samples; for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > 0.01) return i / FS; return NaN; })();
       check('song: firstBeatTime is when the first note is heard', first !== null && Math.abs(onset - first) < 0.003, `firstBeatTime ${fmt(first ?? NaN, 4)} s, first sound at ${fmt(onset, 4)} s`);
+
+      // A hammer-on in a song is as soft as on the voice, not softened twice (the schedule used to
+      // pick it lighter as well: 9.4 dB under picking the same note).
+      const songLevel = async (text) => {
+        let t = null;
+        const out = await render(4.6, async (e) => {
+          const player = new songs.SongPlayer(songs.sixTab(text), { output: songs.liveOutput({ engine: e }), clock: e.clock, timer: 'manual', countInBars: 0 });
+          await player.prepare();
+          player.play();
+          t = player.firstBeatTime;
+          player.transport.advanceTo(4.5);
+        });
+        return { x: out.samples, t };
+      };
+      const head = 'title: Hammer\ntempo: 60\ntime: 4/4\n';
+      const ham = await songLevel(head + '| q 3:5 3:7 3:5 3:7h |\n');
+      const pic = await songLevel(head + '| q 3:5 3:7 3:5 3:7 |\n');
+      const dH = db(rms(ham.x, ham.t + 3, ham.t + 3.08)) - db(rms(pic.x, pic.t + 3, pic.t + 3.08));
+      const dLater = db(rms(ham.x, ham.t + 3.3, ham.t + 3.38)) - db(rms(pic.x, pic.t + 3.3, pic.t + 3.38));
+      check('song: a hammer-on is 2–6 dB under picking the note, as on the voice (not softened twice)', dH < -2 && dH > -6 && dLater > -6,
+        `${fmt(dH, 1)} dB at the hammer, ${fmt(dLater, 1)} dB 0.3 s later`);
     }
 
     // -----------------------------------------------------------------------------------------

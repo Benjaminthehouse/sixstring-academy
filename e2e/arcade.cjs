@@ -532,6 +532,17 @@ async function reviewCases(browser, url) {
     check('review', 'leaving before the summary: no console errors', errors.length === 0, errors.join(' | '));
     await context.close();
   }
+  // --- A shape named by the Scales screen is the same box in the same octave: box 4 of A minor
+  //     pentatonic climbs to the 12th fret there, so it does here (not the open-position copy).
+  {
+    const { context, page, errors } = await openContext(browser, { mobile: false });
+    await open(page, url, 'arcade', 'a-minor-pentatonic', 'box-4');
+    await page.waitForFunction(() => /Box 4/.test(document.querySelector('main')?.textContent ?? ''), null, { timeout: 20000 }).catch(() => {});
+    const text = await page.evaluate(() => document.querySelector('main')?.textContent ?? '');
+    check('review', 'a Scales link to box 4 shows box 4 at the 12th fret, as the Scales screen does', /Box 4 · 12th position/.test(text), (/Box 4[^·]*·[^A-Z]{0,30}/.exec(text) || [''])[0]);
+    check('review', 'shape link: no console errors', errors.length === 0, errors.join(' | '));
+    await context.close();
+  }
 }
 
 /** The microphone stops mid-round (unplugged): the round says so and goes on by tapping. */

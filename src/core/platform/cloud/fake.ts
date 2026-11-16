@@ -13,7 +13,9 @@
  *  - `createFakeClient(transport)`: exactly the surface in `types.ts` (`auth.signInWithOtp`,
  *    `verifyOtp`, `getSession` with refresh, `signOut`, `onAuthStateChange`; `from().select / upsert
  *    / delete` with `eq`, `neq`, `maybeSingle`; `channel().on().subscribe()`, `removeChannel`), with
- *    the session kept in the storage it is given, the way supabase-js keeps it.
+ *    the session kept in the storage it is given, the way supabase-js keeps it. Channels behave as
+ *    realtime-js's do: `channel(name)` hands back a same-named channel until it has fully left,
+ *    and a channel that is joining, joined or still leaving ignores `subscribe()`.
  *
  * Transports: `memoryTransport(server)` (unit tests: latency, switch it offline and back) and
  * `bindingTransport(fn)` (browser checks: the page calls a function the check exposes, which hands

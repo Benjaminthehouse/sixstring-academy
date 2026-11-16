@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flattenSong, practiceTargets, sixTab } from '@/core/song';
-import { beatSpots, chordName, describeSpots, heardName, neckMarkers, neckRange, spotName, targetSpots } from './neck';
+import { beatSpots, chartSymbol, chordName, describeSpots, heardName, neckMarkers, neckRange, spotName, targetSpots } from './neck';
 
 const STANDARD = [40, 45, 50, 55, 59, 64];
 
@@ -71,5 +71,16 @@ tempo: 90
     expect(heardName(66)).toBe('F♯');
     expect(heardName(60, 'G')).toBe('C');
     expect(heardName(-1)).toBe('that');
+  });
+
+  it('names a chord behind a capo by the shape played, as the chart above the tab does', () => {
+    // Korobeiniki under capo 2: the song sounds F♯7, Bm; the learner plays and reads E7, Am.
+    expect(chordName(chartSymbol('F#7', 2))).toBe('E7');
+    expect(chordName(chartSymbol('Bm', 2))).toBe('Am');
+    expect(chordName(chartSymbol('A', 2))).toBe('G');
+    expect(describeSpots([], { tuning: STANDARD, capo: 2 }, chartSymbol('A', 2))).toBe('the G chord');
+    // No capo: what sounds is what is played.
+    expect(chartSymbol('F#7', 0)).toBe('F#7');
+    expect(chartSymbol('N.C.', 3)).toBe('N.C.');
   });
 });

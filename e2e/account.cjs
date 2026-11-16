@@ -27,6 +27,8 @@
  *             its progress and says what happened
  *  again      the desktop, signed out before the deletion, signs in again and starts a fresh cloud
  *             copy instead of being signed straight out
+ *  remove     the desktop signs out with "remove it from this device": it reloads cleared, the cloud
+ *             keeps everything, and signing in again brings it all back
  *  limits     a separate backend and a movable browser clock: the resend wait, a code more than an
  *             hour old, and the project's hourly email limit, each in one kind sentence
  *  suggest    a third browser gets the gentle suggestion after three lessons, not before, and
@@ -176,7 +178,9 @@ async function syncNowOnAccount(ctx) {
 async function main() {
   const fake = await loadTs('/src/core/platform/cloud/fake.ts');
   // Supabase's limits, but a short wait between two codes for one address so the check is quick.
-  const backend = fake.createFakeServer({ resendSeconds: 2, pollWaitMs: 10_000 });
+  // A higher hourly email limit than the built-in mailer's: this check signs in five times (the
+  // limits group tests the real limit on a backend of its own).
+  const backend = fake.createFakeServer({ resendSeconds: 2, pollWaitMs: 10_000, emailsPerHour: 20 });
   const server = await startServer();
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const userRows = () => backend.rowsOf(backend.userId(EMAIL) || 'nobody');
@@ -323,6 +327,17 @@ async function main() {
       await phone.goto('profile--account', '[data-account="signed-in"]');
       const synced = await phone.page.waitForSelector('[data-status="account-sync"][data-sync-state="synced"]', { timeout: T }).then(() => true, () => false);
       check(group, 'after a reload the phone is still signed in, and syncing', synced && (await phone.text('[data-account-email]')) === EMAIL);
+      // Reloaded on Today, never opening Me: sync must start with the app, not with the Me screens.
+      await phone.goto('home', 'main');
+      await phone.page.waitForTimeout(1500);
+      await desktop.page.evaluate(async () => (await import('/src/core/progress/index.ts')).setProfile({ name: 'Robin from Today' }));
+      await syncNowOnAccount(desktop);
+      const arrived = await until(
+        async () => (await phone.page.evaluate(async () => (await import('/src/core/progress/index.ts')).getProgress().profile?.name ?? null)) === 'Robin from Today',
+        60_000,
+      );
+      const route = await phone.page.evaluate(() => document.querySelector('main')?.getAttribute('data-route'));
+      check(group, 'reloaded on Today without opening Me, the phone still receives the desktop’s change', arrived && route === 'home', `route ${route}`);
     }
 
     // -- "Try again" restarts sync: Realtime must still deliver at once -------------------------------
@@ -382,6 +397,32 @@ async function main() {
       const notice = await desktop.page.locator('[data-account-notice]').count();
       const head = userRows().find((r) => r.path === 'progress');
       check(group, 'signing in again starts a fresh cloud copy from the desktop, instead of being signed straight out', synced && phase === 'signed-in' && notice === 0 && head?.data.kind === 'progress-sync' && JSON.stringify(head.data).includes('Offline on the train'), `${phase} notice=${notice} head=${head?.data.kind}`);
+    }
+
+    // -- the desktop signs out and removes its progress, then signs in and gets it back ----------------
+    {
+      const group = 'remove';
+      await desktop.nav('profile--account', '[data-status="account-sync"][data-sync-state="synced"]');
+      await desktop.page.locator('[data-account-signout]').click();
+      await desktop.page.waitForSelector('[role="dialog"]', { timeout: T });
+      await desktop.page.getByRole('radio', { name: /Remove it from this device/ }).check();
+      const confirm = (await desktop.page.locator('[data-account-signout-confirm]').innerText()).trim();
+      await desktop.page.waitForTimeout(500); // let the cards finish their change of colour
+      await desktop.shot('desktop-sign-out-remove');
+      await Promise.all([desktop.page.waitForEvent('load', { timeout: T }), desktop.page.locator('[data-account-signout-confirm]').click()]);
+      const notice = await desktop.page.waitForSelector('[data-account-notice="removed"]', { timeout: T }).then(() => true, () => false);
+      const after = await desktop.page.evaluate(async () => ({
+        xp: (await import('/src/core/progress/index.ts')).getProgress().xp.total,
+        session: localStorage.getItem('ssa:sync.auth.session'),
+      }));
+      const titles = await journalTitles(desktop);
+      const head = userRows().find((r) => r.path === 'progress');
+      check(group, '"Remove it from this device": signed out, this device is clear, and the cloud copy is untouched', confirm === 'Sign out and remove' && notice && after.xp === 0 && after.session === null && titles.length === 0 && JSON.stringify(head?.data ?? {}).includes('Offline on the train'), `${confirm} notice=${notice} ${JSON.stringify(after)} titles=${titles.length}`);
+      await desktop.shot('desktop-removed');
+      await new Promise((resolve) => setTimeout(resolve, 2500)); // one code per address per (short) wait
+      const synced = await signIn(desktop, backend);
+      const back = await until(async () => (await journalTitles(desktop)).includes('Offline on the train'), 30_000);
+      check(group, 'signing in again brings everything back to the cleared device', synced && back);
     }
 
     // -- an expired code, a code asked for again too soon, too many emails -----------------------------

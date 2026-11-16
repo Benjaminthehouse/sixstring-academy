@@ -152,6 +152,17 @@ describe.each(SONG_ENTRIES.map((e) => [e.id, e] as [string, SongEntry]))('%s', (
   });
 });
 
+describe('modal songs', () => {
+  const modal = SONG_ENTRIES.filter((e) => parseKey(e.key)?.modal);
+
+  it.each(modal.map((e) => [e.id, e] as [string, SongEntry]))('%s names its mode where the learner reads what it teaches', (id, entry) => {
+    const mode = parseKey(entry.key)!.modal!;
+    // Review of pass 2: Drunken Sailor (E Dorian) taught "A minor song with a bright C#".
+    expect(entry.teaches.some((t) => /^[A-G][#b]? minor\b/.test(t) && !t.toLowerCase().includes(mode)), `${id}: a teaches line reads as another key`).toBe(false);
+    expect(`${entry.teaches.join(' ')} ${entry.tags.join(' ')} ${entry.about}`.toLowerCase(), `${id}: say "${mode}" in teaches, tags or about`).toContain(mode);
+  });
+});
+
 describe('reading studies', () => {
   const readers = SONG_ENTRIES.filter((e) => e.prefersNotation);
 

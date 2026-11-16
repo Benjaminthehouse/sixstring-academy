@@ -221,6 +221,14 @@ export class ExerciseRunner {
     this.setState('idle');
   }
 
+  /**
+   * Audio time the first beat of this run is heard (after the count-in), on the shared audio clock
+   * the microphone listens on; null before a run has started.
+   */
+  firstBeatTime(): number | null {
+    return this.player?.firstBeatTime ?? null;
+  }
+
   /** Where the music is, for the tab cursor (read it in requestAnimationFrame). */
   position(): PlayerPosition | null {
     return this.player?.position() ?? null;

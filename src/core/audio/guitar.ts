@@ -98,6 +98,38 @@ const MAX_RINGING_VIBRATO = 4;
 /** Frames in a Web Audio render quantum: a buffer source's playback rate changes only on these boundaries. */
 const RENDER_QUANTUM = 128;
 
+/**
+ * A note as `preload` / `renderNow` take it: what it will be played with, so the buffer rendered
+ * ahead is the one playback asks for (velocity layer, articulation, accent, a hammer-on's finger).
+ */
+export interface PreloadNote {
+  midi: number;
+  string?: number;
+  velocity?: number;
+  tone?: ToneName;
+  articulation?: Articulation;
+  brightness?: number;
+  accent?: boolean;
+  legato?: Legato;
+}
+
+/**
+ * The velocity, brightness and articulation a note is rendered with: an accent is harder and
+ * brighter; a hammer-on or pull-off is a fretting-hand note (`legato` articulation) unless it is
+ * muted, a harmonic and so on.
+ */
+function strike(n: { velocity?: number; brightness?: number; accent?: boolean; legato?: Legato; articulation?: Articulation }): { velocity: number; brightness: number | undefined; articulation: Articulation | undefined } {
+  let velocity = clamp(finiteOr(n.velocity, 0.8), 0, 1);
+  let brightness = n.brightness;
+  if (n.accent) {
+    velocity = Math.min(1, velocity * ACCENT_VELOCITY);
+    brightness = clamp(finiteOr(brightness, 0) + ACCENT_BRIGHTNESS, -1, 1);
+  }
+  const fretted = n.legato === 'hammer' || n.legato === 'pull';
+  const articulation = fretted && (n.articulation === undefined || n.articulation === 'normal') ? 'legato' : n.articulation;
+  return { velocity, brightness, articulation };
+}
+
 /** A param's automation from `time` on is removed, and the value it had there is kept. False where the browser cannot. */
 function holdAt(param: AudioParam, time: number): boolean {
   if (typeof param.cancelAndHoldAtTime === 'function') {
@@ -383,13 +415,8 @@ export class GuitarSynth {
     const ctx = engine.ctx;
     // Garbage in, silence out: a bad pitch must not reach the string model.
     if (!Number.isFinite(midi) || midi < 12 || midi > 115) return inertVoice(engine.startTime(when));
-    let velocity = clamp(finiteOr(opts.velocity, 0.8), 0, 1);
-    let brightness = opts.brightness;
-    if (opts.accent) {
-      velocity = Math.min(1, velocity * ACCENT_VELOCITY);
-      brightness = clamp(finiteOr(brightness, 0) + ACCENT_BRIGHTNESS, -1, 1);
-    }
     const legato: Legato | undefined = opts.legato === 'hammer' || opts.legato === 'pull' || opts.legato === 'slide' ? opts.legato : undefined;
+    const { velocity, brightness, articulation } = strike({ ...opts, legato });
     if (legato === 'slide') {
       const carried = this.slideOn(midi, when, opts);
       if (carried) return carried;
@@ -400,7 +427,6 @@ export class GuitarSynth {
     // nothing to slide from slides in.
     const fretted = legato === 'hammer' || legato === 'pull';
     const handedOver = fretted && this.handOver(midi, when, opts);
-    const articulation: Articulation | undefined = fretted && (opts.articulation === undefined || opts.articulation === 'normal') ? 'legato' : opts.articulation;
     const legatoLevel = fretted ? (handedOver ? LEGATO_LEVEL[legato as 'hammer' | 'pull'] : LEGATO_ALONE) : 1;
     const expression: NoteExpression = legato === 'slide' && !opts.slideIn ? { ...opts, slideIn: 'below' } : fretted ? { ...opts, slideIn: undefined } : opts;
     const { buffer, instrument, articulation: played, release } = this.bufferFor(midi, velocity, { ...opts, brightness, articulation });
@@ -633,16 +659,7 @@ export class GuitarSynth {
     });
     // Render first, then look at the clock: the first time a chord is played its strings take a few
     // milliseconds each to render, and that must not smear the strum or make its first string late.
-    for (const p of plan) {
-      if (p.midi < 12 || p.midi > 115) continue;
-      let v = clamp(finiteOr(p.velocity, 0.8), 0, 1);
-      let b = opts.brightness;
-      if (accent) {
-        v = Math.min(1, v * ACCENT_VELOCITY);
-        b = clamp(finiteOr(b, 0) + ACCENT_BRIGHTNESS, -1, 1);
-      }
-      this.bufferFor(p.midi, v, { ...note(p), brightness: b });
-    }
+    this.renderNow(this.strumNotes(midis, opts));
     const lead = -Math.min(0, ...plan.map((p) => p.offset));
     // With `align`, the first string sounds before the given time; "now" cannot start in the past.
     const base = Math.max(engine.startTime(when), engine.now() + lead);
@@ -681,24 +698,40 @@ export class GuitarSynth {
    * Render notes right now (synchronously), so that times read from the clock afterwards are not
    * eaten up by rendering: what a strum does for its strings, for a phrase or a lesson sound.
    */
-  renderNow(notes: ReadonlyArray<{ midi: number; string?: number; velocity?: number; tone?: ToneName; articulation?: Articulation }>): void {
+  renderNow(notes: ReadonlyArray<PreloadNote>): void {
     if (!this.available) return;
     for (const n of notes) {
       if (!n || !Number.isFinite(n.midi) || n.midi < 12 || n.midi > 115) continue;
-      this.bufferFor(n.midi, clamp(finiteOr(n.velocity, 0.8), 0, 1), { string: n.string, tone: n.tone, articulation: n.articulation });
+      const s = strike(n);
+      this.bufferFor(n.midi, s.velocity, { string: n.string, tone: n.tone, articulation: s.articulation, brightness: s.brightness });
     }
   }
 
   /**
-   * Render notes ahead of time so the first play has no hitch. Yields to the event loop between
-   * notes; resolves when everything is cached.
+   * The notes a strum renders, one per string with the velocity it is struck with (a strum loses a
+   * little strength across the strings), for `preload` / `renderNow`.
    */
-  async preload(notes: ReadonlyArray<number | { midi: number; string?: number; velocity?: number; tone?: ToneName }>, opts: PluckOptions = {}): Promise<void> {
+  strumNotes(midis: readonly number[], opts: PlayStrumOptions = {}): PreloadNote[] {
+    return strumPlan(midis, opts)
+      .filter((p) => Number.isFinite(p.midi) && p.midi >= 12 && p.midi <= 115)
+      .map((p) => ({ midi: p.midi, string: p.string, velocity: p.velocity, tone: opts.tone, articulation: opts.articulation, brightness: opts.brightness, accent: !!opts.accent }));
+  }
+
+  /**
+   * Render notes ahead of time so the first play has no hitch. Yields to the event loop between
+   * notes; resolves when everything is cached. Give each note what it will be played with
+   * (`velocity`, `articulation`, `accent`, `legato`; `strumNotes` for a strum): a note is rendered
+   * per velocity layer, articulation and brightness, so an accented or up-stroke strum of a chord
+   * preloaded only plainly still renders its six strings (50–70 ms) while the music plays.
+   */
+  async preload(notes: ReadonlyArray<number | PreloadNote>, opts: PluckOptions = {}): Promise<void> {
     if (!this.available) return;
     let last = typeof performance !== 'undefined' ? performance.now() : 0;
     for (const n of notes) {
-      const spec = typeof n === 'number' ? { midi: n } : n;
-      this.bufferFor(spec.midi, clamp(spec.velocity ?? opts.velocity ?? 0.8, 0, 1), { ...opts, string: spec.string ?? opts.string, tone: spec.tone ?? opts.tone });
+      const spec: PreloadNote = typeof n === 'number' ? { midi: n } : n;
+      if (!spec || !Number.isFinite(spec.midi)) continue;
+      const s = strike({ ...spec, velocity: spec.velocity ?? opts.velocity, articulation: spec.articulation ?? opts.articulation, brightness: spec.brightness ?? opts.brightness });
+      this.bufferFor(spec.midi, s.velocity, { ...opts, string: spec.string ?? opts.string, tone: spec.tone ?? opts.tone, articulation: s.articulation, brightness: s.brightness });
       const now = typeof performance !== 'undefined' ? performance.now() : 0;
       if (now - last > 8) {
         await new Promise<void>((r) => setTimeout(r, 0));

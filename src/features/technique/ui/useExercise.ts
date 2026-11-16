@@ -18,7 +18,7 @@ import { afterPass, clampTempo, nudge as nudgeTempo, startTempo, type LadderMove
 import { analyzeLevels } from '../model/levels';
 import { analyzeBend, analyzePrebend, analyzeVibrato } from '../model/pitchshape';
 import { bestClean, newVisit, visitActivity, type VisitSession } from '../model/session';
-import { analyzeTake, expectedFromSong, type Verdict } from '../model/takes';
+import { analyzeTake, expectedFromSong, type ClickReference, type Verdict } from '../model/takes';
 
 const OPEN = [0, 64, 59, 55, 50, 45, 40];
 
@@ -36,6 +36,8 @@ export interface TakeView {
   /** What was heard, to play back. */
   heard: Array<{ midi: number; at: number; dur: number }>;
   tempo: number;
+  /** Where the notes sat against the click (a note or stroke take played to the click). */
+  click?: { offsetMs: number; keeping: 'with' | 'ahead' | 'behind' } | null;
 }
 
 /** The microphone's state on this screen. */
@@ -154,6 +156,8 @@ export function useExercise(e: TechniqueExercise) {
   const follow = notesPerSec <= 8;
 
   const finishTakeRef = useRef<() => void>(() => undefined);
+  /** Where the click was during the take on screen (null: played without it). */
+  const clickRef = useRef<ClickReference | null>(null);
 
   useEffect(
     () =>
@@ -301,7 +305,15 @@ export function useExercise(e: TechniqueExercise) {
     if (!ok) return;
     begin('take');
     listener.begin();
+    clickRef.current = null;
     await runner.start({ loop: false, guide: false, click: takeClick });
+    // Where the click's first beat falls on the microphone's clock: the take is then judged against
+    // the click itself, not only for evenness.
+    const zero = runner.firstBeatTime();
+    if (takeClick && zero !== null && activityRef.current === 'take') {
+      const lat = listener.latency();
+      clickRef.current = { zero, latency: lat.seconds, calibrated: lat.calibrated };
+    }
   }, [listener, openMic, runner, takeClick, begin]);
 
   /** Judge the take that just ended. */
@@ -314,8 +326,8 @@ export function useExercise(e: TechniqueExercise) {
       const first = data.notes[0]?.start ?? 0;
       const heard = data.notes.map((n) => ({ midi: n.midi, at: n.start - first, dur: Math.min(1.5, n.duration) }));
       if (c.kind === 'notes' || c.kind === 'onsets') {
-        const r = analyzeTake({ kind: c.kind, expected: expectedFromSong(partSong(e, part, t)), bpm: t, notes: data.notes, onsets: data.onsets, intonation: c.kind === 'notes' && c.intonation });
-        return { kind: c.kind, verdict: r.verdict, score: r.score, headline: r.messages[0], details: r.messages.slice(1), noteStates: r.noteStates, heard, tempo: t };
+        const r = analyzeTake({ kind: c.kind, expected: expectedFromSong(partSong(e, part, t)), bpm: t, notes: data.notes, onsets: data.onsets, intonation: c.kind === 'notes' && c.intonation, click: clickRef.current });
+        return { kind: c.kind, verdict: r.verdict, score: r.score, headline: r.messages[0], details: r.messages.slice(1), noteStates: r.noteStates, heard, tempo: t, click: r.timing.click ? { offsetMs: r.timing.click.offsetMs, keeping: r.timing.click.keeping } : null };
       }
       if (c.kind === 'bend') {
         const from = OPEN[c.string] + c.fret;

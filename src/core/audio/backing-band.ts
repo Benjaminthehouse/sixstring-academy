@@ -144,8 +144,11 @@ export class BackingBand {
   private readonly volume: Record<BackingInstrument, number> = { drums: 1, bass: 1, keys: 1, guitar: 1 };
   private readonly muted: Record<BackingInstrument, boolean> = { drums: false, bass: false, keys: false, guitar: true };
   private partIds: number[] = [];
-  /** An arrangement waiting for the next bar line to take over (see `change`). */
-  private pending: BackingArrangement | null = null;
+  /**
+   * An arrangement waiting for its bar line (`at`, in the old arrangement's ticks) to take over at
+   * tick `to` of its own (see `change`). Kept across a pause: `resume` sets the jump again.
+   */
+  private pending: { arrangement: BackingArrangement; opts: BackingOptions; at: number; to: number } | null = null;
   private readonly offs: Array<() => void> = [];
   private readonly chordListeners = new Set<(c: ChordChange) => void>();
   private readonly owns: boolean;
@@ -179,6 +182,7 @@ export class BackingBand {
    * plays without stopping it, use `change`.
    */
   load(bars: readonly BackingBar[], opts: BackingOptions): BackingArrangement {
+    this.pending = null;
     this.transport.stop();
     this.output.stopAll();
     const arrangement = this.arrange(bars, opts);
@@ -191,7 +195,8 @@ export class BackingBand {
    * Change the progression, style, tempo or options while the band plays, without stopping it: the
    * band finishes the bar it is in and the new arrangement takes over on the next bar line, at the
    * same bar of the form (wrapped into the new length), with no count-in and no gap. During the
-   * count-in the change is made at once. When the band is not playing this is `load`.
+   * count-in the change is made at once. When the band is not playing this is `load`. A pause
+   * before that bar line keeps the change for `resume`; `start()` plays it from the top.
    * Returns the new arrangement.
    */
   change(bars: readonly BackingBar[], opts: BackingOptions): BackingArrangement {
@@ -202,6 +207,7 @@ export class BackingBand {
     if (tr.position().countIn) {
       // Nothing of the old arrangement has sounded yet: swap it now and start the new one on time.
       tr.cancelJump();
+      this.pending = null;
       this.install(arrangement, opts);
       return arrangement;
     }
@@ -209,14 +215,28 @@ export class BackingBand {
     const oldBar = Math.max(0, Math.round(at / old.barTicks));
     const bodyBars = Math.max(1, Math.round(arrangement.bodyTicks / arrangement.barTicks));
     const newBar = oldBar < bodyBars ? oldBar : oldBar % arrangement.chorusBars;
-    this.pending = arrangement;
-    const ok = tr.jumpAt(at, newBar * arrangement.barTicks, () => {
-      if (this.pending !== arrangement) return;
-      this.pending = null;
-      this.install(arrangement, opts);
-    });
-    if (!ok) return this.load(bars, opts);
+    this.pending = { arrangement, opts, at, to: newBar * arrangement.barTicks };
+    if (!this.armPending()) return this.load(bars, opts);
     return arrangement;
+  }
+
+  /** Set the transport's jump for the pending change. False when the transport will not take it. */
+  private armPending(): boolean {
+    const p = this.pending;
+    if (!p) return false;
+    return this.transport.jumpAt(p.at, p.to, () => {
+      if (this.pending !== p) return;
+      this.pending = null;
+      this.install(p.arrangement, p.opts);
+    });
+  }
+
+  /** Put a pending change in place now (the band is about to start from the top). */
+  private settlePending(): void {
+    const p = this.pending;
+    if (!p) return;
+    this.pending = null;
+    this.install(p.arrangement, p.opts);
   }
 
   /** The arrangement for a progression and options (a looping band has no ending). */
@@ -294,6 +314,8 @@ export class BackingBand {
       this.transport.stop();
       this.output.stopAll();
     }
+    // A change still waiting for its bar line: from the top, the new arrangement is what plays.
+    this.settlePending();
     this.transport.start({ from: 0, countIn: opts.countIn });
   }
 
@@ -304,13 +326,21 @@ export class BackingBand {
     this.output.stopAll();
   }
 
-  /** Pause; `resume()` continues from the same place. */
+  /** Pause; `resume()` continues from the same place (a change made just before still comes at its bar line). */
   pause(): void {
     this.transport.pause();
   }
 
   resume(): void {
+    if (this.transport.state === 'playing') return;
     this.transport.start({ countIn: 0 });
+    // The pause dropped the transport's jump: set it again. If its bar line has already been handed
+    // out (paused a moment before it), make the change now and go to that bar of the new arrangement.
+    const p = this.pending;
+    if (p && !this.armPending()) {
+      this.settlePending();
+      this.transport.seek(p.to);
+    }
   }
 
   get playing(): boolean {
@@ -327,6 +357,8 @@ export class BackingBand {
     if (!Number.isFinite(beatsPerMinute)) return;
     this.beatsPerMinute = Math.max(20, Math.min(400, beatsPerMinute));
     this.transport.setTempo(styleQuarterBpm(this.styleDef.id, this.beatsPerMinute));
+    // A change waiting for its bar line takes the newest tempo with it.
+    if (this.pending) this.pending.opts = { ...this.pending.opts, tempo: this.beatsPerMinute };
   }
 
   /** Volume of one band member, 0..1.5. */

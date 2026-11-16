@@ -148,9 +148,16 @@ the picking hand. A **stretch** is the span the hand holds at once: a chord, a n
 pair, or notes within 0.75 s in one position. **Chords** are scored by the grip played: the shapes in the tab (three notes or
 more), the shape written for a strummed chord (`"F=133211"`, else the engine's standard voicing), and a written shape a
 picked part takes at least 3 in 4 of its notes from (Travis picking). **Syncopation**: an off-beat onset that is accented,
-sounds on through the next beat, or has nothing struck on it. **Voices**: notes held while another voice moves (0.75 at most),
-or fingers moving off a steady thumb (0.35 at most). **Endurance**: the longest run of onsets ≤ 0.2 s apart, from 6 s up
-(tremolo when most notes repeat). **Muting**: muted strums (X, or a chord all palm-muted/dead) alternating with ringing ones.
+sounds on through the next beat, or has nothing struck on it (the end of the piece does not count). **Voices** (0.75 at most):
+a note tied under new ones, or held by its length (an import's sustain) while a finger moves to a new fret, so an arpeggio
+left to ring is one voice. **Thumb independence** (0.35 at most), over a thumb on ≥ 70% of the beats or half bars: pinches
+(thumb and finger together, a string or more apart, the finger on string 1 or 2; a power chord or a shell is not one), and
+finger notes between thumb strokes: any off-beat one over a thumb on every beat, only a syncopated one over a half-bar thumb
+(so a p-i-m-a arpeggio or a boom-chick is not two voices, a bossa is). **Endurance**: the longest run of onsets ≤ 0.2 s
+apart, from 6 s up (tremolo when most notes repeat). **Muting**: muted strums (X, or a chord all palm-muted/dead)
+alternating with ringing ones. **Score** = 0.55 × the hardest factor + 0.25 × the next + 0.2 × the mean of the top three:
+monotone, so a factor that falls never makes a song rate harder (a mean over the non-zero factors did: Twinkle's 0.03 for
+position falling to 0 raised it from 2 to 3).
 
 ## Import, export, arranger
 ```ts

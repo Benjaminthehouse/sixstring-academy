@@ -6,6 +6,7 @@
 import { getAudioContext, getEngine, unlockAudio } from '@/core/audio';
 import { NoteRecorder, PitchTracker, type RecordedNote, type TrackerStartResult } from '@/core/pitch';
 import { micOptions } from '@/core/settings';
+import { isCalibrated, loadCalibration, offsetFor } from '@/features/rhythm/core/calibration';
 import type { LevelSample } from '../model/levels';
 import type { PitchSample } from '../model/pitchshape';
 
@@ -97,6 +98,22 @@ export class TakeListener {
   onLost(fn: () => void): () => void {
     this.lostFns.add(fn);
     return () => this.lostFns.delete(fn);
+  }
+
+  /**
+   * Seconds from a click being played to a note played with it being stamped by the microphone:
+   * the delay measured by the rhythm calibration on this device when there is one, else what the
+   * browser reports for its output and input (with the rhythm game's allowance for the rest).
+   */
+  latency(): { seconds: number; calibrated: boolean } {
+    const cal = loadCalibration();
+    let reported = 60;
+    try {
+      reported = Math.round(((this.tracker?.info?.inputLatency ?? 0) + getEngine().outputLatency) * 1000) + 12;
+    } catch {
+      // No engine: the default.
+    }
+    return { seconds: offsetFor(cal, 'mic', reported) / 1000, calibrated: isCalibrated(cal, 'mic') };
   }
 
   /** The audio clock now (the tracker's context). */

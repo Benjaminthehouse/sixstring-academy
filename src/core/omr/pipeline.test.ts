@@ -127,7 +127,11 @@ describe('the metre sanity pass', () => {
     expect(suggestMetreFix(twoWays, 2880, '3/4')).toBe(false);
     const staff = { measures: [{ ...sure, ticks: 3840, expectedTicks: 2880 }], timeInForce: { beats: 3, beatValue: 4, source: 'printed' } } as unknown as OmrStaff;
     expect(flagMeasuresOffMetre(staff)).toBe(1);
-    expect(staff.measures[0].issues?.[0]).toMatchObject({ code: 'measure-does-not-fit', message: expect.stringMatching(/does not fit 3\/4: .* 4 quarter notes, .* 3/) });
+    expect(staff.measures[0].issues?.[0]).toMatchObject({ code: 'measure-does-not-fit', message: expect.stringMatching(/does not fit 3\/4: .* 4 quarter notes, the time signature asks for 3 quarter notes\./) });
+    // One quarter note is one quarter note (a bad photo read a 4/4 measure as a single quarter).
+    const short = { measures: [{ ...measure([tabEvent(20, 'quarter')], false), ticks: 960, expectedTicks: 3840 }], timeInForce: { beats: 4, beatValue: 4, source: 'printed' } } as unknown as OmrStaff;
+    flagMeasuresOffMetre(short);
+    expect(short.measures[0].issues?.[0].message).toMatch(/add up to 1 quarter note, the time signature asks for 4 quarter notes\./);
   });
 });
 

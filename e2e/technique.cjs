@@ -13,7 +13,8 @@
  *             before it is saved; Finish records the visit (best clean tempo, summary sheet with XP)
  *  reload     a reload in the middle of a visit keeps what was done: three clean passes, then a
  *             reload, and the best clean tempo is saved and the next visit starts one rung under it
- *  take       a microphone take with a fake microphone (Chromium plays a WAV as the mic): the
+ *  take       a microphone take with a fake microphone (Chromium plays a WAV as the mic): with the
+ *             click on, the result says where the notes sat against the click; with it off: the
  *             G major two-octave scale played evenly at 60 BPM is judged clean and the ladder
  *             climbs; the same scale played with uneven timing is not clean, and the result says
  *             how far from an even pulse the notes were; one wrong note with perfect timing is not
@@ -383,8 +384,8 @@ async function largeTextGroup() {
   }
 }
 
-/** One microphone take of the G major scale; returns the result attributes. */
-async function scaleTakeRun(fakeAudio) {
+/** One microphone take of the G major scale; returns the result attributes. `click: false` turns the take's click off. */
+async function scaleTakeRun(fakeAudio, { click = true } = {}) {
   const s = await launch({ fakeAudio });
   const p = s.page;
   try {
@@ -394,6 +395,10 @@ async function scaleTakeRun(fakeAudio) {
     await p.getByText('Check me with the microphone').first().click();
     await p.waitForTimeout(200);
     const startTempo = await attr(p, root, 'data-tempo');
+    if (!click) {
+      const sw = p.getByRole('switch', { name: 'Click during the take' });
+      if ((await sw.getAttribute('aria-checked')) === 'true') await sw.click();
+    }
     await p.locator('[data-technique-primary]').first().click();
     await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-mic') === 'ready', root, { timeout: 20000 });
     const meter = await p.waitForSelector('[role="meter"][aria-label="Microphone level"]', { timeout: 10000 }).then(() => true).catch(() => false);
@@ -401,6 +406,8 @@ async function scaleTakeRun(fakeAudio) {
     const out = {
       verdict: await attr(p, '[data-technique-take]', 'data-technique-take'),
       text: await p.textContent('[data-technique-take]'),
+      clickOffset: Number(await attr(p, '[data-technique-take]', 'data-click-offset')),
+      click: await attr(p, '[data-technique-take]', 'data-click'),
       startTempo,
       tempo: await attr(p, root, 'data-tempo'),
       meter,
@@ -415,16 +422,24 @@ async function scaleTakeRun(fakeAudio) {
 }
 
 async function takeGroup() {
+  // With the click on, a take is judged against the click itself (its first beat on the
+  // microphone's clock). Where Chromium's fake microphone file lands against the click varies by
+  // hundreds of ms from page to page under load, so here the browser shows that the judging is
+  // wired up (the result names the click and its offset); the unit tests in model/takes.test.ts
+  // show the verdicts (on the click: clean; an even take 120 ms behind: not clean).
+  const probe = await scaleTakeRun(scaleTake('scale-probe', () => 0).fakeAudio);
+  check('take', 'a take played to the click is judged against the click and says where it sat', Number.isFinite(probe.clickOffset) && ['with', 'ahead', 'behind'].includes(probe.click) && /the click/.test(probe.text || '') && (probe.click === 'with' || probe.verdict !== 'clean'), `${probe.verdict} (${probe.click} ${probe.clickOffset} ms): ${probe.text}`);
+  // The rest are taken with the click off after the count-in (no click to line up with: evenness and tempo).
   const even = scaleTake('scale-even', () => 0);
-  const r1 = await scaleTakeRun(even.fakeAudio);
-  check('take', 'an even take of the scale is judged clean', r1.verdict === 'clean', `${r1.verdict}: ${r1.text}`);
+  const r1 = await scaleTakeRun(even.fakeAudio, { click: false });
+  check('take', 'an even take of the scale is judged clean', r1.verdict === 'clean' && !r1.click, `${r1.verdict}: ${r1.text}`);
   check('take', 'and the ladder climbs from 60 to 64 BPM', r1.startTempo === '60' && r1.tempo === '64', `${r1.startTempo} -> ${r1.tempo}`);
   check('take', 'it says the notes were right', /All 29 notes were right|of 29 notes/.test(r1.text || ''), r1.text);
   check('take', 'the microphone level meter shows while the take runs', r1.meter);
   check('take', 'no console errors (even take)', r1.errors.length === 0, r1.errors.join(' | '));
 
   const uneven = scaleTake('scale-uneven', (i) => 0.13 * jitter(i));
-  const r2 = await scaleTakeRun(uneven.fakeAudio);
+  const r2 = await scaleTakeRun(uneven.fakeAudio, { click: false });
   check('take', 'an uneven take (notes up to 130 ms off) is not clean', r2.verdict === 'not-yet', `${r2.verdict}: ${r2.text}`);
   check('take', 'it says how far from an even pulse the notes were', /Timing: on average \d+ ms from an even pulse/.test(r2.text || ''), r2.text);
   check('take', 'and the ladder does not climb', r2.tempo === '60', r2.tempo);
@@ -432,7 +447,7 @@ async function takeGroup() {
 
   // Perfect timing, one wrong note (bar 2, note 4: D4 played as C#4). It used to be "Clean" and climb.
   const wrong = scaleTake('scale-wrong-note', () => 0, 3.2, (i) => (i === 11 ? -1 : 0));
-  const r3 = await scaleTakeRun(wrong.fakeAudio);
+  const r3 = await scaleTakeRun(wrong.fakeAudio, { click: false });
   check('take', 'a take with one wrong note is not clean, however even', r3.verdict !== 'clean', `${r3.verdict}: ${r3.text}`);
   check('take', 'it names the bar, the note and the right pitch', /1 of 29 notes was a different note: bar 2, note 4 should be D4\./.test(r3.text || ''), r3.text);
   check('take', 'and the ladder does not climb on a wrong note', r3.tempo === '60', r3.tempo);

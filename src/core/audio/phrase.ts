@@ -54,12 +54,8 @@ export function playPhrase(notes: readonly PhraseNote[], when?: number, opts: Ph
   const synth = opts.synth ?? (audioSupported() ? getGuitar() : null);
   if (!synth || !list.length) return { startTime: 0, endTime: 0, queued: false, stop: () => undefined };
   // Every note is rendered before the clock is read, so a phrase played for the first time keeps its timing.
-  synth.renderNow(
-    list.map((n) => ({
-      midi: n.midi, string: n.string, tone: n.tone ?? opts.tone, velocity: n.velocity ?? opts.velocity,
-      articulation: n.legato === 'hammer' || n.legato === 'pull' ? ('legato' as const) : n.articulation,
-    })),
-  );
+  // (Each with what it is played with: an accented note or a hammer-on is a buffer of its own.)
+  synth.renderNow(list.map((n) => ({ ...n, tone: n.tone ?? opts.tone, velocity: n.velocity ?? opts.velocity })));
   const t0 = synth.engine.startTime(when);
   const handles: VoiceHandle[] = [];
   let end = t0;
@@ -111,6 +107,8 @@ export function tabPhrase(token: string, string: number, opts: TabPhraseOptions 
     const long = st.bend || st.vibrato ? 2 : 1;
     const last = i === steps.length - 1;
     const duration = step * long * (last ? 1.6 : 1);
+    // A slide down ("7\5"): if the string cannot be carried on, the fresh note slides in from above.
+    const slideIn = st.slideIn ?? (st.legato === 'slide' && i > 0 && st.fret < steps[i - 1].fret ? 'above' : undefined);
     out.push({
       midi: open + st.fret,
       string: s,
@@ -119,7 +117,7 @@ export function tabPhrase(token: string, string: number, opts: TabPhraseOptions 
       ...(st.legato ? { legato: st.legato } : {}),
       ...(st.bend ? { bend: st.bend } : {}),
       ...(st.vibrato ? { vibrato: true } : {}),
-      ...(st.slideIn ? { slideIn: st.slideIn } : {}),
+      ...(slideIn ? { slideIn } : {}),
       ...(st.slideOut ? { slideOut: st.slideOut } : {}),
     });
     at += step * long;
@@ -160,19 +158,25 @@ export function playLineOverChord(chord: readonly number[], line: readonly Phras
   if (!opts.engine && !audioSupported()) return { startTime: 0, endTime: 0, queued: false, stop: () => undefined };
   const engine = opts.engine ?? getEngine();
   const lineSynth = opts.engine ? new GuitarSynth({ engine, tone: opts.tone }) : getGuitar();
+  const midis = chord.filter((m) => Number.isFinite(m)).slice().sort((a, b) => a - b);
+  const onKeys = opts.chordVoice === 'epiano' || opts.chordVoice === 'organ';
+  const accompanist = onKeys ? null : opts.engine ? new GuitarSynth({ engine, tone: opts.tone, pan: -0.2 }) : (sharedAccompanist ??= new GuitarSynth({ pan: -0.2 }));
+  if (accompanist && opts.tone) accompanist.tone = opts.tone;
+  const strumOpts = { direction: 'down' as const, velocity: 0.7, choke: false };
+  // Render the chord and the line before reading the clock: played "now" for the first time, the
+  // strings take a few milliseconds each, and the chord would come in after the line's first note.
+  accompanist?.renderNow(accompanist.strumNotes(midis, strumOpts));
+  lineSynth.renderNow(line.filter((n) => n && Number.isFinite(n.midi)).map((n) => ({ ...n, tone: n.tone ?? opts.tone })));
   const t0 = engine.startTime(when);
   const delay = clamp(finiteOr(opts.lineDelay, 0), 0, 30);
   const phrase = playPhrase(line, t0 + delay, { synth: lineSynth, tone: opts.tone });
   const hold = finiteOr(opts.hold, NaN) > 0 ? finiteOr(opts.hold, 1) : Math.max(1, phrase.endTime - t0);
   const level = clamp(finiteOr(opts.chordLevel, 0.6), 0, 1.5);
-  const midis = chord.filter((m) => Number.isFinite(m)).slice().sort((a, b) => a - b);
   let chordHandles: Array<VoiceHandle | ToneHandle> = [];
-  if (opts.chordVoice === 'epiano' || opts.chordVoice === 'organ') {
-    chordHandles = playChord(midis, t0, { voice: opts.chordVoice, duration: hold, gain: level, bus: 'keys' }, engine);
+  if (!accompanist) {
+    chordHandles = playChord(midis, t0, { voice: opts.chordVoice as 'epiano' | 'organ', duration: hold, gain: level, bus: 'keys' }, engine);
   } else {
-    const accompanist = opts.engine ? new GuitarSynth({ engine, tone: opts.tone, pan: -0.2 }) : (sharedAccompanist ??= new GuitarSynth({ pan: -0.2 }));
-    if (opts.tone) accompanist.tone = opts.tone;
-    chordHandles = accompanist.strum(midis, t0, { direction: 'down', velocity: 0.7, gain: level, duration: hold, choke: false });
+    chordHandles = accompanist.strum(midis, t0, { ...strumOpts, gain: level, duration: hold });
   }
   return {
     startTime: t0,

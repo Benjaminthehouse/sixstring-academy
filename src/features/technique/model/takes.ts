@@ -1,7 +1,9 @@
 /**
  * Judging one microphone take of an exercise: which notes were right (pitch), how even the timing
- * was and whether the learner kept the click's tempo. Pure: the screen records notes and onsets
- * with `@/core/pitch` and hands them here.
+ * was, whether the learner kept the click's tempo and, when the take was played to the click and
+ * the click's first beat is known on the same clock, whether the notes sat on the click (not just
+ * evenly among themselves). Pure: the screen records notes and onsets with `@/core/pitch` and
+ * hands them here.
  */
 import { compareNotes, type RecordedNote } from '@/core/pitch';
 import { flattenSong, practiceTargets, type Song } from '@/core/song';
@@ -18,6 +20,8 @@ export interface ExpectedNote {
   midi: number | null;
   /** Seconds after the first expected note, at the take's tempo. */
   time: number;
+  /** Seconds after the start of the song (its first beat), at the take's tempo. */
+  songTime: number;
   /** Song bar (0-based) and beat index in that bar's measure, for the tab. */
   bar: number;
   beat: number;
@@ -32,6 +36,22 @@ export type TakeKind = 'notes' | 'onsets';
 export type Evenness = 'even' | 'a-bit-uneven' | 'uneven';
 /** Whether the learner kept the click's tempo. */
 export type TempoKeeping = 'steady' | 'rushing' | 'dragging';
+/** Where the notes sat against the click. */
+export type ClickKeeping = 'with' | 'ahead' | 'behind';
+
+/**
+ * Where the click was, on the clock the take was recorded on: the audio time the song's first beat
+ * was played, and how much later a note played with that beat reaches the recording (the click's
+ * way out through the speaker and the guitar's way in through the microphone).
+ */
+export interface ClickReference {
+  /** Audio time of the song's first beat (`SongPlayer.firstBeatTime`). */
+  zero: number;
+  /** Seconds from a click being played to a note played with it being stamped by the microphone. */
+  latency: number;
+  /** The latency was measured for this device (calibrated), not taken from what the browser reports. */
+  calibrated: boolean;
+}
 /** The overall verdict of a take. */
 export type Verdict = 'clean' | 'close' | 'not-yet';
 
@@ -56,6 +76,11 @@ export interface TakeResult {
     tempo: TempoKeeping;
     /** The tempo the learner actually played at, in the ladder's units. */
     playedBpm: number;
+    /**
+     * Against the click (when the take was played to it): the median distance of the notes from
+     * their clicks (positive = late), how widely they spread around them, and the verdict.
+     */
+    click: { offsetMs: number; rmsMs: number; keeping: ClickKeeping; toleranceMs: number } | null;
   };
   /** The note furthest from an even line: index, milliseconds (positive = late), bar and beat (1-based). */
   worst: { index: number; ms: number; bar: number; beat: number } | null;
@@ -80,6 +105,7 @@ export function expectedFromSong(song: Song): ExpectedNote[] {
   return targets.map((t) => ({
     midi: t.midis.length === 1 && !t.symbol ? t.midis[0] : null,
     time: t.sec - t0,
+    songTime: t.sec,
     bar: t.bar,
     beat: t.beat.beat,
     key: beatKey(t.bar, t.beat.beat),
@@ -107,6 +133,22 @@ export function tempoOf(slope: number): TempoKeeping {
   return 'steady';
 }
 
+/**
+ * How far from the click notes may sit and still be "with" it, in ms: the evenness limit, at least
+ * 25 ms (a player in time is within a few tens of ms), and 30 ms more when the device's delay is
+ * only what the browser reports rather than measured.
+ */
+export function clickToleranceMs(gapSec: number, calibrated: boolean): number {
+  return Math.max(25, evenLimitMs(gapSec)) + (calibrated ? 0 : 30);
+}
+
+/** Classify the median distance from the click. */
+export function clickKeepingOf(offsetMs: number, toleranceMs: number): ClickKeeping {
+  if (offsetMs > toleranceMs) return 'behind';
+  if (offsetMs < -toleranceMs) return 'ahead';
+  return 'with';
+}
+
 /** Note name for messages ("C4"), with ♯. */
 function nameOf(midi: number): string {
   const names = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
@@ -131,6 +173,8 @@ export function analyzeTake(input: {
   notes?: readonly RecordedNote[];
   onsets?: readonly number[];
   intonation?: boolean;
+  /** Where the click was (a take played to the click); without it only evenness and tempo are judged. */
+  click?: ClickReference | null;
 }): TakeResult {
   const { kind, expected, bpm } = input;
   const notes = [...(input.notes ?? [])].sort((a, b) => a.start - b.start);
@@ -193,12 +237,25 @@ export function analyzeTake(input: {
   const limit = evenLimitMs(timedGap);
   const timingScore = Math.max(0, Math.min(1, 1 - (fit.rmsMs - limit) / (1.5 * limit)));
   const tempoScore = Math.max(0, 1 - Math.max(0, Math.abs(1 / fit.slope - 1) - 0.03) * 5);
-  const score = empty ? 0 : Math.round(100 * (0.5 * accuracy + 0.4 * timingScore + 0.1 * tempoScore));
+
+  // Against the click: each matched note against the moment its click was heard.
+  let click: TakeResult['timing']['click'] = null;
+  if (input.click && fit.matches.length >= 3) {
+    const ref = input.click;
+    const errs = fit.matches.map((m) => (played[m.played] - (ref.zero + ref.latency + expected[timedIdx[m.expected]].songTime)) * 1000).sort((a, b) => a - b);
+    const offsetMs = errs[errs.length >> 1];
+    const rmsMs = Math.sqrt(errs.reduce((s, e) => s + e * e, 0) / errs.length);
+    const toleranceMs = clickToleranceMs(timedGap, ref.calibrated);
+    click = { offsetMs: Math.round(offsetMs), rmsMs, keeping: clickKeepingOf(offsetMs, toleranceMs), toleranceMs };
+  }
+  const clickScore = click ? Math.max(0, Math.min(1, 1 - (Math.abs(click.offsetMs) - click.toleranceMs) / (2 * click.toleranceMs))) : null;
+  const score = empty ? 0 : Math.round(100 * (clickScore === null ? 0.5 * accuracy + 0.4 * timingScore + 0.1 * tempoScore : 0.5 * accuracy + 0.3 * timingScore + 0.1 * tempoScore + 0.1 * clickScore));
 
   let verdict: Verdict;
   if (empty) verdict = 'not-yet';
   // A note the microphone did not catch is forgiven (up to one in ten); a wrong note never is.
-  else if (accuracy >= 0.9 && wrong.length === 0 && evenness === 'even' && tempo === 'steady') verdict = 'clean';
+  // Even but steadily off the click is not clean: the band would hear it.
+  else if (accuracy >= 0.9 && wrong.length === 0 && evenness === 'even' && tempo === 'steady' && (!click || click.keeping === 'with')) verdict = 'clean';
   else if (accuracy < 0.7 || evenness === 'uneven') verdict = 'not-yet';
   else verdict = 'close';
 
@@ -231,6 +288,12 @@ export function analyzeTake(input: {
       }
       if (tempo === 'rushing') messages.push(`You were rushing: about ${playedBpm} BPM against the click at ${Math.round(bpm)}.`);
       if (tempo === 'dragging') messages.push(`You were dragging: about ${playedBpm} BPM against the click at ${Math.round(bpm)}.`);
+      if (click) {
+        const ms = Math.abs(click.offsetMs);
+        if (click.keeping === 'with') messages.push(`With the click: ${ms <= 5 ? 'right on it' : `${ms} ms ${click.offsetMs > 0 ? 'behind' : 'ahead of'} it`} on average.`);
+        else if (click.keeping === 'behind') messages.push(`Even, but about ${ms} ms behind the click: play with the click, not after you hear it.`);
+        else messages.push(`Even, but about ${ms} ms ahead of the click: let the click lead, and land with it.`);
+      }
     }
     if (intonation) {
       const c = Math.round(intonation.medianCents);
@@ -246,7 +309,7 @@ export function analyzeTake(input: {
     heard,
     accuracy,
     missed,
-    timing: { rmsMs: fit.rmsMs, maxMs: fit.maxMs, spread, evenness, tempo, playedBpm },
+    timing: { rmsMs: fit.rmsMs, maxMs: fit.maxMs, spread, evenness, tempo, playedBpm, click },
     worst,
     intonation,
     score,

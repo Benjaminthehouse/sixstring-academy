@@ -78,7 +78,13 @@ export async function fillTexts(doc: OmrDocument, grays: GrayImage[], ocr: () =>
     const items = todo.filter((t) => t.page === p);
     if (!items.length || !grays[p]) continue;
     opts.onProgress?.({ page: p, pages: doc.pages.length, fraction: p / doc.pages.length, message: `Reading chord names and titles${doc.pages.length > 1 ? ` on page ${p + 1}` : ''}`, stage: 'words' });
-    const texts = await readBoxes(reader, grays[p], items.map((t) => t.text.bbox as BBox));
+    // Chord names are read with only the characters they use: a lone "C" read with every character
+    // allowed comes back as "c" (same shape, no size to tell them apart) and is not a chord.
+    const chordItems = items.filter((t) => t.text.kind === 'chord-symbol');
+    const otherItems = items.filter((t) => t.text.kind !== 'chord-symbol');
+    const chordTexts = await readBoxes(reader, grays[p], chordItems.map((t) => t.text.bbox as BBox), { allow: CHORD_CHARS });
+    const otherTexts = await readBoxes(reader, grays[p], otherItems.map((t) => t.text.bbox as BBox));
+    const texts = items.map((t) => (t.text.kind === 'chord-symbol' ? chordTexts[chordItems.indexOf(t)] : otherTexts[otherItems.indexOf(t)]));
     items.forEach((it, k) => {
       const raw = texts[k]?.trim() ?? '';
       if (!raw) return;
@@ -98,9 +104,12 @@ export async function fillTexts(doc: OmrDocument, grays: GrayImage[], ocr: () =>
 }
 
 /**
- * Chord names printed over a tab staff that has no notation staff above it: the sheet reader does
- * not locate those, so the band above each such staff is read with OCR and every word that is a
- * chord name becomes a chord symbol of the system (mutates the document). Returns how many.
+ * Chord names printed over a tab staff that has no notation staff above it. The sheet reader
+ * locates them and `fillTexts` reads each box; a box it could not read (a blurred photo, a stray
+ * mark beside the letter), or a name the reader did not locate, gets a second chance here: the band
+ * above each such staff is read again as a whole, chord letters only, and every word that is a chord
+ * name fills the box it falls in, or becomes a chord symbol of the system (mutates the document).
+ * Returns how many were read.
  */
 export async function findChordsOverTab(doc: OmrDocument, grays: GrayImage[], ocr: () => Promise<Ocr>, opts: { signal?: AbortSignal } = {}): Promise<number> {
   let found = 0;
@@ -114,7 +123,10 @@ export async function findChordsOverTab(doc: OmrDocument, grays: GrayImage[], oc
     for (const sys of page.systems) {
       if (opts.signal?.aborted) throw abortError();
       const top = sys.staves[0];
-      if (!top || top.kind !== 'tab' || sys.texts.some((t) => t.kind === 'chord-symbol' && t.text)) continue;
+      if (!top || top.kind !== 'tab' || sys.staves.some((st) => st.kind === 'notation')) continue;
+      const located = sys.texts.filter((t) => t.kind === 'chord-symbol');
+      // Every box the reader located was read: nothing to add.
+      if (located.length && located.every((t) => t.text)) continue;
       const g = top.geometry;
       const space = g.space;
       const x0 = Math.max(0, Math.floor(g.x0 - space));
@@ -141,7 +153,19 @@ export async function findChordsOverTab(doc: OmrDocument, grays: GrayImage[], oc
         if (!chord) continue;
         const bx = x0 + w.x / scale;
         const by = y0 + w.y / scale;
-        sys.texts.push({ id: `${sys.id}.ocr${n++}`, kind: 'chord-symbol', text: chord, x: bx + w.w / scale / 2, bbox: { x: bx, y: by, w: w.w / scale, h: w.h / scale }, confidence: 0.6, staffId: top.id, source: 'image' });
+        const ww = w.w / scale;
+        const cx = bx + ww / 2;
+        // A box the reader located here: fill it if it is still empty, and never add a second one.
+        const box = located.find((t) => cx >= t.bbox.x - 0.3 * space && cx <= t.bbox.x + t.bbox.w + 0.3 * space);
+        if (box) {
+          if (!box.text) {
+            box.text = chord;
+            box.confidence = Math.max(box.confidence, 0.6);
+            found++;
+          }
+          continue;
+        }
+        sys.texts.push({ id: `${sys.id}.ocr${n++}`, kind: 'chord-symbol', text: chord, x: cx, bbox: { x: bx, y: by, w: ww, h: w.h / scale }, confidence: 0.6, staffId: top.id, source: 'image' });
         found++;
       }
     }

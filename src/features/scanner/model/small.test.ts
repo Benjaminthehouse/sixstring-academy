@@ -205,4 +205,22 @@ describe('chord names from OCR', () => {
     expect(cleanChordText('|')).toBeNull();
     expect(cleanChordText('')).toBeNull();
   });
+
+  it('undoes a speck read before a chord name and a root read twice (photos of chords over tab)', async () => {
+    const { cleanChordText } = await import('./chords');
+    // What OCR returned on chord boxes of good photos (review of the scanner lane).
+    expect(cleanChordText('dD')).toBe('D');
+    expect(cleanChordText('(dD)')).toBe('D');
+    expect(cleanChordText('o.D')).toBe('D');
+    expect(cleanChordText('Dd')).toBe('D');
+    // Real chords are kept as they are; words and numbers still are not chords.
+    expect(cleanChordText('Bb')).toBe('Bb');
+    expect(cleanChordText('Dadd9')).toBe('Dadd9');
+    expect(cleanChordText('Ddim')).toBe('Ddim');
+    expect(cleanChordText('AiinD')).toBeNull();
+    expect(cleanChordText('Air in D')).toBeNull();
+    expect(cleanChordText('12)')).toBeNull();
+    expect(cleanChordText('Ab')).toBe('Ab');
+    expect(cleanChordText('Ga')).toBeNull();
+  });
 });

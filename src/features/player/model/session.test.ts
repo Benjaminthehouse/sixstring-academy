@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parsePlayerParams, requestKey, resolveRequest } from './params';
-import { defaultSession, openingState, RESUME_WITHIN_MS, sanitizeSession, sessionKey } from './session';
+import { defaultSession, hidesNeck, neckFollows, openingState, RESUME_WITHIN_MS, sanitizeSession, sessionKey } from './session';
 
 const SHAPE = { barCount: 16, totalTicks: 16 * 3840, trackIds: ['melody', 'teacher'] };
 const SONG = { bars: Array.from({ length: 16 }, () => ({ time: { numerator: 4, denominator: 4 } })), sections: [{ name: 'Chorus', start: 8, end: 16 }] };
@@ -102,5 +102,36 @@ describe('player session', () => {
   it('turns a microphone mode into tap-along where there is no microphone', () => {
     expect(open(['x', 'wait'], null, NOW, true).session.mode).toBe('tap');
     expect(open(['x', 'listen'], null, NOW, true).session.mode).toBe('listen');
+  });
+
+  it('brings the fretboard back once the chart or the staff that hid it goes', () => {
+    // Hiding the chart turns the fretboard off and remembers why; showing the chart brings it back.
+    expect(neckFollows({ neck: true, neckBack: false }, false, true)).toEqual({ neck: false, neckBack: true, hid: true });
+    expect(neckFollows({ neck: false, neckBack: true }, true, false)).toEqual({ neck: true, neckBack: false, hid: false });
+    // Still hidden by the other one ("Notes only" with the chart hidden): it stays off.
+    expect(neckFollows({ neck: false, neckBack: true }, true, true)).toEqual({ neck: false, neckBack: true, hid: false });
+    // Off by the learner's own choice: it stays off, and nothing is said.
+    expect(neckFollows({ neck: false, neckBack: false }, false, true)).toEqual({ neck: false, neckBack: false, hid: false });
+    expect(neckFollows({ neck: false, neckBack: false }, true, false)).toEqual({ neck: false, neckBack: false, hid: false });
+    expect(hidesNeck({ layer: 'notation', hideChart: false })).toBe(true);
+    expect(hidesNeck({ layer: 'both', hideChart: false })).toBe(false);
+  });
+
+  it('after a visit with the chart hidden, the next plain visit shows the chords and the fretboard again', () => {
+    const plain = resolveRequest(parsePlayerParams(['x']), SONG);
+    const hiding = openingState({ ...defaultSession(), at: NOW - 60_000, neck: true }, resolveRequest(parsePlayerParams(['x', 'hide-chart']), SONG), 'hide-chart', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(hiding).toMatchObject({ hideChart: true, neck: false, neckBack: true });
+    const next = openingState({ ...hiding, at: NOW + 1000 }, plain, '', { now: NOW + 2000, layer: 'tab', micBlocked: false }).session;
+    expect(next).toMatchObject({ hideChart: false, neck: true, neckBack: false });
+    // A learner who had the fretboard off keeps it off.
+    const off = openingState({ ...defaultSession(), at: NOW - 60_000, neck: false }, resolveRequest(parsePlayerParams(['x', 'hide-chart']), SONG), 'hide-chart', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(openingState({ ...off, at: NOW + 1000 }, plain, '', { now: NOW + 2000, layer: 'tab', micBlocked: false }).session.neck).toBe(false);
+    // "Notes only" is the learner's view from then on, so its fretboard stays off on a plain visit.
+    const notes = openingState({ ...defaultSession(), at: NOW - 60_000 }, resolveRequest(parsePlayerParams(['x', 'notes']), SONG), 'notes', { now: NOW, layer: 'tab', micBlocked: false }).session;
+    expect(openingState({ ...notes, at: NOW + 1000 }, plain, '', { now: NOW + 2000, layer: 'tab', micBlocked: false }).session).toMatchObject({ layer: 'notation', neck: false, neckBack: true });
+    // ...and comes back with an address that shows the tab again.
+    expect(openingState({ ...notes, at: NOW + 1000 }, resolveRequest(parsePlayerParams(['x', 'tab-and-notes']), SONG), 'tab-and-notes', { now: NOW + 2000, layer: 'tab', micBlocked: false }).session).toMatchObject({ layer: 'both', neck: true });
+    expect(sanitizeSession({ v: 1, neckBack: true }, SHAPE)?.neckBack).toBe(true);
+    expect(sanitizeSession({ v: 1 }, SHAPE)?.neckBack).toBe(false);
   });
 });

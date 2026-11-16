@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMAZING_GRACE, CAMPFIRE_GROOVE, ODE_TO_JOY, TECHNIQUE_SAMPLER } from './examples';
-import { buildPlayEvents, strumVelocity, type PlayNote, type PlayStrum } from './schedule';
+import { buildPlayEvents, feltBeats, strumVelocity, type PlayNote, type PlayStrum } from './schedule';
 import { sixTab } from './sixtab-parse';
 import { SongPlayer, type SongPlayerEvent, type SongPlayerOutput } from './song-player';
 import { flattenSong } from './timeline';
@@ -50,13 +50,18 @@ describe('playback schedule', () => {
     const tie = at(4 * 3840, 4);
     expect(tie.ticks).toBe(3840);
     expect(notes.some((n) => n.tick === 4 * 3840 + 1920 && n.string === 4)).toBe(false);
-    // | e 3:5 3:7h 3:5p 3:7 s 3:9s 3:7s ...: a hammer-on, a pull-off, slides up and down, softer than a pick.
+    // | e 3:5 3:7h 3:5p 3:7 s 3:9s 3:7s ...: a hammer-on, a pull-off, slides up and down. The schedule
+    // does not soften them: the guitar voice plays a legato note without a pick and at its own lower
+    // level (softened twice, a hammer-on in a song sat about 9 dB under the note before it).
     expect(at(480)).toMatchObject({ midi: 62, legato: 'hammer' });
-    expect(at(480).velocity).toBeLessThan(0.78);
+    expect(at(480).velocity).toBe(at(0).velocity);
     expect(at(960)).toMatchObject({ midi: 60, legato: 'pull' });
+    expect(at(960).velocity).toBe(0.78);
     expect(at(1440).legato).toBeUndefined();
     expect(at(1920)).toMatchObject({ midi: 64, legato: 'slide' });
-    expect(at(2160)).toMatchObject({ midi: 62, legato: 'slide' });
+    expect(at(1920).slideIn).toBeUndefined();
+    // A slide down: where the string cannot be carried on, the fresh note slides in from above.
+    expect(at(2160)).toMatchObject({ midi: 62, legato: 'slide', slideIn: 'above' });
     const harmonic = at(2 * 3840);
     expect(harmonic).toMatchObject({ midi: 76, articulation: 'harmonic' });
     const dead = at(2 * 3840 + 2880);
@@ -99,6 +104,19 @@ describe('playback schedule', () => {
     line.tracks[0].measures[0].beats[0].accent = true;
     const notes = buildPlayEvents(flattenSong(line)).filter((e): e is PlayNote => e.kind === 'note');
     expect(notes.map((n) => [!!n.accent, n.velocity])).toEqual([[true, 0.98], [false, 0.78], [false, 0.78], [false, 0.78]]);
+  });
+
+  it('strokes are strongest on the felt beats of the meter: 1 and 4 of six eighths in 6/8, 2+2+3 in 7/8, halves in 2/2', () => {
+    expect(feltBeats({ numerator: 6, denominator: 8 })).toEqual([0, 1440]);
+    expect(feltBeats({ numerator: 7, denominator: 8 })).toEqual([0, 960, 1920]);
+    expect(feltBeats({ numerator: 2, denominator: 2 })).toEqual([0, 1920]);
+    const strums = (text: string) => buildPlayEvents(flattenSong(sixTab(text))).filter((e): e is PlayStrum => e.kind === 'strum').map((s) => s.velocity);
+    // Before, every quarter note counted as a beat, so 6/8 was strummed like 3/4 (eighths 1, 3, 5 strong).
+    expect(strums('title: J\ntempo: 60\ntime: 6/8\n| "C" e D D D D D D |\n')).toEqual([0.8, 0.72, 0.72, 0.8, 0.72, 0.72]);
+    expect(strums('title: S\ntempo: 60\ntime: 7/8\n| "C" e D D D D D D D |\n')).toEqual([0.8, 0.72, 0.8, 0.72, 0.8, 0.72, 0.72]);
+    expect(strums('title: W\ntempo: 90\ntime: 3/4\n| "C" q D D D |\n')).toEqual([0.8, 0.8, 0.8]);
+    // A pickup is the end of a bar: an eighth-note pickup in 4/4 is the "and" of 4, not a downbeat.
+    expect(strums('title: P\ntempo: 90\ntime: 4/4\npickup: e\n| "C" e D | q D D D D |\n')[0]).toBe(0.72);
   });
 
   it('strums slashes with the chord voicing in force', () => {

@@ -907,6 +907,13 @@
   max-width: 100%;
   min-width: 0;
 }
+/* A staff is drawn to the width of its box: in this shrink-to-fit column it would get none (and
+   draw nothing), so a staff-only target takes the column's width, up to a readable line. */
+.playTarget > .playStaff {
+  align-self: stretch;
+  width: 100%;
+  max-width: min(100%, 36rem);
+}
 .phraseProgress {
   display: flex;
   flex-wrap: wrap;

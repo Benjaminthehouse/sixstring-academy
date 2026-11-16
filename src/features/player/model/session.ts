@@ -44,6 +44,11 @@ export interface PlayerSession {
   trainer: TrainerSettings;
   /** Show the fretboard under the score. */
   neck: boolean;
+  /**
+   * The fretboard is off only because "Notes only" or a hidden chart turned it off: it comes back
+   * when they go (see `neckFollows`).
+   */
+  neckBack: boolean;
   /** Chord names and boxes hidden: playing it from memory. */
   hideChart: boolean;
   /** Semitones the song is moved (for singing). */
@@ -66,7 +71,7 @@ export interface SongShape {
 export function defaultSession(opts: { layer?: ScoreLayer; now?: number } = {}): PlayerSession {
   return {
     v: 1, at: opts.now ?? 0, opened: '', tick: 0, bar: 0, tempo: 100, loop: null, mode: 'listen', layer: opts.layer ?? 'tab', layerPicked: false, track: null,
-    muted: [], solo: [], countIn: true, metronome: false, trainer: { ...DEFAULT_TRAINER }, neck: true, hideChart: false, transpose: 0, capo: null,
+    muted: [], solo: [], countIn: true, metronome: false, trainer: { ...DEFAULT_TRAINER }, neck: true, neckBack: false, hideChart: false, transpose: 0, capo: null,
   };
 }
 
@@ -102,10 +107,28 @@ export function sanitizeSession(raw: unknown, song: SongShape): PlayerSession | 
     metronome: r.metronome === true,
     trainer: sanitizeTrainer(r.trainer),
     neck: r.neck !== false,
+    neckBack: r.neckBack === true,
     hideChart: r.hideChart === true,
     transpose: clampTranspose(num(r.transpose, 0)),
     capo: typeof r.capo === 'number' ? clampCapo(r.capo) : null,
   };
+}
+
+/** True when the score hides what the fretboard would give away: the notes ("Notes only") or the chord shapes. */
+export function hidesNeck(s: { layer: ScoreLayer; hideChart: boolean }): boolean {
+  return s.layer === 'notation' || s.hideChart;
+}
+
+/**
+ * The fretboard follows what hides it. Choosing "Notes only" or hiding the chord chart turns it
+ * off (it would give the answers away; `hid` says so, for the screen to tell the learner); when
+ * that goes again it comes back, unless the learner switched it themselves in between (which
+ * clears `neckBack`).
+ */
+export function neckFollows(s: { neck: boolean; neckBack: boolean }, hidBefore: boolean, hidesNow: boolean): { neck: boolean; neckBack: boolean; hid: boolean } {
+  if (!hidBefore && hidesNow && s.neck) return { neck: false, neckBack: true, hid: true };
+  if (hidBefore && !hidesNow && s.neckBack) return { neck: true, neckBack: false, hid: false };
+  return { neck: s.neck, neckBack: s.neckBack && hidesNow, hid: false };
 }
 
 /** How the screen should open. */
@@ -123,7 +146,8 @@ export interface OpeningState {
  * the learner never picked in the player, except that a reading study (`opts.prefersNotation`,
  * the song's `prefersNotation`) opens with the notation shown. A hidden chord chart is for one
  * visit (a reload keeps it); an address can hide it again (`hide-chart`). An address that asks for
- * the notation alone or a hidden chart also hides the fretboard, which would show the answers.
+ * the notation alone or a hidden chart also hides the fretboard, which would show the answers, and
+ * the next visit that shows them again brings the fretboard back (`neckFollows`).
  */
 export function openingState(
   saved: PlayerSession | null,
@@ -138,6 +162,8 @@ export function openingState(
   if (saved && saved.opened === key && key !== '' && opts.now - saved.at < RESUME_WITHIN_MS) {
     return { session: { ...saved, layer, mode: fixMode(saved.mode) }, resumed: saved.tick > 0 };
   }
+  // What hid the fretboard on the last visit (a hidden chart is not kept, so its fretboard comes back).
+  const hidBefore = hidesNeck({ layer, hideChart: base.hideChart });
   const s: PlayerSession = { ...base, layer, opened: key, at: opts.now, mode: fixMode(base.mode), hideChart: false };
   if (request.track) s.track = request.track;
   if (request.muted) {
@@ -149,7 +175,9 @@ export function openingState(
     s.layerPicked = true;
   }
   if (request.hideChart) s.hideChart = true;
-  if (request.layer === 'notation' || request.hideChart) s.neck = false;
+  const neck = neckFollows(s, hidBefore, hidesNeck(s));
+  s.neck = neck.neck;
+  s.neckBack = neck.neckBack;
   if (request.capo !== null && request.capo !== undefined) s.capo = request.capo;
   if (request.transpose !== null && request.transpose !== undefined) s.transpose = request.transpose;
   const asksPlace = request.startBar !== null || request.loop !== null;

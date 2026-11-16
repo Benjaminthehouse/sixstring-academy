@@ -8,7 +8,7 @@ import { closeAudio, getEngine, unlockAudio } from '@/core/audio';
 import { MockContext, type MockSource } from '@/core/audio/web-audio-mock';
 import { ODE_TO_JOY } from './examples';
 import { sixTab } from './sixtab-parse';
-import { SongPlayer } from './song-player';
+import { SongPlayer, liveOutput } from './song-player';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] });
@@ -87,6 +87,29 @@ describe('SongPlayer on the audio engine', () => {
     expect(atHammer).toHaveLength(1);
     const gain = (s: MockSource): number => (s.outputs[0] as unknown as { gain: { value: number } }).gain.value;
     expect(gain(atHammer[0])).toBeLessThan(gain(second) * 0.75);
+    player.dispose();
+  });
+
+  it('prepare() renders every sound the song will ask for: up-strokes, accents, muted strums, hammer-ons, its tone', async () => {
+    expect(await unlockAudio()).toBe(true);
+    const engine = getEngine();
+    const ctx = engine.ctx as unknown as MockContext;
+    // Before, only a plain (velocity 0.8) note per string was rendered ahead: the up-strokes and the
+    // accented strum (other velocity layers and brightness), the muted strum, the hammer-on's finger
+    // note and anything in a tone other than the shared guitar's rendered while the music played,
+    // 50–70 ms for a six-string strum.
+    const song = sixTab('title: Prepared\ntempo: 120\ntime: 4/4\n| "Em" e D D U D> X U q 3:5 | q 3:7h 2:8 2:5p 1:3 | q 1:5s r h r |\n');
+    const player = new SongPlayer(song, { timer: 'manual', countInBars: 0, output: liveOutput({ tone: 'nylon' }) });
+    await player.prepare();
+    const before = engine.buffers.stats.count;
+    const t0 = ctx.currentTime;
+    player.play();
+    while (ctx.currentTime < t0 + 4.5) {
+      ctx.advance(0.02);
+      player.transport.process(ctx.currentTime);
+    }
+    expect(started(ctx).filter((s) => s.startedAt! > t0 + 0.02).length).toBeGreaterThan(20);
+    expect(engine.buffers.stats.count).toBe(before);
     player.dispose();
   });
 });

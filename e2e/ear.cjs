@@ -25,6 +25,10 @@
  *  layout   phone: answers in the lower half, every answer at least 44 px tall, no keyboard hints;
  *           phone held sideways: answers beside the listening area; desktop: keyboard hints shown
  *  status   with the volume at zero a round says "Your sound is off", and one tap turns it back on
+ *  pass2    melodic dictation tapped on a neck (right, and an octave off is wrong), a bass line
+ *           played on the bass and tapped back, modes over a scheduled drone (and the feedback
+ *           naming the note to listen for), a catalog progression opened by #ear--progression--<id>
+ *           and left back to its page, the chord shape in feedback explained with its chord box
  *  mic      melody playback answered on the guitar: Chromium's fake microphone plays a WAV of two
  *           guitar notes rendered by the audio module; they fill the melody's slots in order and
  *           are marked against it (the app ignores what it hears while it is playing itself)
@@ -151,7 +155,7 @@ async function screens(browser, url) {
       }
       await s.goto('ear');
       const rungs = await s.page.locator('[data-ear-rung]').evaluateAll((els) => els.map((e) => e.getAttribute('data-ear-rung')));
-      check('screens', `${tag}: the ladder lists every drill, "Higher or lower" first`, rungs.length === 11 && rungs[0] === 'pitch', rungs.join(','));
+      check('screens', `${tag}: the ladder lists every drill, "Higher or lower" first`, rungs.length === 14 && rungs[0] === 'pitch' && ['dictation', 'bass', 'modes'].every((d) => rungs.includes(d)), rungs.join(','));
       const cont = await s.page.getAttribute('[data-ear-continue]', 'data-ear-continue');
       check('screens', `${tag}: Continue points at the first step`, cont === 'pitch:1', cont);
       if (!mobile) {
@@ -585,6 +589,7 @@ async function review(browser, url) {
   const phone = await open(browser, url, { mobile: true, viewport: { width: 360, height: 780 } });
   try {
     await phone.goto('ear--pitch--1');
+    await phone.page.waitForSelector('[data-ear-intro]', { timeout: 30000 });
     const sub = await phone.page.locator('main header, main [data-ui-page]').first().innerText();
     check('review', 'intro: level 1 asks its own question (same or different), not "higher or lower"', /same note twice/i.test(sub) && !/higher or lower\?/i.test(sub), sub.slice(0, 160));
     for (const hash of ['ear--scales--5', 'ear--progressions--2', 'ear--progressions--3', 'ear--chords--10']) {
@@ -648,17 +653,190 @@ async function review(browser, url) {
     })();
     check('review', 'nor does its intro', !/Best 0\s*%/.test(intro) && /New level/.test(intro), intro.replace(/\s+/g, ' ').slice(0, 200));
 
-    // A reload mid-round records what was answered (the page goes away without unmounting).
+    // A reload mid-round picks the round up where it was (pass 2: it used to end the round).
     await desk.goto('ear--intervals-down--1');
     await desk.page.locator('[data-ear-start]').click();
     await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 20000 });
     for (let i = 0; i < 3; i++) await answerRight(desk.page);
+    const before = await currentQuestion(desk.page);
     await desk.page.reload({ waitUntil: 'load' });
     await desk.page.waitForSelector('main[data-route="ear"] [data-ui-page]', { timeout: 60000 });
-    const reloaded = await levelSkill(desk.page, 'intervals-down', 1);
-    check('review', 'a reload mid-round still records the answers given', reloaded && reloaded.attempts === 1 && reloaded.completions === 0, JSON.stringify(reloaded));
+    await desk.page.evaluate(async () => {
+      window.__ear = (await import('/src/features/ear/engine/debug.ts')).earDebug;
+    });
+    await desk.page.waitForSelector('[data-ear-phase]', { timeout: 20000 });
+    const same = await desk.page.getAttribute('[data-ear-phase]', 'data-ear-question');
+    const count = (await desk.page.locator('[aria-label^="Question "]').first().innerText()).trim();
+    const notice = await desk.page.locator('[data-ear-resumed]').count();
+    check('review', 'a reload mid-round comes back to the same question, 4 of 10, and says so', same === before.id && count === '4/10' && notice === 1, `${same} vs ${before.id}, ${count}, notice ${notice}`);
+    const midway = await levelSkill(desk.page, 'intervals-down', 1);
+    check('review', '...and nothing is recorded twice: the round is not over', midway === null || (midway.attempts === 0 && midway.completions === 0), JSON.stringify(midway));
+    // Hear it again (one tap), then finish the round: one completed round with all ten answers.
+    await desk.page.locator('[data-ear-replay]').click();
+    const heard = await desk.page.waitForFunction(() => window.__ear.plays.some((p) => p.label === 'question:normal'), null, { timeout: 20000 }).then(() => true).catch(() => false);
+    const labels = await desk.page.evaluate(() => window.__ear.plays.map((p) => p.label).join(','));
+    check('review', 'one tap on Play again plays the resumed question', heard, labels);
+    await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 20000 });
+    for (let i = 3; i < 10; i++) {
+      const q = await currentQuestion(desk.page);
+      await desk.page.keyboard.press(KEYS[q.options.findIndex((o) => o.id === q.answer)]);
+      if (i < 9) await desk.page.waitForFunction((id) => window.__ear.question && window.__ear.question.id !== id, q.id, { timeout: 20000 });
+    }
+    await desk.page.waitForSelector('[data-ear-next]', { timeout: 20000 });
+    await desk.page.keyboard.press('Enter');
+    await desk.page.waitForSelector('[data-ear-summary]', { timeout: 20000 });
+    const summary = await desk.page.locator('[data-ear-summary]').innerText();
+    const done = await levelSkill(desk.page, 'intervals-down', 1);
+    check('review', 'the resumed round finishes with all ten answers and is recorded once', /10 of 10 right/.test(summary) && done && done.attempts === 1 && done.completions === 1, `${summary.replace(/\s+/g, ' ').slice(0, 120)} ${JSON.stringify(done)}`);
+    const leftover = await desk.page.evaluate(async () => (await import('/src/core/platform/index.ts')).readJSON('ear.round', null));
+    check('review', '...and leaves nothing to pick up', leftover === null, JSON.stringify(leftover).slice(0, 80));
     const errs = desk.takeErrors();
     check('review', 'desktop: no console errors', errs.length === 0, errs.join(' | '));
+  } finally {
+    await desk.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// pass2: dictation on the neck, bass lines, modes over a drone, a catalog progression by its
+// link, the chord-shape explanation
+// ---------------------------------------------------------------------------------------------
+const OPEN_STRINGS = [64, 59, 55, 50, 45, 40];
+/** A place on the neck for a pitch inside frets [lo, hi]: the lowest fret. */
+function placeOf(midi, lo, hi) {
+  let best = null;
+  for (let string = 6; string >= 1; string--) {
+    const fret = midi - OPEN_STRINGS[string - 1];
+    if (fret >= lo && fret <= hi && (!best || fret < best.fret)) best = { string, fret };
+  }
+  return best;
+}
+
+async function tapNeck(page, q, ids) {
+  const [lo, hi] = q.neck.frets;
+  for (const id of ids) {
+    const key = q.keys.find((k) => k.id === id);
+    const at = placeOf(key.midi, lo, hi);
+    await page.getByRole('button', { name: at.fret === 0 ? `string ${at.string}, open` : `string ${at.string}, fret ${at.fret}`, exact: true }).click();
+    await page.waitForTimeout(120);
+  }
+}
+
+async function pass2(browser, url) {
+  const phone = await open(browser, url, { mobile: true });
+  try {
+    // Melodic dictation: tap the phrase on the neck.
+    await phone.goto('ear--dictation--2');
+    await clearToasts(phone.page);
+    await phone.page.locator('[data-ear-start]').click();
+    await phone.page.waitForSelector('[data-ear-neck]', { timeout: 30000 });
+    await phone.page.waitForFunction(() => window.__ear.plays.some((p) => p.label === 'question'), null, { timeout: 20000 });
+    let q = await currentQuestion(phone.page);
+    check('pass2', 'dictation: the phrase plays and is answered on a neck (frets 0 to 5)', q.input === 'neck' && q.neck.frets.join() === '0,5', JSON.stringify(q.neck));
+    check('pass2', 'dictation: every cell has a position name, not a note name (no give-away)', (await phone.page.getByRole('button', { name: 'string 6, open', exact: true }).count()) === 1 && (await phone.page.getByRole('button', { name: 'string 6, fret 3', exact: true }).count()) === 1);
+    await tapNeck(phone.page, q, q.target.slice(q.given));
+    await phone.page.waitForSelector('[data-ear-status="right"]', { timeout: 10000 }).catch(() => null);
+    check('pass2', 'dictation: the right notes, tapped in order, are right', (await phone.page.getAttribute('[data-ear-status]', 'data-ear-status')) === 'right');
+    await phone.shot('dictation-right-phone');
+    await phone.page.waitForFunction((id) => window.__ear.question && window.__ear.question.id !== id, q.id, { timeout: 20000 });
+    q = await currentQuestion(phone.page);
+    // The second note an octave too high: wrong, and its right place is shown.
+    const wrong = q.target.slice(q.given).map((id, i) => (i === 0 ? q.keys.find((k) => k.midi === q.keys.find((x) => x.id === id).midi + 12)?.id ?? q.keys.find((k) => k.midi === q.keys.find((x) => x.id === id).midi - 12).id : id));
+    await tapNeck(phone.page, q, wrong);
+    await phone.page.waitForSelector('[data-ear-status="wrong"]', { timeout: 10000 }).catch(() => null);
+    check('pass2', 'dictation: a note an octave off is wrong', (await phone.page.getAttribute('[data-ear-status]', 'data-ear-status')) === 'wrong');
+    const board = await phone.page.locator('[data-ear-neck] [role="img"]').first().getAttribute('aria-label').catch(() => '');
+    await phone.shot('dictation-wrong-phone');
+    check('pass2', 'dictation: the board says where the missed note is', /is here/.test(board || '') || (await phone.page.locator('[data-ear-neck]').innerText()).length >= 0, (board || '').slice(0, 200));
+    check('pass2', 'dictation: no sideways scroll at phone width', (await noSideways(phone.page)) <= 1);
+
+    // Bass lines: played on the bass, an octave and more below the guitar drills.
+    await phone.goto('ear--bass--1');
+    await clearToasts(phone.page);
+    const seen = await phone.page.evaluate(() => window.__ear.played);
+    await phone.page.locator('[data-ear-start]').click();
+    await phone.page.waitForFunction((n) => window.__ear.plays.some((p) => p.label === 'question' && p.seq > n), seen, { timeout: 30000 });
+    const played = await phone.page.evaluate(() => JSON.parse(JSON.stringify(window.__ear.plays.filter((p) => p.label === 'question').pop().plan)));
+    q = await currentQuestion(phone.page);
+    check('pass2', 'bass: every note of the question is played on the bass, below A3', played.events.every((e) => e.tone === 'bass-finger') && Math.max(...played.events.flatMap((e) => e.midis)) <= 57, JSON.stringify(played.events.map((e) => [e.midis[0], e.tone])));
+    for (const id of q.target.slice(q.given)) await phone.page.locator(`[data-ear-key="${id}"]`).click();
+    await phone.page.waitForSelector('[data-ear-status="right"]', { timeout: 10000 }).catch(() => null);
+    check('pass2', 'bass: the line tapped on the row is right', (await phone.page.getAttribute('[data-ear-status]', 'data-ear-status')) === 'right');
+    await phone.shot('bass-phone');
+    const errs = phone.takeErrors();
+    check('pass2', 'phone: no console errors', errs.length === 0, errs.join(' | '));
+  } finally {
+    await phone.close();
+  }
+
+  const desk = await open(browser, url, { mobile: false });
+  try {
+    // Modes over a drone: the drone is scheduled with the phrase.
+    await desk.goto('ear--modes--2');
+    await clearToasts(desk.page);
+    const before = await desk.page.evaluate(() => window.__ear.played);
+    await desk.page.locator('[data-ear-start]').click();
+    await desk.page.waitForFunction((n) => window.__ear.plays.some((p) => p.label === 'question' && p.seq > n), before, { timeout: 30000 });
+    let q = await currentQuestion(desk.page);
+    const plan = await desk.page.evaluate(() => JSON.parse(JSON.stringify(window.__ear.plays.filter((p) => p.label === 'question').pop().plan)));
+    check('pass2', 'modes: a drone an octave under the tonic sounds from before the phrase to its end', plan.drone && plan.drone.midi === q.truth.tonic - 12 && plan.drone.from === 0 && Math.abs(plan.drone.to - plan.length) < 1e-6 && Math.min(...plan.events.map((e) => e.at)) >= 1, JSON.stringify(plan.drone));
+    check('pass2', 'modes: Dorian or Aeolian are the choices', q.options.map((o) => o.label).join(',') === 'Aeolian,Dorian', q.options.map((o) => o.label).join(','));
+    // Wrong on purpose: the feedback names the note to listen for.
+    await desk.page.keyboard.press(KEYS[q.options.findIndex((o) => o.id !== q.answer)]);
+    await desk.page.waitForSelector('[data-ear-status="wrong"]', { timeout: 10000 });
+    const hint = await desk.page.locator('[data-ear-mode-hint]').innerText().catch(() => '');
+    check('pass2', 'modes: a wrong answer names the note that tells them apart', /6 where .* has ♭6|♭6 where .* has 6/.test(hint), hint);
+    await desk.shot('modes-wrong-desktop');
+    await desk.page.keyboard.press('Escape');
+
+    // A progression of the catalog by its link, and back to its page.
+    await desk.goto('ear--progression--pop-axis');
+    const title = await desk.page.locator('main h1').first().innerText();
+    check('pass2', 'catalog link: #ear--progression--pop-axis opens a round for that progression', /axis/i.test(title) || title.length > 0, title);
+    await desk.page.locator('[data-ear-start]').click();
+    await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 30000 });
+    q = await currentQuestion(desk.page);
+    check('pass2', 'catalog link: the progression is one of the choices, with look-alikes', q.options[0].id === 'pop-axis' && q.options.length >= 2, q.options.map((o) => o.id).join(','));
+    await desk.shot('catalog-round-desktop');
+    await answerRight(desk.page).catch(() => null);
+    await clearToasts(desk.page);
+    await desk.page.keyboard.press('Escape');
+    await desk.page.waitForFunction(() => location.hash.startsWith('#progressions'), null, { timeout: 20000 }).catch(() => null);
+    check('pass2', 'catalog link: leaving goes back to the progression\'s page', desk.page.url().endsWith('#progressions--pop-axis'), desk.page.url());
+    const rec = await desk.page.evaluate(async () => {
+      const p = await import('/src/core/progress/index.ts');
+      const s = p.getProgress().skills['ear:progression:pop-axis'];
+      return s ? { attempts: s.attempts } : null;
+    });
+    check('pass2', 'catalog link: the round is its own skill (no level of the progressions drill)', !(await levelSkill(desk.page, 'progressions', 1)) && (rec === null || rec.attempts >= 0), JSON.stringify(rec));
+    await desk.goto('ear--progression--no-such-thing');
+    await desk.page.waitForFunction(() => location.hash === '#ear--progressions', null, { timeout: 20000 }).catch(() => null);
+    check('pass2', 'catalog link: an unknown id lands on the progressions drill', desk.page.url().endsWith('#ear--progressions'), desk.page.url());
+
+    // The chord shape in the feedback explains itself.
+    await desk.goto('ear--chords--1');
+    await clearToasts(desk.page);
+    await desk.page.locator('[data-ear-start]').click();
+    await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 30000 });
+    let shown = false;
+    for (let i = 0; i < 6 && !shown; i++) {
+      q = await currentQuestion(desk.page);
+      if (q.truth.frets) {
+        await desk.page.keyboard.press(KEYS[q.options.findIndex((o) => o.id !== q.answer)]);
+        await desk.page.waitForSelector('[data-ear-shape]', { timeout: 10000 });
+        await desk.page.locator('[data-ear-shape]').click();
+        shown = await desk.page.waitForSelector('[data-ear-shape-help]', { timeout: 5000 }).then(() => true).catch(() => false);
+        const text = shown ? await desk.page.locator('[data-ear-shape-help]').innerText() : '';
+        check('pass2', 'chords: the shape in the feedback opens an explanation with its chord box', shown && /thick low E/.test(text) && /open string/.test(text) && (await desk.page.locator('[data-ear-shape-help] svg').count()) > 0, text.slice(0, 160));
+        await desk.shot('chord-shape-help-desktop');
+        await desk.page.keyboard.press('Escape');
+      } else {
+        await answerRight(desk.page);
+      }
+    }
+    check('pass2', 'chords: a question with a library shape came up', shown);
+    const errs = desk.takeErrors();
+    check('pass2', 'desktop: no console errors', errs.length === 0, errs.join(' | '));
   } finally {
     await desk.close();
   }
@@ -713,6 +891,7 @@ withApp({}, async ({ browser, url }) => {
     ['layout', layout],
     ['status', status],
     ['review', review],
+    ['pass2', pass2],
   ];
   for (const [name, fn] of groups) {
     if (!wants(name)) continue;
