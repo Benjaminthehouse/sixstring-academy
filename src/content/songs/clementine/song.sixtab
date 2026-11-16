@@ -6,7 +6,8 @@
 # The tune (second track) is the 1884 melody, the same for verse and chorus, in first position
 # on strings 5 to 3: do do | do sol, mi mi | mi do do mi | sol sol fa mi | re ..., with the low A
 # (open string 5) and C# (string 5, fret 4) under the tonic D (open string 4).
-# Words: the 1884 chorus and the first two verses only.
+# Words: the 1884 chorus and the first two verses only, as commonly sung ("You are lost and gone
+# forever"; some old printings read "Thou art lost").
 title: Oh My Darling, Clementine
 id: clementine
 composer: Traditional American (credited to Percy Montrose, 1884)

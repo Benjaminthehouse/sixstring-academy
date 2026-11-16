@@ -30,14 +30,8 @@ const theBeat: Lesson = {
     {
       type: 'card',
       title: 'The steady count',
-      body: 'Under most music runs a steady count: the {t:beat}, also called the **pulse**. It is what you tap your foot or nod your head to. Beats are evenly spaced in time, like the tick of a clock.',
-      figure: { kind: 'rhythm', pattern: 'q q q q', tempo: 60, caption: 'Four beats, evenly spaced. Count them: 1 2 3 4.' },
-    },
-    {
-      type: 'card',
-      title: 'A click to follow',
-      body: 'A {t:metronome} is a device or app that clicks a steady beat. This one clicks once every second. Tap your foot with each click.',
-      figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'q q q q | q q q q', tempo: 60 }, label: 'Hear a steady beat' },
+      body: 'Under most music runs a steady count: the {t:beat}, also called the **pulse**. It is what you tap your foot or nod your head to. Beats are evenly spaced in time, like the ticks of a clock. A {t:metronome} is a device or app that clicks a steady beat for you.',
+      figure: { kind: 'rhythm', pattern: 'q q q q | q q q q', tempo: 60, caption: 'Steady beats, one every second. Count them: 1 2 3 4.' },
     },
     {
       type: 'true-false',
@@ -94,15 +88,7 @@ const theBeat: Lesson = {
       explain: 'A metronome, a device or an app, clicks a steady beat at the speed you choose.',
       fact: 'pulse-metronome',
     },
-    {
-      type: 'tap-rhythm',
-      prompt: 'Tap along with the click: eight steady beats.',
-      rhythm: { pattern: 'q q q q | q q q q' },
-      tempo: 70,
-      show: 'both',
-      explain: 'One tap on every click, evenly spaced: 1 2 3 4, 1 2 3 4. Tap with the click, not just after it.',
-    },
-    { generate: 'rhythm-tap', params: { values: ['quarter'], tempo: 60 } },
+    { generate: 'rhythm-tap', params: { values: ['quarter'], bars: 2, tempo: 70 } },
   ],
   facts: [
     {
@@ -173,14 +159,6 @@ const tempoAndBpm: Lesson = {
       fact: 'pulse-120-twice-60',
     },
     {
-      type: 'type-answer',
-      prompt: 'At 120 BPM, how many beats happen in one second?',
-      answer: { kind: 'number', value: 2 },
-      input: 'keypad',
-      explain: '120 beats in 60 seconds is 2 beats every second.',
-      fact: 'pulse-120-twice-60',
-    },
-    {
       type: 'card',
       title: 'Play at three speeds',
       body: 'Rest your fretting hand flat across the strings and strum on every click: first at 60, then 90, then 120 BPM. Then pick open string 6, the low {n:E}, on every click.',
@@ -209,14 +187,6 @@ const tempoAndBpm: Lesson = {
       explain: 'Fewer beats per minute means a slower tempo. 70 BPM is a little over one beat a second: slow and calm.',
       fact: 'pulse-tempo-meaning',
     },
-    {
-      type: 'tap-rhythm',
-      prompt: 'Tap once on every click at 90 BPM.',
-      rhythm: { pattern: 'q q q q' },
-      tempo: 90,
-      show: 'both',
-      explain: 'At 90 BPM the beats are closer together than at 60: one and a half every second. Keep each tap even.',
-    },
     { generate: 'rhythm-tap', params: { values: ['quarter'], tempo: 90 } },
   ],
   facts: [
@@ -241,6 +211,13 @@ const tempoAndBpm: Lesson = {
       id: 'pulse-120-twice-60',
       front: 'How does 120 BPM compare with 60 BPM?',
       back: 'The beats come twice as fast: two every second instead of one.',
+      ask: {
+        type: 'type-answer',
+        prompt: 'At 120 BPM, how many beats happen in one second?',
+        answer: { kind: 'number', value: 2 },
+        input: 'keypad',
+        explain: '120 beats in 60 seconds is 2 beats every second.',
+      },
     },
   ],
 };
@@ -611,13 +588,13 @@ const rests: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Which bar is made of half rests?',
+      prompt: 'Which bar starts with a half rest?',
       options: [
-        { figure: { kind: 'rhythm', pattern: 'hr hr', counting: false }, correct: true },
-        { figure: { kind: 'rhythm', pattern: 'wr', counting: false }, why: 'One block hanging down from a line: that is a whole rest.' },
-        { figure: { kind: 'rhythm', pattern: 'qr qr qr qr', counting: false }, why: 'Those are quarter rests: four of them fill the bar.' },
+        { figure: { kind: 'rhythm', pattern: 'hr h', counting: false }, correct: true },
+        { figure: { kind: 'rhythm', pattern: 'qr q h', counting: false }, why: 'That bar starts with a quarter rest, the squiggly one: one beat of silence.' },
+        { figure: { kind: 'rhythm', pattern: 'er e q h', counting: false }, why: 'That bar starts with an eighth rest, the small one with a flag: half a beat.' },
       ],
-      explain: 'Half rests are small blocks sitting on top of a line. Two of them, two beats each, fill a bar of 4/4.',
+      explain: 'A half rest is a small block sitting on top of a line: two beats of silence, here before a half note.',
       fact: 'pulse-whole-and-half-rest',
     },
     {
@@ -674,7 +651,7 @@ const rests: Lesson = {
 const downUpStrumming: Lesson = {
   id: 'down-up-strumming',
   title: 'Down on the beat, up on the "&"',
-  teaches: 'In eighth-note strumming the hand goes down on every beat and up on every "&", even when it misses the strings.',
+  teaches: 'In eighth-note strumming the hand goes down on each beat and up on each "&", even when it misses the strings.',
   minutes: 3,
   skill: `theory:${U}:down-up-strumming`,
   requires: ['rests'],

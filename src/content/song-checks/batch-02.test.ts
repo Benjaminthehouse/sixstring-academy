@@ -76,7 +76,9 @@ const DECK_A = 'D4 C4 B3 A3 | G3 A3 B3 G3 | A3 B3 C4 A3 B3 A3 | G3 F#3 G3';
 const DECK_A_R = 'q. e q q | q q q q | e e e e q. e | q q h';
 const DECK_B = 'A3 B3 C4 A3 | B3 C4 D4 A3 | B3 C#4 D4 E4 F#4 G4 | F#4 E4 D4';
 const DECK_B_R = 'q. e q q | q. e q q | e e q e e q | q q h';
-const DECK_END = 'D4 C4 B3 A3 | G3 A3 B3 G3 | E4 E4 E4 D4 C4 B3 | A3 A3 G3';
+// Line 4's fa-la-la: four repeated la's on the sixth (E), then down the scale home, la sol fa |
+// mi re do (in F, as the tune is usually printed: d d d d c. bb | a g f).
+const DECK_END = 'D4 C4 B3 A3 | G3 A3 B3 G3 | E4 E4 E4 E4 D4 C4 | B3 A3 G3';
 
 // --- Amazing Grace (New Britain) in G, 3/4, pickup "A-": one 16-bar verse. ---
 const GRACE = 'G3 B3 G3 | B3 A3 | G3 E3 | D3 D3 | G3 B3 G3 | B3 A3 | D4 | B3 | D4 B3 G3 | B3 A3 | G3 E3 | D3 D3 | G3 B3 G3 | B3 A3 | G3';
@@ -122,7 +124,7 @@ const SONGS: Expected[] = [
     rhythm: join(DECK_A_R, DECK_A_R, DECK_B_R, DECK_A_R),
     chords:
       '1:G 2:C 2.3:G 3:D7 3.3:G 4:G 4.2:D7 4.3:G 5:G 6:C 6.3:G 7:D7 7.3:G 8:G 8.2:D7 8.3:G ' +
-      '9:D7 10:G 10.3:D7 11:G 12:D7 13:G 14:C 14.3:G 15:C 16:D7 16.3:G',
+      '9:D7 10:G 10.3:D7 11:G 12:D7 13:G 14:C 14.3:G 15:C 15.3:G 16:G 16.2:D7 16.3:G',
     key: 'G major',
     scale: ['G', 'major'],
     // The raised fourth of the "fa la la" climb in line 3 (B C# D, leaning towards D).
@@ -221,13 +223,16 @@ const SONGS: Expected[] = [
   {
     id: 'st-read-first-c',
     melody: 'Your part',
+    // Rewritten in review to be mostly stepwise, as the plan asks (the first version moved mostly
+    // in thirds): a question to a half close on G, an answer home to C, a climb in three short
+    // steps from string 3 to the top G, and the opening again with the closing cadence.
     notes:
-      'C4 E4 G4 E4 | C4 B3 A3 | A3 C4 F4 E4 | D4 B3 G3 | C4 E4 G4 E4 | C4 D4 E4 | F4 D4 B3 D4 | E4 D4 C4 |' +
-      'F4 G4 F4 E4 | E4 G4 E4 | D4 E4 F4 D4 | G4 F4 D4 | E4 G4 E4 C4 | A3 C4 F4 E4 | D4 B3 D4 F4 | E4 C4',
+      'E4 D4 E4 F4 | G4 E4 | F4 E4 D4 C4 | B3 G3 | A3 B3 C4 D4 | E4 C4 | D4 E4 F4 D4 | E4 D4 C4 |' +
+      'A3 B3 C4 | D4 E4 F4 | E4 F4 G4 E4 | F4 D4 | E4 D4 E4 F4 | G4 E4 | D4 E4 F4 D4 | E4 C4',
     rhythm:
-      'q q q q | q q h | q q q q | q q h | q q q q | q q h | q q q q | q q h |' +
-      'q q q q | h q q | q q q q | h q q | q q q q | q q q q | q q q q | h h',
-    chords: '1:C 2:Am 3:F 4:G 5:C 6:Am 7:Dm 7.3:G 8:C 9:F 10:C 11:Dm 12:G7 13:C 14:F 15:G7 16:C',
+      'q q q q | h h | q q q q | h h | q q q q | h h | q q q q | q q h |' +
+      'q q h | q q h | q q q q | h h | q q q q | h h | q q q q | h h',
+    chords: '1:C 3:Dm 4:G 5:Am 6:C 7:Dm 7.3:G7 8:C 9:Am 10:Dm 11:C 12:G7 13:C 14.3:Am 15:G7 16:C',
     key: 'C major',
     scale: ['C', 'major'],
     range: ['G3', 'G4'],
@@ -539,6 +544,20 @@ describe('batch 2: what the plan asks of each piece', () => {
     const leaps = notes.slice(1).map((x, i) => Math.abs(x.midi - notes[i].midi));
     expect(Math.max(...leaps), 'no skip wider than a fourth').toBeLessThanOrEqual(5);
     expect(leaps.filter((l) => l <= 4).length / leaps.length, 'mostly steps and thirds').toBeGreaterThan(0.85);
+    // "Stepwise with small skips": most moves are to the next letter (1 or 2 semitones).
+    expect(leaps.filter((l) => l >= 1 && l <= 2).length / leaps.length, 'mostly steps').toBeGreaterThanOrEqual(0.7);
+    // Strings 3, 2 and 1 are all read: both string-3 notes appear.
+    expect(notes.filter((x) => x.string === 3).map((x) => name(x.midi)).sort()).toEqual(['A3', 'A3', 'G3']);
+  });
+
+  it('deck-the-halls: the last fa-la-la repeats E four times, then steps down home (la la la la sol fa | mi re do)', () => {
+    const song = load('deck-the-halls');
+    const melody = trackNamed(song, 'Melody');
+    const tail = melody.measures.slice(14).flatMap((m) => m.beats.flatMap((b) => struck(b).map((x) => name(x.midi))));
+    expect(tail).toEqual(['E4', 'E4', 'E4', 'E4', 'D4', 'C4', 'B3', 'A3', 'G3']);
+    // Open string 1 for the E's, then fingers 3 and 1 on string 2, and the open B, A (finger 2) and open G.
+    const frets = melody.measures.slice(14).flatMap((m) => m.beats.flatMap((b) => b.notes.map((x) => `${x.string}:${x.fret}`)));
+    expect(frets).toEqual(['1:0', '1:0', '1:0', '1:0', '2:3', '2:1', '2:0', '3:2', '3:0']);
   });
 });
 
@@ -549,6 +568,15 @@ describe('batch 2: the cross-check catches a wrong fret', () => {
     expect(bar7).not.toEqual(bars(SONGS[0].notes)[7]);
     expect(bar7[2]).toBe('C3');
     expect(scalePcs('D', 'major')).not.toContain(0);
+  });
+
+  it("Deck the Halls' first draft of line 4 (E E E D C. B | A A G, found in review) fails the note list", () => {
+    const broken = load('deck-the-halls', (t) =>
+      t.replace('"C" e 1:0 1:0 1:0 1:0 "G" q. 2:3 e 2:1 | "G" q 2:0 "D7" 3:2 "G" h 3:0', '"C" e 1:0 1:0 1:0 2:3 q. 2:1 e 2:0 | "D7" q 3:2 3:2 "G" h 3:0'),
+    );
+    const got = trackNamed(broken, 'Melody').measures.slice(14).map((m) => m.beats.flatMap((b) => struck(b).map((x) => name(x.midi))));
+    expect(got).toEqual([['E4', 'E4', 'E4', 'D4', 'C4', 'B3'], ['A3', 'A3', 'G3']]);
+    expect(got).not.toEqual(bars(SONGS[2].notes).slice(14));
   });
 
   it("Deck the Halls' F# one fret too low (string 4 fret 3 = F) fails the note list", () => {
