@@ -51,7 +51,7 @@ const naturalMinorChords: Lesson = {
     {
       type: 'card',
       title: 'Numerals in a minor key',
-      body: 'This app writes the chords of {k:A minor} {r:i} {r:ii°} {r:bIII} {r:iv} {r:v} {r:bVI} {r:bVII}. Each root is measured against the major scale: {n:C} is a flat 3rd above {n:A}, so {c:C} is {r:bIII}. Many classical books write {r:III}, {r:VI} and {r:VII} instead.',
+      body: 'This app writes the seven chords of {k:A minor} as {r:i}, {r:ii°}, {r:bIII}, {r:iv}, {r:v}, {r:bVI}, {r:bVII}. Each root is measured against the major scale: {n:C} is a flat 3rd above {n:A}, so {c:C} is {r:bIII}. Many classical books write {r:III}, {r:VI} and {r:VII} instead.',
       figure: { kind: 'chord', symbol: 'F', frets: 'xx3211', caption: '{c:F}, {r:bVI} in {k:A minor}: a flat 6th above {n:A}.' },
     },
     {

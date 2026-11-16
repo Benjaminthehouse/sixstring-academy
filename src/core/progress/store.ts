@@ -75,6 +75,11 @@ export interface ProgressStore {
   exportData(): ProgressExport;
   /** Import an export (object or JSON text). `replace` overwrites; `newest-wins` merges per item. */
   importData(data: unknown, strategy?: MergeStrategy): ImportResult;
+  /**
+   * Drop the safety copies kept beside the save (`<key>.bak`, `.corrupt`, `.newer`). A reset calls
+   * it after `flush()`, so a damaged save can never bring erased progress back.
+   */
+  forgetSafetyCopies(): void;
   /** What happened when the state was loaded. */
   readonly loadReport: LoadReport;
   /** Hook the store up to the page: cross-tab sync, save on hide, day rollover, theme. Returns the disconnect function. */
@@ -310,6 +315,16 @@ export function createProgressStore(options: ProgressStoreOptions = {}): Progres
     changeStamp: () => changeStamp(state),
     exportData: () => buildExport(state, clock.now()),
     importData,
+    forgetSafetyCopies: () => {
+      if (!storage) return;
+      for (const suffix of ['bak', 'corrupt', 'newer']) {
+        try {
+          storage.remove(`${key}.${suffix}`);
+        } catch {
+          /* nothing to drop */
+        }
+      }
+    },
     loadReport: loaded.report,
     connect,
     destroy: () => {

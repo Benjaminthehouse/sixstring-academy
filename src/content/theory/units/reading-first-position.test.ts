@@ -114,8 +114,10 @@ describe('reading-first-position: where each note is played in first position', 
 describe('reading-first-position: the phrases', () => {
   it('writes the same notes in the staff and the tab of every play-phrase', () => {
     const all = unit.lessons.flatMap(phrases);
-    expect(all).toHaveLength(2);
+    expect(all).toHaveLength(3);
     for (const p of all) {
+      // A play step draws its tab at full width: six notes or fewer fit a 360 px phone.
+      expect(p.notes.length, plainText(p.prompt)).toBeLessThanOrEqual(6);
       if (p.figure?.kind !== 'staff') throw new Error('a reading phrase shows its staff');
       const written = staffNotes(p.figure);
       expect(written.map((n) => noteToMidi(n.note))).toEqual(p.notes.map(played));
@@ -124,9 +126,11 @@ describe('reading-first-position: the phrases', () => {
   });
 
   it('plays an eight-bar melody on strings 4 to 6, frets 0 to 3, in full bars of 4/4', () => {
-    const [melody] = phrases(lesson('strings-4-to-6'));
-    expect(melody.notes.every((n) => 'string' in n && n.string >= 4 && n.fret <= 3)).toBe(true);
-    const lengths = melody.notes.map((n) => beats(n.duration));
+    const halves = phrases(lesson('strings-4-to-6'));
+    expect(halves).toHaveLength(2);
+    const notes = halves.flatMap((h) => h.notes);
+    expect(notes.every((n) => 'string' in n && n.string >= 4 && n.fret <= 3)).toBe(true);
+    const lengths = notes.map((n) => beats(n.duration));
     const bars: number[] = [];
     let sum = 0;
     for (const l of lengths) {
@@ -138,14 +142,22 @@ describe('reading-first-position: the phrases', () => {
     }
     expect(bars).toEqual([4, 4, 4, 4, 4, 4, 4, 4]);
     expect(sum).toBe(0);
-    // Only natural notes, and it comes home to A.
-    const names = melody.notes.map((n) => midiToNote(played(n), { octave: false }));
-    expect(names.every((n) => n.length === 1)).toBe(true);
-    expect(names.at(-1)).toBe('A');
-    // The alternative reads its first two bars in order.
-    if (melody.alternative && !('generate' in melody.alternative) && melody.alternative.type === 'order') {
-      expect(melody.alternative.tiles.map((t) => plainText(t))).toEqual(names.slice(0, 5));
-    } else throw new Error('the melody falls back to an order question');
+    // Only natural notes, and each half comes home to A.
+    for (const half of halves) {
+      const names = half.notes.map((n) => midiToNote(played(n), { octave: false }));
+      expect(names.every((n) => n.length === 1)).toBe(true);
+      expect(names.at(-1)).toBe('A');
+      // The alternative reads the same four bars, in order, from the same staff.
+      const alt = half.alternative;
+      if (alt && !('generate' in alt) && alt.type === 'order') {
+        expect(alt.tiles.map((t) => plainText(t))).toEqual(names);
+        expect(alt.figure).toEqual(half.figure);
+      } else throw new Error('the melody falls back to an order question');
+    }
+    // Together the halves are the eight bars the card shows.
+    const [card] = cards(lesson('strings-4-to-6')).filter((c) => c.title === 'Read a melody');
+    if (card?.figure?.kind !== 'staff') throw new Error('no melody card');
+    expect(staffNotes(card.figure).map((n) => noteToMidi(n.note))).toEqual(notes.map(played));
   });
 
   it('plays the two rhythm bars on strings 1 to 3, frets 0 to 3, with the tapped rhythm', () => {
@@ -155,8 +167,11 @@ describe('reading-first-position: the phrases', () => {
     if (tap?.type !== 'tap-rhythm') throw new Error('no tap');
     const pattern = bars.notes.map((n) => n.duration);
     expect(tap.rhythm.pattern.replace(/\s*\|\s*/g, ' ').split(' ')).toEqual(pattern);
-    expect(pattern.slice(0, 5).reduce((s, d) => s + beats(d), 0)).toBe(4);
-    expect(pattern.slice(5).reduce((s, d) => s + beats(d), 0)).toBe(4);
+    expect(pattern.slice(0, 3).reduce((s, d) => s + beats(d), 0)).toBe(4);
+    expect(pattern.slice(3).reduce((s, d) => s + beats(d), 0)).toBe(4);
+    // A dotted quarter and beamed eighths, as the card says.
+    expect(pattern).toContain('q.');
+    expect(pattern.join(' ')).toContain('e e');
   });
 
   it('keeps the dynamics phrase on strings 1 and 2, frets 0 to 3, in four full bars', () => {

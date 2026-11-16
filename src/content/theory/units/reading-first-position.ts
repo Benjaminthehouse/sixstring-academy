@@ -24,25 +24,30 @@ type Note = [string: number, fret: number, pitch: string, duration: string];
 const tab = (notes: Note[]): TabNote[] => notes.map(([string, fret, , duration]) => ({ string, fret, duration }));
 const staff = (notes: Note[]): StaffNote[] => notes.map(([, , note, duration]) => ({ note, duration }));
 
-/** An original eight-bar melody on strings 4 to 6 in first position (A natural minor). */
+/**
+ * An original eight-bar melody on strings 4 to 6 in first position (A natural minor), played in
+ * two four-bar halves of six notes. A play step draws its tab at full width, so phrases stay at six
+ * notes or fewer to fit a 360 px phone.
+ */
 const MELODY: Note[] = [
-  [5, 0, 'A2', 'q'], [5, 2, 'B2', 'q'], [5, 3, 'C3', 'h'],
-  [4, 0, 'D3', 'h'], [5, 3, 'C3', 'h'],
+  [5, 0, 'A2', 'h'], [5, 2, 'B2', 'h'],
+  [5, 3, 'C3', 'w'],
   [5, 2, 'B2', 'h'], [6, 3, 'G2', 'h'],
   [5, 0, 'A2', 'w'],
   [4, 2, 'E3', 'h'], [4, 0, 'D3', 'h'],
-  [5, 3, 'C3', 'h'], [5, 2, 'B2', 'h'],
+  [5, 3, 'C3', 'w'],
   [6, 1, 'F2', 'h'], [6, 0, 'E2', 'h'],
   [5, 0, 'A2', 'w'],
 ];
-const MELODY_START = MELODY.slice(0, 5);
+const MELODY_FIRST = MELODY.slice(0, 6);
+const MELODY_LAST = MELODY.slice(6);
 
-/** Two original bars on strings 1 to 3, frets 0 to 3: quarters, beamed eighths, a dotted quarter. */
+/** Two original bars on strings 1 to 3, frets 0 to 3: a dotted quarter, beamed eighths, half notes. */
 const TWO_BARS: Note[] = [
-  [3, 0, 'G3', 'q'], [3, 2, 'A3', 'e'], [2, 0, 'B3', 'e'], [2, 1, 'C4', 'q'], [2, 3, 'D4', 'q'],
-  [1, 0, 'E4', 'q.'], [2, 3, 'D4', 'e'], [2, 1, 'C4', 'h'],
+  [3, 0, 'G3', 'q.'], [3, 2, 'A3', 'e'], [2, 0, 'B3', 'h'],
+  [2, 1, 'C4', 'e'], [2, 3, 'D4', 'e'], [1, 0, 'E4', 'h.'],
 ];
-const TWO_BARS_RHYTHM = 'q e e q q | q. e h';
+const TWO_BARS_RHYTHM = 'q. e h | e e h.';
 
 /** An original four-bar phrase on strings 1 and 2 (frets 0 to 3), for dynamics. */
 const PHRASE: Note[] = [
@@ -65,12 +70,8 @@ const strings4To6: Lesson = {
       body: 'On strings 4 to 6, {t:position|first position} gives nine natural notes. Guitar music is written an octave higher than it sounds, so they sit low: on the bottom of the staff and below it, on {t:ledger-line|ledger lines}. The open low {n:E} hangs below the third ledger line.',
       figure: {
         kind: 'staff',
-        notes: [
-          { note: 'E2', label: 'E' }, { note: 'F2', label: 'F' }, { note: 'G2', label: 'G' },
-          { note: 'A2', label: 'A' }, { note: 'B2', label: 'B' }, { note: 'C3', label: 'C' },
-          { note: 'D3', label: 'D' }, { note: 'E3', label: 'E' }, { note: 'F3', label: 'F' },
-        ],
-        caption: 'From the open low {n:E} up to {n:F} at string 4, fret 3.',
+        notes: ['E2', 'F2', 'G2', 'A2', 'B2', 'C3', 'D3', 'E3', 'F3'],
+        caption: '{n:E} {n:F} {n:G} {n:A} {n:B} {n:C} {n:D} {n:E} {n:F}: open low {n:E} up to string 4, fret 3.',
       },
     },
     {
@@ -149,23 +150,39 @@ const strings4To6: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Play the melody from the staff, slowly. The tab under it is there to check yourself.',
-      figure: { kind: 'staff', time: '4/4', notes: staff(MELODY) },
-      notes: tab(MELODY),
+      prompt: 'Play the first four bars from the staff, slowly. The tab under it is there to check yourself.',
+      figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_FIRST) },
+      notes: tab(MELODY_FIRST),
       octave: 'exact',
       tempo: 72,
-      explain: 'It climbs from the open {n:A} string to {n:D}, then steps down through {n:C}, {n:B} and {n:G} to {n:A}. The second half starts on {n:E} (string 4, fret 2) and drops to {n:F} and {n:E} on string 6 before landing on {n:A}.',
+      explain: 'String 5: open {n:A}, {n:B} at fret 2, {n:C} at fret 3 held for a whole bar. Back to {n:B}, down to {n:G} at string 6, fret 3, and home to {n:A}.',
       alternative: {
         type: 'order',
-        prompt: 'Read the first two bars and put their notes in order.',
-        figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_START) },
-        tiles: ['{n:A}', '{n:B}', '{n:C}', '{n:D}', '{n:C}'],
+        prompt: 'Read the first four bars and put their notes in order.',
+        figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_FIRST) },
+        tiles: ['{n:A}', '{n:B}', '{n:C}', '{n:B}', '{n:G}', '{n:A}'],
         distractors: ['{n:E}'],
-        explain: 'Bar 1: {n:A} {n:B} {n:C} (string 5: open, fret 2, fret 3). Bar 2: {n:D} (open string 4) and back to {n:C}.',
+        explain: '{n:A} {n:B}, then {n:C} on the first ledger line, {n:B} again, {n:G} hanging from the second ledger line, and {n:A}.',
+      },
+    },
+    {
+      type: 'play-phrase',
+      prompt: 'Now the last four bars. Read them first, then play.',
+      figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_LAST) },
+      notes: tab(MELODY_LAST),
+      octave: 'exact',
+      tempo: 72,
+      explain: '{n:E} at string 4, fret 2, the open {n:D} string, {n:C} at string 5, fret 3; then {n:F} and {n:E} on string 6 before the melody lands on the open {n:A}.',
+      alternative: {
+        type: 'order',
+        prompt: 'Read the last four bars and put their notes in order.',
+        figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_LAST) },
+        tiles: ['{n:E}', '{n:D}', '{n:C}', '{n:F}', '{n:E}', '{n:A}'],
+        distractors: ['{n:G}'],
+        explain: '{n:E} on the bottom line, {n:D} just below it, {n:C} on the first ledger line, then {n:F} and {n:E} at the third ledger line, and {n:A}.',
       },
     },
     { generate: 'staff-note', params: { ask: 'read', low: 'E2', high: 'F3' } },
-    { generate: 'staff-note', params: { ask: 'place', low: 'E2', high: 'F3' } },
     { generate: 'play-note', params: { strings: [6, 5, 4], frets: [0, 3], naturals: true } },
   ],
   facts: [
@@ -476,8 +493,8 @@ const rhythmOnTheStaff: Lesson = {
     {
       type: 'card',
       title: 'Rhythm on the staff',
-      body: 'On the staff the note heads give the pitch; stems, flags, beams and dots give the rhythm. Two eighth notes joined by a beam share one beat. A dot adds half the note\'s value: a dotted quarter lasts a beat and a half. The counts sit under the notes.',
-      figure: { kind: 'staff', time: '4/4', notes: staff(TWO_BARS), caption: 'Count: 1, 2 &, 3, 4 | 1 (2) &, 3 (4). Strings 1 to 3, frets 0 to 3.' },
+      body: 'On the staff the note heads give the pitch; stems, flags, beams and dots give the rhythm. Two eighth notes joined by a beam share one beat. A dot adds half the note\'s value: a dotted quarter lasts a beat and a half. Count along with the numbers under the staff.',
+      figure: { kind: 'staff', time: '4/4', notes: staff(TWO_BARS), caption: 'Count: 1 (2) &, 3 (4) | 1 &, 2 (3 4). Strings 1 to 3, frets 0 to 3.' },
     },
     {
       type: 'tap-rhythm',
@@ -486,7 +503,7 @@ const rhythmOnTheStaff: Lesson = {
       rhythm: { pattern: TWO_BARS_RHYTHM },
       tempo: 72,
       show: 'both',
-      explain: 'Bar 1: a quarter, two eighths on beat 2, then two quarters. Bar 2: a dotted quarter holds through beat 2, the eighth falls on "2 &", and a half note fills beats 3 and 4.',
+      explain: 'Bar 1: a dotted quarter holds through beat 2, the eighth falls on "2 &", and a half note fills beats 3 and 4. Bar 2: two beamed eighths share beat 1, then a dotted half holds beats 2, 3 and 4.',
       fact: 'first-position-reading-routine',
     },
     {
@@ -540,14 +557,14 @@ const rhythmOnTheStaff: Lesson = {
       notes: tab(TWO_BARS),
       octave: 'exact',
       tempo: 66,
-      explain: '{n:G} open, {n:A} at fret 2 of string 3, open {n:B}, {n:C} and {n:D} on string 2, the open high {n:E}, then {n:D} and {n:C} again.',
+      explain: 'String 3: open {n:G}, then {n:A} at fret 2. The open {n:B}, then {n:C} and {n:D} at frets 1 and 3 of string 2, and the open high {n:E} held for three beats.',
       alternative: {
         type: 'order',
-        prompt: 'Read bar 1 and put its notes in order.',
-        figure: { kind: 'staff', time: '4/4', notes: staff(TWO_BARS.slice(0, 5)) },
-        tiles: ['{n:G}', '{n:A}', '{n:B}', '{n:C}', '{n:D}'],
+        prompt: 'Read the two bars and put their notes in order.',
+        figure: { kind: 'staff', time: '4/4', notes: staff(TWO_BARS) },
+        tiles: ['{n:G}', '{n:A}', '{n:B}', '{n:C}', '{n:D}', '{n:E}'],
         distractors: ['{n:F}'],
-        explain: 'Bar 1 climbs step by step from the second line: {n:G} {n:A} {n:B} {n:C} {n:D}.',
+        explain: 'The two bars climb step by step from the second line: {n:G} {n:A} {n:B} {n:C} {n:D} {n:E}.',
       },
     },
     { generate: 'rhythm-tap', params: { values: ['quarter', 'eighth', 'half'], bars: 1, tempo: 72, show: 'notation' } },
@@ -873,6 +890,7 @@ const unit: Unit = {
         options: ['E', 'F', 'G', 'D'],
         explain: 'The open low {n:E}, string 6, hangs just below the third ledger line below the staff.',
       },
+      { generate: 'staff-note', params: { ask: 'read', low: 'E2', high: 'G4' } },
       {
         type: 'fretboard-find',
         prompt: 'Tap where this {n:B}, just below the first ledger line, is played in first position.',
@@ -1001,11 +1019,11 @@ const unit: Unit = {
       {
         type: 'fill-blanks',
         prompt: 'Read the first four bars of the melody and fill in the missing notes.',
-        figure: { kind: 'staff', time: '4/4', notes: staff(MELODY.slice(0, 8)) },
-        text: '{n:A} {n:B} {n:C} | {n:D} ___ | {n:B} ___ | {n:A}',
+        figure: { kind: 'staff', time: '4/4', notes: staff(MELODY_FIRST) },
+        text: '{n:A} {n:B} | ___ | {n:B} ___ | {n:A}',
         blanks: ['{n:C}', '{n:G}'],
         bank: ['{n:E}', '{n:F}'],
-        explain: 'Bar 2 falls back to {n:C} on the first ledger line; bar 3 drops to {n:G}, hanging from the second ledger line, before the melody rests on {n:A}.',
+        explain: 'Bar 2 is {n:C} on the first ledger line; bar 3 falls to {n:G}, hanging from the second ledger line, before the melody rests on {n:A}.',
       },
     ],
   },

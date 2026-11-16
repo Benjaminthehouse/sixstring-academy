@@ -867,6 +867,23 @@ async function groupReview(browser, url, fx) {
   const kept = await p.page.evaluate(() => window.__ssaScan.draft.song.tracks[0].measures[0].beats[1].notes[0].fret);
   check(g, '"Continue checking" brings the change back, with Undo', kept === 7 && (await p.page.isEnabled('[data-scan-undo]')), kept);
 
+  // Turning the page after reading must not blank the picture beside the reading being checked.
+  await p.page.evaluate(() => history.back());
+  await p.page.waitForSelector('[data-scan="capture"]', { timeout: 30000 });
+  await menu(0, 'Turn right');
+  await waitLooked(p, 1);
+  await p.page.click('[data-scan-continue]');
+  await p.page.waitForSelector('[data-scan-source] svg image', { timeout: 30000 });
+  const picture = await p.page.evaluate(async () => {
+    const href = document.querySelector('[data-scan-source] svg image').getAttribute('href');
+    try {
+      return (await fetch(href)).ok;
+    } catch {
+      return false;
+    }
+  });
+  check(g, 'after turning the page, the reading still shows the picture it was read from', picture);
+
   // A reload asks first while there are changes.
   let dialog = null;
   p.page.once('dialog', (d) => {
@@ -910,6 +927,15 @@ async function groupReview(browser, url, fx) {
   if (await anyway.count()) await anyway.click();
   const savedOk = await p.page.waitForSelector('[data-scan="saved"]', { timeout: 30000 }).then(() => true, () => false);
   check(g, 'that photo can be saved (the library refused it before)', savedOk);
+  // Two saves earn a new level: the shell's dialog for it closes with Escape.
+  for (let i = 0; i < 3 && (await p.page.$('[role="dialog"]')); i++) {
+    await p.page.keyboard.press('Escape');
+    await p.page.waitForTimeout(400);
+  }
+  await startOver(p);
+  await p.page.waitForTimeout(500);
+  const leakedAtEnd = await p.page.evaluate(() => window.__liveUrls.size);
+  check(g, 'after readings, a turned page, saves and Start over, no picture is left behind', leakedAtEnd === 0, leakedAtEnd);
   check(g, 'desktop: no browser errors', p.errors.length === 0, p.errors.slice(0, 3));
   await p.close();
 

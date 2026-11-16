@@ -90,10 +90,17 @@ function played(song: Song, trackName: string): Played[] {
   });
 }
 
-/** The tokens of a track, bar by bar (first pass of each bar only). */
+/** Only the first time each bar is played (a second ending is first played on the second pass). */
+function firstTime(beats: Played[]): Played[] {
+  const first = new Map<number, number>();
+  for (const b of beats) if (!first.has(b.bar)) first.set(b.bar, b.pass);
+  return beats.filter((b) => b.pass === first.get(b.bar));
+}
+
+/** The tokens of a track, bar by bar (the first time each bar is played). */
 function tokensByBar(beats: Played[], bars: number): string[][] {
   const out: string[][] = Array.from({ length: bars }, () => []);
-  for (const b of beats) if (b.pass === 1) out[b.bar].push(b.token);
+  for (const b of firstTime(beats)) out[b.bar].push(b.token);
   return out;
 }
 
@@ -289,7 +296,7 @@ describe('batch 12: st-duet-baroque', () => {
     expect(problems).toEqual(['bar 2 beat 3: A2-G4', 'bar 18 beat 3: A2-G4']);
   });
 
-  it('has no parallel fifths or octaves between the voices, from any note to the next', async () => {
+  it('has no parallel fifths or octaves between the voices, from any note to the next (repeats included)', async () => {
     const song = await load('st-duet-baroque');
     const upper = played(song, UP).filter((b) => b.midis.length);
     const lower = played(song, LOW).filter((b) => b.midis.length);
@@ -301,8 +308,9 @@ describe('batch 12: st-duet-baroque', () => {
       if (h0 === undefined || l0 === undefined || h1 === undefined || l1 === undefined) continue;
       const a = (h0 - l0) % 12;
       const b = (h1 - l1) % 12;
-      const bothMove = h0 !== h1 && l0 !== l1;
-      if (bothMove && a === b && (a === 0 || a === 7)) parallels.push(`${name(l0)}-${name(h0)} to ${name(l1)}-${name(h1)} at tick ${onsets[i]}`);
+      // Parallel: both voices move the same way into the same perfect interval.
+      const sameWay = h0 !== h1 && l0 !== l1 && Math.sign(h1 - h0) === Math.sign(l1 - l0);
+      if (sameWay && a === b && (a === 0 || a === 7)) parallels.push(`${name(l0)}-${name(h0)} to ${name(l1)}-${name(h1)} at tick ${onsets[i]}`);
     }
     expect(parallels).toEqual([]);
   });
@@ -663,7 +671,7 @@ describe('batch 12: rondo-alla-turca', () => {
     expect(song.bars.slice(1).every((b) => barLength(b) === BAR_24)).toBe(true);
     const beats = played(song, 'Melody');
     expect(tokensByBar(beats, 10)).toEqual(GUITAR.map((bar) => bar.map(canon)));
-    const durations = Array.from({ length: 10 }, (_, bar) => beats.filter((b) => b.bar === bar && b.pass === 1).map((b) => b.duration));
+    const durations = Array.from({ length: 10 }, (_, bar) => firstTime(beats).filter((b) => b.bar === bar).map((b) => b.duration));
     expect(durations).toEqual(DURATIONS);
   });
 
@@ -672,7 +680,8 @@ describe('batch 12: rondo-alla-turca', () => {
     const tl = flattenSong(song);
     expect(tl.bars.map((b) => b.bar)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 9]);
     const notes = played(song, 'Melody').filter((b) => b.midis.length).map((b) => b.token);
-    expect(notes.length).toBe(4 + 2 * 35 - 4 + 1);
+    // 4 in the upbeat, 31 in bars 1-7 (each time), 5 in the first ending, 1 in the second.
+    expect(notes.length).toBe(4 + 31 + 5 + 31 + 1);
   });
 
   it('starts with the plan\'s frets: B A G# A on the open string 2, string 3 frets 2 and 1, then C on string 2 fret 1', async () => {
@@ -706,7 +715,7 @@ describe('batch 12: rondo-alla-turca', () => {
       if (b.midis[0] % 12 === 3) expect([notes[i - 1].token, notes[i + 1].token]).toEqual(['E4', 'E4']);
     });
     // Notes on the beats against the implied harmony.
-    const withChord = beats.map((b) => ({ ...b, chord: b.pass === 1 || b.bar === 9 ? IMPLIED[b.bar][Math.floor(b.inBar / 960)] : IMPLIED[b.bar][Math.floor(b.inBar / 960)] }));
+    const withChord = beats.map((b) => ({ ...b, chord: IMPLIED[b.bar][Math.floor(b.inBar / 960)] }));
     expect(strongBeatProblems(withChord, [0, 960])).toEqual([]);
     expect(range(beats)).toEqual(['G#3', 'C5']);
   });

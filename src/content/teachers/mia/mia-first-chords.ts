@@ -109,6 +109,7 @@ const chordBoxesAndEm: TeacherLesson = {
         ],
         caption: 'The same two fingers on the neck, seen as in tab: string 1 on top.',
       },
+      tip: 'Some chord boxes show fingers 1 and 2 for {c:Em}. That works too, but 2 and 3 leave finger 1 free for the next chord, {c:E}.',
     },
     build('Em', 'Put the two fingers of {c:Em} on the empty chord box.', '{c:Em}: fret 2 on strings 5 and 4, and the other four strings open. Nothing has an x, so all six ring.', 'em-shape'),
     {
@@ -155,7 +156,7 @@ const chordBoxesAndEm: TeacherLesson = {
       title: 'Strum E minor with the Metronome',
       tool: 'metronome',
       minutes: 4,
-      body: 'Set the Metronome to 60 {t:bpm|BPM}, one click a second. Strum {c:Em} on every click: four strums a bar for 4 bars, then go again. These are bars 1 to 4 of Strumming: Steady Quarters, which you play in full soon.',
+      body: 'Set the Metronome to 60 {t:bpm|BPM}, one click a second, and strum {c:Em} on every click: four strums a bar, 4 bars, then again. That is bars 1 to 4 of Strumming: Steady Quarters.',
       tip: 'If a string buzzes, keep strumming and fix the finger on the next beat.',
     }),
     {
@@ -337,6 +338,7 @@ const frereJacquesStrum: TeacherLesson = {
       title: 'A G chord with one finger',
       body: 'This {c:G} uses one finger: finger 3 on string 1, fret 3 ({n:G}). Strings 4, 3 and 2 ring open. The x over strings 6 and 5 means miss them, so you strum strings 4 to 1 only: aim the pick at string 4 and let the strum stop after string 1.',
       figure: { kind: 'chord', symbol: 'G', frets: SHAPES.G.frets, fingers: SHAPES.G.fingers, caption: 'The one-finger {c:G}: an x over strings 6 and 5.' },
+      tip: 'Some chord boxes show finger 1 here. Any finger works; I use finger 3, the finger that plays this note in the full {c:G} later on.',
     },
     build('G', 'Build the one-finger {c:G}. Tap above the nut to put an x on strings 6 and 5.', 'Finger 3 on string 1, fret 3, strings 4, 3 and 2 open, and an x on strings 6 and 5.', 'one-finger-g'),
     {

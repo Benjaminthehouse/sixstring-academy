@@ -77,11 +77,11 @@ describe('modes: rotations and names', () => {
     }
   });
 
-  it('draws C major along string 5 and E Phrygian along string 6', () => {
+  it('draws C major along string 5 and E Phrygian along string 4', () => {
     const [cMajor] = lesson('modes-as-rotations').steps as Array<{ figure: FretboardFigure }>;
     expect(cMajor.figure.dots!.map((d) => midiAt(d))).toEqual(scaleMidi(48, 'major'));
     const ePhrygian = lesson('modes-as-rotations').steps[4] as { figure: FretboardFigure };
-    expect(ePhrygian.figure.dots!.map((d) => midiAt(d))).toEqual(scaleMidi(40, 'phrygian'));
+    expect(ePhrygian.figure.dots!.map((d) => midiAt(d))).toEqual(scaleMidi(52, 'phrygian'));
   });
 });
 

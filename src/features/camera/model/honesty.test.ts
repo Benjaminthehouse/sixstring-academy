@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest';
+import { nudgePose, poseFromWireTaps, scalePose, shiftNumbering, type FretboardPose } from '@/core/vision';
+import { DrawnPoses, OFF_GHOST, SOLID_AFTER, TRUSTED, drawnOffset, nextDrawnTrust, type DrawnTrust } from './honesty';
+
+function pose(): FretboardPose {
+  const p = poseFromWireTaps({ fret: 0, ends: [{ x: 560, y: 150 }, { x: 560, y: 186 }] }, { fret: 12, ends: [{ x: 130, y: 145 }, { x: 130, y: 191 }] }, 640, 360, { model: 'steel' });
+  if (!p) throw new Error('no pose');
+  return p;
+}
+
+describe('honesty: were the drawn dots where the neck was?', () => {
+  it('measures the offset of a drawn pose in string spacings', () => {
+    const p = pose();
+    expect(drawnOffset(p, p)).toBeCloseTo(0, 6);
+    // A pose drawn 0.6 of a string spacing across the neck from where the tracker found it.
+    expect(drawnOffset(nudgePose(p, { acrossStrings: 0.6 }), p)).toBeGreaterThan(0.5);
+    expect(drawnOffset(nudgePose(p, { acrossStrings: 0.6 }), p)).toBeLessThan(0.75);
+    expect(drawnOffset(nudgePose(p, { acrossStrings: 0.1 }), p)).toBeLessThan(OFF_GHOST);
+  });
+
+  it('a pose numbered a fret off is far off; a different working size is not', () => {
+    const p = pose();
+    expect(drawnOffset(shiftNumbering(p, 1), p)).toBeGreaterThan(1);
+    // The tracker went from 640 to 544 pixels wide between drawing and answering: same neck.
+    expect(drawnOffset(scalePose(p, 544 / 640), p)).toBeCloseTo(0, 4);
+    expect(drawnOffset(p, scalePose(p, 544 / 640))).toBeCloseTo(0, 4);
+  });
+
+  it('turns to outlines at once, and back to solid only after a few good answers in a row', () => {
+    let t: DrawnTrust = TRUSTED;
+    t = nextDrawnTrust(t, 0.1);
+    expect(t.behind).toBe(false);
+    t = nextDrawnTrust(t, 0.55);
+    expect(t.behind).toBe(true);
+    // Nothing measured: no change.
+    expect(nextDrawnTrust(t, NaN)).toBe(t);
+    for (let i = 0; i < SOLID_AFTER - 1; i++) t = nextDrawnTrust(t, 0.1);
+    expect(t.behind).toBe(true);
+    // In between the two thresholds: still outlines, and the count starts again.
+    t = nextDrawnTrust(t, 0.32);
+    expect(t).toEqual({ behind: true, good: 0 });
+    for (let i = 0; i < SOLID_AFTER; i++) t = nextDrawnTrust(t, 0.1);
+    expect(t).toEqual(TRUSTED);
+  });
+
+  it('finds the pose drawn on a frame by its time', () => {
+    const drawn = new DrawnPoses(3);
+    const a = pose();
+    const b = nudgePose(a, { acrossStrings: 1 });
+    drawn.push(1000, a);
+    drawn.push(1033.3, b);
+    expect(drawn.at(1033.3)).toBe(b);
+    expect(drawn.at(1000)).toBe(a);
+    expect(drawn.at(1016)).toBeNull();
+    drawn.push(1066.6, a);
+    drawn.push(1100, a);
+    // Only the newest three are kept.
+    expect(drawn.at(1000)).toBeNull();
+    drawn.clear();
+    expect(drawn.at(1100)).toBeNull();
+  });
+});

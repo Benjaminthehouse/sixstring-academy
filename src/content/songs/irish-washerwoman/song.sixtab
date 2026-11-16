@@ -2,8 +2,9 @@
 # 18th-century jig, in AABB form, in groups of three eighth notes (two groups to the bar).
 # The guitar plays the tune at the written pitch of the fiddle part, which sounds an octave lower.
 # A part: first position (finger 1 on fret 1, 2 on fret 2, 3 on fret 3).
-# B part: fifth position for the high notes (finger 1 on fret 5, 3 on fret 7, 4 on fret 8); the
-# repeated D-G and F#-D pairs at fret 7 are easiest with finger 3 laid flat across strings 3 and 2.
+# B part: fifth position for the high notes (finger 1 on fret 5, 3 on fret 7, 4 on fret 8). The
+# repeated G-D pairs are fingers 4 and 3 (string 2 fret 8, string 3 fret 7); the F#-D pairs are
+# both at fret 7 (strings 2 and 3), easiest with finger 3 laid flat across the two strings.
 # Bar 7 of the B part stays in fifth position and uses the open B string; the open strings of its
 # last bar give the hand time to move.
 # Backup: G (320003), C (x32010), D (xx0232), down on each beat and up on the third eighth.

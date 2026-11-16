@@ -134,7 +134,7 @@ export function useScan() {
       if (hasWork(s)) {
         kept = { pages: s.pages, readPages: s.readPages, doc: s.doc, summary: s.summary, history: s.history, readNotes: s.readNotes, text: s.text, aiResult: s.aiResult, removed: removed.current };
       } else {
-        release([...s.pages, ...removed.current]);
+        release([...s.pages, ...removed.current, ...s.readPages]);
         removed.current = [];
       }
     };
@@ -358,7 +358,8 @@ export function useScan() {
         // A changed picture is no longer the PDF page as rendered.
         pdfs.current.delete(id);
         const next: Page = { ...page, ...pic, ...(how.replace ? { kindOf: 'photo' as const, origin: 'camera' as const, pdfText: undefined } : {}), look: null, cleanUrl: undefined, lookError: undefined };
-        releasePicture(page);
+        // The reading being checked may still show the old picture: it goes when that reading does.
+        if (!latest.current.readPages.some((r) => r.url === page.url)) releasePicture(page);
         if (page.cleanUrl) URL.revokeObjectURL(page.cleanUrl);
         setPages((list) => list.map((p) => (p.id === id ? next : p)));
         void lookAt(next);
@@ -427,6 +428,9 @@ export function useScan() {
         const skipped = list.length - musicPages.length;
         if (skipped) notes.push(`${skipped} ${skipped === 1 ? 'page has' : 'pages have'} no staff lines and ${skipped === 1 ? 'was' : 'were'} left out.`);
         setDoc(d);
+        // Pictures only the previous reading still showed (pages turned or cropped since) can go now.
+        const inUse = [...pagesRef.current, ...removed.current, ...musicPages];
+        for (const old of latest.current.readPages) if (!inUse.some((p) => p.url === old.url)) releasePicture(old);
         setReadPages(musicPages);
         setSummary(summarizeDocument(d, { limit: 50 }));
         setHistory(startHistory(draft));
@@ -547,7 +551,7 @@ export function useScan() {
   const reset = useCallback(() => {
     run.current?.abort();
     ai.current?.abort();
-    release([...pagesRef.current, ...removed.current]);
+    release([...pagesRef.current, ...removed.current, ...latest.current.readPages]);
     removed.current = [];
     for (const { pdf } of pdfs.current.values()) pdf.close();
     pdfs.current.clear();

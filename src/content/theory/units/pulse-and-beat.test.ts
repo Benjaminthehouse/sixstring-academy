@@ -4,9 +4,8 @@
  * of eighth notes, what each listening question and click track plays, and the strumming pattern.
  */
 import { describe, expect, it } from 'vitest';
-import { buildVoicing } from '@/core/guitar';
-import { barCapacity, chordNotes, noteValue, parseTimeSignature, pcName, PPQ } from '@/core/theory';
-import { midiAt } from '@/core/guitar';
+import { buildVoicing, midiAt } from '@/core/guitar';
+import { barCapacity, chordNotes, noteValue, parseTimeSignature, pcName, PPQ, staffPosition } from '@/core/theory';
 import {
   generateExercise, grade, parseRhythm, parseStrum, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type Lesson, type ListenChoiceExercise, type Sound, type Step, type TapRhythmExercise,
@@ -84,12 +83,14 @@ describe('pulse-and-beat: note and rest lengths', () => {
       expect(first.rest).toBe(true);
       expect(first.value === 'half', o.figure.pattern).toBe(o.correct === true);
     }
-    const halves = of(exercisesOf(lesson('quarter-half-whole')), 'choice').find((e) => /made of half notes/.test(plainText(e.prompt)))!;
+    const halves = of(exercisesOf(lesson('quarter-half-whole')), 'choice').find((e) => /starts with a half note/.test(plainText(e.prompt)))!;
     for (const o of halves.options) {
       if (o.figure?.kind !== 'rhythm') throw new Error('figure options');
-      const values = new Set(parseRhythm(o.figure).events.map((e) => e.value));
-      expect(values.size === 1 && values.has('half'), o.figure.pattern).toBe(o.correct === true);
+      const events = parseRhythm(o.figure).events;
+      expect(events[0].value === 'half' && !events[0].rest, o.figure.pattern).toBe(o.correct === true);
     }
+    // The right bar is two half notes, as its explanation says.
+    expect(halves.options.find((o) => o.correct)?.figure).toMatchObject({ pattern: 'h h' });
   });
 });
 
@@ -183,6 +184,19 @@ describe('pulse-and-beat: what is heard', () => {
 
   it('strums down on every beat and up on every & in the down-up audio', () => {
     for (const s of parseStrum('DUDUDUDU').slots) expect(s.stroke).toBe(s.tick % PPQ === 0 ? 'down' : 'up');
+  });
+});
+
+describe('pulse-and-beat: the beamed eighth notes on the staff', () => {
+  it('fills one bar of 4/4: two quarters, then four eighths on the middle line', () => {
+    const card = lesson('eighth-notes').steps.find((s) => 'type' in s && s.type === 'card' && s.figure?.kind === 'staff');
+    if (!card || !('type' in card) || card.type !== 'card' || card.figure?.kind !== 'staff') throw new Error('staff card');
+    const notes = card.figure.notes.map((n) => (typeof n === 'string' ? { note: n, duration: 'q' } : n));
+    expect(notes.map((n) => n.duration).join(' ')).toBe('q q e e e e');
+    const total = notes.reduce((sum, n) => sum + noteValue(n.duration === 'q' ? 'quarter' : 'eighth')!.ticks, 0);
+    expect(total).toBe(barCapacity('4/4'));
+    // Sounding B3 is written B4, the middle line of the treble staff.
+    for (const n of notes) expect(staffPosition(n.note).position).toBe(4);
   });
 });
 

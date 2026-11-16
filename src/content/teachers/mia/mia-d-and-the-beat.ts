@@ -30,7 +30,7 @@ const countingTheBeat: TeacherLesson = {
       type: 'card',
       title: 'The beat and the tempo',
       body: 'Every song has a {t:beat}: the steady pulse you tap your foot to. How fast it goes is the {t:tempo}, counted in {t:bpm|BPM}, beats per minute. At 60 BPM there is one beat every second. Press play and tap your foot with it.',
-      figure: { kind: 'rhythm', pattern: 'q q q q | q q q q', time: '4/4', tempo: 70, caption: 'Eight steady beats at 70 BPM.' },
+      figure: { kind: 'rhythm', pattern: 'q q q q | q q q q', time: '4/4', tempo: 70, counting: false, caption: 'Eight steady beats at 70 BPM.' },
     },
     {
       type: 'choice',
@@ -47,7 +47,7 @@ const countingTheBeat: TeacherLesson = {
       type: 'card',
       title: 'Four beats in a bar',
       body: 'Most songs group the beats in fours. That is 4/4, said "four four": four beats in every {t:bar}. Count 1 2 3 4, 1 2 3 4, and give 1 a little more weight, an {t:accent}, so you always know where a bar begins. Each one-beat note is a {t:quarter-note|quarter note}.',
-      figure: { kind: 'rhythm', pattern: 'q q q q', time: '4/4', tempo: 70, caption: 'One bar of 4/4: four quarter notes, counted 1 2 3 4.' },
+      figure: { kind: 'rhythm', pattern: 'q q q q', time: '4/4', tempo: 70, counting: false, caption: 'One bar of 4/4: four quarter notes, counted 1 2 3 4.' },
     },
     {
       type: 'true-false',
@@ -60,7 +60,7 @@ const countingTheBeat: TeacherLesson = {
       type: 'card',
       title: 'Longer notes',
       body: 'Some notes last longer than one beat. A {t:half-note|half note} lasts two beats: you count "1 2" while it rings. A {t:whole-note|whole note} lasts all four. Keep counting every beat, even while a note rings.',
-      figure: { kind: 'rhythm', pattern: 'h h | w', time: '4/4', tempo: 70, caption: 'Two half notes (1 2, 3 4), then a whole note (1 2 3 4).' },
+      figure: { kind: 'rhythm', pattern: 'h h | w', time: '4/4', tempo: 70, counting: false, caption: 'Two half notes (1 2, 3 4), then a whole note (1 2 3 4).' },
     },
     { generate: 'note-value-math', params: { ask: 'beats', values: ['quarter', 'half', 'whole'] }, fact: 'quarter-half-whole' },
     {
@@ -213,7 +213,7 @@ const theDChord: TeacherLesson = {
     },
     {
       type: 'card',
-      title: 'From {c:Em} to {c:D}',
+      title: 'From E minor to D',
       body: '{c:Em} to {c:D} is a big move: every finger goes somewhere new. Look at the {c:D} triangle before you change. Put finger 3 down first, on string 2, fret 3, and let fingers 1 and 2 fall in around it.',
       figure: { kind: 'chord', symbol: 'Em', frets: '022000', fingers: '023000', caption: '{c:Em}: fingers 2 and 3 at fret 2. Every finger moves for {c:D}.' },
     },
@@ -230,7 +230,7 @@ const theDChord: TeacherLesson = {
     },
     playerTask({
       id: 'em-d-ladder',
-      title: '{c:Em} to {c:D}: the change ladder',
+      title: 'Change ladder: E minor and D',
       song: 'st-change-em-d-em-g',
       bars: [1, 8],
       minutes: 4,
@@ -238,7 +238,7 @@ const theDChord: TeacherLesson = {
     }),
     toolTask({
       id: 'em-d-minute',
-      title: 'One-minute changes: {c:Em} to {c:D}',
+      title: 'One-minute changes: E minor to D',
       tool: 'chords',
       params: ['trainer', 'e-minor', 'd-major'],
       minutes: 2,
@@ -337,7 +337,7 @@ const downUpEighths: TeacherLesson = {
     },
     {
       type: 'card',
-      title: '{c:Em} and {c:D} in eighth notes',
+      title: 'E minor and D in eighth notes',
       body: 'Strumming: Down-Up Eighths changes chord every two bars: {c:Em}, then {c:D} on strings 4 to 1. Keep the hand swinging through each change. In the last 8 bars, lean a little on beats 2 and 4: a slightly harder downstrum on "2" and "4".',
       figure: { kind: 'audio', sound: { kind: 'strum', chord: 'D', pattern: 'DUDUDUDU', tempo: 70 }, label: 'Hear down-up on {c:D}' },
     },
@@ -363,7 +363,7 @@ const downUpEighths: TeacherLesson = {
 const drunkenSailor: TeacherLesson = {
   id: 'drunken-sailor',
   title: 'Drunken Sailor',
-  teaches: 'Drunken Sailor lives on {c:Em} and {c:D}: two beats a bar with beat 1 leaned on, then down-up eighths.',
+  teaches: 'Drunken Sailor lives on E minor and D: two beats a bar with beat 1 leaned on, then down-up eighths.',
   minutes: 4,
   skill: 'teacher:mia:drunken-sailor',
   steps: [
@@ -459,14 +459,14 @@ const drunkenSailor: TeacherLesson = {
 
 const a7AndWaltzTime: TeacherLesson = {
   id: 'a7-and-waltz-time',
-  title: '{c:A7} and waltz time',
-  teaches: '{c:A7} is two fingers at fret 2 with string 3 open; waltz time is 1 2 3: a bass note on 1, strums on 2 and 3.',
+  title: 'A seven and waltz time',
+  teaches: 'A seven is two fingers at fret 2, string 3 open; waltz time is 1 2 3: a bass note on 1, strums on 2 and 3.',
   minutes: 5,
   skill: 'teacher:mia:a7-and-waltz-time',
   steps: [
     {
       type: 'card',
-      title: '{c:A7}: {c:A} with a gap',
+      title: 'A seven: A with a gap',
       body: '{c:A7} is your {c:A} with a gap in the middle: finger 2 on string 4, fret 2 ({n:E}) and finger 3 on string 2, fret 2 ({n:C#}), with string 3 left open between them. Strum it from string 5, as you strum {c:A}.',
       figure: { kind: 'chord', symbol: 'A7', frets: 'x02020', fingers: 'x02030', caption: '{c:A7}: two fingers at fret 2, string 3 open, string 6 left out.' },
     },
@@ -551,14 +551,14 @@ const a7AndWaltzTime: TeacherLesson = {
     },
     playerTask({
       id: 'd-a7-ladder',
-      title: '{c:D} to {c:A7}, and {c:D} to {c:A}',
+      title: 'Change ladder: D, A seven and A',
       song: 'st-change-d-a7-a-d',
       minutes: 4,
       body: 'Both halves at 60 BPM. First {c:D} and {c:A7}: finger 3 slides one fret along string 2. Then {c:D} and {c:A}: finger 1 stays on string 3, fret 2 for both. One strum a bar, then two, then four, then a change every two beats.',
     }),
     toolTask({
       id: 'd-a7-minute',
-      title: 'One-minute changes: {c:D} to {c:A7}',
+      title: 'One-minute changes: D to A seven',
       tool: 'chords',
       params: ['trainer', 'd-major', 'a-7'],
       minutes: 2,
@@ -677,9 +677,9 @@ const waltzSongs: TeacherLesson = {
 /** Unit 4 of Mia's course. */
 const unit: TeacherUnit = {
   id: 'mia-d-and-the-beat',
-  title: '{c:D}, {c:A7} and the steady beat',
+  title: 'D, A seven and the steady beat',
   theme: 'rhythm',
-  description: 'Count and keep a steady beat, add {c:D} and {c:A7}, strum down-up eighth notes and feel waltz time.',
+  description: 'Count and keep a steady beat, add D and A seven, strum down-up eighth notes and feel waltz time.',
   lessons: [countingTheBeat, theDChord, downUpEighths, drunkenSailor, a7AndWaltzTime, waltzSongs],
   checkpoint: { sample: 8, maxMistakes: 2 },
   glossary: [

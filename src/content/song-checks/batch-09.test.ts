@@ -16,7 +16,8 @@
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, soundingPitch, type Note, type Song } from '@/core/song';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
-import { loadSongText } from '@/content/songs';
+import { loadSongText, songEntry } from '@/content/songs';
+import { identifyFretted, scalePatterns } from '@/core/guitar';
 
 const BAR_44 = 3840;
 const BAR_68 = 2880;
@@ -471,9 +472,11 @@ describe('batch 9: st-travis-picking', () => {
   const G7 = ['G2', 'B3', 'D3', 'F4', 'G2', 'B3', 'D3', 'F4'];
   const pinch = (bar: string[]) => [`${bar[0]}+${bar[3]}`, ...bar.slice(1)];
   const FIRST = [C, C, AM, AM, G7, G7, C, C];
-  const EXPECTED = [...FIRST, ...FIRST.map(pinch)];
+  /** The last bar (review fix): the pinch and two beats of the pattern, then a C rung by p, i and m on beat 3. */
+  const LAST = ['C3+E4', 'C4', 'E3', 'E4', 'C3+C4+E4'];
+  const EXPECTED = [...FIRST, ...FIRST.slice(0, 7).map(pinch), LAST];
 
-  it('plays C C Am Am G7 G7 C C twice, the second time with a pinch on beat 1', async () => {
+  it('plays C C Am Am G7 G7 C C twice, the second time with a pinch on beat 1, and ends on a ringing C', async () => {
     const song = await load('st-travis-picking');
     expect(song.bars.length).toBe(16);
     expect(song.bars.every((b) => barLength(b) === BAR_44)).toBe(true);
@@ -487,14 +490,22 @@ describe('batch 9: st-travis-picking', () => {
     const BASS: Record<string, string[]> = { C: ['5:3', '4:2', '6:3', '4:2'], Am: ['5:0', '4:2', '5:0', '4:2'], G7: ['6:3', '4:0', '6:3', '4:0'] };
     for (let bar = 0; bar < 16; bar++) {
       const inBar = beats.filter((b) => b.bar === bar);
-      expect(inBar.map((b) => b.inBar), `bar ${bar + 1}`).toEqual([0, 480, 960, 1440, 1920, 2400, 2880, 3360]);
-      const thumb = inBar.filter((b) => b.inBar % 960 === 0).map((b) => b.notes.find((n) => n.string >= 4)!);
-      expect(thumb.map((n) => `${n.string}:${n.fret}`), `bar ${bar + 1}`).toEqual(BASS[inBar[0].chord!]);
+      // The last bar keeps the pattern for two beats, then holds the final chord (beats 3 and 4).
+      const last = bar === 15;
+      const pattern = last ? inBar.filter((b) => b.inBar < 1920) : inBar;
+      expect(inBar.map((b) => b.inBar), `bar ${bar + 1}`).toEqual(last ? [0, 480, 960, 1440, 1920] : [0, 480, 960, 1440, 1920, 2400, 2880, 3360]);
+      const thumb = pattern.filter((b) => b.inBar % 960 === 0).map((b) => b.notes.find((n) => n.string >= 4)!);
+      expect(thumb.map((n) => `${n.string}:${n.fret}`), `bar ${bar + 1}`).toEqual(BASS[inBar[0].chord!].slice(0, thumb.length));
       expect(thumb.every((n) => n.palmMute), `bar ${bar + 1}: the bass is palm muted`).toBe(true);
-      const fingers = inBar.filter((b) => b.inBar % 960 !== 0).map((b) => b.notes.map((n) => n.string).join());
-      expect(fingers, `bar ${bar + 1}`).toEqual(['2', '1', '2', '1']);
-      // Only the thumb notes are muted.
+      const fingers = pattern.filter((b) => b.inBar % 960 !== 0).map((b) => b.notes.map((n) => n.string).join());
+      expect(fingers, `bar ${bar + 1}`).toEqual(last ? ['2', '1'] : ['2', '1', '2', '1']);
+      // Only the thumb notes are muted (and the final chord rings, unmuted).
       expect(inBar.flatMap((b) => b.notes.filter((n) => n.string < 4)).some((n) => n.palmMute)).toBe(false);
+      if (last) {
+        const end = inBar[inBar.length - 1];
+        expect(end.duration, 'the final chord is a half note on beat 3').toBe(1920);
+        expect(end.notes.map((n) => `${n.string}:${n.fret}${n.pluck}${n.letRing ? ' ring' : ''}${n.palmMute ? ' pm' : ''}`)).toEqual(['5:3p ring', '2:1i ring', '1:0m ring']);
+      }
       // Bars 9-16: thumb and m (string 1) together on beat 1; bars 1-8: the thumb alone.
       expect(inBar[0].notes.length, `bar ${bar + 1}`).toBe(bar < 8 ? 1 : 2);
       expect(inBar[0].notes.some((n) => n.string === 1), `bar ${bar + 1}`).toBe(bar >= 8);
@@ -689,5 +700,115 @@ describe('batch 9: the checks themselves', () => {
     const bells = await loadSongText('st-lick-harmonics');
     const wrongBells = parseSixTab(bells.replace('q 2:<7> 3:<7> h 4:<7>', 'q 2:<9> 3:<7> h 4:<7>')).song!;
     expect(tokensByBar(played(wrongBells, 'Your harmonics'), 8)[2][0]).not.toBe(canon('F#5'));
+  });
+});
+
+// ---------------------------------------------------------------- independent review
+/**
+ * Added by the batch review. The jig's notes are written out again here, by a second person and in
+ * a different form (sounding note names, bar by bar), so the comparison does not rest on one
+ * transcription. Chord shapes and the pentatonic boxes are checked against the guitar engine, not
+ * against hand-written note lists, and every bar that a learner-facing text names must exist and
+ * hold what the text says.
+ */
+describe('batch 9 review: cross-checks against the engines and a second transcription', () => {
+  it('every chord shape in the batch is the chord its symbol names, by the guitar engine', async () => {
+    for (const id of ['st-blues-turnarounds', 'st-pent-box-1', 'st-lick-slide', 'st-lick-harmonics', 'st-travis-picking', 'st-read-first-sharps', 'irish-washerwoman']) {
+      const song = await load(id);
+      for (const c of song.chords.filter((x) => x.voicing)) {
+        const frets = c.voicing!.map((f) => (f === null ? 'x' : String(f))).join('');
+        expect(identifyFretted(frets).symbol, `${id} bar ${c.bar + 1}: ${c.symbol}=${frets}`).toBe(c.symbol);
+      }
+    }
+  });
+
+  it('the box-1 lick sits exactly in the engine\'s box 1, with the engine\'s fingers', async () => {
+    const box1 = scalePatterns('A', 'minor-pentatonic')[0];
+    expect(box1.minFret).toBe(5);
+    const engine = new Map(box1.notes.map((n) => [`${n.string}:${n.fret}`, n.finger]));
+    const beats = played(await load('st-pent-box-1'), 'Your lick');
+    for (const b of beats) for (const n of b.notes) {
+      expect(engine.has(`${n.string}:${n.fret}`), `bar ${b.bar + 1}: ${n.string}:${n.fret} is outside box 1`).toBe(true);
+      if (n.finger !== undefined) expect(n.finger, `bar ${b.bar + 1}: ${n.string}:${n.fret}`).toBe(engine.get(`${n.string}:${n.fret}`));
+    }
+  });
+
+  it('the slide lick moves from box 1 into the engine\'s box 2 after its first slide, fingered as the engine fingers it', async () => {
+    const [box1, box2] = scalePatterns('A', 'minor-pentatonic', { upTheNeck: true });
+    const in1 = new Map(box1.notes.map((n) => [`${n.string}:${n.fret}`, n.finger]));
+    const in2 = new Map(box2.notes.map((n) => [`${n.string}:${n.fret}`, n.finger]));
+    const beats = played(await load('st-lick-slide'), 'Your lick');
+    // Bar 1 before the slide: box 1. From the slide to the end of bar 2: box 2, with the engine's fingers where written.
+    for (const b of beats.filter((x) => x.bar === 0 && x.inBar < 1920)) for (const n of b.notes) expect(in1.has(`${n.string}:${n.fret}`), `bar 1 ${n.string}:${n.fret}`).toBe(true);
+    for (const b of beats.filter((x) => (x.bar === 0 && x.inBar >= 1920) || x.bar === 1)) {
+      for (const n of b.notes) {
+        expect(in2.has(`${n.string}:${n.fret}`), `bar ${b.bar + 1} ${n.string}:${n.fret}`).toBe(true);
+        if (n.finger !== undefined) expect(n.finger, `bar ${b.bar + 1} ${n.string}:${n.fret}`).toBe(in2.get(`${n.string}:${n.fret}`));
+      }
+    }
+    // The lick ends home in box 1, on the root.
+    const end = beats.filter((x) => x.bar === 7);
+    for (const b of end) for (const n of b.notes) expect(in1.has(`${n.string}:${n.fret}`), `bar 8 ${n.string}:${n.fret}`).toBe(true);
+    expect(end[end.length - 1].token).toBe(canon('A2'));
+  });
+
+  it('The Irish Washerwoman matches a second transcription, bar by bar (first time through each bar)', async () => {
+    const SECOND = [
+      'D4 C4',
+      'B3 G3 G3 D3 G3 G3', 'B3 G3 B3 D4 C4 B3', 'C4 A3 A3 E3 A3 A3', 'C4 A3 C4 E4 D4 C4',
+      'B3 G3 G3 D3 G3 G3', 'B3 G3 B3 D4 C4 B3', 'C4 B3 C4 A3 D4 C4', 'B3 G3 G3 G3 D4 C4', 'B3 G3 G3 G3',
+      'G4 D4 D4 G4 D4 D4', 'G4 D4 G4 B4 A4 G4', 'F#4 D4 D4 F#4 D4 D4', 'F#4 D4 F#4 A4 G4 F#4',
+      'E4 G4 G4 D4 G4 G4', 'C4 G4 G4 B3 G4 G4', 'C4 B3 C4 A3 D4 C4', 'B3 G3 G3 G3',
+    ];
+    const song = await load('irish-washerwoman');
+    // The first time each bar is heard (the second ending is only ever heard on the repeat).
+    const firstHeard = (all: Played[]) => song.bars.map((_, i) => {
+      const bar = all.filter((b) => b.bar === i);
+      const pass = Math.min(...bar.map((b) => b.pass));
+      return bar.filter((b) => b.pass === pass).map((b) => b.token);
+    });
+    expect(firstHeard(played(song, 'Melody'))).toEqual(SECOND.map((bar) => bar.split(' ').map(canon)));
+    // The fifth-position B part: the G-D pairs on fingers 4 and 3, the F#-D pairs both on fret 7.
+    const beats = played(song, 'Melody');
+    const b1 = beats.find((b) => b.bar === 10 && b.inBar === 0)!.notes[0];
+    const b1d = beats.find((b) => b.bar === 10 && b.inBar === 480)!.notes[0];
+    expect([`${b1.string}:${b1.fret}f${b1.finger}`, `${b1d.string}:${b1d.fret}f${b1d.finger}`]).toEqual(['2:8f4', '3:7f3']);
+    const f = beats.find((b) => b.bar === 12 && b.inBar === 0)!.notes[0];
+    const fd = beats.find((b) => b.bar === 12 && b.inBar === 480)!.notes[0];
+    expect([`${f.string}:${f.fret}f${f.finger}`, `${fd.string}:${fd.fret}f${fd.finger}`]).toEqual(['2:7f3', '3:7f3']);
+  });
+
+  it('the harmonics study plays the same G chord an octave apart at frets 12 and 5, as its metadata says', async () => {
+    const beats = played(await load('st-lick-harmonics'), 'Your harmonics');
+    const at12 = beats.filter((b) => b.bar === 4).flatMap((b) => b.midis);
+    const at5 = beats.filter((b) => b.bar === 5).flatMap((b) => b.midis);
+    expect(at12.map(name)).toEqual(['D4', 'G4', 'B4']);
+    expect(at5.map((m, i) => m - at12[i])).toEqual([12, 12, 12]);
+    const meta = songEntry('st-lick-harmonics')!;
+    expect(meta.teaches.join(' ')).not.toMatch(/two octaves apart/);
+    expect(meta.teaches.join(' ')).toMatch(/an octave higher at fret 5/);
+  });
+
+  it('every bar a learner-facing text names exists, and the turnaround bars named in its advice are turnarounds', async () => {
+    for (const id of ['st-blues-turnarounds', 'st-pent-box-1', 'st-lick-slide', 'st-lick-harmonics', 'st-travis-picking', 'st-read-first-sharps', 'irish-washerwoman']) {
+      const song = await load(id);
+      const meta = songEntry(id)!;
+      const text = [meta.about, ...meta.teaches].join(' ');
+      for (const m of text.matchAll(/\bbars? (\d+)(?:(?: to |-| and )(\d+))?/g)) {
+        for (const n of [m[1], m[2]].filter(Boolean).map(Number)) expect(n, `${id}: "${m[0]}"`).toBeLessThanOrEqual(song.bars.length);
+      }
+    }
+    // The turnaround advice names bars 1, 3, 15 and 28: each must be the falling line over the open string 1.
+    const song = await load('st-blues-turnarounds');
+    const about = songEntry('st-blues-turnarounds')!.about;
+    const named = [...about.matchAll(/\bbar (\d+)/g)].map((m) => Number(m[1]));
+    expect(named).toEqual([1, 3, 15, 28]);
+    const beats = played(song, 'Your part');
+    for (const bar of named) {
+      const inBar = beats.filter((b) => b.bar === bar - 1);
+      expect(inBar.every((b) => b.notes.some((n) => n.string === 1 && n.fret === 0)), `bar ${bar}`).toBe(true);
+      const line = inBar.filter((b) => b.inBar % 960 === 0).map((b) => b.notes.find((n) => n.fret > 0)!.fret);
+      expect(line, `bar ${bar}`).toEqual(line[0] === 7 ? [7, 6, 5, 4] : [5, 4, 3, 2]);
+    }
   });
 });

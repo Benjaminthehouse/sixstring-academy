@@ -1,8 +1,8 @@
 # Chord Melody: First Ballad (repertoire plan: st-chord-melody-1). An original 16-bar ballad in
 # C major for solo guitar. The melody is always on strings 1 and 2 and always the highest note;
 # on beats 1 and 3 a chord sits under it (C, Am, F, G7, Em and Dm), between them the melody moves
-# alone. Form: A (bars 1-4, ending on G7), A' (5-8, home to C), B (9-12, through Em and Dm),
-# A'' (13-16, home to C).
+# alone. Form: phrase 1 (bars 1-4, ending on G7), phrase 2 (5-8, home to C), a bridge (9-12,
+# through Em and Dm) and a last phrase (13-16, home to C).
 # The chords are the open shapes with the melody note on top. For the A on top of Am (bars 2, 6
 # and 14) the hand moves up to fifth position (finger 1 across strings 1 to 3 at fret 5, finger 3
 # on string 4 fret 7) and comes back down after the long note. Each chord symbol shows the grip
@@ -19,22 +19,22 @@ key: C
 
 track: Your part
 role: lead
-[A]
+[Phrase 1]
 | "C=x32010" q (5:3 4:2 3:0 2:1 1:0) e 2:3 1:0 "C=x32013" h (5:3 4:2 3:0 2:1 1:3) |
 | "Am=x07555" ^"fifth position" q (5:0 4:7 3:5 2:5 1:5) e 2:8 2:6 "Am=x0755x" h (5:0 4:7 3:5 2:5) |
-| "F=xx3211" q (4:3 3:2 2:1 1:1) e 1:0 1:1h "F=xx32x5" q (4:3 3:2 1:5) 1:3 |
+| "F=xx3211" q (4:3 3:2 2:1 1:1) e 1:0 1:1h "F=xx35x5" q (4:3 3:5 1:5) 1:3 |
 | "G7=320001" h (6:3 5:2 4:0 3:0 2:0 1:1) "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |
-[A']
+[Phrase 2]
 | "C=x3201x" q (5:3 4:2 3:0 2:1) e 2:3 1:0 "C=x32013" q (5:3 4:2 3:0 2:1 1:3) 1:0 |
 | "Am=x02210" q (5:0 4:2 3:2 2:1 1:0) e 2:1 1:0 "Am=x07555" h (5:0 4:7 3:5 2:5 1:5) |
 | "Dm=xx0231" q (4:0 3:2 2:3 1:1) 2:3 "G7=323003" q (6:3 5:2 4:3 3:0 2:0 1:3) 1:1 |
 | "C=x32010" w (5:3 4:2 3:0 2:1 1:0) ||
-[B]
-| "F=xx32x5" q (4:3 3:2 1:5) 1:3 "F=xx3211" q (4:3 3:2 2:1 1:1) 1:0 |
+[Bridge]
+| "F=xx35x5" q (4:3 3:5 1:5) 1:3 "F=xx3211" q (4:3 3:2 2:1 1:1) 1:0 |
 | "Em=022003" q (6:0 5:2 4:2 3:0 2:0 1:3) e 1:5 1:3 "Em=022000" h (6:0 5:2 4:2 3:0 2:0 1:0) |
 | "Dm=xx0231" q (4:0 3:2 2:3 1:1) e 1:0 1:1h "Dm=xx3235" h (4:3 3:2 2:3 1:5) |
 | "G7=323003" q (6:3 5:2 4:3 3:0 2:0 1:3) e 1:1 1:0p "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |
-[A'']
+[Last phrase]
 | "C=x3201x" q (5:3 4:2 3:0 2:1) e 2:3 1:0 "C=x32013" q (5:3 4:2 3:0 2:1 1:3) 1:0 |
 | "Am=x07555" ^"fifth position" q (5:0 4:7 3:5 2:5 1:5) e 2:8 2:6 "Am=x0755x" h (5:0 4:7 3:5 2:5) |
 | "Dm=xx3235" q (4:3 3:2 2:3 1:5) e 1:3 1:1 "G7=32303x" q (6:3 5:2 4:3 3:0 2:3) 2:0 |

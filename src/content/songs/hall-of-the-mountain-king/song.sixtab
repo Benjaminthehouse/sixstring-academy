@@ -1,13 +1,17 @@
 # In the Hall of the Mountain King (repertoire plan: hall-of-the-mountain-king). The main theme of
 # Grieg's piece from Peer Gynt, as it is commonly printed, moved from B minor down a fifth to
 # E minor. Only the four-bar theme is used (E F# G A B G B | A# F# A# A F A | E F# G A B G B E |
-# D B G B D), with the composer's chromatic notes: A# and A, then F, the descending chromatic
-# thirds. As in the original, the theme comes round again and again, each time faster: the
+# D B G B D), with the composer's chromatic notes A# and F: the thirds A#-F# then A-F creep down
+# by half steps. As in the original, the theme comes round again and again, each time faster: the
 # tempo steps up from 60 to 160, one step per statement. The first two statements are low, in
 # first position (as the bassoons and cellos play it); then the theme moves up an octave into
 # second position (finger 1 on fret 2), where every note is fretted, so each one can be cut short
-# by easing off the finger. All notes staccato. The final E minor chord is this arrangement's own
-# ending (the orchestra ends on loud chords).
+# by easing off the finger. Every eighth and quarter is staccato; only the D that ends each
+# statement is held, for two beats. The final E minor chord is this arrangement's own ending (the
+# orchestra ends on loud chords).
+# The notes are the theme as it is commonly printed (Grieg's B minor: B C# D E F# D F# | E# C# E#
+# E C E | B C# D E F# D F# B | A F# D F# A). They have not yet been checked against a scan of an
+# early edition, which the repertoire plan asks for.
 title: In the Hall of the Mountain King
 composer: Edvard Grieg
 source: Peer Gynt, incidental music (1875), "In the Hall of the Mountain King", main theme; arranged in E minor for Sixstring Academy

@@ -19,8 +19,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, soundingPitch, validateSong, type Note, type Song } from '@/core/song';
-import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
-import { scalePatterns } from '@/core/guitar';
+import { chordPcs, isNoChord, midiToNote, noteToMidi, parseChord, parseKey, scalePcs } from '@/core/theory';
+import { scalePatterns, tryBuildVoicing, voicingProblem } from '@/core/guitar';
 import boxTwoMeta from '@/content/songs/st-pent-box-2/meta';
 import boxThreeMeta from '@/content/songs/st-pent-box-3/meta';
 import minorBluesMeta from '@/content/songs/st-minor-blues-a/meta';
@@ -184,8 +184,8 @@ const SHAPES: Record<string, string[]> = {
   'C5=x355xx': ['C3', 'G3', 'C4'],
   'D5=x577xx': ['D3', 'A3', 'D4'],
   'E5=022xxx': ['E2', 'B2', 'E3'],
-  // Over the gallop only the open low E is played, so its E5 is shown as that one string.
-  'E5=0xxxxx': ['E2'],
+  // (Review: the gallops were labelled "E5=0xxxxx", one open string, which the guitar engine refuses
+  // as an E5 and which made the song's chord list teach E5 as a single note. They are now N.C.)
   'Am=xx755x': ['A3', 'C4', 'E4'],
   'D=xx777x': ['A3', 'D4', 'F#4'],
 };
@@ -203,6 +203,29 @@ describe('batch 10: the chord shapes', () => {
   it.each(IDS)('%s gives a shape only from the list above', (id) => {
     const song = load(id);
     for (const c of song.chords.filter((x) => x.voicing)) expect(Object.keys(SHAPES)).toContain(`${c.symbol}=${c.voicing!.map((f) => (f === null ? 'x' : f)).join('')}`);
+  });
+
+  it.each(IDS)('%s: every shape is one the guitar engine builds for its symbol, on the same root', (id) => {
+    const song = load(id);
+    for (const c of song.chords.filter((x) => x.voicing)) {
+      const frets = c.voicing!.map((f) => (f === null ? 'x' : f)).join('');
+      const v = tryBuildVoicing(c.symbol, frets);
+      expect(v, `${id}: "${c.symbol}=${frets}" ${voicingProblem(c.symbol, frets)}`).not.toBeNull();
+      // D=xx777x is D/A to the engine (A is the lowest of the three chopped strings); the teacher's
+      // bass supplies the D, so the chart names the chord D, as the plan does.
+      expect(v!.root, `${id}: ${c.symbol}=${frets}`).toBe(parseChord(c.symbol)!.root);
+    }
+  });
+
+  it.each(IDS)('%s: a chord symbol is used with one shape only, so the chord list and the tab agree', (id) => {
+    const song = load(id);
+    const shapes = new Map<string, Set<string>>();
+    for (const c of song.chords.filter((x) => x.voicing)) {
+      const set = shapes.get(c.symbol) ?? new Set<string>();
+      set.add(c.voicing!.map((f) => (f === null ? 'x' : f)).join(''));
+      shapes.set(c.symbol, set);
+    }
+    for (const [symbol, set] of shapes) expect([...set], `${id}: ${symbol}`).toHaveLength(1);
   });
 });
 
@@ -447,6 +470,8 @@ describe('batch 10: st-power-chords-gallop', () => {
     for (const b of single) {
       expect(b.notes[0]).toMatchObject({ string: 6, fret: 0, palmMute: true });
       expect(b.notes[0].accent).toBeFalsy();
+      // Review fix: a single open E is no chord, so the gallops are marked N.C. (no chord box).
+      expect(b.chord && isNoChord(b.chord), `bar ${b.bar + 1}: ${b.chord}`).toBe(true);
     }
     // Every gallop starts on a beat and runs 480 + 240 + 240 ticks, down, down, up.
     for (let i = 0; i < single.length; i += 3) {
@@ -601,6 +626,12 @@ describe('batch 10: hall-of-the-mountain-king', () => {
     const chromatic = beats.filter((b) => b.midis.some((m) => !scalePcs('E', 'minor').includes(m % 12)));
     expect([...new Set(chromatic.map((b) => b.bar % 4))]).toEqual([1]);
     expect(outside(beats.flatMap((b) => b.midis), scalePcs('E', 'minor'))).toEqual(['A#2', 'F2', 'A#3', 'F3']);
+    // Review fix: the learner card listed A as chromatic too; A is in E minor. It must name exactly
+    // the notes outside the key that the theme plays.
+    const line = mountainKingMeta.teaches.find((t) => /chromatic/i.test(t))!;
+    const named = line.replace(/^[^:]*:\s*/, '').split(/,\s*|\s+and\s+/).map((n) => n.trim());
+    expect(named.sort()).toEqual(['A#', 'F']);
+    for (const n of named) expect(scalePcs('E', 'minor').includes(noteToMidi(`${n}3`) % 12), `${n} is in E minor`).toBe(false);
     // A# leads up to B and down through A: the chromatic thirds B/G, A#/F#, A/F.
     expect(range(beats.filter((b) => b.bar < 8))).toEqual(['E2', 'E3']);
     expect(range(beats.filter((b) => b.bar >= 8))).toEqual(['E3', 'E4']);

@@ -334,12 +334,12 @@ const theNeckRepeats: Lesson = {
       find: { note: 'G3' },
       mode: 'one',
       octave: 'exact',
-      frets: [3, 15],
+      frets: [11, 17],
       strings: [6],
       explain: 'Fret 3 is {n:G}, so fret 15 (3 plus 12) is the {n:G} an octave higher.',
     },
-    { generate: 'note-on-string', params: { strings: [6, 5], frets: [12, 17], naturals: true, ask: 'name' } },
-    { generate: 'note-on-string', params: { strings: [6, 5], frets: [12, 17], naturals: true, ask: 'find' } },
+    { generate: 'note-on-string', params: { strings: [6, 5], frets: [12, 15], naturals: true, ask: 'name' } },
+    { generate: 'note-on-string', params: { strings: [6, 5], frets: [12, 15], naturals: true, ask: 'find' } },
   ],
   facts: [
     {
@@ -506,6 +506,7 @@ const sameNoteManyPlaces: Lesson = {
     {
       type: 'fretboard-find',
       prompt: 'Tap every place you can play the same {n:D} as the open string 4, up to fret 12.',
+      hint: 'There are three. On a small screen, slide the neck sideways to reach fret 12.',
       find: { note: 'D3' },
       mode: 'all',
       octave: 'exact',

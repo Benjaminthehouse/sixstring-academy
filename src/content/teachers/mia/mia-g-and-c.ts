@@ -23,14 +23,14 @@ import { playerTask, toolTask } from '../tasks';
 
 const theGChord: TeacherLesson = {
   id: 'the-g-chord',
-  title: 'The {c:G} chord',
-  teaches: 'Full {c:G} is fret 3 on string 6, fret 2 on string 5, fret 3 on string 1; from {c:Em}, finger 1 is the anchor.',
+  title: 'The G chord',
+  teaches: 'Full G is fret 3 on string 6, fret 2 on string 5, fret 3 on string 1; from E minor, finger 1 is the anchor.',
   minutes: 5,
   skill: 'teacher:mia:the-g-chord',
   steps: [
     {
       type: 'card',
-      title: 'The full {c:G}',
+      title: 'The full G',
       body: 'Your one-finger {c:G} grows into the full six-string {c:G}. It stretches across the neck: finger 2 on string 6, fret 3 ({n:G}), finger 1 on string 5, fret 2 ({n:B}) and finger 3 on string 1, fret 3 ({n:G}). Strings 4, 3 and 2 ring open in the middle.',
       figure: { kind: 'chord', symbol: 'G', frets: '320003', fingers: '210003', caption: 'G: fingers 2, 1 and 3, with strings 4, 3 and 2 open.' },
     },
@@ -101,7 +101,7 @@ const theGChord: TeacherLesson = {
     },
     playerTask({
       id: 'em-g-ladder',
-      title: '{c:Em} to {c:G}: the change ladder',
+      title: 'Change ladder: E minor and G',
       song: 'st-change-em-d-em-g',
       bars: [9, 16],
       minutes: 4,
@@ -110,7 +110,7 @@ const theGChord: TeacherLesson = {
     }),
     toolTask({
       id: 'em-g-minute',
-      title: 'One-minute changes: {c:Em} to {c:G}',
+      title: 'One-minute changes: E minor to G',
       tool: 'chords',
       params: ['trainer', 'e-minor', 'g-major'],
       minutes: 2,
@@ -199,7 +199,7 @@ const michaelRow: TeacherLesson = {
       tip: 'Hum the Hallelujah answers while you strum: it helps you feel where each line ends.',
       fallback: {
         ...MICHAEL_FALLBACK,
-        title: 'Jam on {c:D}, {c:G} and {c:A}',
+        title: 'Jam on D, G and A',
         body: 'Michael, Row is not in the Songs library yet, so jam on its three chords with the band: {c:D}, {c:G}, {c:D}, {c:A}, {c:D}, {c:G}, {c:A}, {c:D}. Four downstrums a bar, around 80 BPM, and aim each first strum at the chord\'s lowest string.',
       },
     }),
@@ -220,13 +220,13 @@ const michaelRow: TeacherLesson = {
       tip: 'Keep the hand swinging through the changes. A late chord is fine; a stopped hand is not.',
       fallback: {
         ...MICHAEL_FALLBACK,
-        title: 'Jam on {c:D}, {c:G} and {c:A}, in eighths',
+        title: 'Jam on D, G and A, in eighths',
         body: 'The same jam with the band, now in down-up eighths: down on every number, up on every &. Raise the tempo toward 92 BPM when the changes feel easy, and hum along if a tune comes to you.',
       },
     }),
     toolTask({
       id: 'd-g-a-minute',
-      title: 'One-minute changes: {c:D}, {c:G}, {c:A}',
+      title: 'One-minute changes: D, G and A',
       tool: 'chords',
       params: ['trainer', 'd-major', 'g-major'],
       minutes: 2,
@@ -251,14 +251,14 @@ const michaelRow: TeacherLesson = {
 
 const theCChord: TeacherLesson = {
   id: 'the-c-chord',
-  title: 'The {c:C} chord',
+  title: 'The C chord',
   teaches: 'C climbs in steps: fret 3 on string 5, fret 2 on string 4, fret 1 on string 2, with strings 3 and 1 open.',
   minutes: 5,
   skill: 'teacher:mia:the-c-chord',
   steps: [
     {
       type: 'card',
-      title: '{c:C} climbs in steps',
+      title: 'C climbs in steps',
       body: '{c:C} climbs the neck in steps: finger 3 on string 5, fret 3 ({n:C}), finger 2 on string 4, fret 2 ({n:E}) and finger 1 on string 2, fret 1 ({n:C}). Strings 3 and 1 ring open, and string 6 is left out: start the strum on string 5.',
       figure: { kind: 'chord', symbol: 'C', frets: 'x32010', fingers: 'x32010', caption: 'C: fingers 3, 2 and 1 climbing, strings 3 and 1 open.' },
     },
@@ -328,7 +328,7 @@ const theCChord: TeacherLesson = {
     },
     {
       type: 'card',
-      title: '{c:G} with fingers 3, 2 and 4',
+      title: 'G with fingers 3, 2 and 4',
       body: 'For {c:G} to {c:C}, many players finger {c:G} another way: finger 3 on string 6, finger 2 on string 5, finger 4 on string 1. Then fingers 3 and 2 keep their shape and simply move one string toward string 1 for {c:C}, and finger 1 lands on string 2.',
       figure: { kind: 'chord', symbol: 'G', frets: '320003', fingers: '320004', caption: 'G with fingers 3, 2 and 4: the 3-2 pair moves over one string for C.' },
     },
@@ -345,7 +345,7 @@ const theCChord: TeacherLesson = {
     },
     playerTask({
       id: 'g-c-ladder',
-      title: '{c:G} to {c:C}: the change ladder',
+      title: 'Change ladder: G and C',
       song: 'st-change-g-c-c-g7',
       bars: [1, 8],
       tempo: 83,
@@ -355,7 +355,7 @@ const theCChord: TeacherLesson = {
     }),
     toolTask({
       id: 'g-c-minute',
-      title: 'One-minute changes: {c:G} to {c:C}',
+      title: 'One-minute changes: G to C',
       tool: 'chords',
       params: ['trainer', 'g-major', 'c-major'],
       minutes: 2,
@@ -373,14 +373,14 @@ const theCChord: TeacherLesson = {
 
 const theD7Chord: TeacherLesson = {
   id: 'the-d7-chord',
-  title: '{c:D7} and the pull toward home',
-  teaches: '{c:D7} is a slanted triangle on strings 3, 2 and 1; its added {n:C} makes it lean toward {c:G}.',
+  title: 'D seven and the pull toward home',
+  teaches: 'D seven is a slanted triangle on strings 3, 2 and 1; its added C makes it lean toward G.',
   minutes: 5,
   skill: 'teacher:mia:the-d7-chord',
   steps: [
     {
       type: 'card',
-      title: '{c:D7}: a slanted triangle',
+      title: 'D seven: a slanted triangle',
       body: '{c:D7} is a small slanted triangle: finger 2 on string 3, fret 2 ({n:A}), finger 1 on string 2, fret 1 ({n:C}) and finger 3 on string 1, fret 2 ({n:F#}). Strum strings 4 to 1, as for {c:D}.',
       figure: { kind: 'chord', symbol: 'D7', frets: 'xx0212', fingers: 'xx0213', caption: '{c:D7}: strings 4 to 1, the open string 4 at the bottom.' },
     },
@@ -428,7 +428,7 @@ const theD7Chord: TeacherLesson = {
     },
     {
       type: 'card',
-      title: 'The four-finger {c:G}',
+      title: 'The four-finger G',
       body: 'For {c:D} to {c:G}, try this {c:G}: fingers 2 and 1 on strings 6 and 5 as usual, finger 3 on string 2, fret 3 ({n:D}) and finger 4 on string 1, fret 3. In {c:D}, finger 3 is already on string 2, fret 3: it stays put through the change.',
       figure: { kind: 'chord', symbol: 'G', frets: '320033', fingers: '210034', caption: 'The four-finger G: finger 3 on string 2, fret 3 stays from D.' },
     },
@@ -444,7 +444,7 @@ const theD7Chord: TeacherLesson = {
     },
     playerTask({
       id: 'g-d7-ladder',
-      title: '{c:G} to {c:D7}, and {c:D} to {c:G}',
+      title: 'Change ladder: G, D seven, D and G',
       song: 'st-change-g-d7-d-g',
       tempo: 83,
       minutes: 4,
@@ -460,7 +460,7 @@ const theD7Chord: TeacherLesson = {
     },
     toolTask({
       id: 'g-d7-minute',
-      title: 'One-minute changes: {c:G} to {c:D7}',
+      title: 'One-minute changes: G to D seven',
       tool: 'chords',
       params: ['trainer', 'g-major', 'd-7'],
       minutes: 3,
@@ -485,7 +485,7 @@ const theD7Chord: TeacherLesson = {
 const comingRoundTheMountain: TeacherLesson = {
   id: 'coming-round-the-mountain',
   title: "She'll Be Coming 'Round the Mountain",
-  teaches: '{c:G}, {c:C} and {c:D7} are the {r:I}, {r:IV} and {r:V7} of {k:G major}: three chords for thousands of folk songs.',
+  teaches: 'G, C and D seven are the one, four and five-seven of G major: three chords for thousands of folk songs.',
   minutes: 5,
   skill: 'teacher:mia:coming-round-the-mountain',
   steps: [
@@ -741,9 +741,9 @@ const amazingGrace: TeacherLesson = {
 /** Unit 5 of Mia's course. */
 const unit: TeacherUnit = {
   id: 'mia-g-and-c',
-  title: '{c:G}, {c:C} and three-chord songs',
+  title: 'G, C and three-chord songs',
   theme: 'chords',
-  description: 'Add {c:G}, {c:C} and {c:D7}, play the three main chords of a key in real songs, and play Amazing Grace from memory.',
+  description: 'Add G, C and D seven, play the three main chords of a key in real songs, and play Amazing Grace from memory.',
   lessons: [theGChord, michaelRow, theCChord, theD7Chord, comingRoundTheMountain, amazingGrace],
   checkpoint: { sample: 8, maxMistakes: 2 },
   milestone: {

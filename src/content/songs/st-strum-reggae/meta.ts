@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['strumming', 'rhythm', 'chords', 'technique'],
   tags: ['offbeat', 'reggae', 'ska', 'chops', 'muting', 'syncopation', 'am', 'd', 'dorian'],
   about:
-    'Every chop is short and crisp, like a hand clap between the bass notes: strike the three middle strings, then at once let the fingers go slack on the frets, still touching the strings, so the chord stops dead. In bars 1 to 8 keep your hand swinging down and up all the time, missing the strings on the way down and hitting them on the way up. The usual mistake is drifting onto the beat because silence feels wrong: say "one AND two AND" and chop only on "AND". In bars 9 to 16 the chops move to beats 2 and 4, played down.',
+    'Every chop is short and crisp, like a hand clap between the bass notes: strike the three middle strings, then at once let the fingers go slack on the frets, still touching the strings, so the chord stops dead. In bars 1 to 8 keep your hand swinging down and up all the time, missing the strings on the way down and hitting them on the way up. The usual mistake is drifting onto the beat because silence feels wrong: say "one AND two AND" and chop only on "AND". In bars 9 to 16 the chops move to beats 2 and 4, played down, with one extra up-chop right after beat 4 in bar 12 that leads back to Am.',
   plan: 'st-strum-reggae',
   added: '2026-11-16',
 });

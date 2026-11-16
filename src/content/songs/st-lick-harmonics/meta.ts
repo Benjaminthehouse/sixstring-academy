@@ -9,7 +9,7 @@ export default defineSong({
   style: 'folk',
   kind: 'study',
   key: 'G major',
-  teaches: ['Natural harmonics over frets 12, 7 and 5', 'A bell-like tone that rings on', 'The same chord two octaves apart'],
+  teaches: ['Natural harmonics over frets 12, 7 and 5', 'A bell-like tone that rings on', 'The same G chord an octave higher at fret 5 than at fret 12'],
   skills: ['technique', 'melody'],
   tags: ['harmonics', 'natural harmonics', 'bell tone', 'let ring', 'g major'],
   about:

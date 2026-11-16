@@ -7,6 +7,8 @@
 #   G7 (320001): string 6 fret 3 (G) and the open string 4 (D).
 # Between the thumb notes, i plucks string 2 on the "and" of 1 and 3, and m plucks string 1 on
 # the "and" of 2 and 4. Bars 9-16 are the same with a pinch on beat 1: thumb and m together.
+# The last bar plays the pattern for two beats, then ends on a C that rings: thumb, i and m
+# together on beat 3, not muted, so the study finishes on a chord instead of stopping mid-pattern.
 title: Travis Picking
 composer: Sixstring Academy
 source: Original fingerstyle study
@@ -28,4 +30,4 @@ role: lead
 | "C" ^"pinch: thumb and m together" (5:3{P pm} 1:0{M}) 2:1{I} 4:2{P pm} 1:0{M} 6:3{P pm} 2:1{I} 4:2{P pm} 1:0{M} | (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 |
 | "Am" (5:0{pm} 1:0) 2:1 4:2{pm} 1:0 5:0{pm} 2:1 4:2{pm} 1:0 | (5:0{pm} 1:0) 2:1 4:2{pm} 1:0 5:0{pm} 2:1 4:2{pm} 1:0 |
 | "G7" (6:3{pm} 1:1) 2:0 4:0{pm} 1:1 6:3{pm} 2:0 4:0{pm} 1:1 | (6:3{pm} 1:1) 2:0 4:0{pm} 1:1 6:3{pm} 2:0 4:0{pm} 1:1 |
-| "C" (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 | (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 ||
+| "C" (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 6:3{pm} 2:1 4:2{pm} 1:0 | (5:3{pm} 1:0) 2:1 4:2{pm} 1:0 h (5:3{P} 2:1{I} 1:0{M}){lr} ||

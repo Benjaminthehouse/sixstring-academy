@@ -380,13 +380,13 @@ const quarterHalfWhole: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'Which bar is made of half notes?',
+      prompt: 'Which bar starts with a half note?',
       options: [
         { figure: { kind: 'rhythm', pattern: 'h h', counting: false }, correct: true },
-        { figure: { kind: 'rhythm', pattern: 'q q q q', counting: false }, why: 'Filled-in heads with stems: those are quarter notes.' },
+        { figure: { kind: 'rhythm', pattern: 'q q q q', counting: false }, why: 'A filled-in head with a stem: that bar starts with a quarter note.' },
         { figure: { kind: 'rhythm', pattern: 'w', counting: false }, why: 'A hollow head with no stem: that is a whole note.' },
       ],
-      explain: 'Half notes have hollow heads and stems. Two of them fill a bar of 4/4.',
+      explain: 'A half note has a hollow head and a stem. This bar holds two of them: two beats each, a full bar of 4/4.',
       fact: 'pulse-note-shapes',
     },
     {
@@ -489,8 +489,20 @@ const eighthNotes: Lesson = {
     {
       type: 'card',
       title: 'Flags and beams',
-      body: 'A single eighth note has one {t:flag} on its stem. Two or more in a row are usually joined by one {t:beam} instead. Either way, each one lasts half a beat.',
-      figure: { kind: 'rhythm', pattern: 'q e e q e e', caption: 'Quarter notes, and pairs of eighth notes joined by a beam.' },
+      body: 'On its own, an eighth note has one {t:flag} on its stem, and that is how the rhythm pictures in these lessons draw every eighth note. In printed music, two or more in a row are usually joined by one {t:beam} instead, as on this staff. Either way, each lasts half a beat.',
+      figure: {
+        kind: 'staff',
+        time: '4/4',
+        notes: [
+          { note: 'B3', duration: 'q' },
+          { note: 'B3', duration: 'q' },
+          { note: 'B3', duration: 'e' },
+          { note: 'B3', duration: 'e' },
+          { note: 'B3', duration: 'e' },
+          { note: 'B3', duration: 'e' },
+        ],
+        caption: 'Two quarter notes, then four eighth notes joined in pairs by beams.',
+      },
     },
     {
       type: 'choice',

@@ -5,8 +5,9 @@
 # Bars 1-2 call (gallops, then A5, then G5 to A5); bars 3-4 answer on string 5 (C5, then C5 to D5);
 # bars 5-6 call again; bar 7 is the answer's last bar, and the riff lands on a ringing open E5
 # (022xxx), the i chord. Every jump to a chord comes after open-string gallops, so the fretting hand
-# has a whole beat or more to get there. Over the gallops the chord is shown as E5 with only the
-# open string 6 (0xxxxx), since that is all you play there.
+# has a whole beat or more to get there. The gallops are marked N.C. (no chord): only the open
+# string 6 sounds there, and a single E is not an E5 (E5 is E and B, as in the last bar), so the
+# chord boxes appear only where the hand really frets a chord.
 title: Power Chords: Palm-Muted Gallop
 composer: Sixstring Academy
 source: Original riff
@@ -20,14 +21,14 @@ key: Em
 track: Your riff
 role: rhythm
 [Call]
-| "E5=0xxxxx" ^"palm mute: down, down-up" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "A5=577xxx" q (6:5{1} 5:7{3} 4:7{4}){ac dn} |
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "G5=355xxx" q (6:3{1} 5:5{3} 4:5{4}){ac dn} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
+| "N.C." ^"palm mute: down, down-up" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "A5=577xxx" q (6:5{1} 5:7{3} 4:7{4}){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "G5=355xxx" q (6:3{1} 5:5{3} 4:5{4}){ac dn} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
 [Answer]
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3{1} 4:5{3} 3:5{4}){ac dn} |
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3 4:5 3:5){ac dn} "D5=x577xx" q (5:5{1} 4:7{3} 3:7{4}){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3{1} 4:5{3} 3:5{4}){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3 4:5 3:5){ac dn} "D5=x577xx" q (5:5{1} 4:7{3} 3:7{4}){ac dn} |
 [Call]
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "G5=355xxx" q (6:3 5:5 4:5){ac dn} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "G5=355xxx" q (6:3 5:5 4:5){ac dn} "A5=577xxx" q (6:5 5:7 4:7){ac dn} |
 [Ending]
-| "E5=0xxxxx" e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3 4:5 3:5){ac dn} "D5=x577xx" q (5:5 4:7 3:7){ac dn} |
+| "N.C." e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} e 6:0{pm dn} s 6:0{pm dn} 6:0{pm up} "C5=x355xx" q (5:3 4:5 3:5){ac dn} "D5=x577xx" q (5:5 4:7 3:7){ac dn} |
 | "E5=022xxx" w (6:0 5:2{2} 4:2{3}){ac dn} ||

@@ -18,6 +18,8 @@ export type { FilterContext, LevelBand, SongFilter, SongSort } from './filter';
 export { goodNextSongs, learnerFromParts, learnerFromProgress, rankSongs, targetLevel } from './rank';
 export type { LearnerSnapshot, PlayedSong, Recommendation, SongFit } from './rank';
 export { EXPORT_FORMATS, exportFileName, exportSongAs } from './export';
+export { exportMySongs, importSongBackups, looksLikeSongBackup, mySongsSize, removeMySongs, songContentSum, songFromBackup, songSyncPort } from './backup';
+export type { SongBackup, SongImportResult, SongIndexEntry, SongSyncPort } from './backup';
 export { useSong, useSongList, useSongSummary } from './react';
 export { KIND_NAMES, SKILL_NAMES, SONG_KINDS, SONG_SKILLS, SONG_STYLES, STYLE_NAMES } from '@/content/songs';
 

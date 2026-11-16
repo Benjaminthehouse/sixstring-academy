@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['fingerpicking', 'chords', 'rhythm'],
   tags: ['travis picking', 'alternating bass', 'fingerstyle', 'pinch', 'palm mute', 'thumb independence'],
   about:
-    'The thumb is the clock: it plays every beat, bouncing between two bass strings, soft and a little muted by the edge of your picking hand, while i and m answer in between. Learn the thumb part on its own first, until it runs without thinking, then add the fingers. The usual problem is the thumb copying the fingers and stumbling; slow down until the bass is perfectly even, and in bars 9 to 16 make the thumb and m land exactly together on beat 1.',
+    'The thumb is the clock: it plays every beat, bouncing between two bass strings, soft and a little muted by the edge of your picking hand, while i and m answer in between. Learn the thumb part on its own first, until it runs without thinking, then add the fingers. The usual problem is the thumb copying the fingers and stumbling; slow down until the bass is perfectly even, and in bars 9 to 16 make the thumb and m land exactly together on beat 1. On beat 3 of the last bar, pluck thumb, i and m together and let the C chord ring without the mute.',
   plan: 'st-travis-picking',
   added: '2026-11-16',
 });
