@@ -178,9 +178,14 @@ export class ScalePlayer {
     this.timed = timed;
     const tr = this.transport;
 
+    // Over a band the line repeats through the band's loop (one chorus of the vamp), so the scale
+    // never drops out of the form (it used to play once per two choruses: 3 bars of 24 on the blues).
+    let events = timed.events;
     if (useBand && req.vamp) {
       this.band ??= this.deps.band!(tr);
-      this.band.load(vampBars(req.vamp, timed.bars), { style, tempo: req.bpm, loop: req.loop, countInBars: 1 });
+      const bars = vampBars(req.vamp, timed.bars);
+      this.band.load(bars, { style, tempo: req.bpm, loop: req.loop, countInBars: 1, choruses: 1 });
+      events = fillBars(timed, bars.length);
       try {
         await this.band.prepare();
       } catch {

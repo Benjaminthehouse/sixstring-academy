@@ -105,6 +105,28 @@ export function timeLine(line: readonly LineNote[], perBeat: NotesPerBeat, swing
   return { events, lineTicks, loopTicks: bars * BAR_TICKS, bars };
 }
 
+/**
+ * The line repeated across a backing loop of `totalBars`, one pass every `block` bars, where
+ * `block` is the smallest whole share of the loop that holds the line: a 4-bar line plays three
+ * times over a 12-bar blues, a 5-bar line twice (each pass starting on bar 1 or 7). Without this
+ * the line played once per loop and fell silent for the rest of the form. Each pass keeps the
+ * note indices, so the lit dot follows every pass.
+ */
+export function fillBars(timed: TimedLine, totalBars: number): LineEvent[] {
+  const total = Math.max(1, Math.round(totalBars));
+  let block = total;
+  for (let d = Math.max(1, timed.bars); d < total; d++) {
+    if (total % d === 0) {
+      block = d;
+      break;
+    }
+  }
+  const passes = Math.max(1, Math.floor(total / block));
+  const out: LineEvent[] = [];
+  for (let k = 0; k < passes; k++) for (const e of timed.events) out.push({ ...e, tick: e.tick + k * block * BAR_TICKS });
+  return out;
+}
+
 /** SixTab duration token for a number of notes per beat. */
 const DURATION: Record<NotesPerBeat, string> = { 1: 'q', 2: 'e', 3: 'e3', 4: 's' };
 
