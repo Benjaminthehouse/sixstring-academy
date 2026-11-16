@@ -29,7 +29,7 @@ import { explainMediaFailure, isArtifact } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs } from '@/core/progress';
 import { cameraDeviceId, cameraMirrored, learnerTuning } from '@/core/settings';
 import { formatNote } from '@/core/theory';
-import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
+import { displayToFrame, fitOverlayCanvas, frameToDisplay, fretX, locatePixel, poseFromWireTaps, projectPlanePoint, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
 import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet, Spinner, Stepper as NumberStepper, Text, cx, toast, useEventListener, useLocalState, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
@@ -44,7 +44,7 @@ import { answers, drillNote, nextTarget, type DrillTarget } from './model/drill'
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor, type GuitarKind } from './model/guitar';
 import { frettingHand, handAdvice, type FingerReading } from './model/hands';
 import { describeStep, stepHeard, stepNotes } from './model/song';
-import { STARTING_STATUS, announcement, describeStatus, sameStatus, type LiveStatus } from './model/status';
+import { STARTING_STATUS, TRAIL_GHOST, announcement, describeStatus, sameStatus, trailingSpacings, type LiveStatus } from './model/status';
 import { ContentControls, PrevNext, TrackingControls, type ContentControlsProps } from './ui/Controls';
 import { CoachBar, HudButton, StatusPill, TapLayer, ToolBanner } from './ui/Hud';
 import { clearOverlay, drawFrame, readStagePalette, type Flash, type StagePalette } from './ui/overlay';
@@ -207,12 +207,30 @@ export default function CameraScreen({ params }: RouteProps) {
   const reducedRef = useRef(reducedMotion);
   reducedRef.current = reducedMotion;
 
+  const motion = useRef<{ x: number; y: number; t: number; speed: number } | null>(null);
+  const movingFast = useRef(false);
   const onUpdate = useCallback((pu: PipelineUpdate) => {
     const u = pu.update;
     const now = performance.now();
     if (u.state === 'lost') lostSince.current = lostSince.current ?? now;
     else lostSince.current = null;
-    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current);
+    // How fast the neck moves (working-frame pixels per second, smoothed), against how late the
+    // answers arrive: the dots trail a moving neck by about speed x delay.
+    let trailing = 0;
+    const pose = u.state === 'locked' || u.state === 'candidate' ? u.pose : null;
+    if (pose) {
+      const m = pose.model;
+      const p = projectPlanePoint(pose, fretX(m, 7), m.nutWidth / 2);
+      const prev = motion.current;
+      const dt = prev ? (pu.frameTime - prev.t) / 1000 : 0;
+      const raw = prev && dt > 0.005 ? Math.hypot(p.x - prev.x, p.y - prev.y) / dt : 0;
+      const speed = prev && dt > 0.005 ? 0.6 * prev.speed + 0.4 * raw : 0;
+      motion.current = { x: p.x, y: p.y, t: pu.frameTime, speed };
+      trailing = trailingSpacings(speed, pu.latencyMs, u.guidance.measures.stringSpacingPx);
+    } else motion.current = null;
+    // Hysteresis: outlines from TRAIL_GHOST, solid again only well below it (no flicker at the edge).
+    movingFast.current = movingFast.current ? trailing > 0.6 * TRAIL_GHOST : trailing > TRAIL_GHOST;
+    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, movingFast.current ? 1 : 0);
     const prev = statusRef.current;
     statusRef.current = next;
     if (!sameStatus(prev, next)) {
@@ -367,7 +385,10 @@ export default function CameraScreen({ params }: RouteProps) {
   const [sheet, setSheet] = useState(false);
   const [guitarSheet, setGuitarSheet] = useState(false);
   const [capoSheet, setCapoSheet] = useState(false);
-  const [capoAsked, setCapoAsked] = useState(false);
+  // Asked at most once in six hours (a practice session), never on every visit.
+  const [capoAskedAt, setCapoAskedAt] = useLocalState<number>('camera.capoAskedAt', 0);
+  const capoAsked = typeof capoAskedAt === 'number' && Date.now() - capoAskedAt < 6 * 3600 * 1000;
+  const setCapoAsked = useCallback((v: boolean) => setCapoAskedAt(v ? Date.now() : 0), [setCapoAskedAt]);
   const [numbersChecked, setNumbersChecked] = useState(false);
   // Held sideways, a phone has no height to spare: the tab bar goes from the start.
   useImmersive(true, focus ? 'bare' : mode === 'live' || mode === 'starting' || sideways ? 'focus' : 'none');

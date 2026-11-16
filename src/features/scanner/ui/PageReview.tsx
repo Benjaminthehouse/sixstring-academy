@@ -99,7 +99,7 @@ export function PageReview({ scan, id, onClose }: { scan: ScanState; id: string;
       open
       onClose={onClose}
       title={page.label}
-      description={look ? `${kindLabel(look.kind)}. ${look.summary}` : 'Looking for staves…'}
+      description={look ? `${kindLabel(look.kind)}. ${look.summary}` : 'Looking for the music…'}
       size="lg"
       phone="full"
       footer={

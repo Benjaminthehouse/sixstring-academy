@@ -8,7 +8,8 @@
 # then string 4; D7: string 4 both times).
 # Harmony: G for "Silent night, holy night", D7 then G for "All is calm, all is bright", C then G
 # for each of the next two lines, D7 then G for "Sleep in heavenly peace", G, D7, G at the end.
-# The tune (second track) in first position, low G to the open B, with the note values of the
+# The tune (second track) in first position, from low G (string 6 fret 3) up to C (string 2
+# fret 1), with the note values of the
 # usual hymnal version (twice those of Gruber's own 6/8). "Si-", "ho-", "-ther", the first "peace"
 # and the second "Sleep" each take two notes.
 title: Silent Night
@@ -38,7 +39,7 @@ role: rhythm
 | "C=x32010" 5:3{P} 3:0{I} 2:1{M} 4:2{P} 1:0{A} 2:1{M} | 5:3 3:0 2:1 4:2 1:0 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
 | "C=x32010" 5:3 3:0 2:1 4:2 1:0 2:1 | 5:3 3:0 2:1 4:2 1:0 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
 | "D7=xx0212" 4:0 3:2 2:1 4:0 1:2 2:1 | 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | 6:3 3:0 2:0 4:0 1:3 2:0 |
-| 6:3 3:0 2:0 4:0 1:3 2:0 | "D7=xx0212" 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | h. (6:3 4:0 3:0 2:0 1:3) ||
+| 6:3 3:0 2:0 4:0 1:3 2:0 | "D7=xx0212" 4:0 3:2 2:1 4:0 1:2 2:1 | "G=320003" 6:3 3:0 2:0 4:0 1:3 2:0 | ^"Last chord: sweep the thumb across all six strings" h. (6:3 5:2 4:0 3:0 2:0 1:3) ||
 
 track: Tune
 role: lead

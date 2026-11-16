@@ -360,6 +360,8 @@ export function Proofread({ scan }: { scan: ScanState }) {
   const verdict = summary?.verdict ?? 'check';
   const verdictTone = left === 0 ? 'ok' : verdict === 'poor' ? 'bad' : 'warn';
   const headline = left === 0 ? 'All checked' : verdict === 'poor' ? 'A hard picture to read' : verdict === 'good' && left <= 3 ? 'Read well' : 'Read, with some doubts';
+  // A poor reading with doubts left: checking comes before saving.
+  const hard = verdict === 'poor' && left > 0;
   const showSource = twoPane || pane === 'sheet';
   const showTab = twoPane || pane === 'tab';
 
@@ -385,15 +387,24 @@ export function Proofread({ scan }: { scan: ScanState }) {
             </div>
           </div>
           <div className={styles.headActions}>
-            <Button variant="primary" size={mobile ? 'md' : 'lg'} iconLeft="Check" loading={saving} onClick={() => void save()} data-scan-save="">
+            <Button variant={hard ? 'secondary' : 'primary'} size={mobile ? 'md' : 'lg'} iconLeft="Check" loading={saving} onClick={() => void save()} data-scan-save="">
               Save and play
             </Button>
           </div>
         </header>)}
 
-        {verdict === 'poor' && left > 0 && !hideHard && !short && (
-          <Banner tone="warn" title="This picture was hard to read" onDismiss={() => setHideHard(true)}>
-            Expect misread and missing notes: check them against your picture, or retake it flat, close and in good light.
+        {hard && !hideHard && !short && (
+          <Banner
+            tone="warn"
+            title="This picture was hard to read"
+            onDismiss={() => setHideHard(true)}
+            actions={
+              <Button size="sm" variant="primary" iconLeft="SkipForward" onClick={goNext} data-scan-start-checking="">
+                Check them one by one
+              </Button>
+            }
+          >
+            Expect misread and missing notes: check the {left} marked ones against your picture, or retake it flat, close and in good light.
           </Banner>
         )}
 
@@ -414,16 +425,19 @@ export function Proofread({ scan }: { scan: ScanState }) {
           )}
           <div className={styles.tools}>
             <Button size="sm" variant={player.playing ? 'secondary' : 'ghost'} iconLeft={player.playing ? 'Square' : 'Play'} onClick={() => player.toggle(sel?.bar)} data-scan-play="" aria-keyshortcuts="Space">
-              {player.playing ? 'Stop' : sel && !mobile ? `Play from bar ${sel.bar + 1}` : 'Play'}
+              <span className={styles.playText}>{player.playing ? 'Stop' : sel && !mobile ? `Play from bar ${sel.bar + 1}` : 'Play'}</span>
             </Button>
             <IconButton icon="Undo2" label="Undo (Ctrl+Z)" size="sm" disabled={!scan.history?.past.length} onClick={() => {
               scan.undo();
               setAiMessage(null);
             }} data-scan-undo="" />
             {!mobile && <IconButton icon="Redo2" label="Redo (Ctrl+Shift+Z)" size="sm" disabled={!scan.history?.future.length} onClick={scan.redo} />}
-            <Button size="sm" variant="ghost" iconLeft="SkipForward" onClick={goNext} disabled={left === 0} data-scan-next="" aria-keyshortcuts="N" aria-label={`Next to check, ${left} left`}>
-              {mobile ? `${left}` : `Next to check (${left})`}
-            </Button>
+            {/* A phone shows it only while something is left: "All checked" already says the rest. */}
+            {(!mobile || left > 0) && (
+              <Button size="sm" variant="ghost" iconLeft="SkipForward" onClick={goNext} disabled={left === 0} data-scan-next="" aria-keyshortcuts="N" aria-label={`Next to check, ${left} left`}>
+                {mobile ? `${left}` : `Next to check (${left})`}
+              </Button>
+            )}
             <Menu
               trigger={<IconButton icon="SlidersHorizontal" label="Song details and more" size="sm" />}
               items={[

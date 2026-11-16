@@ -1,0 +1,46 @@
+# Triad Arpeggios in First Position (repertoire plan: st-arpeggio-triads). An original study in
+# C major, eighth notes, alternate picking (down on the beat, up on the "and").
+# Bars 1-12: the six major and minor chords of C major climb one step at a time, two bars each,
+# every arpeggio one octave up and down from its root (root, third, fifth, octave), landing on the
+# root as a half note. B diminished waits for the seventh-chord study.
+#   C   C E G C   string 5 fret 3, string 4 fret 2, string 3 open, string 2 fret 1 (the C shape)
+#   Dm  D F A D   string 4 open, string 4 fret 3, string 3 fret 2, string 2 fret 3 (finger 4)
+#   Em  E G B E   string 4 fret 2, strings 3, 2 and 1 open
+#   F   F A C F   string 4 fret 3, string 3 fret 2, string 2 fret 1, string 1 fret 1 (the small F)
+#   G   G B D G   string 6 fret 3, string 5 fret 2, strings 4 and 3 open (the bottom of G)
+#   Am  A C E A   string 5 open, string 5 fret 3 (finger 4), string 4 fret 2, string 3 fret 2
+# Bars 13-16: a short tune made of the same arpeggios, two chords a bar (F G | Em Am | Dm G | C).
+# The top note of each group sings a slow line on its own: C D | E C | D B | C.
+title: Triad Arpeggios in First Position
+composer: Sixstring Academy
+source: Original arpeggio study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: arpeggios, triads, alternate picking, first position, chord tones
+tempo: 88
+time: 4/4
+key: C
+
+track: Your part
+role: lead
+[C]
+| "C=x32010" e 5:3{3 dn} 4:2{2 up} 3:0{dn} 2:1{1 up} 3:0{dn} 4:2{up} 5:3{dn} 4:2{up} | 3:0{dn} 2:1{up} 3:0{dn} 4:2{up} h 5:3{dn} |
+[Dm]
+| "Dm=xx0231" e 4:0 4:3{3} 3:2{2} 2:3{4} 3:2 4:3 4:0 4:3 | 3:2 2:3 3:2 4:3 h 4:0 |
+[Em]
+| "Em=022000" e 4:2{2} 3:0 2:0 1:0 2:0 3:0 4:2 3:0 | 2:0 1:0 2:0 3:0 h 4:2 |
+[F]
+| "F=xx3211" e 4:3{3} 3:2{2} 2:1{1} 1:1{1} 2:1 3:2 4:3 3:2 | 2:1 1:1 2:1 3:2 h 4:3 |
+[G]
+| "G=320003" e 6:3{3} 5:2{2} 4:0 3:0 4:0 5:2 6:3 5:2 | 4:0 3:0 4:0 5:2 h 6:3 |
+[Am]
+| "Am=x02210" e 5:0 5:3{4} 4:2{2} 3:2{3} 4:2 5:3 5:0 5:3 | 4:2 3:2 4:2 5:3 h 5:0 |
+[Tune]
+| "F" e 4:3{3} 3:2{2} 2:1{1} 3:2 "G" 3:0 2:0 2:3{3} 2:0 | "Em" 3:0 2:0 1:0 2:0 "Am" 4:2{2} 3:2{3} 2:1{1} 3:2 |
+| "Dm" 4:3{3} 3:2{2} 2:3{4} 3:2 "G" 4:0 3:0 2:0 3:0 | "C" 5:3{3} 4:2{2} 3:0 2:1{1} h (5:3 4:2 3:0 2:1 1:0){dn} ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / | / / | / / |
+| / / | / / | / / | / / | / / | / / |
+| / / | / / | / / | w / ||

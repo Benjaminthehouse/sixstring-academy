@@ -498,6 +498,23 @@ describe('batch 4 review', () => {
     expect(songEntry('st-change-g-c-c-g7')!.about).toContain('instead of the 2, 1 and 3 the chord diagrams show');
   });
 
+  it('minuet-in-g-melody: "reading across four strings" is what the melody does', () => {
+    const song = load('minuet-in-g-melody');
+    const strings = [...new Set(struckNotes(trackNamed(song, 'Melody')).map((n) => n.string))].sort();
+    expect(strings).toEqual([1, 2, 3, 4]);
+    expect(songEntry('minuet-in-g-melody')!.teaches).toContain('Reading across four strings');
+  });
+
+  it('eine-kleine-nachtmusik: the rests of bars 1 and 3 fall on beats 2 and 4, the note after each on the "and"', () => {
+    const song = load('eine-kleine-nachtmusik');
+    for (const bar of [0, 2]) {
+      const beats = song.tracks[0].measures[bar].beats;
+      expect(beats.filter((b) => !b.notes.length).map((b) => b.start), `bar ${bar + 1}: rests`).toEqual([PPQ, 3 * PPQ]);
+      expect(beats.filter((b) => b.notes.length && b.duration === PPQ / 2).map((b) => b.start), `bar ${bar + 1}: notes after the rests`).toEqual([1.5 * PPQ, 3.5 * PPQ]);
+    }
+    expect(songEntry('eine-kleine-nachtmusik')!.about).toContain('each rest falls on beat 2 or 4');
+  });
+
   it('o-come-all-ye-faithful: each slurred figure carries one syllable, the next note the next one', () => {
     const song = load('o-come-all-ye-faithful');
     const tune = trackNamed(song, 'Tune');

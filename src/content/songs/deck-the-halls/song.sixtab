@@ -2,7 +2,8 @@
 # Galan) in G, first position. Lines 1, 2 and 4 start high on string 2, fret 3 (D) and step down
 # the scale: D. C B A | G A B G. The fa-la-la of lines 1 and 2 ends with the leading note F#
 # (string 4, fret 4, finger 4) rising to G. Line 3 climbs through the one sharp the tune adds,
-# C# (string 2, fret 2), to the top G (string 1, fret 3), and line 4 closes on re re do.
+# C# (string 2, fret 2), to the top G (string 1, fret 3). Line 4's fa-la-la starts on four
+# repeated E's (open string 1) and walks down the scale home: E E E E D. C | B A G (mi re do).
 # Fingers: first position, finger = fret (1 on fret 1, 2 on fret 2, 3 on fret 3, 4 on fret 4).
 # The teacher strums G, C and D7.
 title: Deck the Halls
@@ -29,7 +30,7 @@ lyrics: 'Tis the sea- son to be jol- ly, Fa la la la la, la la la la.
 | "D7" q. 3:2 e 2:0 q 2:1 3:2 | "G" q. 2:0 e 2:1 "D7" q 2:3 3:2 | "G" e 2:0 2:2{2} q 2:3 e 1:0 1:2{2} q 1:3{3} | "D7" q 1:2 1:0 h 2:3 |
 lyrics: Don we now our gay ap- par- el, Fa la la, la la la, la la la.
 [Line 4]
-| "G" q. 2:3 e 2:1 q 2:0 3:2 | "C" 3:0 3:2 "G" 2:0 3:0 | "C" e 1:0 1:0 1:0 2:3 q. 2:1 e 2:0 | "D7" q 3:2 3:2 "G" h 3:0 ||
+| "G" q. 2:3 e 2:1 q 2:0 3:2 | "C" 3:0 3:2 "G" 2:0 3:0 | "C" e 1:0 1:0 1:0 1:0 "G" q. 2:3 e 2:1 | "G" q 2:0 "D7" 3:2 "G" h 3:0 ||
 lyrics: Troll the an- cient Yule- tide car- ol, Fa la la la la, la la la la.
 
 track: Teacher
@@ -37,4 +38,4 @@ role: rhythm
 | h / / | / / | / / | q / / h / |
 | h / / | / / | / / | q / / h / |
 | h / / | / / | / / | / / |
-| h / / | / / | w / | h / / ||
+| h / / | / / | / / | q / / h / ||

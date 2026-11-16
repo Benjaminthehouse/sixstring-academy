@@ -14,7 +14,7 @@ export default defineSong({
   skills: ['melody', 'chords', 'strumming'],
   tags: ['russian', 'minor key', 'folk dance', 'shift', 'first position'],
   about:
-    'It should bounce like a dance: long-short-short, then a step up, with every eighth note even. Keep your hand in first position, one finger per fret, until bar 5. There, after F (string 1, fret 1), move your hand up one fret so finger 4 lands on the high A at fret 5, then bring finger 1 straight back to F. If you arrive late, loop bars 4 to 6 slowly until the shift happens without looking. The Strum part is Am, E7 and Dm, one downstrum per beat.',
+    'It should bounce like a dance, long-short-short, with every eighth note even. Keep your hand in first position, one finger per fret, until bar 5: after F (string 1, fret 1), move your hand up one fret so finger 4 lands on the high A at fret 5, take G with finger 2, then bring finger 1 back to F. If you arrive late, loop bars 4 to 6 slowly until the shift happens without looking. To strum instead, choose the Strum part under Parts: Am, E7 and Dm, one downstrum per beat.',
   plan: 'korobeiniki',
   added: '2026-11-16',
 });

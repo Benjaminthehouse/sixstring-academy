@@ -449,3 +449,78 @@ describe('batch 6: the cross-check catches a wrong fret', () => {
     expect(bar11).not.toEqual(bars(SONGS.find((s) => s.id === 'st-read-first-g')!.notes)[10]);
   });
 });
+
+/*
+ * Independent review (second pass). The note lists above were compared bar by bar with the
+ * reviewer's own reading of each tune (Greensleeves and the Für Elise A section as commonly
+ * printed) and of each study's plan; they agree. These checks pin what the review corrected:
+ * learner copy that described the music wrongly, and a source comment that over-claimed.
+ */
+describe('batch 6 review: the learner copy is true of the music', () => {
+  it('greensleeves-melody: G# rises to A on "off dis-", "was my" and at the end of each half, and falls to E only at the two "-ly"/"-light" closes', () => {
+    const song = load('greensleeves-melody');
+    const melody = trackNamed(song, 'Melody');
+    const notes = notesOf(melody);
+    const lyricAt = (bar: number, tick: number) => melody.measures[bar].beats.find((b) => b.start === tick)?.lyric;
+    const rises: string[] = [];
+    const falls: string[] = [];
+    notes.forEach((n, i) => {
+      if (n.midi % 12 !== pc('G#')) return;
+      const next = notes[i + 1];
+      if (!next) return;
+      if (next.midi === n.midi + 1) rises.push(`${lyricAt(next.bar, next.tick) ?? '_'}`);
+      else if (next.midi < n.midi - 2) falls.push(`${lyricAt(next.bar, next.tick)}`);
+    });
+    // "dis-" (verse, bar 4), "sleeves." and "ny." (ends of the halves), "my" (refrain, "was my").
+    expect(rises).toEqual(['dis-', 'ny.', 'my', 'sleeves.']);
+    expect(falls).toEqual(['ly.', 'light.']);
+  });
+
+  it('greensleeves-melody: the long-short-medium figure (dotted eighth, sixteenth, eighth) falls on "love" and "-sleeves"', () => {
+    const song = load('greensleeves-melody');
+    const melody = trackNamed(song, 'Melody');
+    const words = (bar: number) => {
+      const beats = melody.measures[bar].beats;
+      const i = beats.findIndex((b, k) => b.duration === 720 && beats[k + 1]?.duration === 240 && beats[k + 2]?.duration === 480);
+      return beats[i]?.lyric;
+    };
+    expect(words(1)).toBe('love,');
+    expect(words(9)).toBe('sleeves');
+  });
+
+  it('st-read-first-g: the only non-chord note on beats 1 and 3 is the passing E in bar 7, and the Score option the about names exists', () => {
+    const song = load('st-read-first-g');
+    const odd = notesOf(trackNamed(song, 'Your part'))
+      .filter((n) => (n.tick === 0 || n.tick === 2 * PPQ) && !chordPcs(chordAt(song, n.bar, n.tick)!).includes(n.midi % 12))
+      .map((n) => `bar ${n.bar + 1} beat ${n.tick / PPQ + 1}: ${name(n.midi)} over ${chordAt(song, n.bar, n.tick)}`);
+    expect(odd).toEqual(['bar 7 beat 3: E3 over D7']);
+    const about = songEntry('st-read-first-g')!.about;
+    expect(about).toContain('"Tab and notes"');
+    const controls = readFileSync(new URL('../../features/player/components/Controls.tsx', import.meta.url), 'utf8');
+    expect(controls, 'the Player still offers a "Tab and notes" score').toContain("label: 'Tab and notes'");
+  });
+
+  it('greensleeves-melody: the about names no bar number (the Player counts the pickup as bar 1)', () => {
+    expect(songEntry('greensleeves-melody')!.about).not.toMatch(/\bbar \d/);
+  });
+
+  it('st-duet-round: long notes sound under your turns, running eighths over your bell notes', () => {
+    const song = load('st-duet-round');
+    const you = trackNamed(song, 'You (first voice)');
+    const teacher = trackNamed(song, 'Teacher (second voice)');
+    // Your turns (segment 1) after the teacher has entered: bars 9-10; your bell (segment 4): bars 7-8 and 15-16.
+    for (const bar of [8, 9]) expect(teacher.measures[bar].beats.every((b) => b.duration >= 2 * PPQ), `bar ${bar + 1}`).toBe(true);
+    for (const bar of [6, 7, 14, 15]) {
+      expect(teacher.measures[bar].beats.every((b) => b.duration === PPQ / 2), `bar ${bar + 1}: eighths`).toBe(true);
+      const low = Math.max(...you.measures[bar].beats.flatMap((b) => b.notes.map((n) => n.midi)));
+      const lowestTeacher = Math.min(...teacher.measures[bar].beats.flatMap((b) => b.notes.map((n) => n.midi)));
+      expect(lowestTeacher, `bar ${bar + 1}: the teacher's eighths sit at or above your bell notes`).toBeGreaterThanOrEqual(low);
+    }
+  });
+
+  it('fur-elise-theme: the source comment does not claim the first edition was consulted', () => {
+    const text = readFileSync(new URL('../songs/fur-elise-theme/song.sixtab', import.meta.url), 'utf8');
+    expect(text).not.toMatch(/from the 1867 first edition/);
+    expect(text).toMatch(/not yet been checked against a scan/);
+  });
+});

@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['melody', 'rhythm'],
   tags: ['mozart', 'serenade', 'arpeggio', 'rests', 'orchestra', 'famous opening'],
   about:
-    'Four bars that sound like a fanfare: a call, then an answer. Keep every note short and bright and let the silences between them be clean; to stop a note in a rest, lift the fretting finger or touch the string with your picking hand. The usual mistake is letting the open strings ring through the rests, which blurs the arpeggios. Count "1 and 2 and" out loud: the rests fall on the "and" after each quarter note.',
+    'Four bars that sound like a fanfare: a call, then an answer. Keep every note short and bright and let the silences between them be clean; to stop a note in a rest, lift the fretting finger or touch the string with your picking hand. The usual mistake is letting the open strings ring through the rests, which blurs the arpeggios. Count "1 and 2 and 3 and 4 and" out loud: in bars 1 and 3 each rest falls on beat 2 or 4, and the short note after it comes on the "and".',
   plan: 'eine-kleine-nachtmusik',
   added: '2026-11-16',
 });

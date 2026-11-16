@@ -1,0 +1,33 @@
+# Thumb-Lead Melody with Brush Strums (repertoire plan: st-carter-style). An original 16-bar tune
+# in C major, played the "thumb-lead" way: the tune is in the bass, on strings 6, 5 and 4 in first
+# position, picked by the thumb on the beats; between the tune notes, on every "and", the index
+# finger (i) brushes down across strings 3, 2 and 1 of the chord: C (x32010) G C E, F (xx3211)
+# A C F, G7 (320001) G B F. Form: A (C C F C), A again (C C G7 G7), B (F F C C), A (C F G7 C).
+# A tie (a dash after the string) means the tune note keeps ringing: do not pick it again, just
+# keep brushing. The brushes only need finger 1 for C and G7 (string 2 fret 1, string 1 fret 1)
+# and fingers 1 and 2 for F, so the other fingers are free for the tune: in F, finger 3 stays on
+# string 4 fret 3 as in the chord and finger 4 reaches string 5 fret 3 for C.
+title: Thumb-Lead Melody with Brush Strums
+composer: Sixstring Academy
+source: Original fingerstyle study in the thumb-lead style
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: thumb lead, brush strum, melody in the bass, fingerstyle, country
+tempo: 88
+time: 4/4
+key: C
+
+track: Your part
+role: lead
+[A]
+| "C=x32010" e 5:3{P 3} ^"brush with i" (3:0{I} 2:1{I} 1:0{I}){dn} 4:0 (3:0 2:1 1:0){dn} 4:2{2} (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} | 6:3{3} (3:0 2:1 1:0){dn} 6:- (3:0 2:1 1:0){dn} 5:0 (3:0 2:1 1:0){dn} 5:2{2} (3:0 2:1 1:0){dn} |
+| "F=xx3211" 5:3{4} (3:2 2:1 1:1){dn} 5:0 (3:2 2:1 1:1){dn} 5:3{4} (3:2 2:1 1:1){dn} 4:3{3} (3:2 2:1 1:1){dn} | "C" 4:2{2} (3:0 2:1 1:0){dn} 4:- (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} 5:- (3:0 2:1 1:0){dn} |
+[A again]
+| 5:3{3} (3:0 2:1 1:0){dn} 4:0 (3:0 2:1 1:0){dn} 4:2{2} (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} | 4:2{2} (3:0 2:1 1:0){dn} 4:3{3} (3:0 2:1 1:0){dn} 4:2{2} (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} |
+| "G7=320001" 5:2{2} (3:0 2:0 1:1){dn} 5:- (3:0 2:0 1:1){dn} 4:0 (3:0 2:0 1:1){dn} 5:2{2} (3:0 2:0 1:1){dn} | 6:3{3} (3:0 2:0 1:1){dn} 6:- (3:0 2:0 1:1){dn} 6:- (3:0 2:0 1:1){dn} 6:- (3:0 2:0 1:1){dn} |
+[B]
+| "F" 4:3{3} (3:2 2:1 1:1){dn} 4:- (3:2 2:1 1:1){dn} 5:3{4} (3:2 2:1 1:1){dn} 5:0 (3:2 2:1 1:1){dn} | 5:3{4} (3:2 2:1 1:1){dn} 4:0 (3:2 2:1 1:1){dn} 5:3{4} (3:2 2:1 1:1){dn} 5:0 (3:2 2:1 1:1){dn} |
+| "C" 4:2{2} (3:0 2:1 1:0){dn} 4:- (3:0 2:1 1:0){dn} 6:3{3} (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} | 4:2{2} (3:0 2:1 1:0){dn} 4:0 (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} 5:2{2} (3:0 2:1 1:0){dn} |
+[A to finish]
+| 5:3{3} (3:0 2:1 1:0){dn} 4:0 (3:0 2:1 1:0){dn} 4:2{2} (3:0 2:1 1:0){dn} 5:3{3} (3:0 2:1 1:0){dn} | "F" 4:3{3} (3:2 2:1 1:1){dn} 4:- (3:2 2:1 1:1){dn} 5:3{4} (3:2 2:1 1:1){dn} 5:0 (3:2 2:1 1:1){dn} |
+| "G7" 6:3{3} (3:0 2:0 1:1){dn} 5:2{2} (3:0 2:0 1:1){dn} 4:0 (3:0 2:0 1:1){dn} 5:2{2} (3:0 2:0 1:1){dn} | "C" e 5:3{3} (3:0 2:1 1:0){dn} 5:- (3:0 2:1 1:0){dn} h (5:3 4:2 3:0 2:1 1:0){dn} ||

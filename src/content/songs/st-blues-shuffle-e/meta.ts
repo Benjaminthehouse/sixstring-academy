@@ -13,7 +13,7 @@ export default defineSong({
   skills: ['form', 'rhythm', 'chords'],
   tags: ['12-bar', 'shuffle', 'swing', 'quick change', 'blues in e', 'b7'],
   about:
-    'This is the shuffle from the blues in A, moved to E: the open low E string with fret 2, then fret 4, on string 5, long-short on every beat, and for A the same shape one string over. The quick change sends you to A in bar 2 and straight back, so have fingers 1 and 3 ready to hop over a string on the last short note of bar 1. In bars 9 and 12 let go of the shuffle and strum B7, still long-short: down on the beat, up on the short note. If the swing turns stiff, say "hump-ty, dump-ty" in time and match it.',
+    'This is the shuffle from the blues in A, moved to E: the open low E string with fret 2, then fret 4, on string 5, long-short on every beat, and for A the same shape one string toward string 1. The quick change sends you to A in bar 2 and straight back, so lift fingers 1 and 3 right after the last short note of bar 1 and land them one string over on the beat. In bars 9 and 12 let go of the shuffle and strum B7 from string 5, still long-short: down on the beat, up on the short note; the jump into B7 is the hardest change here, so loop bars 8 and 9 slowly first. If the swing turns stiff, say "hump-ty, dump-ty" in time and match it.',
   plan: 'st-blues-shuffle-e',
   added: '2026-11-16',
 });

@@ -107,7 +107,8 @@ describe('pages', () => {
   });
 
   it('describes a page and gives advice only when it helps', () => {
-    expect(describeLook({ kind: 'both', tab: 2, notation: 2, quality: 0.9, skew: 0.4, staffSpace: 12, paperCover: null })).toEqual({ summary: '2 notation staves and 2 tab staves found.', advice: null });
+    expect(describeLook({ kind: 'both', tab: 2, notation: 2, quality: 0.9, skew: 0.4, staffSpace: 12, paperCover: null })).toEqual({ summary: '2 lines of notation and 2 lines of tab found.', advice: null });
+    expect(describeLook({ kind: 'tab', tab: 1, notation: 0, quality: 0.9, skew: 0, staffSpace: 12, paperCover: null }).summary).toBe('1 line of tab found.');
     expect(describeLook({ kind: 'tab', tab: 1, notation: 0, quality: 0.3, skew: 0, staffSpace: 12, paperCover: null }).advice).toMatch(/soft or dim/);
     expect(describeLook({ kind: 'tab', tab: 1, notation: 0, quality: 0.9, skew: 0, staffSpace: 5, paperCover: null }).advice).toMatch(/move closer/);
     expect(describeLook({ kind: 'not-music', tab: 0, notation: 0, quality: 0, skew: 0, staffSpace: 0, paperCover: null }).advice).toMatch(/Retake/);

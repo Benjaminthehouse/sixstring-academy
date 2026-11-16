@@ -1,15 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { it } from 'vitest';
-import { scalePatterns, chordVoicings, identifyFretted } from '@/core/guitar';
+import { estimateDifficulty, parseSixTab, songStats } from '@/core/song';
+const IDS = ['st-read-second-position', 'st-arpeggio-triads'];
 it('explore', () => {
-  for (const up of [false, true]) {
-    for (const p of scalePatterns('A', 'minor-pentatonic', { upTheNeck: up })) {
-      console.log(up, p.id, p.name, p.positionName, p.position, p.minFret, p.maxFret, p.notes.map((n) => `${n.string}:${n.fret}${n.note}{${n.finger}}${n.stretch ? 'S' : ''}${n.shift ? 'H' : ''}`).join(' '));
-    }
+  for (const id of IDS) {
+    const song = parseSixTab(readFileSync(new URL(`../songs/${id}/song.sixtab`, import.meta.url), 'utf8')).song!;
+    const y = estimateDifficulty(song, { track: 0 });
+    const a = estimateDifficulty(song);
+    const t = songStats(song).tracks[0];
+    console.log(id, 'yours', y.level, y.score, JSON.stringify(y.factors), y.reasons.join(' | '), '| all', a.level, '| span', t.maxSpan, 'shifts', t.shifts, 'nps', t.notesPerSecond.toFixed(2));
   }
-  for (const s of ['133211', '355433', '577655', '133111', '355333', '577555', 'x13331', 'x24442', 'x35553', 'x24432', 'x35543', 'xx3210', 'x02010', '320001', 'xx3211']) {
-    console.log(s, identifyFretted(s)?.symbol);
-  }
-  console.log(chordVoicings('F').slice(0, 3).map((v) => `${v.label} ${v.frets.join(',')} ${v.fingers.join(',')}`));
-  console.log(chordVoicings('Bb').slice(0, 3).map((v) => `${v.label} ${v.frets.join(',')} ${v.fingers.join(',')}`));
-  console.log(chordVoicings('Bm').slice(0, 3).map((v) => `${v.label} ${v.frets.join(',')} ${v.fingers.join(',')}`));
 });

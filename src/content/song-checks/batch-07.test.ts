@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, flattenSong, parseSixTab, validateSong, type Beat, type Song, type Track } from '@/core/song';
 import { chordNotes, chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
+import { assignFingers, identifyFretted, midiAt, parseFrets } from '@/core/guitar';
 import { songEntry } from '@/content/songs';
 import plan from '@/content/plan/repertoire.json';
 
@@ -393,5 +394,76 @@ describe('batch 7: canon-in-d, the ground bass and the canon', () => {
     expect(new Set(last).size).toBeGreaterThan(0);
     for (const pc of last) expect(chordPcs('D')).toContain(pc);
     expect(chordAt(song, 16, 0)?.symbol).toBe('D');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Independent review (second reader). The lists below were written from the reviewer's own
+// knowledge of the tunes before reading the lists above, in sounding pitch and tab positions,
+// so a slip shared by the writer's lists and the tab would still show up here.
+// ---------------------------------------------------------------------------------------------
+
+describe('batch 7 review: korobeiniki in sounding pitch and tab', () => {
+  const song = load('korobeiniki');
+  const melody = trackNamed(song, 'Melody');
+  // Bar by bar: the tab a teacher would give in first position, and what it sounds.
+  const TAB = '1:0 2:0 2:1 2:3 2:1 2:0 | 3:2 3:2 2:1 1:0 2:3 2:1 | 2:0 2:1 2:3 1:0 | 2:1 3:2 3:2 | 2:3 1:1 1:5 1:3 1:1 | 1:0 2:1 1:0 2:3 2:1 | 2:0 2:0 2:1 2:3 1:0 | 2:1 3:2 3:2';
+  const SOUNDING = 'E4 B3 C4 D4 C4 B3 | A3 A3 C4 E4 D4 C4 | B3 C4 D4 E4 | C4 A3 A3 | D4 F4 A4 G4 F4 | E4 C4 E4 D4 C4 | B3 B3 C4 D4 E4 | C4 A3 A3';
+
+  it('plays the folk tune on these strings and frets, and they sound these notes', () => {
+    const got = melody.measures.map((m) => m.beats.flatMap((b) => b.notes.map((n) => `${n.string}:${n.fret}`)));
+    expect(got).toEqual(bars(TAB));
+    // The engine's own fret-to-pitch mapping agrees with the names written here.
+    const fromFrets = bars(TAB).map((bar) => bar.map((p) => { const [s, f] = p.split(':').map(Number); return name(midiAt({ string: s, fret: f })); }));
+    expect(fromFrets).toEqual(bars(SOUNDING));
+    expect(melody.measures.map((m) => m.beats.flatMap((b) => b.notes.map((n) => name(n.midi))))).toEqual(bars(SOUNDING));
+  });
+
+  it('fingers the bar-5 shift 3 1 4 2 1: up to the A with finger 4, G with 2, back to F with 1', () => {
+    expect(melody.measures[4].beats.map((b) => b.notes[0].finger)).toEqual([3, 1, 4, 2, 1]);
+  });
+});
+
+describe('batch 7 review: canon-in-d, your chords sit on the ground bass', () => {
+  const song = load('canon-in-d');
+  const yours = trackNamed(song, 'Your part');
+
+  it('the lowest note of every strummed shape is the ground-bass note of that beat', () => {
+    const ground = struckNotes(yours).filter((n) => n.bar < 2).map((n) => n.midi % 12);
+    expect(ground.map((pc) => name(pc + 48).replace(/\d+$/, ''))).toEqual(['D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A']);
+    for (let bar = 8; bar < 16; bar++) {
+      yours.measures[bar].beats.forEach((b, i) => {
+        const v = chordAt(song, bar, b.start)!.voicing!;
+        const lowest = Math.min(...v.flatMap((f, s) => (f === null ? [] : [STANDARD[s] + f])));
+        expect(lowest % 12, `bar ${bar + 1}, beat ${i + 1}: ${chordAt(song, bar, b.start)!.symbol}`).toBe(ground[((bar - 8) % 2) * 4 + i]);
+      });
+    }
+  });
+});
+
+describe('batch 7 review: shapes, fingers and learner notes', () => {
+  it('the guitar engine reads every written shape as its symbol', () => {
+    for (const id of ['korobeiniki', 'canon-in-d']) {
+      const song = load(id);
+      for (const c of song.chords) {
+        expect(c.voicing, `${id}: bar ${c.bar + 1}: ${c.symbol} has a shape`).toBeTruthy();
+        expect(identifyFretted(shapeOf(c.voicing)).symbol, `${id}: ${c.symbol}=${shapeOf(c.voicing)}`).toBe(c.symbol);
+      }
+    }
+  });
+
+  it('the small F#m is a finger-1 barre on strings 3 to 1 with finger 3 on string 4, as the notes say', () => {
+    const f = assignFingers(parseFrets('xx4222'))!;
+    expect(f.fingers).toEqual([null, null, 3, 1, 1, 1]);
+    expect(f.barres).toEqual([{ fret: 2, finger: 1, fromString: 3, toString: 1 }]);
+    expect(songEntry('canon-in-d')!.about).toMatch(/finger 1 flat across strings 3 to 1 at fret 2 with finger 3 on string 4, fret 4/);
+  });
+
+  it('each about has two to four sentences, as the songs README asks', () => {
+    for (const id of ['korobeiniki', 'canon-in-d']) {
+      const sentences = songEntry(id)!.about.split(/[.!?](?:\s|$)/).filter((s) => s.trim().length > 3);
+      expect(sentences.length, `${id}/meta.ts about`).toBeGreaterThanOrEqual(2);
+      expect(sentences.length, `${id}/meta.ts about`).toBeLessThanOrEqual(4);
+    }
   });
 });

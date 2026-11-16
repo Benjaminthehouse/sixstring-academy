@@ -14,6 +14,9 @@
  *              and typed tab (straight from its text layer)
  *   text       a photo of a chord sheet (OCR with the vendored Tesseract) and a pasted ASCII tab
  *   ai         "Improve with AI" against a fake Claude (the artifact's `sample` capability)
+ *   review     what an independent review found broken, kept fixed: keys before any click, work
+ *              kept on leaving and asked about on reload, progress that only moves forward, saving
+ *              that keeps every note and survives an impossible fret, 360 px and 200 % text
  *   shots      phone and desktop, dark and light screenshots in e2e/out/scan-*.png
  *
  * Prints one line per check and PASSED / FAILED; exits non-zero on failure.
@@ -104,7 +107,7 @@ async function makeFixtures() {
   const pngMod = await loadTs('/src/core/omr/eval/png.ts');
   const jpeg = require(path.join(ROOT, 'node_modules', 'jpeg-js'));
   const made = {};
-  const write = (name, img, kind) => {
+  const write = (name, img, kind, quality = 88) => {
     const file = path.join(FIX, name);
     if (kind === 'jpeg') {
       const rgba = img.rgba ?? (() => {
@@ -112,7 +115,7 @@ async function makeFixtures() {
         for (let i = 0; i < img.width * img.height; i++) out.set([img.data[i], img.data[i], img.data[i], 255], i * 4);
         return out;
       })();
-      fs.writeFileSync(file, jpeg.encode({ data: Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength), width: img.width, height: img.height }, 88).data);
+      fs.writeFileSync(file, jpeg.encode({ data: Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength), width: img.width, height: img.height }, quality).data);
     } else pngMod.writePng(file, img);
     return file;
   };
@@ -120,7 +123,7 @@ async function makeFixtures() {
     const f = opts.dir ? { gray: pngMod.readPngGray(path.join(opts.dir, `${id}.png`)), truth: truthMod.hydrateTruth(JSON.parse(fs.readFileSync(path.join(opts.dir, `${id}.json`), 'utf8'))) } : fx.loadFixture(id);
     const d = tier === 'clean' ? { width: f.gray.width, height: f.gray.height, data: f.gray.data, truth: f.truth } : dg.degrade(f.gray, f.truth, tier, seed);
     const name = `${id}-${tier}.${tier === 'clean' || tier === 'scan' ? 'png' : 'jpg'}`;
-    const file = tier === 'clean' ? write(name, f.gray, 'png') : tier === 'scan' ? write(name, d.gray, 'png') : write(name, d, 'jpeg');
+    const file = tier === 'clean' ? write(name, f.gray, 'png') : tier === 'scan' ? write(name, d.gray, 'png') : write(name, d, 'jpeg', opts.quality);
     made[`${id}:${tier}`] = { file, truth: truthBars(d.truth ?? f.truth), width: d.width, height: d.height };
     return made[`${id}:${tier}`];
   };
@@ -135,6 +138,10 @@ async function makeFixtures() {
   add('linked-aura-lee-leland-150', 'photo-bad', 1);
   add('tab-fingerstyle-bri-150', 'clean');
   add('tab-pentatonic-jbm-150', 'clean');
+  // The review's pictures: a bad photo whose bars do not add up, and an unseen tab page whose photo
+  // reads two numbers as one fret (92, 48).
+  add('tab-rhythm-lsb-150', 'photo-bad', 7, { quality: 80 });
+  add('ut-heavy-rhythm-t14', 'photo-good', 7, { quality: 80, dir: path.join(ROOT, 'src/core/omr/fixtures-unseen') });
   return made;
 }
 
@@ -767,6 +774,119 @@ async function groupAi(browser, url, fx) {
   await p.close();
 }
 
+/**
+ * What an independent review found broken, kept fixed: keys that did nothing until something was
+ * clicked, work lost on leaving the screen or reloading, a progress bar that ran backwards, saving
+ * that cut away notes or failed on an impossible fret, and phone layouts at 360 px and large text.
+ */
+async function groupReview(browser, url, fx) {
+  const g = 'review';
+  const p = await newPage(browser, url);
+  await openScan(p);
+  await p.page.click('[data-scan-sample]');
+  await waitLooked(p, 1);
+  // The progress bar only moves forward (the chord names are read after the music).
+  await p.page.evaluate(() => {
+    window.__progress = [];
+    new MutationObserver(() => {
+      const bar = document.querySelector('[data-scan="reading"] [role="progressbar"]');
+      const v = bar ? Number(bar.getAttribute('aria-valuenow')) : NaN;
+      if (Number.isFinite(v) && window.__progress[window.__progress.length - 1] !== v) window.__progress.push(v);
+    }).observe(document.body, { subtree: true, childList: true, attributes: true });
+  });
+  await readIt(p);
+  const progress = await p.page.evaluate(() => window.__progress);
+  check(g, 'the reading progress never runs backwards', progress.length >= 2 && progress.every((v, i) => i === 0 || v >= progress[i - 1]), progress);
+
+  // Keys work straight after reading, before anything was clicked (focus is on the page body).
+  const focus = await p.page.evaluate(() => document.activeElement?.tagName);
+  await p.page.keyboard.press('ArrowRight');
+  await p.page.keyboard.press('7');
+  await p.page.waitForTimeout(400);
+  const fret = await p.page.evaluate(() => window.__ssaScan.draft.song.tracks[0].measures[0].beats[1].notes[0].fret);
+  check(g, 'arrow keys and digits work without clicking first', fret === 7, { focus, fret });
+
+  // Leaving the screen keeps the reading and the change; reading again asks first.
+  await p.page.evaluate(() => { location.hash = '#home'; });
+  await p.page.waitForSelector('main[data-route="home"]', { timeout: 30000 });
+  await p.page.evaluate(() => { location.hash = '#scan'; });
+  await p.page.waitForSelector('[data-scan="capture"]', { timeout: 60000 });
+  const back = await p.page.evaluate(() => ({ text: document.querySelector('main').innerText, continueIsPrimary: !!document.querySelector('[data-scan-continue]') }));
+  check(g, 'leave the screen and come back: the reading is still there, "Continue checking" first', /is still here/.test(back.text) && back.continueIsPrimary, back.text.slice(0, 200));
+  await p.page.click('[data-scan-read]');
+  const asked = await p.page.getByRole('alertdialog').or(p.page.getByRole('dialog')).filter({ hasText: 'Read the pages again?' }).count();
+  check(g, '"Read again" asks before replacing a reading with changes', asked === 1);
+  await p.page.getByRole('button', { name: 'Keep my changes' }).click();
+  await p.page.click('[data-scan-continue]');
+  await p.page.waitForSelector('[data-scan="proof"]', { timeout: 30000 });
+  const kept = await p.page.evaluate(() => window.__ssaScan.draft.song.tracks[0].measures[0].beats[1].notes[0].fret);
+  check(g, '"Continue checking" brings the change back, with Undo', kept === 7 && (await p.page.isEnabled('[data-scan-undo]')), kept);
+
+  // A reload asks first while there are changes.
+  let dialog = null;
+  p.page.once('dialog', (d) => {
+    dialog = d.type();
+    void d.dismiss();
+  });
+  await p.page.reload({ timeout: 4000 }).catch(() => undefined);
+  await p.page.waitForTimeout(300);
+  check(g, 'a reload asks first and, when the learner stays, the work stays', dialog === 'beforeunload' && (await p.page.$('[data-scan="proof"]')) !== null, dialog);
+
+  // Saving a bad photo keeps every note the reader found (bars that do not add up were cut before).
+  await startOver(p);
+  await upload(p, [fx['tab-rhythm-lsb-150:photo-bad'].file]);
+  await waitLooked(p, 1);
+  await readIt(p);
+  const readNotes = await p.page.evaluate(() => window.__ssaScan.draft.song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes)).length);
+  await p.page.click('[data-scan-save]');
+  await p.page.getByRole('button', { name: 'Save anyway' }).click();
+  await p.page.waitForSelector('[data-scan="saved"]', { timeout: 30000 });
+  const savedId = (await p.page.getAttribute('[data-scan-open-player]', 'href')).split('#play--')[1];
+  const savedSong = await p.page.evaluate(async (id) => {
+    const lib = await import('/src/core/library/index.ts');
+    const song = await lib.loadSong(id);
+    return { notes: song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes)).length, bars: song.bars.length };
+  }, savedId);
+  check(g, `a bad photo saved anyway keeps every note it read (${readNotes} read, ${savedSong.notes} saved)`, savedSong.notes === readNotes, { readNotes, savedSong });
+
+  // A photo that read "9" "2" as fret 92: the fret is a marked guess on the neck, and the song saves.
+  await startOver(p);
+  await upload(p, [fx['ut-heavy-rhythm-t14:photo-good'].file]);
+  await waitLooked(p, 1);
+  await readIt(p);
+  const frets = await p.page.evaluate(() => {
+    const d = window.__ssaScan.draft;
+    const marks = d.marks.flatMap((b) => b.beats.flatMap((x) => x.notes));
+    return { max: Math.max(...d.song.tracks[0].measures.flatMap((m) => m.beats.flatMap((b) => b.notes.map((n) => n.fret)))), past: marks.filter((m) => /past the last fret/.test(m.reasons[0] ?? '')).length };
+  });
+  check(g, 'frets read past the last fret become marked guesses on the neck', frets.max <= 24 && frets.past > 0, frets);
+  await p.page.click('[data-scan-save]');
+  const anyway = p.page.getByRole('button', { name: 'Save anyway' });
+  if (await anyway.count()) await anyway.click();
+  const savedOk = await p.page.waitForSelector('[data-scan="saved"]', { timeout: 30000 }).then(() => true, () => false);
+  check(g, 'that photo can be saved (the library refused it before)', savedOk);
+  check(g, 'desktop: no browser errors', p.errors.length === 0, p.errors.slice(0, 3));
+  await p.close();
+
+  // The narrowest phone, and a phone with text at 200 %: nothing scrolls sideways.
+  for (const [tag, opts] of [['360 px', { viewport: { width: 360, height: 740 }, mobile: true }], ['text at 200 %', { mobile: true, init: () => document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('font-size', '200%', 'important')) }]]) {
+    const q = await newPage(browser, url, opts);
+    await openScan(q);
+    await q.page.click('[data-scan-sample]');
+    await waitLooked(q, 1);
+    const tray = await noHorizontalScroll(q);
+    await readIt(q);
+    const proof = await noHorizontalScroll(q);
+    await q.page.click('[data-scan-save]');
+    await q.page.waitForSelector('[data-scan="saved"]', { timeout: 30000 });
+    await q.page.waitForTimeout(600);
+    const saved = await noHorizontalScroll(q);
+    check(g, `${tag}: the pages, the proofreader and the saved screen fit the width`, tray && proof && saved, { tray, proof, saved });
+    check(g, `${tag}: no browser errors`, q.errors.length === 0, q.errors.slice(0, 3));
+    await q.close();
+  }
+}
+
 async function groupShots(browser, url, fx) {
   const g = 'shots';
   for (const [mobile, theme] of [[true, 'light'], [true, 'dark'], [false, 'light']]) {
@@ -810,7 +930,7 @@ async function groupShots(browser, url, fx) {
 (async () => {
   const fx = await makeFixtures();
   await withApp({}, async ({ browser, url }) => {
-    const groups = [['clean', groupClean], ['degraded', groupDegraded], ['pages', groupPages], ['pdf', groupPdf], ['text', groupText], ['ai', groupAi], ['shots', groupShots]];
+    const groups = [['clean', groupClean], ['degraded', groupDegraded], ['pages', groupPages], ['pdf', groupPdf], ['text', groupText], ['ai', groupAi], ['review', groupReview], ['shots', groupShots]];
     for (const [name, fn] of groups) {
       if (!want(name)) continue;
       const t0 = Date.now();

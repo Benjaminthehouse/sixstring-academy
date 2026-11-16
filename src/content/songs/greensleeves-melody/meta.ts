@@ -14,7 +14,7 @@ export default defineSong({
   skills: ['melody', 'rhythm'],
   tags: ['6/8', 'minor key', 'renaissance', 'english', 'lyrics', 'dotted rhythm'],
   about:
-    'Feel two slow, swaying beats in every bar, not six quick ones: count "1 2 3, 4 5 6" and lean on 1 and 4, where the teacher strums. G# (string 3, fret 1) pulls up to A at the end of every line, so keep finger 1 ready on fret 1. The usual trouble is the dotted figure on "love" and "Green-": a long note, a very short one, then a medium one; play bar 1 slowly against the strum until the short note stops sounding rushed.',
+    'Feel two slow, swaying beats in every bar, not six quick ones: count "1 2 3, 4 5 6" and lean on 1 and 4, where the teacher strums. G# (string 3, fret 1) leans up into A on "off dis-", on "was my" and at the end of each half, so keep finger 1 ready on fret 1. The usual trouble is the dotted figure on "love" and "-sleeves": a long note, a very short one, then a medium one; play the first full bar slowly against the strum until the short note stops sounding rushed.',
   plan: 'greensleeves-melody',
   added: '2026-11-16',
 });

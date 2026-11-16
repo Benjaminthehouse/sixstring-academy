@@ -10,7 +10,7 @@ export default defineSong({
   style: 'classical',
   kind: 'melody',
   key: 'G major',
-  teaches: ['A minuet: three beats, the first one strong', 'Reading across all six strings', 'Repeat signs: each half twice', 'One move up the neck and back'],
+  teaches: ['A minuet: three beats, the first one strong', 'Reading across four strings', 'Repeat signs: each half twice', 'One move up the neck and back'],
   skills: ['melody', 'form', 'rhythm'],
   tags: ['minuet', 'baroque', 'bach', 'anna magdalena', '3/4', 'repeats', 'dance'],
   about:

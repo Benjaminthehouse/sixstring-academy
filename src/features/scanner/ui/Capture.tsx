@@ -72,7 +72,23 @@ export function Capture({ scan }: { scan: ScanState }) {
   const looking = pages.some((p) => !p.look);
   const allText = kind === 'text';
   const nothing = pages.length > 0 && !looking && kind === 'unknown';
-  const readLabel = allText ? 'Read the text' : pages.length > 1 ? `Read ${pages.length} pages` : 'Read the music';
+  // A reading is waiting to be checked: going on with it comes first, reading again second.
+  const hasReading = !!(draft || text);
+  const readLabel = hasReading ? 'Read again' : allText ? 'Read the text' : pages.length > 1 ? `Read ${pages.length} pages` : 'Read the music';
+  const changes = scan.history?.past.length ?? 0;
+
+  const readAgain = async () => {
+    if (changes > 0) {
+      const ok = await confirmDialog({
+        title: 'Read the pages again?',
+        description: `A new reading replaces the one you were checking, with your ${changes === 1 ? 'change' : `${changes} changes`}. To keep ${changes === 1 ? 'it' : 'them'}, choose Continue checking instead.`,
+        confirmLabel: 'Read again',
+        cancelLabel: 'Keep my changes',
+      });
+      if (!ok) return;
+    }
+    void scan.read();
+  };
 
   const startAgain = async () => {
     const reading = !!(draft || text);
@@ -112,17 +128,19 @@ export function Capture({ scan }: { scan: ScanState }) {
           </Banner>
         )}
 
-        {(draft || text) && (
+        {hasReading && (
           <Banner
             tone="info"
             title={draft ? `Your reading of “${draft.song.meta.title}” is still here` : 'Your text is still here'}
             actions={
-              <Button size="sm" variant="primary" iconRight="ArrowRight" onClick={() => scan.setPhase(draft ? 'music' : 'text')}>
-                Continue checking
-              </Button>
+              pages.length > 0 ? (
+                <Button size="sm" iconLeft="ScanLine" disabled={looking || nothing || !!adding} onClick={() => void readAgain()} data-scan-read="">
+                  {readLabel}
+                </Button>
+              ) : undefined
             }
           >
-            Read the pages again to start a new reading.
+            {changes > 0 ? `With your ${changes === 1 ? 'change' : `${changes} changes`}. ` : ''}Continue checking it, or read the pages again for a new reading.
           </Banner>
         )}
 
@@ -188,14 +206,20 @@ export function Capture({ scan }: { scan: ScanState }) {
               </Text>
             }
           >
-            {nothing && (
+            {nothing && !hasReading && (
               <Button onClick={() => void scan.read({ force: true })} data-scan-force="">
                 Read it anyway
               </Button>
             )}
-            <Button variant="primary" iconLeft="ScanLine" size="lg" disabled={looking || nothing || !!adding} onClick={() => void scan.read()} data-scan-read="">
-              {readLabel}
-            </Button>
+            {hasReading ? (
+              <Button variant="primary" iconRight="ArrowRight" size="lg" onClick={() => scan.setPhase(draft ? 'music' : 'text')} data-scan-continue="">
+                Continue checking
+              </Button>
+            ) : (
+              <Button variant="primary" iconLeft="ScanLine" size="lg" disabled={looking || nothing || !!adding} onClick={() => void readAgain()} data-scan-read="">
+                {readLabel}
+              </Button>
+            )}
           </ActionBar>
         )}
       </Page>
@@ -342,7 +366,7 @@ function PageCard({ page, index, count, mobile, onOpen, onMove, onDropFrom, onRo
         </div>
         {look ? (
           <>
-            <Badge tone={tone} icon={tone === 'ok' ? 'CircleCheck' : tone === 'bad' ? 'CircleX' : 'TriangleAlert'}>
+            <Badge tone={tone} icon={tone === 'ok' ? 'CircleCheck' : tone === 'bad' ? 'CircleX' : 'TriangleAlert'} className={styles.kindBadge}>
               {kindLabel(look.kind)}
             </Badge>
             <Text size="sm" tone="muted">
@@ -356,7 +380,7 @@ function PageCard({ page, index, count, mobile, onOpen, onMove, onDropFrom, onRo
           </>
         ) : (
           <Text size="sm" tone="muted" aria-live="polite">
-            Looking for staves…
+            Looking for the music…
           </Text>
         )}
         {count > 1 && (

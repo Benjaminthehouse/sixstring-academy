@@ -99,15 +99,16 @@ export function describeLook(input: { kind: PageKind; tab: number; notation: num
   const { kind, tab, notation } = input;
   let summary: string;
   if (kind === 'text') summary = input.textLines ? `${plural(input.textLines, 'line')} of text: chords, lyrics or typed tab.` : 'Text: chords, lyrics or typed tab.';
-  else if (kind === 'not-music') summary = 'No staff lines found on this picture.';
+  else if (kind === 'not-music') summary = 'No printed music found on this picture.';
   else {
     const parts: string[] = [];
-    if (notation) parts.push(plural(notation, 'notation staff', 'notation staves'));
-    if (tab) parts.push(plural(tab, 'tab staff', 'tab staves'));
+    // "Staff" is a word a beginner may not know yet: a line of music says the same.
+    if (notation) parts.push(plural(notation, 'line of notation', 'lines of notation'));
+    if (tab) parts.push(plural(tab, 'line of tab', 'lines of tab'));
     summary = `${parts.join(' and ')} found.`;
   }
   let advice: string | null = null;
-  if (kind === 'not-music') advice = 'Retake it flat and close enough that the staff lines are clear, or try another page.';
+  if (kind === 'not-music') advice = 'Retake it flat and close enough that the lines of music are clear, or try another page.';
   else if (kind !== 'text') {
     if (input.staffSpace > 0 && input.staffSpace < 7) advice = 'The music is small in the picture: move closer or use a higher resolution.';
     else if (input.quality < 0.45) advice = 'The picture is soft or dim: retake it in good light, held steady, for a much better reading.';

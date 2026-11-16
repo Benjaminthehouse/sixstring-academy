@@ -1,0 +1,33 @@
+# Pentatonic Box 5 Lick (repertoire plan: st-pent-box-5). An original 8-bar study in A minor
+# pentatonic box 5, frets 2 to 5, over a one-chord Am7 groove. Four 2-bar phrases in call and
+# response: phrases 1 and 3 ask (they stop on E and on G), phrases 2 and 4 answer (they come home
+# to A on string 3, fret 2). All 12 notes of the box are used, and nothing else.
+# One finger per fret, as the Scales screen shows the box: finger 1 on fret 2 (strings 4 and 3),
+# finger 2 on fret 3 (strings 6, 5, 2, 1), finger 4 on fret 5 (every string). The hand never moves.
+# The last note, A on string 3 fret 2, is held for two beats with vibrato from finger 1: rock the
+# hand from the wrist so the note wavers evenly, about two waves per beat.
+title: Pentatonic Box 5 Lick
+composer: Sixstring Academy
+source: Original study in A minor pentatonic, box 5
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: minor pentatonic, box 5, call and response, lick, vibrato
+tempo: 88
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[Ask 1]
+| "Am7=x02010" e 3:2{1} 3:5{4} 2:3{2} 3:5{4} q 2:5{4} e 2:3{2} 3:5{4} | e 3:2{1} 4:5{4} 3:2 3:5 q 2:5 r |
+[Answer 1]
+| e 1:3{2} 1:5{4} q 1:3{2} e 2:5{4} 2:3{2} q 2:5{4} | q 2:3{2} e 3:5{4} 4:5{4} q 3:2{1} r |
+[Ask 2]
+| e 6:3{2} 6:5{4} 5:3{2} 5:5{4} q 4:2{1} e 5:5{4} 5:3{2} | q 6:5{4} e 5:3{2} 5:5{4} q 4:5{4} r |
+[Answer 2]
+| q 1:3{2} e 2:5{4} 2:3{2} q 3:5{4} e 2:3{2} 3:5{4} | e 3:2{1} 4:5{4} 4:2{1} 4:5{4} ^"vibrato" h 3:2~{1} ||
+
+track: Teacher groove
+role: rhythm
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | w D ||

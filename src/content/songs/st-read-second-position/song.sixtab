@@ -1,0 +1,37 @@
+# Reading: Second Position (repertoire plan: st-read-second-position). An original reading study,
+# 16 bars of 4/4, with the hand in second position the whole time: finger 1 on fret 2, finger 2 on
+# fret 3, finger 3 on fret 4, finger 4 on fret 5, and no open strings.
+#   Bars 1-8, A major (F#, C#, G#), on strings 3, 2 and 1: two 4-bar phrases over A, D and E7.
+#   Bars 9-16, F# minor (the same key signature), on strings 6 to 3: two 4-bar phrases over
+#   F#m, Bm, C#7 and D. Over C#7 the seventh note is raised to E#, written on string 4 fret 3
+#   (the fret you know as F), and it leads up to F#.
+# Bars 6 and 13 have a syncopation: eighth, quarter, eighth, so the quarter starts on the "and"
+# of beat 1 and is held through beat 2.
+# G# is taken only where second position has it (string 6 fret 4, string 1 fret 4): the G# on
+# string 3 would need fret 1, so the tunes are written around it.
+title: Reading: Second Position
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: reading, second position, no open strings, a major, f# minor
+tempo: 76
+time: 4/4
+key: A
+
+track: Your part
+role: lead
+[A major]
+| "A=x02220" q 3:2{1} e 3:4{3} 2:2{1} q 2:5{4} 2:2{1} | "D=xx0232" q. 2:3{2} e 2:5{4} q 1:2{1} 2:3{2} | "E7=020100" q 2:5 e 1:2 2:5 q 2:3 3:4 | "A" h 2:2 3:2 |
+| q 2:5{4} e 1:2{1} 1:4{3} q 1:5{4} 2:5{4} | "D" e 1:2 q 2:5 e 2:3 q 3:2 2:3 | "E7" q. 3:4 e 2:2 q 2:3 3:4 | "A" w 3:2 ||
+key: F#m
+[F# minor]
+| "F#m=244222" q 6:2{1} e 6:4{3} 6:5{4} q 5:4{3} 6:5{4} | "Bm=x24432" q 5:2{1} e 5:4{3} 5:5{4} q 4:4{3} 5:5{4} | "C#7=x46464" q 5:4 e 5:2 5:4 ^"E#: string 4, fret 3" q 4:3{2} 5:4 | "F#m" h 4:4 r |
+| "D" e 5:5{4} q 4:2{1} e 4:4{3} q 3:2{1} 4:4{3} | "Bm" q. 3:4{3} e 3:2{1} q 4:4 5:2 | "C#7" q 6:4{3} e 5:2{1} 5:4{3} h 4:3{2} | "F#m" w 4:4{3} ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / ||
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

@@ -1,0 +1,26 @@
+# First Barre: F (repertoire plan: st-barre-f). An original 16-bar chord study in C major:
+# C (x32010) to the full F barre (133211) and back, two bars each, then Am (x02210) to F.
+# Two half-note strums per bar. The second bar of every F is the check: pick the six strings one
+# at a time, from string 6 to string 1, and listen for any that buzz or die, then use the rest to
+# move to the next chord. The last bar checks once more and ends on a strum.
+# F barre fingers: finger 1 flat across all six strings at fret 1, finger 2 on string 3 fret 2,
+# finger 3 on string 5 fret 3, finger 4 on string 4 fret 3.
+# On a bad day, play Fmaj7 (xx3210) wherever F appears: same root, no barre.
+title: First Barre: F
+composer: Sixstring Academy
+source: Original chord study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: barre chord, f major, chord change, half notes
+tempo: 72
+time: 4/4
+key: C
+
+track: Your strum
+role: rhythm
+[C to F]
+| "C=x32010" h D D | D D | "F=133211" ^"bad day? Fmaj7 (xx3210) instead" D D | ^"check each string" e 6:1{1} 5:3{3} 4:3{4} 3:2{2} 2:1{1} 1:1{1} q r |
+| "C" h D D | D D | "F" D D | e 6:1{1} 5:3{3} 4:3{4} 3:2{2} 2:1{1} 1:1{1} q r ||
+[Am to F]
+| "Am=x02210" h D D | D D | "F" D D | e 6:1{1} 5:3{3} 4:3{4} 3:2{2} 2:1{1} 1:1{1} q r |
+| "Am" h D D | D D | "F" D D | e 6:1{1} 5:3{3} 4:3{4} 3:2{2} 2:1{1} 1:1{1} q D ||

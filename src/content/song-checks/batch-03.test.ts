@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, parseSixTab, type Beat, type Song, type Track } from '@/core/song';
-import { chordPcs, midiToNote, parseKey, scalePcs } from '@/core/theory';
+import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
 
 const PPQ = 960;
@@ -68,19 +68,24 @@ const SONGS: Expected[] = [
     id: 'oh-susanna',
     melody: 'Tune',
     pickup: true,
+    // Review: the verse is all four lines of Foster's first verse ("It rained all night" sings
+    // to the music of the first two lines), so the verse is these 16 bars twice over.
     notes:
-      `A3 | ${SUSANNA_LINE} | B3 B3 A3 G3 | A3 A3 | ${SUSANNA_LINE} | B3 B3 A3 A3 | G3 |` +
+      `A3 | ${SUSANNA_LINE} | B3 B3 A3 G3 | A3 A3 | ${SUSANNA_LINE} | B3 B3 A3 A3 | G3 A3 |` +
+      `${SUSANNA_LINE} | B3 B3 A3 G3 | A3 A3 | ${SUSANNA_LINE} | B3 B3 A3 A3 | G3 |` +
       `C4 C4 | E4 E4 E4 | D4 D4 B3 G3 | A3 G3 A3 | ${SUSANNA_LINE} | B3 B3 A3 A3 | G3`,
     rhythm:
-      `e | ${SUSANNA_LINE_RHYTHM} | e e e e | q. e | ${SUSANNA_LINE_RHYTHM} | e e e e | h |` +
+      `e | ${SUSANNA_LINE_RHYTHM} | e e e e | q. e | ${SUSANNA_LINE_RHYTHM} | e e e e | q. e |` +
+      `${SUSANNA_LINE_RHYTHM} | e e e e | q. e | ${SUSANNA_LINE_RHYTHM} | e e e e | h |` +
       `q q | e q e | e e e e | q e e | ${SUSANNA_LINE_RHYTHM} | e e e e | h`,
-    chords: '1:G 4:D7 5:G 7.2:D7 8:G 9:C 11:G 12:D7 13:G 15.2:D7 16:G',
+    chords: '1:G 4:D7 5:G 7.2:D7 8:G 9:G 12:D7 13:G 15.2:D7 16:G 17:C 19:G 20:D7 21:G 23.2:D7 24:G',
     key: 'G major',
     scale: ['G', 'major'],
     range: ['G3', 'E4'],
     strong: TWO,
     words: [
       "I come from Al-a-bam-a with a ban-jo on my knee, I'm going to Lou-i-si-an-a, my true love for to see.",
+      "It rained all night the day I left, the wea-ther it was dry, the sun so hot I froze to death; Su-san-na, don't you cry.",
       "Oh! Su-san-na, oh don't you cry for me, for I come from Al-a-bam-a with a ban-jo on my knee.",
     ],
   },
@@ -285,17 +290,27 @@ describe('batch 3: the plan details', () => {
   it("oh-susanna: two strums a bar (down, down-up), the plan's shapes, the chorus on C", () => {
     const song = load('oh-susanna');
     const strum = trackNamed(song, 'Your strum');
-    expect(strum.measures.length).toBe(17);
+    expect(strum.measures.length).toBe(25);
     expect(strum.measures[0].beats.map((b) => dur(b) + (b.notes.length || b.slash ? '' : 'r'))).toEqual(['er']);
     strum.measures.slice(1).forEach((m, i) => {
       const bar = i + 1;
-      const want = bar === 16 ? ['h D'] : ['q D', 'e D', 'e U'];
+      const want = bar === 24 ? ['h D'] : ['q D', 'e D', 'e U'];
       expect(m.beats.map((b) => `${dur(b)} ${b.stroke === 'down' ? 'D' : b.stroke === 'up' ? 'U' : '?'}`), `bar ${bar}`).toEqual(want);
       expect(m.beats.every((b) => b.slash)).toBe(true);
     });
     const shapes: Record<string, string> = { G: '320003', C: 'x32010', D7: 'xx0212' };
     for (const c of song.chords) expect(shape(c.voicing), `${c.symbol} shape`).toBe(shapes[c.symbol]);
-    expect(chordAt(song, 9, 0), 'the chorus ("Oh! Susanna") starts on C').toBe('C');
+    expect(chordAt(song, 17, 0), 'the chorus ("Oh! Susanna") starts on C').toBe('C');
+    expect(song.sections.map((s) => `${s.name}@${s.start}`)).toEqual(['Verse@0', 'Chorus@17']);
+    // Review: the whole first verse is sung, its four lines in order, each with its own words above the strum.
+    expect(song.annotations.filter((a) => a.bar > 0).map((a) => `${a.bar}:${a.text.split(' ').slice(0, 3).join(' ')}`)).toEqual([
+      '1:I come from',
+      "5:I'm going to",
+      '9:It rained all',
+      '13:the sun so',
+      '17:Oh! Susanna, oh',
+      '21:for I come',
+    ]);
     // Only the first verse and the chorus: the original second verse never appears.
     const text = `${wordsOf(trackNamed(song, 'Tune'))} ${song.annotations.map((a) => a.text).join(' ')}`;
     expect(text).not.toMatch(/jump|telegraph|bullgine|lightning/i);
@@ -351,7 +366,20 @@ describe('batch 3: the plan details', () => {
       expect(name(notes[0].midi).replace(/\d+$/, ''), `bar ${bar}: root on 1`).toBe(chord.replace('7', ''));
     });
     const last = part.measures[47].beats;
-    expect(last.map((b) => `${dur(b)} ${b.notes.map((n) => name(n.midi)).join(' ')}`)).toEqual(['h. G2 D3 G3 B3 G4']);
+    // Review: the closing chord is the whole G shape, swept with the thumb. Five strings with
+    // string 5 left out (as first written) cannot be plucked at once: p would have to take
+    // strings 6 and 4 while skipping 5.
+    expect(last.map((b) => `${dur(b)} ${b.notes.map((n) => name(n.midi)).join(' ')}`)).toEqual(['h. G2 B2 D3 G3 B3 G4']);
+    expect(last[0].notes.map((n) => `${n.string}:${n.fret}`).join(' ')).toBe('6:3 5:2 4:0 3:0 2:0 1:3');
+    // Any note group struck together in the picked part sits on neighbouring strings (one sweep or one pinch).
+    for (const [bar, m] of part.measures.entries()) {
+      for (const b of m.beats) {
+        if (b.notes.length < 2) continue;
+        const strings = b.notes.map((n) => n.string).sort((x, y) => x - y);
+        const gaps = strings.slice(1).filter((s, i) => s - strings[i] > 1);
+        if (b.notes.length > 2) expect(gaps, `bar ${bar + 1}: a struck group with a string skipped`).toEqual([]);
+      }
+    }
     const shapes: Record<string, string> = { G: '320003', C: 'x32010', D7: 'xx0212' };
     for (const c of song.chords) expect(shape(c.voicing), `${c.symbol} shape`).toBe(shapes[c.symbol]);
   });
@@ -397,6 +425,77 @@ describe('batch 3: the plan details', () => {
     // eslint-disable-next-line no-console
     console.log(`${id}: level ${songEntry(id)!.level}; estimate ${est.level}; ${est.reasons.join(' ') || 'no hard spots'}`);
     expect(Math.abs(est.level - songEntry(id)!.level)).toBeLessThanOrEqual(1);
+  });
+});
+
+/**
+ * Review (second pair of ears): each tune written out again from memory by the reviewer, in scale
+ * degrees above a home note rather than as note names, so it shares nothing with the lists above.
+ * `'` puts a degree an octave higher, `,` an octave lower; "|" marks bars but is not compared.
+ * The engine turns the degrees into exact pitches, and every struck note of the tune must match.
+ */
+const SEMITONES: Record<string, number> = { '1': 0, b2: 1, '2': 2, b3: 3, '3': 4, '4': 5, '#4': 6, '5': 7, b6: 8, '6': 9, b7: 10, '7': 11 };
+function degreesToMidi(home: string, degrees: string): number[] {
+  const base = noteToMidi(home);
+  return degrees
+    .replace(/\|/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((d) => {
+      const m = /^(b?#?\d)('*)(,*)$/.exec(d);
+      if (!m || SEMITONES[m[1]] === undefined) throw new Error(`bad degree "${d}"`);
+      return base + SEMITONES[m[1]] + 12 * m[2].length - 12 * m[3].length;
+    });
+}
+
+// Oh! Susanna, sol-fa in G: re | mi sol sol la | sol mi do re | mi mi re do | re ... ; the chorus fa fa | la la la | sol sol mi do | re.
+const SUSANNA_HALF = '3 5 5 6 | 5 3 1 2 | 3 3 2 1 | 2 2 | 3 5 5 6 | 5 3 1 2 | 3 3 2 2';
+const REVIEW: Array<{ id: string; track: string; home: string; degrees: string }> = [
+  {
+    id: 'oh-susanna',
+    track: 'Tune',
+    home: 'G3',
+    degrees: `2 | ${SUSANNA_HALF} | 1 2 | ${SUSANNA_HALF} | 1 | 4 4 | 6 6 6 | 5 5 3 1 | 2 1 2 | 3 5 5 6 | 5 3 1 2 | 3 3 2 2 | 1`,
+  },
+  {
+    id: 'silent-night',
+    track: 'Tune',
+    home: 'G2',
+    degrees: Array(2)
+      .fill(
+        "5 6 5 | 3 | 5 6 5 | 3 | 2' 2' | 7 | 1' 1' | 5 | 6 6 | 1' 7 6 | 5 6 5 | 3 | 6 6 | 1' 7 6 | 5 6 5 | 3 | " +
+          "2' 2' | 4' 2' 7 | 1' | 3' | 1' 5 3 | 5 4 2 | 1",
+      )
+      .join(' | '),
+  },
+  { id: 'joy-to-the-world', track: 'Melody', home: 'D3', degrees: "1' 7 6 | 5 4 | 3 2 | 1 5 | 6 6 | 7 7 | 1' | 1' 7 6 | 5 4 | 3 2 | 1 5 | 6 6 | 7 7 | 1'" },
+  {
+    // The in scale on E: 1 b2 4 5 b6 (E F A B C).
+    id: 'sakura',
+    track: 'Melody',
+    home: 'E3',
+    degrees:
+      '4 4 5 | 4 4 5 | 4 5 b6 5 | 4 5 4 b2 | 1 b6, 1 b2 | 1 1 b6, 5, | 4 5 b6 5 | 4 5 4 b2 | 1 b6, 1 b2 | 1 1 b6, 5, | ' +
+      '4 4 5 | 4 4 5 | 1 b2 5 4 b2 | 1',
+  },
+];
+
+describe('batch 3 review: the tunes as the reviewer knows them, in scale degrees', () => {
+  it.each(REVIEW.map((r) => [r.id, r] as const))('%s', (id, r) => {
+    const song = load(id);
+    const got = notesOf(trackNamed(song, r.track)).map((n) => name(n.midi));
+    expect(got).toEqual(degreesToMidi(r.home, r.degrees).map(name));
+  });
+
+  it('coming-round-the-mountain still carries no tune track (the tune is not certain enough to write)', () => {
+    expect(load('coming-round-the-mountain').tracks.every((t) => t.role !== 'lead')).toBe(true);
+  });
+
+  it("joy-to-the-world's counting tip puts the dotted rhythm in beat 2, where it is", () => {
+    const song = load('joy-to-the-world');
+    const bar1 = trackNamed(song, 'Melody').measures[0].beats;
+    expect(bar1.map((b) => b.start / PPQ)).toEqual([0, 1, 1.75]);
+    expect(songEntry('joy-to-the-world')!.about).toMatch(/beat 2 as "2 e and a"/);
   });
 });
 

@@ -10,8 +10,9 @@
 #   A -> Asus2 (x02200): lift finger 3 off string 2 (open B replaces C#)
 #   C (x32010) -> Cadd9 (x32030): add finger 4 on string 2 fret 3 (D added; E stays on strings 4 and 1)
 # Bars 1-8 decorate with sus4 (and add9 on C), bars 9-16 with sus2; the last time round A goes to
-# Asus4 and home to D, the sus4 resolving as it does in a cadence. The progression D A C D is
-# original. The teacher plays an original tune that sings the moving note: on the and of 3 it is
+# Asus4 and home to D, the sus4 resolving as it does in a cadence. D A C D (I, V, bVII, I) is a
+# common progression; the study and its tune are original. In every odd-numbered bar the
+# teacher's tune sings the moving note on beat 3, just as your finger moves; on the and of 3 it is
 # always a note of the decorated chord, never the third it replaces.
 title: Sus Chords and Chord Embellishments
 id: st-sus-embellish
@@ -34,7 +35,7 @@ strum: D-DU-UDU
 | "D=xx0232" q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U | q D e D q U "Dsus4=xx0233" e U "D=xx0232" D U ||
 [Sus2]
 strum: D-DU-UDU
-| ^"Dsus2: lift finger 2 off string 1" q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U | q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U |
+| ^"Dsus2: lift finger 2 off string 1" "D=xx0232" q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U | q D e D q U "Dsus2=xx0230" e U "D=xx0232" D U |
 | ^"Asus2: lift finger 3 off string 2" "A=x02220" q D e D q U "Asus2=x02200" e U "A=x02220" D U | q D e D q U "Asus2=x02200" e U "A=x02220" D U |
 | "C=x32010" q D e D q U "Cadd9=x32030" e U "C=x32010" D U | q D e D q U "Cadd9=x32030" e U "C=x32010" D U |
 | ^"Asus4 to A, then home" "A=x02220" q D e D q U "Asus4=x02230" e U "A=x02220" D U | "D=xx0232" q D e D q U "Dsus2=xx0230" e U "D=xx0232" q D ||

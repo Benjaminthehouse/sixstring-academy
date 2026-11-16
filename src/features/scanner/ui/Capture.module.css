@@ -230,7 +230,8 @@
 
 .card {
   display: grid;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
+  /* The picture never takes more than a third of a phone, whatever the text size. */
+  grid-template-columns: min(7.5rem, 34%) minmax(0, 1fr);
   gap: var(--sp-3);
   padding: var(--sp-3);
   border: 1px solid var(--line);
@@ -346,6 +347,10 @@
   gap: var(--sp-2);
   width: 100%;
   min-width: 0;
+}
+.kindBadge {
+  max-width: 100%;
+  white-space: normal;
 }
 .cardTitle {
   font-weight: 650;

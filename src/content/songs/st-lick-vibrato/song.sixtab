@@ -1,0 +1,34 @@
+# Lick: Vibrato (repertoire plan: st-lick-vibrato). An original 8-bar slow blues in A minor
+# (Am7 Am7 | Dm7 Dm7 | Am7 E7 | Am7 Am7), in A minor pentatonic box 1. Short runs lead to long
+# notes held for two beats with vibrato: A on string 1 fret 5 (finger 1), G on string 2 fret 8
+# (finger 3) and D on string 3 fret 7 (finger 3), each heard at more than one speed:
+#   bars 1-2: 2 waves per beat (eighth notes: A, then G),
+#   bars 3-4: 3 waves per beat (triplets: D, then A),
+#   bars 5-8: 4 waves per beat (sixteenths: G, D, A, and the last A on string 4).
+# A wave is one push away from the note and back. Keep it in time with the beat, and let the pitch
+# rise only a little: on strings 2 and 3 push the string up, on string 1 pull it down.
+# The quick G notes in the runs use finger 4; the long Gs use finger 3, the strongest finger.
+title: Lick: Vibrato
+composer: Sixstring Academy
+source: Original lick in A minor pentatonic, box 1
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: vibrato, slow blues, minor pentatonic, box 1, lick
+tempo: 60
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[2 waves per beat]
+| "Am7=x02010" e 3:5{1} 3:7{3} 2:5{1} 2:8{4} ^"vibrato: 2 waves per beat" h 1:5~{1} | h 2:8~{3} e 2:5{1} 3:7{3} 3:5{1} 4:7{3} |
+[3 waves per beat]
+| "Dm7=xx0211" e 4:7{3} 3:5{1} 4:7{3} 3:5{1} ^"vibrato: 3 waves per beat" h 3:7~{3} | h 1:5~{1} e 2:8{4} 2:5{1} 3:7{3} 3:5{1} |
+[4 waves per beat]
+| "Am7" e 3:7{3} 2:5{1} 3:7{3} 2:5{1} ^"vibrato: 4 waves per beat" h 2:8~{3} | "E7=020100" h 3:7~{3} e 2:5{1} 3:7{3} 2:5{1} 2:8{4} |
+| "Am7" h 1:5~{1} e 2:8{4} 2:5{1} 3:7{3} 3:5{1} | h 4:7~{3} r ||
+
+track: Teacher groove
+role: rhythm
+| q D D D D | D D D D | D D D D | D D D D |
+| D D D D | D D D D | D D D D | w D ||

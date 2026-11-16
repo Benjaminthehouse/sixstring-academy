@@ -1,0 +1,46 @@
+# Pentatonic Box 4 Lick (repertoire plan: st-pent-box-4). An original 8-bar study in A minor
+# pentatonic box 4 over a one-chord Am7 groove, played twice: first at frets 12 to 15, then the
+# same music in open position, an octave lower (fret 12 becomes the open string, 13 becomes 1,
+# 14 becomes 2, 15 becomes 3: the strings stay the same).
+# Four 2-bar phrases in call and response: phrases 1 and 3 ask (they stop on E and on G),
+# phrases 2 and 4 answer (they come home to A). All 12 notes of the box are used, and nothing else.
+# Fingers as the Scales screen shows the box: at fret 12, finger 1 on fret 12, finger 2 on 13,
+# finger 3 on 14, finger 4 on 15; in open position, finger 1 on fret 1, 2 on fret 2, 3 on fret 3.
+# The bend is in bar 7 (and bar 15): D on string 2 bent a whole step up to E, with finger 3 and
+# finger 2 behind it. The next note is the real E on string 1, so you hear at once whether the
+# bend reached it (in open position that E is the open string 1).
+title: Pentatonic Box 4 Lick
+composer: Sixstring Academy
+source: Original study in A minor pentatonic, box 4
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: minor pentatonic, box 4, call and response, lick, bend, open position
+tempo: 88
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[Ask 1 (fret 12)]
+| "Am7=x02010" e 3:14{3} 2:13{2} q 2:15{4} e 2:13{2} 3:14{3} q 3:12{1} | e 3:14 2:13 3:14 3:12 q 4:14{3} r |
+[Answer 1 (fret 12)]
+| e 1:15{4} 1:12{1} q 2:15{4} e 2:13{2} 3:14{3} q 2:13{2} | e 2:15 2:13 3:14 3:12 q 3:14 r |
+[Ask 2 (fret 12)]
+| e 6:12{1} 6:15{4} 5:12{1} 5:15{4} q 4:14{3} e 4:12{1} 5:15{4} | q 5:12{1} e 5:15 5:12 q 6:15{4} r |
+[Answer 2 (fret 12)]
+| ^"bend D up to E: finger 3, finger 2 behind" q 2:15b{3} e 1:12{1} 2:15{4} q 2:13{2} e 3:14{3} 3:12{1} | q 4:14{3} e 4:12{1} 5:15{4} q 5:12{1} r ||
+[Ask 1 (open)]
+| ^"open position, an octave lower" e 3:2{2} 2:1{1} q 2:3{3} e 2:1{1} 3:2{2} q 3:0 | e 3:2 2:1 3:2 3:0 q 4:2{2} r |
+[Answer 1 (open)]
+| e 1:3{3} 1:0 q 2:3{3} e 2:1{1} 3:2{2} q 2:1{1} | e 2:3 2:1 3:2 3:0 q 3:2 r |
+[Ask 2 (open)]
+| e 6:0 6:3{3} 5:0 5:3{3} q 4:2{2} e 4:0 5:3{3} | q 5:0 e 5:3 5:0 q 6:3{3} r |
+[Answer 2 (open)]
+| ^"bend D up to E, then the open E" q 2:3b{3} e 1:0 2:3{3} q 2:1{1} e 3:2{2} 3:0 | q 4:2{2} e 4:0 5:3{3} q 5:0 r ||
+
+track: Teacher groove
+role: rhythm
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | w D ||

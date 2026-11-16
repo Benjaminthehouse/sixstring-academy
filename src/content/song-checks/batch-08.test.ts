@@ -56,7 +56,8 @@ const SONGS: Expected[] = [
     // Plan: an A minor tune that floats on A, C and E (shared by Am and Fmaj7) and leans on F over
     // Fmaj7; then a C major answer with F over the F chord, ending A B C.
     notes:
-      'A3 C4 E4 | D4 C4 A3 | C4 E4 | E4 D4 C4 | F4 E4 C4 A3 | B3 C4 E4 | F4 E4 | C4 A3 |' +
+      // Bar 6 (review): C D E, so Am arrives on its own C instead of a B rubbing against the strummed C.
+      'A3 C4 E4 | D4 C4 A3 | C4 E4 | E4 D4 C4 | F4 E4 C4 A3 | C4 D4 E4 | F4 E4 | C4 A3 |' +
       'C4 E4 G4 | F4 E4 C4 | C4 F4 | E4 C4 | F4 C4 A3 C4 | G4 E4 C4 | F4 E4 | A3 B3 C4',
     rhythm:
       'q q h | q q h | h h | q q h | q q q q | q q h | h h | h h |' +
@@ -100,7 +101,7 @@ const SONGS: Expected[] = [
     chords:
       '1:D 1@2400:Dsus4 1@2880:D 2@2400:Dsus4 2@2880:D 3:A 3@2400:Asus4 3@2880:A 4@2400:Asus4 4@2880:A ' +
       '5:C 5@2400:Cadd9 5@2880:C 6@2400:Cadd9 6@2880:C 7:D 7@2400:Dsus4 7@2880:D 8@2400:Dsus4 8@2880:D ' +
-      '9@2400:Dsus2 9@2880:D 10@2400:Dsus2 10@2880:D 11:A 11@2400:Asus2 11@2880:A 12@2400:Asus2 12@2880:A ' +
+      '9:D 9@2400:Dsus2 9@2880:D 10@2400:Dsus2 10@2880:D 11:A 11@2400:Asus2 11@2880:A 12@2400:Asus2 12@2880:A ' +
       '13:C 13@2400:Cadd9 13@2880:C 14@2400:Cadd9 14@2880:C 15:A 15@2400:Asus4 15@2880:A 16:D 16@2400:Dsus2 16@2880:D',
     key: 'D major',
     endKey: 'D major',
@@ -480,6 +481,72 @@ describe('batch 8: st-blues-shuffle-e', () => {
     }
     expect(voicingOf(song, 'B7')).toBe('x21202');
     expect(voicingOf(song, 'E7')).toBe('020100');
+  });
+});
+
+describe('batch 8 review: what the teacher plays against your chords', () => {
+  /** The struck pitches of a track sounding at a bar and tick (the beat that covers it). */
+  function soundingAt(track: Track, bar: number, tick: number): number[] {
+    const beat = track.measures[bar].beats.find((b) => b.start <= tick && tick < b.start + b.duration);
+    return beat ? beat.notes.map((n) => n.midi) : [];
+  }
+  /** Strong-beat (beats 1 and 3) notes of the teacher that are not in the chord in force, as "bar@tick:Note/Chord". */
+  function offChord(song: Song): string[] {
+    const teacher = trackNamed(song, 'Teacher');
+    return notesOf(teacher)
+      .filter((n) => BEATS_1_3.includes(n.tick) && !chordPcs(chordAt(song, n.bar, n.tick)!).includes(n.midi % 12))
+      .map((n) => `${n.bar + 1}@${n.tick}:${name(n.midi)}/${chordAt(song, n.bar, n.tick)}`);
+  }
+
+  for (const id of ['st-change-am-fmaj7-c-f', 'st-change-em-am-em-b7']) {
+    it(`${id}: at every change the teacher sounds only notes of the new chord`, () => {
+      const song = load(id);
+      const teacher = trackNamed(song, 'Teacher');
+      const problems: string[] = [];
+      song.chords.forEach((c, i) => {
+        if (i > 0 && song.chords[i - 1].symbol === c.symbol) return;
+        const pitches = soundingAt(teacher, c.bar, c.tick);
+        if (!pitches.length) problems.push(`bar ${c.bar + 1}: silent at the change to ${c.symbol}`);
+        for (const m of pitches) if (!chordPcs(c.symbol).includes(m % 12)) problems.push(`bar ${c.bar + 1}@${c.tick}: ${name(m)} against the new ${c.symbol}`);
+      });
+      expect(problems).toEqual([]);
+    });
+  }
+
+  it('the only strong-beat notes off the chord are the ones written on purpose', () => {
+    // Am-Fmaj7: two suspensions in the second bar of a held chord (D falling to C over Am, F to E over C).
+    expect(offChord(load('st-change-am-fmaj7-c-f'))).toEqual(['2@0:D4/Am', '10@0:F4/C']);
+    // Em-B7: one passing note, G F# E in bar 1.
+    expect(offChord(load('st-change-em-am-em-b7'))).toEqual(['1@1920:F#4/Em']);
+    // Each suspension sits in a bar that keeps the previous bar's chord and falls one step to a chord tone.
+    const song = load('st-change-am-fmaj7-c-f');
+    const teacher = trackNamed(song, 'Teacher');
+    for (const bar of [1, 9]) {
+      expect(chordAt(song, bar, 0), `bar ${bar + 1} holds its chord`).toBe(chordAt(song, bar - 1, 3839));
+      const [first, second] = teacher.measures[bar].beats.map((b) => b.notes[0].midi);
+      expect(first - second, `bar ${bar + 1}: falls a step`).toBeGreaterThanOrEqual(1);
+      expect(first - second).toBeLessThanOrEqual(2);
+      expect(chordPcs(chordAt(song, bar, 0)!)).toContain(second % 12);
+    }
+  });
+
+  it('st-sus-embellish: the tune sings the moving note on beat 3 of every odd bar, and a note of the decoration in every bar', () => {
+    const song = load('st-sus-embellish');
+    const teacher = trackNamed(song, 'Teacher');
+    const problems: string[] = [];
+    for (let bar = 0; bar < 16; bar++) {
+      const plain = chordAt(song, bar, 0)!;
+      const decorated = chordAt(song, bar, 2400)!;
+      const moving = chordPcs(decorated).filter((p) => !chordPcs(plain).includes(p));
+      expect(moving.length, `bar ${bar + 1}: ${plain} -> ${decorated} adds one note`).toBe(1);
+      const at3 = soundingAt(teacher, bar, 1920);
+      for (const m of at3) if (!chordPcs(decorated).includes(m % 12)) problems.push(`bar ${bar + 1}: ${name(m)} on beat 3 is not in ${decorated}`);
+      const startsOn3 = teacher.measures[bar].beats.some((b) => b.start === 1920 && b.notes.length);
+      if (bar % 2 === 0 && !(startsOn3 && at3.some((m) => m % 12 === moving[0]))) problems.push(`bar ${bar + 1}: beat 3 does not sing the moving note of ${decorated}`);
+    }
+    expect(problems).toEqual([]);
+    // The second section names its chord where it starts, for a learner who loops it.
+    expect(song.chords.find((c) => c.bar === 8 && c.tick === 0)?.symbol).toBe('D');
   });
 });
 

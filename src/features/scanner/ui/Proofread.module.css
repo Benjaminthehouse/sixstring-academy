@@ -167,12 +167,12 @@
 }
 
 @media (max-width: 719px) {
+  /* Title and Save share a row; with large text, Save moves under the title instead of over it. */
   .head {
-    flex-wrap: nowrap;
     align-items: center;
   }
   .headMain {
-    flex: 1 1 auto;
+    flex: 1 1 9rem;
   }
   .eyebrow {
     display: none;
@@ -191,10 +191,7 @@
     flex: none;
   }
   .toolbar {
-    flex-wrap: nowrap;
-  }
-  .tools {
-    flex-wrap: nowrap;
+    row-gap: var(--sp-1);
   }
   .ai {
     padding: var(--sp-2);
@@ -328,4 +325,16 @@
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
+}
+
+/* The narrowest phones: the Play button keeps its icon, its words stay for screen readers. */
+@media (max-width: 379px) {
+  .playText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

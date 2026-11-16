@@ -5,8 +5,9 @@
 # Bars 1-4 (strings 6-4) ask a question that ends on D; bars 5-8 answer it and come home to G.
 # Bars 9-12 are bars 1-4 an octave higher, on strings 3-1: the same tune, read on other strings.
 # Bars 13-16 walk from the top G all the way down to the low G. Eighth notes come in pairs, on
-# a beat and its "and". Every note on beats 1 and 3 belongs to the teacher's chord; the others
-# are chord notes or steps between them.
+# a beat and its "and". Every note on beats 1 and 3 belongs to the teacher's chord, except the E
+# on beat 3 of bar 7, a passing note on the way down from F# to D; the others are chord notes or
+# steps between them.
 title: Reading: First Position in G
 id: st-read-first-g
 composer: Sixstring Academy

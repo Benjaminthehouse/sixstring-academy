@@ -1,11 +1,13 @@
 # Oh! Susanna, strum and sing (repertoire plan: oh-susanna). Stephen Foster's song of 1848 in G,
-# the first verse and the chorus only, in modern spelling. The original second verse is never used.
+# the first verse (all four lines, "I come from Alabama" to "Susanna, don't you cry") and the
+# chorus only, in modern spelling. The original second verse is never used. The second half of
+# the verse ("It rained all night") has the same music as the first half.
 # Your part: G (320003), C (x32010) and D7 (xx0212), two strums in every bar of 2/4: down on
 # beat 1, down-up on beat 2. The verse sits on G with D7 at the ends of lines; the chorus starts
 # on C ("Oh! Susanna"). Words are written above the bar where each line starts.
 # The tune (second track) as it is commonly sung, in first position on strings 3, 2 and 1
 # (G A B C D E): one pickup note ("I"), then "come from Al-a-bam-a" with the quick high E on the
-# second "a"; each line ends on A (verse line 1, "knee") or G ("see", and the last "knee").
+# second "a"; each line ends on A ("knee", "dry") or G ("see", "cry", and the last "knee").
 # "Going" is sung on one note, as in "I'm goin' to Louisiana".
 title: Oh! Susanna
 id: oh-susanna
@@ -27,6 +29,8 @@ strum: D-DU
 | ^"Wait: the tune starts on the last half-beat" e r |
 | ^"I come from Alabama with a banjo on my knee," "G=320003" q D e D U | q D e D U | q D e D U | "D7=xx0212" q D e D U |
 | ^"I'm going to Louisiana, my true love for to see." "G=320003" q D e D U | q D e D U | q D "D7=xx0212" e D U | "G=320003" q D e D U |
+| ^"It rained all night the day I left, the weather it was dry," "G=320003" q D e D U | q D e D U | q D e D U | "D7=xx0212" q D e D U |
+| ^"the sun so hot I froze to death; Susanna, don't you cry." "G=320003" q D e D U | q D e D U | q D "D7=xx0212" e D U | "G=320003" q D e D U |
 [Chorus]
 strum: D-DU
 | ^"Oh! Susanna, oh don't you cry for me," "C=x32010" q D e D U | q D e D U | "G=320003" q D e D U | "D7=xx0212" q D e D U |
@@ -37,8 +41,12 @@ role: lead
 [Verse]
 | e 3:2{2} | e 2:0 2:3{3} e. 2:3 s 1:0 | e 2:3 2:0 e. 3:0 s 3:2 | e 2:0 2:0 3:2 3:0 | q. 3:2 e 3:2 |
 lyrics: I come from Al- a- bam- a with a ban- jo on my knee, I'm
+| e 2:0 2:3 e. 2:3 s 1:0 | e 2:3 2:0 e. 3:0 s 3:2 | e 2:0 2:0 3:2 3:2 | q. 3:0 e 3:2 |
+lyrics: going to Lou- i- si- an- a, my true love for to see. It
+| e 2:0 2:3 e. 2:3 s 1:0 | e 2:3 2:0 e. 3:0 s 3:2 | e 2:0 2:0 3:2 3:0 | q. 3:2 e 3:2 |
+lyrics: rained all night the day I left, the wea- ther it was dry, the
 | e 2:0 2:3 e. 2:3 s 1:0 | e 2:3 2:0 e. 3:0 s 3:2 | e 2:0 2:0 3:2 3:2 | h 3:0 |
-lyrics: going to Lou- i- si- an- a, my true love for to see.
+lyrics: sun so hot I froze to death; Su- san- na, don't you cry.
 [Chorus]
 | q 2:1{1} 2:1 | e 1:0 q 1:0 e 1:0 | e 2:3 2:3 2:0 3:0 | q 3:2 e 3:0 3:2 |
 lyrics: Oh! Su- san- na, oh don't you cry for me, for I

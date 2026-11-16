@@ -5,7 +5,9 @@
 # the open string 2 (B) and string 3 fret 2 (A, finger 2). Each answer climbs a chord from the bass
 # strings: C E A (Am) and E G# B (E), with G# on string 3 fret 1, never the open G.
 # The piano's left-hand notes are left out (they lie below the guitar's range an octave down).
-# Text as commonly printed (from the 1867 first edition, as far as the A section goes).
+# The notes are the A section as it is commonly printed (the common editions all descend from
+# the 1867 first edition). They have not yet been checked against a scan of that edition, which
+# the repertoire plan asks for.
 title: Für Elise (theme)
 id: fur-elise-theme
 composer: Ludwig van Beethoven

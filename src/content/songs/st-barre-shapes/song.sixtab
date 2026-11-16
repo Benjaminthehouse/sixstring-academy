@@ -1,0 +1,37 @@
+# Barre Shapes: E, Em, A and Am Shapes (repertoire plan: st-barre-shapes). An original 16-bar
+# chord study: the four movable barre shapes, one bar each with four steady down-strums, then a
+# five-bar progression that mixes them. Say the root aloud on beat 1 of every bar (the words under
+# the strums): that is the note under finger 1 on string 6 (E and Em shapes) or string 5 (A and Am
+# shapes), the string the root lives on.
+#   E shape   (root on string 6): F 133211, G 355433, A 577655
+#   Em shape  (root on string 6): Fm 133111, Gm 355333, Am 577555
+#   A shape   (root on string 5): Bb x13331, B x24442, C x35553
+#   Am shape  (root on string 5): Bm x24432, Cm x35543
+#   Together: C (A shape, fret 3), Am (Em shape, fret 5), F (E shape, fret 1), G (E shape, fret 3), C.
+title: Barre Shapes: E, Em, A and Am Shapes
+composer: Sixstring Academy
+source: Original chord study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: barre chords, movable shapes, root on string 6, root on string 5
+tempo: 80
+time: 4/4
+key: C
+
+track: Your strum
+role: rhythm
+[E shape]
+| "F=133211" ^"E shape: root on string 6" q D D D D | "G=355433" D D D D | "A=577655" D D D D |
+lyrics: F _ _ _ G _ _ _ A _ _ _
+[Em shape]
+| "Fm=133111" ^"Em shape: root on string 6" D D D D | "Gm=355333" D D D D | "Am=577555" D D D D |
+lyrics: F _ _ _ G _ _ _ A _ _ _
+[A shape]
+| "Bb=x13331" ^"A shape: root on string 5" D D D D | "B=x24442" D D D D | "C=x35553" D D D D |
+lyrics: B- flat _ _ B _ _ _ C _ _ _
+[Am shape]
+| "Bm=x24432" ^"Am shape: root on string 5" D D D D | "Cm=x35543" D D D D |
+lyrics: B _ _ _ C _ _ _
+[All together]
+| "C=x35553" D D D D | "Am=577555" D D D D | "F=133211" D D D D | "G=355433" D D D D | "C=x35553" w D ||
+lyrics: C _ _ _ A _ _ _ F _ _ _ G _ _ _ C

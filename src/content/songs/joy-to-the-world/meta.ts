@@ -14,7 +14,7 @@ export default defineSong({
   skills: ['melody', 'rhythm'],
   tags: ['christmas', 'carol', 'major scale', 'd major', 'dotted rhythm', '2/4', 'lyrics'],
   about:
-    'The first line is the D major scale walking down, eight notes from high D to low D: say the note names as you play it and you have learned the scale. The second line climbs back up in pairs, a long note and a short one on the same string. The tricky spot is "to the" in bar 1, a dotted eighth and a quick sixteenth: count "1 e and a" and put the sixteenth on the "a". This is the opening of the carol, its first two lines, played for verses 1 and 2.',
+    'The first line is the D major scale walking down, eight notes from high D to low D: say the note names as you play it and you have learned the scale. The second line climbs back up in pairs, a long note and a short one on the same string. The tricky spot is "to the" in bar 1, a dotted eighth and a quick sixteenth: count beat 2 as "2 e and a", play "to" on "2" and hold it, then "the" on the "a". This is the opening of the carol, its first two lines, played for verses 1 and 2.',
   plan: 'joy-to-the-world',
   added: '2026-11-16',
 });

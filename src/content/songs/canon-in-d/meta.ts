@@ -14,7 +14,7 @@ export default defineSong({
   skills: ['chords', 'strumming', 'form', 'rhythm'],
   tags: ['duet', 'ground bass', 'baroque', 'canon', 'chord progression', 'pachelbel'],
   about:
-    'Your bass line is eight notes, one per beat, over and over, while three violin lines enter one after another above you. You are the floor everyone stands on, so stay steady, and do not speed up when the eighth notes arrive in bar 7. In the second half a new chord comes on every beat: if a change is late, keep strumming on time and catch the next chord rather than stopping. For the B chord use the open Bm7 (x20202); once you know barre chords, the full Bm (x24432) is closer to the original.',
+    'Your bass line is eight notes, one per beat, over and over, while three violin lines enter one after another above you. You are the floor everyone stands on, so stay steady, and do not speed up when the eighth notes arrive in bar 7. In the second half a new chord comes on every beat: practise Bm7 to F#m on its own first (the hardest change), and if a change is late, keep strumming on time and catch the next chord. Neither B nor F#m needs a full barre here: the open Bm7 is x20202, and the small F#m (xx4222) is finger 1 flat across strings 3 to 1 at fret 2 with finger 3 on string 4, fret 4; once you know barre chords, the full Bm (x24432) is closer to the original.',
   plan: 'canon-in-d',
   added: '2026-11-16',
 });

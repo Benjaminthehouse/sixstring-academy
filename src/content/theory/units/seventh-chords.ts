@@ -1,0 +1,1213 @@
+/**
+ * Theory Path, unit 25: Seventh chords. Written from the syllabus entries in
+ * `src/content/plan/theory-path.json` (unit `seventh-chords`), one lesson per entry, in order:
+ * each lesson opens with the "on the guitar" picture, asks the planned exercises, ends with the
+ * planned drill, and turns every planned fact into a review card.
+ *
+ * Every chord spelling, numeral, interval size and shape quoted here is cross-checked against
+ * `@/core/theory` and `@/core/guitar` in `seventh-chords.test.ts`.
+ *
+ * Notes for readers of the code:
+ * - `teaches` is shown as plain text on the map, so it spells chord types out in words
+ *   ("minor 7") instead of symbols the validator would want tagged.
+ * - A chord figure always prints the chord's name, so no question uses one as an answer option.
+ * - The `roman-chord` drill offers triads as distractors even for a seventh-chord numeral (any
+ *   option with a 7 would give the answer away), so the function lesson drills the triad numerals
+ *   that functions are built on and asks about the sevenths in its own questions.
+ */
+import type { Lesson, Unit } from '@/lessons';
+
+const U = 'seventh-chords';
+
+/** Roots easiest first: open-chord keys, then the flat side. */
+const ROOTS = ['C', 'G', 'D', 'A', 'F', 'E'];
+const FIVE_TYPES = ['maj7', '7', 'm7', 'm7b5', 'dim7'];
+
+const whatASeventhChordIs: Lesson = {
+  id: 'what-a-seventh-chord-is',
+  title: 'Adding a seventh',
+  teaches: 'A seventh chord is a triad with one more third stacked on top, giving root, third, fifth and seventh.',
+  minutes: 3,
+  skill: `theory:${U}:what-a-seventh-chord-is`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Start from a triad',
+      body: 'A {t:triad} is two thirds stacked on a root: root, 3rd and 5th. Open {c:C} (x32010) is {n:C}, {n:E} and {n:G}. Now stack **one more third** on top, a third above {n:G}, and the chord gains a fourth note: the 7th.',
+      figure: { kind: 'chord', symbol: 'C', frets: 'x32010', caption: 'Open {c:C}: root {n:C}, 3rd {n:E}, 5th {n:G}.' },
+    },
+    {
+      type: 'card',
+      title: 'Lift one finger',
+      body: 'Play {c:C} and lift your finger off string 2. The open {n:B} rings: a third above {n:G}, and the 7th of the chord. Root, 3rd, 5th and 7th together make a {t:seventh-chord}, here {c:Cmaj7}.',
+      figure: {
+        kind: 'fretboard',
+        frets: [0, 3],
+        root: 'C',
+        labels: 'degree',
+        dots: [
+          { string: 5, fret: 3, note: 'C', degree: '1', role: 'root' },
+          { string: 4, fret: 2, note: 'E', degree: '3', role: 'third' },
+          { string: 3, fret: 0, note: 'G', degree: '5', role: 'fifth' },
+          { string: 2, fret: 0, note: 'B', degree: '7', role: 'seventh' },
+          { string: 1, fret: 0, note: 'E', degree: '3', role: 'third' },
+        ],
+        caption: '{c:Cmaj7} (x32000): the open {n:B} on string 2 is the 7th.',
+      },
+      tip: 'Keep the other fingers exactly where they were: only string 2 changes.',
+    },
+    {
+      type: 'true-false',
+      statement: 'A seventh chord stacks one more third on a triad, so it has four different notes.',
+      answer: true,
+      explain: 'Root, 3rd, 5th, then a third above the 5th: the 7th. {c:Cmaj7} is {n:C} {n:E} {n:G} {n:B}.',
+      fact: 'sevenths-stack',
+    },
+    {
+      type: 'card',
+      title: 'Two sizes of 7th',
+      body: 'The 7th comes in two sizes. A **major 7th** ({i:M7}) is 11 half steps above the root, one fret under the octave: {n:B} above {n:C}. A **minor 7th** ({i:m7}) is 10 half steps up, two frets under the octave: {n:Bb} above {n:C}, the 7th of {c:C7}.',
+      figure: {
+        kind: 'keyboard',
+        keys: [{ note: 'C4', role: 'root' }, { note: 'Bb4', role: 'seventh' }, { note: 'B4', role: 'seventh' }, { note: 'C5', role: 'root' }],
+        from: 'C4',
+        to: 'C5',
+        caption: 'From {n:C}: {n:Bb} is a minor 7th, {n:B} a major 7th.',
+      },
+    },
+    {
+      type: 'choice',
+      prompt: 'How many half steps above the root is a major 7th?',
+      options: [
+        { text: '9', why: 'Nine half steps is a major 6th: {n:A} above {n:C}.' },
+        { text: '10', why: 'Ten half steps is the minor 7th, as in {c:C7}.' },
+        { text: '11', correct: true },
+        { text: '12', why: 'Twelve half steps is the octave: the root again.' },
+      ],
+      shuffle: false,
+      explain: 'A major 7th is 11 half steps up, one half step below the octave: {n:B} above {n:C}.',
+      fact: 'sevenths-sizes',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'Listen. Is this a triad or a seventh chord?',
+      sound: { kind: 'chord', chord: 'C7', voicing: 'close', octave: 3 },
+      options: [{ text: 'A triad: three notes' }, { text: 'A seventh chord: four notes', correct: true }],
+      shuffle: false,
+      explain: 'That was {c:C7}: {n:C}, {n:E}, {n:G} and {n:Bb}. The extra note on top, the 7th, adds a rub that a plain triad does not have.',
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'Cmaj7',
+      frets: 'x32000',
+      accept: 'any-voicing',
+      prompt: 'Turn {c:C} into {c:Cmaj7}: lift one finger so the open {n:B} rings.',
+      figure: { kind: 'chord', symbol: 'C', frets: 'x32010', caption: 'Start from {c:C}.' },
+      explain: '{c:Cmaj7} is x32000: frets 3 and 2 on strings 5 and 4, every other string open. The open {n:B} on string 2 is the major 7th.',
+    },
+    {
+      type: 'card',
+      title: 'Five kinds',
+      body: 'Change the triad, or the size of the 7th, and you get the five main seventh chords: **major 7** {c:Cmaj7}, **dominant 7** {c:C7}, **minor 7** {c:Cm7}, **half-diminished** {c:Cm7b5} and **diminished 7** {c:Cdim7}. The next lesson builds each one.',
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Cmaj7', 'C7', 'Cm7', 'Cm7b5', 'Cdim7'], voicing: 'close', beats: 2, tempo: 60 }, label: 'Hear the five on {n:C}' },
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each chord with its name.',
+      pairs: [
+        { left: '{c:Cmaj7}', right: 'Major 7' },
+        { left: '{c:C7}', right: 'Dominant 7' },
+        { left: '{c:Cm7}', right: 'Minor 7' },
+        { left: '{c:Cm7b5}', right: 'Half-diminished' },
+        { left: '{c:Cdim7}', right: 'Diminished 7' },
+      ],
+      explain: 'The symbol names the type: {c:Cmaj7} major 7, {c:C7} dominant 7, {c:Cm7} minor 7, {c:Cm7b5} half-diminished, {c:Cdim7} diminished 7.',
+      fact: 'sevenths-five-types',
+    },
+    { generate: 'chord-tones', params: { types: ['maj7', '7'], roots: ROOTS, ask: 'notes' } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-stack',
+      front: 'What is a seventh chord?',
+      back: 'A {t:triad} with another third stacked on top: root, 3rd, 5th and 7th. {c:Cmaj7} is {n:C} {n:E} {n:G} {n:B}.',
+    },
+    {
+      id: 'sevenths-sizes',
+      front: 'What sets the type of a seventh chord? How big are the two sizes of 7th?',
+      back: 'The triad underneath and the size of the 7th. A major 7th is 11 half steps above the root, a minor 7th 10.',
+    },
+    {
+      id: 'sevenths-five-types',
+      front: 'Name the five main types of seventh chord.',
+      back: 'Major 7 ({c:Cmaj7}), dominant 7 ({c:C7}), minor 7 ({c:Cm7}), half-diminished ({c:Cm7b5}) and diminished 7 ({c:Cdim7}).',
+      ask: {
+        type: 'match-pairs',
+        prompt: 'Match each chord with its name.',
+        pairs: [
+          { left: '{c:Gmaj7}', right: 'Major 7' },
+          { left: '{c:G7}', right: 'Dominant 7' },
+          { left: '{c:Gm7}', right: 'Minor 7' },
+          { left: '{c:Gm7b5}', right: 'Half-diminished' },
+          { left: '{c:Gdim7}', right: 'Diminished 7' },
+        ],
+        explain: 'The symbol names the type: {c:Gmaj7} major 7, {c:G7} dominant 7, {c:Gm7} minor 7, {c:Gm7b5} half-diminished, {c:Gdim7} diminished 7.',
+      },
+    },
+  ],
+};
+
+const theFiveFormulas: Lesson = {
+  id: 'the-five-formulas',
+  title: 'Five seventh-chord formulas',
+  teaches: 'Major 7, dominant 7, minor 7, half-diminished and diminished 7 chords each have their own formula.',
+  minutes: 4,
+  skill: `theory:${U}:the-five-formulas`,
+  steps: [
+    {
+      type: 'card',
+      title: 'One note at a time',
+      body: 'Start from {c:Cmaj7}: {d:1} {d:3} {d:5} {d:7}. Lower the 7th a half step and it becomes {c:C7}: {d:1} {d:3} {d:5} {d:b7}. Lower the 3rd as well and it is {c:Cm7}: {d:1} {d:b3} {d:5} {d:b7}.',
+      figure: {
+        kind: 'fretboard',
+        frets: [2, 6],
+        root: 'C',
+        labels: 'degree',
+        dots: [
+          { string: 5, fret: 3, note: 'C', degree: '1', role: 'root' },
+          { string: 4, fret: 5, note: 'G', degree: '5', role: 'fifth' },
+          { string: 3, fret: 4, note: 'B', degree: '7', role: 'seventh' },
+          { string: 2, fret: 5, note: 'E', degree: '3', role: 'third' },
+        ],
+        caption: '{c:Cmaj7} on strings 5 to 2, root at string 5, fret 3.',
+      },
+      tip: 'In this shape each change moves one dot back a fret: string 3 for the 7th, string 2 for the 3rd.',
+    },
+    {
+      type: 'card',
+      title: 'Hear them change',
+      body: 'Listen to the five seventh chords on {n:C}, one after another. Each one changes a single note of the one before.',
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Cmaj7', 'C7', 'Cm7', 'Cm7b5', 'Cdim7'], voicing: 'close', beats: 2, tempo: 60 }, label: 'Hear the five, one by one' },
+    },
+    {
+      type: 'fill-blanks',
+      prompt: 'Complete {c:Cm7}.',
+      text: '{n:C}  {n:Eb}  {n:G}  ___',
+      blanks: ['{n:Bb}'],
+      bank: ['{n:B}', '{n:A}', '{n:Ab}'],
+      explain: '{c:Cm7} is {d:1} {d:b3} {d:5} {d:b7}: the minor 7th above {n:C} is {n:Bb}, ten half steps up.',
+    },
+    {
+      type: 'card',
+      title: 'The diminished pair',
+      body: 'Lower the 5th of {c:Cm7} and you get {c:Cm7b5}, {t:half-diminished}: {d:1} {d:b3} {d:b5} {d:b7}. Lower its 7th once more for {c:Cdim7}, the {t:diminished-seventh}: {d:1} {d:b3} {d:b5} {d:bb7}, three minor thirds stacked up.',
+      figure: {
+        kind: 'fretboard',
+        frets: [2, 6],
+        root: 'C',
+        labels: 'degree',
+        dots: [
+          { string: 5, fret: 3, note: 'C', degree: '1', role: 'root' },
+          { string: 4, fret: 4, note: 'Gb', degree: 'b5', role: 'fifth' },
+          { string: 3, fret: 2, degree: 'bb7', role: 'seventh' },
+          { string: 2, fret: 4, note: 'Eb', degree: 'b3', role: 'third' },
+        ],
+        caption: '{c:Cdim7} on strings 5 to 2, root at string 5, fret 3.',
+      },
+      tip: 'Numerals mark them with small signs: {r:viiø7} is half-diminished, {r:vii°7} diminished 7.',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each chord with its formula.',
+      pairs: [
+        { left: '{c:Cmaj7}', right: '{d:1} {d:3} {d:5} {d:7}' },
+        { left: '{c:C7}', right: '{d:1} {d:3} {d:5} {d:b7}' },
+        { left: '{c:Cm7}', right: '{d:1} {d:b3} {d:5} {d:b7}' },
+        { left: '{c:Cm7b5}', right: '{d:1} {d:b3} {d:b5} {d:b7}' },
+        { left: '{c:Cdim7}', right: '{d:1} {d:b3} {d:b5} {d:bb7}' },
+      ],
+      explain: 'From {c:Cmaj7} down, each chord lowers one more note: the 7th, then the 3rd, then the 5th, then the 7th again.',
+      fact: 'sevenths-formulas-major',
+    },
+    {
+      type: 'card',
+      title: 'A double flat',
+      body: 'The 7th of {c:Cdim7} is a {i:d7}, nine half steps up. That pitch sounds like {n:A}, but a 7th above {n:C} must use the letter B, so it is written {n:Bbb}: {c:Cdim7} is {n:C} {n:Eb} {n:Gb} {n:Bbb}.',
+      figure: { kind: 'keyboard', keys: [{ note: 'C4', role: 'root' }, { note: 'Eb4', role: 'third' }, { note: 'Gb4', role: 'fifth' }, { note: 'Bbb4', role: 'seventh' }], from: 'C4', to: 'C5', caption: '{c:Cdim7}: {n:C} {n:Eb} {n:Gb} {n:Bbb}.' },
+    },
+    {
+      type: 'choice',
+      prompt: 'How is the 7th of {c:Cdim7} written?',
+      options: [
+        { text: '{n:Bbb}', correct: true },
+        { text: '{n:A}', why: 'It sounds like {n:A}, but a 7th above {n:C} must be some kind of B.' },
+        { text: '{n:Bb}', why: '{n:Bb} is the minor 7th, the 7th of {c:Cm7b5} and {c:C7}.' },
+        { text: '{n:B}', why: '{n:B} is the major 7th, the 7th of {c:Cmaj7}.' },
+      ],
+      spelling: 'exact',
+      explain: 'Seven letters up from C is B, lowered twice: {n:Bbb}. {c:Cdim7} is {n:C} {n:Eb} {n:Gb} {n:Bbb}.',
+      fact: 'sevenths-dim7-double-flat',
+    },
+    {
+      type: 'type-answer',
+      prompt: 'Type the 7th of {c:Gm7b5}.',
+      answer: { kind: 'note', value: 'F', spelling: 'exact' },
+      input: 'keypad',
+      explain: '{c:Gm7b5} is {n:G} {n:Bb} {n:Db} {n:F}: half-diminished keeps the minor 7th, ten half steps above {n:G}.',
+      fact: 'sevenths-formulas-diminished',
+    },
+    {
+      type: 'true-false',
+      statement: '{c:C7} and {c:Cm7} have the same 7th.',
+      answer: true,
+      explain: 'Both have the minor 7th, {n:Bb}. Only the 3rd differs: {n:E} in {c:C7}, {n:Eb} in {c:Cm7}.',
+      fact: 'sevenths-formulas-major',
+    },
+    { generate: 'chord-tones', params: { types: FIVE_TYPES, roots: ROOTS, ask: 'notes' } },
+    { generate: 'chord-tones', params: { types: FIVE_TYPES, roots: ROOTS, ask: 'missing' } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-formulas-major',
+      front: 'Give the formulas of the major 7, dominant 7 and minor 7 chords.',
+      back: 'Major 7: {d:1} {d:3} {d:5} {d:7}. Dominant 7: {d:1} {d:3} {d:5} {d:b7}. Minor 7: {d:1} {d:b3} {d:5} {d:b7}.',
+    },
+    {
+      id: 'sevenths-formulas-diminished',
+      front: 'Give the formulas of the half-diminished and diminished 7 chords.',
+      back: 'Half-diminished ({c:Cm7b5}): {d:1} {d:b3} {d:b5} {d:b7}. Diminished 7 ({c:Cdim7}): {d:1} {d:b3} {d:b5} {d:bb7}.',
+      ask: {
+        type: 'match-pairs',
+        prompt: 'Match each chord with its formula.',
+        pairs: [
+          { left: '{c:Dm7b5}', right: '{d:1} {d:b3} {d:b5} {d:b7}' },
+          { left: '{c:Ddim7}', right: '{d:1} {d:b3} {d:b5} {d:bb7}' },
+          { left: '{c:Dm7}', right: '{d:1} {d:b3} {d:5} {d:b7}' },
+        ],
+        explain: 'Half-diminished lowers the 5th of a minor 7; diminished 7 lowers the 7th once more.',
+      },
+    },
+    {
+      id: 'sevenths-dim7-double-flat',
+      front: 'How is {c:Cdim7} spelled, and why the double flat?',
+      back: '{n:C} {n:Eb} {n:Gb} {n:Bbb}. Its 7th is a diminished 7th: it sounds like {n:A}, but a 7th above {n:C} must use the letter B.',
+      ask: {
+        type: 'choice',
+        prompt: 'Which spelling of {c:Cdim7} is right?',
+        options: [
+          { text: '{n:C} {n:Eb} {n:Gb} {n:Bbb}', correct: true },
+          { text: '{n:C} {n:Eb} {n:Gb} {n:A}', why: 'Same sound, wrong letter: the 7th of a C chord must be a B.' },
+          { text: '{n:C} {n:Eb} {n:Gb} {n:Bb}', why: 'That is {c:Cm7b5}, half-diminished.' },
+        ],
+        spelling: 'exact',
+        explain: 'Stacked thirds take every other letter: C, E, G, B. Lowered, they are {n:C} {n:Eb} {n:Gb} {n:Bbb}.',
+      },
+    },
+  ],
+};
+
+const seventhsInAKey: Lesson = {
+  id: 'sevenths-in-a-key',
+  title: 'The seventh chords of a major key',
+  teaches: 'A major key gives seven seventh chords: maj7, minor 7, minor 7, maj7, dominant 7, minor 7, half-diminished.',
+  minutes: 3,
+  skill: `theory:${U}:sevenths-in-a-key`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Four notes on every degree',
+      body: 'Stack **four** notes, every other note of the {n:C} major scale, on each of its seven notes. You get seven seventh chords: {c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7} {c:Am7} {c:Bm7b5}. Their roots climb string 5 from fret 3.',
+      figure: {
+        kind: 'fretboard',
+        frets: [3, 14],
+        dots: [
+          { string: 5, fret: 3, note: 'C', label: 'I', role: 'root' },
+          { string: 5, fret: 5, note: 'D', label: 'ii' },
+          { string: 5, fret: 7, note: 'E', label: 'iii' },
+          { string: 5, fret: 8, note: 'F', label: 'IV' },
+          { string: 5, fret: 10, note: 'G', label: 'V' },
+          { string: 5, fret: 12, note: 'A', label: 'vi' },
+          { string: 5, fret: 14, note: 'B', label: 'vii' },
+        ],
+        caption: 'The roots of the seven chords of {k:C major} on string 5.',
+      },
+    },
+    {
+      type: 'card',
+      title: 'As numerals',
+      body: 'As numerals: {r:Imaj7} {r:ii7} {r:iii7} {r:IVmaj7} {r:V7} {r:vi7} {r:viiø7}. Upper case means a major triad underneath, lower case a minor one, and ø half-diminished. The pattern is the same in every major key.',
+      figure: {
+        kind: 'audio',
+        sound: { kind: 'progression', chords: ['Cmaj7', 'Dm7', 'Em7', 'Fmaj7', 'G7', 'Am7', 'Bm7b5', 'Cmaj7'], beats: 2, tempo: 90 },
+        label: 'Hear the climb in {n:C}',
+      },
+    },
+    {
+      type: 'fill-blanks',
+      prompt: 'Complete the seventh chords of {k:G major}.',
+      text: '{c:Gmaj7}  {c:Am7}  {c:Bm7}  {c:Cmaj7}  ___  {c:Em7}  {c:F#m7b5}',
+      blanks: ['{c:D7}'],
+      bank: ['{c:Dmaj7}', '{c:Dm7}', '{c:Dm7b5}'],
+      explain: 'Degree 5 always carries the dominant 7, {r:V7}. In {k:G major} that is {c:D7}: {n:D} {n:F#} {n:A} {n:C}.',
+      fact: 'sevenths-major-key-pattern',
+    },
+    {
+      type: 'choice',
+      prompt: 'Which degree of a major key has a half-diminished seventh chord?',
+      options: [
+        { text: 'The 7th', correct: true },
+        { text: 'The 2nd', why: '{r:ii7} is a minor 7: {c:Dm7} in {k:C major}.' },
+        { text: 'The 5th', why: '{r:V7} is the dominant 7: {c:G7} in {k:C major}.' },
+        { text: 'The 3rd', why: '{r:iii7} is a minor 7: {c:Em7} in {k:C major}.' },
+      ],
+      explain: 'Only {r:viiø7} is half-diminished: {c:Bm7b5}, {n:B} {n:D} {n:F} {n:A}, in {k:C major}.',
+      fact: 'sevenths-major-key-pattern',
+    },
+    {
+      type: 'choice',
+      prompt: 'In {k:F major}, which chord is {r:IVmaj7}?',
+      options: [
+        { text: '{c:Bbmaj7}', correct: true },
+        { text: '{c:Bb7}', why: 'A dominant 7 on {n:Bb} needs {n:Ab}, which is not in {k:F major}.' },
+        { text: '{c:Fmaj7}', why: 'That is {r:Imaj7}, built on {n:F} itself.' },
+        { text: '{c:Bbm7}', why: 'The 4th degree has a major triad: {n:Bb} {n:D} {n:F}, not {n:Db}.' },
+      ],
+      explain: 'Degree 4 of {k:F major} is {n:Bb}. Stacking {k:F major} notes on it gives {n:Bb} {n:D} {n:F} {n:A}: {c:Bbmaj7}.',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each numeral with its chord in {k:C major}.',
+      pairs: [
+        { left: '{r:ii7}', right: '{c:Dm7}' },
+        { left: '{r:IVmaj7}', right: '{c:Fmaj7}' },
+        { left: '{r:V7}', right: '{c:G7}' },
+        { left: '{r:vi7}', right: '{c:Am7}' },
+        { left: '{r:viiø7}', right: '{c:Bm7b5}' },
+      ],
+      explain: '{k:C major} gives {c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7} {c:Am7} {c:Bm7b5}, on degrees 1 to 7.',
+      fact: 'sevenths-chords-of-c',
+    },
+    {
+      type: 'true-false',
+      statement: 'A major key has only one dominant seventh chord among its own chords: {r:V7}.',
+      answer: true,
+      explain: 'Stacking the key\'s notes gives a major triad with a minor 7th only on degree 5: {c:G7} in {k:C major}.',
+      fact: 'sevenths-one-dominant',
+    },
+    { generate: 'diatonic-chord', params: { sevenths: true, modes: ['major'], maxAccidentals: 2 } },
+    { generate: 'diatonic-chord', params: { sevenths: true, modes: ['major'], maxAccidentals: 2, ask: 'quality' } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-major-key-pattern',
+      front: 'What are the seventh chords of a major key, as numerals?',
+      back: '{r:Imaj7} {r:ii7} {r:iii7} {r:IVmaj7} {r:V7} {r:vi7} {r:viiø7}',
+      ask: { generate: 'diatonic-chord', params: { sevenths: true, modes: ['major'], maxAccidentals: 3, ask: 'quality' } },
+    },
+    {
+      id: 'sevenths-chords-of-c',
+      front: 'Name the seventh chords of {k:C major}.',
+      back: '{c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7} {c:Am7} {c:Bm7b5}',
+      ask: {
+        type: 'fill-blanks',
+        prompt: 'Complete the seventh chords of {k:C major}.',
+        text: '{c:Cmaj7}  {c:Dm7}  ___  {c:Fmaj7}  {c:G7}  {c:Am7}  ___',
+        blanks: ['{c:Em7}', '{c:Bm7b5}'],
+        bank: ['{c:E7}', '{c:Bm7}', '{c:Bdim7}'],
+        explain: 'Degree 3 is a minor 7, {c:Em7}; degree 7 is half-diminished, {c:Bm7b5}.',
+      },
+    },
+    {
+      id: 'sevenths-one-dominant',
+      front: 'How many dominant seventh chords does a major key have of its own?',
+      back: 'One: {r:V7}, on degree 5. In {k:C major} it is {c:G7}.',
+    },
+  ],
+};
+
+const seventhsInAMinorKey: Lesson = {
+  id: 'sevenths-in-a-minor-key',
+  title: 'The seventh chords of a minor key',
+  teaches: 'Minor-key sevenths come from natural minor, and harmonic minor\'s raised 7th adds a dominant 7 and a dim7.',
+  minutes: 4,
+  skill: `theory:${U}:sevenths-in-a-minor-key`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Sevenths from natural minor',
+      body: 'Stack four notes on each degree of {n:A} natural minor and you get {c:Am7} {c:Bm7b5} {c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7}. They are the chords of {k:C major}, the relative major, now counted from {n:A}.',
+      figure: { kind: 'chord', symbol: 'Am7', frets: 'x02010', caption: 'The tonic chord of {k:A minor}: {c:Am7}, x02010.' },
+    },
+    {
+      type: 'card',
+      title: 'Numerals in minor',
+      body: 'This app writes them {r:i7} {r:iiø7} {r:bIIImaj7} {r:iv7} {r:v7} {r:bVImaj7} {r:bVII7}. The flats mean those roots sit lower than in the major scale on {n:A}. Many books write {r:III}, {r:VI} and {r:VII} instead, without the flats.',
+      figure: {
+        kind: 'audio',
+        sound: { kind: 'progression', chords: ['Am7', 'Bm7b5', 'Cmaj7', 'Dm7', 'Em7', 'Fmaj7', 'G7', 'Am7'], beats: 2, tempo: 90 },
+        label: 'Hear the climb in {k:A minor}',
+      },
+    },
+    {
+      type: 'choice',
+      prompt: 'In {k:A minor}, which chord is {r:bVImaj7}?',
+      options: [
+        { text: '{c:Fmaj7}', correct: true },
+        { text: '{c:F7}', why: 'A dominant 7 on {n:F} needs {n:Eb}; {k:A minor} has {n:E}.' },
+        { text: '{c:Cmaj7}', why: 'That is {r:bIIImaj7}, on degree 3.' },
+        { text: '{c:Dm7}', why: 'That is {r:iv7}, on degree 4.' },
+      ],
+      explain: 'Degree 6 of {n:A} natural minor is {n:F}. Its notes stacked from {n:F} give {n:F} {n:A} {n:C} {n:E}: {c:Fmaj7}.',
+      fact: 'sevenths-minor-numerals',
+    },
+    {
+      type: 'fill-blanks',
+      prompt: 'Complete the natural-minor seventh chords of {k:E minor}.',
+      text: '{c:Em7}  {c:F#m7b5}  {c:Gmaj7}  {c:Am7}  ___  {c:Cmaj7}  {c:D7}',
+      blanks: ['{c:Bm7}'],
+      bank: ['{c:B7}', '{c:Bmaj7}', '{c:Bm7b5}'],
+      explain: 'Degree 5 of natural minor carries a minor 7, {r:v7}. In {k:E minor} that is {c:Bm7}: {n:B} {n:D} {n:F#} {n:A}.',
+      fact: 'sevenths-a-minor-natural',
+    },
+    {
+      type: 'card',
+      title: 'The raised 7th',
+      body: 'Raise the 7th of {n:A} minor from {n:G} to {n:G#} (harmonic minor) and two chords change. {c:Em7} becomes {c:E7}, the dominant {r:V7} that pulls home. The chord on {n:G#} becomes {c:G#dim7}, the {r:vii°7}: {n:G#} {n:B} {n:D} {n:F}.',
+      figure: { kind: 'chord', symbol: 'E7', frets: '020100', caption: '{c:E7}, 020100: the {n:G#} is string 3, fret 1.' },
+      tip: 'In {c:E7} the {n:G#} sits on string 3, fret 1. In {c:Am7} that string plays {n:A} at fret 2: a half step up, home.',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'Two chords, ending on {c:Am7}. Was the first {c:Em7} or {c:E7}?',
+      sound: { kind: 'progression', chords: ['E7', 'Am7'], beats: 3, tempo: 80 },
+      options: [{ text: '{c:Em7}: the minor {r:v7}' }, { text: '{c:E7}: the dominant {r:V7}', correct: true }],
+      shuffle: false,
+      explain: 'It was {c:E7}: its {n:G#} on string 3 pulls up a half step into the {n:A} of {c:Am7}. {c:Em7} has {n:G}, which lands more softly.',
+    },
+    {
+      type: 'true-false',
+      statement: 'With the raised 7th, the chord on degree 5 of {k:A minor} becomes {c:E7}.',
+      answer: true,
+      explain: '{n:E} {n:G#} {n:B} {n:D} is a major triad with a minor 7th: the dominant 7, {r:V7}.',
+      fact: 'sevenths-harmonic-v7',
+    },
+    {
+      type: 'card',
+      title: 'A minor chord with a major 7th',
+      body: 'The raised 7th changes the tonic chord too: {n:A} {n:C} {n:E} {n:G#} is {c:AmMaj7}, a {t:minor-major-seventh}. From {c:Am} (x02210), move the finger on string 3 down from fret 2 to fret 1.',
+      figure: { kind: 'chord', symbol: 'AmMaj7', frets: 'x02110', caption: '{c:AmMaj7}, x02110: {n:G#} on string 3.' },
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'AmMaj7',
+      frets: 'x02110',
+      accept: 'any-voicing',
+      prompt: 'Place {c:AmMaj7}: start from {c:Am} and lower the note on string 3 by one fret.',
+      explain: '{c:AmMaj7} is x02110: string 3 at fret 1 is {n:G#}, the major 7th above {n:A}.',
+      fact: 'sevenths-minor-major',
+    },
+    {
+      type: 'choice',
+      prompt: 'In {k:A minor} with the raised 7th, which chord is built on {n:G#}?',
+      options: [
+        { text: '{c:G#dim7}', correct: true },
+        { text: '{c:G7}', why: 'That is {r:bVII7} of natural minor, with {n:G} instead of {n:G#}.' },
+        { text: '{c:G#m7b5}', why: 'That needs {n:F#}. Harmonic minor keeps {n:F}, so the 7th is {n:F}: diminished 7.' },
+      ],
+      explain: 'Stacking {k:A minor} notes from {n:G#} gives {n:G#} {n:B} {n:D} {n:F}: three minor thirds, {c:G#dim7}.',
+      fact: 'sevenths-harmonic-v7',
+    },
+    { generate: 'diatonic-chord', params: { sevenths: true, modes: ['minor'], maxAccidentals: 2 } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-a-minor-natural',
+      front: 'Name the natural-minor seventh chords of {k:A minor}.',
+      back: '{c:Am7} {c:Bm7b5} {c:Cmaj7} {c:Dm7} {c:Em7} {c:Fmaj7} {c:G7}',
+    },
+    {
+      id: 'sevenths-minor-numerals',
+      front: 'How does this app write the seventh chords of natural minor, as numerals?',
+      back: '{r:i7} {r:iiø7} {r:bIIImaj7} {r:iv7} {r:v7} {r:bVImaj7} {r:bVII7}',
+    },
+    {
+      id: 'sevenths-harmonic-v7',
+      front: 'In {k:A minor}, what does the raised 7th ({n:G#}) do to the chords on degrees 5 and 7?',
+      back: '{c:Em7} becomes the dominant 7 {c:E7} ({r:V7}), and the chord on {n:G#} becomes the diminished 7 {c:G#dim7} ({r:vii°7}).',
+      ask: { generate: 'diatonic-chord', params: { sevenths: true, modes: ['minor'], maxAccidentals: 3 } },
+    },
+    {
+      id: 'sevenths-minor-major',
+      front: 'What is {c:AmMaj7}?',
+      back: 'A minor-major seventh: a minor triad with a major 7th, {n:A} {n:C} {n:E} {n:G#}. The raised 7th of harmonic minor makes it on the tonic.',
+    },
+  ],
+};
+
+const openSeventhShapes: Lesson = {
+  id: 'open-seventh-shapes',
+  title: 'Open seventh-chord shapes',
+  teaches: 'Many open chords become seventh chords by moving or lifting one finger.',
+  minutes: 4,
+  skill: `theory:${U}:open-seventh-shapes`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Lift a finger',
+      body: 'Many open chords turn into seventh chords with one small move. Play {c:Am} (x02210) and lift the finger off string 3: the open {n:G}, a minor 7th above {n:A}, gives {c:Am7} (x02010). {c:C} to {c:Cmaj7} works the same way on string 2.',
+      figure: {
+        kind: 'fretboard',
+        frets: [0, 3],
+        root: 'A',
+        labels: 'degree',
+        dots: [
+          { string: 5, fret: 0, note: 'A', degree: '1', role: 'root' },
+          { string: 4, fret: 2, note: 'E', degree: '5', role: 'fifth' },
+          { string: 3, fret: 0, note: 'G', degree: 'b7', role: 'seventh' },
+          { string: 2, fret: 1, note: 'C', degree: 'b3', role: 'third' },
+          { string: 1, fret: 0, note: 'E', degree: '5', role: 'fifth' },
+        ],
+        caption: '{c:Am7} (x02010): the open {n:G} on string 3 is the 7th.',
+      },
+    },
+    {
+      type: 'card',
+      title: 'Hear the change',
+      body: 'Each pair is the plain chord, then its seventh. Listen to the 7th soften {c:C} and loosen {c:Am}.',
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['C', 'Cmaj7', 'Am', 'Am7'], beats: 2, tempo: 70 }, label: 'Hear {c:C}, {c:Cmaj7}, {c:Am}, {c:Am7}' },
+    },
+    {
+      type: 'choice',
+      prompt: 'Open {c:F} is xx3211. Which change gives {c:Fmaj7}?',
+      options: [
+        { text: 'Lift the finger off string 1: open {n:E}', correct: true },
+        { text: 'Lift the finger off string 2: open {n:B}', why: 'That drops the 5th, {n:C}, for {n:B}, which is not in {c:Fmaj7}.' },
+        { text: 'Lift the finger off string 3: open {n:G}', why: 'That swaps the 3rd, {n:A}, for {n:G}: with no 3rd it is no major chord.' },
+      ],
+      explain: 'String 1 at fret 1 is {n:F}, the root again. Open, it plays {n:E}, the major 7th: xx3210 is {c:Fmaj7}.',
+      fact: 'sevenths-open-maj7',
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'Am7',
+      frets: 'x02010',
+      accept: 'any-voicing',
+      prompt: 'Place {c:Am7}.',
+      explain: '{c:Am7} is x02010: open {c:Am} with string 3 left open, so the {n:G} rings.',
+      fact: 'sevenths-open-m7',
+    },
+    {
+      type: 'card',
+      title: 'Move a finger',
+      body: 'Some shapes move a finger instead. In {c:G} (320003), slide the finger on string 1 from fret 3 to fret 1: {n:G} drops to {n:F}, the minor 7th, and you have {c:G7} (320001). {c:Dm} (xx0231) becomes {c:Dm7} (xx0211) the same way on string 2.',
+      figure: {
+        kind: 'fretboard',
+        frets: [0, 3],
+        root: 'G',
+        labels: 'degree',
+        dots: [
+          { string: 6, fret: 3, note: 'G', degree: '1', role: 'root' },
+          { string: 5, fret: 2, note: 'B', degree: '3', role: 'third' },
+          { string: 4, fret: 0, note: 'D', degree: '5', role: 'fifth' },
+          { string: 3, fret: 0, note: 'G', degree: '1', role: 'root' },
+          { string: 2, fret: 0, note: 'B', degree: '3', role: 'third' },
+          { string: 1, fret: 1, note: 'F', degree: 'b7', role: 'seventh' },
+        ],
+        caption: '{c:G7} (320001): {n:F} on string 1 is the 7th.',
+      },
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'C7',
+      frets: 'x32310',
+      accept: 'any-voicing',
+      prompt: 'Place {c:C7}: keep {c:C} and add your little finger at string 3, fret 3.',
+      figure: { kind: 'chord', symbol: 'C', frets: 'x32010', caption: 'Start from {c:C}.' },
+      explain: '{c:C7} is x32310: the little finger adds {n:Bb}, the minor 7th, on string 3.',
+      fact: 'sevenths-open-dom7',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each open shape with its chord.',
+      pairs: [
+        { left: 'x32000', right: '{c:Cmaj7}' },
+        { left: 'xx3210', right: '{c:Fmaj7}' },
+        { left: '022030', right: '{c:Em7}' },
+        { left: 'xx0211', right: '{c:Dm7}' },
+        { left: '320001', right: '{c:G7}' },
+      ],
+      explain: 'Read each shape from string 6 to string 1. Each one is its plain open chord with one finger lifted, moved or added.',
+      fact: 'sevenths-open-m7',
+    },
+    {
+      type: 'card',
+      title: 'One to learn as a shape',
+      body: '{c:B7} (x21202) has no easy open {c:B} to start from, so learn it as a shape of its own: four fingers, string 6 silent. {c:Em7} has two common shapes: 022030 adds {n:D} on string 2, and 020000 lifts the finger off string 4.',
+      figure: { kind: 'chord', symbol: 'B7', frets: 'x21202', caption: '{c:B7}, x21202: the 7th, {n:A}, is on string 3.' },
+    },
+    {
+      type: 'true-false',
+      statement: '{c:B7} is played x21202, with string 6 left silent.',
+      answer: true,
+      explain: 'x21202: string 5 fret 2 {n:B}, string 4 fret 1 {n:D#}, string 3 fret 2 {n:A}, open {n:B}, string 1 fret 2 {n:F#}.',
+      fact: 'sevenths-open-dom7',
+    },
+    {
+      type: 'play-chord',
+      prompt: 'Strum {c:Fmaj7} (xx3210), slowly, strings 4 to 1.',
+      chord: 'Fmaj7',
+      frets: 'xx3210',
+      explain: '{c:Fmaj7} rings {n:F} {n:A} {n:C} and the open {n:E}. Keep strings 5 and 6 quiet: the thumb can rest against string 6.',
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'Fmaj7',
+        frets: 'xx3210',
+        accept: 'any-voicing',
+        prompt: 'Place {c:Fmaj7} on the fretboard.',
+        explain: '{c:Fmaj7} is xx3210: frets 3, 2 and 1 on strings 4, 3 and 2, and string 1 open.',
+      },
+    },
+    {
+      type: 'play-chord',
+      prompt: 'Now strum {c:Cmaj7} (x32000), strings 5 to 1.',
+      chord: 'Cmaj7',
+      frets: 'x32000',
+      explain: '{c:Cmaj7} needs only two fingers. From {c:Fmaj7}, the ring finger moves from string 4 to string 5 and the middle finger from string 3 to string 4.',
+      alternative: {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'Cmaj7',
+        frets: 'x32000',
+        accept: 'any-voicing',
+        prompt: 'Place {c:Cmaj7} on the fretboard.',
+        explain: '{c:Cmaj7} is x32000: string 5 fret 3, string 4 fret 2, the rest open.',
+      },
+    },
+    { generate: 'chord-shape', params: { chords: ['Am7', 'Em7', 'Cmaj7', 'G7', 'Dm7', 'Fmaj7', 'C7', 'B7'] } },
+  ],
+  facts: [
+    { id: 'sevenths-open-maj7', front: 'Name two open major 7 shapes.', back: '{c:Cmaj7} x32000 and {c:Fmaj7} xx3210.' },
+    { id: 'sevenths-open-m7', front: 'Name three open minor 7 shapes.', back: '{c:Am7} x02010, {c:Em7} 022030 and {c:Dm7} xx0211.' },
+    {
+      id: 'sevenths-open-dom7',
+      front: 'Name three open dominant 7 shapes.',
+      back: '{c:G7} 320001, {c:C7} x32310 and {c:B7} x21202.',
+      ask: { generate: 'chord-shape', params: { chords: ['G7', 'C7', 'B7'] } },
+    },
+  ],
+};
+
+const barreSeventhShapes: Lesson = {
+  id: 'barre-seventh-shapes',
+  title: 'Movable seventh-chord shapes',
+  teaches: 'The E-shape and A-shape barre chords have seventh versions you can move to any root on strings 6 and 5.',
+  minutes: 4,
+  skill: `theory:${U}:barre-seventh-shapes`,
+  steps: [
+    {
+      type: 'card',
+      title: 'The E shape, as a seventh',
+      body: 'The E-shape {t:barre} chord at fret 1 is {c:F} (133211), root {n:F} on string 6. Lift the finger off string 4 and the barre plays {n:Eb}, the minor 7th: {c:F7}, 131211. Lift the string 3 finger too for {c:Fm7}, 131111.',
+      figure: { kind: 'chord', symbol: 'F7', frets: '131211', caption: '{c:F7}, 131211: root {n:F} on string 6, fret 1.' },
+      tip: 'Slide the same grip up and the root on string 6 names the chord: at fret 3 it is {c:G7}, 353433.',
+    },
+    {
+      type: 'choice',
+      prompt: 'In {c:Fm7} (131111), the barre plays string 3 at fret 1. Which note is that?',
+      options: [
+        { text: '{n:Ab}', correct: true },
+        { text: '{n:A}', why: '{n:A} is string 3 at fret 2: the major 3rd, in {c:F7}.' },
+        { text: '{n:G}', why: '{n:G} is the open string 3.' },
+        { text: '{n:Bb}', why: '{n:Bb} is three frets up string 3.' },
+      ],
+      explain: 'String 3 is {n:G}; one fret up is {n:Ab}, the minor 3rd of {n:F}. That one note turns {c:F7} into {c:Fm7}.',
+      fact: 'sevenths-e-shape-barres',
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'A7',
+      frets: '575655',
+      accept: 'this-shape',
+      prompt: 'Build {c:A7} as an E shape: barre fret 5, root {n:A} on string 6.',
+      explain: '{c:A7} as an E shape is 575655: the {c:F7} grip moved up four frets. The barre plays {n:G}, the minor 7th, on string 4.',
+    },
+    {
+      type: 'card',
+      title: 'The A shape, as a seventh',
+      body: 'The A-shape barre at fret 1 is {c:Bb} (x13331), root {n:Bb} on string 5. Lift the finger off string 3 and the barre plays {n:Ab}: {c:Bb7}, x13131. From there, string 2 at fret 2 gives {c:Bbm7} (x13121); string 3 at fret 2 gives {c:Bbmaj7} (x13231).',
+      figure: { kind: 'chord', symbol: 'Bb7', frets: 'x13131', caption: '{c:Bb7}, x13131: root {n:Bb} on string 5, fret 1.' },
+    },
+    {
+      type: 'chord-build',
+      task: 'fingers',
+      chord: 'Dm7',
+      frets: 'x57565',
+      accept: 'this-shape',
+      prompt: 'Build {c:Dm7} as an A shape: barre fret 5, root {n:D} on string 5.',
+      explain: '{c:Dm7} as an A shape is x57565: the {c:Bbm7} grip moved up four frets, with {n:D} on string 5.',
+    },
+    {
+      type: 'choice',
+      prompt: 'The shape x13121 moved up to fret 3 (x35343) is which chord?',
+      options: [
+        { text: '{c:Cm7}', correct: true },
+        { text: '{c:C7}', why: '{c:C7} as an A shape is x35353: string 2 at fret 5, not 4.' },
+        { text: '{c:Bbm7}', why: 'That is the shape at fret 1, where the root on string 5 is {n:Bb}.' },
+        { text: '{c:Dm7}', why: '{c:Dm7} is the same shape at fret 5.' },
+      ],
+      explain: 'x13121 is {c:Bbm7}. The root sits on string 5: at fret 3 that is {n:C}, so x35343 is {c:Cm7}.',
+      fact: 'sevenths-a-shape-barres',
+    },
+    {
+      type: 'card',
+      title: 'The half-diminished grip',
+      body: 'A common {t:half-diminished} grip has its root on string 5 and uses four strings: x1212x is {c:Bbm7b5} at fret 1. Slide it up a fret and it is {c:Bm7b5}, x2323x, the {r:viiø7} of {k:C major}.',
+      figure: { kind: 'chord', symbol: 'Bbm7b5', frets: 'x1212x', caption: '{c:Bbm7b5}, x1212x: strings 6 and 1 silent.' },
+    },
+    {
+      type: 'choice',
+      prompt: 'Slide x1212x up to fret 5 (x5656x). Which chord is it?',
+      options: [
+        { text: '{c:Dm7b5}', correct: true },
+        { text: '{c:Dm7}', why: 'The shape keeps its flat 5th: it stays half-diminished wherever it goes.' },
+        { text: '{c:Ebm7b5}', why: 'That is fret 6: string 5, fret 6 is {n:Eb}.' },
+        { text: '{c:Em7b5}', why: 'That is fret 7: string 5, fret 7 is {n:E}.' },
+      ],
+      explain: 'The root is on string 5. At fret 5 it is {n:D}, so x5656x is {c:Dm7b5}: {n:D} {n:F} {n:Ab} {n:C}.',
+      fact: 'sevenths-half-dim-shape',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each movable shape at fret 1 with its chord.',
+      pairs: [
+        { left: '131211', right: '{c:F7}' },
+        { left: '1x221x', right: '{c:Fmaj7}' },
+        { left: 'x13131', right: '{c:Bb7}' },
+        { left: 'x13231', right: '{c:Bbmaj7}' },
+        { left: 'x1212x', right: '{c:Bbm7b5}' },
+      ],
+      explain: 'A shape starting on string 6 is an E shape with root {n:F} at fret 1; one starting on string 5 is an A shape with root {n:Bb}.',
+      fact: 'sevenths-e-shape-barres',
+    },
+    {
+      type: 'true-false',
+      statement: '{c:G7} as an E shape is 353433: the {c:F7} shape moved up two frets.',
+      answer: true,
+      explain: 'Every fret of 131211 goes up by two: 353433. The root on string 6 is now {n:G}.',
+      fact: 'sevenths-e-shape-barres',
+    },
+    { generate: 'chord-shape', params: { chords: ['F7', 'Bb7', 'Fm7', 'Bbm7', 'Bbmaj7', 'Cm7', 'Gm7', 'Ab7'] } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-e-shape-barres',
+      front: 'Give the E-shape seventh chords at fret 1, root {n:F} on string 6.',
+      back: '{c:F7} 131211, {c:Fm7} 131111, {c:Fmaj7} 1x221x.',
+    },
+    {
+      id: 'sevenths-a-shape-barres',
+      front: 'Give the A-shape seventh chords at fret 1, root {n:Bb} on string 5.',
+      back: '{c:Bb7} x13131, {c:Bbm7} x13121, {c:Bbmaj7} x13231.',
+      ask: { generate: 'chord-shape', params: { chords: ['Bb7', 'Bbm7', 'Bbmaj7'], accept: 'this-shape' } },
+    },
+    {
+      id: 'sevenths-half-dim-shape',
+      front: 'What is a common half-diminished shape with its root on string 5?',
+      back: 'x1212x: {c:Bbm7b5} at fret 1. One fret up, x2323x is {c:Bm7b5}.',
+    },
+  ],
+};
+
+const hearingSevenths: Lesson = {
+  id: 'hearing-sevenths',
+  title: 'Hearing seventh chords',
+  teaches: 'Each seventh chord has its own colour, and a 7th\'s distance below the octave tells major from minor.',
+  minutes: 3,
+  skill: `theory:${U}:hearing-sevenths`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Five colours on one root',
+      body: 'Here are the five types on {n:A}. On the guitar, all five sit in open position: {c:Amaj7} x02120, {c:A7} x02020, {c:Am7} x02010, {c:Am7b5} x0101x, {c:Adim7} x01212. Listen for each one\'s colour, not its notes.',
+      figure: {
+        kind: 'audio',
+        sound: { kind: 'progression', chords: ['Amaj7', 'A7', 'Am7', 'Am7b5', 'Adim7'], voicing: 'close', beats: 2, tempo: 60 },
+        label: 'Hear the five on {n:A}',
+      },
+    },
+    {
+      type: 'card',
+      title: 'Listen just under the octave',
+      body: 'A **major 7th** sits a half step under the octave, so the two rub and shimmer: {c:Amaj7}. A **minor 7th** sits a whole step under it, a looser, bluesier sound: {c:A7} and {c:Am7}.',
+      figure: {
+        kind: 'keyboard',
+        keys: [{ note: 'A3', role: 'root' }, { note: 'G4', role: 'seventh' }, { note: 'G#4', role: 'seventh' }, { note: 'A4', role: 'root' }],
+        from: 'A3',
+        to: 'A4',
+        caption: '{n:G#} is a half step under the {n:A} above, {n:G} a whole step.',
+      },
+    },
+    {
+      type: 'choice',
+      prompt: 'Which 7th is a whole step below the octave?',
+      options: [
+        { text: 'The minor 7th', correct: true },
+        { text: 'The major 7th', why: 'The major 7th is only a half step below the octave: that is why it rubs.' },
+      ],
+      shuffle: false,
+      explain: 'A minor 7th is 10 half steps up, two short of the octave: a whole step below it. The major 7th is 11, one short.',
+      fact: 'sevenths-distance-below-octave',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'Major 7 or dominant 7?',
+      sound: { kind: 'chord', chord: 'Amaj7', frets: 'x02120' },
+      options: [{ text: 'Major 7', correct: true }, { text: 'Dominant 7' }],
+      shuffle: false,
+      explain: 'That was {c:Amaj7}, x02120. Its 7th, {n:G#}, is a half step under the root: soft and shimmering.',
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each seventh chord with the colour it is often given.',
+      pairs: [
+        { left: 'Major 7', right: 'Soft and dreamy' },
+        { left: 'Dominant 7', right: 'Bluesy and restless' },
+        { left: 'Minor 7', right: 'Mellow' },
+        { left: 'Half-diminished', right: 'Dark and unstable' },
+        { left: 'Diminished 7', right: 'Tense' },
+      ],
+      explain: 'These are common descriptions, not rules, but they help you name what you hear.',
+      fact: 'sevenths-colours',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'And this one: major 7 or dominant 7?',
+      sound: { kind: 'chord', chord: 'A7', frets: 'x02020' },
+      options: [{ text: 'Major 7' }, { text: 'Dominant 7', correct: true }],
+      shuffle: false,
+      explain: 'That was {c:A7}, x02020. Its 7th, {n:G}, is a whole step under the root: bluesy, wanting to move.',
+    },
+    {
+      type: 'true-false',
+      statement: '{c:A7} and {c:Am7} differ only in their 3rd.',
+      answer: true,
+      explain: 'Both have the minor 7th, {n:G}. The 3rd is {n:C#} in {c:A7} and {n:C} in {c:Am7}: listen for it.',
+      fact: 'sevenths-7-vs-m7',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'Name the seventh chord.',
+      sound: { kind: 'chord', chord: 'Am7b5', frets: 'x0101x' },
+      options: [{ text: 'Major 7' }, { text: 'Dominant 7' }, { text: 'Minor 7' }, { text: 'Half-diminished', correct: true }, { text: 'Diminished 7' }],
+      shuffle: false,
+      explain: 'That was {c:Am7b5}, x0101x: dark and unstable. Its flat 5th, {n:Eb}, keeps it from settling.',
+    },
+    {
+      type: 'choice',
+      prompt: '{c:Am7} is x02010 and {c:A7} is x02020. Which note changes?',
+      options: [
+        { text: 'The 3rd: {n:C} becomes {n:C#}', correct: true },
+        { text: 'The 7th: {n:G} becomes {n:G#}', why: 'Both keep the open {n:G} on string 3. Only string 2 moves.' },
+        { text: 'The root: {n:A} becomes {n:Bb}', why: 'The open {n:A} string stays the root of both.' },
+      ],
+      explain: 'String 2 goes from fret 1 to fret 2: {n:C} to {n:C#}, minor 3rd to major 3rd. That is the whole difference.',
+      fact: 'sevenths-7-vs-m7',
+    },
+    { generate: 'chord-quality-ear', params: { types: FIVE_TYPES } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-colours',
+      front: 'What colour is each seventh chord often said to have?',
+      back: 'Major 7 soft and dreamy, dominant 7 bluesy and restless, minor 7 mellow, half-diminished dark and unstable, diminished 7 tense.',
+    },
+    {
+      id: 'sevenths-distance-below-octave',
+      front: 'How far below the octave are the major 7th and the minor 7th?',
+      back: 'A major 7th is a half step below the octave and rubs against it; a minor 7th is a whole step below.',
+    },
+    {
+      id: 'sevenths-7-vs-m7',
+      front: 'How do you tell a dominant 7 from a minor 7 by ear?',
+      back: 'Listen for the 3rd: major in a dominant 7, minor in a minor 7. Both have the same minor 7th.',
+    },
+  ],
+};
+
+const seventhsAndFunction: Lesson = {
+  id: 'sevenths-and-function',
+  title: 'What each seventh chord does',
+  teaches: 'Major 7 chords rest, dominant 7 chords pull, minor 7 chords prepare, and diminished ones lead onward.',
+  minutes: 3,
+  skill: `theory:${U}:sevenths-and-function`,
+  steps: [
+    {
+      type: 'card',
+      title: 'Prepare, pull, rest',
+      body: 'In {k:C major} play {c:Dm7} (xx0211), {c:G7} (320001), {c:Cmaj7} (x32000). Each chord has a job: {c:Dm7} **prepares**, {c:G7} **pulls**, {c:Cmaj7} **rests**. As functions: subdominant, {t:dominant}, tonic.',
+      figure: { kind: 'chord', symbol: 'G7', frets: '320001', caption: '{c:G7}: the pull, {r:V7} in {k:C major}.' },
+    },
+    {
+      type: 'card',
+      title: 'Hear the jobs',
+      body: 'Listen for the moment {c:G7} gives way to {c:Cmaj7}: the tension melts. A major 7 is a soft place to land; its 7th adds colour without asking to move on.',
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Dm7', 'G7', 'Cmaj7'], beats: 4, tempo: 80 }, label: 'Hear prepare, pull, rest' },
+    },
+    {
+      type: 'match-pairs',
+      prompt: 'Match each chord of {k:C major} with its job.',
+      pairs: [
+        { left: '{c:Cmaj7}', right: 'Rest (tonic)' },
+        { left: '{c:Dm7}', right: 'Prepare (subdominant)' },
+        { left: '{c:G7}', right: 'Pull (dominant)' },
+      ],
+      explain: '{c:Dm7} ({r:ii7}) leads to {c:G7} ({r:V7}), which pulls home to {c:Cmaj7} ({r:Imaj7}).',
+      fact: 'sevenths-maj7-function',
+    },
+    {
+      type: 'choice',
+      prompt: '{c:G7} most often resolves to which chord?',
+      options: [
+        { text: '{c:C}', correct: true },
+        { text: '{c:Dm7}', why: '{c:Dm7} usually comes before {c:G7}, preparing it.' },
+        { text: '{c:Am}', why: '{c:G7} to {c:Am} happens, as a surprise ending, but far less often.' },
+        { text: '{c:F}', why: '{c:G7} to {c:F} steps down, but leaves the pull unresolved.' },
+      ],
+      explain: 'A dominant 7 wants to resolve down a fifth: {n:G} down to {n:C}. In {c:G7}, {n:B} rises to {n:C} and {n:F} falls to {n:E}.',
+      fact: 'sevenths-dominant-resolves',
+    },
+    {
+      type: 'card',
+      title: 'Down a fifth',
+      body: 'A dominant 7 usually resolves **down a fifth**: {c:G7} to {c:C}, {c:D7} to {c:G}, {c:E7} to {c:Am}. Its 3rd and 7th form a {t:tritone} that melts into the next chord by half steps: in {c:G7}, {n:B} rises to {n:C} and {n:F} falls to {n:E}.',
+      figure: { kind: 'chord', symbol: 'D7', frets: 'xx0212', caption: '{c:D7}, xx0212: it pulls toward {c:G}.' },
+    },
+    {
+      type: 'choice',
+      prompt: 'Which chord does {c:D7} most want to resolve to?',
+      options: [
+        { text: '{c:G}', correct: true },
+        { text: '{c:A}', why: '{n:A} is a fifth above {n:D}. A dominant 7 resolves down a fifth.' },
+        { text: '{c:Dmaj7}', why: 'That keeps the root; the pull of {c:D7} points elsewhere.' },
+        { text: '{c:C}', why: '{n:C} is only a whole step down from {n:D}.' },
+      ],
+      explain: 'Down a fifth from {n:D} is {n:G}. The {n:F#} of {c:D7} rises to {n:G} and its {n:C} falls to {n:B}.',
+      fact: 'sevenths-dominant-resolves',
+    },
+    {
+      type: 'card',
+      title: 'The diminished family',
+      body: '{c:Bm7b5}, the {r:viiø7} of {k:C major}, shares three notes with {c:G7} (B, D and F), so it too leads home to {c:C}. In {k:A minor} it is the {r:iiø7}, preparing {c:E7}. {c:G#dim7}, the {r:vii°7} of {k:A minor}, acts as a dominant: its {n:G#} rises to {n:A}.',
+      figure: { kind: 'chord', symbol: 'G#dim7', frets: '4x343x', caption: '{c:G#dim7}, 4x343x: it leads to {c:Am}.' },
+    },
+    {
+      type: 'true-false',
+      statement: 'In {k:A minor}, {c:Bm7b5} is the {r:iiø7} chord, and it usually leads to {c:E7}.',
+      answer: true,
+      explain: 'Half-diminished chords act as {r:iiø7} in minor keys: {c:Bm7b5} prepares the dominant {c:E7}, which pulls to {c:Am}.',
+      fact: 'sevenths-diminished-function',
+    },
+    {
+      type: 'listen-choice',
+      prompt: 'Does this phrase end on a chord that rests, or one that pulls?',
+      sound: { kind: 'progression', chords: ['Cmaj7', 'Am7', 'Dm7', 'G7'], beats: 2, tempo: 80 },
+      options: [{ text: 'It rests' }, { text: 'It pulls: it wants to go on', correct: true }],
+      shuffle: false,
+      explain: 'It ended on {c:G7}, the dominant: the phrase is left hanging, waiting for {c:C}.',
+    },
+    { generate: 'roman-chord', params: { numerals: ['I', 'V', 'IV', 'ii', 'vi'], modes: ['major'], maxAccidentals: 2 } },
+  ],
+  facts: [
+    {
+      id: 'sevenths-maj7-function',
+      front: 'What job do major 7 chords usually do?',
+      back: 'They usually rest, as tonic ({r:Imaj7}) or subdominant ({r:IVmaj7}) chords.',
+    },
+    {
+      id: 'sevenths-dominant-resolves',
+      front: 'Where does a dominant 7 chord usually go?',
+      back: 'It wants to resolve, most often down a fifth: {c:G7} to {c:C}, {c:D7} to {c:G}.',
+      ask: {
+        type: 'choice',
+        prompt: 'Which chord does {c:A7} most want to resolve to?',
+        options: [
+          { text: '{c:D}', correct: true },
+          { text: '{c:E}', why: '{n:E} is a fifth above {n:A}. A dominant 7 resolves down a fifth.' },
+          { text: '{c:G}', why: '{n:G} is only a whole step down from {n:A}.' },
+        ],
+        explain: 'Down a fifth from {n:A} is {n:D}: {c:A7} pulls to {c:D}.',
+      },
+    },
+    {
+      id: 'sevenths-diminished-function',
+      front: 'What do half-diminished and diminished 7 chords usually do?',
+      back: 'Half-diminished chords act as {r:iiø7} in minor keys or {r:viiø7} in major keys; diminished 7 chords act as leading-tone dominants ({r:vii°7}).',
+    },
+  ],
+};
+
+/** Unit 25 of the Theory Path. */
+const unit: Unit = {
+  id: U,
+  title: 'Seventh chords',
+  theme: 'chords',
+  description: 'The five main seventh chords, their formulas, the sevenths of major and minor keys, open and barre shapes, and what each one does.',
+  lessons: [whatASeventhChordIs, theFiveFormulas, seventhsInAKey, seventhsInAMinorKey, openSeventhShapes, barreSeventhShapes, hearingSevenths, seventhsAndFunction],
+  checkpoint: {
+    maxMistakes: 3,
+    steps: [
+      {
+        type: 'true-false',
+        statement: 'A seventh chord is a triad with another third stacked on top.',
+        answer: true,
+        explain: 'Root, 3rd and 5th, plus a third above the 5th: the 7th.',
+      },
+      {
+        type: 'choice',
+        prompt: 'How many half steps above the root is a minor 7th?',
+        options: [{ text: '9' }, { text: '10', correct: true }, { text: '11', why: 'Eleven is the major 7th.' }, { text: '12', why: 'Twelve is the octave.' }],
+        shuffle: false,
+        explain: 'A minor 7th is 10 half steps up, a whole step below the octave: {n:G} above {n:A}.',
+      },
+      {
+        type: 'match-pairs',
+        prompt: 'Match each chord with its formula.',
+        pairs: [
+          { left: '{c:Gmaj7}', right: '{d:1} {d:3} {d:5} {d:7}' },
+          { left: '{c:G7}', right: '{d:1} {d:3} {d:5} {d:b7}' },
+          { left: '{c:Gm7}', right: '{d:1} {d:b3} {d:5} {d:b7}' },
+          { left: '{c:Gm7b5}', right: '{d:1} {d:b3} {d:b5} {d:b7}' },
+          { left: '{c:Gdim7}', right: '{d:1} {d:b3} {d:b5} {d:bb7}' },
+        ],
+        explain: 'Each step down lowers one note: the 7th, the 3rd, the 5th, then the 7th again.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which is the right spelling of {c:Cdim7}?',
+        options: [
+          { text: '{n:C} {n:Eb} {n:Gb} {n:Bbb}', correct: true },
+          { text: '{n:C} {n:Eb} {n:Gb} {n:A}', why: 'Same sound, wrong letter: the 7th of a C chord is a B.' },
+          { text: '{n:C} {n:Eb} {n:G} {n:Bb}', why: 'That is {c:Cm7}.' },
+        ],
+        spelling: 'exact',
+        explain: 'Thirds take every other letter, C E G B, lowered: {n:C} {n:Eb} {n:Gb} {n:Bbb}.',
+      },
+      {
+        type: 'type-answer',
+        prompt: 'Type the 7th of {c:F#m7b5}.',
+        answer: { kind: 'note', value: 'E', spelling: 'exact' },
+        input: 'keypad',
+        explain: '{c:F#m7b5} is {n:F#} {n:A} {n:C} {n:E}: the minor 7th above {n:F#} is {n:E}.',
+      },
+      {
+        type: 'fill-blanks',
+        prompt: 'Complete the seventh chords of {k:D major}.',
+        text: '{c:Dmaj7}  {c:Em7}  {c:F#m7}  {c:Gmaj7}  ___  {c:Bm7}  {c:C#m7b5}',
+        blanks: ['{c:A7}'],
+        bank: ['{c:Amaj7}', '{c:Am7}', '{c:Am7b5}'],
+        explain: 'Degree 5 carries the dominant 7, {r:V7}: {c:A7} in {k:D major}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'In {k:E minor}, which chord is {r:bVImaj7}?',
+        options: [
+          { text: '{c:Cmaj7}', correct: true },
+          { text: '{c:C7}', why: '{c:C7} needs {n:Bb}; {k:E minor} has {n:B}.' },
+          { text: '{c:Gmaj7}', why: 'That is {r:bIIImaj7}.' },
+          { text: '{c:D7}', why: 'That is {r:bVII7}.' },
+        ],
+        explain: 'Degree 6 of {n:E} natural minor is {n:C}: {n:C} {n:E} {n:G} {n:B}, {c:Cmaj7}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'In {k:A minor} with the raised 7th, which chord is {r:V7}?',
+        options: [
+          { text: '{c:E7}', correct: true },
+          { text: '{c:Em7}', why: 'That is {r:v7} of natural minor, with {n:G}.' },
+          { text: '{c:G7}', why: 'That is {r:bVII7}, on degree 7 of natural minor.' },
+          { text: '{c:Emaj7}', why: 'The raised 7th makes the 3rd {n:G#}, but the 7th stays {n:D}.' },
+        ],
+        explain: 'With {n:G#}, degree 5 gives {n:E} {n:G#} {n:B} {n:D}: the dominant 7, {c:E7}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which chord is a minor triad with a major 7th?',
+        options: [
+          { text: '{c:AmMaj7}', correct: true },
+          { text: '{c:Am7}', why: '{c:Am7} has the minor 7th, {n:G}.' },
+          { text: '{c:Amaj7}', why: '{c:Amaj7} has a major triad: {n:C#}.' },
+          { text: '{c:A7}', why: '{c:A7} is a major triad with a minor 7th.' },
+        ],
+        explain: '{c:AmMaj7} is {n:A} {n:C} {n:E} {n:G#}: the tonic chord of {n:A} harmonic minor.',
+      },
+      {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'Cmaj7',
+        frets: 'x32000',
+        accept: 'any-voicing',
+        prompt: 'Place {c:Cmaj7}.',
+        explain: '{c:Cmaj7} is x32000: open {c:C} with string 2 open, so the {n:B} rings.',
+      },
+      {
+        type: 'chord-build',
+        task: 'fingers',
+        chord: 'G7',
+        frets: '320001',
+        accept: 'any-voicing',
+        prompt: 'Place {c:G7}.',
+        explain: '{c:G7} is 320001: open {c:G} with string 1 at fret 1, the {n:F}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'The shape x13121 moved up to fret 3 (x35343) is which chord?',
+        options: [
+          { text: '{c:Cm7}', correct: true },
+          { text: '{c:C7}', why: '{c:C7} as an A shape is x35353.' },
+          { text: '{c:Bbm7}', why: 'That is the shape at fret 1.' },
+        ],
+        explain: 'x13121 is {c:Bbm7}; at fret 3 the string 5 root is {n:C}: {c:Cm7}.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Slide the half-diminished grip x1212x up one fret, to x2323x. Which chord is it?',
+        options: [
+          { text: '{c:Bm7b5}', correct: true },
+          { text: '{c:Bm7}', why: 'The shape keeps its flat 5th wherever it goes.' },
+          { text: '{c:Cm7b5}', why: '{c:Cm7b5} is at fret 3, root {n:C} on string 5.' },
+        ],
+        explain: 'Root on string 5, fret 2: {n:B}. x2323x is {c:Bm7b5}, {n:B} {n:D} {n:F} {n:A}.',
+      },
+      { generate: 'chord-quality-ear', params: { types: FIVE_TYPES } },
+      {
+        type: 'match-pairs',
+        prompt: 'Match each chord of {k:C major} with its job.',
+        pairs: [
+          { left: '{c:Cmaj7}', right: 'Rest (tonic)' },
+          { left: '{c:Dm7}', right: 'Prepare (subdominant)' },
+          { left: '{c:G7}', right: 'Pull (dominant)' },
+        ],
+        explain: '{c:Dm7} prepares, {c:G7} pulls, {c:Cmaj7} rests.',
+      },
+      {
+        type: 'choice',
+        prompt: '{c:C7} most often resolves to which chord?',
+        options: [
+          { text: '{c:F}', correct: true },
+          { text: '{c:G}', why: '{n:G} is a fifth above {n:C}. A dominant 7 resolves down a fifth.' },
+          { text: '{c:Cmaj7}', why: 'That keeps the root: the pull of {c:C7} points to {c:F}.' },
+          { text: '{c:Bb}', why: '{n:Bb} is only a whole step down.' },
+        ],
+        explain: 'Down a fifth from {n:C} is {n:F}: {c:C7} pulls to {c:F}.',
+      },
+    ],
+  },
+};
+
+export default unit;
