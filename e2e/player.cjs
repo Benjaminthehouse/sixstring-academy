@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Player (src/features/player). Run:
- *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,strum,chordwait,flow,reload,nomic,address,artifact,long,review,layouts,reading,meter,chart,capo,part,refused]
+ *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,strum,chordwait,chordcapo,flow,reload,nomic,address,artifact,long,review,layouts,reading,meter,chart,capo,part,refused]
  *
  * Real Chromium, real Web Audio, Chromium's fake microphone playing WAV files rendered by the
  * audio module (the app's own guitar synth).
@@ -58,6 +58,11 @@
  *  refused  the microphone refused: the listen results suggest tapping along, never Wait
  *  chordwait  phone, fake microphone: a C strum while wait mode wants G is named ("That sounded
  *           like C. The chart says G"), then a G strum moves on
+ *  chordcapo  phone, fake microphone, Korobeiniki's strum part behind the learner's capo 2: the
+ *           prompt and a wrong strum are named by the shapes on the chart (E7, Am); the hint
+ *           chord heard back does not count; after a strum counts, its ringing and the recording
+ *           ending say nothing more
+ *  chart    hiding the chord names hides the fretboard too, and both come back together
  *  layouts  phone upright (controls in the lower half), phone sideways (score above the
  *           fretboard, controls in a column on the right, one-line tab), tablet, desktop (side
  *           panel); light and dark; no sideways scroll; no console errors
@@ -988,9 +993,9 @@ async function reading(browser, url) {
       await page.getByRole('radio', { name: /Tab with the notes/ }).first().click();
       await page.waitForTimeout(600);
       check('reading', `${tag}: "Tab and notes" from the options takes the cover away`, (await page.locator('[data-player-tab-cover]').count()) === 0 && (await page.locator('[data-player-score]').getAttribute('data-layer')) === 'both');
+      // Review: the fretboard "Notes only" hid stayed off after the tab came back.
+      check('reading', `${tag}: and the fretboard "Notes only" hid comes back with the tab`, (await page.locator('[data-player-neck]').count()) === 1);
       // And "Notes only" from the options, with the fretboard on, says it hides the fretboard too.
-      await page.getByRole('switch', { name: /^Fretboard/ }).first().click().catch(() => {});
-      await page.waitForTimeout(300);
       await page.getByRole('radio', { name: /^Notes only/ }).first().click();
       const toastSaid = await page.getByText('The fretboard is hidden too').first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
       check('reading', `${tag}: choosing "Notes only" says the fretboard is hidden too`, toastSaid && (await page.locator('[data-player-score]').getAttribute('data-layer')) === 'notation');
@@ -1082,13 +1087,17 @@ async function chart(browser, url) {
     await page.locator('[data-player-chart-hidden]').getByRole('button', { name: 'Show them' }).click();
     await page.waitForTimeout(800);
     check('chart', '"Show them" brings the chords back', /\bD7\b/.test(await tabText()));
+    // Review: the fretboard hidden with the chart stayed off once the chords were back.
+    check('chart', 'and the fretboard hidden with them', (await page.locator('[data-player-neck]').count()) === 1);
     // The address hides them for one visit.
     await s.goto('play--amazing-grace--hide-chart');
     await page.waitForTimeout(800);
     check('chart', '#…--hide-chart opens with the chords hidden', !/\bD7\b/.test(await tabText()));
+    check('chart', '#…--hide-chart turns the fretboard off', (await page.locator('[data-player-neck]').count()) === 0);
     await s.goto('play--amazing-grace');
     await page.waitForTimeout(800);
     check('chart', 'and the next plain visit shows them again', /\bD7\b/.test(await tabText()));
+    check('chart', 'with the fretboard (a hidden chart lasts one visit, so does the fretboard it hid)', (await page.locator('[data-player-neck]').count()) === 1);
     const errors = s.takeErrors();
     check('chart', 'no console errors', errors.length === 0, errors.join(' | '));
   } finally {
@@ -1275,6 +1284,65 @@ async function chordWait() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// chordcapo: wait mode on a strum part behind the learner's capo, with a fake microphone
+// ---------------------------------------------------------------------------------------------
+async function chordCapo() {
+  // Korobeiniki's strum part with the learner's capo on fret 2: the chart shows E7 and Am shapes,
+  // the song sounds F♯7 and Bm. The recording (sounding pitch, as a capo 2 guitar sounds):
+  //   5.0 s  an Am shape (Bm): wrong       7.0 s  the Am shape again: wrong, so the hint sounds
+  //   7.6 s  an E7 shape (F♯7) just after the hint: what the microphone hears of the app's own hint
+  //  10.5 s  the E7 shape: the learner's strum, the song moves on; then the recording stops.
+  const BM = [47, 54, 59, 62, 66];
+  const FS7 = [42, 49, 54, 58, 61, 66];
+  const notes = [];
+  for (const [t, shape] of [[5.0, BM], [7.0, BM], [7.6, FS7], [10.5, FS7]]) shape.forEach((midi, k) => notes.push({ time: t + k * 0.012, midi, velocity: 0.72 }));
+  const file = await wav('chordcapo', notes, 13);
+  try {
+    await withMic(file, async (browser, url) => {
+      const s = await open(browser, url, { mobile: true, permissions: ['microphone'] });
+      const { page } = s;
+      try {
+        await s.goto('play--korobeiniki--part-strum--t72--capo2');
+        const t0 = Date.now();
+        await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
+        await page.waitForFunction(() => window.__pl.mode === 'wait', null, { timeout: 15000 });
+        await page.locator('[data-player-play]').click();
+        await page.waitForSelector('[data-player-wait]', { timeout: 15000 });
+        // Everything the prompt says until the recording has ended, with the wait index and when.
+        const seen = [];
+        while (Date.now() - t0 < 14500) {
+          const at = await page.evaluate(() => ({ text: (document.querySelector('[data-player-wait]')?.textContent ?? '').replace(/\s+/g, ' '), index: window.__pl.waitIndex }));
+          const last = seen[seen.length - 1];
+          if (!last || last.text !== at.text || last.index !== at.index) seen.push({ ...at, t: Date.now() - t0 });
+          await page.waitForTimeout(100);
+        }
+        const log = seen.map((x) => `${(x.t / 1000).toFixed(1)}s #${x.index} ${x.text}`).join(' | ');
+        // Review: behind a capo the prompt said "Strum F♯7" under a chart of E7 shapes.
+        check('chordcapo', 'capo 2: the prompt names the shape on the chart ("Strum E7", not F♯7)', seen.some((x) => x.index === 0 && /Strum E7\b/.test(x.text)) && !seen.some((x) => /F♯7/.test(x.text)), log);
+        check('chordcapo', 'a wrong shape is named as a shape too ("That sounded like Am. The chart says E7")', seen.some((x) => /That sounded like Am\. The chart says E7/.test(x.text)) && !seen.some((x) => /Bm/.test(x.text)), log);
+        // Review: the hint the app strums was heard back and counted as the learner's chord.
+        const hinted = seen.find((x) => x.index === 0 && !/Show me/.test(x.text) && /sounded like/.test(x.text));
+        const moved = seen.find((x) => x.index >= 1);
+        check('chordcapo', 'the hint the app strums, heard back, does not count: the song moves on only with the next strum', !!hinted && !!moved && moved.t - hinted.t > 1500, log);
+        const d = await dbg(page);
+        check('chordcapo', 'what was heard during the hint is set aside', d.notes.some((n) => n.result === 'ignored-hint'), d.notes.map((n) => n.result).join(' '));
+        // Review: the strum just counted, still ringing, said "Keep going: more of the chord" about
+        // the next one; the recording ending (an onset, then silence) said "Not E7 yet".
+        const after = seen.filter((x) => moved && x.t > moved.t);
+        check('chordcapo', 'after the strum that counted, nothing more is said until the next strum', !!moved && after.every((x) => !/Keep going|Not E7 yet|sounded like|did not ring/.test(x.text)), log);
+        await s.shot('chordcapo');
+        const errors = s.takeErrors();
+        check('chordcapo', 'no console errors', errors.length === 0, errors.join(' | '));
+      } finally {
+        await s.close();
+      }
+    });
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 
 (async () => {
   const started = Date.now();
@@ -1316,7 +1384,7 @@ async function chordWait() {
       await server.close();
     }
   }
-  for (const [name, fn] of [['wait', wait], ['strum', strumWait], ['chordwait', chordWait], ['flow', () => flow(facts)]]) {
+  for (const [name, fn] of [['wait', wait], ['strum', strumWait], ['chordwait', chordWait], ['chordcapo', chordCapo], ['flow', () => flow(facts)]]) {
     if (!wants(name)) continue;
     const t = Date.now();
     try {
