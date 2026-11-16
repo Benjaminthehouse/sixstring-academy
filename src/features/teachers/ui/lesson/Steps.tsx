@@ -10,7 +10,7 @@ import type { PracticeSession } from '@/core/progress';
 import { speakable, type CardStep, type GlossaryLookup } from '@/lessons';
 import { FigureView, RichText, useLessonContext } from '@/lessons/ui';
 import { Callout, Heading, Icon, Tag, Text, cx } from '@/ui';
-import { TASK_TOOLS, taskSong, type CardArt, type TaskStep, type TaskTarget, type TeacherKey } from '@/content/teachers';
+import { TASK_TOOLS, resolveTaskTarget, taskSong, type CardArt, type ResolvedTaskTarget, type TaskStep, type TaskTarget, type TeacherKey } from '@/content/teachers';
 import { Art } from '../Art';
 import { Portrait } from '../Portrait';
 import { SpeakButton } from '../Speak';
@@ -119,7 +119,7 @@ export function toolAvailable(target: TaskTarget): boolean {
  * or its tool is not in the app. `unavailable`: neither can be opened (the card then offers only
  * "Skip for now").
  */
-export function useTaskTarget(task: TaskStep): { target: TaskTarget; fallback: boolean; checking: boolean; unavailable: boolean } {
+export function useTaskTarget(task: TaskStep): ResolvedTaskTarget {
   const song = taskSong(task);
   const [missing, setMissing] = useState<boolean | null>(song ? null : false);
   useEffect(() => {
@@ -133,13 +133,7 @@ export function useTaskTarget(task: TaskStep): { target: TaskTarget; fallback: b
       live = false;
     };
   }, [song]);
-  const own: TaskTarget = { tool: task.tool, ...(task.params ? { params: task.params } : {}) };
-  const toolMissing = !toolAvailable(own);
-  if ((missing || toolMissing) && task.fallback) {
-    const target: TaskTarget = { tool: task.fallback.tool, ...(task.fallback.params ? { params: task.fallback.params } : {}) };
-    return { target, fallback: true, checking: false, unavailable: !toolAvailable(target) };
-  }
-  return { target: own, fallback: false, checking: missing === null && !toolMissing, unavailable: toolMissing };
+  return resolveTaskTarget(task, { songAvailable: missing === null ? null : !missing, toolAvailable });
 }
 
 /** A task: what to do in which tool and for how long, then (back from it) what was seen. */

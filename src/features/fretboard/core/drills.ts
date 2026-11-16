@@ -2,10 +2,10 @@
  * The free drills: short adaptive rounds over the learner's own practice settings, plus a timed
  * sprint and a round made only of their blind spots.
  */
-import type { Ask } from './questions';
+import { candidatesFor, type Ask } from './questions';
 import type { RoundPlan } from './round';
 import { settingsScope, type TrainerSettings } from './settings';
-import type { Scope } from './types';
+import type { NeckContext, Scope } from './types';
 
 /** Drill ids (route params and skill suffixes). */
 export type DrillId = 'name-the-note' | 'find-the-note' | 'find-every-note' | 'play-the-note' | 'sprint' | 'blind-spots';
@@ -52,9 +52,10 @@ export const SPRINT_SECONDS = 60;
 /**
  * The round a drill plays with the learner's settings. `tapInstead` turns "Play it" into its tap
  * version (no microphone); `blind` gives the blind-spot positions; `pc` asks about one note only
- * (find-the-note, find-every-note and play-the-note; the name drills ignore it).
+ * (find-the-note, find-every-note and play-the-note; the name drills ignore it), and with the
+ * learner's neck (`ctx`) the round is as long as that note's places warrant.
  */
-export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapInstead?: boolean; blind?: string[]; pc?: number } = {}): RoundPlan {
+export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapInstead?: boolean; blind?: string[]; pc?: number; ctx?: NeckContext } = {}): RoundPlan {
   const scope: Scope = settingsScope(settings);
   const oneNote = opts.pc !== undefined && (drill.id === 'find-the-note' || drill.id === 'find-every-note' || drill.id === 'play-the-note');
   // One note: whether it is natural or not, it is the note asked about.
@@ -99,6 +100,12 @@ export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapIn
       break;
     default:
       asks = [{ kind: 'name', weight: 1 }];
+  }
+  // One note on a few strings has only a few places: each about twice (at least four questions),
+  // rather than the same two places twelve times over.
+  if (oneNote && opts.ctx && length !== null && drill.id !== 'find-every-note') {
+    const places = candidatesFor(asks[0].kind, scope, opts.ctx).length;
+    length = Math.min(length, Math.max(4, places * 2));
   }
   return { skillId: drillSkillId(drill.id), title: drill.title, asks, scope, length, seconds, passAt: 0.8 };
 }

@@ -46,6 +46,12 @@ export function nashvilleChord(text: string, key: Key | string): string {
   return `${root}${getChordType(SUFFIXES[n.suffix].type)!.symbol}`;
 }
 
+/** A number as text: a flat or sharp step is shown and spoken as a degree (♭7), the rest as written. */
+export function numberText(text: string): string {
+  const n = parseNashville(text);
+  return n && n.alt !== 0 ? `{d:${n.alt < 0 ? 'b' : '#'}${n.degree}}${n.suffix}` : text;
+}
+
 /** The same number with the other quality (6m <-> 6): the usual slip. */
 function flipQuality(n: NashvilleNumber): string {
   const flipped = n.suffix === '' ? 'm' : n.suffix === 'm' ? '' : n.suffix === '7' ? 'm7' : n.suffix === 'm7' ? '7' : n.suffix === 'maj7' ? '7' : '';
@@ -57,7 +63,7 @@ function why(text: string, key: Key): string {
   const scale = scaleNotes(key.tonic, 'major');
   const symbol = nashvilleChord(text, key);
   const step = `the ${ordinal(n.degree)} note of the scale${n.alt ? `, ${n.alt < 0 ? 'lowered' : 'raised'} a half step` : ''}`;
-  return `In {k:${key.name}} the scale is ${noteList(scale)}. "${text}" is the ${SUFFIXES[n.suffix].words} on ${step}: {c:${symbol}}.`;
+  return `In {k:${key.name}} the scale is ${noteList(scale)}. ${numberText(text)} is the ${SUFFIXES[n.suffix].words} on ${step}: {c:${symbol}}.`;
 }
 
 /** A short chart: starts on 1, then three more numbers from the pool, no number twice in a row. */
@@ -116,8 +122,8 @@ export const nashville = defineGenerator({
       return choiceOf(
         rng,
         {
-          prompt: `In {k:${key.name}} the chart reads ${numbersIn.join(' ')}. Which chords do you play?`,
-          explain: `In {k:${key.name}} the scale is ${noteList(scaleNotes(key.tonic, 'major'))}. Count up it from 1: ${numbersIn.map((n, i) => `${n} is {c:${right[i]}}`).join(', ')}.`,
+          prompt: `In {k:${key.name}} the chart reads ${numbersIn.map(numberText).join(' ')}. Which chords do you play?`,
+          explain: `In {k:${key.name}} the scale is ${noteList(scaleNotes(key.tonic, 'major'))}. Count up it from 1: ${numbersIn.map((n, i) => `${numberText(n)} is {c:${right[i]}}`).join(', ')}.`,
         },
         right.map((s) => `{c:${s}}`).join(' '),
         wrong.map((list) => list.map((s) => `{c:${s}}`).join(' ')),
@@ -128,13 +134,13 @@ export const nashville = defineGenerator({
     const n = parseNashville(text)!;
     if (ask === 'to-number') {
       const others = distinct([flipQuality(n), ...rng.shuffle(all.filter((x) => x !== text)), String(n.degree === 7 ? 1 : n.degree + 1), String(n.degree === 1 ? 7 : n.degree - 1)], (x) => pcsKey([nashvilleChord(x, key)]), 3, [pcsKey([symbol])]);
-      return choiceOf(rng, { prompt: `In {k:${key.name}}, which number is {c:${symbol}}?`, explain: why(text, key) }, text, others);
+      return choiceOf(rng, { prompt: `In {k:${key.name}}, which number is {c:${symbol}}?`, explain: why(text, key) }, numberText(text), others.map(numberText));
     }
     // The other quality, the neighbours, and the chord counted from the wrong end (1 taken as 0).
     const rivals = [flipQuality(n), ...rng.shuffle(all.filter((x) => x !== text)), `${n.degree === 7 ? 1 : n.degree + 1}`].map((x) => nashvilleChord(x, key));
     return choiceOf(
       rng,
-      { prompt: `In {k:${key.name}}, which chord is ${text}?`, explain: why(text, key) },
+      { prompt: `In {k:${key.name}}, which chord is ${numberText(text)}?`, explain: why(text, key) },
       `{c:${symbol}}`,
       distinct(rivals, (s) => pcsKey([s]), 3, [pcsKey([symbol])]).map((s) => `{c:${s}}`),
     );

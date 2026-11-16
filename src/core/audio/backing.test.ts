@@ -154,7 +154,7 @@ describe('arrangements in every style', () => {
       }
       for (const p of style.guitar) {
         expect(p.length, `${id} guitar`).toBe(style.grid);
-        expect(p).toMatch(/^[DdUuxBPMA.\-]+$/);
+        expect(p).toMatch(/^[DdUuxBPMA1-6.\-]+$/);
       }
       expect(style.tempo.min).toBeLessThan(style.tempo.default);
       expect(style.tempo.max).toBeGreaterThan(style.tempo.default);
@@ -526,6 +526,7 @@ describe('musicality, by inspection of the generated events', () => {
   it('fills sit at the ends of sections, replace the groove there, and lead into a crash', () => {
     for (const id of BACKING_STYLE_IDS) {
       const style = BACKING_STYLES[id];
+      if (style.percussion === false) continue; // no drummer: see the drummerless styles below
       const a = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: id, choruses: 2, seed: 5 });
       const drums = a.events.filter((e) => e.type === 'drum');
       const step = stepOf(a);

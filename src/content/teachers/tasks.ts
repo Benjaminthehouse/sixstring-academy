@@ -103,6 +103,35 @@ export function taskSong(target: TaskTarget): string | null {
   return target.tool === 'player' && target.params?.[0] ? target.params[0] : null;
 }
 
+/** Where a task leads right now, and why (see {@link resolveTaskTarget}). */
+export interface ResolvedTaskTarget {
+  target: TaskTarget;
+  /** The fallback is used (its song is missing, or its tool is not in the app). */
+  fallback: boolean;
+  /** Whether the song is in the library is not known yet: wait before opening. */
+  checking: boolean;
+  /** Neither the task's tool nor its fallback's is in the app: the task can only be skipped. */
+  unavailable: boolean;
+}
+
+/**
+ * Where a task leads: its own target, or its fallback when its song is not in the library
+ * (`songAvailable` false; null while that is being looked up) or its tool's screen is not part of
+ * the app (`toolAvailable`). A song that has landed in the library is opened itself: the fallback
+ * is only for while it is missing. Pure.
+ */
+export function resolveTaskTarget(task: TaskStep, opts: { songAvailable: boolean | null; toolAvailable: (target: TaskTarget) => boolean }): ResolvedTaskTarget {
+  const own: TaskTarget = { tool: task.tool, ...(task.params ? { params: task.params } : {}) };
+  const song = taskSong(task);
+  const songMissing = song !== null && opts.songAvailable === false;
+  const toolMissing = !opts.toolAvailable(own);
+  if ((songMissing || toolMissing) && task.fallback) {
+    const target: TaskTarget = { tool: task.fallback.tool, ...(task.fallback.params ? { params: task.fallback.params } : {}) };
+    return { target, fallback: true, checking: false, unavailable: !opts.toolAvailable(target) };
+  }
+  return { target: own, fallback: false, checking: song !== null && opts.songAvailable === null && !toolMissing, unavailable: toolMissing };
+}
+
 /** The app address of a task target: `{ route: 'play', params: ['hot-cross-buns', 'wait'] }`. */
 export function taskRoute(target: TaskTarget): { route: string; params: string[] } {
   return { route: TASK_TOOLS[target.tool].route, params: [...(target.params ?? [])] };

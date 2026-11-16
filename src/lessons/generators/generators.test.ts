@@ -460,7 +460,8 @@ describe('explanations say exactly what the exercise shows', () => {
     let seen = 0;
     each('roman-chord', (exercise, _s, label) => {
       const t = text(exercise);
-      if (/minor/.test(t) && /♭(III|VI|VII)/.test(t)) {
+      // A minor key in the question (a major key's explanation may name the minor key it borrows from).
+      if (/key of [A-G][♯♭]? minor/.test(t) && /♭(III|VI|VII)/.test(t)) {
         seen++;
         expect(t, label).toContain('sits lower than in the major scale');
       }

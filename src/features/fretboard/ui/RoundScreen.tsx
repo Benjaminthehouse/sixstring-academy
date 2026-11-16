@@ -63,7 +63,7 @@ export function RoundScreen(props: RoundScreenProps) {
   const title = stage ? stageTitle(stage, trainer.ctx, trainer.fmt) : note ? `${drill!.title}: ${trainer.fmt(note.name)}` : drill!.title;
   const plan = useMemo<RoundPlan>(() => {
     if (stage) return { skillId: stageSkillId(stage), title, asks: stage.asks, scope: stage.scope(trainer.ctx, trainer.maxFret), length: stage.length, seconds: null, passAt: 0.8, options: stage.options };
-    return { ...drillPlan(drill!, trainer.settings, { tapInstead, blind, pc: note?.pc }), title };
+    return { ...drillPlan(drill!, trainer.settings, { tapInstead, blind, pc: note?.pc, ctx: trainer.ctx }), title };
     // Blind spots are read when the round is planned; a new round re-reads them.
   }, [stage, drill, trainer.ctx, trainer.maxFret, trainer.settings, tapInstead, blind?.join(','), note?.pc, title]); // eslint-disable-line react-hooks/exhaustive-deps
   const params = stage ? ['stage', stage.id] : ['drill', drill!.id];

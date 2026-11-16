@@ -837,7 +837,7 @@ the right ones are added for you), `unordered?` (blanks may be filled in any ord
 | `degree` | `'b3'` | `b3`, `♭3`, `flat 3`, `flat third` | `spelling` required (`any` accepts ♯4 for ♭5) |
 | `roman` | `'IV'` | `IV`, `♭VII`; **case matters** (iv is a different chord) | |
 | `number` | `12` | `12`, `fret 12`, `twelve`, `12th` | |
-| `text` | `'barre'` | compared without case, accents or punctuation | |
+| `text` | `'barre'` | compared without case, accents or punctuation; a minus right after a number is kept (`6-`, a Nashville minor, is not `6`) | |
 
 `input?`: `keypad` (notes, numbers) or `keyboard`.
 
@@ -875,7 +875,9 @@ Options that sound the same (A4 and d5) are always rejected.
 <!-- /gen -->
 
 `rhythm` (`{ pattern, time? }`), `tempo` (40 to 160), `show`: `notation`, `audio` or `both`, `level?`
-(default: the course level), `start?`: `count-in` (default) or `first-tap`. Graded on timing: a tap counts
+(default: the course level), `start?`: `count-in` (default) or `first-tap`, `counting?` (default true; `false` hides
+the "1 & 2 &" under the notation when it would contradict the count-in or the pad). The feedback shows the rhythm
+itself and its counting ("Tap on 1, 2 &, 3, 4"), never the pattern code. Graded on timing: a tap counts
 within ±150 ms (beginner), ±100 ms (intermediate) or ±65 ms (expert), never more than 40 % of the shortest gap;
 beginners need 80 % of the notes, intermediates 90 %, experts all; a constant delay of the device (up to
 120 ms) is measured and removed. 2 to 16 notes, 1 or 2 bars, no two notes closer than 140 ms.
@@ -899,8 +901,10 @@ beginners need 80 % of the notes, intermediates 90 %, experts all; a constant de
 
 `find`: `{ note: 'E' }` (or `'E4'`), `{ chord: 'Am' }`, `{ scale: 'minor-pentatonic', tonic: 'A' }` or
 `{ interval: 'M3', from: { string, fret } }`. `mode`: `one` (any right place) or `all` (every right place in the
-region, at most 12; partial credit). **`octave` is required.** `frets: [first, last]`, `strings?`, `shown?` (dots
-already on the neck: mark the root of an interval question), `tuning?`, `capo?`.
+region, at most 12; partial credit). **`octave` is required.** `frets: [first, last]`, `strings?` (only these strings
+take a tap: they are shaded on the neck, a tap elsewhere is not an answer, and a right pitch on another string is
+told "right note, but on string N"), `shown?` (dots already on the neck: mark the root of an interval question),
+`tuning?`, `capo?`, `key?` (spells the notes named in the feedback; default: the chord, scale or note asked for).
 
 ### `fretboard-name`
 
@@ -941,7 +945,10 @@ as buttons; exactly one must be right.
 <!-- /gen -->
 
 `task: 'fingers'`: `chord`, `frets?` (the reference shape; default: the library's first), `accept?`:
-`any-voicing` (default: any shape that really is the chord) or `this-shape`.
+`any-voicing` (default: any shape that really is the chord; a slash chord's bass must be its lowest note) or
+`this-shape`. `tuning?`, `capo?` (frets count from it). A wrong shape is explained in plain words (which string
+sounds a note outside the chord, which chord note nothing plays, which string differs from the box) and the right
+box is drawn; the learner's shape is named only when it is a common chord the course has taught.
 `task: 'missing-note'`: `chord`, `given` (all its notes but one), `options?`, `spelling?` (default `any`):
 
 ```ts
@@ -1012,7 +1019,10 @@ learner taps "I can't play right now", exactly as language apps do for speaking 
 <!-- /gen -->
 
 `note` (with octave), **`octave` required**, `where?` (shown on the neck and checked against `note`),
-`toleranceCents?` (default by level: 45 / 35 / 25 cents).
+`toleranceCents?` (default by level: 45 / 35 / 25 cents), `key?` (spells a note heard that is not the one asked
+for; default: as `note` is written), `labels?`: `note` (default, `E2`) or `place` (`string 6, open`; needs `where`;
+friendlier before octaves are taught), `hideNames?` (no note name on the target: find it by place or by ear),
+`staffOnly?` (the note on a staff only, no neck and no names: a reading test). The feedback always names the note.
 
 ### `play-chord`
 
@@ -1028,7 +1038,10 @@ learner taps "I can't play right now", exactly as language apps do for speaking 
 ```
 <!-- /gen -->
 
-`chord`, `frets?` (the shape to show; default the library's first).
+`chord`, `frets?` (the shape to show, and the one listened for: its own notes, so a power chord, a shell or a
+rootless grip can pass; default the library's first), `fingers?` (`'x32010'`: the box draws this fingering),
+`hideDiagram?` (no box until after the answer: "find it on the neck yourself"), `tuning?`, `capo?` (frets count
+from the capo, `chord` names what sounds, the box draws the capo).
 
 ### `play-phrase`
 
@@ -1057,8 +1070,12 @@ learner taps "I can't play right now", exactly as language apps do for speaking 
 <!-- /gen -->
 
 `notes` (2 to 16 tab notes), **`octave` required**, `tempo?`, `pass?` (share of notes needed, default 0.8;
-timing is not graded), `tuning?`, `capo?`. Good alternatives: `fretboard-find` for a note, `chord-build` or
-`{ generate: 'chord-shape' }` for a chord, `order` or `fretboard-find` for a phrase.
+timing is not graded; the microphone listens for twice the phrase's length), `tuning?`, `capo?`, `key?` (spells
+the notes; default: the key they imply, so an A major line shows C♯ and an F major one B♭), `labels?` (`note`
+default, or `place`: "string 5 / fret 3" under the tab), `hideNames?` (numbered pips instead of note names),
+`staffOnly?` (the phrase on a staff only: no tab, no names, a sight-reading test; rests are not drawn). Good
+alternatives: `fretboard-find` for a note, `chord-build` or `{ generate: 'chord-shape' }` for a chord, `order` or
+`fretboard-find` for a phrase.
 
 ### `flashcard`
 
