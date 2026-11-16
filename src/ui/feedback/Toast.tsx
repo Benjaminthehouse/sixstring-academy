@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { Button, IconButton } from '../actions/Button';
 import { renderIcon, type IconSource } from '../icon/Icon';
 import { cx } from '../util/cx';
+import { openDialogCount, subscribeDialogs, useDialogOpen } from './overlays';
 import { Portal } from './Portal';
 import { createToastStore, type ToastItem, type ToastOptions, type ToastStore, type ToastTone } from './toastStore';
 import styles from './Toast.module.css';
 
 const store: ToastStore = createToastStore();
+
+// Nothing covers an open dialog: news waits for it to close (see `ToastOptions.news`).
+subscribeDialogs(() => store.setHeld(openDialogCount() > 0));
 let mountedViewports = 0;
 let detach: (() => void) | null = null;
 
@@ -104,6 +108,8 @@ function ToastCard({ item }: { item: ToastItem }) {
 /** The on-screen stack. Mounted by `<ToastProvider>`; you rarely need it directly. */
 export function ToastViewport() {
   const items = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  // With a dialog open, the replies that still show move to the top edge, clear of a bottom sheet's buttons.
+  const overDialog = useDialogOpen();
   const listRef = useRef<HTMLOListElement | null>(null);
   /** Where focus was before the keyboard shortcut moved it into a toast. */
   const returnTo = useRef<HTMLElement | null>(null);
@@ -164,7 +170,8 @@ export function ToastViewport() {
     <Portal>
       <ol
         ref={listRef}
-        className={styles.viewport}
+        className={cx(styles.viewport, overDialog && styles.overDialog)}
+        data-over-dialog={overDialog ? '' : undefined}
         aria-label="Notifications"
         aria-keyshortcuts="Alt+T"
         aria-live="polite"

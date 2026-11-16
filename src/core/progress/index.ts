@@ -23,3 +23,4 @@ export * from './theme';
 export * from './store';
 export * from './actions';
 export * from './react';
+export * from './backup';

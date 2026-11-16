@@ -46,7 +46,7 @@ const theBeat: Lesson = {
       sound: { kind: 'rhythm', pattern: 'q q. q. | q q q. e', tempo: 80 },
       options: [{ text: 'Steady: the clicks are evenly spaced' }, { text: 'Not steady: the gaps keep changing', correct: true }],
       shuffle: false,
-      explain: 'Some clicks came late and one came early: the gaps kept changing. A beat never wobbles like that; every gap is the same.',
+      explain: 'The gaps between the clicks kept changing, some long and some short. A beat never wobbles like that: every gap is the same.',
     },
     {
       type: 'choice',

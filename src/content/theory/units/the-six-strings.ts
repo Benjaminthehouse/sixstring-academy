@@ -471,7 +471,7 @@ const theFifthFretRule: Lesson = {
       type: 'choice',
       prompt: 'Which fret on string 3 matches open string 2?',
       options: [
-        { text: 'Fret 3', why: 'Fret 3 of string 3 is {n:A#}, a fret too low.' },
+        { text: 'Fret 3', why: 'Fret 3 is one fret too low: it does not reach {n:B}.' },
         { text: 'Fret 4', correct: true },
         { text: 'Fret 5', why: 'Fret 5 of string 3 is {n:C}, one fret too high. String 3 is the exception.' },
         { text: 'Fret 7', why: 'That is much too high. String 3 needs fret 4.' },

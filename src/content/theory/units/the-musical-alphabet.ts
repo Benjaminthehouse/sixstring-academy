@@ -169,7 +169,7 @@ const halfAndWholeSteps: Lesson = {
     {
       type: 'card',
       title: 'One fret, two frets',
-      body: 'Move one fret along a string and the note rises by a {t:half-step|half step}, also called a **semitone**: the smallest step on the guitar. Two half steps make a {t:whole-step|whole step}, also called a **tone**: two frets.',
+      body: 'Move one fret along a string and the note rises by a {t:half-step|half step}, also called a **semitone**: the smallest step from fret to fret. Two half steps make a {t:whole-step|whole step}, also called a **tone**: two frets.',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],

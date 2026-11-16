@@ -29,7 +29,7 @@ import { explainMediaFailure, isArtifact } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs } from '@/core/progress';
 import { cameraDeviceId, cameraMirrored, learnerTuning } from '@/core/settings';
 import { formatNote } from '@/core/theory';
-import { displayToFrame, fitOverlayCanvas, frameToDisplay, fretX, locatePixel, poseFromWireTaps, projectPlanePoint, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
+import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
 import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet, Spinner, Stepper as NumberStepper, Text, cx, toast, useEventListener, useLocalState, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
@@ -44,7 +44,8 @@ import { answers, drillNote, nextTarget, type DrillTarget } from './model/drill'
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor, type GuitarKind } from './model/guitar';
 import { frettingHand, handAdvice, type FingerReading } from './model/hands';
 import { describeStep, stepHeard, stepNotes } from './model/song';
-import { STARTING_STATUS, TRAIL_GHOST, announcement, describeStatus, sameStatus, trailingSpacings, type LiveStatus } from './model/status';
+import { DrawnPoses, TRUSTED, drawnOffset, nextDrawnTrust, type DrawnTrust } from './model/honesty';
+import { STARTING_STATUS, announcement, describeStatus, sameStatus, type LiveStatus } from './model/status';
 import { ContentControls, PrevNext, TrackingControls, type ContentControlsProps } from './ui/Controls';
 import { CoachBar, HudButton, StatusPill, TapLayer, ToolBanner } from './ui/Hud';
 import { clearOverlay, drawFrame, readStagePalette, type Flash, type StagePalette } from './ui/overlay';
@@ -207,30 +208,24 @@ export default function CameraScreen({ params }: RouteProps) {
   const reducedRef = useRef(reducedMotion);
   reducedRef.current = reducedMotion;
 
-  const motion = useRef<{ x: number; y: number; t: number; speed: number } | null>(null);
-  const movingFast = useRef(false);
+  // What was drawn on each recent frame, to check it against the tracker's answer for that frame.
+  const drawnPoses = useRef(new DrawnPoses());
+  const drawnTrust = useRef<DrawnTrust>(TRUSTED);
   const onUpdate = useCallback((pu: PipelineUpdate) => {
     const u = pu.update;
     const now = performance.now();
     if (u.state === 'lost') lostSince.current = lostSince.current ?? now;
     else lostSince.current = null;
-    // How fast the neck moves (working-frame pixels per second, smoothed), against how late the
-    // answers arrive: the dots trail a moving neck by about speed x delay.
-    let trailing = 0;
-    const pose = u.state === 'locked' || u.state === 'candidate' ? u.pose : null;
-    if (pose) {
-      const m = pose.model;
-      const p = projectPlanePoint(pose, fretX(m, 7), m.nutWidth / 2);
-      const prev = motion.current;
-      const dt = prev ? (pu.frameTime - prev.t) / 1000 : 0;
-      const raw = prev && dt > 0.005 ? Math.hypot(p.x - prev.x, p.y - prev.y) / dt : 0;
-      const speed = prev && dt > 0.005 ? 0.6 * prev.speed + 0.4 * raw : 0;
-      motion.current = { x: p.x, y: p.y, t: pu.frameTime, speed };
-      trailing = trailingSpacings(speed, pu.latencyMs, u.guidance.measures.stringSpacingPx);
-    } else motion.current = null;
-    // Hysteresis: outlines from TRAIL_GHOST, solid again only well below it (no flicker at the edge).
-    movingFast.current = movingFast.current ? trailing > 0.6 * TRAIL_GHOST : trailing > TRAIL_GHOST;
-    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, movingFast.current ? 1 : 0);
+    // Measured, not guessed: the dots drawn on this very frame against where the tracker found the
+    // neck in it. Off by close to half a string (a slow device, a fast move): outlines until they
+    // are back on target.
+    const found = u.measured ?? u.pose;
+    if (u.state !== 'locked' || !found) drawnTrust.current = TRUSTED;
+    else {
+      const drawn = drawnPoses.current.at(pu.frameTime);
+      if (drawn) drawnTrust.current = nextDrawnTrust(drawnTrust.current, drawnOffset(drawn, found));
+    }
+    const next = describeStatus(u, lostSince.current === null ? 0 : now - lostSince.current, drawnTrust.current.behind);
     const prev = statusRef.current;
     statusRef.current = next;
     if (!sameStatus(prev, next)) {
@@ -253,6 +248,7 @@ export default function CameraScreen({ params }: RouteProps) {
     const u = r.latest?.update;
     const view = { width: box.width, height: box.height, mirrored: mirroredRef.current, fit: 'contain' as const };
     const pose = r.pose;
+    if (pose) drawnPoses.current.push(r.timeMs, pose);
     // Fingertips: the newest hand landmarks read through this frame's pose (only on a locked board).
     let fingers: FingerReading[] | null = null;
     const hf = handFrameRef.current;

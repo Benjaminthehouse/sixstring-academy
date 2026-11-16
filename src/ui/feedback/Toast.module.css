@@ -14,6 +14,23 @@
   list-style: none;
   pointer-events: none;
 }
+/*
+ * A Modal or Sheet is open: news waits for it to close, and the replies that still show (the answer
+ * to a tap inside the sheet) sit at the top edge, clear of a bottom sheet's summary and buttons.
+ */
+.viewport.overDialog {
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-3));
+  bottom: auto;
+}
+.overDialog .toast {
+  animation-name: enterTop;
+}
+@keyframes enterTop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
 @media (min-width: 720px) {
   .viewport {
     left: auto;
@@ -22,8 +39,11 @@
     align-items: flex-end;
     padding: 0;
   }
+  .viewport.overDialog {
+    top: var(--sp-6);
+    bottom: auto;
+  }
 }
-
 .toast {
   display: flex;
   align-items: flex-start;

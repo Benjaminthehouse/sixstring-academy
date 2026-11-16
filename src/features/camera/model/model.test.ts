@@ -10,7 +10,7 @@ import { answers, drillCandidates, drillNote, nextTarget } from './drill';
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor } from './guitar';
 import { FAR_FROM_WIRE, frettingHand, handAdvice, readFingers } from './hands';
 import { describeStep, songPlan, stepHeard, stepIndexAt, stepNotes } from './song';
-import { GHOST_MS, SOLID_CONFIDENCE, STARTING_STATUS, TRAIL_GHOST, announcement, describeStatus, sameStatus, trailingSpacings } from './status';
+import { GHOST_MS, SOLID_CONFIDENCE, STARTING_STATUS, announcement, describeStatus, sameStatus } from './status';
 
 const SETUP = { tuning: STANDARD_TUNING, capo: 0 };
 
@@ -424,17 +424,12 @@ describe('status', () => {
     expect(describeStatus(update({ state: 'locked', confidence: SOLID_CONFIDENCE, guidance: guidance('ok', 'auto'), numberingConfirmed: true })).notes).toBe('solid');
   });
 
-  it('a neck moving faster than the tracker keeps up with on this device draws outlines', () => {
+  it('a locked board whose dots were measured off the neck draws outlines and says why', () => {
     const locked = update({ state: 'locked', confidence: 0.95, guidance: guidance('ok', 'auto'), numberingConfirmed: true });
-    // 200 px/s with answers 40 ms late and strings 10 px apart: 0.8 of a string behind.
-    const trail = trailingSpacings(200, 40, 10);
-    expect(trail).toBeCloseTo(0.8);
-    expect(describeStatus(locked, 0, trail)).toMatchObject({ notes: 'ghost', message: expect.stringMatching(/catch up/) });
-    // The same speed on a fast device (10 ms) stays solid.
-    expect(describeStatus(locked, 0, trailingSpacings(200, 10, 10)).notes).toBe('solid');
-    expect(trailingSpacings(NaN, 40, 10)).toBe(0);
-    expect(trailingSpacings(200, 40, NaN)).toBe(0);
-    expect(TRAIL_GHOST).toBeLessThan(0.5);
+    expect(describeStatus(locked, 0, true)).toMatchObject({ notes: 'ghost', message: expect.stringMatching(/catch up/) });
+    expect(describeStatus(locked, 0, false)).toMatchObject({ notes: 'solid', message: '' });
+    // Coaching from the tracker comes first.
+    expect(describeStatus(update({ state: 'locked', confidence: 0.95, guidance: guidance('move-closer'), numberingConfirmed: true }), 0, true).message).toBe('msg move-closer');
   });
 
   it('locked outside the limits still draws, and coaches', () => {

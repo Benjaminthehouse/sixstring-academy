@@ -4,10 +4,10 @@
  * question, four-tap marking, the guitar type), and how far the notes may be drawn.
  *
  * Honest by design: notes are drawn solidly only on a locked board the tracker is sure of (a locked
- * board whose confidence sags, or that moves faster than the tracker can keep up with on this
- * device, gets outlines); a board just lost keeps its
- * notes as faint outlines for a moment (the learner sees it is holding on, not guessing), then they
- * go; a board whose numbers are a guess shows its outline and asks, never notes.
+ * board whose confidence sags, or whose dots were measured off the neck because this device does
+ * not keep up with its movement (`honesty.ts`), gets outlines); a board just lost keeps its notes
+ * as faint outlines for a moment (the learner sees it is holding on, not guessing), then they go;
+ * a board whose numbers are a guess shows its outline and asks, never notes.
  */
 import type { GuidanceCode, TrackerState, TrackerUpdate } from '@/core/vision';
 
@@ -42,19 +42,6 @@ export const GHOST_MS = 600;
 /** Below this smoothed confidence a board that is still locked draws its notes as outlines only. */
 export const SOLID_CONFIDENCE = 0.5;
 
-/**
- * How far behind the picture the drawn notes may be, in string spacings, before they turn into
- * outlines. The tracker answers each frame some time after it was taken (more on a slow or busy
- * device); while the neck moves, the dots trail it by about speed x delay.
- */
-export const TRAIL_GHOST = 0.45;
-
-/** The expected trail of the dots behind a moving neck, in string spacings (0 when it cannot be measured). */
-export function trailingSpacings(speedPxPerSec: number, latencyMs: number, stringSpacingPx: number): number {
-  if (!(speedPxPerSec > 0) || !(latencyMs > 0) || !(stringSpacingPx > 0)) return 0;
-  return (speedPxPerSec * latencyMs) / 1000 / stringSpacingPx;
-}
-
 /** The status before the first answer. */
 export const STARTING_STATUS: LiveStatus = {
   state: 'searching',
@@ -71,8 +58,11 @@ export const STARTING_STATUS: LiveStatus = {
 
 const WORDS: Record<TrackerState, string> = { searching: 'Looking for the neck', candidate: 'Checking the frets', locked: 'Locked', lost: 'Lost the neck' };
 
-/** The status for one tracker answer. `lostForMs` = how long the board has been lost (0 otherwise). */
-export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | 'guidance' | 'suggestCalibration' | 'question' | 'numberingConfirmed' | 'stringsSeen'>, lostForMs = 0, trailing = 0): LiveStatus {
+/**
+ * The status for one tracker answer. `lostForMs` = how long the board has been lost (0 otherwise);
+ * `behind` = the dots drawn lately were measured off the neck (`honesty.ts`).
+ */
+export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | 'guidance' | 'suggestCalibration' | 'question' | 'numberingConfirmed' | 'stringsSeen'>, lostForMs = 0, behind = false): LiveStatus {
   const g = u.guidance;
   const offers: Offer[] = [];
   if (u.question) offers.push('confirm-fret');
@@ -81,13 +71,12 @@ export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | '
   if (u.state === 'candidate' && !u.numberingConfirmed && !u.question) offers.push('fix-numbers');
   const bars = Math.max(0, Math.min(5, Math.round(Math.min(1, Math.max(0, u.confidence)) * 5)));
   let notes: NoteMode = 'none';
-  const fast = trailing > TRAIL_GHOST;
-  if (u.state === 'locked') notes = u.confidence >= SOLID_CONFIDENCE && !fast ? 'solid' : 'ghost';
+  if (u.state === 'locked') notes = u.confidence >= SOLID_CONFIDENCE && !behind ? 'solid' : 'ghost';
   else if (u.state === 'lost' && lostForMs < GHOST_MS) notes = 'ghost';
   let message = g.message;
   if (u.state === 'locked' && g.code === 'ok') message = '';
   if (u.state === 'lost') message = 'Lost the neck for a moment. Hold the guitar still in the picture.';
-  else if (u.state === 'locked' && fast && !message) message = 'Moving: the dots catch up when the neck holds still.';
+  else if (u.state === 'locked' && behind && !message) message = 'Moving: the dots catch up when the neck holds still.';
   const tone: LiveStatus['tone'] = u.state === 'locked' ? 'ok' : u.state === 'searching' ? 'info' : 'warn';
   return {
     state: u.state,

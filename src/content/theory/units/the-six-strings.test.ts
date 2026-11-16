@@ -111,9 +111,10 @@ describe('the-six-strings: the fifth-fret rule', () => {
     expect(midiAt(pos(3, 5))).not.toBe(openStringMidi(2));
     expect(midiAt(pos(3, 4))).toBe(openStringMidi(2));
     expect(pcName(noteAt(pos(6, 5)))).toBe('A');
-    // The wrong options' reasons: string 3 at fret 5 is C, at fret 3 A sharp.
+    // The wrong options' reasons: string 3 at fret 5 is C, one fret too high; fret 3 is one fret short of B.
     expect(pcName(noteAt(pos(3, 5)))).toBe('C');
-    expect(noteAt(pos(3, 3), { context: { prefer: 'sharps' }, octave: false })).toBe('A#');
+    expect(midiAt(pos(3, 5)) - openStringMidi(2)).toBe(1);
+    expect(openStringMidi(2) - midiAt(pos(3, 3))).toBe(1);
   });
 
   it('draws each fretted dot on the note of the next open string', () => {
