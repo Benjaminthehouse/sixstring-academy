@@ -117,7 +117,7 @@ const threeNpsLegato: TeacherLesson = {
       title: 'The run at 60 BPM',
       exercise: 'tech-legato-3nps',
       minutes: 6,
-      body: 'Set the ladder to 60 {t:bpm|BPM}: triplets, one string per beat. Up three times, then down three times. Turn the microphone on for a take: it reports any note that did not sound and how even the timing was.',
+      body: 'Set the ladder to 60 {t:bpm|BPM}: triplets, one string per beat, up the six strings and back down as written. Three times through. Turn the microphone on for a take: it reports any note that did not sound and how even the timing was.',
       tip: 'If the forearm tightens, stop and shake it out. Tension is not effort; it is waste.',
     }),
     {
@@ -647,7 +647,7 @@ const wideBends: TeacherLesson = {
       id: 'bend-minor-third',
       title: 'Step-and-a-Half Bend',
       exercise: 'tech-bend-minor-third',
-      minutes: 4,
+      minutes: 3,
       body: 'The target first, then the bend, hold, release. With the microphone on, Technique measures where the bend lands; within 10 cents of the target passes. Without it, alternate target and bend and compare by ear until they match.',
     }),
     {
@@ -660,7 +660,7 @@ const wideBends: TeacherLesson = {
       id: 'vibrato-bend',
       title: 'Vibrato on top of a bend',
       exercise: 'tech-vibrato-bend',
-      minutes: 4,
+      minutes: 3,
       body: 'Bending Vibrato in Time as written: 2, then 3, then 4 waves per beat on string 2 fret 8. Then bend that {n:G} a whole step to {n:A} and add the same narrow vibrato at the top, still in time.',
     }),
     {

@@ -153,6 +153,18 @@ describe('first-scale: box 1', () => {
     for (const f of finds) expect(pos(findTargets(f))).toEqual(pos(BOX1.notes));
   });
 
+  it('every "strings A, B and C ... fret N" in the unit names the strings box 1 really uses', () => {
+    const fretsOn = (s: number) => BOX1.notes.filter((n) => n.string === s).map((n) => n.fret);
+    const texts = JSON.stringify(unit);
+    const claims = [...texts.matchAll(/[Ss]trings (\d), (\d) and (\d) (?:reach|use|stop at) frets? (?:5 and )?(\d)/g)];
+    expect(claims.length).toBeGreaterThanOrEqual(2);
+    for (const m of claims) {
+      for (const s of [m[2], m[3], m[1]].map(Number)) expect(Math.max(...fretsOn(s)), m[0]).toBe(Number(m[4]));
+    }
+    // Strings 6, 2 and 1 are not "the outer strings": string 2 is an inner one.
+    expect(texts).not.toMatch(/outer strings/);
+  });
+
   it('the two order questions split the box into its lower and upper half', () => {
     const tile = (n: { string: number; fret: number }) => `String ${n.string}, fret ${n.fret}`;
     const order = exercises(box).find((e): e is OrderExercise => e.type === 'order')!;

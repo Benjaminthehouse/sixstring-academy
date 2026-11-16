@@ -340,6 +340,48 @@ describe('notes-on-the-neck: what the listening questions play', () => {
   });
 });
 
+describe('notes-on-the-neck: what a phone shows', () => {
+  /** A 390 px phone shows about nine frets of a tap-the-neck question; the rest scrolls, with no cue. */
+  const PHONE_FRETS = 9;
+  const TAP_DRILLS = new Set(['note-on-string:find', 'play-note', 'interval-on-neck:find']);
+
+  it('every generated tap drill fits on the screen', () => {
+    const drills = unit.lessons.flatMap((l) => l.steps.filter((s): s is GeneratedStep => 'generate' in s));
+    for (const d of drills) {
+      const kind = d.generate === 'play-note' ? 'play-note' : `${d.generate}:${String(d.params?.ask ?? '')}`;
+      if (!TAP_DRILLS.has(kind)) continue;
+      const [lo, hi] = d.params!.frets as [number, number];
+      expect(hi - lo + 1, `${kind} ${JSON.stringify(d.params)}`).toBeLessThanOrEqual(PHONE_FRETS);
+    }
+  });
+
+  it('an authored find wider than a phone keeps its answers in view, or says to slide the neck', () => {
+    const finds = everyExercise().filter((e): e is FretboardFindExercise => e.type === 'fretboard-find');
+    for (const f of finds) {
+      const [lo, hi] = f.frets;
+      if (hi - lo + 1 <= PHONE_FRETS) continue;
+      const inView = findTargets(f).every((t) => t.fret < lo + PHONE_FRETS);
+      expect(inView || /slide the neck/.test(plainText(f.hint ?? '')), plainText(f.prompt)).toBe(true);
+    }
+  });
+});
+
+describe('notes-on-the-neck: wording a strict teacher checks', () => {
+  it('one pitch in three places is the same pitch, not the same sound', () => {
+    const body = plainText(cards(lesson('same-note-many-places'))[0].body);
+    expect(body).toMatch(/exactly the same pitch/);
+    expect(body).not.toMatch(/sound exactly alike/);
+  });
+
+  it('the B-string octave lesson says why: strings 3 and 2 are tuned closer', () => {
+    expect(lesson('octave-shapes-4-and-3').teaches).toMatch(/strings 3 and 2 are tuned closer/);
+  });
+
+  it('says "the next thicker string", never the ambiguous "the one below"', () => {
+    expect(JSON.stringify(unit)).not.toMatch(/the one below|the string below/);
+  });
+});
+
 describe('notes-on-the-neck: on the go (Sound off, Guitar off)', () => {
   const EAR_DRILLS = new Set(['higher-lower', 'interval-ear', 'chord-quality-ear', 'scale-ear', 'cadence-ear', 'rhythm-ear', 'rhythm-tap']);
   const listening = (s: Step): boolean =>
