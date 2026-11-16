@@ -20,7 +20,7 @@
  * Left out: vendor/tesseract and vendor/mediapipe (the camera is unavailable in the artifact host
  * and sheet reading uses the AI service there); vendor/pdfjs/cmaps (about 170 files, only for PDFs
  * whose text needs Adobe character maps, i.e. CJK: without it the app is over the host's 511 files
- * per version); source maps, index.html (page.html replaces it), the launcher icons, and anything
+ * per version); pdf.js's .pfb fonts (a type the host does not serve); source maps, index.html (page.html replaces it), the launcher icons, and anything
  * of the standalone app's service worker.
  * Prints the files, their total size, and fails when something is over the host's limits.
  */
@@ -76,6 +76,8 @@ export function leftOut(rel) {
     rel.startsWith('vendor/tesseract/') ||
     rel.startsWith('vendor/mediapipe/') ||
     rel.startsWith('vendor/pdfjs/cmaps/') ||
+    // The host does not serve Type 1 fonts (.pfb); pdf.js falls back to the Liberation .ttf fonts.
+    rel.endsWith('.pfb') ||
     rel.startsWith('icons/') ||
     rel.startsWith('.vite/') ||
     rel.endsWith('.map') ||
