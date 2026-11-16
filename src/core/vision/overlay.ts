@@ -4,7 +4,7 @@
  * different size, cropped or letterboxed like a `<video>` with `object-fit`, and a mirrored selfie
  * preview). `draw.ts` builds the full overlay on top of these.
  */
-import { fretSpacingPx, mirrorPose, projectMarker, transformPose } from './geometry';
+import { fretSpacingPx, mirrorPose, projectMarker, projectMarkerSeen, transformPose } from './geometry';
 import type { FretPosition, FretboardPose, Point } from './types';
 
 /**
@@ -64,12 +64,15 @@ export interface MarkerPlacement extends FretPosition {
 
 /**
  * Marker placements for fretted positions (string 1 = high E; fret 0 = open, drawn just behind the
- * nut). Use with `poseForDisplay` to draw straight onto the display canvas.
+ * nut). Use with `poseForDisplay` to draw straight onto the display canvas. With `camera`
+ * (`cameraCentre` of the tracked frame's pose) the markers sit on the strings as seen, at their
+ * height above the board, instead of on the wood under them: the difference grows with the view
+ * angle and reaches a whole string spacing at the 12th fret seen 55 degrees from the side.
  */
-export function placeMarkers(pose: FretboardPose, positions: readonly FretPosition[]): MarkerPlacement[] {
+export function placeMarkers(pose: FretboardPose, positions: readonly FretPosition[], camera: readonly [number, number, number] | null = null): MarkerPlacement[] {
   const m = pose.model;
   return positions.map((pos) => {
-    const p = projectMarker(pose, pos.string, pos.fret);
+    const p = camera ? projectMarkerSeen(pose, pos.string, pos.fret, camera) : projectMarker(pose, pos.string, pos.fret);
     const fret = Math.max(1, pos.fret);
     const a = projectMarker(pose, 1, fret);
     const b = projectMarker(pose, m.stringCount, fret);

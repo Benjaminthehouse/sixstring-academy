@@ -21,6 +21,10 @@
  *           sideways scroll, screenshots in both themes (and a phone held sideways)
  *
  * --quick shortens the runs and skips the one-minute progress check. Exits non-zero on failure.
+ *
+ * Two more checks sit beside this one: e2e/metronome-output.cjs measures the real output with its
+ * own tap on the audio graph (nothing from the screen's code), and e2e/metronome-layout.cjs keeps
+ * the review's layout, toast, keyboard-focus and practice-report fixes from coming back.
  */
 const path = require('node:path');
 const fs = require('node:fs');
@@ -255,7 +259,7 @@ async function desktop() {
       const m = matchClicks(rChange);
       check('tempo change while running: Shift+Up goes from 100 to 105', s.bpm === 105, s.bpm);
       check('tempo change while running: beats move from 600 ms to 571 ms apart, no beat doubled or dropped', inRange && before >= 2 && after >= 2 && before + after >= iv.length - 1, `${before} at 100, ${after} at 105, ${iv.length - before - after} in between`);
-      check('tempo change while running: the output follows, none missing or extra', m.missing === 0 && m.extra === 0 && m.worst < 0.003, `${m.n - m.missing}/${m.n}, ${m.extra} extra, worst ${ms(m.worst, 3)}`);
+      check('tempo change while running: the output follows, none missing or extra', m.missing === 0 && m.extra === 0 && m.worst < 0.003, `${m.n - m.missing}/${m.n}, ${m.extra} extra, worst ${ms(m.worst, 3)}${m.extra ? `, strays ${m.strays}` : ''}`);
     }
 
     // --- odd meters ---------------------------------------------------------------------------------------
@@ -630,9 +634,11 @@ async function phone() {
     const zone = await page.evaluate(() => {
       const start = document.querySelector('[data-start]').getBoundingClientRect();
       const dial = document.querySelector('[role="slider"][aria-label^="Tempo dial"]').getBoundingClientRect();
-      return { startTop: start.top, startBottom: start.bottom, dialMid: dial.top + dial.height / 2, h: innerHeight };
+      // Visible means above the tab bar, not just inside the window (review: Start once sat under it).
+      const nav = [...document.querySelectorAll('nav')].map((n) => n.getBoundingClientRect()).find((r) => r.height > 0 && r.top > innerHeight / 2);
+      return { startTop: start.top, startBottom: start.bottom, dialMid: dial.top + dial.height / 2, h: innerHeight, navTop: nav ? nav.top : innerHeight };
     });
-    check('phone: Start and the tempo dial sit in the lower part of the screen, Start fully visible', zone.startBottom <= zone.h && zone.startTop > zone.h * 0.7 && zone.dialMid > zone.h * 0.45, JSON.stringify(zone));
+    check('phone: Start and the tempo dial sit in the lower part of the screen, Start fully visible above the tab bar', zone.startBottom <= zone.navTop && zone.startTop > zone.h * 0.7 && zone.dialMid > zone.h * 0.45, JSON.stringify(zone));
     const targets = await page.evaluate(() => [...document.querySelectorAll('[data-metronome] button')].filter((b) => b.offsetParent).map((b) => { const r = b.getBoundingClientRect(); return { w: r.width, h: r.height, t: b.getAttribute('aria-label') || b.textContent.trim() }; }).filter((r) => r.h < 43.5 || r.w < 43.5));
     // Chips are 36 px tall with a 44 px hit area (UI kit), so only fully small controls are a problem.
     const tooSmall = targets.filter((t) => t.h < 30 || t.w < 30);

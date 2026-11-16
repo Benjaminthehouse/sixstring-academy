@@ -61,9 +61,10 @@ export function pcOfName(name: string): number | null {
  */
 export function pcForKey(key: string, shift: boolean, spelling: Spelling, german = false): number | null {
   const k = key.toLowerCase();
+  // In German, B is already B flat: it needs no Shift.
+  if (german && k === 'b') return 10;
   let base: number | null = null;
   if (german && k === 'h') base = 11;
-  else if (german && k === 'b') base = 10;
   else if (k.length === 1 && k >= 'a' && k <= 'g') base = pcOfName(k.toUpperCase());
   if (base === null) return null;
   if (!shift) return base;

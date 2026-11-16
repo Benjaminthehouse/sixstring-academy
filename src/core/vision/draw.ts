@@ -8,7 +8,7 @@
  * canvas with `fitOverlayCanvas`). A mirrored (selfie) display mirrors positions, never the text.
  * Colours come from the design tokens (`readOverlayPalette(canvas)`), every colour with a label.
  */
-import { boardEdgeY, fretX, inlayPositions, projectPlanePoint, stringSpacingAt, stringY } from './geometry';
+import { boardEdgeY, cameraCentre, fretX, inlayPositions, projectPlanePoint, stringSpacingAt, stringY } from './geometry';
 import { placeMarkers, poseForDisplay, type DisplayView, type MarkerPlacement } from './overlay';
 import type { TrackerState } from './tracker';
 import type { FretPosition, FretboardPose } from './types';
@@ -171,7 +171,9 @@ export function drawVisionOverlay(ctx: CanvasRenderingContext2D, options: Overla
     ctx.save();
     ctx.globalAlpha = stateAlpha(state, confidence);
     drawBoard(ctx, pose, options, palette);
-    result.markers = drawNotes(ctx, pose, options, palette);
+    // Notes sit on the strings as the camera sees them (raised above the wood), from the camera
+    // position recovered on the tracked frame (it does not change with the display transform).
+    result.markers = drawNotes(ctx, pose, options, palette, cameraCentre(source));
     ctx.restore();
   }
   if (options.indicator !== false) drawIndicator(ctx, view.width, state, confidence, palette);
@@ -267,10 +269,10 @@ function drawBoard(ctx: CanvasRenderingContext2D, pose: FretboardPose, o: Overla
   }
 }
 
-function drawNotes(ctx: CanvasRenderingContext2D, pose: FretboardPose, o: OverlayOptions, palette: OverlayPalette): OverlayResult['markers'] {
+function drawNotes(ctx: CanvasRenderingContext2D, pose: FretboardPose, o: OverlayOptions, palette: OverlayPalette, camera: [number, number, number] | null): OverlayResult['markers'] {
   const notes = o.notes ?? [];
   if (notes.length === 0) return [];
-  const placed = placeMarkers(pose, notes);
+  const placed = placeMarkers(pose, notes, camera);
   const out: OverlayResult['markers'] = [];
   const t = o.timeMs ?? 0;
   for (let i = 0; i < placed.length; i++) {

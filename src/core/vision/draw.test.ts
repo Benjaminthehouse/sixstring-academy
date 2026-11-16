@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { poseFromTaps } from './calibration';
 import { PLAIN_PALETTE, drawVisionOverlay, type OverlayNote } from './draw';
 import { placeMarkers, poseForDisplay } from './overlay';
+import { cameraCentre } from './geometry';
 import type { FretboardPose } from './types';
 
 const W = 640;
@@ -60,7 +61,8 @@ describe('drawVisionOverlay', () => {
     const r = recorder();
     const view = { width: 800, height: 450 };
     const out = drawVisionOverlay(r.ctx, { view, pose: pose(), notes: NOTES, state: 'locked', confidence: 0.9, timeMs: 250 });
-    const expected = placeMarkers(poseForDisplay(pose(), view), NOTES);
+    // Notes sit on the strings as seen: the camera is recovered from the tracked frame's pose.
+    const expected = placeMarkers(poseForDisplay(pose(), view), NOTES, cameraCentre(pose()));
     expect(out.markers).toHaveLength(4);
     for (let i = 0; i < 4; i++) {
       expect(out.markers[i].x).toBeCloseTo(expected[i].x, 6);

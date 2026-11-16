@@ -218,6 +218,12 @@ async function phone(browser, url) {
     // The hub now shows the next step and the map.
     await s.goto('fretboard');
     await s.shot('hub-after-phone', true);
+    await page.locator('[data-fb-map]').getByRole('radio', { name: 'Speed' }).click();
+    await page.waitForTimeout(300);
+    const speedLabels = await page.locator('[data-fb-map] svg text').allTextContents();
+    check('phone', "the map's speed view labels places with seconds", speedLabels.some((t) => /^\d+\.\d$/.test(t.trim())), speedLabels.slice(0, 20).join(' '));
+    await page.locator('[data-fb-map]').scrollIntoViewIfNeeded();
+    await s.shot('map-speed-phone');
     check('phone', 'the hub moves on to step 1 (still not passed) and marks step 2 passed', (await page.getAttribute('[data-fb-next-step]', 'data-fb-next-step')) === 'open-strings' && (await page.locator('[data-fb-step="string-6-naturals"] [class*="stepPassed"]').count()) === 1);
     const errs = s.takeErrors();
     check('phone', 'no console errors', errs.length === 0, errs.join(' | '));
@@ -399,21 +405,21 @@ async function layout(browser, url) {
       await s.close();
     }
   }
-  // Phone held sideways: the whole neck and the pad without scrolling.
-  {
-    const s = await open(browser, url, { mobile: true, viewport: { width: 844, height: 390 } });
+  // Phone held sideways: the whole neck and the answer controls without scrolling, for both kinds of question.
+  for (const [drill, what] of [['name-the-note', 'pad'], ['find-the-note', 'neck']]) {
+    const s = await open(browser, url, { mobile: true, viewport: { width: 844, height: 390 }, seed: { 'ssa:fretboard.settings': JSON.stringify({ v: 1, frets: [0, 12], strings: [1, 2, 3, 4, 5, 6], notes: 'all', findWhere: 'string', playOctaves: 'exact' }) } });
     try {
-      await s.goto('fretboard--stage--whole-neck');
+      await s.goto(`fretboard--drill--${drill}`);
       await s.page.locator('[data-fb-start]').click();
       const q = await waitQuestion(s.page, 0);
       const fit = await s.page.evaluate(() => {
         const board = document.querySelector('[data-fb-board] [data-orientation] > div');
         const pad = document.querySelector('[data-fb-pad]') || document.querySelector('[data-fb-skip]');
         const r = pad ? pad.getBoundingClientRect() : null;
-        return { scrolls: board ? board.scrollWidth - board.clientWidth : -1, padBottom: r ? r.bottom : -1, vh: innerHeight, pageScroll: document.documentElement.scrollHeight - innerHeight };
+        return { scrolls: board ? board.scrollWidth - board.clientWidth : -1, padBottom: r ? r.bottom : -1, vh: innerHeight };
       });
-      check('layout', 'sideways: frets 0 to 12 without scrolling the neck', fit.scrolls <= 1, JSON.stringify(fit));
-      check('layout', 'sideways: the answer controls are on screen', fit.padBottom > 0 && fit.padBottom <= fit.vh + 1, JSON.stringify(fit));
+      check('layout', `sideways (${what}): frets 0 to 12 without scrolling the neck`, fit.scrolls <= 1, JSON.stringify(fit));
+      check('layout', `sideways (${what}): the answer controls are on screen`, fit.padBottom > 0 && fit.padBottom <= fit.vh + 1, JSON.stringify(fit));
       await s.shot(`sideways-${q.kind}`);
     } finally {
       await s.close();

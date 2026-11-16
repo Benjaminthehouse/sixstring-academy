@@ -88,7 +88,7 @@ export function expectedFromSong(song: Song): ExpectedNote[] {
 
 /** Timing limit for "even", in ms, for a typical gap between notes (seconds). */
 export function evenLimitMs(gapSec: number): number {
-  return Math.min(45, Math.max(15, gapSec * 1000 * 0.08));
+  return Math.min(35, Math.max(12, gapSec * 1000 * 0.06));
 }
 
 /** Classify an rms timing error against the typical gap. */
@@ -187,9 +187,9 @@ export function analyzeTake(input: {
   const worst = worstE && worstMatch ? { index: timedIdx[fit.worst], ms: Math.round(worstMatch.error * 1000), bar: worstE.bar + 1, beat: worstE.beat + 1 } : null;
 
   const limit = evenLimitMs(timedGap);
-  const timingScore = Math.max(0, Math.min(1, 1 - (fit.rmsMs - limit) / (3 * limit)));
+  const timingScore = Math.max(0, Math.min(1, 1 - (fit.rmsMs - limit) / (1.5 * limit)));
   const tempoScore = Math.max(0, 1 - Math.max(0, Math.abs(1 / fit.slope - 1) - 0.03) * 5);
-  const score = empty ? 0 : Math.round(100 * (0.6 * accuracy + 0.3 * timingScore + 0.1 * tempoScore));
+  const score = empty ? 0 : Math.round(100 * (0.5 * accuracy + 0.4 * timingScore + 0.1 * tempoScore));
 
   let verdict: Verdict;
   if (empty) verdict = 'not-yet';

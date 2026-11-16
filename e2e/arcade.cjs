@@ -88,17 +88,26 @@ async function open(page, url, ...parts) {
   await dismissShell(page);
 }
 
-/** Close the shell's own dialogs (a new level, an achievement) the way a learner would. */
+/** Close the shell's own dialogs (a new level, an achievement) the way a learner would: with their button. */
 async function dismissShell(page) {
-  for (let i = 0; i < 5 && (await page.locator('[role="dialog"][aria-modal="true"]').count()); i++) {
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(350);
+  for (let i = 0; i < 4; i++) {
+    const dialog = page.locator('[role="dialog"][aria-modal="true"]').last();
+    if (!(await dialog.count())) return;
+    const close = dialog.getByRole('button', { name: /^(Close|Keep going|Continue|Got it|Nice|OK)/i }).first();
+    if (await close.count()) await close.click().catch(() => {});
+    else await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(200);
   }
 }
 
 /** Start the round from its ready card (tap input unless told otherwise). */
 async function startRound(page, { mic = false } = {}) {
-  await page.waitForSelector('[data-arcade-ready]', { timeout: 30000 });
+  await page.waitForSelector('[data-arcade-ready]', { timeout: 30000 }).catch(async (e) => {
+    await page.screenshot({ path: path.join(OUT, 'arcade-debug-noready.png') });
+    console.log('  no ready card at', await page.evaluate(() => `${location.hash} :: ${document.querySelector('main')?.innerText.slice(0, 300).replace(/\s+/g, ' ')}`));
+    throw e;
+  });
   await page.waitForTimeout(250);
   await dismissShell(page);
   const choice = page.getByRole('radio', { name: mic ? /Play my guitar/ : /Tap the screen/ });
@@ -146,6 +155,12 @@ async function playByTaps(page, game, { maxMs = 150000 } = {}) {
       const index = await attr(page, 'index');
       const answers = await attr(page, 'answers');
       const entered = await page.getAttribute('[data-arcade-entered]', 'data-arcade-entered').catch(() => '');
+      const next = page.locator('[data-arcade-next]');
+      if (await next.count()) {
+        await next.click().catch(() => {});
+        await page.waitForTimeout(300);
+        continue;
+      }
       if (answers && !entered) {
         for (const k of answers.split(' ')) {
           await cell(page, k).click({ timeout: 3000 }).catch(() => {});
@@ -195,6 +210,7 @@ async function tapRounds(browser, url) {
   for (const g of GAMES) {
     let ok = false;
     for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+      if (attempt) await page.goto('about:blank');
       await open(page, url, 'arcade', g.id, FOCUS, `level-${g.level}`);
       await startRound(page);
       ok = await playByTaps(page, g.id);

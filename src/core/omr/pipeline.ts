@@ -162,6 +162,19 @@ function finishPage(page: OmrPage, firstStaffOfPiece: boolean, estimate: boolean
       firstOfKind.add(st.kind);
       checkMeasures(st, t ? metreTicks(t.beats, t.beatValue) : null, first || lastOfKind.get(st.kind) === st, lastOfKind.get(st.kind) === st);
     }
+    // Tab under notation leaves the rests out and takes its rhythm from the notation: its measures
+    // are as right as the notation's.
+    for (const sys of page.systems) {
+      for (const tab of sys.staves) {
+        const partner = tab.kind === 'tab' && tab.linkedStaffId ? sys.staves.find((s) => s.id === tab.linkedStaffId) : undefined;
+        if (!partner) continue;
+        tab.measures.forEach((m, i) => {
+          const n = partner.measures.find((q) => Math.abs((q.x0 + q.x1) / 2 - (m.x0 + m.x1) / 2) < 0.5 * (m.x1 - m.x0)) ?? partner.measures[i];
+          if (n && n.addsUp !== undefined && m.events.every((e) => !e.duration || e.duration.source === 'merged')) m.addsUp = n.addsUp;
+          if (n?.pickup) m.pickup = true;
+        });
+      }
+    }
   };
   check();
   const disagreements = reconcileRhythm(page);

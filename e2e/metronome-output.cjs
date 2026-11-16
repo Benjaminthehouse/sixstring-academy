@@ -216,6 +216,23 @@ const worst = (xs, want) => Math.max(...xs.map((x, i) => Math.abs(x - (Array.isA
       await page.waitForTimeout(400);
     }
 
+    // --- a tempo change while running ---------------------------------------------------------------------------
+    await typeTempo(100);
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    {
+      const { on } = await run(2.4, async () => {
+        await page.waitForTimeout(2200);
+        await page.keyboard.press('Shift+ArrowUp');
+      });
+      const iv = intervals(on);
+      const a = 0.6, b = 60 / 105;
+      const at100 = iv.filter((x) => Math.abs(x - a) < 0.05e-3).length;
+      const at105 = iv.filter((x) => Math.abs(x - b) < 0.05e-3).length;
+      const between = iv.filter((x) => x > b + 0.05e-3 && x < a - 0.05e-3).length;
+      const outside = iv.filter((x) => x < b - 0.05e-3 || x > a + 0.05e-3).length;
+      check('Shift+Up while running (100 to 105): 600 ms, then 571.4 ms, at most one beat in between, none doubled or dropped', at100 >= 2 && at105 >= 2 && between <= 1 && outside === 0, iv.map((x) => (x * 1000).toFixed(2)).join(' '));
+    }
+
     // --- 7/8 in its three groupings, then 6/8 ------------------------------------------------------------------
     await typeTempo(120);
     await page.locator('[data-meter-chip="more"]').click();

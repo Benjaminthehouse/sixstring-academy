@@ -67,3 +67,14 @@
   justify-content: center;
   min-width: 0;
 }
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+@media (max-width: 719.98px) {
+  .shapeName {
+    font-size: var(--text-3xl);
+  }
+}

@@ -185,6 +185,7 @@ describe('note names and keys', () => {
     expect(pcForKey('x', false, 'sharps')).toBeNull();
     expect(pcForKey('h', false, 'sharps', true)).toBe(11);
     expect(pcForKey('b', false, 'sharps', true)).toBe(10);
+    expect(pcForKey('B', true, 'flats', true)).toBe(10);
     expect(pcForKey('h', false, 'sharps', false)).toBeNull();
   });
 });

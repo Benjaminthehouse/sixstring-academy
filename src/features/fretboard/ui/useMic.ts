@@ -76,6 +76,12 @@ export function useMic() {
     });
   }, []);
 
+  /** The tracker's audio clock (seconds), the clock note times are given on; null when off. */
+  const clock = useCallback((): number | null => {
+    const ctx = tracker.current?.audioContext;
+    return ctx ? ctx.currentTime : null;
+  }, []);
+
   /** Attach the input-level bar. */
   const levelRef = useCallback((el: HTMLElement | null) => {
     levelEl.current = el;
@@ -83,5 +89,5 @@ export function useMic() {
 
   useEffect(() => () => stop(), [stop]);
 
-  return { status, failure, start, stop, listen, levelRef };
+  return { status, failure, start, stop, listen, levelRef, clock };
 }

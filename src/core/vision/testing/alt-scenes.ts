@@ -2543,8 +2543,19 @@ export function altCondition(id: string): AltCondition {
   return c;
 }
 
-/** Variants of the common scene for an operating-limits sweep: one knob turned, everything else typical. */
-export function altSweepScene(knob: 'span' | 'tilt' | 'light', value: number, seed: number): AltSpec {
+/** Knobs of the operating-limits sweep. */
+export type AltSweepKnob = 'span' | 'tilt' | 'light' | 'capo' | 'capo-far';
+
+/**
+ * Variants of the common scene for an operating-limits sweep: one knob turned, everything else
+ * typical. 'capo' / 'capo-far' put a capo (style, colour and side by seed) behind wire `value` with
+ * the nut in view / out of the frame.
+ */
+export function altSweepScene(knob: AltSweepKnob, value: number, seed: number): AltSpec {
+  if (knob === 'capo' || knob === 'capo-far') {
+    const spec = capoScene(`sweep-${knob}`, seed, value);
+    return knob === 'capo' ? { ...spec, view: { ...spec.view, anchorFret: Math.min(spec.view.anchorFret, 6) } } : { ...spec, view: { ...spec.view, spanFrac: 0.8, anchorFret: value + 6, u0: 0.55 } };
+  }
   const { spec } = baseSpec(`sweep-${knob}`, seed);
   if (knob === 'span') return { ...spec, view: { ...spec.view, spanFrac: value, anchorFret: Math.min(spec.view.anchorFret, 5) } };
   if (knob === 'tilt') return { ...spec, view: { ...spec.view, tiltDeg: value, tiltAxisDeg: spec.view.tiltAxisDeg } };

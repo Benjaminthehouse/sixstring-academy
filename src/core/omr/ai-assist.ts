@@ -535,9 +535,13 @@ export function fuseMeasure(measures: { notation?: OmrMeasure; tab?: OmrMeasure;
       c.duration = aiDuration(a.duration, r2(Math.min(0.45, w)));
     }
     if (a.rest) continue;
-    // Pitches / frets.
-    if (isNotationEvent(c)) disagreements += fuseNotes(c, a, fifths, report, tuning, linkedTab(c));
-    else disagreements += fuseTabNotes(c, a, report);
+    // Pitches / frets (and the numbers of the tab column linked to a notation event).
+    if (isNotationEvent(c)) {
+      const t = linkedTab(c);
+      // The tab column first: its settled fret is evidence for the pitch.
+      if (t) disagreements += fuseTabNotes(t, a, report);
+      disagreements += fuseNotes(c, a, fifths, report, tuning, t);
+    } else disagreements += fuseTabNotes(c, a, report);
   }
   // Events only one side has.
   leadEvents.forEach((c, i) => {

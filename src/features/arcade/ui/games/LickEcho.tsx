@@ -21,7 +21,14 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
   const { naming } = useMusicSettings();
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('listen');
-  const [entered, setEntered] = useState<Array<{ midi: number; note: string }>>([]);
+  const [entered, setEnteredState] = useState<Array<{ midi: number; note: string }>>([]);
+  // Taps can come faster than renders: the ref is the truth, the state draws it.
+  const enteredRef = useRef<Array<{ midi: number; note: string }>>([]);
+  const setEntered = useCallback((next: Array<{ midi: number; note: string }> | ((x: Array<{ midi: number; note: string }>) => Array<{ midi: number; note: string }>)) => {
+    enteredRef.current = typeof next === 'function' ? next(enteredRef.current) : next;
+    setEnteredState(enteredRef.current);
+  }, []);
+  const markedRef = useRef(-1);
   const [marks, setMarks] = useState<LickMark[]>([]);
   const [tally, setTally] = useState(newTally);
   const [playing, setPlaying] = useState(false);
@@ -107,7 +114,8 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
   /** Mark what was played (tapped or heard) against the phrase. */
   const submit = useCallback(
     (played: number[]) => {
-      if (!lick || finished.current || marks[index]) return;
+      if (!lick || finished.current || marks[index] || markedRef.current === index) return;
+      markedRef.current = index;
       const m = markLick(played, lick.midis, octaves);
       const all = [...marks];
       all[index] = m;
@@ -163,14 +171,14 @@ export function LickEcho({ ctx, input, mic, anyOctave, running, fx, title, onFin
     (cell: FretCell) => {
       if (!running || !lick) return;
       playNote(cell.midi, cell.string, undefined, 0.6);
-      if (phase === 'marked' || input === 'mic') return;
+      if (phase === 'marked' || input === 'mic' || markedRef.current === index) return;
       if (playing) stopPlayback();
-      const next = [...entered, { midi: cell.midi, note: cell.note }];
+      const next = [...enteredRef.current, { midi: cell.midi, note: cell.note }];
       setEntered(next);
       if (phase === 'listen') setPhase('answer');
       if (next.length >= lick.midis.length) submit(next.map((e) => e.midi));
     },
-    [running, lick, phase, input, playing, stopPlayback, entered, submit],
+    [running, lick, phase, input, playing, stopPlayback, submit, setEntered, index],
   );
 
   const next = useCallback(() => {

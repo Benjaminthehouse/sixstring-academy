@@ -32,11 +32,13 @@ import { strainDue } from '../model/health';
 import styles from '../Technique.module.css';
 import { Demo } from './Demo';
 import { HealthNotice } from './HealthNotice';
-import { Coaching, History, LadderPanel, PhoneBarActions, PhoneBarStart, SummarySheet, TakeResult, exerciseEyebrow, nextExercise, togglePrimary } from './Panels';
+import { Coaching, History, LadderPanel, PhoneBarActions, PhoneBarStart, SummarySheet, exerciseEyebrow, nextExercise, togglePrimary } from './Panels';
 import { useExercise } from './useExercise';
 
 /** Two panes from this width; below it the ladder's controls live in the bottom bar. */
 export const WIDE_QUERY = '(min-width: 1100px)';
+/** A phone held sideways: the page header gives way to the music (the top bar keeps the title). */
+export const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 520px)';
 
 /** Is this key press for something that owns its keys (typing, a slider, a radio group)? */
 export function ownsKeys(el: Element | null): boolean {
@@ -55,7 +57,8 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
   const notation = showNotation(prefs);
   const tab = useRef<TabViewHandle>(null);
   const running = x.mode !== 'idle';
-  useImmersive(running, 'focus');
+  const sideways = useMediaQuery(SIDEWAYS_QUERY);
+  useImmersive(running || sideways, 'focus');
 
   // The cursor follows the music every frame, without React.
   useRafLoop(() => {
@@ -89,6 +92,12 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
       x.hear();
     }
   });
+
+  // On a phone the result of a take is under the music: bring it into view.
+  useEffect(() => {
+    if (!x.take || wide) return;
+    document.querySelector('[data-technique-take]')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [x.take, wide]);
 
   const [strainOk, setStrainOk] = useState(false);
   const strain = e.strain && !strainOk && strainDue(x.exerciseMin * 60, e.strain.maxMinutes) ? { text: e.strain.text, minutes: x.exerciseMin } : null;
@@ -166,6 +175,7 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
       eyebrow={exerciseEyebrow(e)}
       subtitle={e.summary}
       back={{ to: 'technique', label: 'Technique' }}
+      hideHeader={sideways}
       actions={
         wide ? (
           <Button variant="secondary" iconLeft="Check" onClick={() => x.finish()} data-technique-finish="">
@@ -192,17 +202,15 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
               <span>{e.strain.text}</span>
             </p>
           )}
+          {guide}
           {demo}
           {!wide && <LadderPanel x={x} e={e} withControls={false} />}
-          {!wide && x.take && <TakeResult take={x.take} onPlayBack={x.playBack} onClose={x.clearTake} />}
-          {guide}
           <Coaching e={e} />
           <History e={e} record={x.record} />
         </div>
         {wide && (
           <aside className={styles.side} aria-label="Tempo ladder">
             <LadderPanel x={x} e={e} withControls />
-            {x.take && <TakeResult take={x.take} onPlayBack={x.playBack} onClose={x.clearTake} />}
           </aside>
         )}
       </div>

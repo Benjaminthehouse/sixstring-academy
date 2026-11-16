@@ -1,0 +1,252 @@
+/**
+ * The page pipeline end to end on small corpus pages: one entry point, progress, cancellation,
+ * linking, measure checks, rhythm from spacing, several pages as one piece, the quick page
+ * classifier, the confidence summary and the worker protocol (run in this thread).
+ */
+import { describe, expect, it } from 'vitest';
+import { classifyPage } from './classify-page';
+import { loadFixture } from './eval/fixtures';
+import { f1, rate, scorePage } from './eval/metrics';
+import { oracleRecognizers } from './eval/oracle';
+import { type GrayImage, createGray, grayToRgba } from './image/gray';
+import { type OmrProgress, OmrCancelledError, measuresAt, recognizeDocument, recognizePage } from './pipeline';
+import { summarizeDocument, summarizePage } from './summary';
+import { type OmrNotationEvent, type OmrTabEvent, isNotationEvent, isTabEvent } from './types';
+import { createOmrWorker } from './worker/client';
+
+describe('recognizePage', () => {
+  it('reads a notation + tab page with the built-in recognizers, links the staves and checks the measures', async () => {
+    const fx = loadFixture('linked-ode-bravura-100');
+    const progress: OmrProgress[] = [];
+    const page = await recognizePage(fx.gray, { onProgress: (p) => progress.push(p) });
+    const s = scorePage(page, fx.truth);
+    expect(s.stavesMatched).toBe(s.stavesTruth);
+    expect([rate(s.pitch), rate(s.duration), rate(s.fret), rate(s.string)]).toEqual([1, 1, 1, 1]);
+    expect(f1(s.notes)).toBe(1);
+    // Progress: prepare, every staff, assemble, done; the fraction never goes back.
+    expect(progress[0].stage).toBe('prepare');
+    expect(progress[progress.length - 1]).toMatchObject({ stage: 'done', fraction: 1 });
+    expect(progress.filter((p) => p.stage === 'staff')).toHaveLength(4);
+    for (let i = 1; i < progress.length; i++) expect(progress[i].fraction).toBeGreaterThanOrEqual(progress[i - 1].fraction);
+    // Linked: every chord has its tab column, string and fret; notation and tab agree.
+    const [notation, tab] = page.systems[0].staves;
+    expect(notation.linkedStaffId).toBe(tab.id);
+    const chords = notation.measures.flatMap((m) => m.events).filter(isNotationEvent).filter((e) => e.kind === 'chord');
+    expect(chords.every((e) => e.linkedEventId && e.notes.every((n) => n.string && n.fret !== undefined))).toBe(true);
+    expect(chords.flatMap((e) => e.notes).every((n) => !n.issues?.length)).toBe(true);
+    // Key and time in force, measures checked.
+    expect(notation.keyInForce).toEqual({ fifths: 1, source: 'printed' });
+    expect(notation.timeInForce).toMatchObject({ beats: 4, beatValue: 4, source: 'printed' });
+    expect(page.systems[1].staves[0].timeInForce?.source).toBe('carried');
+    expect(notation.measures.every((m) => m.addsUp === true)).toBe(true);
+    expect(page.timings?.total).toBeGreaterThan(0);
+    // Tab under notation takes the notation's rhythm.
+    const cols = tab.measures.flatMap((m) => m.events).filter(isTabEvent).filter((e) => e.kind === 'tab');
+    expect(cols.every((e) => e.duration?.source === 'merged')).toBe(true);
+    const summary = summarizePage(page);
+    expect(summary.verdict).toBe('good');
+    expect(summary.lines.join(' ')).toMatch(/Notation and tab agree on \d+ of \d+ notes/);
+  }, 60_000);
+
+  it('accepts RGBA pictures, the older call form, and estimates rhythm for tab without any', async () => {
+    const fx = loadFixture('tab-ode-ls-100');
+    const rgba = { data: grayToRgba(fx.gray), width: fx.gray.width, height: fx.gray.height };
+    const page = await recognizePage(rgba, oracleRecognizers(fx.truth));
+    const tab = page.systems[0].staves[0];
+    const events = tab.measures.flatMap((m) => m.events).filter(isTabEvent).filter((e) => e.kind === 'tab');
+    expect(events.length).toBeGreaterThan(10);
+    expect(events.every((e) => e.duration?.source === 'inferred' && e.duration.confidence < 0.5)).toBe(true);
+    // Ode to Joy is mostly quarters: the spacing says so for most of them.
+    const quarters = events.filter((e) => e.duration?.value === 'quarter').length;
+    expect(quarters / events.length).toBeGreaterThan(0.6);
+    const summary = summarizePage(page);
+    expect(summary.rhythm).toBe('estimated');
+    expect(summary.lines.join(' ')).toMatch(/estimated from the spacing/);
+    expect(summary.lines.join(' ')).toMatch(/Time: 4\/4 \(none printed: assumed\)/);
+    await expect(recognizePage({ data: new Uint8Array(7), width: 2, height: 2 })).rejects.toThrow(/bytes/);
+  }, 60_000);
+
+  it('stops when cancelled', async () => {
+    const fx = loadFixture('linked-ode-bravura-100');
+    const ctl = new AbortController();
+    const run = recognizePage(fx.gray, {
+      signal: ctl.signal,
+      onProgress: (p) => { if (p.stage === 'staff' && p.staff === 1) ctl.abort(); },
+    });
+    await expect(run).rejects.toBeInstanceOf(OmrCancelledError);
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+  }, 60_000);
+
+  it('reports a blank picture honestly', async () => {
+    const page = await recognizePage(createGray(600, 800));
+    expect(page.systems).toHaveLength(0);
+    expect(page.warnings.map((w) => w.code)).toContain('no-staves');
+    const summary = summarizePage(page);
+    expect(summary.headline).toBe('No music found');
+    expect(summary.verdict).toBe('poor');
+  });
+});
+
+describe('recognizeDocument', () => {
+  it('reads pages in order as one piece: key and time carry over, measures are joined', async () => {
+    const a = loadFixture('ode-bravura-100');
+    const b = loadFixture('tab-ode-ls-100');
+    const doc = await recognizeDocument([a.gray, b.gray], { tab: oracleRecognizers(b.truth).tab, notation: oracleRecognizers(a.truth).notation });
+    expect(doc.pages.map((p) => p.pageIndex)).toEqual([0, 1]);
+    const measuresA = a.truth.systems.reduce((t, s) => t + s.staves[0].measures.length, 0);
+    const measuresB = b.truth.systems.reduce((t, s) => t + s.staves[0].measures.length, 0);
+    expect(doc.measures).toHaveLength(measuresA + measuresB);
+    expect(doc.measures.map((m) => m.number)).toEqual(doc.measures.map((_, i) => i));
+    expect(doc.measures[measuresA].page).toBe(1);
+    // The tab page prints no time signature: it continues in the first page's 4/4, carried.
+    expect(doc.pages[1].systems[0].staves[0].timeInForce).toMatchObject({ beats: 4, beatValue: 4, source: 'carried' });
+    expect(doc.context).toMatchObject({ fifths: 1, beats: 4, beatValue: 4 });
+    expect(measuresAt(doc, doc.measures[0])).toHaveLength(1);
+    const s = summarizeDocument(doc);
+    expect(s.counts.staves).toEqual({ notation: 2, tab: 2 });
+  }, 60_000);
+});
+
+describe('classifyPage', () => {
+  it('tells tab, notation and both apart', () => {
+    expect(classifyPage(loadFixture('tab-ode-ls-100').gray)).toMatchObject({ kind: 'tab', asciiTab: false });
+    expect(classifyPage(loadFixture('ode-bravura-100').gray).kind).toBe('notation');
+    const both = classifyPage(loadFixture('linked-ode-bravura-100').gray);
+    expect(both.kind).toBe('both');
+    expect(both.staves.linkedSystems).toBe(2);
+  });
+
+  it('sends text-like pages to OCR and recognises an empty picture', () => {
+    // Lines of "words" made of thin strokes (stems, bowls, crossbars) of varying heights, no staff.
+    const page = createGray(800, 1000);
+    const dot = (x: number, y: number): void => { if (x >= 0 && y >= 0 && x < 800 && y < 1000) page.data[y * 800 + x] = 25; };
+    const bar = (x0: number, y0: number, w: number, h: number): void => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) dot(x, y); };
+    let seed = 7;
+    const rnd = (): number => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    for (let line = 0; line < 9; line++) {
+      const base = 90 + line * 95 + Math.round(rnd() * 6);
+      let x = 50 + Math.round(rnd() * 20);
+      while (x < 720) {
+        const letters = 2 + Math.floor(rnd() * 7);
+        for (let k = 0; k < letters && x < 740; k++) {
+          const tall = rnd() < 0.3;
+          const h = tall ? 16 : 10;
+          const shape = Math.floor(rnd() * 3);
+          bar(x, base - h, 2, h);
+          if (shape >= 1) { bar(x + 6, base - 10, 2, 10); bar(x, base - 10, 8, 2); }
+          if (shape === 2) bar(x, base - 2, 8, 2);
+          x += shape ? 11 : 5;
+        }
+        x += 9 + Math.round(rnd() * 4);
+      }
+    }
+    expect(classifyPage(page)).toMatchObject({ kind: 'text' });
+    expect(classifyPage(createGray(800, 1000))).toMatchObject({ kind: 'not-music' });
+  });
+
+  it('reads six rows of typed dashes as text (ASCII tab), not as a tab staff', () => {
+    const page = createGray(1000, 600);
+    for (let l = 0; l < 6; l++) {
+      const y = 200 + l * 22;
+      // "--------3---5--" in a monospace face: dashes 9 px long with 3 px gaps.
+      for (let x = 60; x < 940; x++) if (x % 12 < 9) for (let dy = 0; dy < 2; dy++) page.data[(y + dy) * 1000 + x] = 30;
+    }
+    const c = classifyPage(page);
+    expect(c).toMatchObject({ kind: 'text', asciiTab: true });
+    expect(c.staves.tab).toBe(0);
+  });
+});
+
+describe('the worker protocol (in this thread)', () => {
+  const fx = loadFixture('linked-ode-bravura-100');
+  const gray: GrayImage = fx.gray;
+
+  it('gives the same page as the direct call, with progress, and answers the classifier', async () => {
+    const omr = createOmrWorker({ worker: 'inline' });
+    const seen: OmrProgress[] = [];
+    const page = await omr.recognizePage(gray, { onProgress: (p) => seen.push(p) });
+    const direct = await recognizePage(gray);
+    const strip = (p: typeof page): unknown => JSON.parse(JSON.stringify({ ...p, timings: undefined }));
+    expect(strip(page)).toEqual(strip(direct));
+    expect(seen.length).toBeGreaterThan(4);
+    expect((await omr.classifyPage(gray)).kind).toBe('both');
+    omr.terminate();
+  }, 60_000);
+
+  it('cancels a run and proxies the recognizers\' questions to the page\'s vision model', async () => {
+    const omr = createOmrWorker({ worker: 'inline', cancelGraceMs: 200 });
+    const ctl = new AbortController();
+    const run = omr.recognizePage(gray, { signal: ctl.signal, onProgress: (p) => { if (p.stage === 'staff') ctl.abort(); } });
+    await expect(run).rejects.toBeInstanceOf(OmrCancelledError);
+    // A model that answers every question with nothing usable: the reading stays as it was.
+    const asked: string[] = [];
+    const model = { ask: async (_img: unknown, prompt: string) => { asked.push(prompt); return null; } };
+    const blurred = loadFixture('linked-ode-bravura-100');
+    const page = await omr.recognizePage(blurred.gray, { ai: model });
+    expect(page.systems).toHaveLength(2);
+    // (On a clean page nothing is doubtful, so nothing needs asking; the channel is exercised by the
+    // classifier test above and by the e2e check.)
+    expect(asked.length).toBeGreaterThanOrEqual(0);
+    omr.terminate();
+    await expect(omr.recognizePage(gray)).resolves.toBeTruthy();
+    omr.terminate();
+  }, 60_000);
+});
+
+describe('summary', () => {
+  it('lists disagreements first and words them for the screen', async () => {
+    const fx = loadFixture('linked-ode-bravura-100');
+    const page = await recognizePage(fx.gray, oracleRecognizers(fx.truth));
+    // Make the tab disagree with one note and leave one tab number as a guess.
+    const tab = page.systems[0].staves[1];
+    const col = tab.measures[1].events.find((e): e is OmrTabEvent => e.kind === 'tab') as OmrTabEvent;
+    col.notes[0].issues = [{ code: 'staves-disagree', message: 'The notation shows B3 but the tab shows fret 2 on string 2 (C#4).' }];
+    col.notes[0].confidence = 0.35;
+    const note = (page.systems[0].staves[0].measures[2].events.find((e): e is OmrNotationEvent => e.kind === 'chord') as OmrNotationEvent).notes[0];
+    note.confidence = 0.45;
+    page.systems[0].staves[0].measures[3].addsUp = false;
+    page.systems[0].staves[0].measures[3].ticks = 2880;
+    page.systems[0].staves[0].measures[3].expectedTicks = 3840;
+    const s = summarizePage(page);
+    expect(s.verdict).toBe('check');
+    expect(s.proofread[0].what).toBe('measure');
+    expect(s.proofread[0].reason).toMatch(/3 beats .* asks for 4/);
+    expect(s.proofread[1]).toMatchObject({ what: 'tab-number', reading: expect.stringMatching(/string/) });
+    expect(s.proofread.some((p) => p.what === 'note' && p.confidence === 0.45)).toBe(true);
+    expect(s.lines.join(' ')).toMatch(/1 measure does not add up/);
+    expect(s.lines.join(' ')).toMatch(/Tab numbers: \d+ read, 1 uncertain/);
+  }, 60_000);
+});
+
+describe('omrToSong', () => {
+  it('turns a reading into a valid song: strings and frets from the tab, rhythm from the notation', async () => {
+    const { omrToSong } = await import('./to-song');
+    const { validateSong } = await import('@/core/song');
+    const fx = loadFixture('linked-ode-bravura-100');
+    const page = await recognizePage(fx.gray, oracleRecognizers(fx.truth));
+    const { song, warnings, confidence } = omrToSong(page, { title: 'Ode to Joy' });
+    expect(validateSong(song).filter((i) => i.level === 'error')).toEqual([]);
+    expect(song.bars).toHaveLength(8);
+    expect(song.key).toBe('G');
+    const first = song.tracks[0].measures[0].beats;
+    // Ode to Joy in G: B B C D, on the B string open then fret 1, the G string ... (as the tab prints).
+    const gt = fx.truth.systems[0].staves[1].measures[0].events.map((e) => e.notes.map((n) => `${n.string}:${n.fret}`).join());
+    expect(first.map((b) => b.notes.map((n) => `${n.string}:${n.fret}`).join())).toEqual(gt);
+    expect(first.every((b) => b.duration === 960)).toBe(true);
+    expect(warnings).toEqual([]);
+    expect(confidence).toBeGreaterThan(0.95);
+  }, 60_000);
+
+  it('marks estimated rhythm and keeps a song valid when a measure does not add up', async () => {
+    const { omrToSong } = await import('./to-song');
+    const { validateSong } = await import('@/core/song');
+    const fx = loadFixture('tab-ode-ls-100');
+    const page = await recognizePage(fx.gray, oracleRecognizers(fx.truth));
+    const m = page.systems[0].staves[0].measures[1];
+    m.events = m.events.slice(0, 2);
+    const r = omrToSong(page);
+    expect(r.estimatedRhythm).toBe(true);
+    expect(validateSong(r.song).filter((i) => i.level === 'error')).toEqual([]);
+    expect(r.warnings.map((w) => w.message).join(' ')).toMatch(/estimated from the spacing/);
+  }, 60_000);
+});

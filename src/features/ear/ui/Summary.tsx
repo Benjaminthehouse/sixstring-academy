@@ -56,7 +56,7 @@ export function Summary({ drill, round, outcome, next, onAgain }: SummaryProps) 
         )}
         {!passed && (
           <Text tone="muted" align="center">
-            {score.correct >= Math.ceil(score.total * 0.8) - 1 ? 'One more right and the next level opens.' : `Get ${Math.ceil(score.total * 0.8)} of ${score.total} right to open the next level. The questions lean toward the ones you missed.`}
+            {score.correct >= Math.ceil(score.total * 0.8) - 1 ? 'One more right and the next level opens.' : `Get ${Math.ceil(score.total * 0.8)} of ${score.total} right to open the next level. What you missed comes back, between ones you know.`}
           </Text>
         )}
       </div>

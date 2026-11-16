@@ -28,14 +28,15 @@ const AFTER: Record<number, number> = { 1: 0, 3: 1, 6: 3, 8: 4, 10: 5 };
  * lesson: no note lives there.
  */
 export function NotePad({ accidentals, spelling, fmt, onAnswer, result, disabled, keyHints, german }: NotePadProps) {
-  const keyFor = (pc: number): { key: string; label: string } => {
-    const natural = NATURAL_PCS.includes(pc);
-    if (natural) {
+  // The key that types this note: its letter, or Shift and the letter it raises (lowers, with flats).
+  const keyFor = (pc: number): { key: string } => {
+    if (NATURAL_PCS.includes(pc)) {
       const letter = spell(pc, 'sharps');
-      return { key: german && letter === 'B' ? 'H' : letter, label: letter };
+      return { key: german && letter === 'B' ? 'H' : letter };
     }
+    if (german && pc === 10) return { key: 'B' };
     const base = spelling === 'flats' ? spell(pc, 'flats')[0] : spell(pc, 'sharps')[0];
-    return { key: `⇧${german && base === 'B' ? 'B' : base}`, label: spell(pc, spelling === 'flats' ? 'flats' : 'sharps') };
+    return { key: `⇧${base}` };
   };
   const state = (pc: number) => (!result ? undefined : pc === result.answer ? 'answer' : pc === result.chosen ? 'chosen' : 'dim');
   const button = (pc: number, black: boolean) => {

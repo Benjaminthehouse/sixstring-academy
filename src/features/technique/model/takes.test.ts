@@ -29,11 +29,12 @@ describe('expectedFromSong', () => {
 });
 
 describe('classifiers', () => {
-  it('calls timing even within about 8% of the gap (15 to 45 ms)', () => {
+  it('calls timing even within about 6% of the gap (12 to 35 ms)', () => {
     expect(evennessOf(20, 0.5)).toBe('even');
-    expect(evennessOf(60, 0.5)).toBe('a-bit-uneven');
-    expect(evennessOf(100, 0.5)).toBe('uneven');
-    expect(evennessOf(14, 0.1)).toBe('even');
+    expect(evennessOf(55, 0.5)).toBe('a-bit-uneven');
+    expect(evennessOf(64, 0.5)).toBe('uneven');
+    expect(evennessOf(11, 0.1)).toBe('even');
+    expect(evennessOf(14, 0.1)).toBe('a-bit-uneven');
   });
   it('reads rushing and dragging beyond 5%', () => {
     expect(tempoOf(1)).toBe('steady');

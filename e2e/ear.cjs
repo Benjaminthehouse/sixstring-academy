@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of Ear Training (src/features/ear). Run:
- *   node e2e/ear.cjs [--verbose] [--shots] [--only screens,rounds,sound,layout,status,mic] [--round "phone melody"]
+ *   node e2e/ear.cjs [--verbose] [--shots] [--only screens,rounds,sound,layout,status,mic,review] [--round "phone melody"]
  *
  * Real Chromium, real Web Audio.
  *
@@ -28,6 +28,11 @@
  *  mic      melody playback answered on the guitar: Chromium's fake microphone plays a WAV of two
  *           guitar notes rendered by the audio module; they fill the melody's slots in order and
  *           are marked against it (the app ignores what it hears while it is playing itself)
+ *  review   cases an independent review caught: a level's intro asks that level's own question;
+ *           answer labels stay whole inside their buttons (three modes and three progressions at
+ *           360 px, scale names at 200 % text) and twelve answers all fit a phone held sideways;
+ *           Escape leaves a round; a round left early shows no "Best 0 %"; a reload mid-round
+ *           still records what was answered
  *
  * Prints one line per failed check (all with --verbose) and PASSED or FAILED; exits non-zero on failure.
  */
@@ -539,6 +544,127 @@ async function status(browser, url) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// review: cases an independent review caught
+// ---------------------------------------------------------------------------------------------
+/** Every answer label inside its button, on one line when it is a single word. */
+async function labelsWhole(page) {
+  return page.evaluate(() => {
+    const bad = [];
+    for (const btn of document.querySelectorAll('[data-ear-answer]')) {
+      const label = btn.querySelector('span:not([aria-hidden])') || btn;
+      const b = btn.getBoundingClientRect();
+      const l = label.getBoundingClientRect();
+      const text = label.textContent.trim();
+      if (l.left < b.left - 0.5 || l.right > b.right + 0.5) bad.push(`${text} runs out of its button`);
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const lines = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+      if (!/\s/.test(text) && lines.size > 1) bad.push(`${text} breaks inside the word`);
+    }
+    return bad;
+  });
+}
+
+/** Skill record of a level, from the live store. */
+async function levelSkill(page, drill, level) {
+  return page.evaluate(async ([d, l]) => {
+    const p = await import('/src/core/progress/index.ts');
+    const s = p.getProgress().skills[`ear:${d}:${l}`];
+    return s ? { attempts: s.attempts, completions: s.completions } : null;
+  }, [drill, level]);
+}
+
+/** Answer the question on screen correctly with the keyboard and wait for the next one. */
+async function answerRight(page) {
+  const q = await currentQuestion(page);
+  await page.keyboard.press(KEYS[q.options.findIndex((o) => o.id === q.answer)]);
+  await page.waitForFunction((id) => window.__ear.question && window.__ear.question.id !== id, q.id, { timeout: 20000 });
+}
+
+async function review(browser, url) {
+  const phone = await open(browser, url, { mobile: true, viewport: { width: 360, height: 780 } });
+  try {
+    await phone.goto('ear--pitch--1');
+    const sub = await phone.page.locator('main header, main [data-ui-page]').first().innerText();
+    check('review', 'intro: level 1 asks its own question (same or different), not "higher or lower"', /same note twice/i.test(sub) && !/higher or lower\?/i.test(sub), sub.slice(0, 160));
+    for (const hash of ['ear--scales--5', 'ear--progressions--2', 'ear--progressions--3', 'ear--chords--10']) {
+      await phone.goto(hash);
+      await phone.page.locator('[data-ear-start]').click();
+      await phone.page.waitForSelector('[data-ear-pad]', { timeout: 30000 });
+      await phone.page.waitForTimeout(300);
+      const bad = await labelsWhole(phone.page);
+      check('review', `360 px ${hash}: every answer label whole and inside its button`, bad.length === 0, bad.join('; '));
+      check('review', `360 px ${hash}: no sideways scroll`, (await noSideways(phone.page)) <= 1);
+      await phone.shot(`review-${hash}-360`);
+    }
+    // 200 % text: the learner's own text size (the pad works in rem).
+    await phone.goto('ear--scales--5');
+    await phone.page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+    await phone.page.locator('[data-ear-start]').click();
+    await phone.page.waitForSelector('[data-ear-pad]', { timeout: 30000 });
+    await phone.page.waitForTimeout(300);
+    const big = await labelsWhole(phone.page);
+    check('review', '200 % text: scale names stay whole (one column instead of syllables)', big.length === 0, big.join('; '));
+    check('review', '200 % text: no sideways scroll', (await noSideways(phone.page)) <= 1);
+    await phone.shot('review-text200');
+    await phone.page.evaluate(() => (document.documentElement.style.fontSize = ''));
+    const errs = phone.takeErrors();
+    check('review', 'phone: no console errors', errs.length === 0, errs.join(' | '));
+  } finally {
+    await phone.close();
+  }
+
+  const sideways = await open(browser, url, { mobile: true, viewport: { width: 667, height: 375 } });
+  try {
+    await sideways.goto('ear--intervals-up--8');
+    await sideways.page.locator('[data-ear-start]').click();
+    await sideways.page.waitForSelector('[data-ear-pad]', { timeout: 30000 });
+    await sideways.page.waitForTimeout(400);
+    const boxes = await sideways.page.locator('[data-ear-answer]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().bottom));
+    check('review', 'small phone held sideways: all twelve intervals on screen', boxes.length === 12 && Math.max(...boxes) <= 375 + 1, `lowest answer ends at ${Math.round(Math.max(...boxes))} of 375`);
+    await sideways.shot('review-sideways-12');
+  } finally {
+    await sideways.close();
+  }
+
+  const desk = await open(browser, url, { mobile: false });
+  try {
+    // Escape leaves a round; what was answered is kept as a round left early, with no score shown.
+    await desk.goto('ear--intervals-up--1');
+    await desk.page.locator('[data-ear-start]').click();
+    await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 20000 });
+    for (let i = 0; i < 3; i++) await answerRight(desk.page);
+    await clearToasts(desk.page);
+    await desk.page.keyboard.press('Escape');
+    await desk.page.waitForSelector('[data-ear-play-level]', { timeout: 20000 }).catch(() => null);
+    check('review', 'Escape leaves the round for the drill page', desk.page.url().endsWith('#ear--intervals-up'), desk.page.url());
+    const left = await levelSkill(desk.page, 'intervals-up', 1);
+    check('review', 'a round left early is recorded (an attempt, not a completion)', left && left.attempts === 1 && left.completions === 0, JSON.stringify(left));
+    const row = await desk.page.locator('[data-ear-level="1"]').innerText();
+    check('review', 'and its level shows no "Best 0 %"', !/Best 0\s*%/.test(row), row.replace(/\s+/g, ' '));
+    const intro = await (async () => {
+      await desk.goto('ear--intervals-up--1');
+      return desk.page.locator('[data-ear-intro]').innerText();
+    })();
+    check('review', 'nor does its intro', !/Best 0\s*%/.test(intro) && /New level/.test(intro), intro.replace(/\s+/g, ' ').slice(0, 200));
+
+    // A reload mid-round records what was answered (the page goes away without unmounting).
+    await desk.goto('ear--intervals-down--1');
+    await desk.page.locator('[data-ear-start]').click();
+    await desk.page.waitForFunction(() => window.__ear.question, null, { timeout: 20000 });
+    for (let i = 0; i < 3; i++) await answerRight(desk.page);
+    await desk.page.reload({ waitUntil: 'load' });
+    await desk.page.waitForSelector('main[data-route="ear"] [data-ui-page]', { timeout: 60000 });
+    const reloaded = await levelSkill(desk.page, 'intervals-down', 1);
+    check('review', 'a reload mid-round still records the answers given', reloaded && reloaded.attempts === 1 && reloaded.completions === 0, JSON.stringify(reloaded));
+    const errs = desk.takeErrors();
+    check('review', 'desktop: no console errors', errs.length === 0, errs.join(' | '));
+  } finally {
+    await desk.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // mic: play the melody back on the guitar (a fake microphone plays D4 then E4)
 // ---------------------------------------------------------------------------------------------
 async function mic() {
@@ -586,6 +712,7 @@ withApp({}, async ({ browser, url }) => {
     ['sound', sound],
     ['layout', layout],
     ['status', status],
+    ['review', review],
   ];
   for (const [name, fn] of groups) {
     if (!wants(name)) continue;

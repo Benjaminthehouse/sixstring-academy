@@ -65,6 +65,28 @@ const flag = (name) => args.includes(name);
       if (fs.existsSync(path.join(ROOT, 'src/core/omr/tab/index.ts'))) recognizers.tab = (await load('/src/core/omr/tab/index.ts')).recognizeTabStaff;
       if (fs.existsSync(path.join(ROOT, 'src/core/omr/notation/index.ts'))) recognizers.notation = (await load('/src/core/omr/notation/index.ts')).recognizeNotationStaff;
     }
+    if (flag('--classify')) {
+      // The quick page classifier over the corpus: expected kind from the subset.
+      const cls = await load('/src/core/omr/classify-page.ts');
+      const deg = await load('/src/core/omr/eval/degrade.ts');
+      const want = { notation: 'notation', tab: 'tab', linked: 'both' };
+      for (const tier of tiers) {
+        let right = 0;
+        const ms = [];
+        const wrong = [];
+        for (const meta of list) {
+          const fx = fixtures.loadFixture(meta);
+          const d = deg.degrade(fx.gray, fx.truth, tier, runner.tierSeed(meta.id, tier, Number(opt('--seed') || 1)));
+          const c = cls.classifyPage(d.gray);
+          ms.push(c.ms);
+          if (c.kind === want[meta.subset]) right++;
+          else wrong.push(`${meta.id}=${c.kind}`);
+        }
+        ms.sort((a, b) => a - b);
+        console.log(`${tier.padEnd(10)} ${right}/${list.length} right, median ${ms[ms.length >> 1].toFixed(0)} ms, max ${ms[ms.length - 1].toFixed(0)} ms${wrong.length ? `; wrong: ${wrong.join(' ')}` : ''}`);
+      }
+      return;
+    }
     if (flag('--mistakes')) {
       const mk = await load('/src/core/omr/eval/mistakes.ts');
       const dir = path.join(ROOT, 'e2e', 'out', 'omr', 'mistakes');

@@ -324,7 +324,106 @@ describe('teachers plan: frets and chord shapes match the engines', () => {
   });
 });
 
+describe('teachers plan: the order of teaching', () => {
+  const mia = courses[0].units.flatMap((u) => u.lessons);
+  const slug = (l: Lesson) => l.id.split('/')[2];
+  /** What a learner reads in a lesson; `show` is a build instruction for the figure, so it is left out. */
+  const learnerText = (l: Lesson) => [l.title, l.goal, l.explain, ...l.practice].join('\n');
+
+  it('introduces each of Mia\'s chord shapes in the lesson that teaches it, easiest first', () => {
+    const first = new Map<string, number>();
+    mia.forEach((l, i) => {
+      for (const m of textOf(l).matchAll(/(?<![\w#/])([A-G](?:#|b)?[A-Za-z0-9#+]*) \(([x0-9]{6})\)/g)) {
+        const shape = `${m[1]} (${m[2]})`;
+        if (!first.has(shape)) first.set(shape, i);
+      }
+    });
+    const taught: [string, string][] = [
+      ['Em (022000)', 'chord-boxes-and-em'], ['E (022100)', 'e-and-am'], ['Am (x02210)', 'e-and-am'], ['G (xx0003)', 'frere-jacques-strum'],
+      ['A (x02220)', 'the-a-chord'], ['E7 (020100)', 'a-and-e7'], ['D (xx0232)', 'the-d-chord'], ['A7 (x02020)', 'a7-and-waltz-time'],
+      ['G (320003)', 'the-g-chord'], ['C (x32010)', 'the-c-chord'], ['D7 (xx0212)', 'the-d7-chord'], ['Dm (xx0231)', 'dm-and-e'],
+      ['B7 (x21202)', 'b7-and-anchors'], ['E5 (022xxx)', 'power-chords'], ['Fmaj7 (xx3210)', 'fmaj7-and-small-f'], ['F (xx3211)', 'fmaj7-and-small-f'],
+      ['G7 (320001)', 'la-cucaracha'], ['F (133211)', 'the-full-f'], ['Bm (x24432)', 'bm-barre'],
+    ];
+    for (const [shape, where] of taught) {
+      expect(first.has(shape), shape).toBe(true);
+      expect(slug(mia[first.get(shape)!]), `${shape} first appears`).toBe(where);
+    }
+    // The lesson engine's chord-shape generator orders its default pool easiest first (src/lessons/generators/neck.ts):
+    // Em Am E A D G C Dm. Mia teaches in that order (E and Am together), then the F barre.
+    const order = ['Em (022000)', 'Am (x02210)', 'E (022100)', 'A (x02220)', 'D (xx0232)', 'G (320003)', 'C (x32010)', 'Dm (xx0231)', 'F (133211)'].map((s) => first.get(s)!);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('defines each term in Mia\'s course where she first uses it, and never uses the ones she does not teach', () => {
+    const definedIn: [RegExp, string][] = [
+      [/\bbars?\b/i, 'meet-your-guitar'], [/\bbpm\b/, 'sit-and-hold'], [/\btab\b/i, 'hot-cross-buns'], [/\baccent/i, 'the-a-chord'],
+      [/\btempo\b/i, 'skip-to-my-lou'], [/\bscale\b/i, 'michael-row'], [/\broman numerals?\b/i, 'coming-round-the-mountain'],
+      [/\bfirst position\b/i, 'six-eight-time'], [/\barpeggios?\b/i, 'silent-night'], [/\briffs?\b/i, 'low-string-notes'],
+      [/\blicks?\b/i, 'hammer-ons-and-pull-offs'], [/\broot\b/i, 'power-chords'], [/\boctave\b/i, 'power-chords'],
+      [/\bbarre\b/i, 'fmaj7-and-small-f'], [/\bprogression\b/i, 'f-in-the-key-of-c'], [/\bpentatonic\b/i, 'a-minor-pentatonic'],
+      [/\bcapo\b/i, 'the-capo'],
+    ];
+    for (const [term, where] of definedIn) {
+      const i = mia.findIndex((l) => term.test(learnerText(l)));
+      expect(i >= 0 ? slug(mia[i]) : 'never', String(term)).toBe(where);
+    }
+    for (const l of mia) expect(learnerText(l), l.id).not.toMatch(/\b(vibrato|dominant)\b/i);
+  });
+
+  it('teaches the techniques Dev\'s pentatonic licks use before the licks that use them', () => {
+    const dev = courses[1].units.flatMap((u) => u.lessons);
+    const at = (id: string) => dev.findIndex((l) => l.id === id);
+    const firstUse = (music: string) => dev.findIndex((l) => l.music.includes(music));
+    const spec = (id: string) => (rep.studies as unknown as { id: string; spec: string }[]).find((s) => s.id === id)!.spec;
+    const needs: [string, string, string][] = [
+      ['st-pent-box-2', 'slide', 'dev/dev-lead-techniques/slides'],
+      ['st-pent-box-4', 'bend', 'dev/dev-lead-techniques/bends-in-tune'],
+      ['st-pent-box-5', 'vibrato', 'dev/dev-lead-techniques/vibrato'],
+      ['st-pent-connect', 'slides', 'dev/dev-lead-techniques/slides'],
+    ];
+    for (const [study, technique, taughtIn] of needs) {
+      expect(spec(study), study).toContain(technique);
+      expect(at(taughtIn), `${taughtIn} before ${study}`).toBeLessThan(firstUse(study));
+    }
+    claim('dev/dev-pentatonic/boxes-4-and-5', 'The bend in the box 4 lick and the vibrato in the box 5 lick come from your earlier lessons');
+  });
+
+  it('hands over with the same checks: Mia\'s graduation is Dev\'s baseline, Dev\'s gig is Elena\'s audition', () => {
+    claim('mia/mia-playing-with-others/graduation-concert', 'one-minute changes G to C and Am to F (30 or more clean changes each), the folk pattern on G, C and D at 90 bpm, box 1 up and down at 80 bpm, and the F barre ringing on all six strings');
+    const d = claim('dev/dev-barre-chords/dev-welcome', 'one-minute changes G to C and Am to F (30 clean changes or more), the F (133211) barre ringing on all six strings, the folk pattern on G, C and D at 90 bpm, and box 1 up and down in eighth notes at 80 bpm');
+    const steps = [/^Chords: one-minute changes, G to C, then Am to F/, /^Mic \(play-chord\): F \(133211\)/, /^Metronome: the folk pattern at 90 bpm/, /^Metronome: A minor pentatonic box 1 up and down in eighth notes at 80 bpm/];
+    for (const re of steps) expect(d.practice.some((s) => re.test(s)), String(re)).toBe(true);
+    claim('dev/dev-band-and-ear/dev-graduation', 'any major, minor or seventh chord in two places, all five pentatonic boxes, C major in five positions, and eight bars read at sight');
+    const e = claim('elena/elena-practice-and-precision/elena-audition', 'C major through its five positions, any major, minor or seventh chord in two places, a Travis pattern, eight bars read at sight and one chorus of improvisation across the pentatonic boxes');
+    // The sight-reading test must be unseen: Dev's course plays only the first half of that study.
+    claim('dev/dev-neck-and-reading/reading-sharps-and-rhythm', 'Reading: Second Position, the first 8 bars');
+    expect(e.practice.some((s) => s.startsWith('Player: Reading: Second Position, bars 9 to 16'))).toBe(true);
+    expect(courses[1].units.flatMap((u) => u.lessons).some((l) => l.music.includes('st-read-fifth-position'))).toBe(false);
+  });
+
+  it('never asks anyone to play into pain', () => {
+    for (const { lesson: l } of lessons) expect(textOf(l), l.id).not.toMatch(/fret that hurts|until it hurts|through the pain|no pain/i);
+  });
+});
+
 describe('teachers plan: Mia\'s facts match the engines', () => {
+  it('E is Em plus one finger, Am is the E shape one string over, and C and Am share two notes', () => {
+    claim('mia/mia-first-chords/e-and-am', 'E is Em plus one finger');
+    expect(shapeMidi('022100').map((n, i) => n - shapeMidi('022000')[i]).filter((d) => d !== 0)).toEqual([1]);
+    claim('mia/mia-first-chords/e-and-am', 'move the whole E shape one string toward string 1 without changing it');
+    expect(parseFrets('x02210').slice(2, 5)).toEqual(parseFrets('022100').slice(1, 4));
+    claim('mia/mia-minor-chords/am-and-c', 'share two of their three notes, C and E');
+    expect(chordNotes('C').filter((n) => chordNotes('Am').includes(n))).toEqual(['C', 'E']);
+  });
+
+  it('D5 is not quite the E5 shape: its top note sits one fret higher because of the B string', () => {
+    claim('mia/mia-power-chords/power-chords', 'its top note moves up one fret, to string 2 fret 3 (D)');
+    const span = (frets: string) => Math.max(...shapeMidi(frets)) - Math.min(...shapeMidi(frets));
+    expect(['022xxx', 'x022xx', 'xx023x'].map(span)).toEqual([12, 12, 12]);
+    expect(span('xx022x')).toBe(11);
+  });
+
   it('standard tuning, the fifth-fret rule and the capo table', () => {
     claim('mia/mia-hello-guitar/tune-up', 'string 6 E2, string 5 A2, string 4 D3, string 3 G3, string 2 B3, string 1 E4');
     claim('mia/mia-hello-guitar/meet-your-guitar', 'E2 A2 D3 G3 B3 E4');
@@ -492,6 +591,12 @@ describe('teachers plan: Dev\'s facts match the engines', () => {
     expect(capoShapes(['Bb', 'Eb', 'F'], 3).map((s) => s.shape)).toEqual(['G', 'C', 'D']);
     claim('dev/dev-band-and-ear/capo-and-keys', 'move G, Em, C, D up a whole step (A, F#m, D, E)');
     expect(['G', 'Em', 'C', 'D'].map((c) => transposeChord(c, 'M2'))).toEqual(['A', 'F#m', 'D', 'E']);
+  });
+
+  it('reggae chops on every "and" fall on beats 2 and 4 when the music is counted twice as fast', () => {
+    claim('dev/dev-rhythm-styles/reggae', 'count the same music twice as fast and those chops fall on beats 2 and 4');
+    // A chop half a beat after each beat, in beats counted twice as fast, lands on whole beats 1, 3, 5, 7: beats 2 and 4 of each bar.
+    expect([0.5, 1.5, 2.5, 3.5].map((t) => ((t * 2) % 4) + 1)).toEqual([2, 4, 2, 4]);
   });
 
   it('octave shapes and the staff positions Dev teaches', () => {

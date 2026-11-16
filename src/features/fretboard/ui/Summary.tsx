@@ -109,6 +109,11 @@ export function Summary({ outcome, trainer, scope, stage, nextStage, nextTitle, 
       </div>
 
       <div className={styles.summaryLinks}>
+        {stage && s.passed && (
+          <Button size="sm" onClick={onAgain} iconLeft="RotateCcw">
+            Practise this step again
+          </Button>
+        )}
         {offerPlay && (
           <LinkButton to="fretboard" params={['drill', 'play-the-note']} iconLeft="Mic" size="sm">
             Play it on your guitar
@@ -136,14 +141,7 @@ export function Summary({ outcome, trainer, scope, stage, nextStage, nextTitle, 
         )}
       </Section>
     </div>
-    <ActionBar>
-      {stage && s.passed && (
-        <Button onClick={onAgain} iconLeft="RotateCcw">
-          Practise again
-        </Button>
-      )}
-      {primary}
-    </ActionBar>
+    <ActionBar>{primary}</ActionBar>
     </>
   );
 }

@@ -174,17 +174,19 @@ async function hubGroup() {
   try {
     await s.goto('technique');
     await s.page.waitForSelector('[data-technique-screen="hub"]', { timeout: 30000 });
-    const rows = await s.page.$$eval('[data-technique-row]', (els) => els.map((e) => e.getAttribute('data-technique-row')));
+    const ROWS = '[data-technique-screen="hub"] ul a[href^="#technique--"]';
+    const rows = await s.page.$$eval(ROWS, (els) => els.map((e) => e.getAttribute('href').replace('#technique--', '')));
     const plan = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/content/plan/repertoire.json'), 'utf8')).technique.map((t) => t.id);
     check('hub', `one row per plan exercise (${plan.length})`, rows.length === plan.length && plan.every((id) => rows.includes(id)), `${rows.length} rows`);
     check('hub', 'a new learner starts with the warm-up', (await attr(s.page, '[data-technique-today]', 'data-technique-today')) === 'warm-up');
-    await s.page.getByRole('radio', { name: /Picking hand/ }).first().click().catch(async () => s.page.getByText('Picking hand', { exact: false }).first().click());
+    await s.page.getByRole('radio', { name: /Picking hand/ }).first().click();
     await s.page.waitForTimeout(300);
-    const picking = await s.page.$$eval('[data-technique-row]', (els) => els.length);
+    const picking = await s.page.$$eval(ROWS, (els) => els.length);
     const pickingPlan = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/content/plan/repertoire.json'), 'utf8')).technique.filter((t) => t.hand === 'picking').length;
     check('hub', 'the hand filter shows the picking-hand exercises only', picking === pickingPlan, `${picking} vs ${pickingPlan}`);
-    await s.page.getByText('All', { exact: true }).first().click();
-    await s.page.locator('[data-technique-row="tech-spider"]').click();
+    await s.page.getByRole('radio', { name: /^All/ }).first().click();
+    await s.page.waitForTimeout(300);
+    await s.page.locator('[data-technique-screen="hub"] ul a[href="#technique--tech-spider"]').click();
     await s.page.waitForSelector('[data-technique-screen="exercise"][data-exercise="tech-spider"]', { timeout: 30000 });
     check('hub', 'a row opens its exercise', true);
     check('hub', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
@@ -238,8 +240,12 @@ async function ladderGroup() {
     await p.waitForSelector('[data-technique-summary]', { timeout: 10000 });
     const summary = await p.textContent('[data-technique-summary]');
     check('ladder', 'Finish shows the summary with XP and the best clean tempo', /XP/.test(summary) && /50/.test(summary), summary.slice(0, 160));
-    const stored = await p.evaluate(() => Object.entries(localStorage).filter(([k]) => k.includes('progress')).map(([, v]) => v).join(''));
-    check('ladder', 'the visit is in the learner’s progress (skill technique:tech-permutations-1, best 50)', stored.includes('technique:tech-permutations-1') && /"best":50/.test(stored));
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(1200);
+    await p.reload({ waitUntil: 'load' });
+    await p.waitForSelector(root, { timeout: 30000 });
+    check('ladder', 'after a reload the best clean tempo (50) is kept in the learner’s progress', (await attr(p, root, 'data-best')) === '50', await attr(p, root, 'data-best'));
+    check('ladder', 'and the next visit starts on a warm-up rung at the ladder start', (await attr(p, root, 'data-tempo')) === '50');
     check('ladder', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
   } finally {
     await s.close();
@@ -285,7 +291,7 @@ async function takeGroup() {
 
   const uneven = scaleTake('scale-uneven', (i) => 0.13 * jitter(i));
   const r2 = await scaleTakeRun(uneven.fakeAudio);
-  check('take', 'an uneven take is not clean', r2.verdict === 'close' || r2.verdict === 'not-yet', `${r2.verdict}: ${r2.text}`);
+  check('take', 'an uneven take (notes up to 130 ms off) is not clean', r2.verdict === 'not-yet', `${r2.verdict}: ${r2.text}`);
   check('take', 'it says how far from an even pulse the notes were', /Timing: on average \d+ ms from an even pulse/.test(r2.text || ''), r2.text);
   check('take', 'and the ladder does not climb', r2.tempo === '60', r2.tempo);
   check('take', 'no console errors (uneven take)', r2.errors.length === 0, r2.errors.join(' | '));

@@ -18,7 +18,7 @@ import { clampTempo, MAX_TEMPO, MIN_TEMPO, startTempo } from '../model/ladder';
 import { newVisit, visitActivity } from '../model/session';
 import styles from '../Technique.module.css';
 import { Demo } from './Demo';
-import { ownsKeys, WIDE_QUERY } from './ExerciseScreen';
+import { ownsKeys, SIDEWAYS_QUERY, WIDE_QUERY } from './ExerciseScreen';
 import { HealthNotice } from './HealthNotice';
 import { Coaching, Rungs, SummarySheet, exerciseEyebrow, nextExercise } from './Panels';
 
@@ -47,7 +47,8 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   const part = step?.part !== undefined ? e.parts[step.part] : undefined;
   const song = useMemo(() => (part ? partSong(e, part, tempo) : null), [e, part, tempo]);
   const tab = useRef<TabViewHandle>(null);
-  useImmersive(running, 'focus');
+  const sideways = useMediaQuery(SIDEWAYS_QUERY);
+  useImmersive(running || sideways, 'focus');
 
   const runnerRef = useRef<ExerciseRunner | null>(null);
   if (!runnerRef.current) runnerRef.current = new ExerciseRunner();
@@ -249,7 +250,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   );
 
   return (
-    <Page title={e.title} eyebrow={exerciseEyebrow(e)} subtitle={e.summary} back={{ to: 'technique', label: 'Technique' }}>
+    <Page title={e.title} eyebrow={exerciseEyebrow(e)} subtitle={e.summary} back={{ to: 'technique', label: 'Technique' }} hideHeader={sideways}>
       <div className={styles.layout} data-technique-screen="routine" data-exercise={e.id} data-step={step?.id} data-running={running} data-finished={finished}>
         <div className={styles.main}>
           {doneCard}

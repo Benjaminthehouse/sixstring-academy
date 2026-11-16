@@ -1115,6 +1115,92 @@ export function projectMarker(pose: PoseLike, string: number, fret: number): Poi
   return applyHomography(pose.H, p.x, p.y);
 }
 
+/**
+ * Typical height of the strings above the wood, mm, at the nut and at the saddle (they rise in a
+ * straight line between). Strings are not in the board plane: seen at an angle they appear shifted
+ * against the wood by height x tan(view angle), a whole string spacing at the 12th fret of a steel
+ * string seen 55 degrees off the normal.
+ */
+export const STRING_HEIGHT_MM: Readonly<Record<NeckPresetId, readonly [number, number]>> = {
+  steel: [1.6, 5.4],
+  electric: [1.3, 4.6],
+  classical: [1.8, 7.2],
+};
+
+/** Typical height of a fret wire's crown above the wood, mm. */
+export const FRET_HEIGHT_MM = 1.2;
+
+/** Height of the strings above the wood at x mm from the nut (custom necks use the steel-string figures). */
+export function stringHeightAt(model: NeckModel, x: number): number {
+  const [a, b] = STRING_HEIGHT_MM[model.preset === 'custom' ? 'steel' : model.preset] ?? STRING_HEIGHT_MM.steel;
+  return a + ((b - a) * Math.max(0, Math.min(model.scaleLength, x))) / model.scaleLength;
+}
+
+/**
+ * The camera's position in neck-plane millimetres (z toward the camera, on the side the strings are),
+ * recovered from a pose as a pinhole camera with square pixels and the principal point at the frame
+ * centre (focal length estimated by `decomposeHomography`). Null when the pose does not allow it.
+ * Use it with `projectRaised` / `projectMarkerSeen`; it does not change when the pose is moved onto a
+ * display canvas, so compute it from the pose of the tracked frame.
+ */
+export function cameraCentre(pose: FretboardPose): [number, number, number] | null {
+  const d = decomposeHomography(pose.H, pose.frameWidth, pose.frameHeight);
+  if (!d || !(d.focalPx > 0)) return null;
+  const H = pose.H;
+  const f = d.focalPx;
+  const cx = pose.frameWidth / 2;
+  const cy = pose.frameHeight / 2;
+  const c1 = [(H[0] - cx * H[6]) / f, (H[3] - cy * H[6]) / f, H[6]];
+  const c2 = [(H[1] - cx * H[7]) / f, (H[4] - cy * H[7]) / f, H[7]];
+  const c3 = [(H[2] - cx * H[8]) / f, (H[5] - cy * H[8]) / f, H[8]];
+  const n1 = Math.hypot(c1[0], c1[1], c1[2]);
+  const n2 = Math.hypot(c2[0], c2[1], c2[2]);
+  if (!(n1 > 0 && n2 > 0)) return null;
+  const lambda = 2 / (n1 + n2);
+  let r1 = c1.map((v) => v / n1);
+  let r2 = c2.map((v) => v / n2);
+  let t = c3.map((v) => v * lambda);
+  // The board is in front of the camera.
+  if (t[2] < 0) {
+    r1 = r1.map((v) => -v);
+    r2 = r2.map((v) => -v);
+    t = t.map((v) => -v);
+  }
+  const r3 = [r1[1] * r2[2] - r1[2] * r2[1], r1[2] * r2[0] - r1[0] * r2[2], r1[0] * r2[1] - r1[1] * r2[0]];
+  const dot = (a: number[], b: number[]): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const C: [number, number, number] = [-dot(r1, t), -dot(r2, t), Math.abs(dot(r3, t))];
+  return C.every(Number.isFinite) && C[2] > 1 ? C : null;
+}
+
+/** Image position of a point raised `z` mm above the neck plane, seen from `camera` (see `cameraCentre`); the plane point when `camera` is null. */
+export function projectRaised(pose: PoseLike, x: number, y: number, z: number, camera: readonly [number, number, number] | null): Point {
+  if (!camera || !(camera[2] > z + 1)) return applyHomography(pose.H, x, y);
+  // Where the ray from the camera through the raised point meets the plane.
+  const k = camera[2] / (camera[2] - z);
+  return applyHomography(pose.H, camera[0] + (x - camera[0]) * k, camera[1] + (y - camera[1]) * k);
+}
+
+/**
+ * The note marker for (string, fret) where the learner reads it in the picture: on the string as
+ * the camera sees it (raised above the wood by `stringHeightAt`) and between the two fret wires as
+ * the camera sees them (crowns `FRET_HEIGHT_MM` above the wood). That is the pixel whose ray crosses
+ * the crown layer at the marker's distance from the nut and the string layer at the string. Seen
+ * from the front it is `projectMarker`; seen 55 degrees from the side the two part by up to a
+ * string spacing, and a dot on the raised string itself could even show past its fret wire.
+ */
+export function projectMarkerSeen(pose: PoseLike, string: number, fret: number, camera: readonly [number, number, number] | null): Point {
+  const p = markerPlanePosition(pose.model, string, fret);
+  const z = stringHeightAt(pose.model, Math.max(0, p.x));
+  if (!camera || !(camera[2] > z + 1)) return applyHomography(pose.H, p.x, p.y);
+  const [cx, cy, cz] = camera;
+  // Open strings (behind the nut) have no wire to be read against: they follow the string height.
+  const h = p.x > 0 ? FRET_HEIGHT_MM : z;
+  // A ray through the plane point (X, Y) is at X + (cx - X) h / cz when h above the plane.
+  const X = (p.x - (cx * h) / cz) / (1 - h / cz);
+  const Y = (p.y - (cy * z) / cz) / (1 - z / cz);
+  return applyHomography(pose.H, X, Y);
+}
+
 /** Distance in pixels between wire `fret` and the wire before it, measured along a string (default: the centre line). */
 export function fretSpacingPx(pose: PoseLike, fret: number, string?: number): number {
   const n = Math.max(1, fret);

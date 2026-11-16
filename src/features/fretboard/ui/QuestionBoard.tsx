@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Fretboard, type FretboardSize, type FretCell, type FretMarker, type FretBox } from '@/ui/music';
+import { Fretboard, useMusicSettings, type FretboardSize, type FretCell, type FretMarker, type FretBox } from '@/ui/music';
 import { cx, useElementSize } from '@/ui';
 import { anchorFor, pcAt, posKey } from '../core/neck';
 import { remaining } from '../core/grade';
@@ -32,6 +32,7 @@ export function boardFrets(scope: Scope): [number, number] {
  */
 export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, onTap, size }: QuestionBoardProps) {
   const { ctx } = trainer;
+  const { leftHanded } = useMusicSettings();
   const done = phase === 'answered' || phase === 'summary';
   const nameOf = useCallback((p: Pos) => spell(pcAt(ctx, p), ctx.spelling === 'flats' ? 'flats' : 'sharps'), [ctx]);
 
@@ -116,14 +117,17 @@ export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, 
     if (focusPos && near) focusPos = { string: focusPos.string, fret: Math.round((focusPos.fret + near.fret) / 2) };
   }
   useEffect(() => {
-    if (!focusPos || !wrap.current || !onTap) return;
+    if (!focusPos || !wrap.current) return;
+    const scroller = wrap.current.querySelector<HTMLElement>('[data-orientation] > div');
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 2) return;
     const label = focusPos.fret === 0 ? `string ${focusPos.string}, open` : `string ${focusPos.string}, fret ${focusPos.fret}`;
-    const cell = wrap.current.querySelector<HTMLElement>(`button[aria-label^="${label}"]`);
-    const scroller = cell?.closest<HTMLElement>('[data-orientation] > div');
-    if (!cell || !scroller || scroller.scrollWidth <= scroller.clientWidth + 2) return;
-    const left = cell.offsetLeft + cell.offsetWidth / 2 - scroller.clientWidth / 2;
-    scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
-  }, [focusPos?.string, focusPos?.fret, onTap, width]); // eslint-disable-line react-hooks/exhaustive-deps
+    const cell = wrap.current.querySelector<HTMLElement>(`button[aria-label="${label}"]`);
+    // A tappable board has a button per cell to aim at; a picture is placed by its share of the neck.
+    const [lo, hi] = boardFrets(scope);
+    const share = (focusPos.fret - lo + 0.5) / (hi - lo + 1);
+    const centre = cell ? cell.offsetLeft + cell.offsetWidth / 2 : (leftHanded ? 1 - share : share) * scroller.scrollWidth;
+    scroller.scrollTo({ left: Math.max(0, centre - scroller.clientWidth / 2), behavior: 'smooth' });
+  }, [focusPos?.string, focusPos?.fret, onTap, width, leftHanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onCell = useCallback((c: FretCell) => onTap?.({ string: c.string, fret: c.fret }), [onTap]);
   const label = q.kind === 'name' ? 'Fretboard with one note lit up' : q.kind === 'every' ? `Fretboard: tap every ${trainer.fmt(q.name)}` : 'Fretboard';

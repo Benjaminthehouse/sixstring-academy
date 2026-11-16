@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { RouteProps } from '@/app/routes';
-import { useScreenTitle } from '@/app/shell';
+import { redirect } from '@/app/router';
 import { attachDropZone } from '@/core/platform';
 import { recordActivity, toggleFavourite } from '@/core/progress';
 import { detectTextFormat } from '@/core/song';
@@ -113,7 +113,6 @@ export default function SongsScreen({ params }: RouteProps) {
   const learner = useLearner();
   const isMobile = useIsMobile();
   const twoPane = useMediaQuery(TWO_PANE_QUERY);
-  useScreenTitle(null);
 
   const [storedView, setStoredView] = useLocalState<unknown>('songs.view', DEFAULT_VIEW);
   const view = useMemo(() => sanitizeView(storedView), [storedView]);
@@ -183,6 +182,8 @@ export default function SongsScreen({ params }: RouteProps) {
 
   // ---- params: #songs--<id> / --add / --paste --------------------------------------------------
   const param = params[0] ?? null;
+  const currentParam = useRef(param);
+  currentParam.current = param;
   useEffect(() => {
     if (!param) return;
     if (param === 'add') setAdd('choose');
@@ -279,6 +280,7 @@ export default function SongsScreen({ params }: RouteProps) {
     (result: ImportOutcome) => {
       setBusy(null);
       setAdd(null);
+      if (currentParam.current && COMMANDS.has(currentParam.current)) redirect('songs');
       setOutcome(result);
       const first = result.imported[0];
       if (first) {
@@ -563,6 +565,8 @@ export default function SongsScreen({ params }: RouteProps) {
           onClose={() => {
             setAdd(null);
             setPasteSeed(null);
+            // Opened from #songs--add / #songs--paste: closing it should not reopen it on reload.
+            if (param && COMMANDS.has(param)) redirect('songs');
           }}
           onFiles={(files) => void importFiles(files)}
           onPaste={(text, title) => void importPasted(text, title)}

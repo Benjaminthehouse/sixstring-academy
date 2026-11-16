@@ -43,6 +43,29 @@ export function NameShape({ initial, tuning }: { initial: string | null; tuning:
   const lowOut = isMobile && range === 'high' ? frets.some((f) => f !== null && f > 0 && f < 5) : false;
 
   const name = named.symbol ? displaySymbol(named.symbol, { system: naming }) : null;
+  const details = (
+    <>
+      {named.notes.length > 0 && (
+        <div className={styles.notes} aria-label="Notes, low to high">
+          {named.notes.map((n) => (
+            <NoteBadge key={`${n.string}:${n.fret}`} note={n.note} degree={n.degree ?? undefined} naming={naming} />
+          ))}
+        </div>
+      )}
+      {named.alternatives.length > 0 && (
+        <div className={styles.alts}>
+          <Text variant="label">Also read as</Text>
+          <div className={styles.altList}>
+            {named.alternatives.map((a) => (
+            <LinkButton key={a.symbol} size="sm" variant="ghost" to="chords" params={[chordParam(a.symbol)]}>
+              {displaySymbol(a.symbol, { system: naming })}
+            </LinkButton>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
   return (
     <div className={styles.layout} data-name-shape data-symbol={named.symbol ?? ''} data-frets={formatFrets(frets)}>
       <section className={styles.result} aria-live="polite" aria-label="What the app hears in your shape">
@@ -56,25 +79,7 @@ export function NameShape({ initial, tuning }: { initial: string | null; tuning:
         {named.sounding === 0 && <Text>Tap a fret to place a finger. Tap the open column (left of the nut) to let a string ring; tap a dot again to mute its string.</Text>}
         {named.sounding > 0 && !named.symbol && <Text>These notes do not make a chord the app can name. Try adding or moving one note.</Text>}
         {named.partial && name && <Text variant="caption" tone="muted">Named without its fifth (or a lesser tension): still {name}, just a thinner sound.</Text>}
-        {named.notes.length > 0 && (
-          <div className={styles.notes} aria-label="Notes, low to high">
-            {named.notes.map((n) => (
-              <NoteBadge key={`${n.string}:${n.fret}`} note={n.note} degree={n.degree ?? undefined} naming={naming} />
-            ))}
-          </div>
-        )}
-        {named.alternatives.length > 0 && (
-          <div className={styles.alts}>
-            <Text variant="label">Also read as</Text>
-            <div className={styles.altList}>
-              {named.alternatives.map((a) => (
-                <LinkButton key={a.symbol} size="sm" variant="ghost" to="chords" params={[chordParam(a.symbol)]}>
-                  {displaySymbol(a.symbol, { system: naming })}
-                </LinkButton>
-              ))}
-            </div>
-          </div>
-        )}
+        {!isMobile && details}
         <div className={styles.actions}>
           <Button iconLeft="Volume2" onClick={strum} disabled={!voicing}>
             Strum it
@@ -106,6 +111,7 @@ export function NameShape({ initial, tuning }: { initial: string | null; tuning:
         <div className={styles.board}>
           <Fretboard tuning={tuning} frets={shown} orientation={isMobile ? 'vertical' : 'horizontal'} markers={markers.filter((m) => m.fret >= shown[0] && m.fret <= shown[1])} open={shown[0] === 0 ? open : []} muted={shown[0] === 0 ? muted : []} onCellClick={onCell} cellLabels="note" fretNumbers="all" aria-label="Tap the neck to build a chord shape" />
         </div>
+        {isMobile && (named.notes.length > 0 || named.alternatives.length > 0) && <div className={styles.details}>{details}</div>}
         <Section title="Try a shape" level={3}>
           <ChipGroup aria-label="Example shapes" options={EXAMPLES.map((e) => ({ value: e, label: e }))} value={EXAMPLES.includes(formatFrets(frets)) ? formatFrets(frets) : null} onChange={(v) => setFrets(shapeFromParam(v) ?? [...EXAMPLE_SHAPE])} />
         </Section>

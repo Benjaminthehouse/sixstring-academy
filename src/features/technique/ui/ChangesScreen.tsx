@@ -9,15 +9,15 @@ import { chordChangeSkillId, partSong, type TechniqueExercise } from '@/content/
 import { playUi } from '@/core/audio';
 import { keepAwake } from '@/core/platform';
 import { recordActivity, useProgress, usePrefs } from '@/core/progress';
-import { ActionBar, Button, Card, Celebration, ChipGroup, CountdownRing, Heading, Icon, Kbd, Page, Section, Stat, Stepper, Text, Tooltip, useEventListener, useLocalState, useMediaQuery } from '@/ui';
+import { ActionBar, Button, Card, Celebration, ChipGroup, CountdownRing, Icon, Kbd, Page, Section, Stat, Stepper, Text, Tooltip, useEventListener, useIsMobile, useLocalState, useMediaQuery, IconButton } from '@/ui';
 import { ChordDiagram } from '@/ui/music';
 import { tickHealthClock } from '../engine/health-clock';
-import { ExerciseRunner, type RunState } from '../engine/runner';
+import { ExerciseRunner } from '../engine/runner';
 import { addPairMinute, localDay, readPair } from '../model/history';
 import { afterPass, clampTempo, MAX_TEMPO, MIN_TEMPO } from '../model/ladder';
 import type { Verdict } from '../model/takes';
 import styles from '../Technique.module.css';
-import { ownsKeys, WIDE_QUERY } from './ExerciseScreen';
+import { ownsKeys, SIDEWAYS_QUERY, WIDE_QUERY } from './ExerciseScreen';
 import { HealthNotice } from './HealthNotice';
 import { Coaching, Rungs, exerciseEyebrow } from './Panels';
 
@@ -30,6 +30,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
   useScreenTitle(e.title);
   const prefs = usePrefs();
   const wide = useMediaQuery(WIDE_QUERY);
+  const mobile = useIsMobile();
   const pairs = e.pairs ?? [];
   const [pairId, setPairId] = useLocalState<string>(`technique.pair.${e.id}`, pairs[0]?.id ?? '');
   const pairIndex = Math.max(0, pairs.findIndex((p) => p.id === pairId));
@@ -45,12 +46,12 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
   const [saved, setSaved] = useState<{ count: number; best: boolean; verdict: Verdict; nextTempo: number } | null>(null);
   const song = useMemo(() => partSong(e, part, tempo), [e, part, tempo]);
   const max = tempo; // one change per beat for a minute
-  useImmersive(phase === 'count-in' || phase === 'minute', 'focus');
+  const sideways = useMediaQuery(SIDEWAYS_QUERY);
+  useImmersive(phase === 'count-in' || phase === 'minute' || sideways, 'focus');
 
   const runnerRef = useRef<ExerciseRunner | null>(null);
   if (!runnerRef.current) runnerRef.current = new ExerciseRunner();
   const runner = runnerRef.current;
-  const [runState, setRunState] = useState<RunState>('idle');
 
   useEffect(() => runner.setSounds(prefs.sound.clickSound, prefs.sound.guitarTone), [runner, prefs.sound.clickSound, prefs.sound.guitarTone]);
   useEffect(() => {
@@ -59,8 +60,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
   useEffect(
     () =>
       runner.subscribe((ev) => {
-        if (ev.type === 'state') setRunState(ev.state);
-        else if (ev.type === 'countin') setPhase('count-in');
+        if (ev.type === 'countin') setPhase('count-in');
         else if (ev.type === 'beat') {
           setPhase((p) => (p === 'count-in' ? 'minute' : p));
           setBeat(ev.beat);
@@ -155,8 +155,8 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
       </Button>
     ) : (
       <Tooltip content={<>Start the minute <Kbd>Space</Kbd></>}>
-        <Button variant="primary" iconLeft="Play" size={wide ? 'lg' : 'md'} onClick={start} data-technique-primary="">
-          Start the minute at {tempo} BPM
+        <Button variant="primary" iconLeft="Play" size={wide ? 'lg' : 'md'} fullWidth={wide} onClick={start} data-technique-primary="">
+          Start the minute
         </Button>
       </Tooltip>
     );
@@ -167,6 +167,7 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
       eyebrow={exerciseEyebrow(e)}
       subtitle={e.summary}
       back={{ to: 'technique', label: 'Technique' }}
+      hideHeader={sideways}
     >
       <div className={styles.layout} data-technique-screen="changes" data-exercise={e.id} data-pair={pair.id} data-phase={phase} data-tempo={tempo} data-best={pairRecord.best}>
         <div className={styles.main}>
@@ -175,13 +176,13 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
           <Card padding="lg" className={styles.routine}>
             <div className={styles.pairBoxes}>
               <div className={styles.pairBox} data-now={which === 0}>
-                <ChordDiagram chord={pair.a.symbol} frets={pair.a.shape} size="md" />
+                <ChordDiagram chord={pair.a.symbol} frets={pair.a.shape} size={mobile ? 'sm' : 'md'} />
               </div>
               <span className={styles.pairArrow} aria-hidden="true">
                 <Icon name="ArrowLeftRight" size="lg" />
               </span>
               <div className={styles.pairBox} data-now={which === 1}>
-                <ChordDiagram chord={pair.b.symbol} frets={pair.b.shape} size="md" />
+                <ChordDiagram chord={pair.b.symbol} frets={pair.b.shape} size={mobile ? 'sm' : 'md'} />
               </div>
             </div>
             <Text tone="muted" align="center">
@@ -215,14 +216,14 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
               </div>
             )}
           </Card>
-          {!wide && phase === 'ready' && <Rungs e={e} tempo={tempo} best={null} />}
+          {!wide && phase === 'ready' && <Rungs e={e} tempo={tempo} best={null} middle={`Now ${tempo}: one change per beat`} />}
           <Coaching e={e} />
         </div>
         <aside className={wide ? styles.side : styles.main} aria-label="The minute">
           <Card padding="lg">
             <Section title="Tempo and best" level={3} gap={3}>
               <Stepper label="Tempo" value={tempo} onChange={(v) => setTempo(clampTempo(v))} min={MIN_TEMPO} max={MAX_TEMPO} step={e.tempo.step || 4} unit="BPM" disabled={phase === 'minute' || phase === 'count-in'} />
-              {wide && <Rungs e={e} tempo={tempo} best={null} />}
+              {wide && <Rungs e={e} tempo={tempo} best={null} middle={`Now ${tempo}: one change per beat`} />}
               <div className={styles.summaryStats}>
                 <Stat label="Best for this pair" value={pairRecord.best || '–'} unit={pairRecord.best ? 'changes' : undefined} />
                 <Stat label="Minutes played" value={pairRecord.log.length} />
@@ -255,7 +256,21 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
         </aside>
       </div>
       {!wide && (
-        <ActionBar start={runState !== 'idle' ? undefined : <Heading level={2} size="sm">{pair.a.symbol} – {pair.b.symbol}</Heading>} stretchOnMobile={false}>
+        <ActionBar
+          start={
+            phase === 'ready' || phase === 'saved' ? (
+              <div className={styles.barTempo}>
+                <IconButton icon="Minus" label="Slower" onClick={() => setTempo((t) => clampTempo(t - (e.tempo.step || 4)))} />
+                <span className={styles.barTempoValue} aria-live="polite">
+                  {tempo}
+                  <small>BPM</small>
+                </span>
+                <IconButton icon="Plus" label="Faster" onClick={() => setTempo((t) => clampTempo(t + (e.tempo.step || 4)))} />
+              </div>
+            ) : undefined
+          }
+          stretchOnMobile={false}
+        >
           {primary}
         </ActionBar>
       )}

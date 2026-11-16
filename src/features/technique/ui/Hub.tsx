@@ -41,7 +41,7 @@ function Row({ e, best }: { e: TechniqueExercise; best: number | null }) {
       trailing={
         <span className={styles.rowEnd}>
           {e.strain && (
-            <span className={styles.strainMark} title="">
+            <span className={styles.strainMark}>
               <Icon name="TriangleAlert" size="sm" label="Can strain the hand: comes with a warning" />
             </span>
           )}
@@ -92,14 +92,9 @@ export function Hub() {
       <LinkButton variant="primary" size="lg" fullWidth to="technique" params={[warmUp.id]} iconRight="ArrowRight">
         Start the warm-up
       </LinkButton>
-      <div className={styles.todayLinks}>
-        <Text size="sm" tone="muted">
-          Already warm?
-        </Text>
-        <LinkButton variant="ghost" size="sm" to="technique" params={[next.id]}>
-          Go straight to {next.title}
-        </LinkButton>
-      </div>
+      <LinkButton variant="ghost" size="sm" wrap to="technique" params={[next.id]} iconRight="ArrowRight">
+        Already warm? Go straight to {next.title}
+      </LinkButton>
     </Card>
   ) : (
     <Card variant="raised" padding="lg" className={styles.today} data-technique-today={next.id}>
@@ -177,7 +172,7 @@ export function Hub() {
                 <li>Sore fingertips are normal at first. Aching joints, numbness or tingling mean stop.</li>
               </ul>
               <div className={styles.todayLinks}>
-                <LinkButton size="sm" to="technique" params={['tech-posture']} iconLeft="Armchair">
+                <LinkButton size="sm" to="technique" params={['tech-posture']} iconLeft="User">
                   Posture
                 </LinkButton>
                 <LinkButton size="sm" to="technique" params={['tech-play-without-pain']} iconLeft="Heart">

@@ -1,0 +1,279 @@
+/* The jam view: big chords, the neck, the chart, the band's controls. Tokens only. */
+
+.page[data-ui-page] {
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-4);
+}
+
+.jam {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'top'
+    'now'
+    'neck'
+    'chart';
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.wide {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  grid-template-areas:
+    'top top'
+    'now neck'
+    'chart neck'
+    'chart players';
+  grid-template-rows: auto auto 1fr auto;
+  column-gap: var(--sp-6);
+  row-gap: var(--sp-5);
+  align-items: start;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  padding: 0 var(--sp-3) 0 var(--sp-2);
+  border-radius: var(--r-md);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.back:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.back:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+/* Phones and tablets: the shell's top bar already offers Back. */
+@media (max-width: 899.98px) {
+  .back {
+    display: none;
+  }
+}
+.topTitle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+.optionsButton {
+  flex: none;
+}
+
+/* ── Now and next ─────────────────────────────────────────────────────── */
+
+.now {
+  grid-area: now;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-areas:
+    'main next'
+    'status status';
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  min-width: 0;
+}
+.nowMain {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.nowNext {
+  grid-area: next;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--line);
+}
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.big {
+  font-family: var(--font-display);
+  font-size: clamp(4.25rem, 22vw, 8.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.count {
+  color: var(--accent-text);
+}
+.nowNumeral {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nextChord {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 11vw, 4.25rem);
+  font-weight: 650;
+  line-height: 1.05;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nextWhen {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.status {
+  grid-area: status;
+}
+.beats {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.dot {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--line-strong);
+  background: transparent;
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.dot:first-child {
+  border-color: var(--fg-muted);
+}
+.dot[data-on] {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  transform: scale(1.15);
+}
+.beats[data-count-in='true'] .dot[data-on] {
+  border-color: var(--info);
+  background: var(--info);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    transition: none;
+  }
+  .dot[data-on] {
+    transform: none;
+  }
+}
+
+/* ── Neck ─────────────────────────────────────────────────────────────── */
+
+.neck {
+  grid-area: neck;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.neckBoard {
+  min-width: 0;
+}
+.scaleRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* ── Chart, players, bar ──────────────────────────────────────────────── */
+
+.chartPane {
+  grid-area: chart;
+  min-width: 0;
+}
+.players {
+  grid-area: players;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.bar {
+  align-items: center;
+}
+
+/* ── A phone held sideways: chord beside the neck, no chart ──────────── */
+
+.sideways {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  grid-template-areas:
+    'top top'
+    'now neck';
+  gap: var(--sp-2) var(--sp-4);
+}
+.sideways .chartPane,
+.sideways .players {
+  display: none;
+}
+.sideways .now {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'main'
+    'next'
+    'status';
+  padding: var(--sp-2) var(--sp-3);
+}
+.sideways .nowNext {
+  padding-left: 0;
+  border-left: 0;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.sideways .big {
+  font-size: clamp(3rem, 12vw, 5.5rem);
+}
+.sideways .nextChord {
+  font-size: var(--text-2xl);
+}
+.sideways .beats {
+  margin-top: var(--sp-1);
+}
+.sideways .status {
+  display: none;
+}
+
+@media (max-width: 379.98px) {
+  .now {
+    padding: var(--sp-3) var(--sp-3) var(--sp-2);
+    gap: var(--sp-2) var(--sp-3);
+  }
+  .nowNext {
+    padding-left: var(--sp-3);
+  }
+}

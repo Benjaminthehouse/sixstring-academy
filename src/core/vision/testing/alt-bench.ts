@@ -9,7 +9,7 @@
  * of the right string. Node only (PNG dumps through `debug.ts`). Cells are every (string, fret) whose true marker position is in the frame,
  * hidden by a hand or not (the hand moves on; a wrong cell under it is still wrong).
  */
-import { projectMarker, fretX } from '../geometry';
+import { cameraCentre, fretX, projectMarker, projectMarkerSeen } from '../geometry';
 import { frameStats, viewStats } from '../guidance';
 import { FretboardTracker, type FretboardTrackerOptions, type TrackerUpdate } from '../tracker';
 import type { FretboardPose, Frame, Point } from '../types';
@@ -22,7 +22,7 @@ export interface AltScore {
   cells: number;
   /** Share of cells whose marker lands on the right string (as seen, at its height above the board) between the right two wires (absolute fret numbers). */
   accuracy: number;
-  /** The same judged against the strings' footprint on the board (no parallax): how much raised strings matter. */
+  /** The pose's own markers (`projectMarker`, on the wood) judged against the strings' footprint on the board: the pose's accuracy without the raised-string correction. */
   accuracyBoard: number;
   /** The same after removing the whole-fret numbering offset. */
   aligned: number;
@@ -48,22 +48,23 @@ function atHeight(truth: AltTruth, q: Point, z: number): Point {
   return { x: q.x + (C[0] - q.x) * k, y: q.y + (C[1] - q.y) * k };
 }
 
-/** The pixel showing the raised point (x, y, z) of the true neck. */
-function pixelOfRaised(truth: AltTruth, x: number, y: number, z: number): Point | null {
-  const C = truth.camera;
-  if (!C) return altPlaneToPixel(truth, x, y);
-  // Continue the ray from the camera through the raised point down to the board plane.
-  const k = C[2] / (C[2] - z);
-  return altPlaneToPixel(truth, C[0] + (x - C[0]) * k, C[1] + (y - C[1]) * k);
-}
-
+/**
+ * Where the marker for (s, f) belongs in the picture: on string s as seen (at its height) and at the
+ * marker's place between wires f-1 and f as seen (crown height): the pixel whose ray crosses the
+ * crown layer at that x and the string layer at that y. `visible` false: the footprint on the wood.
+ */
 function trueMarker(truth: AltTruth, s: number, f: number, visible: boolean): Point | null {
   const m = truth.model;
   if (!m) return null;
   const x = fretX(m, f - 1) + MARKER_FRACTION * (fretX(m, f) - fretX(m, f - 1));
   const span = m.stringSpanNut + ((m.stringSpanBridge - m.stringSpanNut) * x) / m.scaleLength;
   const y = m.nutWidth / 2 + ((m.stringCount - s) / Math.max(1, m.stringCount - 1) - 0.5) * span;
-  return visible ? pixelOfRaised(truth, x, y, stringZ(truth, x)) : altPlaneToPixel(truth, x, y);
+  const C = truth.camera;
+  if (!visible || !C) return altPlaneToPixel(truth, x, y);
+  const z = stringZ(truth, x);
+  const X = (x - (C[0] * ALT_FRET_HEIGHT) / C[2]) / (1 - ALT_FRET_HEIGHT / C[2]);
+  const Y = (y - (C[1] * z) / C[2]) / (1 - z / C[2]);
+  return altPlaneToPixel(truth, X, Y);
 }
 
 /**
@@ -100,7 +101,15 @@ export function scoreAlt(pose: FretboardPose, truth: AltTruth): AltScore {
   if (!m || truth.visible.max < truth.visible.min) return empty;
   const sx = truth.width / pose.frameWidth;
   const sy = truth.height / pose.frameHeight;
+  // What the overlay draws: markers on the strings as seen (raised), from the camera the pose implies.
+  const camera = cameraCentre(pose);
   const drawn = (s: number, f: number): Point | null => {
+    if (s > pose.model.stringCount || f < 0) return null;
+    const p = projectMarkerSeen(pose, s, f, camera);
+    return Number.isFinite(p.x + p.y) ? { x: p.x * sx, y: p.y * sy } : null;
+  };
+  // The pose itself: markers on the strings' footprint on the wood.
+  const drawnBoard = (s: number, f: number): Point | null => {
     if (s > pose.model.stringCount || f < 0) return null;
     const p = projectMarker(pose, s, f);
     return Number.isFinite(p.x + p.y) ? { x: p.x * sx, y: p.y * sy } : null;
@@ -139,9 +148,12 @@ export function scoreAlt(pose: FretboardPose, truth: AltTruth): AltScore {
         errs.push(Math.hypot(e.x - t.x, e.y - t.y));
         const c = trueCell(truth, e, true);
         if (c && c.fret === f && c.string === s && Math.abs(c.offset) < 0.5) right++;
-        const cb = trueCell(truth, e, false);
-        if (cb && cb.fret === f && cb.string === s && Math.abs(cb.offset) < 0.5) rightBoard++;
       } else errs.push(Infinity);
+      const eb = drawnBoard(s, f);
+      if (eb) {
+        const cb = trueCell(truth, eb, false);
+        if (cb && cb.fret === f && cb.string === s && Math.abs(cb.offset) < 0.5) rightBoard++;
+      }
       const ea = drawn(s, f - k);
       if (ea) {
         const c = trueCell(truth, ea, true);
@@ -449,9 +461,11 @@ export function dumpAltFrame(path: string, frame: Frame, truth: AltTruth, pose: 
   }
   if (pose) {
     const sx = (2 * frame.width) / pose.frameWidth;
+    // What the overlay draws: markers on the strings as seen.
+    const camera = cameraCentre(pose);
     for (let f = Math.max(1, pose.visibleFrets.min + 1); f <= pose.visibleFrets.max; f++) {
       for (let s = 1; s <= pose.model.stringCount; s++) {
-        const p = projectMarker(pose, s, f);
+        const p = projectMarkerSeen(pose, s, f, camera);
         if (Number.isFinite(p.x + p.y)) drawDot(big, { x: p.x * sx, y: p.y * sx }, 2.5, [255, 230, 0]);
       }
       if (f === 5 || f === 12 || f === pose.visibleFrets.min + 1) {

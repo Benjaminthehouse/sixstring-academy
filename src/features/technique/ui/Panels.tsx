@@ -59,7 +59,7 @@ export function togglePrimary(x: ExerciseState): void {
 }
 
 /** The rungs of the ladder, with the best clean tempo and the tempo now. */
-export function Rungs({ e, tempo, best }: { e: TechniqueExercise; tempo: number; best: number | null }) {
+export function Rungs({ e, tempo, best, middle }: { e: TechniqueExercise; tempo: number; best: number | null; middle?: string }) {
   if (!climbs(e.tempo)) {
     return (
       <Text size="sm" tone="muted">
@@ -79,7 +79,7 @@ export function Rungs({ e, tempo, best }: { e: TechniqueExercise; tempo: number;
       </div>
       <div className={styles.rungLabels} aria-hidden="true">
         <span>Start {e.tempo.start}</span>
-        <span>{best !== null ? `Best ${best}` : 'No clean pass yet'}</span>
+        <span>{middle ?? (best !== null ? `Best ${best}` : 'No clean pass yet')}</span>
         <span>Goal {e.tempo.goal}</span>
       </div>
     </div>
@@ -100,7 +100,7 @@ export function CountIn({ countIn }: { countIn: { beat: number; beats: number } 
 
 /** What the last pass did, in words. */
 export function PassNote({ x }: { x: ExerciseState }) {
-  const n = x.note;
+  const n = x.take ? null : x.note;
   return (
     <div aria-live="polite" data-technique-note={n ? n.verdict : ''}>
       {n && (
@@ -203,6 +203,7 @@ export function LadderPanel({ x, e, withControls }: { x: ExerciseState; e: Techn
         </>
       )}
       <PassNote x={x} />
+      {x.take && <TakeResult take={x.take} onPlayBack={x.playBack} onClose={x.clearTake} move={x.note && x.note.move !== 'fixed' ? x.note.text : undefined} />}
       <div className={styles.switches}>
         <Switch label="Guitar plays along" description="Hear the part with the click while you practise." checked={x.guide} onChange={x.setGuide} disabled={x.mode === 'take'} />
         <MicControls x={x} />
@@ -273,12 +274,12 @@ export function PhoneBarActions({ x }: { x: ExerciseState }) {
 }
 
 /** The result of the last microphone take. */
-export function TakeResult({ take, onPlayBack, onClose }: { take: TakeView; onPlayBack: () => void; onClose: () => void }) {
+export function TakeResult({ take, onPlayBack, onClose, move }: { take: TakeView; onPlayBack: () => void; onClose: () => void; move?: string }) {
   const v = VERDICT[take.verdict];
   const maxDb = take.bars?.length ? Math.max(...take.bars) : 0;
   const minDb = take.bars?.length ? Math.min(...take.bars) : 0;
   return (
-    <Card padding="lg" className={styles.take} data-technique-take={take.verdict} data-technique-take-kind={take.kind} aria-live="polite">
+    <div className={styles.take} data-technique-take={take.verdict} data-technique-take-kind={take.kind} aria-live="polite">
       <div className={styles.takeHead}>
         {take.score !== null && (
           <ProgressRing value={take.score} max={100} size={64} tone={take.verdict === 'clean' ? 'ok' : take.verdict === 'close' ? 'info' : 'warn'} label={`Score ${take.score} of 100`}>
@@ -311,6 +312,11 @@ export function TakeResult({ take, onPlayBack, onClose }: { take: TakeView; onPl
           ))}
         </div>
       )}
+      {move && (
+        <Text size="sm" weight="bold">
+          {move}
+        </Text>
+      )}
       <div className={styles.todayLinks}>
         {take.heard.length > 0 && (
           <Button iconLeft="Volume2" size="sm" onClick={onPlayBack}>
@@ -321,7 +327,7 @@ export function TakeResult({ take, onPlayBack, onClose }: { take: TakeView; onPl
           Hide
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }
 

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useImmersive } from '@/app/shell';
 import { playUi, unlockAudio } from '@/core/audio';
 import { dayKey, getProgressStore, recordActivity, useSkill, type ActivityResult } from '@/core/progress';
-import { ActionBar, Badge, Banner, Button, Callout, Celebration, ChipGroup, Icon, IconButton, MediaBlocked, Page, RadioGroup, Section, SegmentedControl, StarRating, Stat, Stepper, Text, XpChip, useIsTouch, useLocalState, useWakeLock } from '@/ui';
+import { ActionBar, Badge, Banner, Button, Callout, Celebration, ChipGroup, Icon, IconButton, MediaBlocked, Page, RadioGroup, Section, SegmentedControl, StarRating, Stat, Stepper, Text, XpChip, useIsMobile, useIsTouch, useLocalState, useWakeLock } from '@/ui';
 import { ChordDiagram, useMusicSettings } from '@/ui/music';
 import { useShortcuts } from '../hooks/keys';
 import { micRefusedByHost, useMic } from '../hooks/useMic';
@@ -488,13 +488,14 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
 /** Finger tips for the set's first change (the pair, or the first two of a longer set). */
 function TipsBlock({ chords, voicings }: { chords: string[]; voicings: ReturnType<typeof defaultVoicing>[] }) {
   const { naming } = useMusicSettings();
+  const isMobile = useIsMobile();
   const a = voicings[0];
   const b = voicings[1];
   const tips = useMemo(() => (a && b ? tipsForVoicings(a, b) : null), [a, b]);
   if (!tips) return null;
   return (
     <Section title="Before you start" description={`${displaySymbol(chords[0], { system: naming })} to ${displaySymbol(chords[1], { system: naming })}: what your fingers do.`}>
-      <ChangePair tips={tips} size="sm" />
+      <ChangePair tips={tips} size={isMobile ? 'sm' : 'md'} />
       <RingLegend anchors={tips.fromMarks.some((m) => m.role === 'anchor')} guides={tips.fromMarks.some((m) => m.role === 'guide')} />
       <Text variant="caption">{tips.tips[0]}</Text>
     </Section>

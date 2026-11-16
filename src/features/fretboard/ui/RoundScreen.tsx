@@ -89,6 +89,9 @@ export function RoundScreen(props: RoundScreenProps) {
       if (e.key === 'Enter' && !onControl) {
         e.preventDefault();
         void begin();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('fretboard');
       }
       return;
     }
@@ -368,7 +371,6 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
   const fine = useMediaQuery('(hover: hover) and (pointer: fine)');
   const portrait = useMediaQuery('(orientation: portrait)');
   const short = useMediaQuery('(orientation: landscape) and (max-height: 540px)');
-  const tapRound = plan.asks.some((a) => a.kind !== 'name' && a.kind !== 'play');
   const answered = api.phase === 'answered';
   const { fmt, ctx } = trainer;
   const accidentals = plan.scope.notes !== 'naturals';
@@ -380,10 +382,13 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
     if (q.kind !== 'play' || api.phase !== 'asking' || mic.status !== 'on' || hearing) return;
     const wait = mic.listen(q.midis.length ? q.midis : [midiAtPos(ctx, q.pos)], trainer.settings.playOctaves, (m) => api.heardWrong(m));
     if (!wait) return;
+    // A note still ringing from before the question does not answer it: it has to be played again.
+    const t0 = mic.clock();
     let live = true;
     void wait.then((r) => {
       if (!live) return;
-      if (r.ok) api.heardRight(r.midi);
+      if (r.ok && t0 !== null && r.time < t0 - 0.05) setListenKey((k) => k + 1);
+      else if (r.ok) api.heardRight(r.midi);
       else if (r.reason === 'timeout') api.giveUp();
     });
     return () => {
@@ -447,7 +452,7 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
 
       <div className={styles.stage}>
       {board}
-      {mobile && portrait && tapRound && wideNeck && (
+      {mobile && portrait && q.kind !== 'name' && wideNeck && (
         <Text size="xs" tone="muted" className={styles.turnHint}>
           <Icon name="Smartphone" size={14} /> Swipe the neck sideways, or turn your phone to see all of it.
         </Text>

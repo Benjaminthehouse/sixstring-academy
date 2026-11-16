@@ -12,13 +12,18 @@
  *    screens.
  *  - Settings (`metronome.settings`) and the learner's presets (`metronome.presets`) persist
  *    through the platform storage layer; the click sound is the app-wide `prefs.sound.clickSound`.
+ *  - Practice goes to `recordActivity` when a session timer finishes, when the page is hidden and
+ *    when the learner leaves, each time only the running time not yet reported (a minute at least).
+ *  - Below the two-pane width, `useToastClearance` keeps toasts above the tempo buttons and Start.
  *
  * The root mirrors state for tests: `data-running`, `data-bpm` (the tempo being played),
  * `data-beat` (index of the lit beat, -1 when stopped), `data-meter` ("7/8(3+2+2)"),
  * `data-subdivision`, `data-layout` (column | sideways | two-pane).
  *
  * Keyboard: Space start/stop, Up/Down +-1, Shift+Up/Down +-5, T tap tempo, 1-9 step that beat's
- * accent, Esc closes a sheet. Browser check: `node e2e/metronome.cjs`.
+ * accent, Esc closes a sheet. Browser checks: `node e2e/metronome.cjs` (behaviour and timing),
+ * `node e2e/metronome-output.cjs` (the real output, measured independently) and
+ * `node e2e/metronome-layout.cjs` (layouts from 360 px to sideways, large text, toasts, focus).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { RouteProps } from '@/app/routes';

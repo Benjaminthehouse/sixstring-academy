@@ -47,13 +47,15 @@ export interface ClassifyOptions {
  * staff space. Printed lines are solid apart from the knock-outs behind digits; a typed row of
  * dashes breaks every character.
  */
-function lineSolidity(bin: BinaryImage, st: StaffLayout): { ink: number; gapsPerSpace: number } {
+function lineSolidity(bin: BinaryImage, st: StaffLayout): { ink: number; gapsPerSpace: number; regularity: number } {
   let ink = 0;
   let total = 0;
   let gaps = 0;
+  const dashes: number[] = [];
   const w = bin.width;
   for (let l = 0; l < st.lineCount; l++) {
     let prev = 1;
+    let run = 0;
     for (let x = Math.ceil(st.x0); x < Math.floor(st.x1); x++) {
       const yc = lineYAt(st, l, x);
       let on = 0;
@@ -63,12 +65,24 @@ function lineSolidity(bin: BinaryImage, st: StaffLayout): { ink: number; gapsPer
       }
       ink += on;
       total++;
-      if (prev && !on) gaps++;
+      if (prev && !on) {
+        gaps++;
+        if (run) dashes.push(run);
+        run = 0;
+      }
+      if (on) run++;
       prev = on;
     }
   }
   const spaces = Math.max(1, ((st.x1 - st.x0) * st.lineCount) / Math.max(1, st.space));
-  return { ink: total ? ink / total : 0, gapsPerSpace: gaps / spaces };
+  // Typed dashes all have the same length; a printed line broken by noise or knock-outs does not.
+  let regularity = 0;
+  if (dashes.length >= 8) {
+    const mean = dashes.reduce((a, b) => a + b, 0) / dashes.length;
+    const sd = Math.sqrt(dashes.reduce((a, b) => a + (b - mean) ** 2, 0) / dashes.length);
+    regularity = Math.max(0, 1 - sd / Math.max(1, mean));
+  }
+  return { ink: total ? ink / total : 0, gapsPerSpace: gaps / spaces, regularity };
 }
 
 /** Lines of text: rows of several letter-sized components side by side. */
@@ -119,25 +133,33 @@ export function classifyPage(image: OmrImageInput, opts: ClassifyOptions = {}): 
   let notation = 0;
   let tab = 0;
   let ascii = 0;
+  const real: StaffLayout[] = [];
   for (const st of layout.staves) {
-    if (st.kind === 'notation') notation++;
-    else {
-      const s = lineSolidity(pre.binary, st);
-      // Typed dashes: the line breaks at every character (several gaps per staff space).
-      if (s.gapsPerSpace > 0.6 && s.ink < 0.85) ascii++;
-      else tab++;
+    // Measured on the binarisation made for finding faint lines, so a soft photo's lines count as lines.
+    const s = lineSolidity(pre.lineBinary, st);
+    // Typed dashes: the line breaks at every character (about one gap per staff space or more),
+    // into pieces of one length.
+    if (st.kind === 'tab' && s.gapsPerSpace > 0.8 && s.ink < 0.95 && s.regularity > 0.6) {
+      ascii++;
+      continue;
     }
+    // Printed staff lines are solid apart from the gaps behind numbers; "lines" that are mostly
+    // gaps are rows of text that happen to line up (baselines, x-heights), not a staff.
+    if (s.ink < 0.78) continue;
+    real.push(st);
+    if (st.kind === 'notation') notation++;
+    else tab++;
   }
-  const linkedSystems = layout.systems.filter((sys) => sys.staves.some((i) => layout.staves[i].partner !== null)).length;
+  const linkedSystems = layout.systems.filter((sys) => sys.staves.some((i) => layout.staves[i].partner !== null && real.includes(layout.staves[i]))).length;
   // Text outside the staves (in the reduced page's own coordinates: the normalised page has the
   // same orientation and roughly the same scale for this purpose).
-  const exclude = layout.staves.map((st) => {
+  const exclude = real.map((st) => {
     const ratio = pre.scale || 1;
     return { y0: st.contentBox.y / ratio, y1: (st.contentBox.y + st.contentBox.h) / ratio };
   });
   const textLines = countTextLines(gray, exclude);
   const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
-  const meanConf = layout.staves.length ? layout.staves.reduce((a, s) => a + s.kindConfidence * s.confidence, 0) / layout.staves.length : 0;
+  const meanConf = real.length ? real.reduce((a, s) => a + s.kindConfidence * s.confidence, 0) / real.length : 0;
   const base = { staves: { notation, tab, linkedSystems }, textLines, asciiTab: ascii > 0, ms };
   if (notation && tab) return { ...base, kind: 'both', confidence: round2(meanConf), reason: `Found ${notation} notation and ${tab} tab staves.` };
   if (notation) return { ...base, kind: 'notation', confidence: round2(meanConf), reason: `Found ${notation} notation ${notation === 1 ? 'staff' : 'staves'}.` };

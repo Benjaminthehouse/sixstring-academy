@@ -521,7 +521,9 @@ export function estimateRhythmFromSpacing(m: OmrMeasure, measureTicks: number, l
   const gaps: number[] = [];
   for (let i = 0; i + 1 < xs.length; i++) gaps.push(Math.max(1e-3, xs[i + 1] - xs[i]));
   const med = gaps.length ? gaps.slice().sort((a, b) => a - b)[gaps.length >> 1] : m.x1 - m.x0;
-  gaps.push(Math.max(0.5 * med, m.x1 - xs[xs.length - 1] - leftPad));
+  // The last column's room runs to the bar line, minus the little space engravers leave before a
+  // bar line (less than after one: about 0.4 of the opening padding).
+  gaps.push(Math.max(0.5 * med, m.x1 - xs[xs.length - 1] - 0.4 * leftPad));
   let unit = 240;
   let U = Math.round(measureTicks / unit);
   if (events.length > U) {

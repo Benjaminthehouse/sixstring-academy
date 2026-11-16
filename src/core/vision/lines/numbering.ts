@@ -7,6 +7,7 @@
  * confidence, and an honest "assumed" when neither cue is in view.
  */
 import { DOUBLE_INLAY_FRETS, INLAY_FRETS } from '../geometry';
+import { inlayPolarity } from '../inlay-polarity';
 import type { NumberingSource } from '../types';
 import type { CellEvidence, FretEvidence } from './refine';
 
@@ -64,7 +65,9 @@ function boundedCells(cells: readonly CellEvidence[], frets: readonly FretEviden
 export function classifyCells(cells: readonly CellEvidence[], frets: readonly FretEvidence[], options: NumberingOptions): Map<number, InlayKind> {
   const out = new Map<number, InlayKind>();
   const board = boundedCells(cells, frets);
-  const pol = options.polarity;
+  // The inlays' own polarity (black dots on maple with bright wires), from the cells that stand out;
+  // the wires' polarity only when they say nothing.
+  const pol = inlayPolarity([...board.values()].flatMap((c) => [c.centre - c.board, c.pair - c.board]), options.polarity);
   const threshold = Math.max(9, 0.3 * options.strength);
   for (const c of cells) {
     if (!board.has(c.fret)) {

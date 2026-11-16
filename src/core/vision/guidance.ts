@@ -183,3 +183,84 @@ export function viewStats(pose: FretboardPose): ViewStats {
     nutInView: v.min === 0 && visible > 0,
   };
 }
+
+/** Everything `guide` decides from (gathered by `FretboardTracker` each frame). */
+export interface GuideInput {
+  state: 'searching' | 'candidate' | 'locked' | 'lost';
+  frame: FrameStats;
+  /** The board as the drawn pose sees it (null while searching). */
+  view: ViewStats | null;
+  numberingConfirmed: boolean;
+  /** The "Is this fret N?" question is up (with the fret it names). */
+  question: { fret: number } | null;
+  suggestCalibration: boolean;
+  /** The pose is being carried through motion blur. */
+  coasting: boolean;
+  /** The strings in view do not match the neck model: how many there seem to be (null = no doubt). */
+  stringsSeen: number | null;
+}
+
+const MESSAGES: Record<GuidanceCode, string> = {
+  ok: 'Tracking your fretboard.',
+  'point-camera': 'Point the camera at the neck of your guitar.',
+  'too-dark': 'It is too dark for the camera to see the frets. Turn on a light or face a window.',
+  'too-bright': 'Bright light behind you is blinding the camera. Turn so the window or lamp is out of the picture.',
+  'move-closer': 'The neck looks small. Bring the camera closer until the neck fills most of the picture.',
+  'tilt-toward-camera': 'The camera sees the neck too much from the side. Turn the fretboard toward the camera.',
+  'hold-still': 'Hold the guitar still for a moment.',
+  'show-nut': 'Show the nut, where the headstock starts, once so the frets can be numbered.',
+  'confirm-fret': 'Is this the fret shown? Tap to confirm, or tap a fret you know.',
+  'check-guitar-type': 'This neck seems to have a different number of strings. Pick your guitar type, or mark the neck by hand.',
+  calibrate: 'Automatic tracking is struggling here. Tap Calibrate and mark the nut and the 12th fret.',
+};
+
+/** Too dark: the sensor noise of a gain-cranked camera, or a picture that is simply black. */
+function tooDark(f: FrameStats): boolean {
+  return f.noise > OPERATING_LIMITS.maxNoise || f.brightness < OPERATING_LIMITS.minBrightness;
+}
+
+/**
+ * One line of coaching for the current frame, most urgent first: no board (light, then
+ * calibration), a lost board, a wrong guitar type, a view outside the operating limits, motion,
+ * numbers that are a guess (show the nut, then the one-tap question), a board not yet held long
+ * enough; else "ok". `trust` is 'auto' only for a locked board inside the limits.
+ */
+export function guide(input: GuideInput): TrackerGuidance {
+  const { state, frame, view } = input;
+  const measures: TrackerGuidance['measures'] = {
+    brightness: frame.brightness,
+    clipped: frame.clipped,
+    noise: frame.noise,
+    stringSpacingPx: view?.stringSpacingPx ?? NaN,
+    offNormalDeg: view?.offNormalDeg ?? NaN,
+    visibleFrets: view?.visibleFrets ?? 0,
+    nutInView: view?.nutInView ?? false,
+  };
+  const say = (code: GuidanceCode, trust: GuidanceTrust, message = MESSAGES[code]): TrackerGuidance => ({ code, trust, message, measures });
+  if (state === 'searching' || !view) {
+    if (tooDark(frame)) return say('too-dark', input.suggestCalibration ? 'calibrate' : 'wait');
+    if (frame.clipped > OPERATING_LIMITS.maxClipped) return say('too-bright', input.suggestCalibration ? 'calibrate' : 'wait');
+    if (input.suggestCalibration) return say('calibrate', 'calibrate');
+    return say('point-camera', 'wait');
+  }
+  if (state === 'lost') return say('hold-still', input.suggestCalibration ? 'calibrate' : 'wait');
+  if (input.stringsSeen !== null) {
+    return say('check-guitar-type', 'confirm', `This neck seems to have ${input.stringsSeen} strings. Pick that guitar type, or mark the neck by hand.`);
+  }
+  const small = view.stringSpacingPx < OPERATING_LIMITS.minStringSpacingPx;
+  const oblique = view.offNormalDeg > OPERATING_LIMITS.maxOffNormalDeg;
+  if (small) return say('move-closer', input.suggestCalibration ? 'calibrate' : 'wait');
+  if (oblique) return say('tilt-toward-camera', input.suggestCalibration ? 'calibrate' : 'wait');
+  if (input.coasting) return say('hold-still', 'wait');
+  if (!input.numberingConfirmed) {
+    if (input.question) return say('confirm-fret', 'confirm', `Is this fret ${input.question.fret}? Tap to confirm, or tap a fret you know.`);
+    if (!view.nutInView) return say('show-nut', 'confirm');
+    return say('hold-still', 'confirm');
+  }
+  if (state === 'candidate') {
+    if (input.suggestCalibration) return say('calibrate', 'calibrate');
+    if (tooDark(frame)) return say('too-dark', 'wait');
+    return say('hold-still', 'wait');
+  }
+  return say('ok', 'auto');
+}

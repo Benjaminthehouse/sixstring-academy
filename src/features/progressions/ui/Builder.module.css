@@ -1,0 +1,254 @@
+/* The progression builder. Tokens only. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-8);
+}
+@media (min-width: 1080px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.main,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+/* Key row */
+.keyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+.keySelect {
+  width: 7rem;
+}
+.transpose {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+
+/* The chords so far */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stripItem {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  min-width: 5rem;
+  min-height: 5.25rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.slot:hover {
+  background: var(--surface-2);
+}
+.slot:active {
+  transform: scale(0.97);
+}
+.slot:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.slotSelected {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+.slotPlaying,
+.slotPlaying:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.slotPlaying .slotNumeral,
+.slotPlaying .slotLength {
+  color: var(--accent-fg);
+}
+.slotNumeral {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.slotChord {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 650;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.slotLength {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.cadence {
+  align-self: flex-start;
+}
+.slotTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.toolButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.live:empty {
+  display: none;
+}
+
+/* Suggestions */
+.suggest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+}
+.suggestRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.suggestNumeral {
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+}
+
+/* The palette */
+.paletteHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.toggles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: var(--sp-2);
+}
+@media (max-width: 479.98px) {
+  .palette {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  min-width: 0;
+  min-height: 5.5rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+.tile:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.tile:active {
+  transform: scale(0.96);
+}
+.tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.tileColour {
+  background: var(--surface-2);
+}
+.tileNumeral {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.tileChord {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.tileFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-1);
+  width: 100%;
+  margin-top: auto;
+}
+.role {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.role[data-role='home'] {
+  color: var(--ok-text);
+}
+.role[data-role='tension'] {
+  color: var(--warn-text);
+}
+.role[data-role='away'] {
+  color: var(--info-text);
+}
+.kbd {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}

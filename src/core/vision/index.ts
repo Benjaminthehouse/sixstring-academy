@@ -67,6 +67,8 @@ export {
   type OverlayPalette,
   type OverlayResult,
 } from './draw';
+export { OPERATING_LIMITS, frameStats, guide, viewStats, type FrameStats, type GuidanceCode, type GuidanceTrust, type GuideInput, type TrackerGuidance, type ViewStats } from './guidance';
+export { readStringCount, stringCountDoubt, type StringCountReading } from './string-count';
 export { MIN_MARKER_CHROMA, MIN_MARKER_SATURATION, findColorBlobs, readMarkerNumbering, sampleMarkerColor, type ColorBlob, type MarkerReading } from './color-markers';
 export { createDetector, createFretboardDetector, type FittedBoard, type FretboardDetector, type FretboardDetectorOptions } from './detector';
 export {
@@ -89,6 +91,7 @@ export {
   boardOutline,
   boardEdgeY,
   boardWidthAt,
+  cameraCentre,
   computeVisibleFrets,
   confirmFretAt,
   fretAtX,
@@ -106,12 +109,17 @@ export {
   poseDistancePx,
   projectFretWire,
   projectMarker,
+  projectMarkerSeen,
   projectPlanePoint,
+  projectRaised,
   projectString,
   projectStringAt,
   renumberPose,
   scalePose,
+  stringHeightAt,
   stringY,
+  STRING_HEIGHT_MM,
+  FRET_HEIGHT_MM,
   transformPose,
   type CalibrationTaps,
   type PoseLike,

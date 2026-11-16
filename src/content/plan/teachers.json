@@ -20,7 +20,7 @@
               "practice": [
                 "Lesson: match-pairs of guitar parts and their jobs (pegs tune the strings, frets change the note, the bridge holds the strings), then true-false: string 1 is the thickest string (false).",
                 "Mic (play-note): with the guitar on your lap, pluck each open string with your thumb as Mia names it by number (6, 3, 1, 5, 2, 4); the microphone checks you chose the right one (E2 A2 D3 G3 B3 E4). Without a microphone: fretboard-find, tap that string on the neck.",
-                "Player: play along with bars 1 to 4 of the Open-String Duet: only the open string 6 (E), one thumb stroke per beat, while the app plays the tune above you. That is your first music."
+                "Player: play along with bars 1 to 4 of the Open-String Duet (a bar is a group of four beats, the steady pulse you could tap your foot to): only the open string 6 (E), one thumb stroke per beat, while the app plays the tune above you. That is your first music."
               ],
               "music": [
                 "st-open-string-duet"
@@ -41,7 +41,7 @@
               "show": "Posture checklist card (thigh, neck angle, back, shoulders, fretting thumb, picking forearm) with a side-view posture drawing (see gaps); then the tab of the Open-String Duet: the open string 6 for bars 1 to 4, the open string 5 for bars 5 to 8, the open string 4 for bars 9 to 12, then E A D E, with audio of the teacher part.",
               "practice": [
                 "Lesson: go through the posture checklist one item at a time and tap each one when it is true; then hold the position, relaxed, for one minute while a timer runs.",
-                "Metronome: at 60 bpm, play the open string 6 (E) with your thumb on every click for 8 clicks, then the open string 5 (A), then the open string 4 (D).",
+                "Metronome: at 60 bpm (60 beats per minute, one click a second), play the open string 6 (E) with your thumb on every click for 8 clicks, then the open string 5 (A), then the open string 4 (D).",
                 "Player: the whole Open-String Duet at 60 bpm with the app playing the chords and melody; the microphone listens for each of your notes. Without a microphone the Player still plays along; count the beats aloud."
               ],
               "music": [
@@ -106,13 +106,13 @@
               "title": "Your first tune: Hot Cross Buns",
               "kind": "song",
               "goal": "Press clean notes on string 3 and play Hot Cross Buns from tab, first in wait mode and then in time.",
-              "explain": "Press with the very tip of the finger just behind the fret wire, on the side nearer the body: not on top of the wire and not in the middle of the space. Use just enough pressure for a clear note; if it buzzes, move closer to the wire or press a little harder, and if it sounds muffled, curve the finger so it stands up on its tip. Hot Cross Buns uses three notes on string 3: B at fret 4, A at fret 2 and the open G.",
+              "explain": "Press with the very tip of the finger just behind the fret wire, on the side nearer the body: not on top of the wire and not in the middle of the space. Use just enough pressure for a clear note; if it buzzes, move closer to the wire or press a little harder, and if it sounds muffled, curve the finger so it stands up on its tip. Hot Cross Buns uses three notes on string 3, written in tab, a line for each string with the fret number on it (0 means open): B at fret 4, A at fret 2 and the open G.",
               "show": "Tab of Hot Cross Buns (version A), all on string 3: 4 2 0 | 4 2 0 | 0 0 2 2 | 4 2 0, using string 3 fret 4 (B) for finger 3, string 3 fret 2 (A) for finger 1 and the open string 3 (G); a fretboard figure of the hand in second position (finger 1 over fret 2, finger 3 over fret 4). Audio at 72 bpm.",
               "practice": [
                 "Mic (play-note): play each note alone until it rings clearly: string 3 fret 4 (B3) with finger 3, string 3 fret 2 (A3) with finger 1, the open string 3 (G3). Without a microphone: fretboard-find, tap where each note is.",
                 "Player, wait mode: the tab waits until you play each right note, so take all the time you need. Then Player loop: the 4 bars at 60 bpm with the teacher part, then at 72.",
                 "Player: version B, where bar 3 becomes eight eighth notes (G G G G A A A A); count 1 & 2 & 3 & 4 & aloud and play it at 60 bpm.",
-                "Player: First Notes on String 3, the open G and A at string 3 fret 2 (A), then its three-string tune, in wait mode."
+                "Player: bars 1 to 4 of First Notes on String 3, the open G and A at string 3 fret 2 (A), in wait mode; its second half crosses to strings 2 and 1, so it waits until you know them."
               ],
               "music": [
                 "hot-cross-buns",
@@ -154,7 +154,7 @@
         {
           "id": "mia-first-chords",
           "title": "Your first chords",
-          "goal": "Read a chord box, play Em, A, E7 and a one-finger G, and strum your first songs with them.",
+          "goal": "Read a chord box, play Em, E, Am, A, E7 and a one-finger G, and strum your first songs with them.",
           "lessons": [
             {
               "id": "mia/mia-first-chords/chord-boxes-and-em",
@@ -175,6 +175,29 @@
                 "major-and-minor-chords/what-a-chord-is",
                 "major-and-minor-chords/reading-a-chord-box",
                 "major-and-minor-chords/e-and-e-minor"
+              ],
+              "minutes": 12
+            },
+            {
+              "id": "mia/mia-first-chords/e-and-am",
+              "title": "E and Am: one shape, two chords",
+              "kind": "technique",
+              "goal": "Turn Em into E by adding one finger, slide that shape one string over to make Am, and change between the three in time.",
+              "explain": "E is Em plus one finger: keep fingers 2 and 3 where they are and add finger 1 on string 3 fret 1 (G#), and the dark Em turns bright. Now move the whole E shape one string toward string 1 without changing it: finger 2 on string 4 fret 2 (E), finger 3 on string 3 fret 2 (A) and finger 1 on string 2 fret 1 (C) make Am, strummed from string 5 with string 6 left out. One shape that moves to make a new chord is the first secret of how the guitar works.",
+              "show": "Chord boxes of Em (022000), E (022100) and Am (x02210) in a row, with the added finger circled in E and the whole shape drawn sliding one string over for Am; audio of Em then E, so you hear one note (G to G#) brighten the chord, then Am.",
+              "practice": [
+                "Mic (play-chord): E (022100), then Am (x02210), first string by string and then strummed; for Am, start the strum on string 5. Without a microphone: chord-build for each.",
+                "Chords: change trainer, Em to E and then E to Am, one change every 4 beats at 60 bpm for one minute each; the microphone counts your clean changes.",
+                "Player: Change: Am-E and E-B7, the Am-E half only, at 60 bpm (one strum per bar, then two, then four, then a change every 2 beats); B7 comes later.",
+                "Player: the first 8 bars of the Open-String Duet with the parts swapped: you strum Em for bars 1 to 4 and Am for bars 5 to 8, four downstrums per bar, while the app plays the open strings and the tune."
+              ],
+              "music": [
+                "st-change-am-e-e-b7",
+                "st-open-string-duet"
+              ],
+              "theory": [
+                "major-and-minor-chords/e-and-e-minor",
+                "major-and-minor-chords/a-am-d-dm"
               ],
               "minutes": 12
             },
@@ -209,7 +232,7 @@
               "practice": [
                 "Mic (play-chord): play A (x02220) string by string, then strum it; the microphone checks all five strings ring. Without a microphone: chord-build.",
                 "Chords: change trainer, Em to A and back, one change every 4 beats at 60 bpm for one minute; the microphone counts your clean changes.",
-                "Player: Strumming: Steady Quarters, all 16 bars (Em, A, Em, A) at 60 bpm with an accent on beat 1; then at 64."
+                "Player: Strumming: Steady Quarters, all 16 bars (Em, A, Em, A) at 60 bpm with an accent (a slightly louder strum) on beat 1; then at 64."
               ],
               "music": [
                 "st-strum-quarters"
@@ -247,7 +270,7 @@
               "title": "Skip to My Lou",
               "kind": "song",
               "goal": "Strum and sing (or hum) Skip to My Lou with A and E7, changing on time.",
-              "explain": "Skip to My Lou has two beats in a bar (2/4) and only two chords, A and E7, changing every two bars. Strum one downstroke per beat and sing the words; if singing and strumming together feels impossible, that is normal: hum first, then speak the words in rhythm, then sing. Slow the tempo until every change lands on time, then speed up.",
+              "explain": "Skip to My Lou has two beats in a bar (2/4) and only two chords, A and E7, changing every two bars. Strum one downstroke per beat and sing the words; if singing and strumming together feels impossible, that is normal: hum first, then speak the words in rhythm, then sing. Slow the tempo (the speed of the beat) until every change lands on time, then speed up.",
               "show": "Chord chart in 2/4: A for line 1, E7 for line 2, A for line 3, E7 then A for the last line, with the two chord boxes above it; audio of the song at 80 bpm.",
               "practice": [
                 "Player: the song at 80 bpm with the chord chart while the app sings; you strum one downstroke per beat.",
@@ -266,13 +289,13 @@
               "id": "mia/mia-first-chords/first-songbook",
               "title": "Your first songbook",
               "kind": "review",
-              "goal": "Play Em, A, E7 and the one-finger G from memory and play your two chord songs at full speed.",
+              "goal": "Play Em, E, Am, A, E7 and the one-finger G from memory and play your two chord songs at full speed.",
               "explain": "Chords stick when you recall them, not when you look them up, so today Mia asks for each shape from memory. Then you play your first songbook: Frere Jacques and Skip to My Lou. One song you can really play is worth three you almost can.",
-              "show": "Four empty chord boxes to fill in (Em, A, E7, G), then the two songs' chord charts.",
+              "show": "Six empty chord boxes to fill in (Em, E, Am, A, E7, G), then the two songs' chord charts.",
               "practice": [
-                "Lesson: chord-build from memory for Em (022000), A (x02220), E7 (020100) and the one-finger G (xx0003); then fretboard-name, name each shape from a picture.",
+                "Lesson: chord-build from memory for Em (022000), E (022100), Am (x02210), A (x02220), E7 (020100) and the one-finger G (xx0003); then choice, name each shape from its picture.",
                 "Mic (play-chord): Mia names a chord and you play it, four in a row. Without a microphone: chord-build for each one.",
-                "Chords: one-minute changes, A to E7 and Em to A; try to beat last time's score.",
+                "Chords: one-minute changes, A to E7, Em to A and E to Am; try to beat last time's score.",
                 "Player: Frere Jacques at 88 bpm and Skip to My Lou at 100 bpm, start to finish."
               ],
               "music": [
@@ -300,7 +323,7 @@
               "explain": "In tab the top line is string 1, the thinnest, and the bottom line is string 6, so it looks upside down until you hold the guitar and look down at the strings. A number is a fret and 0 is an open string. Plain tab does not show how long notes last, so the app's tab adds stems like sheet music, and the best habit is to listen first: hear the tune, then read it.",
               "show": "Tab of the first 4 bars of Au Clair de la Lune on strings 3 and 2 (G G G A | B as a half note, A as a half note | G B A A | G as a whole note), using the open string 3 (G), string 3 fret 2 (A) and the open string 2 (B), with rhythm stems and the counts under it; audio at 80 bpm.",
               "practice": [
-                "Lesson: fretboard-name, Mia shows a tab number on a line and you say the string and fret; then tap-rhythm, tap bar 2 (two half notes).",
+                "Lesson: choice, Mia shows a number on a tab line and you choose the string and fret it stands for; then tap-rhythm, tap bar 2 (two half notes).",
                 "Player, wait mode: Au Clair de la Lune, the first 4 bars.",
                 "Player: the same 4 bars at 80 bpm with the teacher part, counting quarter notes aloud."
               ],
@@ -325,18 +348,20 @@
                 "Mic (play-note): Mia names a note among E F G B C D and you play it, 8 in a row. Without a microphone: fretboard-find.",
                 "Player, wait mode, then at 72 bpm: First Notes on String 1 with the teacher's chords.",
                 "Player: First Notes on String 2, where bars 5 to 8 cross between strings 2 and 1.",
+                "Player: First Notes on String 3 again, all 8 bars: bars 5 to 8 cross strings 3, 2 and 1 with the notes you have just learned.",
                 "Technique: Chromatic Spider (1-2-3-4) at 50 bpm, on one string only, to wake up all four fingers."
               ],
               "music": [
                 "st-first-notes-string-1",
                 "st-first-notes-string-2",
+                "st-first-notes-string-3",
                 "tech-spider"
               ],
               "theory": [
                 "the-musical-alphabet/seven-letters",
                 "the-musical-alphabet/e-f-and-b-c"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-melodies-from-tab/mary-had-a-little-lamb",
@@ -366,7 +391,7 @@
               "title": "Twinkle, Twinkle, Little Star",
               "kind": "song",
               "goal": "Play Twinkle, Twinkle, Little Star on three strings, including the jump from G up to D.",
-              "explain": "Twinkle uses six notes across strings 3, 2 and 1: open G, A at fret 2, open B, C at fret 1, D at fret 3 and open E. Its first move is a jump of a fifth, from the open G to D on string 2, so practise just that jump until your pick lands on string 2 without looking. The tune has an A B A shape: the first line comes back at the end.",
+              "explain": "Twinkle uses six notes across strings 3, 2 and 1: open G, A at fret 2, open B, C at fret 1, D at fret 3 and open E. Its first move is a jump of a fifth, from the open G to D on string 2 (a fifth because G to D spans five letter names, G A B C D), so practise just that jump until your pick lands on string 2 without looking. The tune has an A B A shape: the first line comes back at the end.",
               "show": "Tab of the 12 bars in G (G G D D | E E D | C C B B | A A G | D D C C | B B A, that line twice, then the first 4 bars again), using the open string 3 (G), string 3 fret 2 (A), the open string 2 (B), string 2 fret 1 (C), string 2 fret 3 (D) and the open string 1 (E); audio at 92 bpm.",
               "practice": [
                 "Mic (play-phrase): just the jump, G G D D, five times; the microphone checks you land on D. Without a microphone: the Player in wait mode on bar 1.",
@@ -602,7 +627,7 @@
               "title": "Michael, Row the Boat Ashore",
               "kind": "song",
               "goal": "Strum Michael, Row the Boat Ashore with D, G and A, first in four downstrums per bar, then in down-up eighths.",
-              "explain": "This spiritual was sung by enslaved people on the Sea Islands and printed in 1867: one voice sings a line and everyone answers Hallelujah. It uses three chords, D, G and A, the chords built on the 1st, 4th and 5th notes of the D major scale, which is why they sound like a family. Remember which strings each one uses: D strings 4 to 1, A strings 5 to 1, G all six.",
+              "explain": "This spiritual was sung by enslaved people on the Sea Islands and printed in 1867: one voice sings a line and everyone answers Hallelujah. It uses three chords, D, G and A, the chords built on the 1st, 4th and 5th notes of the D major scale (D E F# G A B C#, the notes of the key in order), which is why they sound like a family. Remember which strings each one uses: D strings 4 to 1, A strings 5 to 1, G all six.",
               "show": "Chord chart with D (xx0232), G (320003) and A (x02220) boxes and the call and response marked; audio at 92 bpm.",
               "practice": [
                 "Player: the song at 80 bpm, four downstrums per bar; then at 92.",
@@ -665,7 +690,7 @@
               "title": "She'll Be Coming 'Round the Mountain",
               "kind": "song",
               "goal": "Play She'll Be Coming 'Round the Mountain with G, C and D7 in down-up eighths with accents on 2 and 4.",
-              "explain": "Three chords, G, C and D7, are the I, IV and V7 of G major, and together they carry thousands of folk songs. This one goes G for line 1, D7 for line 2, G moving to C for line 3, and G, D7, G for the last line. Accent beats 2 and 4 to give it bounce, and add a verse each time through, the way the song is meant to be sung.",
+              "explain": "Three chords, G, C and D7, are the I, IV and V7 of G major (roman numerals for the chords built on its 1st, 4th and 5th notes), and together they carry thousands of folk songs. This one goes G for line 1, D7 for line 2, G moving to C for line 3, and G, D7, G for the last line. Accent beats 2 and 4 to give it bounce, and add a verse each time through, the way the song is meant to be sung.",
               "show": "Chord chart by line with G (320003), C (x32010) and D7 (xx0212) boxes; a rhythm line of down-up eighths with accents on 2 and 4; audio at 96 bpm.",
               "practice": [
                 "Lesson: order, put the chords of each line in order from the chart.",
@@ -687,7 +712,7 @@
               "kind": "milestone",
               "goal": "Play Amazing Grace in 3/4 with G, C and D7 from memory: bass on 1, down-up on 2 and 3.",
               "explain": "Amazing Grace is a waltz-time hymn whose melody uses only five notes, and it is the first song you will play without looking at a chart. The pattern is a bass note on 1, then down-up on 2 and down-up on 3. The tune starts with a pickup on beat 3, so count 1 2 and let the singer start on 3; you come in on the next 1.",
-              "show": "Chord chart with G (320003), C (x32010), D7 (xx0212) and the optional G7 (320001) and Em (022000); a rhythm line of bass, down-up, down-up in 3/4; audio at 84 bpm.",
+              "show": "Chord chart with G (320003), C (x32010), D7 (xx0212) and the optional Em (022000); a rhythm line of bass, down-up, down-up in 3/4; audio at 84 bpm.",
               "practice": [
                 "Player: with the chart at 72, then 84 bpm.",
                 "Player: the chart hidden, from memory; if you get lost, listen for the bass line and come back in on the next bar.",
@@ -710,17 +735,17 @@
         {
           "id": "mia-minor-chords",
           "title": "Minor chords, minor songs",
-          "goal": "Play Am, Dm, E and B7 and use them in minor-key songs.",
+          "goal": "Add Dm and B7 to Am and E, and use them in minor-key songs.",
           "lessons": [
             {
               "id": "mia/mia-minor-chords/am-and-c",
-              "title": "Am, and the finger that moves",
+              "title": "C to Am: the finger that moves",
               "kind": "technique",
-              "goal": "Play Am and change between C and Am by moving one finger.",
-              "explain": "Am: finger 2 on string 4 fret 2 (E), finger 3 on string 3 fret 2 (A), finger 1 on string 2 fret 1 (C), strummed from string 5. Compare it with C: fingers 1 and 2 are in exactly the same place, and only finger 3 moves, from string 5 fret 3 (C) to string 3 fret 2 (A). Looking for fingers that stay is the secret of every smooth change.",
+              "goal": "Change between C and Am by moving just one finger, and hear major turn to minor.",
+              "explain": "You know Am from your first week; today it meets C. Put them side by side: fingers 1 and 2 stay in exactly the same place, string 2 fret 1 (C) and string 4 fret 2 (E), and only finger 3 moves, from string 5 fret 3 (C) to string 3 fret 2 (A). The two chords share two of their three notes, C and E, which is why the change sounds so smooth, and looking for fingers that stay is the secret of every smooth change.",
               "show": "Chord boxes of C (x32010) and Am (x02210) with the two shared fingers highlighted and finger 3's move drawn as an arrow; audio of C and Am, major and minor.",
               "practice": [
-                "Mic (play-chord): Am. Without a microphone: chord-build.",
+                "Mic (play-chord): C, then Am, then C again, four times each way, keeping fingers 1 and 2 pressed the whole time. Without a microphone: chord-build for each.",
                 "Player: Change: C-Am and Am-Dm, the C-Am half, at 60, then 72 bpm.",
                 "Ear: listen-choice, C or Am, major or minor? Eight rounds."
               ],
@@ -736,13 +761,13 @@
             },
             {
               "id": "mia/mia-minor-chords/dm-and-e",
-              "title": "Dm and E",
+              "title": "Dm, and E again",
               "kind": "technique",
-              "goal": "Play Dm and E and change from Am to each of them.",
-              "explain": "Dm: finger 2 on string 3 fret 2 (A), finger 3 on string 2 fret 3 (D), finger 1 on string 1 fret 1 (F), strummed on strings 4 to 1. From Am to Dm the note on string 3 fret 2 (A) stays, but the finger changes from 3 to 2. E is the Am shape moved one string toward string 6: finger 2 on string 5 fret 2 (B), finger 3 on string 4 fret 2 (E), finger 1 on string 3 fret 1 (G#), and all six strings ring.",
+              "goal": "Play Dm, and change from Am to Dm and from Am to E.",
+              "explain": "Dm: finger 2 on string 3 fret 2 (A), finger 3 on string 2 fret 3 (D), finger 1 on string 1 fret 1 (F), strummed on strings 4 to 1. From Am to Dm the note on string 3 fret 2 (A) stays, but the finger changes from 3 to 2. E you met in your first week as the Am shape moved one string toward string 6 (finger 2 on string 5 fret 2 (B), finger 3 on string 4 fret 2 (E), finger 1 on string 3 fret 1 (G#)); in A minor it is the chord that leads home to Am.",
               "show": "Chord boxes of Am (x02210), Dm (xx0231) and E (022100), with the Am-to-E move shown as the whole shape sliding one string over; audio of E and Em, so you hear one note (G# or G) change the chord from major to minor.",
               "practice": [
-                "Mic (play-chord): Dm, then E. Without a microphone: chord-build.",
+                "Mic (play-chord): Dm, string by string from string 4 and then strummed. Without a microphone: chord-build.",
                 "Player: Change: C-Am and Am-Dm, the Am-Dm half, at 60 bpm; then Change: Am-E and E-B7, the Am-E half.",
                 "Chords: one-minute changes, Am to Dm and Am to E."
               ],
@@ -768,7 +793,7 @@
                 "Ear: listen-choice, Mia plays E7 then Am, and Em then Am; which return sounds more like home? (E7, because of its G#).",
                 "Player: the song at 60, then 72 bpm, one downstrum per beat.",
                 "Chords: one-minute changes, Am to E7 and Dm to E7.",
-                "Player: Korobeiniki, a Russian folk melody in A minor, while the app strums Am, E7 and Dm under it; then swap and strum while the app plays the tune."
+                "Player: Korobeiniki, a Russian folk melody in A minor on the same three chords: you strum Am, E7 and Dm while the app plays the tune; the melody itself can wait for another day."
               ],
               "music": [
                 "go-down-moses",
@@ -806,11 +831,11 @@
               "id": "mia/mia-minor-chords/wade-in-the-water",
               "title": "Wade in the Water",
               "kind": "song",
-              "goal": "Play Wade in the Water in E minor with Em, Am and B7 and a swaying strum.",
-              "explain": "This spiritual, printed in 1901, moves between Em, Am and B7, the three main chords of E minor. Its groove sways: down on 1, down-up on 2, up on the and of 3, down-up on 4. The missing strum on beat 3 is not a pause for the hand: it still moves down, it just misses the strings.",
-              "show": "Chord chart with Em (022000), Am (x02210) and B7 (x21202); a rhythm line of the swaying pattern with the missed beat 3 drawn as a ghost arrow; audio at 84 bpm.",
+              "goal": "Play Wade in the Water in E minor with Em, Am and B7, slow and heavy, with every change to B7 on time.",
+              "explain": "This spiritual, printed in 1901, moves between Em, Am and B7, the three main chords of E minor. Strum it slow and heavy with the down-up eighths you already know, leaning on beats 2 and 4, so all your attention can go to the new B7 changes. The song has its own swaying strum too, and it comes back with it in the strumming unit.",
+              "show": "Chord chart with Em (022000), Am (x02210) and B7 (x21202); a rhythm line of down-up eighths with accents on 2 and 4; audio at 84 bpm.",
               "practice": [
-                "Rhythm: the swaying pattern on muted strings with the trainer, until the missed stroke feels natural.",
+                "Rhythm: down-up eighths with accents on 2 and 4 along with the trainer at 72 bpm, until the accents feel natural.",
                 "Player: the song at 72, then 84 bpm.",
                 "Chords: one-minute changes, Em to Am and Am to B7."
               ],
@@ -819,7 +844,7 @@
               ],
               "theory": [
                 "strumming-rhythm/accents-and-muted-strums",
-                "pulse-and-beat/rests"
+                "pulse-and-beat/down-up-strumming"
               ],
               "minutes": 12
             },
@@ -828,7 +853,7 @@
               "title": "Major or minor?",
               "kind": "review",
               "goal": "Hear and play the difference between major and minor chords, and play God Rest Ye Merry, Gentlemen, which moves between E minor and G major.",
-              "explain": "E and Em, A and Am, D and Dm each differ by one note, the third, and lowering that note by one fret makes the chord minor. You can now play twelve chords. God Rest Ye Merry, Gentlemen uses six of them, and its refrain leans from E minor toward G major, its relative major, before coming home.",
+              "explain": "E and Em, A and Am, D and Dm each differ by one note, the third, and lowering that note by one fret makes the chord minor. You can now play twelve chords. God Rest Ye Merry, Gentlemen uses six of them, and its refrain leans from E minor toward G major, its relative major (the major key that uses the same notes), before coming home.",
               "show": "Three pairs of chord boxes, E (022100) and Em (022000), A (x02220) and Am (x02210), D (xx0232) and Dm (xx0231), with the third circled in each; then the chord chart of God Rest Ye Merry, Gentlemen with Em, B7, C, D, G and Am.",
               "practice": [
                 "Ear: the chord-quality drill, major or minor, 10 rounds; aim for 8.",
@@ -864,17 +889,19 @@
               "practice": [
                 "Technique: Constant Strumming Motion on Em, the full pattern with the miss, 8 bars at 60 bpm, then on G.",
                 "Rhythm: tap the pattern with the trainer until it is in your body.",
-                "Player: Strumming: The Folk Pattern at 60, then 76 bpm."
+                "Player: Strumming: The Folk Pattern at 60, then 76 bpm.",
+                "Player: Wade in the Water again, now with the folk pattern: it is that song's own swaying groove, down on 1, down-up on 2, up on the and of 3, down-up on 4."
               ],
               "music": [
                 "st-strum-folk",
+                "wade-in-the-water",
                 "tech-strum-constant"
               ],
               "theory": [
                 "strumming-rhythm/accents-and-muted-strums",
                 "pulse-and-beat/down-up-strumming"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-strumming-patterns/down-by-the-riverside",
@@ -929,8 +956,8 @@
               "practice": [
                 "Rhythm: tap the six counts with a stronger tap on 1 and 4, then tap only 1 and 4 while saying all six.",
                 "Player: Strumming: 6/8 at 44, then 56 bpm, counting one beat per group of three.",
-                "Player: a melody that rocks in 6/8, Row, Row, Row Your Boat, in first position: wait mode, then at 48 and 56 bpm; then play it as a round with the app, the second voice entering after 2 bars.",
-                "Player: Greensleeves in 6/8 with Am, G, E and C, one chord per bar, strumming on 1 and 4 while the app plays the tune.",
+                "Player: a melody that rocks in 6/8, Row, Row, Row Your Boat, in first position (one finger per fret from fret 1): wait mode, then at 48 and 56 bpm; then play it as a round with the app, the second voice entering after 2 bars.",
+                "Player: Greensleeves in 6/8 with Am, G, E and C, mostly one chord per bar (the cadence bars go Am to E), strumming on 1 and 4 while the app plays the tune.",
                 "Ear: listen-choice, is this 3/4 or 6/8? Four short examples."
               ],
               "music": [
@@ -942,7 +969,7 @@
                 "strumming-rhythm/three-four-time",
                 "compound-and-odd-meters/six-eight"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-strumming-patterns/silent-night",
@@ -953,7 +980,7 @@
               "show": "Chord chart in 6/8 with G (320003), D7 (xx0212) and C (x32010); tab of one bar of the picking pattern on G: count 1, the thumb on string 6 fret 3 (G); 2, i on the open string 3 (G); 3, m on the open string 2 (B); 4, the thumb again; 5, a on string 1 fret 3 (G); 6, m on the open string 2 (B). Audio at 50 big beats per minute.",
               "practice": [
                 "Player: Silent Night at 44, then 50 bpm, strumming softly on counts 1 and 4.",
-                "Technique: Free-Stroke Arpeggios (p i m a), the first pattern only, at 60 bpm, to meet your picking fingers.",
+                "Technique: Free-Stroke Arpeggios (p i m a), chords played one string at a time, the first pattern only, at 60 bpm, to meet your picking fingers.",
                 "Player: the picking pattern on G, then on D7 (thumb on the open string 4 (D)) and on C (thumb on string 5 fret 3 (C)), then through the whole song at 44 bpm."
               ],
               "music": [
@@ -968,20 +995,19 @@
             },
             {
               "id": "mia/mia-strumming-patterns/boom-chick",
-              "title": "Boom-chick and G7",
+              "title": "Boom-chick",
               "kind": "technique",
               "goal": "Play boom-chick, a bass note then a strum, with alternating bass notes, and use it in Oh! Susanna.",
-              "explain": "Boom-chick is country and folk accompaniment: pick one bass note (boom), then strum the higher strings (chick); in 4/4 the bass goes on beats 1 and 3 and the strum on 2 and 4. Alternate two bass notes in each chord: under G, string 6 fret 3 (G) then the open string 4 (D); under C, string 5 fret 3 (C) then string 6 fret 3 (G), with finger 3 hopping across; under D7, the open string 4 (D) then the open string 5 (A). G7 (320001) is new today: it leans toward C, and you will need it for La Cucaracha.",
-              "show": "Tab of one bar of each chord in boom-chick with the bass notes marked; chord box of G7 (320001); audio of Strumming: Boom-Chick at 80 bpm.",
+              "explain": "Boom-chick is country and folk accompaniment: pick one bass note (boom), then strum the higher strings (chick); in 4/4 the bass goes on beats 1 and 3 and the strum on 2 and 4. Alternate two bass notes in each chord: under G, string 6 fret 3 (G) then the open string 4 (D); under C, string 5 fret 3 (C) then string 6 fret 3 (G), with finger 3 hopping across; under D7, the open string 4 (D) then the open string 5 (A). Keep the strum short and light so the bass notes stand out.",
+              "show": "Tab of one bar of each chord in boom-chick with the bass notes marked; audio of Strumming: Boom-Chick at 80 bpm.",
               "practice": [
-                "Mic (play-chord): G7 (320001), then the C to G7 change: the 3-2 shape moves back one string and finger 1 goes to string 1 fret 1 (F). Without a microphone: chord-build.",
+                "Player, wait mode: the bass notes alone, string 6 fret 3 (G) then the open string 4 (D), string 5 fret 3 (C) then string 6 fret 3 (G), the open string 4 (D) then the open string 5 (A), so your pick learns the jumps before the strums come in.",
                 "Player: Strumming: Boom-Chick at 72, then 88 bpm.",
                 "Player: Oh! Susanna with boom-chick at 80, then 92 bpm: in its 2/4 time the bass goes on beat 1 and the strum on beat 2. Mia says in one sentence where it comes from: it was written for minstrel shows, which mocked Black Americans, and we sing only the verse and chorus that do not."
               ],
               "music": [
                 "st-boom-chick",
-                "oh-susanna",
-                "st-change-g-c-c-g7"
+                "oh-susanna"
               ],
               "theory": [
                 "strumming-rhythm/changing-chords-in-time"
@@ -1003,7 +1029,8 @@
               "music": [
                 "oh-susanna",
                 "down-by-the-riverside",
-                "amazing-grace"
+                "amazing-grace",
+                "tech-warm-up"
               ],
               "theory": [
                 "strumming-rhythm/changing-chords-in-time"
@@ -1022,13 +1049,13 @@
               "title": "Notes on the low strings",
               "kind": "technique",
               "goal": "Play the first notes on strings 4, 5 and 6 and name them.",
-              "explain": "The low strings carry bass lines and riffs. On string 4: the open D, string 4 fret 2 (E) and string 4 fret 3 (F). On string 5: the open A, string 5 fret 2 (B) and string 5 fret 3 (C). On string 6: the open E, string 6 fret 1 (F) and string 6 fret 3 (G). Again E to F and B to C are one fret apart: the two natural half steps.",
+              "explain": "The low strings carry bass lines and riffs (short patterns repeated through a song). On string 4: the open D, string 4 fret 2 (E) and string 4 fret 3 (F). On string 5: the open A, string 5 fret 2 (B) and string 5 fret 3 (C). On string 6: the open E, string 6 fret 1 (F) and string 6 fret 3 (G). Again E to F and B to C are one fret apart: the two natural half steps.",
               "show": "Fretboard figure, frets 0 to 3 on strings 6, 5 and 4, with the open strings marked and string 4 fret 2 (E), string 4 fret 3 (F), string 5 fret 2 (B), string 5 fret 3 (C), string 6 fret 1 (F) and string 6 fret 3 (G); the tabs of the three First Notes studies.",
               "practice": [
                 "Mic (play-note): Mia names a note on strings 4 to 6 and you play it, 10 in a row. Without a microphone: fretboard-find.",
                 "Player: First Notes on String 4, String 5 and String 6, each in wait mode and then at 72 bpm with the teacher part.",
                 "Fretboard: the string 6 game, frets 0 to 3, for one minute.",
-                "Player: Sakura, Sakura, a Japanese melody that uses string 4 fret 2 (E), string 4 fret 3 (F) and string 5 fret 2 (B) among its notes: slowly, in wait mode, with a little vibrato on the long notes."
+                "Player: Sakura, Sakura, a Japanese melody that uses string 4 fret 2 (E), string 4 fret 3 (F) and string 5 fret 2 (B) among its notes: slowly, in wait mode, letting each long note ring for its full length."
               ],
               "music": [
                 "st-first-notes-string-4",
@@ -1041,15 +1068,15 @@
                 "notes-on-the-neck/string-5-naturals",
                 "the-musical-alphabet/half-and-whole-steps"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-riffs-and-melodies/hammer-ons-and-pull-offs",
               "title": "Hammer-ons and pull-offs",
               "kind": "technique",
               "goal": "Sound a second note with a hammer-on and with a pull-off, picking only the first note.",
-              "explain": "A hammer-on sounds a note by bringing a finger down hard and fast onto the string just behind the fret wire, without picking again. A pull-off is the reverse: the fretting finger plucks the string slightly sideways as it leaves, so the lower note sounds. They make lines smooth, and they are the first step into lead guitar.",
-              "show": "Tab of Lick: Hammer-Ons in E minor pentatonic in open position: the open string 4 hammered to string 4 fret 2 (E), the open string 3 to string 3 fret 2 (A), the open string 2 to string 2 fret 3 (D), the open string 1 to string 1 fret 3 (G), with the h sign; then Lick: Pull-Offs, from string 1 fret 3 (G), string 2 fret 3 (D) and string 3 fret 2 (A) to the open strings, with the p sign.",
+              "explain": "A hammer-on sounds a note by bringing a finger down hard and fast onto the string just behind the fret wire, without picking again. A pull-off is the reverse: the fretting finger plucks the string slightly sideways as it leaves, so the lower note sounds. They make lines smooth and are the first step into lead guitar; today you use them in two licks, short phrases you learn once and reuse.",
+              "show": "Tab of Lick: Hammer-Ons in open position: the open string 4 hammered to string 4 fret 2 (E), the open string 3 to string 3 fret 2 (A), the open string 2 to string 2 fret 3 (D), the open string 1 to string 1 fret 3 (G), with the h sign; then Lick: Pull-Offs, from string 1 fret 3 (G), string 2 fret 3 (D) and string 3 fret 2 (A) to the open strings, with the p sign.",
               "practice": [
                 "Mic (play-phrase): one hammer-on, the open string 3 to string 3 fret 2 (A), five times; the microphone checks you get two notes from one pick stroke. Without a microphone: the Player in wait mode.",
                 "Player: Lick: Hammer-Ons at 60 bpm, then Lick: Pull-Offs.",
@@ -1096,7 +1123,8 @@
               "practice": [
                 "Mic (play-phrase): the eight notes as even quarter notes, top to bottom. Without a microphone: the Player in wait mode.",
                 "Rhythm: tap the phrase's rhythm with the trainer.",
-                "Player: the phrase in rhythm at 60, then 72 bpm, then the rest of the carol with the teacher's chords (D, G, A7)."
+                "Player: the phrase in rhythm at 60, then 72 bpm, then the rest of the carol with the teacher's chords (D, G, A7).",
+                "Player: for contrast, the opening of Mozart's Eine kleine Nachtmusik, which leaps through the notes of the G chord instead of stepping: the open string 3 (G), the open string 4 (D), the open string 2 (B) and string 2 fret 3 (D); wait mode, then at 72 bpm, observing every rest."
               ],
               "music": [
                 "joy-to-the-world",
@@ -1106,7 +1134,7 @@
                 "major-scale/the-step-pattern",
                 "major-scale/scale-degrees"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-riffs-and-melodies/rakes-of-mallow",
@@ -1160,7 +1188,7 @@
               "title": "Power chords",
               "kind": "technique",
               "goal": "Play the two-finger power chords E5, A5 and D5 and keep the other strings quiet.",
-              "explain": "A power chord has only a root and the fifth above it, often with the root doubled an octave up, so it is neither major nor minor; with distortion it sounds huge, which is why rock is built on it. E5 is the open string 6 with string 5 fret 2 (B) and string 4 fret 2 (E); A5 and D5 are the same shape one and two strings over. Play only those strings, and let the underside of your fretting fingers lightly touch the thinner strings so they stay silent.",
+              "explain": "A power chord has only a root, the note it is named after, and the fifth above it, often with the root again on top (the same note an octave higher), so it is neither major nor minor; with distortion it sounds huge, which is why rock is built on it. E5 is the open string 6 with string 5 fret 2 (B) and string 4 fret 2 (E); A5 is the same shape one string over, and D5 two strings over, except that its top note moves up one fret, to string 2 fret 3 (D), because string 2 is tuned differently from the others. Play only those strings, and let the underside of your fretting fingers lightly touch the thinner strings so they stay silent.",
               "show": "Chord boxes of E5 (022xxx), A5 (x022xx) and D5 (xx023x); tab of the first 4 bars of Power Chords: Open Riff; audio clean and with a little drive.",
               "practice": [
                 "Mic (play-chord): E5, A5 and D5. Without a microphone: chord-build.",
@@ -1246,7 +1274,7 @@
               "title": "John Henry: a blues ballad",
               "kind": "song",
               "goal": "Strum John Henry, a blues ballad, with E7, A7 and B7 and a driving strum accented on 2 and 4.",
-              "explain": "John Henry is an early African American ballad about a steel-driving man who raced a steam drill. Its dominant seventh chords, E7, A7 and B7, give it the blues colour: the 7 adds a slightly sour note that the blues loves. Drive the strum with down-up eighths and lean on beats 2 and 4.",
+              "explain": "John Henry is an early African American ballad about a steel-driving man who raced a steam drill. Its seventh chords, E7, A7 and B7, give it the blues colour: the 7 adds a slightly sour note that the blues loves. Drive the strum with down-up eighths and lean on beats 2 and 4.",
               "show": "Chord chart with E7 (020100), A7 (x02020) and B7 (x21202); a rhythm line of down-up eighths with accents on 2 and 4; audio at 92 bpm.",
               "practice": [
                 "Chords: one-minute changes, E7 to A7 and E7 to B7.",
@@ -1312,23 +1340,25 @@
             },
             {
               "id": "mia/mia-first-barre/la-cucaracha",
-              "title": "La Cucaracha",
+              "title": "La Cucaracha, and G7",
               "kind": "song",
-              "goal": "Play La Cucaracha with C, G7 and F, bright and bouncy, with clean changes into F.",
-              "explain": "La Cucaracha is a Spanish and Mexican folk song known in the 19th century, and it bounces on C, G7 and F. The repeated-note pickups give it energy, so keep the strum light and bright, down-up eighths with an accent on 2 and 4. The F here is the small F, and the change from C is the one to practise.",
-              "show": "Chord chart with C (x32010), G7 (320001) and F (xx3211); audio at 100 bpm.",
+              "goal": "Add G7 and play La Cucaracha with C, G7 and the small F, bright and bouncy.",
+              "explain": "La Cucaracha is a Spanish and Mexican folk song known in the 19th century, and it bounces on C, G7 and F. G7 (320001) is the one new chord, and an easy one: from C, the 3-2 finger pair moves back one string toward string 6 and finger 1 moves to string 1 fret 1 (F), and just as D7 leans toward G, G7 leans toward home, C. The F is the small F from the last lesson; keep the strum light, down-up eighths with an accent on 2 and 4.",
+              "show": "Chord chart with C (x32010), G7 (320001) and F (xx3211), with the C to G7 move drawn as arrows; audio at 100 bpm.",
               "practice": [
-                "Chords: one-minute changes, C to F and G7 to C.",
+                "Mic (play-chord): G7 (320001), then the C to G7 change four times. Without a microphone: chord-build.",
+                "Chords: one-minute changes, C to G7 and C to the small F.",
                 "Player: La Cucaracha at 88, then 104 bpm.",
                 "Player: again at 104 bpm with chucks on 2 and 4 for extra bounce; then try the target tempo, 120."
               ],
               "music": [
-                "la-cucaracha"
+                "la-cucaracha",
+                "st-change-g-c-c-g7"
               ],
               "theory": [
                 "chords-in-a-key/one-four-five"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "mia/mia-first-barre/the-full-f",
@@ -1357,7 +1387,7 @@
               "title": "The barre F at work: the key of C",
               "kind": "jam",
               "goal": "Use the full F barre in the key of C, changing between C, Am, F and G with the backing band.",
-              "explain": "C, F and G are the I, IV and V of C major and Am is its vi, so the barre F you have just learned opens up a whole new key. Keep the barre light between chords and squeeze only as you land, on the beat; if a change is not ready, play the small F (xx3211) and try the barre again next time round. Listen to how the progression sounds with the full six-string F: deeper and stronger.",
+              "explain": "C, F and G are the I, IV and V of C major and Am is its vi, so the barre F you have just learned opens up a whole new key. Keep the barre light between chords and squeeze only as you land, on the beat; if a change is not ready, play the small F (xx3211) and try the barre again next time round. Listen to how the progression, the chords in their order, sounds with the full six-string F: deeper and stronger.",
               "show": "Chord boxes of C (x32010), Am (x02210), F (133211) and G (320003); two charts: C | Am | F | G and C | F | C | G.",
               "practice": [
                 "Chords: one-minute changes, C to F and Am to F, with the barre.",
@@ -1431,7 +1461,7 @@
               "show": "Fretboard figure, frets 5 to 8, of the 12 notes of box 1 with their fingers: string 6 fret 5 (A), string 6 fret 8 (C), string 5 fret 5 (D), string 5 fret 7 (E), string 4 fret 5 (G), string 4 fret 7 (A), string 3 fret 5 (C), string 3 fret 7 (D), string 2 fret 5 (E), string 2 fret 8 (G), string 1 fret 5 (A), string 1 fret 8 (C), with the three A roots highlighted.",
               "practice": [
                 "Mic (play-phrase): the box up from string 6 fret 5 to string 1 fret 8 and back, one note per click at 60 bpm. Without a microphone: the Player in wait mode.",
-                "Scales: A minor pentatonic, box 1, with the degrees shown; find the three A roots.",
+                "Scales: A minor pentatonic, box 1, with the note names shown; find the three A roots.",
                 "Arcade: the box 1 note-chase game for two minutes."
               ],
               "music": [
@@ -1676,7 +1706,7 @@
                 "Tuner: tune up; then Technique: warm up as you would before a real concert.",
                 "Player: the four pieces back to back at their target tempos, without stopping between them.",
                 "Record: the whole concert, and share it with someone if you like.",
-                "Lesson: the hand-over check: one-minute changes G to C and Am to F (30 or more clean changes each), box 1 up and down at 80 bpm, and the F barre ringing on all six strings."
+                "Lesson: the hand-over check: one-minute changes G to C and Am to F (30 or more clean changes each), the folk pattern on G, C and D at 90 bpm, box 1 up and down at 80 bpm, and the F barre ringing on all six strings."
               ],
               "music": [
                 "fur-elise-theme",
@@ -1711,6 +1741,7 @@
                 "Chords: one-minute changes, G to C, then Am to F; the trainer stores your scores.",
                 "Mic (play-chord): F (133211). Without a microphone, play it string by string and rate it yourself.",
                 "Metronome: A minor pentatonic box 1 up and down in eighth notes at 80 bpm.",
+                "Metronome: the folk pattern at 90 bpm, two bars each of G, C and D, round and round without stopping.",
                 "Practice Plan: Dev's suggested 30-minute routine for this course: warm-up, technique, the lesson's new skill, songs, a jam."
               ],
               "music": [
@@ -1719,7 +1750,7 @@
                 "tech-changes-pairs-3"
               ],
               "theory": [],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "dev/dev-barre-chords/e-shape-barres",
@@ -1844,7 +1875,7 @@
               "explain": "There are only five open major-chord shapes, C, A, G, E and D, and the full major-chord grips up the neck are these same five shapes moved up, with a barre or your fingers acting as the nut. Up the neck they link in the order C-A-G-E-D and then start again, each shape sharing notes with the next. Learn where the roots sit in each shape and you can find any chord anywhere.",
               "show": "Five chord boxes in a row, C (x32010), A (x02220), G (320003), E (022100) and D (xx0232), with every root highlighted; a fretboard figure of C major showing the five shapes overlapping up the neck.",
               "practice": [
-                "Lesson: fretboard-name, Dev shows a shape with its roots marked and you name it (C, A, G, E or D).",
+                "Lesson: choice, Dev shows a shape with its roots marked and you name it (C, A, G, E or D).",
                 "Lesson: order, put the shapes in the order they climb the neck from C (C A G E D).",
                 "Mic (play-chord): the five open shapes in CAGED order. Without a microphone: chord-build."
               ],
@@ -1969,142 +2000,6 @@
           ]
         },
         {
-          "id": "dev-pentatonic",
-          "title": "The pentatonic, all five boxes",
-          "goal": "Learn the other four A minor pentatonic boxes through music, connect them, and use the same shapes as major pentatonic.",
-          "lessons": [
-            {
-              "id": "dev/dev-pentatonic/box-2",
-              "title": "Box 2",
-              "kind": "technique",
-              "goal": "Play A minor pentatonic box 2 (frets 7 to 10) and join it to box 1 by their shared notes.",
-              "explain": "Box 1 is home, but the same five notes, A C D E G, fill the whole neck in five boxes that overlap like tiles. Box 2 starts where box 1's upper notes are: the notes at fret 8 on strings 6, 2 and 1 and at fret 7 on strings 5, 4 and 3 belong to both. Learn each new box through music, not just up and down.",
-              "show": "Fretboard figure, frets 5 to 10, with box 1 and box 2 in two colours and the shared notes outlined; the box 2 notes: string 6 fret 8 (C), string 6 fret 10 (D), string 5 fret 7 (E), string 5 fret 10 (G), string 4 fret 7 (A), string 4 fret 10 (C), string 3 fret 7 (D), string 3 fret 9 (E), string 2 fret 8 (G), string 2 fret 10 (A), string 1 fret 8 (C), string 1 fret 10 (D).",
-              "practice": [
-                "Mic (play-phrase): box 2 up and down at 60 bpm. Without a microphone: the Player in wait mode.",
-                "Player: Pentatonic Box 2 Lick at 70, then 90 bpm, with its slide.",
-                "Arcade: note-chase in boxes 1 and 2 together."
-              ],
-              "music": [
-                "st-pent-box-2"
-              ],
-              "theory": [
-                "pentatonic-boxes/box-2"
-              ],
-              "minutes": 12
-            },
-            {
-              "id": "dev/dev-pentatonic/box-3",
-              "title": "Box 3",
-              "kind": "technique",
-              "goal": "Play box 3 (frets 9 to 13), the widest of the five, and its lick with a pull-off.",
-              "explain": "Box 3 is the widest box, reaching from fret 9 to fret 13, so on some strings you either stretch or shift the hand by a fret; the fingering on screen marks where. Its roots sit at string 5 fret 12 (A) and string 2 fret 10 (A), a handy pair to aim phrases at.",
-              "show": "Fretboard figure of box 3: string 6 fret 10 (D), string 6 fret 12 (E), string 5 fret 10 (G), string 5 fret 12 (A), string 4 fret 10 (C), string 4 fret 12 (D), string 3 fret 9 (E), string 3 fret 12 (G), string 2 fret 10 (A), string 2 fret 13 (C), string 1 fret 10 (D), string 1 fret 12 (E), with the A roots marked.",
-              "practice": [
-                "Mic (play-phrase): box 3 up and down slowly. Without a microphone: the Player in wait mode.",
-                "Player: Pentatonic Box 3 Lick at 70, then 90 bpm.",
-                "Fretboard: name each note of box 3 as you play it.",
-                "Technique: Gentle Stretch, Walking Down, for the reach box 3 needs; stop at the first fret that hurts."
-              ],
-              "music": [
-                "st-pent-box-3",
-                "tech-stretch"
-              ],
-              "theory": [
-                "pentatonic-boxes/box-3"
-              ],
-              "minutes": 12
-            },
-            {
-              "id": "dev/dev-pentatonic/boxes-4-and-5",
-              "title": "Boxes 4 and 5",
-              "kind": "technique",
-              "goal": "Play boxes 4 and 5, high on the neck and in their lower octave, with their licks.",
-              "explain": "Box 4 lies at frets 12 to 15 and, an octave lower, in open position, where it mixes open strings with notes at frets 1 to 3. Box 5 lies at frets 2 to 5 (or 14 to 17) and leads straight back into box 1 at fret 5, so the circle is closed. The bend in the box 4 lick and the vibrato in the box 5 lick come from your earlier lessons.",
-              "show": "Fretboard figures of box 4 at frets 12 to 15 (string 6 fret 12 (E), string 6 fret 15 (G), string 5 fret 12 (A), string 5 fret 15 (C), string 4 fret 12 (D), string 4 fret 14 (E), string 3 fret 12 (G), string 3 fret 14 (A), string 2 fret 13 (C), string 2 fret 15 (D), string 1 fret 12 (E), string 1 fret 15 (G)) and of box 5 at frets 2 to 5 (string 6 fret 3 (G), string 6 fret 5 (A), string 5 fret 3 (C), string 5 fret 5 (D), string 4 fret 2 (E), string 4 fret 5 (G), string 3 fret 2 (A), string 3 fret 5 (C), string 2 fret 3 (D), string 2 fret 5 (E), string 1 fret 3 (G), string 1 fret 5 (A)).",
-              "practice": [
-                "Player: Pentatonic Box 4 Lick, both versions (frets 12 to 15 and open position), with its bend.",
-                "Player: Pentatonic Box 5 Lick, ending with vibrato on the last note.",
-                "Arcade: note-chase across boxes 4, 5 and 1."
-              ],
-              "music": [
-                "st-pent-box-4",
-                "st-pent-box-5"
-              ],
-              "theory": [
-                "pentatonic-boxes/boxes-4-and-5"
-              ],
-              "minutes": 15
-            },
-            {
-              "id": "dev/dev-pentatonic/connecting-the-boxes",
-              "title": "One map of the neck",
-              "kind": "technique",
-              "goal": "Play one melody that climbs from box 5 through boxes 1, 2, 3 and 4 and back down, moving between boxes by slides.",
-              "explain": "Boxes are training wheels; the goal is one map of the neck. The trick is to move between boxes on purpose: slide up one string into the next box, play a phrase there, then slide again. In the Pentatonic Across the Neck study the same climb is played over Am7 and then over C, where the very same notes sound like C major pentatonic.",
-              "show": "Fretboard figure, frets 2 to 17, with all five boxes outlined and the study's slide points marked; the study's tab.",
-              "practice": [
-                "Player: Pentatonic Across the Neck, bars 1 to 8 (the climb), in wait mode, then in time at 60 bpm.",
-                "Player: all 16 bars at 80 bpm, then the second time through over the C groove.",
-                "Arcade: the whole-neck A minor pentatonic chase."
-              ],
-              "music": [
-                "st-pent-connect"
-              ],
-              "theory": [
-                "pentatonic-boxes/connecting-the-boxes"
-              ],
-              "minutes": 15
-            },
-            {
-              "id": "dev/dev-pentatonic/major-pentatonic",
-              "title": "Major pentatonic in the same shapes",
-              "kind": "technique",
-              "goal": "Use the same five shapes as major pentatonic, and play a major-pentatonic melody, Mo Li Hua.",
-              "explain": "A minor pentatonic and C major pentatonic contain exactly the same notes, so every box is also a major-pentatonic box: only the home note changes. The practical trick: to play A major pentatonic (A B C# E F#), take the box 1 shape you know and slide it down three frets, to fret 2, because those are the notes of F# minor pentatonic, the relative minor of A. Major pentatonic sounds sweet and open, the sound of country, folk and many melodies.",
-              "show": "Fretboard figure of the F# minor box 1 shape at frets 2 to 5, labelled A major pentatonic, with the A roots at string 6 fret 5 (A), string 3 fret 2 (A) and string 1 fret 5 (A) highlighted; then G major pentatonic (G A B D E) for Mo Li Hua.",
-              "practice": [
-                "Mic (play-phrase): the shape at fret 2 from A to A (string 6 fret 5 up to string 3 fret 2), then the whole shape. Without a microphone: the Player in wait mode.",
-                "Jam: jam track pop-i-v in A at 96 bpm (A and E): improvise with A major pentatonic, ending on A.",
-                "Player: Mo Li Hua (Jasmine Flower) at 56, then 66 bpm, with light slides into the long notes.",
-                "Player: two more major-pentatonic melodies: the opening of Morning Mood (E major pentatonic, E F# G# B C#) and the Largo theme from the New World Symphony (D major pentatonic, D E F# A B)."
-              ],
-              "music": [
-                "mo-li-hua",
-                "morning-mood",
-                "largo-new-world",
-                "st-pent-connect"
-              ],
-              "theory": [
-                "pentatonic-boxes/major-pentatonic-boxes",
-                "major-scale/major-pentatonic"
-              ],
-              "minutes": 15
-            },
-            {
-              "id": "dev/dev-pentatonic/pentatonic-jam",
-              "title": "Same notes, two moods",
-              "kind": "jam",
-              "goal": "Improvise across all five boxes over a minor progression, then over a major one using the same notes.",
-              "explain": "Same notes, two moods: over Am, G, F and G the boxes sound minor and A is home; over C, G, Am and F the same notes sound major and C is home. Move up the neck during the solo instead of staying in one box, and end each solo on the home note of the progression.",
-              "show": "A fretboard map of all five boxes with the A roots and the C roots in two colours; the two chord charts.",
-              "practice": [
-                "Jam: jam track minor-i-bvii-bvi-bvii in A at 96 bpm: two minutes, at least three boxes, end on A.",
-                "Jam: jam track pop-axis in C at 92 bpm: the same notes, end on C.",
-                "Record: one take of each; listen for where the solo got stuck in one box."
-              ],
-              "music": [
-                "st-pent-connect"
-              ],
-              "theory": [
-                "pentatonic-boxes/major-pentatonic-boxes",
-                "minor-scales/relative-minor"
-              ],
-              "minutes": 15
-            }
-          ]
-        },
-        {
           "id": "dev-lead-techniques",
           "title": "Lead guitar: the expressive techniques",
           "goal": "Play hammer-ons, pull-offs, slides, bends and vibrato in tune and in time, and combine them into phrases that sing.",
@@ -2133,7 +2028,7 @@
               "theory": [
                 "reading-tab/technique-symbols"
               ],
-              "minutes": 12
+              "minutes": 15
             },
             {
               "id": "dev/dev-lead-techniques/slides",
@@ -2246,6 +2141,144 @@
           ]
         },
         {
+          "id": "dev-pentatonic",
+          "title": "The pentatonic, all five boxes",
+          "goal": "Learn the other four A minor pentatonic boxes through music, connect them, and use the same shapes as major pentatonic.",
+          "lessons": [
+            {
+              "id": "dev/dev-pentatonic/box-2",
+              "title": "Box 2",
+              "kind": "technique",
+              "goal": "Play A minor pentatonic box 2 (frets 7 to 10) and join it to box 1 by their shared notes.",
+              "explain": "Box 1 is home, but the same five notes, A C D E G, fill the whole neck in five boxes that overlap like tiles. Box 2 starts where box 1's upper notes are: the notes at fret 8 on strings 6, 2 and 1 and at fret 7 on strings 5, 4 and 3 belong to both. Learn each new box through music, not just up and down.",
+              "show": "Fretboard figure, frets 5 to 10, with box 1 and box 2 in two colours and the shared notes outlined; the box 2 notes: string 6 fret 8 (C), string 6 fret 10 (D), string 5 fret 7 (E), string 5 fret 10 (G), string 4 fret 7 (A), string 4 fret 10 (C), string 3 fret 7 (D), string 3 fret 9 (E), string 2 fret 8 (G), string 2 fret 10 (A), string 1 fret 8 (C), string 1 fret 10 (D).",
+              "practice": [
+                "Mic (play-phrase): box 2 up and down at 60 bpm. Without a microphone: the Player in wait mode.",
+                "Player: Pentatonic Box 2 Lick at 70, then 90 bpm, with its slide.",
+                "Arcade: note-chase in boxes 1 and 2 together.",
+                "Jam: jam track funk-one-chord-minor in A at 90 bpm: improvise in boxes 1 and 2 only, crossing between them at the shared notes, and end each phrase on a chord tone."
+              ],
+              "music": [
+                "st-pent-box-2"
+              ],
+              "theory": [
+                "pentatonic-boxes/box-2"
+              ],
+              "minutes": 15
+            },
+            {
+              "id": "dev/dev-pentatonic/box-3",
+              "title": "Box 3",
+              "kind": "technique",
+              "goal": "Play box 3 (frets 9 to 13), the widest of the five, and its lick with a pull-off.",
+              "explain": "Box 3 is the widest box, reaching from fret 9 to fret 13, so on some strings you either stretch or shift the hand by a fret; the fingering on screen marks where. Its roots sit at string 5 fret 12 (A) and string 2 fret 10 (A), a handy pair to aim phrases at.",
+              "show": "Fretboard figure of box 3: string 6 fret 10 (D), string 6 fret 12 (E), string 5 fret 10 (G), string 5 fret 12 (A), string 4 fret 10 (C), string 4 fret 12 (D), string 3 fret 9 (E), string 3 fret 12 (G), string 2 fret 10 (A), string 2 fret 13 (C), string 1 fret 10 (D), string 1 fret 12 (E), with the A roots marked.",
+              "practice": [
+                "Mic (play-phrase): box 3 up and down slowly. Without a microphone: the Player in wait mode.",
+                "Player: Pentatonic Box 3 Lick at 70, then 90 bpm.",
+                "Jam: jam track minor-i-bvi-bvii in A at 92 bpm: phrases in box 3 aimed at its two A roots, then slide down into box 2 and back up.",
+                "Technique: Gentle Stretch, Walking Down, for the reach box 3 needs; stop as soon as it feels like strain rather than effort."
+              ],
+              "music": [
+                "st-pent-box-3",
+                "tech-stretch"
+              ],
+              "theory": [
+                "pentatonic-boxes/box-3"
+              ],
+              "minutes": 15
+            },
+            {
+              "id": "dev/dev-pentatonic/boxes-4-and-5",
+              "title": "Boxes 4 and 5",
+              "kind": "technique",
+              "goal": "Play boxes 4 and 5, high on the neck and in their lower octave, with their licks.",
+              "explain": "Box 4 lies at frets 12 to 15 and, an octave lower, in open position, where it mixes open strings with notes at frets 1 to 3. Box 5 lies at frets 2 to 5 (or 14 to 17) and leads straight back into box 1 at fret 5, so the circle is closed. The bend in the box 4 lick and the vibrato in the box 5 lick come from your earlier lessons.",
+              "show": "Fretboard figures of box 4 at frets 12 to 15 (string 6 fret 12 (E), string 6 fret 15 (G), string 5 fret 12 (A), string 5 fret 15 (C), string 4 fret 12 (D), string 4 fret 14 (E), string 3 fret 12 (G), string 3 fret 14 (A), string 2 fret 13 (C), string 2 fret 15 (D), string 1 fret 12 (E), string 1 fret 15 (G)) and of box 5 at frets 2 to 5 (string 6 fret 3 (G), string 6 fret 5 (A), string 5 fret 3 (C), string 5 fret 5 (D), string 4 fret 2 (E), string 4 fret 5 (G), string 3 fret 2 (A), string 3 fret 5 (C), string 2 fret 3 (D), string 2 fret 5 (E), string 1 fret 3 (G), string 1 fret 5 (A)).",
+              "practice": [
+                "Player: Pentatonic Box 4 Lick, both versions (frets 12 to 15 and open position), with its bend.",
+                "Player: Pentatonic Box 5 Lick, ending with vibrato on the last note.",
+                "Arcade: note-chase across boxes 4, 5 and 1.",
+                "Jam: jam track blues-minor in A at 80 bpm: one chorus in box 4 at fret 12 and one in box 5 at fret 2, ending every phrase on an A."
+              ],
+              "music": [
+                "st-pent-box-4",
+                "st-pent-box-5"
+              ],
+              "theory": [
+                "pentatonic-boxes/boxes-4-and-5"
+              ],
+              "minutes": 15
+            },
+            {
+              "id": "dev/dev-pentatonic/connecting-the-boxes",
+              "title": "One map of the neck",
+              "kind": "technique",
+              "goal": "Play one melody that climbs from box 5 through boxes 1, 2, 3 and 4 and back down, moving between boxes by slides.",
+              "explain": "Boxes are training wheels; the goal is one map of the neck. The trick is to move between boxes on purpose: slide up one string into the next box, play a phrase there, then slide again. In the Pentatonic Across the Neck study the same climb is played over Am7 and then over C, where the very same notes sound like C major pentatonic.",
+              "show": "Fretboard figure, frets 2 to 17, with all five boxes outlined and the study's slide points marked; the study's tab.",
+              "practice": [
+                "Player: Pentatonic Across the Neck, bars 1 to 8 (the climb), in wait mode, then in time at 60 bpm.",
+                "Player: all 16 bars at 80 bpm, then the second time through over the C groove.",
+                "Arcade: the whole-neck A minor pentatonic chase."
+              ],
+              "music": [
+                "st-pent-connect"
+              ],
+              "theory": [
+                "pentatonic-boxes/connecting-the-boxes"
+              ],
+              "minutes": 15
+            },
+            {
+              "id": "dev/dev-pentatonic/major-pentatonic",
+              "title": "Major pentatonic in the same shapes",
+              "kind": "technique",
+              "goal": "Use the same five shapes as major pentatonic, and play a major-pentatonic melody, Mo Li Hua.",
+              "explain": "A minor pentatonic and C major pentatonic contain exactly the same notes, so every box is also a major-pentatonic box: only the home note changes. The practical trick: to play A major pentatonic (A B C# E F#), take the box 1 shape you know and slide it down three frets, to fret 2, because those are the notes of F# minor pentatonic, the relative minor of A. Major pentatonic sounds sweet and open, the sound of country, folk and many melodies.",
+              "show": "Fretboard figure of the F# minor box 1 shape at frets 2 to 5, labelled A major pentatonic, with the A roots at string 6 fret 5 (A), string 3 fret 2 (A) and string 1 fret 5 (A) highlighted; then G major pentatonic (G A B D E) for Mo Li Hua.",
+              "practice": [
+                "Mic (play-phrase): the shape at fret 2 from A to A (string 6 fret 5 up to string 3 fret 2), then the whole shape. Without a microphone: the Player in wait mode.",
+                "Jam: jam track pop-i-v in A at 96 bpm (A and E): improvise with A major pentatonic, ending on A.",
+                "Player: Mo Li Hua (Jasmine Flower) at 56, then 66 bpm, with light slides into the long notes.",
+                "Player: two more major-pentatonic melodies: the opening of Morning Mood (E major pentatonic, E F# G# B C#) and the Largo theme from the New World Symphony (D major pentatonic, D E F# A B)."
+              ],
+              "music": [
+                "mo-li-hua",
+                "morning-mood",
+                "largo-new-world",
+                "st-pent-connect"
+              ],
+              "theory": [
+                "pentatonic-boxes/major-pentatonic-boxes",
+                "major-scale/major-pentatonic"
+              ],
+              "minutes": 15
+            },
+            {
+              "id": "dev/dev-pentatonic/pentatonic-jam",
+              "title": "Same notes, two moods",
+              "kind": "jam",
+              "goal": "Improvise across all five boxes over a minor progression, then over a major one using the same notes.",
+              "explain": "Same notes, two moods: over Am, G, F and G the boxes sound minor and A is home; over C, G, Am and F the same notes sound major and C is home. Move up the neck during the solo instead of staying in one box, and end each solo on the home note of the progression.",
+              "show": "A fretboard map of all five boxes with the A roots and the C roots in two colours; the two chord charts.",
+              "practice": [
+                "Jam: jam track minor-i-bvii-bvi-bvii in A at 96 bpm: two minutes, at least three boxes, end on A.",
+                "Jam: jam track pop-axis in C at 92 bpm: the same notes, end on C.",
+                "Record: one take of each; listen for where the solo got stuck in one box."
+              ],
+              "music": [
+                "st-pent-connect"
+              ],
+              "theory": [
+                "pentatonic-boxes/major-pentatonic-boxes",
+                "minor-scales/relative-minor"
+              ],
+              "minutes": 15
+            }
+          ]
+        },
+        {
           "id": "dev-blues",
           "title": "The blues",
           "goal": "Play the 12-bar blues in E and A with shuffles, sevenths and turnarounds, solo over it with the blues scale and target notes, and play the minor blues.",
@@ -2282,11 +2315,10 @@
               "practice": [
                 "Mic (play-chord): the three shapes. Without a microphone: chord-build.",
                 "Jam: jam track blues-12-bar in A at 88 bpm: a shuffle strum with these shapes, with short chops on 2 and 4.",
-                "Player: Nobody Knows the Trouble I've Seen at 66 bpm, adding C7 (x32310) as a bluesy IV7.",
+                "Player: 12-Bar Blues Shuffle in A twice through: the two-string shuffle in the first chorus, the three seventh shapes around the 5th fret in the second.",
                 "Ear: the seventh-chord drill, major or dominant seventh?"
               ],
               "music": [
-                "nobody-knows",
                 "st-blues-shuffle-a"
               ],
               "theory": [
@@ -2395,7 +2427,7 @@
                 "Rhythm: tap the gallop (an eighth and two sixteenths) with the trainer.",
                 "Technique: Palm Muting at 100 bpm, then the gallop on the open string 6.",
                 "Player: Power Chords: Palm-Muted Gallop at 80, then 100 bpm.",
-                "Jam: jam track metal-aeolian in E at 120 bpm (E5, C5, D5, E5): the gallop on E5, accented chords on the changes."
+                "Jam: jam track metal-aeolian in E at 100 bpm (E5, C5, D5, E5): the gallop on E5, accented chords on the changes."
               ],
               "music": [
                 "st-power-chords-gallop",
@@ -2432,7 +2464,7 @@
               "title": "Reggae: the offbeat chop",
               "kind": "technique",
               "goal": "Play short offbeat chops in a reggae groove, muting each one at once.",
-              "explain": "In reggae the guitar plays short, crisp chords off the beat, on the and of each beat (or on beats 2 and 4 when the music is counted at half speed), on strings 4, 3 and 2, and the beats themselves belong to the bass and drums. The chop is short because you release the fretting pressure right after the strum. In the Offbeat Chops study the chords sit high on the neck, starting with Am (x-x-7-5-5-x); for a major groove, G (x-x-5-4-3-x) and C/G (x-x-5-5-5-x) sit right next to each other.",
+              "explain": "In reggae the guitar plays short, crisp chords off the beat, on the and of each beat (count the same music twice as fast and those chops fall on beats 2 and 4), on strings 4, 3 and 2, and the beats themselves belong to the bass and drums. The chop is short because you release the fretting pressure right after the strum. In the Offbeat Chops study the chords sit high on the neck, starting with Am (x-x-7-5-5-x); for a major groove, G (x-x-5-4-3-x) and C/G (x-x-5-5-5-x) sit right next to each other.",
               "show": "Rhythm line with chops on each and; chord boxes of Am (x-x-7-5-5-x), G (x-x-5-4-3-x) and C/G (x-x-5-5-5-x); audio.",
               "practice": [
                 "Rhythm: tap only the ands while the trainer plays the beat.",
@@ -2661,14 +2693,14 @@
               "id": "dev/dev-seventh-chords/four-sevenths",
               "title": "Four seventh-chord colours",
               "kind": "concept",
-              "goal": "Hear and play the four main seventh chords, maj7, 7, m7 and m7b5, in open position.",
+              "goal": "Hear the four main seventh chords, maj7, 7, m7 and m7b5, and play the major and minor sevenths in open position.",
               "explain": "Add a fourth note, the seventh, to a triad and the chord gets a whole new colour. Major seventh (1 3 5 7) is dreamy, dominant seventh (1 3 5 b7) wants to move, minor seventh (1 b3 5 b7) is smooth, half-diminished (1 b3 b5 b7) is dark and restless. Open shapes to start: Cmaj7 (x32000), Fmaj7 (xx3210), Amaj7 (x02120), Dmaj7 (xx0222), Am7 (x02010), Em7 (022030) and Dm7 (xx0211).",
               "show": "Chord boxes of the seven open shapes grouped by type; a keyboard figure of Cmaj7 = C E G B, C7 = C E G Bb, Cm7 = C Eb G Bb and Cm7b5 = C Eb Gb Bb; audio of each.",
               "practice": [
                 "Ear: the seventh-chord quality drill (maj7, 7, m7, m7b5), 10 rounds.",
                 "Mic (play-chord): the seven open shapes in turn. Without a microphone: chord-build.",
                 "Jam: jam track soul-imaj7-ivmaj7 in C at 70 bpm: Cmaj7 and Fmaj7, slow strums.",
-                "Player: Gymnopedie No. 1, the opening accompaniment only: Gmaj7 and Dmaj7, bass on beat 1 and the chord on beats 2 and 3, very slow."
+                "Player: Gymnopedie No. 1, the opening accompaniment only: Gmaj7 (3x443x) and Dmaj7 (xx0222), bass on beat 1 and the chord on beats 2 and 3, very slow."
               ],
               "music": [
                 "gymnopedie-1"
@@ -3160,7 +3192,7 @@
               "practice": [
                 "Player: Mode Study: A Dorian at 72 bpm, then Mode Study: A Mixolydian.",
                 "Jam: jam track mixolydian-i-bvii in A at 104 bpm: improvise, landing on G at least four times.",
-                "Player: Old Joe Clark at 80, then 96 bpm: every G is natural."
+                "Player: Old Joe Clark at 80, then 96 bpm: every G is natural; then Red Haired Boy, the same mode in a longer tune, in wait mode."
               ],
               "music": [
                 "st-mode-dorian",
@@ -3277,7 +3309,8 @@
               "practice": [
                 "Lesson: choice, with the capo at fret 3 you play the G, C and D shapes: which chords sound? (Bb, Eb, F).",
                 "Lesson: type-answer, move G, Em, C, D up a whole step (A, F#m, D, E).",
-                "Jam: jam track folk-i-iv-i-v in Bb at 100 bpm: capo at fret 3, play the G-shape version; then play it again with barre chords and no capo."
+                "Jam: jam track folk-i-iv-i-v in Bb at 100 bpm: capo at fret 3, play the G-shape version; then play it again with barre chords and no capo.",
+                "Player: O Come, All Ye Faithful with the capo at fret 3, so the G shapes sound in Bb; then try other capo frets and keep the one that suits your voice."
               ],
               "music": [
                 "o-come-all-ye-faithful"
@@ -3374,20 +3407,26 @@
               "title": "The audition",
               "kind": "review",
               "goal": "Play an audition that shows Elena where you stand, and set goals with numbers in them.",
-              "explain": "I listen before I teach. Play me five things: a major scale in two positions at a steady tempo, a barre-chord progression, a fingerstyle pattern, eight bars read at sight and one chorus of improvisation. Then we write down numbers, not adjectives: tempos, clean notes out of ten, clean changes per minute.",
+              "explain": "I listen before I teach. Play me five things: C major through its five positions, any major, minor or seventh chord in two places, a Travis pattern, eight bars read at sight and one chorus of improvisation across the pentatonic boxes. Then we write down numbers, not adjectives: tempos, clean notes out of ten, clean changes per minute.",
               "show": "An audition card with the five items and the measure for each (tempo, notes clean out of 10, changes per minute); a blank goal sheet.",
               "practice": [
-                "Metronome: C major in the E-shape and the A-shape positions in eighth notes, at the fastest tempo you can play cleanly three times running; note it.",
-                "Player: Reading: Fifth Position and Flats, the first 8 bars at sight at 60 bpm; note how many bars were clean.",
-                "Jam: jam track jazz-ii-v-i in C at 100 bpm: one chorus of improvisation; Record it.",
+                "Metronome: C major through all five positions, then the E-shape and A-shape positions alone in eighth notes at the fastest tempo you can play cleanly three times running; note it.",
+                "Mic (play-chord): Elena names six chords, two major, two minor and two sevenths, and you play each one in two places on the neck. Without a microphone: chord-build, two shapes for each.",
+                "Chords: one-minute changes from F (133211) to Bb (x13331); note the clean changes per minute.",
+                "Record: 8 bars of Travis Picking on C, G7 and Am at the fastest tempo at which the thumb stays steady; note the tempo.",
+                "Player: Reading: Second Position, bars 9 to 16, which Dev's course left unplayed, at sight at 60 bpm with the tab hidden; note how many bars were clean.",
+                "Jam: jam track blues-12-bar in A at 92 bpm: one chorus of improvisation through at least three of the five boxes; Record it.",
                 "Practice Plan: write three goals, each with a number and a date."
               ],
               "music": [
                 "st-caged-scale",
-                "st-read-fifth-position"
+                "tech-changes-barre",
+                "st-travis-picking",
+                "st-read-second-position",
+                "st-pent-connect"
               ],
               "theory": [],
-              "minutes": 20
+              "minutes": 25
             },
             {
               "id": "elena/elena-practice-and-precision/deliberate-practice",
@@ -3516,8 +3555,7 @@
               ],
               "music": [
                 "st-mode-dorian",
-                "st-mode-aeolian",
-                "drunken-sailor"
+                "st-mode-aeolian"
               ],
               "theory": [
                 "modes/dorian",
@@ -3731,7 +3769,7 @@
               "show": "Tab of the Speed Bursts figure (string 1 fret 8 (C), string 1 fret 7 (B), string 1 fret 5 (A), string 2 fret 8 (G)) and of Tremolo Picking; the burst-and-rest pattern as a rhythm line.",
               "practice": [
                 "Technique: Speed Bursts: once, twice, then four times in a row, with a beat of rest between bursts.",
-                "Technique: Tremolo Picking on the open string 1, sixteenths then thirty-seconds, changing notes on the beat.",
+                "Technique: Tremolo Picking on the open string 1, sixteenths, then thirty-seconds at no more than half the tempo, changing notes on the beat.",
                 "Player: In the Hall of the Mountain King with its tempo ramp from 60 toward 160 bpm, strictly alternate picked; then the William Tell galop and the Caprice No. 24 theme as longer goals."
               ],
               "music": [
@@ -3887,7 +3925,7 @@
               "title": "Shell voicings on a ii-V-I",
               "kind": "technique",
               "goal": "Comp a ii-V-I in C with three-note shells: root, third and seventh.",
-              "explain": "The third and the seventh define a chord's quality; the fifth adds almost nothing, so jazz guitarists drop it. The shells: Dm7 (x535xx), G7 (3x34xx) and Cmaj7 (x324xx). The root moves between strings 5 and 6, so the hand barely moves.",
+              "explain": "The third and the seventh define a chord's quality; the fifth adds almost nothing unless it is altered (as in m7b5), so jazz guitarists drop it. The shells: Dm7 (x535xx), G7 (3x34xx) and Cmaj7 (x324xx). The root moves between strings 5 and 6, so the hand barely moves.",
               "show": "Chord boxes of the three shells with root, third and seventh labelled; notation of the comp in quarter notes and in the Charleston rhythm.",
               "practice": [
                 "Mic (play-chord): the three shells. Without a microphone: chord-build.",
@@ -4307,7 +4345,8 @@
               "practice": [
                 "Lesson: fill-blanks, the qualities of the harmonic-minor sevenths.",
                 "Jam: jam track classical-minor-cadence in A at 66 bpm (Am, Dm, E7, Am): A harmonic minor, landing on G# over the E7.",
-                "Player: Rondo alla Turca (theme) at 80, then 108 bpm: its opening turn, B A G# A, is the raised seventh at work."
+                "Player: Rondo alla Turca (theme) at 80, then 108 bpm: its opening turn, B A G# A, is the raised seventh at work.",
+                "Player: Hungarian Dance No. 5 (theme), a second harmonic-minor showpiece, as a duet with the app on the chords: mark its sudden slow-downs and speed-ups and make them yours."
               ],
               "music": [
                 "rondo-alla-turca",
@@ -4318,7 +4357,7 @@
                 "seventh-chords/sevenths-in-a-minor-key",
                 "minor-key-harmony/the-major-v"
               ],
-              "minutes": 15
+              "minutes": 20
             },
             {
               "id": "elena/elena-minor-harmony/phrygian-dominant-and-solea",
@@ -4463,10 +4502,12 @@
               "practice": [
                 "Technique: Free-Stroke Arpeggios (p i m a), up the ladder.",
                 "Player: Arpeggio Studies from Op. 1, one study per day, at 60, then 72 bpm.",
+                "Player: Aguado's Estudio in A minor, a short arpeggio study with no barre chords, in wait mode, then at 66 bpm.",
                 "Record: one study; listen for any finger that is louder or late."
               ],
               "music": [
                 "giuliani-op1-arpeggios",
+                "aguado-estudio-a-minor",
                 "tech-pima-free-stroke"
               ],
               "theory": [],
@@ -4487,7 +4528,6 @@
               "music": [
                 "carulli-andantino-op241-no5",
                 "sor-op60-no1",
-                "aguado-estudio-a-minor",
                 "minuet-in-g-two-voice"
               ],
               "theory": [
@@ -4634,8 +4674,8 @@
               "title": "Longer forms: Gran Vals and Coste",
               "kind": "song",
               "goal": "Play a longer piece with several sections, Gran Vals or Coste's study Op. 38 No. 1, and shape its form.",
-              "explain": "Longer pieces need a plan: know the sections, decide the dynamic of each, and mark where you breathe. Gran Vals has several themes and harmonics; Coste's A minor study, about 67 bars long, is a Romantic study in position playing. Practise the hardest bars first, then the joins between sections, and only then the whole.",
-              "show": "A form map of Gran Vals (its themes in order) with a dynamics plan and the harmonics passages marked.",
+              "explain": "Longer pieces need a plan: know the sections, decide the dynamic of each, and mark where you breathe. Gran Vals has several themes; Coste's A minor study, about 67 bars long, is a Romantic study in position playing. Practise the hardest bars first, then the joins between sections, and only then the whole.",
+              "show": "A form map of Gran Vals (its themes in order) with a dynamics plan and the joins between sections marked.",
               "practice": [
                 "Player: the hardest 4 bars of Gran Vals on loop at 60 bpm, then the joins between sections.",
                 "Player: Gran Vals complete at 90, then 120 bpm.",
@@ -4774,7 +4814,7 @@
               "explain": "Sight-reading is a different skill from reading slowly: you must keep going. Before playing, take thirty seconds: key, meter, highest and lowest notes, and any rhythm that looks hard. Then play at a tempo slow enough that you never stop, with your eyes a little ahead; ten minutes of new material every day beats an hour once a week.",
               "show": "The 30-second preview checklist; a sight-reading score card (bars played without stopping).",
               "practice": [
-                "Player: one unseen 8-bar reading passage every day, at sight, at 60 bpm (see gaps for the passage generator).",
+                "Player: one 8-bar passage you have never played, every day, at sight at 60 bpm with the tab hidden: a new section of a reading study, or a songbook melody you do not know.",
                 "Player: Duet: Baroque-Style Duo in D minor at sight, the upper voice, with the app playing the bass.",
                 "Practice Plan: add a daily 10-minute sight-reading block."
               ],
@@ -4904,6 +4944,7 @@
               "explain": "Choose the key that puts the melody on the top strings and the bass on open strings where possible; for many tunes that means D, G, A, E or C. Then work in layers: the melody alone; the melody with a bass note on each strong beat; then inner notes only where the hand allows. Simpler is usually better: two good voices beat four crowded ones.",
               "show": "Three layers of an arrangement of The Ash Grove in G as tab: melody only, melody and bass, and the full setting.",
               "practice": [
+                "Player: Danny Boy (chord melody) as a model: play its first 8 bars and name the three layers, melody, bass and filling, as you hear them.",
                 "Create: arrange Shenandoah, or another traditional tune from the songbook, in D: layer 1, then layer 2, then layer 3.",
                 "Scan: write it out or type it in as tab so the Player can play it back.",
                 "Record: your arrangement, and compare it with your plan."
@@ -4934,8 +4975,7 @@
               ],
               "music": [
                 "the-entertainer",
-                "maple-leaf-rag",
-                "st-ragtime-blues-c"
+                "maple-leaf-rag"
               ],
               "theory": [
                 "triplets-swing-syncopation/syncopation"
@@ -4950,6 +4990,7 @@
               "explain": "Counterpoint is two melodies that are each complete and that fit together: contrary motion, independent rhythms and consonances on the strong beats. The Two-Voice Invention study states a short subject in one voice and imitates it in the other, modulates to G major and returns to E minor. Play it, then write eight bars of your own on the same plan.",
               "show": "Notation of the first 4 bars of the invention with the subject bracketed in each voice.",
               "practice": [
+                "Player: Bach's Bourree in E minor, the first half, as a model: the bass line alone, the treble alone, then both, hearing each line as a finished melody.",
                 "Player: Two-Voice Invention for Solo Guitar, section by section, in wait mode.",
                 "Player: the whole invention at 50, then 66 bpm.",
                 "Create: an 8-bar two-voice piece: a 2-bar subject in the treble, imitated in the bass."
@@ -5077,7 +5118,7 @@
               "kind": "concept",
               "goal": "Memorise a piece securely, with several kinds of memory backing each other up.",
               "explain": "Finger memory alone can fail under pressure, and it tends to fail at the worst moment. Back it up with aural memory (you can sing it), visual memory (you see the shapes and the score) and analytical memory (you know the harmony and the form). Test it: start from any section, play it in your head away from the guitar, and write out the form.",
-              "show": "A memory map of the piece you are learning: its form, keys and cadences, and a starting point for each section.",
+              "show": "A memory map of the piece you are learning (Lagrima or the Prelude BWV 999 make good first subjects): its form, keys and cadences, and a starting point for each section.",
               "practice": [
                 "Away from the guitar: write the form and the chords of your current piece from memory.",
                 "Player: pick five bars at random and start the piece from each of them.",
@@ -5117,7 +5158,7 @@
               "kind": "milestone",
               "goal": "Give a 15-minute recital of contrasting pieces and write your own plan for the next year.",
               "explain": "A recital is a programme, not a list: open with something secure, put the most demanding piece in the middle, and end with something that leaves them smiling. Include one piece of your own, one classical piece, and one jazz or blues performance. Afterwards write your plan for the next year: you no longer need a teacher to tell you what is next, only the habit of asking.",
-              "show": "A programme builder with slots for an opener, a centrepiece, an original, a jazz or blues piece and a closer, timed to about 15 minutes.",
+              "show": "A programme builder with slots for an opener, a centrepiece, an original, a jazz or blues piece and a closer, timed to about 15 minutes; for example Gran Vals to open, Asturias as the centrepiece and the jazz-ballad chord melody as the jazz piece.",
               "practice": [
                 "Practice Plan: build the programme and a four-week preparation schedule.",
                 "Record: the full recital, start to finish, introducing each piece in one sentence.",

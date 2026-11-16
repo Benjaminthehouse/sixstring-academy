@@ -27,6 +27,8 @@
  */
 import { MarkerAnchor } from './color-markers';
 import { createFretboardDetector, type FretboardDetector } from './detector';
+import { frameStats, guide, viewStats, type FrameStats, type TrackerGuidance } from './guidance';
+import { readStringCount, stringCountDoubt } from './string-count';
 import {
   confirmFretAt,
   controlPlanePoints,
@@ -147,7 +149,20 @@ export interface TrackerUpdate {
   hint: TrackerHint | null;
   /** Marker mode with sampled colours: where each marker was seen in this frame (null = not seen), else null. */
   markers: (Point | null)[] | null;
+  /**
+   * Coaching for the camera screen (one line, most urgent first) and how far the drawn notes can be
+   * trusted right now ('auto' only for a locked board inside the operating limits). See `guidance.ts`.
+   */
+  guidance: TrackerGuidance;
+  /** The strings in view do not match the neck model (a 7-string or a bass read as a guitar): how many there seem to be; null when no doubt. While set, the board does not lock. */
+  stringsSeen: number | null;
 }
+
+/** Frames between string-count reads while locked (every frame while a candidate). */
+const STRING_READ_EVERY = 10;
+/** Smoothed doubt about the string count (and reads behind it) at which the board is held back from locking. */
+const STRING_DOUBT_LOCK = 0.2;
+const STRING_READS_MIN = 3;
 
 const DEFAULTS = {
   lockConfidence: 0.6,
@@ -295,6 +310,14 @@ export class FretboardTracker {
   private losses: number[] = [];
   /** Marker mode with sampled colours. */
   private readonly anchor = new MarkerAnchor();
+  /** Smoothed evidence that the strings in view do not match the model, reads behind it, and the count they suggest. */
+  private stringDoubt = 0;
+  private stringReads = 0;
+  private stringBest = 0;
+  private frameNo = 0;
+  /** The learner handed over a pose (calibration): their word beats the string-count check. */
+  private userVouched = false;
+  private lastStats: FrameStats = { brightness: NaN, clipped: NaN, noise: NaN };
 
   /** Create a tracker for one camera stream. */
   constructor(options: FretboardTrackerOptions = {}) {
@@ -370,6 +393,13 @@ export class FretboardTracker {
     }
     if (measured) this.accept(measured, time);
     else this.miss(time);
+    this.frameNo++;
+    if (measured && (this.current === 'candidate' || this.current === 'locked')) this.checkStrings(frame, measured);
+    else if (this.current === 'searching') this.forgetStrings();
+    // A neck whose strings do not match the model would put every note between two strings: never lock it.
+    if (this.current === 'locked' && this.stringsMismatch() && !this.userVouched) this.current = 'candidate';
+    // Light and noise change slowly: measured on every third frame.
+    if (this.frameNo % 3 === 1 || !Number.isFinite(this.lastStats.brightness)) this.lastStats = frameStats(frame, 4);
     const numbersOf = this.raw ?? (this.current === 'lost' ? (this.lastSeen?.pose ?? null) : null);
     if (this.current === 'lost' && before !== 'lost') {
       this.losses.push(time);
@@ -395,6 +425,18 @@ export class FretboardTracker {
     else if (this.current === 'lost' || result.diagnostics.reason === 'coasting') hint = 'hold-steady';
     else if (question || (this.current === 'candidate' && !numberingConfirmed)) hint = 'confirm-fret';
     else if (this.current === 'candidate') hint = 'low-confidence';
+    const stringsSeen = this.stringsMismatch() && !this.userVouched ? this.stringBest : null;
+    const shownPose = this.current === 'searching' ? null : this.shown;
+    const guidance = guide({
+      state: this.current,
+      frame: this.lastStats,
+      view: shownPose ? viewStats(shownPose) : null,
+      numberingConfirmed,
+      question: question ? { fret: question.fret } : null,
+      suggestCalibration,
+      coasting: result.diagnostics.reason === 'coasting',
+      stringsSeen,
+    });
     const out: TrackerUpdate = {
       state: this.current,
       changed: this.current !== before,
@@ -414,6 +456,8 @@ export class FretboardTracker {
         const b = this.anchor.lastBlobs[k];
         return b ? { x: b.x, y: b.y } : null;
       }) : null,
+      guidance,
+      stringsSeen,
     };
     return out;
   }
@@ -453,6 +497,8 @@ export class FretboardTracker {
     this.noBoardSince = -1;
     this.unlockedSince = this.current === 'locked' ? -1 : time;
     this.losses = [];
+    this.userVouched = true;
+    this.forgetStrings();
     this.detector.reset?.();
   }
 
@@ -507,6 +553,31 @@ export class FretboardTracker {
     this.unlockedSince = -1;
     this.losses = [];
     this.anchor.reset();
+    this.userVouched = false;
+    this.forgetStrings();
+  }
+
+  /** Read the string count off the board now and then, and smooth the doubt it gives. */
+  private checkStrings(frame: Frame, pose: FretboardPose): void {
+    if (this.userVouched) return;
+    const every = this.current === 'locked' && !this.stringsMismatch() ? STRING_READ_EVERY : 1;
+    if (this.frameNo % every !== 0 && this.stringReads >= STRING_READS_MIN) return;
+    const reading = readStringCount(frame, pose);
+    if (!reading) return;
+    const doubt = stringCountDoubt(reading);
+    this.stringDoubt += 0.4 * (doubt - this.stringDoubt);
+    this.stringReads++;
+    if (doubt > 0) this.stringBest = reading.best;
+  }
+
+  private stringsMismatch(): boolean {
+    return this.stringReads >= STRING_READS_MIN && this.stringDoubt >= STRING_DOUBT_LOCK && this.stringBest > 0;
+  }
+
+  private forgetStrings(): void {
+    this.stringDoubt = 0;
+    this.stringReads = 0;
+    this.stringBest = 0;
   }
 
   private hints(time: number): DetectOptions {

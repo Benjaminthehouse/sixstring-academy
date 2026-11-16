@@ -30,3 +30,16 @@ export { type LayoutOptions, type LayoutResult, detectLayout } from './staff/lay
 
 export { type AnalyzeOptions, type ExtractOptions, type PageAnalysis, DEFAULT_STRIP_SPACE, analyzePage, assemblePage, extractStaff, staffId } from './page';
 export { type OmrContext, type OmrDocument, type OmrImageInput, type OmrMeasureRef, type OmrProgress, type RecognizePageOptions, OmrCancelledError, isCancelled, joinPages, measuresAt, readAnalyzedPage, recognizeDocument, recognizePage, toGray } from './pipeline';
+
+// The page pipeline: one entry point, linking / reconciling staves, the quick page classifier,
+// the confidence summary, the worker, and the AI second opinion.
+export { type FusionReport, type AiEvent, type AiMeasure, type AiNote, type AiPageResult, type AiReading, type AiSystem, type OmrAiClient, type OmrAiImage, type OmrAiRequest, type ReadPageWithAiOptions, AI_MAX_SIDE, OMR_SYSTEM_PROMPT, alternativesOf, cropForAi, fuseAiReading, fuseMeasure, measureQuestionPrompt, measuresToCheck, pageReadingPrompt, parseAiMeasure, parseAiReading, parsePitchName, readPageWithAi, secondOpinionOnMeasure } from './ai-assist';
+export { OmrAiUnavailableError, createPlatformAiClient, createPlatformVisionModel } from './ai-platform';
+export { type ClassifyOptions, type PageClassification, type PageKind, classifyPage } from './classify-page';
+export { type LinkStats, alignSequences, checkMeasures, estimateRhythmFromSpacing, linkPage, linkSystem, metreTicks, midiName, reconcileRhythm, spellPitch } from './reconcile';
+export { type OmrSummary, type ProofreadItem, type RhythmSource, type SummaryCounts, GUESS, summarizeDocument, summarizePage } from './summary';
+export { type OmrClientOptions, type OmrRunOptions, type OmrWorkerClient, type OmrWorkerLike, createOmrWorker } from './worker/client';
+export { type OmrRequest, type OmrResponse, type WorkerRecognizeOptions, createOmrWorkerHandler } from './worker/protocol';
+export { recognizeTabStaff } from './tab';
+export { createNotationRecognizer, recognizeNotationStaff } from './notation';
+export { type OmrToSongOptions, omrToSong } from './to-song';

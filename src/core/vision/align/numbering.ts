@@ -13,6 +13,7 @@
  *
  * The result says which evidence was used and how sure it is; below 0.5 the UI should ask for a tap.
  */
+import { inlayPolarity } from '../inlay-polarity';
 import { DOUBLE_INLAY_FRETS, INLAY_FRETS, boardEdgeY, fretX, stringSpanAt } from '../geometry';
 import type { Frame, MarkerHint, Mat3, NeckModel, NumberingSource } from '../types';
 import { bil } from './features';
@@ -159,12 +160,12 @@ function median(values: number[]): number {
 
 /**
  * Measure inlay evidence for cells lo..hi. `polarity` is the board polarity (+1 = dark board with
- * light inlays). Samples sit between the strings (the strings are at 0.1, 0.3 and 0.5 of the
+ * light inlays), used only when the cells do not show the inlays' own (`inlayPolarity`). Samples sit between the strings (the strings are at 0.1, 0.3 and 0.5 of the
  * string span either side of the centre line; the double dots, as drawn on most necks, at 0.3).
  */
 export function measureInlays(img: GrayImage, H: Mat3, model: NeckModel, polarity: number, lo: number, hi: number): CellInlay[] {
   const yc = model.nutWidth / 2;
-  const raw: { cell: number; single: number; dbl: number; level: number }[] = [];
+  const raw: { cell: number; single: number; dbl: number; level: number; centre: number; a1: number; a2: number; b1: number; b2: number; d1: number; d2: number }[] = [];
   for (let c = lo; c <= hi; c++) {
     const x = (fretX(model, c - 1) + fretX(model, c)) / 2;
     const span = stringSpanAt(model, Math.max(0, x));
@@ -176,10 +177,18 @@ export function measureInlays(img: GrayImage, H: Mat3, model: NeckModel, polarit
     const d1 = sampleAt(img, H, x, yc - 0.3 * span);
     const d2 = sampleAt(img, H, x, yc + 0.3 * span);
     if (Number.isNaN(centre + a1 + a2 + b1 + b2 + d1 + d2)) continue;
+    raw.push({ cell: c, single: 0, dbl: 0, level: (centre + a1 + a2 + b1 + b2) / 5, centre, a1, a2, b1, b2, d1, d2 });
+  }
+  // The inlays' own polarity (black dots on a maple board with bright wires), from the cells that
+  // stand out; the board polarity only when they say nothing.
+  const pol = inlayPolarity(
+    raw.flatMap((r) => [r.centre - (r.a1 + r.a2) / 2, (r.d1 + r.d2) / 2 - (r.a1 + r.b1 + r.a2 + r.b2) / 4]),
+    polarity >= 0 ? 1 : -1,
+  );
+  for (const r of raw) {
     // A dot is small: it must stand out from the board on BOTH sides (take the smaller step).
-    const single = polarity * Math.min(centre - a1, centre - a2);
-    const dbl = polarity * Math.min(d1 - (a1 + b1) / 2, d2 - (a2 + b2) / 2);
-    raw.push({ cell: c, single, dbl, level: (centre + a1 + a2 + b1 + b2) / 5 });
+    r.single = pol * Math.min(r.centre - r.a1, r.centre - r.a2);
+    r.dbl = pol * Math.min(r.d1 - (r.a1 + r.b1) / 2, r.d2 - (r.a2 + r.b2) / 2);
   }
   // Strings, grain and lighting bias every cell alike: measure against the typical cell.
   const mSingle = median(raw.map((r) => r.single));
@@ -190,7 +199,7 @@ export function measureInlays(img: GrayImage, H: Mat3, model: NeckModel, polarit
     const prev = i > 0 && raw[i - 1].cell === r.cell - 1 ? raw[i - 1].level : NaN;
     const next = i + 1 < raw.length && raw[i + 1].cell === r.cell + 1 ? raw[i + 1].level : NaN;
     const neighbours = Number.isNaN(prev) ? next : Number.isNaN(next) ? prev : (prev + next) / 2;
-    out.push({ cell: r.cell, single: r.single - mSingle, double: r.dbl - mDouble, block: Number.isNaN(neighbours) ? 0 : polarity * (r.level - neighbours) });
+    out.push({ cell: r.cell, single: r.single - mSingle, double: r.dbl - mDouble, block: Number.isNaN(neighbours) ? 0 : pol * (r.level - neighbours) });
   }
   return out;
 }
