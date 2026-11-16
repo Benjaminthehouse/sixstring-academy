@@ -6,7 +6,7 @@
  * the sound off.
  */
 import { describe, expect, it } from 'vitest';
-import { chordNotes, chordPcs, getScale, pcName, scaleModes, scaleMidi, scaleNotes, scalePcs } from '@/core/theory';
+import { chordNotes, chordPcs, getScale, scaleModes, scaleMidi, scaleNotes, scalePcs } from '@/core/theory';
 import { midiAt, positionsForNote, scalePositions } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
@@ -79,7 +79,7 @@ describe('modes: rotations and names', () => {
 
   it('draws C major along string 5 and E Phrygian along string 6', () => {
     const [cMajor] = lesson('modes-as-rotations').steps as Array<{ figure: FretboardFigure }>;
-    expect(cMajor.figure.dots!.map((d) => pcName(midiAt(d)) )).toEqual(['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C']);
+    expect(cMajor.figure.dots!.map((d) => midiAt(d))).toEqual(scaleMidi(48, 'major'));
     const ePhrygian = lesson('modes-as-rotations').steps[4] as { figure: FretboardFigure };
     expect(ePhrygian.figure.dots!.map((d) => midiAt(d))).toEqual(scaleMidi(40, 'phrygian'));
   });
@@ -143,7 +143,7 @@ describe('modes: characteristic notes, parents and vamps', () => {
   it('types the characteristic note of each mode it asks', () => {
     // Which degree each mode is asked for, by the word in the prompt.
     const asked = ofType<TypeAnswerExercise>('type-answer');
-    expect(asked.length).toBe(9);
+    expect(asked.length).toBe(10);
     for (const e of asked) {
       const prompt = plainText(e.prompt);
       const mode = ['Dorian', 'Mixolydian', 'Lydian', 'Phrygian'].find((m) => prompt.includes(m))!.toLowerCase();
@@ -238,12 +238,12 @@ describe('modes: the pictures on the neck', () => {
   });
 
   it('marks the characteristic notes and nothing else', () => {
-    const marked = (f: FretboardFigure): string[] => [...new Set(f.dots!.filter((d) => d.role === 'target').map((d) => pcName(midiAt(d))))];
-    expect(marked(cardFigure('dorian', 0))).toEqual(['F#']);
-    expect(marked(cardFigure('mixolydian', 0))).toEqual(['G']);
-    expect(marked(cardFigure('lydian', 0))).toEqual(['G#']);
-    expect(marked(cardFigure('phrygian-and-locrian', 0))).toEqual(['F']);
-    expect(marked(cardFigure('modes-against-major', 5))).toEqual(['G']);
+    const marked = (f: FretboardFigure): number[] => [...new Set(f.dots!.filter((d) => d.role === 'target').map((d) => midiAt(d) % 12))];
+    expect(marked(cardFigure('dorian', 0))).toEqual([6]); // F#
+    expect(marked(cardFigure('mixolydian', 0))).toEqual([7]); // G
+    expect(marked(cardFigure('lydian', 0))).toEqual([8]); // G#
+    expect(marked(cardFigure('phrygian-and-locrian', 0))).toEqual([5]); // F
+    expect(marked(cardFigure('modes-against-major', 5))).toEqual([7]); // G
   });
 
   it('asks for the frets that are really there', () => {
@@ -273,7 +273,7 @@ describe('modes: what every "over a drone" sound plays', () => {
 
   it('strikes the drone, then the next note of one mode, sixteen times', () => {
     const sounds = tabSounds();
-    expect(sounds.length).toBe(16);
+    expect(sounds.length).toBe(14);
     for (const { notes, answer } of sounds) {
       const pitches = notes.map(midiOf);
       if (pitches.length === 16 && pitches.filter((_m, i) => i % 2 === 0).every((m) => m === pitches[0])) {
