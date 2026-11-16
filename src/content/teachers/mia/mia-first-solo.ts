@@ -803,7 +803,7 @@ const unit: TeacherUnit = {
     { id: 'phrase', term: 'phrase', definition: 'A short musical idea with a beginning and an end, like a sentence.' },
     { id: 'call-and-response', term: 'call and response', definition: 'One phrase asks a question and the next one answers it.' },
     { id: 'improvise', term: 'improvise', definition: 'To make up music on the spot, as you play.' },
-    { id: 'hammer-on', term: 'hammer-on', definition: 'Sounding a second note by bringing a fretting finger down hard on the string, without picking again.' },
+    { id: 'hammer-on', term: 'hammer-on', definition: 'A second note sounded without picking: a finger comes down hard and fast just behind a fret. Written h in tab.' },
     { id: 'blues-chorus', term: 'chorus', definition: 'In a blues: one time through the 12 bars of the form.' },
   ],
 };

@@ -6,7 +6,7 @@
  */
 import { chordChange, progressionChanges } from '@/core/guitar';
 import { FIRST_CHORDS } from './catalog';
-import { skillSlug } from './symbols';
+import { chordParam, skillSlug } from './symbols';
 
 // ---------------------------------------------------------------------------------------------
 // Pairs and ids
@@ -242,6 +242,57 @@ function beatWords(beats: number): string {
 
 function clampBpm(bpm: number): number {
   return Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(Number.isFinite(bpm) ? bpm : 60)));
+}
+
+// ---------------------------------------------------------------------------------------------
+// The trainer's address: `#chords--trainer--g-major--c-major--timed--t70--beats-2`
+// ---------------------------------------------------------------------------------------------
+
+/** The three ways to practise (as the trainer's mode picker names them). */
+export type TrainerModeId = 'minute' | 'timed' | 'check';
+
+/** What the address sets up besides the chords. Every field is optional. */
+export interface TrainerSetup {
+  mode?: TrainerModeId;
+  /** Tempo of "changes in time", 40–160. */
+  bpm?: number;
+  /** Beats each chord lasts in "changes in time": 8, 4, 2 or 1. */
+  beats?: number;
+}
+
+const MODE_WORDS: Readonly<Record<string, TrainerModeId>> = {
+  minute: 'minute',
+  'one-minute': 'minute',
+  timed: 'timed',
+  'in-time': 'timed',
+  check: 'check',
+  'ring-true': 'check',
+};
+
+/**
+ * Read the trainer's setting params (`timed`, `t70`, `beats-2`; see `TRAINER_OPTION`). A tempo or
+ * a number of beats without a mode means "changes in time", the only mode that uses them.
+ */
+export function trainerSetup(options: readonly string[]): TrainerSetup {
+  const out: TrainerSetup = {};
+  for (const raw of options) {
+    const p = raw.trim().toLowerCase();
+    let m: RegExpExecArray | null;
+    if (MODE_WORDS[p]) out.mode = MODE_WORDS[p];
+    else if ((m = /^t(\d{2,3})$/.exec(p))) out.bpm = clampBpm(Number(m[1]));
+    else if ((m = /^beats-(\d)$/.exec(p)) && BEAT_STEPS.includes(Number(m[1]))) out.beats = Number(m[1]);
+  }
+  if (!out.mode && (out.bpm !== undefined || out.beats !== undefined)) out.mode = 'timed';
+  return out;
+}
+
+/** Route params for the trainer on some chords, set up: `['trainer', 'g-major', 'c-major', 'timed', 't70', 'beats-2']`. */
+export function trainerParams(chords: readonly string[], setup: TrainerSetup = {}): string[] {
+  const out = ['trainer', ...chords.map((c) => chordParam(c))];
+  if (setup.mode && !(setup.mode === 'timed' && (setup.bpm !== undefined || setup.beats !== undefined))) out.push(setup.mode);
+  if (setup.bpm !== undefined) out.push(`t${clampBpm(setup.bpm)}`);
+  if (setup.beats !== undefined && BEAT_STEPS.includes(setup.beats)) out.push(`beats-${setup.beats}`);
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -50,12 +50,14 @@ export const higherLower = defineGenerator({
   params: [
     { name: 'maxSemitones', type: 'number', default: '12', description: 'Largest gap in half steps (the easiest questions).' },
     { name: 'minSemitones', type: 'number', default: '1', description: 'Smallest gap in half steps (the hardest questions).' },
+    { name: 'spelling', type: "'auto' | 'sharps' | 'flats'", default: "'auto'", description: 'How the explanation names black keys: the everyday name of each (C♯ E♭ F♯ A♭ B♭), sharps only, or flats only.' },
   ],
   check: (p) =>
     checkParams()
       .int('maxSemitones', p.maxSemitones, 1, 12)
       .int('minSemitones', p.minSemitones, 1, 12)
-      .need((p.minSemitones ?? 1) <= (p.maxSemitones ?? 12), '"minSemitones" must not be larger than "maxSemitones".').problems,
+      .need((p.minSemitones ?? 1) <= (p.maxSemitones ?? 12), '"minSemitones" must not be larger than "maxSemitones".')
+      .oneOf('spelling', p.spelling, ['auto', 'sharps', 'flats']).problems,
   make(p, { rng, difficulty }) {
     const min = p.minSemitones ?? 1;
     const max = p.maxSemitones ?? 12;
@@ -66,8 +68,10 @@ export const higherLower = defineGenerator({
     const up = rng.chance();
     const first = rng.range(52, 62);
     const second = first + (up ? gap : -gap);
-    const a = midiToNote(first);
-    const b = midiToNote(second);
+    // Before flats (or sharps) are taught, a lesson can ask for the names it has taught.
+    const prefer = p.spelling === 'sharps' || p.spelling === 'flats' ? p.spelling : 'auto';
+    const a = midiToNote(first, { prefer });
+    const b = midiToNote(second, { prefer });
     const out: ListenChoiceExercise = {
       type: 'listen-choice',
       sound: { kind: 'notes', notes: [a, b], tempo: 66 },
@@ -173,6 +177,14 @@ const CADENCE_PHRASES: Record<CadenceType, string[]> = {
   deceptive: ['I', 'IV', 'V', 'vi'],
 };
 
+// The same phrases in a minor key, with the major V that minor keys use for their cadences.
+const MINOR_CADENCE_PHRASES: Record<CadenceType, string[]> = {
+  authentic: ['i', 'iv', 'V', 'i'],
+  half: ['i', 'bVI', 'iv', 'V'],
+  plagal: ['i', 'V', 'iv', 'i'],
+  deceptive: ['i', 'iv', 'V', 'bVI'],
+};
+
 const CADENCE_LABELS: Record<CadenceType, string> = {
   authentic: 'Authentic: {r:V} to {r:I}',
   half: 'Half: it stops on {r:V}',
@@ -180,18 +192,35 @@ const CADENCE_LABELS: Record<CadenceType, string> = {
   deceptive: 'Deceptive: {r:V} to {r:vi}',
 };
 
+const MINOR_CADENCE_LABELS: Record<CadenceType, string> = {
+  authentic: 'Authentic: {r:V} to {r:i}',
+  half: 'Half: it stops on {r:V}',
+  plagal: 'Plagal: {r:iv} to {r:i}',
+  deceptive: 'Deceptive: {r:V} to {r:bVI}',
+};
+
 export const cadenceEar = defineGenerator({
   kind: 'cadence-ear',
   summary: 'Hear a four-chord phrase and name the cadence that ends it.',
   produces: ['listen-choice'],
-  params: [{ name: 'types', type: "('authentic' | 'half' | 'plagal' | 'deceptive')[]", default: "['authentic', 'half']", description: 'Cadence pool, easiest first (at least two).' }],
+  params: [
+    { name: 'types', type: "('authentic' | 'half' | 'plagal' | 'deceptive')[]", default: "['authentic', 'half']", description: 'Cadence pool, easiest first (at least two).' },
+    { name: 'modes', type: "('major' | 'minor')[]", default: "['major']", description: 'Keys of the phrases. Minor phrases use the major V: i iv V i.' },
+  ],
   check: (p) =>
-    checkParams().list('types', p.types, (t) => t in CADENCE_PHRASES, "['authentic', 'half']", 2).need(!p.types || new Set(p.types).size === p.types.length, '"types" lists a cadence twice. List each once.').problems,
+    checkParams()
+      .list('types', p.types, (t) => t in CADENCE_PHRASES, "['authentic', 'half']", 2)
+      .need(!p.types || new Set(p.types).size === p.types.length, '"types" lists a cadence twice. List each once.')
+      .list('modes', p.modes, (m) => m === 'major' || m === 'minor', "['major', 'minor']").problems,
   make(p, { rng, difficulty }) {
     const inPlay: CadenceType[] = pool<CadenceType>(p.types ?? ['authentic', 'half'], difficulty, 2);
     const type = rng.pick(inPlay);
-    const key = `${rng.pick(['C', 'G', 'D', 'A', 'F'])} major`;
-    const chords = progressionToChords(CADENCE_PHRASES[type], key);
+    const modes = new Set(p.modes ?? ['major']);
+    // One mode: no extra draw, so major-only steps come out as they always did.
+    const minor = modes.size === 1 ? modes.has('minor') : rng.chance();
+    const key = minor ? `${rng.pick(['A', 'E', 'D', 'B', 'G'])} minor` : `${rng.pick(['C', 'G', 'D', 'A', 'F'])} major`;
+    const labels = minor ? MINOR_CADENCE_LABELS : CADENCE_LABELS;
+    const chords = progressionToChords((minor ? MINOR_CADENCE_PHRASES : CADENCE_PHRASES)[type], key);
     const cadence = classifyCadence(chords, key);
     // The phrase table is typed by hand; the engine must agree with it before it is taught.
     if (!cadence || cadence.type !== type) throw new RangeError(`The ${type} phrase ${chords.join(' ')} was classified as ${cadence?.type ?? 'nothing'}`);
@@ -199,7 +228,7 @@ export const cadenceEar = defineGenerator({
     const out: ListenChoiceExercise = {
       type: 'listen-choice',
       sound: { kind: 'progression', chords, tempo: 84, beats: 2 },
-      options: labelled(rng, type, inPlay.filter((t) => t !== type), (t) => CADENCE_LABELS[t]),
+      options: labelled(rng, type, inPlay.filter((t) => t !== type), (t) => labels[t]),
       prompt: 'How does this phrase end?',
       explain: `It ended {c:${last[0]}} to {c:${last[1]}} in {k:${key}}: {r:${cadence.romans[0]}} to {r:${cadence.romans[1]}}. ${cadence.description}`,
     };

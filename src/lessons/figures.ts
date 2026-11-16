@@ -19,6 +19,7 @@ import {
 import { COUNT_LIMITS, MAX_FRET } from './limits';
 import { parseDuration, parseRhythm, parseStrum, type ParsedRhythm, type RhythmEvent, type StrumSlot } from './rhythm';
 import { soundPlan, soundProblems, tabProblems, type SoundPlan } from './sound';
+import { inferSpelling, keySpelling, spellPitch, spellingOfName, tabMidi, type SpellContext } from './spelling';
 import type {
   AudioFigure, ChordFigure, CircleFigure, DotRole, Figure, FretboardFigure, FretDot, KeyboardFigure, RhythmFigure,
   StaffAccidental, StaffFigure, TabFigure,
@@ -61,7 +62,7 @@ function rootPc(root: string | undefined): number | null {
   return root === undefined ? null : (parseNote(root)?.chroma ?? null);
 }
 
-/** The frets range to draw: the declared one, widened to hold every dot. */
+/** The frets range to draw: the declared one, widened to hold every dot. Frets count from the capo. */
 function fretWindow(declared: [number, number] | undefined, dotFrets: readonly number[]): [number, number] {
   let [lo, hi] = declared ?? [0, 4];
   for (const fret of dotFrets) {
@@ -69,6 +70,19 @@ function fretWindow(declared: [number, number] | undefined, dotFrets: readonly n
     hi = Math.max(hi, fret);
   }
   return [lo, hi];
+}
+
+/**
+ * The frets ON THE WOOD that show a window counted from a capo (what the drawn board takes): the
+ * window moves up by the capo, and a window that starts at the capo shows the nut and the capo
+ * too when the board stays within the widest a phone shows. Without a capo it is the window itself.
+ */
+export function boardFrets(window: [number, number], capo: number): [number, number] {
+  if (!capo) return window;
+  const [lo, hi] = window;
+  const top = hi + capo;
+  const from = lo > 0 ? lo + capo : top + 1 <= COUNT_LIMITS.fretSpan[1] ? 0 : capo;
+  return [from, top];
 }
 
 function roleOfDegree(degree: string): DotRole {
@@ -98,7 +112,10 @@ export interface ResolvedFretboard {
   kind: 'fretboard';
   tuning: Tuning;
   capo: number;
+  /** First and last fret of the window, counted from the capo (as the dots are). */
   frets: [number, number];
+  /** The same window as frets on the wood, for the drawn board (`Fretboard`'s `frets` with `capo`). */
+  board: [number, number];
   dots: ResolvedDot[];
   labels: 'note' | 'degree' | 'finger' | 'none';
   root: string | null;
@@ -153,6 +170,7 @@ function fretboardProblems(figure: FretboardFigure): string[] {
   if (figure.root !== undefined && rootPc(figure.root) === null) {
     problems.push(`The root "${figure.root}" is not a note. Write it like A or F#.`);
   }
+  if (figure.key !== undefined && !keySpelling(figure.key)) problems.push(`"${figure.key}" is not a key. Write it like "A major" or "E minor".`);
   if (figure.derive) {
     const d = figure.derive;
     if ('scale' in d) {
@@ -229,24 +247,47 @@ function resolveFretboard(figure: FretboardFigure): ResolvedFretboard {
   const derive = figure.derive;
   const root = figure.root ?? (derive && 'scale' in derive ? derive.tonic : derive && 'chord' in derive ? (parseChord(derive.chord)?.root ?? null) : null);
   const pc = rootPc(root ?? undefined);
-  const context = derive && 'scale' in derive ? { tonic: derive.tonic, scale: derive.scale } : derive && 'chord' in derive ? { chord: derive.chord } : undefined;
   const byKey = new Map<string, FretDot>();
   for (const dot of derivedDots(figure)) byKey.set(`${dot.string}:${dot.fret}`, dot);
   // Hand-placed dots win over derived ones at the same place.
   for (const dot of figure.dots ?? []) byKey.set(`${dot.string}:${dot.fret}`, { ...byKey.get(`${dot.string}:${dot.fret}`), ...dot });
+  const context = fretboardSpelling(figure, [...byKey.values()], opts);
 
   const dots: ResolvedDot[] = [];
   for (const dot of byKey.values()) {
     if (positionProblem(dot, opts)) continue;
     const midi = midiAt(dot, opts);
-    const note = dot.note ? (parseNote(dot.note)?.pcName ?? dot.note) : spellMidi(midi, context, { octave: false });
+    const note = dot.note ? (parseNote(dot.note)?.pcName ?? dot.note) : spellPitch(midi, context, { octave: false });
     const degree = dot.degree ?? (pc === null ? null : semitonesToDegree((midi - pc + 120) % 12));
     const role = dot.role ?? (degree ? roleOfDegree(degree) : 'tone');
     const label = dot.label ?? (labels === 'note' ? note : labels === 'degree' ? (degree ?? note) : labels === 'finger' ? (dot.finger ? String(dot.finger) : '') : '');
     dots.push({ string: dot.string, fret: dot.fret, midi, note, degree, role, label, finger: dot.finger ?? null });
   }
   dots.sort((a, b) => b.string - a.string || a.fret - b.fret);
-  return { kind: 'fretboard', tuning, capo, frets: fretWindow(figure.frets, dots.map((d) => d.fret)), dots, labels, root: root ?? null, caption: figure.caption ?? null };
+  const frets = fretWindow(figure.frets, dots.map((d) => d.fret));
+  return { kind: 'fretboard', tuning, capo, frets, board: boardFrets(frets, capo), dots, labels, root: root ?? null, caption: figure.caption ?? null };
+}
+
+/**
+ * How the unclaimed dots of a fretboard figure are named: its `key`, else its derived scale or
+ * chord, else the sharps or flats its claimed notes use, else the key all its dots imply.
+ */
+function fretboardSpelling(figure: FretboardFigure, dots: readonly FretDot[], opts: { tuning?: string; capo?: number }): SpellContext | undefined {
+  const fromKey = keySpelling(figure.key);
+  if (fromKey) return fromKey;
+  const d = figure.derive;
+  if (d && 'scale' in d) return { tonic: d.tonic, scale: d.scale };
+  if (d && 'chord' in d) return { chord: d.chord };
+  for (const dot of dots) {
+    const claimed = spellingOfName(dot.note);
+    if (claimed) return claimed;
+  }
+  const midis: number[] = [];
+  for (const dot of dots) {
+    if (positionProblem(dot, opts)) continue;
+    midis.push(midiAt(dot, opts));
+  }
+  return inferSpelling(midis) ?? undefined;
 }
 
 // ── Chord ──────────────────────────────────────────────────────────────────────────────────────
@@ -268,6 +309,8 @@ export interface ResolvedChord {
   midi: number[];
   tuning: Tuning;
   capo: number;
+  /** The guitar engine's voicing (its capo, barres and fingering), for a chord box that draws a capo. Null for a bare shape the catalog cannot name. */
+  voicing: Voicing | null;
   caption: ChordFigure['caption'] | null;
 }
 
@@ -336,6 +379,7 @@ function resolveChord(figure: ChordFigure): ResolvedChord | null {
       midi: [...voicing.midi],
       tuning,
       capo,
+      voicing,
       caption,
     };
   }
@@ -356,6 +400,7 @@ function resolveChord(figure: ChordFigure): ResolvedChord | null {
       midi: named.notes.map((n) => n.midi),
       tuning,
       capo,
+      voicing: null,
       caption,
     };
   } catch {
@@ -656,6 +701,7 @@ export interface ResolvedTab {
 
 function tabFigureProblems(figure: TabFigure): string[] {
   const problems = [...tuningProblem(figure.tuning), ...capoProblem(figure.capo)];
+  if (figure.key !== undefined && !keySpelling(figure.key)) problems.push(`"${figure.key}" is not a key. Write it like "A major" or "E minor".`);
   if (problems.length > 0) return problems;
   if (figure.time !== undefined && !parseTimeSignature(figure.time)) problems.push(`"${figure.time}" is not a time signature. Write it like 4/4 or 6/8.`);
   problems.push(...tabProblems(figure.notes, figure));
@@ -667,6 +713,8 @@ function resolveTab(figure: TabFigure): ResolvedTab {
   const tuning = tuningOf(figure.tuning) ?? resolveTuning();
   const capo = figure.capo ?? 0;
   const notes: ResolvedTab['notes'] = [];
+  // Named in the phrase's key: an A major line has C♯, never D♭.
+  const context = keySpelling(figure.key) ?? inferSpelling(tabMidi(figure.notes, { tuning: figure.tuning, capo })) ?? undefined;
   let tick = 0;
   for (const n of figure.notes) {
     const d = parseDuration(n.duration);
@@ -675,7 +723,7 @@ function resolveTab(figure: TabFigure): ResolvedTab {
       notes.push({ rest: true, string: null, fret: null, midi: null, note: null, tick, ticks: d.ticks, duration: n.duration });
     } else if (!positionProblem(n, figure)) {
       const midi = midiAt(n, { tuning: figure.tuning, capo });
-      notes.push({ rest: false, string: n.string, fret: n.fret, midi, note: spellMidi(midi), tick, ticks: d.ticks, duration: n.duration });
+      notes.push({ rest: false, string: n.string, fret: n.fret, midi, note: spellPitch(midi, context), tick, ticks: d.ticks, duration: n.duration });
     }
     tick += d.ticks;
   }

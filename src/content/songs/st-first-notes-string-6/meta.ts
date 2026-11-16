@@ -8,7 +8,7 @@ export default defineSong({
   level: 1,
   style: 'latin',
   kind: 'study',
-  key: 'E minor',
+  key: 'E Phrygian',
   teaches: ['E, F and G on the thickest string', 'Finger 1 on fret 1, finger 3 on fret 3', 'Quarter and half notes', 'The Spanish sound of E against F'],
   skills: ['melody', 'rhythm'],
   tags: ['string 6', 'low e', 'one string', 'first position', 'spanish'],

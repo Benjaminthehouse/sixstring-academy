@@ -1,8 +1,7 @@
 import { defineSong } from '../types';
 
-// Key: the music centres on E (E Phrygian: the notes of A minor, home on the E chord). The content
-// test's key reader (parseKey) knows only major and minor, so the key is written as A minor, which
-// gives the right key signature (no sharps or flats); teaches names the mode.
+// Key: the music centres on E (E Phrygian: the notes of A minor, no sharps or flats, home on the
+// E chord).
 export default defineSong({
   title: 'Andalusian Cadence with Rasgueado',
   composer: 'Sixstring Academy',
@@ -11,7 +10,7 @@ export default defineSong({
   level: 5,
   style: 'latin',
   kind: 'study',
-  key: 'A minor',
+  key: 'E Phrygian',
   teaches: ['The Andalusian cadence: Am, G, F, E', 'A four-finger rasgueado, then thumb strokes', 'E Phrygian: the home chord is E', 'The small F (xx3211)'],
   skills: ['strumming', 'chords', 'rhythm', 'melody'],
   tags: ['flamenco', 'rasgueado', 'andalusian cadence', 'phrygian', 'spanish', 'waltz time'],

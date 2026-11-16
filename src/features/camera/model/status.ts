@@ -78,7 +78,7 @@ export function describeStatus(u: Pick<TrackerUpdate, 'state' | 'confidence' | '
   else if (u.state === 'lost' && lostForMs < GHOST_MS) notes = 'ghost';
   let message = g.message;
   if (u.state === 'locked' && g.code === 'ok') message = '';
-  // The tracker's own words name a "Calibrate" button; this screen's button is "Mark the neck".
+  // The tracker's own words name no button; this screen names its own ("Mark the neck") in its own voice.
   if (g.code === 'calibrate') message = MARK_THE_NECK;
   if (u.state === 'lost') message = 'Lost the neck for a moment. Hold the guitar still in the picture.';
   else if (u.state === 'locked' && behind && !message) message = 'Moving: the dots catch up when the neck holds still.';

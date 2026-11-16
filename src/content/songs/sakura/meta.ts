@@ -1,9 +1,8 @@
 import { defineSong } from '../types';
 
 // From the repertoire plan (id sakura). `plan` is left out on purpose: the plan's key is "E in",
-// which the content test's key reader (parseKey: major and minor only) cannot read, so naming the
-// plan would fail its key check whatever key is written here. E minor names the right home note;
-// the tune itself uses the in scale E F A B C, and `about` says so.
+// a five-note Japanese scale that is not a key. Its notes E F A B C are five of the seven notes
+// of E Phrygian, so the key is written as E Phrygian: home on E, no sharps or flats, F natural.
 export default defineSong({
   title: 'Sakura, Sakura',
   composer: 'Traditional Japanese',
@@ -13,7 +12,7 @@ export default defineSong({
   level: 3,
   style: 'world',
   kind: 'melody',
-  key: 'E minor',
+  key: 'E Phrygian',
   teaches: ['The Japanese in scale: E F A B C', 'Half steps: E to F and B to C', 'Playing slowly and evenly', 'A little vibrato on long notes'],
   skills: ['melody', 'technique'],
   tags: ['japanese', 'in scale', 'pentatonic', 'cherry blossom', 'koto', 'vibrato', 'slow'],

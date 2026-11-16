@@ -51,9 +51,9 @@ function fakeVideo() {
   return { video: video as unknown as HTMLVideoElement, present, pendingCallbacks: () => callbacks.size };
 }
 
-/** A worker stand-in: answers after `delayMs` (simulated processing time), on a timer. */
-function fakeWorker(delayMs: () => number, frame: Frame) {
-  const host = createVisionHost({}, { decodeBitmap: () => frame });
+/** A worker stand-in: answers after `delayMs` (simulated processing time), on a timer. `videoFrames`: it says it reads them; `readsVideoFrames` false: it says so but cannot. */
+function fakeWorker(delayMs: () => number, frame: Frame, opts: { videoFrames?: boolean; readsVideoFrames?: boolean } = {}) {
+  const host = createVisionHost({}, { decodeBitmap: () => frame, ...(opts.videoFrames && opts.readsVideoFrames !== false ? { decodeVideoFrame: () => frame } : {}) });
   const sent: VisionRequest[] = [];
   let terminated = false;
   const worker = {
@@ -65,13 +65,13 @@ function fakeWorker(delayMs: () => number, frame: Frame) {
         if (terminated) return;
         const response = host(request);
         worker.onmessage?.({ data: response });
-      }, request.type === 'bitmap' || request.type === 'frame' ? delayMs() : 0);
+      }, request.type === 'bitmap' || request.type === 'frame' || request.type === 'video-frame' ? delayMs() : 0);
     },
     terminate() {
       terminated = true;
     },
   };
-  setTimeout(() => worker.onmessage?.({ data: { type: 'ready', bitmaps: true } }), 0);
+  setTimeout(() => worker.onmessage?.({ data: { type: 'ready', bitmaps: true, videoFrames: opts.videoFrames ?? false } }), 0);
   return { worker: worker as unknown as Worker, sent, isTerminated: () => terminated };
 }
 
@@ -179,6 +179,102 @@ describe('VisionPipeline', () => {
     expect(p.latest).toBeNull();
     // Commands after stop resolve false instead of hanging.
     await expect(p.reset()).resolves.toBe(false);
+  });
+
+  it('counts the frame grab on the main thread wherever it happens (most frames are sent when the worker answers)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    // createImageBitmap(video, resize) copies and shrinks the frame synchronously on the calling
+    // thread (8-9 ms a frame in headless Chromium): a stand-in that takes 3 ms of real time.
+    const busy = (ms: number): void => {
+      const end = performance.now() + ms;
+      while (performance.now() < end);
+    };
+    vi.stubGlobal('createImageBitmap', (_v: unknown, o?: ImageBitmapOptions) => {
+      busy(3);
+      return Promise.resolve({ width: o?.resizeWidth ?? 1280, height: o?.resizeHeight ?? 720, close: () => undefined });
+    });
+    const { video, present } = fakeVideo();
+    const w = fakeWorker(() => 45, scene.frame);
+    const p = new VisionPipeline({ createWorker: () => w.worker, tracker: scene.truth.hints });
+    const started = p.start(video);
+    await vi.advanceTimersByTimeAsync(5);
+    await started;
+    for (let i = 0; i < 40; i++) {
+      present(1000 + i * 33.3);
+      await vi.advanceTimersByTimeAsync(33.3);
+    }
+    const stats = p.stats;
+    const sent = w.sent.filter((r) => r.type === 'bitmap').length;
+    expect(stats.transfer).toBe('bitmap');
+    expect(stats.grabMs).toBeGreaterThanOrEqual(2.9);
+    // About sent x 3 ms over 40 video frames; the old median per video frame saw only the cheap drops.
+    expect(stats.mainThreadMs).toBeGreaterThanOrEqual((0.9 * sent * 3) / 40);
+    expect(stats.mainThreadMaxMs).toBeGreaterThanOrEqual(2.9);
+    expect(stats.mainThreadShare).toBeGreaterThan(0);
+    p.stop();
+  });
+
+  it('hands camera frames to the worker as VideoFrames where it can, and falls back to bitmaps where it cannot', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    let bitmapsMade = 0;
+    vi.stubGlobal('createImageBitmap', async (_v: unknown, o?: ImageBitmapOptions) => {
+      bitmapsMade++;
+      return { width: o?.resizeWidth ?? 1280, height: o?.resizeHeight ?? 720, close: () => undefined };
+    });
+    let made = 0;
+    let closed = 0;
+    let refuse = false;
+    class FakeVideoFrame {
+      constructor() {
+        if (refuse) throw new DOMException('cannot wrap this video', 'InvalidStateError');
+        made++;
+      }
+      close(): void {
+        closed++;
+      }
+    }
+    vi.stubGlobal('VideoFrame', FakeVideoFrame);
+    const run = async (worker: ReturnType<typeof fakeWorker>, frames: number): Promise<VisionPipeline> => {
+      const { video, present } = fakeVideo();
+      const p = new VisionPipeline({ createWorker: () => worker.worker, tracker: scene.truth.hints });
+      const started = p.start(video);
+      await vi.advanceTimersByTimeAsync(5);
+      await started;
+      for (let i = 0; i < frames; i++) {
+        present(1000 + i * 33.3);
+        await vi.advanceTimersByTimeAsync(33.3);
+      }
+      await vi.advanceTimersByTimeAsync(100);
+      return p;
+    };
+    // The worker reads VideoFrames: no bitmap is made on this thread, every frame is closed after reading.
+    const w1 = fakeWorker(() => 20, scene.frame, { videoFrames: true });
+    const p1 = await run(w1, 20);
+    const sent1 = w1.sent.filter((r) => r.type === 'video-frame') as Extract<VisionRequest, { type: 'video-frame' }>[];
+    expect(p1.stats.transfer).toBe('video-frame');
+    expect(sent1.length).toBeGreaterThan(10);
+    expect(sent1[0].width).toBe(640);
+    expect(sent1[0].height).toBe(360);
+    expect(bitmapsMade).toBe(0);
+    expect(closed).toBe(made);
+    expect(p1.latest?.update.state).toBe('locked');
+    p1.stop();
+    // A worker that turns out not to read them: one error, then bitmaps.
+    const w2 = fakeWorker(() => 20, scene.frame, { videoFrames: true, readsVideoFrames: false });
+    const p2 = await run(w2, 12);
+    expect(w2.sent.filter((r) => r.type === 'video-frame').length).toBe(1);
+    expect(p2.stats.transfer).toBe('bitmap');
+    expect(p2.latest?.update.state).not.toBe('searching');
+    p2.stop();
+    // A browser that cannot wrap the video: bitmaps at once, same frame.
+    refuse = true;
+    bitmapsMade = 0;
+    const w3 = fakeWorker(() => 20, scene.frame, { videoFrames: true });
+    const p3 = await run(w3, 8);
+    expect(w3.sent.filter((r) => r.type === 'video-frame').length).toBe(0);
+    expect(w3.sent.filter((r) => r.type === 'bitmap').length).toBeGreaterThan(4);
+    expect(p3.stats.transfer).toBe('bitmap');
+    p3.stop();
   });
 
   it('falls back to running the tracker without a worker when none can be made', async () => {

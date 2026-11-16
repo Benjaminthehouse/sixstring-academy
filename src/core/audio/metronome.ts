@@ -120,6 +120,14 @@ export function isSilentBar(cfg: SilentBarsConfig | null | undefined, barIndex: 
 export const MIN_TEMPO = 20;
 export const MAX_TEMPO = 400;
 
+/**
+ * Seconds between Start and the first click of the metronome's own transport. A song or a band
+ * waits longer (0.08 s) so their first notes can be rendered; a click is rendered before Start
+ * (`preloadClicks`), so the metronome only needs the audio thread's next buffer or two: measured in
+ * Chromium, a click scheduled this far ahead is never late (`e2e/audio-expression.cjs`).
+ */
+export const METRONOME_START_DELAY = 0.02;
+
 /** Tap tempo: feed it tap times, get the tempo. Forgets the run after a pause. */
 export class TapTempo {
   private taps: number[] = [];
@@ -249,7 +257,7 @@ export class Metronome {
     this.accentLevels = defaultAccents(this.meterInfo);
     this.tempoBpm = clampTempo(opts.tempo ?? 100);
     this.output = opts.output ?? { click: (set, level, time, gain) => playClick(set, level, time, gain) };
-    this.transport = opts.transport ?? new Transport({ clock: opts.clock ?? engineClock, timer: opts.timer, timeSignature: this.ts, bpm: this.quarterBpm() });
+    this.transport = opts.transport ?? new Transport({ clock: opts.clock ?? engineClock, timer: opts.timer, timeSignature: this.ts, bpm: this.quarterBpm(), startDelay: METRONOME_START_DELAY });
     if (!this.owns) {
       this.meterInfo = this.transport.meter;
       this.accentLevels = defaultAccents(this.meterInfo);

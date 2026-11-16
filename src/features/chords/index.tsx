@@ -5,7 +5,8 @@
  *   #chords                          the library: first-chords path, by type, by root, search, mine
  *   #chords--g-major, #chords--g     a chord page (theory `chordSlug`, also skill slugs `f-sharp-m`)
  *   #chords--c-major-over-e          a slash chord;  #chords--f-major--2  opens on its second shape
- *   #chords--trainer[--g-major--c-major]   the chord-change trainer (also `--changes`)
+ *   #chords--trainer[--g-major--c-major]   the chord-change trainer (also `--changes`), set up with
+ *                                    `--minute` / `--timed` / `--check`, `--t70`, `--beats-2` (see API.md)
  *   #chords--identify[--x32010]      name that shape
  *   #chords--mine                    my chords
  *   #chords--type--m7, #chords--root--f-sharp   the library opened on a family or a root
@@ -60,7 +61,7 @@ export default function ChordsScreen({ params }: RouteProps) {
     case 'chord':
       return <ChordScreen symbol={view.symbol} voicing={view.voicing} wide={wide} known={known} tuning={tuning} tuningNote={tuningNote} />;
     case 'trainer':
-      return <Trainer chordsFromUrl={view.chords} tuning={tuning} known={known} />;
+      return <Trainer chordsFromUrl={view.chords} optionsFromUrl={view.options} tuning={tuning} known={known} />;
     case 'identify':
       return (
         <Page title="Name that shape" subtitle="Tap frets on the neck and the app names the chord, with every other name it goes by." back={{ to: 'chords', label: 'Chords' }}>

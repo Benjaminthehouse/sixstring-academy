@@ -94,16 +94,20 @@ function beatText(piece: Piece): string {
   const strokeMods = !continuation && beat.stroke ? [beat.stroke === 'down' ? 'dn' : 'up'] : [];
   if (beat.slash) {
     if (continuation) return 'r';
-    if (beat.mutedStrum) return `X${strokeMods.length && beat.stroke ? `{${strokeMods.join(' ')}}` : ''}`;
-    if (beat.stroke === 'down') return 'D';
-    if (beat.stroke === 'up') return 'U';
-    return '/';
+    const accent = beat.accent ? '>' : '';
+    if (beat.mutedStrum) return `X${accent}${strokeMods.length && beat.stroke ? `{${strokeMods.join(' ')}}` : ''}`;
+    if (beat.stroke === 'down') return `D${accent}`;
+    if (beat.stroke === 'up') return `U${accent}`;
+    return `/${accent}`;
   }
   if (!beat.notes.length) return 'r';
   const notes = [...beat.notes].sort((a, b) => b.string - a.string);
-  if (notes.length === 1) return noteText(notes[0], strokeMods, continuation);
-  const inner = notes.map((n) => noteText(n, [], continuation)).join(' ');
-  return strokeMods.length ? `(${inner}){${strokeMods.join(' ')}}` : `(${inner})`;
+  if (notes.length === 1) return noteText(beat.accent && !continuation ? { ...notes[0], accent: true } : notes[0], strokeMods, continuation);
+  // An accented strum ({ac} after the group) accents every note of it, so the notes need no ">" of their own.
+  const groupAccent = !!beat.accent && !continuation;
+  const inner = notes.map((n) => noteText(groupAccent ? { ...n, accent: false } : n, [], continuation)).join(' ');
+  const mods = [...strokeMods, ...(groupAccent ? ['ac'] : [])];
+  return mods.length ? `(${inner}){${mods.join(' ')}}` : `(${inner})`;
 }
 
 /** True for a beat a lyrics line sings on (the parser's rule: a slash, or notes that are not all tied). */
@@ -120,7 +124,8 @@ export function sixTabLosses(song: Song): string[] {
         if (b.notes.some((n) => n.length !== undefined)) out.push(`Bar ${bar + 1} of "${t.name}": held note lengths (merged voices) are dropped.`);
         if (!valueFromTicks(b.duration)) out.push(`Bar ${bar + 1} of "${t.name}": a ${b.duration}-tick beat is written as tied notes.`);
         if (b.text) out.push(`Bar ${bar + 1} of "${t.name}": beat text becomes an annotation.`);
-      }),
+        if (b.accent && b.notes.length === 1 && !b.notes[0].accent) out.push(`Bar ${bar + 1} of "${t.name}": an accented single-note beat is written as an accented note.`);
+        if (b.accent && b.notes.length > 1 && !b.notes.every((n) => n.accent)) out.push(`Bar ${bar + 1} of "${t.name}": an accented chord accents each of its notes.`);      }),
     ),
   );
   for (const tc of song.tempo) if ((tc.tick ?? 0) > 0) out.push(`Bar ${tc.bar + 1}: a tempo change inside the bar moves to the bar line.`);

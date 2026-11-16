@@ -764,7 +764,7 @@ export function getEngine(): AudioEngine {
   shared = engine;
   applyWanted(engine);
   engine.onUnlocked = () => {
-    for (const fn of unlockHooks) {
+    for (const fn of [...unlockHooks]) {
       try {
         fn();
       } catch {
@@ -963,16 +963,17 @@ export function getOutputLevel(): OutputLevel {
 
 /**
  * Run `fn` when the sound scheduled at audio time `time` is actually heard: the way to keep
- * visuals in step with scheduled notes.
+ * visuals in step with scheduled notes. Returns a function that cancels it (a no-op once it has
+ * run): call it when the sound is stopped or the screen unmounts.
  */
-export function scheduleVisual(time: number, fn: () => void): void {
-  if (typeof fn !== 'function') return;
+export function scheduleVisual(time: number, fn: () => void): () => void {
+  if (typeof fn !== 'function') return () => undefined;
   if (!audioSupported()) {
     // No audio clock to wait for: as soon as possible is as close as it gets.
-    setTimeout(fn, 0);
-    return;
+    const id = setTimeout(fn, 0);
+    return () => clearTimeout(id);
   }
-  getEngine().visual.add(time, fn);
+  return getEngine().visual.add(time, fn);
 }
 
 /** Seconds on a plain wall clock, for environments without Web Audio. */
@@ -994,24 +995,37 @@ export const engineClock: TransportClock = {
 const closeHooks: Array<() => void> = [];
 const unlockHooks: Array<() => void> = [];
 
+/** Take `fn` out of a list of hooks (once). */
+function unhook(list: Array<() => void>, fn: () => void): () => void {
+  return () => {
+    const i = list.indexOf(fn);
+    if (i >= 0) list.splice(i, 1);
+  };
+}
+
 /**
  * Run `fn` when the shared engine first has a running context (after the first user gesture).
  * For work that is better done before the first note is asked for, such as warming caches.
+ * Returns a function that unregisters it: a screen that goes away before the first tap calls it.
  */
-export function onAudioUnlocked(fn: () => void): void {
+export function onAudioUnlocked(fn: () => void): () => void {
+  if (typeof fn !== 'function') return () => undefined;
   unlockHooks.push(fn);
+  return unhook(unlockHooks, fn);
 }
 
-/** Run `fn` whenever the shared engine is closed, so holders of its nodes can let go of them. */
-export function onAudioClosed(fn: () => void): void {
+/** Run `fn` whenever the shared engine is closed, so holders of its nodes can let go of them. Returns an unsubscribe function. */
+export function onAudioClosed(fn: () => void): () => void {
+  if (typeof fn !== 'function') return () => undefined;
   closeHooks.push(fn);
+  return unhook(closeHooks, fn);
 }
 
 /** Close the shared context and forget it (tests, hot reload). */
 export async function closeAudio(): Promise<void> {
   const e = shared;
   shared = null;
-  for (const fn of closeHooks) fn();
+  for (const fn of [...closeHooks]) fn();
   if (!e) return;
   e.dispose();
   try {

@@ -24,8 +24,8 @@
  *           least a fifth of the frames (the outlines must not take over); the dots' median error
  *           along the neck under a fifth of a fret cell
  *  lost     the guitar vanishes for a second: no solid dot once it has been gone for 10 frames
- *  jump     the picture cuts to another guitar: reported (a known limit of the tracker: it can
- *           carry the old fret numbers across the cut); fails only below a low floor
+ *  jump     the picture cuts to another guitar: solid dots right on >= 90% of the frames that show
+ *           them (the tracker re-reads the fret numbers after a jump instead of carrying them over)
  *
  * Why it exists: the first version of the screen drew wrong dots as solid on 20-40% of frames
  * of a swaying neck when the machine was busy. `model/honesty.ts` now turns dots into outlines
@@ -160,12 +160,19 @@ async function buildVideo(A, scene) {
 // Running the screen and scoring
 // ---------------------------------------------------------------------------------------------
 
-/** Display point (CSS px of the stage, object-fit contain, maybe mirrored) -> video px. */
+/**
+ * Display point (CSS px of the stage, object-fit contain, maybe mirrored, maybe zoomed in on part of
+ * the picture: `view.crop`, fractions of the frame) -> video px. Written out here, not taken from
+ * the vision module, so the scoring does not share the screen's arithmetic.
+ */
 function toVideo(p, view, vw, vh) {
-  const s = Math.min(view.width / vw, view.height / vh);
-  let x = (p.x - (view.width - vw * s) / 2) / s;
-  const y = (p.y - (view.height - vh * s) / 2) / s;
-  if (view.mirrored) x = vw - x;
+  const c = view.crop && view.crop.width > 0 && view.crop.height > 0 ? view.crop : { x: 0, y: 0, width: 1, height: 1 };
+  const cw = c.width * vw;
+  const ch = c.height * vh;
+  const s = Math.min(view.width / cw, view.height / ch);
+  const px = view.mirrored ? view.width - p.x : p.x;
+  const x = (px - (view.width - cw * s) / 2) / s + c.x * vw;
+  const y = (p.y - (view.height - ch * s) / 2) / s + c.y * vh;
   return { x, y };
 }
 
@@ -300,7 +307,10 @@ async function runScene(A, url, scene) {
       check(g, 'locks on', r.locked, `${r.lockMs} ms`);
       check(g, 'no errors on the page', r.errors.length === 0, r.errors.slice(0, 3).join(' | '));
       if (scene.id === 'jump') {
-        check(g, 'after a cut to another guitar, solid dots are right on >= 70% of frames (known tracker limit)', s.solid === 0 || s.solidRight >= 0.7 * s.solid, `${s.solidRight}/${s.solid}`);
+        // A move much larger than the neck's usual motion re-reads the fret numbers (it used to carry
+        // the old ones across the cut and lock a fret off: src/core/vision/jump.test.ts).
+        check(g, 'after a cut to another guitar, solid dots are right on >= 90% of the frames that show them', s.solid > 0 && s.solidRight >= 0.9 * s.solid, `${s.solidRight}/${s.solid}`);
+        check(g, 'solid dots on at least a fifth of the frames with the neck in view', s.solid >= 0.2 * s.inView, `${s.solid}/${s.inView}`);
         continue;
       }
       if (scene.id === 'lost') {

@@ -3,6 +3,7 @@
  */
 export { useImmersive, requestImmersive, IMMERSIVE_ROUTES, type ImmersiveLevel } from './immersive';
 export { useScreenTitle } from './screenTitle';
+export { useRewardHold, holdRewards, rewardsHeld } from '../feedback/hold';
 export { openStats, closeStats, type StatTab } from './stats';
 export { openOnboarding } from '../onboarding/store';
 export { WeekStrip, type WeekStripProps } from './WeekStrip';

@@ -6,11 +6,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Text } from '@/ui';
 import { ChordDiagram, Fretboard, NoteBadge, type FretCell, type FretMarker } from '@/ui/music';
-import { resolveFigure } from '../../figures';
+import { resolveFigure, voicingFor } from '../../figures';
 import { fretboardNameSpec, missingChordNote, referenceFrets } from '../../grade';
 import type { ChordBuildExercise, FretboardFindExercise, FretboardNameExercise, NeckPosition } from '../../types';
 import { chordTap, findTap } from '../logic/drafts';
 import { dotColor } from '../figures/colors';
+import { ScrollHint } from '../figures/ScrollHint';
+import { useShortViewport } from '../useShortViewport';
 import { AnswerButtons, expectedValue } from './TypeViews';
 import { KeyHints } from './parts';
 import type { ExerciseViewProps } from './types';
@@ -35,22 +37,38 @@ function shownMarkers(exercise: FretboardFindExercise): FretMarker[] {
 
 // ── Find ───────────────────────────────────────────────────────────────────────────────────────
 
+/** "string 5", "strings 6 and 5", "strings 6, 5 and 4". */
+function stringsText(strings: readonly number[]): string {
+  const list = [...strings].sort((a, b) => b - a);
+  return list.length === 1 ? `string ${list[0]}` : `strings ${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
 /** Tap the asked notes on the neck. */
 export function FretFindView({ exercise, review, onDraft, hints }: ExerciseViewProps<FretboardFindExercise>) {
   const [positions, setPositions] = useState<NeckPosition[]>(() => (review?.answer?.type === 'fretboard-find' ? review.answer.positions : []));
+  const [offString, setOffString] = useState(false);
   const detail = review?.result.feedback.detail.type === 'fretboard-find' ? review.result.feedback.detail : null;
   const shown = useMemo(() => shownMarkers(exercise), [exercise]);
+  // A phone held sideways has little height: a smaller neck fits without scrolling.
+  const short = useShortViewport();
+  const allowed = exercise.strings && exercise.strings.length > 0 ? exercise.strings : null;
 
   const onCell = useCallback(
     (cell: FretCell) => {
       if (review) return;
+      // Only the strings of the question count: a tap elsewhere is not an answer.
+      if (allowed && !allowed.includes(cell.string)) {
+        setOffString(true);
+        return;
+      }
+      setOffString(false);
       setPositions((prev) => {
         const next = findTap(prev, cell, exercise.mode);
         onDraft(next.length > 0 ? { type: 'fretboard-find', positions: next } : null);
         return next;
       });
     },
-    [review, exercise.mode, onDraft],
+    [review, exercise.mode, onDraft, allowed],
   );
 
   const markers = useMemo<FretMarker[]>(() => {
@@ -68,22 +86,44 @@ export function FretFindView({ exercise, review, onDraft, hints }: ExerciseViewP
 
   return (
     <div className={styles.answerArea}>
-      <div className={styles.neck} data-native-keys="">
-        <Fretboard
-          frets={exercise.frets}
-          tuning={exercise.tuning}
-          capo={exercise.capo}
-          markers={markers}
-          onCellClick={review ? undefined : onCell}
-          cellLabels="position"
-          size="xl"
-          fretNumbers="all"
-          aria-label="Fretboard: tap the frets"
-        />
-      </div>
+      <ScrollHint className={styles.neck}>
+        <div data-native-keys="">
+          <Fretboard
+            frets={exercise.frets}
+            tuning={exercise.tuning}
+            capo={exercise.capo}
+            markers={markers}
+            onCellClick={review ? undefined : onCell}
+            cellLabels="position"
+            size={short ? 'md' : 'xl'}
+            fretNumbers="all"
+            // The strings that count are shaded; the others are drawn but take no answer.
+            box={
+              allowed
+                ? {
+                    // Frets on the wood (the box ignores the capo), strings as a span.
+                    from: Math.max(1, exercise.frets[0] + (exercise.capo ?? 0)),
+                    to: Math.max(1, exercise.frets[1] + (exercise.capo ?? 0)),
+                    strings: [Math.min(...allowed), Math.max(...allowed)] as const,
+                    label: stringsText(allowed),
+                  }
+                : undefined
+            }
+            aria-label={allowed ? `Fretboard: tap the frets on ${stringsText(allowed)}` : 'Fretboard: tap the frets'}
+          />
+        </div>
+      </ScrollHint>
       {!review && (
         <Text variant="caption" tone="muted" aria-live="polite">
-          {exercise.mode === 'all' ? `Tap every one. ${positions.length} marked; tap a mark again to remove it.` : positions.length ? 'Marked. Tap another fret to change it.' : 'Tap one fret.'}
+          {offString && allowed
+            ? `Only ${stringsText(allowed)} count here: tap there.`
+            : exercise.mode === 'all'
+              ? `Tap every one${allowed ? ` on ${stringsText(allowed)}` : ''}. ${positions.length} marked; tap a mark again to remove it.`
+              : positions.length
+                ? 'Marked. Tap another fret to change it.'
+                : allowed
+                  ? `Tap one fret on ${stringsText(allowed)}.`
+                  : 'Tap one fret.'}
         </Text>
       )}
       <KeyHints show={hints && !review}>Tab into the neck, arrows move, Space marks a fret, Enter checks.</KeyHints>
@@ -108,9 +148,9 @@ export function FretNameView({ exercise, presentation, review, onDraft, hints, n
   const frets: [number, number] = [from, Math.max(from + 4, hi + 1)];
   return (
     <div className={styles.answerArea}>
-      <div className={styles.neck}>
+      <ScrollHint className={styles.neck}>
         <Fretboard frets={frets} tuning={exercise.tuning} capo={exercise.capo} markers={markers} fretNumbers="all" size="lg" aria-label={`Fretboard: string ${exercise.position.string}, fret ${exercise.position.fret} is marked${exercise.root ? `; the root is on string ${exercise.root.string}, fret ${exercise.root.fret}` : ''}`} />
-      </div>
+      </ScrollHint>
       <AnswerButtons
         buttons={presentation.buttons}
         kind={exercise.ask === 'note' ? 'note' : exercise.ask}
@@ -151,6 +191,8 @@ function MissingNote({ exercise, presentation, review, onDraft, hints, naming }:
 
 function Fingers({ exercise, review, onDraft, hints }: ExerciseViewProps<ChordBuildExercise>) {
   const reference = useMemo(() => referenceFrets(exercise), [exercise]);
+  // The right box, drawn with its capo when it has one.
+  const referenceVoicing = useMemo(() => (reference ? voicingFor(exercise.chord, reference, { tuning: exercise.tuning, capo: exercise.capo }) : null), [reference, exercise]);
   const strings = reference?.length ?? 6;
   const [frets, setFrets] = useState<Array<number | null>>(() =>
     review?.answer?.type === 'chord-build' && review.answer.frets ? [...review.answer.frets] : Array.from({ length: strings }, () => 0),
@@ -205,9 +247,9 @@ function Fingers({ exercise, review, onDraft, hints }: ExerciseViewProps<ChordBu
             Tap a fret to put a finger there; tap it again to lift it. Tap above the nut to switch a string between open (o) and not played (×).
           </Text>
           {review && !review.result.correct && reference && (
-            <div className={styles.reference}>
-              <Text variant="label">One way to play it</Text>
-              <ChordDiagram frets={reference} chord={exercise.chord} size="sm" />
+            <div className={styles.reference} data-reference-box="">
+              <Text variant="label">{exercise.accept === 'this-shape' ? 'The shape asked for' : 'One way to play it'}</Text>
+              {referenceVoicing ? <ChordDiagram voicing={referenceVoicing} chord={exercise.chord} size="sm" /> : <ChordDiagram frets={reference} chord={exercise.chord} size="sm" />}
             </div>
           )}
         </div>

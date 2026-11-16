@@ -106,6 +106,11 @@ export interface SongMetaInput {
   about: string;
   /** The repertoire plan id (src/content/plan/repertoire.json) when the song comes from the plan. */
   plan?: string;
+  /**
+   * A reading study: the point is to read the standard notation, so the Player opens it with the
+   * staff shown above the tab (the learner can still hide it). Leave it out for everything else.
+   */
+  prefersNotation?: boolean;
   /** Date the song was added, `YYYY-MM-DD` (newest first in "Recently added"). */
   added: string;
 }

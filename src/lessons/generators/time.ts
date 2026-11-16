@@ -320,5 +320,149 @@ export const rhythmEar = defineGenerator({
   },
 });
 
+// ── Triplets and compound meters ───────────────────────────────────────────────────────────────
+
+type Feel = 'triplets' | '6/8' | '9/8' | '12/8';
+const FEELS: readonly Feel[] = ['triplets', '6/8', '9/8', '12/8'];
+
+/** One beat of compound time (a dotted quarter): its codes, and whether it holds a rest. */
+const COMPOUND_BEATS: ReadonlyArray<{ code: string; rest?: boolean }> = [
+  { code: 'q.' },
+  { code: 'q e' },
+  { code: 'e e e' },
+  { code: 'e q' },
+  { code: 'er e e', rest: true },
+  { code: 'qr e', rest: true },
+];
+
+/** One beat of 4/4 with triplets: a quarter, two eighths, an eighth-note triplet, or a half over two beats. */
+const TRIPLET_BEATS: ReadonlyArray<{ code: string; beats: 1 | 2; rest?: boolean }> = [
+  { code: 'q', beats: 1 },
+  { code: 'e e', beats: 1 },
+  { code: 'et et et', beats: 1 },
+  { code: 'h', beats: 2 },
+  { code: 'qr', beats: 1, rest: true },
+];
+
+/** One bar in a feel. A compound bar starts with a note; a triplet bar holds at least one triplet. */
+export function feelBar(rng: Rng, feel: Feel, rests: boolean): { pattern: string; time: string } {
+  if (feel === 'triplets') {
+    const pattern = retry(
+      20,
+      () => {
+        const parts: string[] = [];
+        for (let beat = 0; beat < 4; ) {
+          const fits = TRIPLET_BEATS.filter((c) => (rests || !c.rest) && !(c.rest && beat === 0) && (c.beats === 1 || (beat % 2 === 0 && beat <= 2)));
+          const cell = rng.pick(fits);
+          parts.push(cell.code);
+          beat += cell.beats;
+        }
+        return parts.join(' ');
+      },
+      (p) => p.includes('et') && !/^(et et et ?){4}$/.test(p),
+      () => 'q et et et q et et et',
+    );
+    return { pattern, time: '4/4' };
+  }
+  const beats = Number(feel.split('/')[0]) / 3;
+  const parts: string[] = [];
+  for (let beat = 0; beat < beats; beat++) {
+    parts.push(rng.pick(COMPOUND_BEATS.filter((c) => (rests || !c.rest) && !(c.rest && beat === 0))).code);
+  }
+  return { pattern: parts.join(' '), time: feel };
+}
+
+/** What to say for each note that starts, by its place: `1 2 3 4 5 6` in compound time, `1 trip let 2 &` with triplets. */
+export function feelCounts(pattern: string, time: string): string[] {
+  const parsed = parseRhythm({ pattern, time });
+  const out: string[] = [];
+  for (const e of parsed.events) {
+    if (!e.attack) continue;
+    const inBar = e.tick % parsed.barTicks;
+    if (parsed.time.kind === 'compound') {
+      out.push(String(inBar / (PPQ / 2) + 1));
+      continue;
+    }
+    const within = inBar % PPQ;
+    out.push(within === 0 ? String(inBar / PPQ + 1) : within * 2 === PPQ ? '&' : within * 3 === PPQ ? 'trip' : 'let');
+  }
+  return out;
+}
+
+const feelWords = (time: string): string =>
+  time === '4/4'
+    ? 'A triplet fits three even notes into one beat: say "1 trip let".'
+    : `${time} has ${Number(time.split('/')[0]) / 3} beats of three eighth notes each: count every eighth, and feel the ${time === '6/8' ? '1 and the 4' : 'first of each three'}.`;
+
+/** Quarter notes per minute for a felt beat: a dotted quarter in compound time is one and a half quarters. */
+const quarterTempo = (time: string, felt: number): number => (time === '4/4' ? felt : Math.round(felt * 1.5));
+
+export const rhythmRead = defineGenerator({
+  kind: 'rhythm-read',
+  summary: 'Triplets and compound meters (6/8, 9/8, 12/8): tap a bar, say on which counts its notes start, or pick the bar you hear.',
+  produces: ['tap-rhythm', 'choice', 'listen-choice'],
+  params: [
+    { name: 'ask', type: "'tap' | 'count' | 'ear'", default: "'tap'", description: 'Tap the bar; choose the counts its notes start on; or hear it and choose it.' },
+    { name: 'feels', type: "('triplets' | '6/8' | '9/8' | '12/8')[]", default: "['6/8', 'triplets']", description: 'Feels in play, easiest first: triplets in 4/4, or a compound meter.' },
+    { name: 'rests', type: 'boolean', default: 'false', description: 'Allow rests (never on the first beat).' },
+    { name: 'tempo', type: 'number', default: '60', description: 'The felt beat per minute (the dotted quarter in compound time), 40 to 100.' },
+  ],
+  check: (p) =>
+    checkParams()
+      .oneOf('ask', p.ask, ['tap', 'count', 'ear'])
+      .list('feels', p.feels, (f) => FEELS.includes(f), "['6/8', 'triplets']")
+      .bool('rests', p.rests)
+      .int('tempo', p.tempo, 40, 100).problems,
+  make(p, { rng, difficulty }) {
+    const feel: Feel = rng.pick(pool<Feel>(p.feels ?? ['6/8', 'triplets'], difficulty, 1));
+    const bar = feelBar(rng, feel, p.rests === true);
+    const counts = feelCounts(bar.pattern, bar.time);
+    const tempo = quarterTempo(bar.time, p.tempo ?? 60);
+    const explain = `${feelWords(bar.time)} The notes start on ${counts.join(' ')}.`;
+    const ask = p.ask ?? 'tap';
+    if (ask === 'tap') {
+      const out: TapRhythmExercise = {
+        type: 'tap-rhythm',
+        rhythm: { pattern: bar.pattern, time: bar.time },
+        tempo,
+        show: 'notation',
+        prompt: bar.time === '4/4' ? 'Tap this rhythm with its triplets along with the click.' : `Tap this bar of ${bar.time} along with the click.`,
+        explain,
+      };
+      return out;
+    }
+    // Other bars of the same feel that sound different: their notes start elsewhere.
+    const onsets = (b: { pattern: string; time: string }): string => parseRhythm(b).onsets.join(',');
+    const others: Array<{ pattern: string; time: string }> = [];
+    const seen = new Set([onsets(bar)]);
+    for (let attempt = 0; attempt < 60 && others.length < 3; attempt++) {
+      const candidate = feelBar(rng, feel, p.rests === true);
+      if (seen.has(onsets(candidate))) continue;
+      seen.add(onsets(candidate));
+      others.push(candidate);
+    }
+    if (ask === 'ear') {
+      const out: ListenChoiceExercise = {
+        type: 'listen-choice',
+        sound: { kind: 'rhythm', pattern: bar.pattern, time: bar.time, tempo },
+        options: rng.shuffle([
+          { figure: { kind: 'rhythm' as const, pattern: bar.pattern, time: bar.time }, correct: true },
+          ...others.slice(0, 2).map((o) => ({ figure: { kind: 'rhythm' as const, pattern: o.pattern, time: o.time } })),
+        ]),
+        prompt: 'Which bar do you hear?',
+        explain,
+      };
+      return out;
+    }
+    const said = counts.join(' ');
+    return choiceOf(
+      rng,
+      { prompt: 'On which counts do the notes start?', explain, figure: { kind: 'rhythm', pattern: bar.pattern, time: bar.time, counting: false } },
+      said,
+      distinct(others.map((o) => feelCounts(o.pattern, o.time).join(' ')), (s) => s, 3, [said]),
+    );
+  },
+});
+
 /** The time and rhythm generators. */
-export const TIME_GENERATORS = [noteValueMath, meter, rhythmTap, rhythmEar] as const;
+export const TIME_GENERATORS = [noteValueMath, meter, rhythmTap, rhythmEar, rhythmRead] as const;

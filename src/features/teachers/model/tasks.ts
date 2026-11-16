@@ -4,7 +4,7 @@
  * log for what they did there since (`findTaskActivity`): a song played in the Player, a tuning
  * session, a technique exercise. Pure functions plus two storage calls; unit-tested.
  */
-import type { ActivityKind, PracticeSession } from '@/core/progress';
+import type { ActivityInput, ActivityKind, PracticeSession } from '@/core/progress';
 import { readJSON, remove, writeJSON } from '@/core/platform';
 import type { TaskTarget, TaskTool, TeacherKey } from '@/content/teachers';
 
@@ -36,6 +36,11 @@ export const TOOL_KINDS: Record<TaskTool, readonly ActivityKind[]> = {
   scales: ['scale-practice', 'scale-game'],
   arcade: ['scale-game'],
   progressions: ['progression'],
+  scan: ['scan'],
+  // The progress module has no kind for a recording: a take the Recorder reports is 'other'. When it
+  // reports nothing, the card back from it simply asks whether the learner got to do it.
+  record: ['other'],
+  theory: ['theory-lesson'],
 };
 
 /** The skill a tool records for this target, when it names one (`song:<id>`, `technique:<id>`). */
@@ -44,6 +49,7 @@ export function taskSkillId(target: TaskTarget): string | null {
   if (!first) return null;
   if (target.tool === 'player') return `song:${first}`;
   if (target.tool === 'technique') return `technique:${first.startsWith('tech-') ? first : `tech-${first}`}`;
+  if (target.tool === 'theory' && target.params?.[1]) return `theory:${first}:${target.params[1]}`;
   return null;
 }
 
@@ -103,4 +109,46 @@ export function readPendingTask(now: number, match?: { teacher?: string; lessonI
 /** Forget the pending task (it was finished, skipped, or its lesson ended). */
 export function clearPendingTask(): void {
   remove(KEY);
+}
+
+/** Less time away than this, and nothing is taken to have been played along. */
+export const PLAY_ALONG_MIN_SEC = 20;
+
+/**
+ * True for a Player task in listen mode (no `wait`, `flow` or `tap`): the band plays and the learner
+ * plays along by ear, with nothing judged.
+ */
+export function isListenPlayAlong(target: TaskTarget): boolean {
+  const [song, ...rest] = target.params ?? [];
+  return target.tool === 'player' && !!song && !rest.some((p) => p === 'wait' || p === 'flow' || p === 'tap');
+}
+
+/**
+ * The practice to log when the learner comes back from playing along in listen mode and goes on
+ * with the lesson. The Player logs a listen run only once it has lasted 30 s in one go, so a short
+ * loop played along with again and again (bars 1 to 4, round and round) was never logged. Counts the
+ * time away, at most the task's minutes and two more. Null when the Player did log something, the
+ * task is not a listen-mode play-along, or the learner was away too briefly.
+ */
+export function playAlongPractice(target: TaskTarget, opts: { openedAt: number; now: number; minutes: number; title: string; logged: PracticeSession | null }): ActivityInput | null {
+  if (opts.logged || !isListenPlayAlong(target)) return null;
+  const away = Math.round((opts.now - opts.openedAt) / 1000);
+  if (!(away >= PLAY_ALONG_MIN_SEC)) return null;
+  const song = target.params![0];
+  return {
+    kind: 'song',
+    id: `song:${song}`,
+    title: opts.title,
+    durationSec: Math.min(away, (Math.max(1, opts.minutes) + 2) * 60),
+    completed: false,
+    route: 'play',
+    params: [song],
+  };
+}
+
+/** What the back card says a play-along will count as ("4 min of playing along"), or null. */
+export function playAlongLine(input: ActivityInput | null): string | null {
+  if (!input) return null;
+  const min = Math.max(1, Math.round((input.durationSec ?? 0) / 60));
+  return `Continue, and your ${min} ${min === 1 ? 'minute' : 'minutes'} of playing along count as practice.`;
 }

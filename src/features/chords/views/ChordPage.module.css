@@ -104,6 +104,10 @@
   .buttons > * {
     flex: 1 1 8rem;
   }
+  /* A row of its own, so neither it nor "I know this chord" is cut short. */
+  .buttons > .seeIt {
+    flex-basis: 100%;
+  }
 }
 
 /* ------------------------------------------------------------- voicing strip */

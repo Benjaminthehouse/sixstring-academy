@@ -4,11 +4,14 @@
  *
  *   #fretboard--stage--<id>    a step of the method: what it teaches, a round, the summary
  *   #fretboard--drill--<id>    a free drill (name-the-note, find-the-note, find-every-note,
- *                              play-the-note, sprint, blind-spots) over the learner's settings
+ *                              play-the-note, sprint, blind-spots) over the learner's settings,
+ *                              set up by the address: `--strings-6-5`, `--frets-0-3`, `--naturals` /
+ *                              `--all-notes`, `--note-c` (one note to find); see core/address.ts
  */
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
+import { parseDrillParams } from './core/address';
 import { drillById } from './core/drills';
 import { stageById } from './core/path';
 import { Hub } from './ui/Hub';
@@ -24,7 +27,9 @@ function Home() {
 
 /** The fretboard trainer screen. */
 export default function FretboardTrainer({ params }: RouteProps) {
-  const [section, id] = params;
+  const [section, id, ...rest] = params;
+  const restKey = rest.join('--');
+  const address = useMemo(() => parseDrillParams(restKey ? restKey.split('--') : []), [restKey]);
   if (!section) return <Hub />;
   if (section === 'stage') {
     const stage = stageById(id);
@@ -32,7 +37,7 @@ export default function FretboardTrainer({ params }: RouteProps) {
   }
   if (section === 'drill') {
     const drill = drillById(id);
-    return drill ? <RoundScreen key={`drill:${drill.id}`} drill={drill} /> : <Home />;
+    return drill ? <RoundScreen key={`drill:${drill.id}`} drill={drill} address={address} /> : <Home />;
   }
   return <Home />;
 }

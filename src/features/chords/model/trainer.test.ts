@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addScore, canonicalOrder, changeDataJson, changeSkillId, changeTitle, judgeStrum, judgeTaps, nextTempo, readChangeData, scoreCheck, scoreInTime, scoreOneMinute, setDifficulty, suggestedPairs, targetPerMinute, trendWords, TREND_DAYS } from './trainer';
+import { addScore, canonicalOrder, changeDataJson, changeSkillId, changeTitle, judgeStrum, judgeTaps, nextTempo, readChangeData, scoreCheck, scoreInTime, scoreOneMinute, setDifficulty, suggestedPairs, targetPerMinute, trainerParams, trainerSetup, trendWords, TREND_DAYS } from './trainer';
+import { viewFromParams } from './symbols';
 
 describe('pairs and skill ids', () => {
   it('match the ids the practice planner already uses', () => {
@@ -146,5 +147,35 @@ describe('trend over days', () => {
     expect(trendWords([{ day: '2026-11-01', best: 10 }])).toBeNull();
     expect(trendWords([{ day: '2026-11-01', best: 10 }, { day: '2026-11-02', best: 14 }])).toMatch(/Up 4/);
     expect(trendWords([{ day: '2026-11-01', best: 14 }, { day: '2026-11-02', best: 10 }])).toMatch(/slower day/);
+  });
+});
+
+describe('the trainer’s address', () => {
+  it('reads the mode, the tempo and the beats per chord', () => {
+    expect(trainerSetup([])).toEqual({});
+    expect(trainerSetup(['minute'])).toEqual({ mode: 'minute' });
+    expect(trainerSetup(['one-minute'])).toEqual({ mode: 'minute' });
+    expect(trainerSetup(['check'])).toEqual({ mode: 'check' });
+    expect(trainerSetup(['ring-true'])).toEqual({ mode: 'check' });
+    expect(trainerSetup(['timed', 't70', 'beats-2'])).toEqual({ mode: 'timed', bpm: 70, beats: 2 });
+    expect(trainerSetup(['in-time'])).toEqual({ mode: 'timed' });
+    // A tempo or beats alone can only mean changes in time.
+    expect(trainerSetup(['t80'])).toEqual({ mode: 'timed', bpm: 80 });
+    expect(trainerSetup(['beats-1'])).toEqual({ mode: 'timed', beats: 1 });
+    // Kept in the trainer's range; beats it does not offer are left out.
+    expect(trainerSetup(['t20'])).toEqual({ mode: 'timed', bpm: 40 });
+    expect(trainerSetup(['t300'])).toEqual({ mode: 'timed', bpm: 160 });
+    expect(trainerSetup(['minute', 'beats-3'])).toEqual({ mode: 'minute' });
+  });
+
+  it('writes params the chord screen reads back', () => {
+    const params = trainerParams(['G', 'D7'], { mode: 'timed', bpm: 70, beats: 2 });
+    expect(params).toEqual(['trainer', 'g-major', 'd-7', 't70', 'beats-2']);
+    for (const p of params) expect(p).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    const view = viewFromParams(params);
+    expect(view).toEqual({ view: 'trainer', chords: ['G', 'D7'], options: ['t70', 'beats-2'] });
+    expect(view.view === 'trainer' && trainerSetup(view.options)).toEqual({ mode: 'timed', bpm: 70, beats: 2 });
+    expect(trainerParams(['Em', 'Am'], { mode: 'check' })).toEqual(['trainer', 'e-minor', 'a-minor', 'check']);
+    expect(trainerParams(['Em', 'Am'])).toEqual(['trainer', 'e-minor', 'a-minor']);
   });
 });

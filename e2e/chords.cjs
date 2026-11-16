@@ -23,6 +23,8 @@
  *              missing note, a clean strum passes and counts as chord practice (`chord:g`)
  *   timed      changes in time with the metronome, tapped on the change beats: most changes on time,
  *              the tempo for the next round goes up
+ *   address    a lesson's link opens the trainer set up (`--timed--t70--beats-2`, `--minute`), and a
+ *              chord page's "See it on your guitar" opens the camera on that chord and shape
  *   nomic      no microphone at all (as in the Claude viewer): choosing the microphone and pressing
  *              Start shows why it failed right where the learner is looking, and "Count with taps
  *              instead" switches to taps and starts cleanly (review: the reason used to render at the
@@ -420,6 +422,61 @@ async function timed() {
   });
 }
 
+async function address() {
+  await open({ mobile: true }, async ({ page, goto, errors }) => {
+    // A lesson's link opens the trainer set up: the chords, changes in time, the tempo and the beats.
+    await go(page, goto, 'chords', 'trainer', 'g-major', 'd-7', 'timed', 't70', 'beats-2');
+    const setup = await page.evaluate(() => {
+      const el = document.querySelector('[data-trainer][data-phase="setup"]');
+      return el ? { mode: el.getAttribute('data-mode'), bpm: el.getAttribute('data-bpm'), beats: el.getAttribute('data-beats'), skill: el.getAttribute('data-skill') } : null;
+    });
+    check('trainer address: chords, changes in time, 70 BPM, 2 beats a chord', setup && setup.mode === 'timed' && setup.bpm === '70' && setup.beats === '2' && setup.skill === 'chord-change:g-d7', JSON.stringify(setup));
+    const start = (await page.textContent('[data-start]')) || '';
+    check('Start says the tempo the address set', /70 BPM/.test(start), start);
+    const beatsPicked = await page.getByRole('radio', { name: '2', exact: true }).getAttribute('aria-checked').catch(() => null);
+    check('the beats-per-chord control shows 2', beatsPicked === 'true', String(beatsPicked));
+    // A tempo alone means changes in time; a mode word switches back.
+    await go(page, goto, 'chords', 'trainer', 'em', 'am', 'minute');
+    const minute = await page.getAttribute('[data-trainer][data-phase="setup"]', 'data-mode');
+    check('trainer address: one-minute changes', minute === 'minute', String(minute));
+    noErrors(errors, 'trainer address: no console errors');
+  });
+  await open({ mobile: false }, async ({ page, goto, errors }) => {
+    // "See it on your guitar": the camera's address for this chord and the shape on screen.
+    await go(page, goto, 'chords', 'f-major');
+    const label = (await page.textContent('[data-see-on-guitar]')) || '';
+    check('the link says what it does', /See it on your guitar/.test(label), label);
+    // The camera numbers shapes its own way: the link must open the very shape on screen.
+    const sameShape = async () => {
+      const hash = (await page.getAttribute('[data-see-on-guitar]', 'href')) || '';
+      return page.evaluate(async (h) => {
+        const { parseCameraParams } = await import('/src/features/camera/model/address.ts');
+        const { chordVoicingsFor } = await import('/src/features/camera/model/content.ts');
+        const { tuning } = await import('/src/core/guitar/index.ts');
+        const content = parseCameraParams(h.replace(/^#camera--/, '').split('--'));
+        const list = content && content.kind === 'chord' ? chordVoicingsFor(content.symbol, { tuning: tuning('standard'), capo: 0 }) : [];
+        const shown = document.querySelector('[data-chord-page] [data-voicing]')?.getAttribute('data-voicing') ?? '';
+        return { hash: h, content, camera: content && content.kind === 'chord' ? list[content.voicing]?.id : null, shown, listed: list.some((v) => v.id === shown) };
+      }, hash);
+    };
+    const first = await sameShape();
+    check('chord page links to the camera on F', /^#camera--chord--f-major(--\d+)?$/.test(first.hash) && first.content && first.content.symbol === 'F', JSON.stringify(first));
+    check('the camera draws the shape the page opened on', first.listed ? first.camera === first.shown : first.content && first.content.voicing === 0, JSON.stringify(first));
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+    const same = await sameShape();
+    check('two shapes on, the link follows the shape on screen', same.content && same.content.symbol === 'F' && same.hash !== first.hash && (same.listed ? same.camera === same.shown : same.content.voicing === 0), JSON.stringify(same));
+    await page.click('[data-see-on-guitar]');
+    await page.waitForSelector('main[data-route="camera"]', { timeout: 30000 });
+    await page.waitForSelector('[data-content]', { timeout: 30000 });
+    const content = await page.getAttribute('[data-content]', 'data-content');
+    const hash = await page.evaluate(() => location.hash);
+    check('the camera opens on the chord', content === 'chord' && hash.startsWith('#camera--chord--f-major'), `${content} ${hash}`);
+    noErrors(errors, 'camera link: no console errors');
+  });
+}
+
 async function noMic() {
   // No fake devices: getUserMedia fails, as it does wherever the host gives the page no microphone.
   await open({ mobile: true }, async ({ page, goto, errors }) => {
@@ -518,7 +575,7 @@ async function shots() {
   }
 }
 
-const GROUPS = { pages, library, identify, taps, mic, check: checkMode, miccheck: micCheck, timed, nomic: noMic, layout, shots };
+const GROUPS = { pages, library, identify, taps, mic, check: checkMode, miccheck: micCheck, timed, address, nomic: noMic, layout, shots };
 
 (async () => {
   let failed = 0;

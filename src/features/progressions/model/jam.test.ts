@@ -5,7 +5,7 @@ import { chordPcs } from '@/core/theory';
 import { midiAt, tuning } from '@/core/guitar';
 import {
   DEFAULT_JAM, LOG_AFTER_SEC, chordAt, finishedText, chordScale, clampTempo, distanceText, endingChord, feelsFor, glyphCount, jamActivity, jamMarkers, jamNeck, positionOf,
-  sanitizeJam, scaleChoices, scaleFor, upcoming,
+  sanitizeJam, scaleChoices, scaleFor, tempoHint, upcoming,
 } from './jam';
 
 describe('jam settings', () => {
@@ -214,5 +214,17 @@ describe('when the band has finished', () => {
     expect(finishedText(1, 120)).toBe('That was once through at 120 BPM. Go again, or try it a little faster.');
     expect(finishedText(2, 96.4)).toBe('That was twice through at 96 BPM. Go again, or try it a little faster.');
     expect(finishedText(5, 170)).toMatch(/^That was 5 times through at 170 BPM\./);
+  });
+});
+
+describe('the tempo hint', () => {
+  it('names the usual range and never scolds a slower tempo a lesson asked for', () => {
+    const rock = { tempo: [120, 180] as [number, number] };
+    const slow = tempoHint(rock, 100);
+    expect(slow).toContain('120 to 180 BPM');
+    expect(slow).toMatch(/Slower is how you learn it/);
+    expect(slow).not.toMatch(/sits best/);
+    expect(tempoHint(rock, 140)).toBe('Usually played at 120 to 180 BPM.');
+    expect(tempoHint(rock, 200)).toMatch(/faster than that/);
   });
 });

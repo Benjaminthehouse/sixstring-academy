@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { selectDailyGoal, shouldReduceMotion, useProgress, useProgressStore, xpBoostOf, type ProgressEvent } from '@/core/progress';
 import { Button, Celebration, Icon, LevelBadge, Modal, toast, useDialogOpen } from '@/ui';
 import { openStats } from '../shell/stats';
-import { REWARD_CARD_MAX_MS, XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast, type RewardCard } from './digest';
+import { REWARD_CARD_MAX_MS, XpTally, compactCard, digest, isAlertToast, mergePlans, mergeRewardItems, rewardCard, xpItem, xpToastDetail, type FeedbackPlan, type PlannedModal, type PlannedToast, type RewardCard } from './digest';
+import { rewardsHeld, subscribeRewardHold } from './hold';
 import { applySoundSettings, applySoundSettingsWhenReady, playShellSound, prepareShellSounds } from './sounds';
-import { noteShellToast } from './toasts';
+import { dismissShellToasts, noteShellToast } from './toasts';
 import styles from './Feedback.module.css';
 
 /** Events that arrive within this many ms are treated as one moment (one activity emits them together). */
@@ -12,6 +13,13 @@ const SETTLE_MS = 60;
 const MODAL_EXIT_MS = 220;
 
 const TIER_LABEL = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' } as const;
+
+/** The learner's text size and the screen's width decide whether the reward card is compact. */
+function cardIsCompact(): boolean {
+  if (typeof window === 'undefined') return false;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return compactCard(window.innerWidth, rem);
+}
 
 function gemsLine(gems: number): string | null {
   return gems > 0 ? `+${gems} ${gems === 1 ? 'gem' : 'gems'}` : null;
@@ -88,6 +96,12 @@ export function GlobalFeedback() {
   const deferred = useRef<Array<() => void>>([]);
 
   const showNext = useCallback(() => {
+    // A lesson is in progress: the next dialog and the toasts behind it wait for its end.
+    if (rewardsHeld()) {
+      activeRef.current = null;
+      setOpen(false);
+      return;
+    }
     const next = queue.current.shift() ?? null;
     activeRef.current = next;
     setActive(next);
@@ -113,6 +127,8 @@ export function GlobalFeedback() {
   const showToast = useCallback((t: PlannedToast | RewardCard) => {
     noteShellToast(t.id);
     const lines = 'lines' in t ? t.lines : [];
+    // Large text on a phone: one short line per piece of news, so the card does not bury the screen.
+    const compact = lines.length > 0 && cardIsCompact();
     toast({
       id: t.id,
       title: t.title,
@@ -122,13 +138,13 @@ export function GlobalFeedback() {
             {t.description != null && <span className={styles.cardDetail}>{t.description}</span>}
             <ul className={styles.cardLines}>
               {lines.map((line) => (
-                <li key={line.id} className={styles.cardLine}>
+                <li key={line.id} className={styles.cardLine} data-line={line.id}>
                   <span className={line.id === 'shell-xp' ? styles.xpIcon : styles.cardLineIcon}>
                     <Icon name={line.icon} size={14} strokeWidth={2} />
                   </span>
                   <span className={styles.cardLineText}>
                     <strong>{line.title}</strong>
-                    {line.description ? ` · ${line.description}` : ''}
+                    {line.description && !compact ? ` · ${line.description}` : ''}
                   </span>
                 </li>
               ))}
@@ -137,13 +153,16 @@ export function GlobalFeedback() {
         ) : (
           t.description
         ),
+      // Sized in rem by the stylesheet, so the icon grows with the learner's text like the words beside it.
       icon:
         t.icon === 'Zap' ? (
-          <span className={styles.xpIcon}>
+          <span className={styles.xpIcon} data-toast-icon="">
             <Icon name="Zap" size={20} strokeWidth={2} />
           </span>
         ) : (
-          t.icon
+          <span className={styles.toastIcon} data-toast-icon="">
+            <Icon name={t.icon} size={20} />
+          </span>
         ),
       tone: t.tone,
       duration: t.duration ?? (t.action ? 7000 : undefined),
@@ -180,12 +199,25 @@ export function GlobalFeedback() {
     [showToast],
   );
 
+  // News that arrived while a lesson was in progress (see `hold.ts`), shown when it ends.
+  const heldPlans = useRef<FeedbackPlan[]>([]);
+
   const apply = useCallback(
     (plan: FeedbackPlan) => {
       const state = store.getState();
       const now = store.now();
-      // The big moment goes first; the smaller news follows once its dialog is closed.
-      const behindDialog = plan.modals.length > 0 || activeRef.current !== null;
+      // A lost heart's flash is the lesson's own feedback: it shows at once, even while news is held.
+      if (plan.heartsLeft !== null && !state.prefs.unlimitedHearts) {
+        const left = plan.heartsLeft;
+        setHeartFlash((h) => ({ shot: (h?.shot ?? 0) + 1, left }));
+      }
+      if (rewardsHeld()) {
+        heldPlans.current.push({ ...plan, heartsLeft: null });
+        return;
+      }
+      // The big moment goes first; the smaller news follows once its dialog is closed (or a dialog
+      // held back by a lesson has been shown).
+      const behindDialog = plan.modals.length > 0 || activeRef.current !== null || queue.current.length > 0;
       const emit = (show: () => void) => {
         if (behindDialog) deferred.current.push(show);
         else show();
@@ -204,19 +236,44 @@ export function GlobalFeedback() {
           showRewards(mergeRewardItems(onCard, xp, rewards));
         });
       }
-      if (plan.modals.length > 0) {
-        queue.current.push(...plan.modals);
-        if (!activeRef.current) showNext();
-      }
+      if (plan.modals.length > 0) queue.current.push(...plan.modals);
+      if (queue.current.length > 0 && !activeRef.current && !closing.current) showNext();
       if (plan.confetti && !shouldReduceMotion(state.prefs)) setConfetti((c) => ({ shot: c.shot + 1, intensity: plan.confetti ?? 'medium' }));
       if (plan.sound) playShellSound(plan.sound, state.prefs.sound.uiSounds);
-      if (plan.heartsLeft !== null && !state.prefs.unlimitedHearts) {
-        const left = plan.heartsLeft;
-        setHeartFlash((h) => ({ shot: (h?.shot ?? 0) + 1, left }));
-      }
     },
     [showNext, showRewards, showToast, store],
   );
+
+  // A lesson starts (or the next one, straight from a summary): the moment that is over leaves the
+  // screen, and a dialog nobody has answered waits for the lesson's end. When it ends (its summary,
+  // or the learner leaves), everything held shows: dialogs first, then one card.
+  useEffect(() => {
+    let held = rewardsHeld();
+    const engage = () => {
+      card.current = null;
+      dismissShellToasts();
+      const open = activeRef.current;
+      if (open && !closing.current) {
+        queue.current.unshift(open);
+        activeRef.current = null;
+        setOpen(false);
+      }
+    };
+    const release = () => {
+      const plans = heldPlans.current.splice(0);
+      if (plans.length > 0) apply(mergePlans(plans));
+      // A dialog held back (or the toasts waiting behind one) comes now.
+      if (!activeRef.current && !closing.current && (queue.current.length > 0 || deferred.current.length > 0)) showNext();
+    };
+    if (held) engage();
+    return subscribeRewardHold(() => {
+      const now = rewardsHeld();
+      if (now === held) return;
+      held = now;
+      if (now) engage();
+      else release();
+    });
+  }, [apply, showNext]);
 
   useEffect(() => {
     let timer: number | null = null;

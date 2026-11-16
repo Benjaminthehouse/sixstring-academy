@@ -397,8 +397,79 @@
   border: 1px solid var(--line);
 }
 /* The summary's own top padding is for when it stands alone. */
-.end > :last-child {
+.end > [data-summary] {
   padding-top: 0;
+}
+
+/* The Theory Path lessons behind this one, under the summary. */
+.theoryLinks {
+  display: grid;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding-bottom: var(--sp-4);
+}
+.theoryHead {
+  display: grid;
+  gap: 2px;
+}
+.theoryList {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.theoryLink {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
+}
+.theoryLink:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.theoryLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.theoryIcon {
+  display: inline-flex;
+  flex: none;
+  color: var(--accent-text);
+}
+.theoryDone .theoryIcon {
+  color: var(--ok);
+}
+.theoryTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+.theoryMeta {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.theoryDone .theoryMeta {
+  color: var(--ok-text);
+}
+.theoryChevron {
+  flex: none;
+  color: var(--fg-muted);
 }
 
 .unitDone {

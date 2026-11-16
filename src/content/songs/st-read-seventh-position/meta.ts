@@ -15,5 +15,6 @@ export default defineSong({
   about:
     'Put finger 1 on fret 7 and leave the hand there: every note is under a finger, one finger per fret from 7 to 10, on all six strings. The first half is G major in 4/4; from bar 9 it is E minor in 6/8, two slow beats of three eighths each, and the eighths keep exactly the speed they had before. The usual slip is reading a note from its first-position fret out of habit: before you start, find G (string 5 fret 10), F# (string 2 fret 7) and D# (string 3 fret 8), and play each one while you say its name.',
   plan: 'st-read-seventh-position',
+  prefersNotation: true,
   added: '2026-11-16',
 });

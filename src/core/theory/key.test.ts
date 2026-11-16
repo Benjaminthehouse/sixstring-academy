@@ -3,8 +3,12 @@ import {
   ALL_KEYS, chordInKey, circleOfFifths, closelyRelatedKeys, degreeInKey, detectBestKey, detectKey,
   detectKeyFromChords, detectKeyFromNotes, diatonicChords, enharmonicKey, getKey, inKey, key, keyChords,
   keyFromSignature, keyScale, keySignature, keysWithSignature, MAJOR_KEYS, majorKey, MINOR_KEYS, minorKey,
+  isModalKey, KEY_MODE_NAMES, keyModeName, MODAL_MODES, modeQuality,
   neighborKeys, noteAtDegree, parallelKey, parseKey, practicalKey, relativeKey, spellInKey,
 } from './key';
+import { analyzeProgression, chordToRoman } from './harmony';
+import { formatKey } from './display';
+import { scaleNotes } from './scale';
 import { chroma } from './note';
 
 /** Independent truth table: major key, signature, relative minor. */
@@ -98,11 +102,11 @@ describe('parseKey', () => {
       ['Bb', 'Bb major'], ['Bbm', 'Bb minor'], ['eb minor', 'Eb minor'], ['B♭ major', 'Bb major'], ['F♯ minor', 'F# minor'],
       ['f-sharp-minor', 'F# minor'], ['bb-major', 'Bb major'], ['b-flat-major', 'Bb major'], ['c-major', 'C major'],
       ['a-minor', 'A minor'], ['c-sharp-major', 'C# major'], ['A flat major', 'Ab major'], ['F sharp minor', 'F# minor'],
-      ['G major key', 'G major'], ['D Dorian', ''], ['', ''], ['H minor', ''], ['C4', ''], ['Cm7', ''],
+      ['G major key', 'G major'], ['D Dorian', 'D dorian'], ['D blues', ''], ['', ''], ['H minor', ''], ['C4', ''], ['Cm7', ''],
     ];
     for (const [input, expected] of cases) {
       const parsed = parseKey(input);
-      expect(parsed ? `${parsed.tonic} ${parsed.mode}` : '', input).toBe(expected);
+      expect(parsed ? `${parsed.tonic} ${keyModeName(parsed)}` : '', input).toBe(expected);
     }
     expect(getKey('nonsense')).toBeNull();
     expect(() => key('nonsense')).toThrow(RangeError);
@@ -354,5 +358,94 @@ describe('detectKey', () => {
     expect(detectKey(['C', 'E', 'G', 'C'], { as: 'notes' })[0].key.name).toBe('C major');
     expect(detectBestKey(['Am', 'Dm', 'E7', 'Am'])!.name).toBe('A minor');
     expect(detectBestKey([])).toBeNull();
+  });
+});
+
+describe('keys in the other modes of the major scale', () => {
+  // Independent truth table: the mode on A, its parent major scale and that scale's signature.
+  const ON_A: Array<[string, string, number, string]> = [
+    ['lydian', 'E', 4, 'A B C# D# E F# G#'],
+    ['major', 'A', 3, 'A B C# D E F# G#'],
+    ['mixolydian', 'D', 2, 'A B C# D E F# G'],
+    ['dorian', 'G', 1, 'A B C D E F# G'],
+    ['minor', 'C', 0, 'A B C D E F G'],
+    ['phrygian', 'F', -1, 'A Bb C D E F G'],
+    ['locrian', 'Bb', -2, 'A Bb C D Eb F G'],
+  ];
+
+  it('reads the seven modes, their usual abbreviations and route ids', () => {
+    expect(parseKey('A Dorian')).toEqual({ tonic: 'A', mode: 'minor', modal: 'dorian' });
+    expect(parseKey('E phrygian mode')).toEqual({ tonic: 'E', mode: 'minor', modal: 'phrygian' });
+    expect(parseKey('D mix')).toEqual({ tonic: 'D', mode: 'minor', modal: 'mixolydian' });
+    expect(parseKey('f-sharp-lydian')).toEqual({ tonic: 'F#', mode: 'minor', modal: 'lydian' });
+    expect(parseKey('Bb Locrian')).toEqual({ tonic: 'Bb', mode: 'minor', modal: 'locrian' });
+    // Ionian is the major key and Aeolian the minor one: no `modal`.
+    expect(parseKey('A Ionian')).toEqual({ tonic: 'A', mode: 'major' });
+    expect(parseKey('A aeolian')).toEqual({ tonic: 'A', mode: 'minor' });
+    expect(parseKey('A blues')).toBeNull();
+    expect(parseKey('A dorianx')).toBeNull();
+  });
+
+  it.each(ON_A)('A %s takes the signature of %s major (%i) and its own scale', (mode, parent, fifths, scale) => {
+    const k = key(`A ${mode}`);
+    expect(k.signature.fifths).toBe(fifths);
+    expect(k.fifths).toBe(fifths);
+    expect(k.scale.join(' ')).toBe(scale);
+    expect(keyModeName(k)).toBe(mode);
+    expect(keyFromSignature(fifths, mode as (typeof KEY_MODE_NAMES)[number]).name).toBe(k.name);
+    if (mode === 'major' || mode === 'minor') return;
+    expect(isModalKey(k)).toBe(true);
+    expect(k.relative).toBe(`${parent} major`);
+    expect(relativeKey(k).name).toBe(`${parent} major`);
+    expect(k.id).toBe(`a-${mode}`);
+    expect(k.name).toBe(`A ${mode}`);
+    expect(k.short).toBe(`A ${mode}`);
+    expect(k.harmonicMinor).toBeNull();
+    // Like a minor key, a modal key is written from its relative major's signature.
+    expect(k.mode).toBe('minor');
+    expect(parallelKey(k).name).toBe(`A ${modeQuality(mode as (typeof MODAL_MODES)[number])}`);
+    expect(getKey(k.id)?.name).toBe(k.name);
+    expect(getKey({ tonic: 'A', mode: 'minor', modal: mode as (typeof MODAL_MODES)[number] })?.name).toBe(k.name);
+  });
+
+  it('agrees with the scale catalogue for every mode on every tonic', () => {
+    for (const mode of MODAL_MODES) {
+      for (const tonic of ['C', 'D', 'Eb', 'F#', 'G', 'Bb', 'B']) {
+        const k = key(`${tonic} ${mode}`);
+        expect(k.scale).toEqual(scaleNotes(tonic, mode));
+        // The signature's accidentals are exactly the altered notes of the mode.
+        expect([...k.signature.accidentals].sort()).toEqual(k.scale.filter((n) => n.length > 1).sort());
+      }
+    }
+  });
+
+  it('builds chords, neighbours and spellings on the mode', () => {
+    expect(diatonicChords('A dorian').map((c) => c.symbol)).toEqual(['Am', 'Bm', 'C', 'D', 'Em', 'F#dim', 'G']);
+    expect(keyChords('A dorian').map((c) => c.symbol)).toEqual(['Am', 'Bm', 'C', 'D', 'Em', 'F#dim', 'G']);
+    expect(diatonicChords('A mixolydian', { sevenths: true }).map((c) => c.symbol)[0]).toBe('A7');
+    expect(keyScale('A dorian', 'harmonic').join(' ')).toBe('A B C D E F# G');
+    expect(chordInKey('D', 'A dorian')).toBe(true);
+    expect(chordInKey('E', 'A dorian')).toBe(false);
+    expect(inKey('F#', 'A dorian')).toBe(true);
+    expect(spellInKey(66, 'A dorian')).toBe('F#4');
+    expect(spellInKey(70, 'A phrygian')).toBe('Bb4');
+    expect(degreeInKey('F#', 'A dorian')).toBe('6');
+    expect(neighborKeys('A dorian').dominant.name).toBe('E dorian');
+    expect(neighborKeys('A dorian').subdominant.name).toBe('D dorian');
+    expect(neighborKeys('A dorian').dominantRelative.name).toBe('D major');
+    expect(enharmonicKey('C# dorian')?.name).toBe('Db dorian');
+    expect(practicalKey('G# lydian').name).toBe('Ab lydian');
+  });
+
+  it('analyses chords in a modal key without falling over', () => {
+    expect(chordToRoman('D', 'A dorian').relation).toBe('diatonic');
+    expect(chordToRoman('Bb', 'A phrygian').relation).toBe('diatonic');
+    expect(analyzeProgression(['Am', 'D', 'Am', 'D'], 'A dorian')?.romans).toEqual(['i', 'IV', 'i', 'IV']);
+  });
+
+  it('displays the mode by name', () => {
+    expect(formatKey('A dorian')).toBe('A Dorian');
+    expect(formatKey('F# mixolydian', { short: true })).toBe('F♯ Mixolydian');
+    expect(formatKey('A minor')).toBe('A minor');
   });
 });

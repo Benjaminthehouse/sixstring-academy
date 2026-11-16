@@ -5,6 +5,9 @@
  *   playerTask({ id: 'buns-wait', title: 'Hot Cross Buns in wait mode', song: 'hot-cross-buns', mode: 'wait', minutes: 5, body: '...' })
  *   toolTask({ id: 'tune', title: 'Tune all six strings', tool: 'tuner', minutes: 3, body: '...' })
  *   techniqueTask({ id: 'alternate', title: 'Down-up on open strings', exercise: 'tech-alternate-open', minutes: 5, body: '...' })
+ *   theoryTask({ id: 'numbers', title: 'String numbers, in theory', lesson: 'the-six-strings/string-numbers', minutes: 4, body: '...' })
+ *   recordTask({ id: 'record-show', title: 'Record your show', label: 'hot-cross-buns-week-1', minutes: 3, body: '...' })
+ *   toolTask({ id: 'scan-it', title: 'Scan a page of tab', tool: 'scan', minutes: 5, body: '...' })
  */
 import type { RichText, TaskStep, TaskTarget, TaskTool } from './types';
 
@@ -22,6 +25,9 @@ export const TASK_TOOLS: Record<TaskTool, { route: string; name: string; icon: s
   scales: { route: 'scales', name: 'Scales', icon: 'Waypoints' },
   arcade: { route: 'arcade', name: 'the Scale Arcade', icon: 'Gamepad2' },
   progressions: { route: 'progressions', name: 'Progressions', icon: 'ListMusic' },
+  scan: { route: 'scan', name: 'Scan & Import', icon: 'ScanLine' },
+  record: { route: 'record', name: 'the Recorder', icon: 'Mic' },
+  theory: { route: 'learn', name: 'the Theory Path', icon: 'Route' },
 };
 
 /** Every tool, for tests and pickers. */
@@ -69,6 +75,27 @@ export function toolTask(t: TaskBase & { tool: TaskTool; params?: string[] }): T
 export function techniqueTask(t: TaskBase & { exercise: string }): TaskStep {
   const { exercise, ...base } = t;
   return { type: 'task', tool: 'technique', params: [exercise], ...base };
+}
+
+/**
+ * A Theory Path lesson (`#learn--<unit>--<lesson>`), named as the plan does: `'the-six-strings/string-numbers'`.
+ * A lesson ahead of where the learner is on the path still opens (with a note saying so).
+ */
+export function theoryTask(t: TaskBase & { lesson: string }): TaskStep {
+  const { lesson, ...base } = t;
+  return { type: 'task', tool: 'theory', params: theoryParams(lesson), ...base };
+}
+
+/** Record a take in the Recorder (`#record--<label>`); `label` (a slug) is the take's name. */
+export function recordTask(t: TaskBase & { label?: string }): TaskStep {
+  const { label, ...base } = t;
+  return { type: 'task', tool: 'record', ...(label ? { params: [label] } : {}), ...base };
+}
+
+/** `'unit/lesson'` (the plan's theory link) -> `['unit', 'lesson']`, the Theory Path's route params. */
+export function theoryParams(link: string): string[] {
+  const [unit, lesson] = link.split('/');
+  return lesson ? [unit, lesson] : [unit];
 }
 
 /** The song a task opens in the Player, or null for other tools. */

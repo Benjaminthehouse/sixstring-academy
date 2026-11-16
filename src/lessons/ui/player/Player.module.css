@@ -186,6 +186,13 @@
 .hint {
   display: flex;
 }
+/* "This is the version you answer by tapping" and the way back to the microphone. */
+.altRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+}
 .promptFigure {
   --figure-bg: var(--surface);
   padding: var(--sp-4);
@@ -389,6 +396,14 @@
   margin: 0;
   font-size: var(--text-md);
   font-weight: 600;
+}
+.feedbackRhythm {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-weight: 400;
+  overflow-x: auto;
 }
 .feedbackLabel {
   margin-right: var(--sp-1);

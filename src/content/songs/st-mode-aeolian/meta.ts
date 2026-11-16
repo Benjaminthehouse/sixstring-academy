@@ -8,7 +8,7 @@ export default defineSong({
   level: 6,
   style: 'rock',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Aeolian',
   teaches: ['Aeolian: the natural minor scale', 'The colour note: F, the flat sixth', 'Landing on a colour note over a vamp', 'The F, G, Am cadence'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'aeolian', 'natural minor', 'colour note', 'vamp', 'flat sixth', 'a minor', 'fifth position'],

@@ -5,6 +5,9 @@ import { sixTabLosses, toSixTab } from './sixtab-write';
 import { validateSong } from './validate';
 import { barLength, measureTicks } from './model';
 import type { Song } from './types';
+import { transposeKey } from './transform';
+import { toMusicXml } from './export-musicxml';
+import { importMusicXml } from './import-musicxml';
 
 const header = 'title: T\ntempo: 100\n';
 
@@ -215,5 +218,88 @@ describe('SixTab round trip', () => {
     const text = toSixTab(song);
     expect(text).toContain('capo: 2');
     expect(strip(sixTab(text))).toEqual(strip(song));
+  });
+});
+
+describe('SixTab accents', () => {
+  it('puts an accent on a slash with ">" or {ac}, and on a whole chord with {ac}', () => {
+    const song = sixTab(`${header}| "G" q D> D U> D | /> X> X{ac} (3:0 2:0){ac dn} |\n`);
+    const beats = song.tracks[0].measures.flatMap((m) => m.beats);
+    expect(beats.map((b) => !!b.accent)).toEqual([true, false, true, false, true, true, true, true]);
+    expect(beats.slice(0, 4).map((b) => b.stroke)).toEqual(['down', 'down', 'up', 'down']);
+    expect(beats[4]).toMatchObject({ slash: true, accent: true });
+    expect(beats[5]).toMatchObject({ slash: true, mutedStrum: true, accent: true });
+    expect(beats[7]).toMatchObject({ stroke: 'down', accent: true });
+    expect(beats[7].notes.every((n) => n.accent)).toBe(true);
+  });
+
+  it('keeps a note accent on the note: a single note, or one note of a chord', () => {
+    const song = sixTab(`${header}| q 3:5> 3:7{ac} (3:2> 2:3) r |\n`);
+    const beats = song.tracks[0].measures[0].beats;
+    expect(beats.map((b) => !!b.accent)).toEqual([false, false, false, false]);
+    expect(beats[0].notes[0].accent).toBe(true);
+    expect(beats[1].notes[0].accent).toBe(true);
+    expect(beats[2].notes.map((n) => !!n.accent)).toEqual([true, false]);
+  });
+
+  it('writes accents back exactly', () => {
+    const text = `${header}| "G" q D> U X> /{ac} | (3:0 2:0){dn ac} (3:0> 2:0) 3:5> r |\n`;
+    const song = sixTab(text);
+    const written = toSixTab(song);
+    expect(written).toContain('D> U X> />');
+    expect(written).toContain('(3:0 2:0){dn ac} (3:0> 2:0) 3:5> r');
+    expect(sixTabLosses(song)).toEqual([]);
+    expect(JSON.parse(JSON.stringify(sixTab(written)))).toEqual(JSON.parse(JSON.stringify(song)));
+  });
+
+  it('says when an accent cannot be written exactly', () => {
+    const song = sixTab(`${header}| w 3:5 |\n`);
+    song.tracks[0].measures[0].beats[0].accent = true;
+    expect(sixTabLosses(song)[0]).toMatch(/accented single-note beat/);
+  });
+
+  it('carries a slash accent through MusicXML', () => {
+    const song = sixTab(`${header}| "G" q D> U D U |\n`);
+    const xml = toMusicXml(song);
+    expect(xml).toMatch(/<notehead>slash<\/notehead><notations>.*<accent\/>/s);
+    const back = importMusicXml(xml).song.tracks[0].measures[0].beats;
+    expect(back.map((b) => !!b.accent)).toEqual([true, false, false, false]);
+  });
+
+  it('reports text glued to an accented slash', () => {
+    expect(errorsOf(`${header}| q D>x D D D |\n`)[0].message).toContain('after the accented slash');
+  });
+});
+
+describe('SixTab keys in the seven modes', () => {
+  it('reads A Dorian, E Phrygian and the rest, and keeps them through a round trip', () => {
+    for (const k of ['A Dorian', 'E phrygian', 'F Lydian', 'G mixolydian', 'B locrian', 'C ionian', 'A aeolian', 'F# minor', 'Bb']) {
+      const r = parseSixTab(`${header}key: ${k}\n| w 3:0 |\n`);
+      expect(r.errors, k).toEqual([]);
+      expect(r.song!.key).toBe(k);
+      expect(sixTab(toSixTab(r.song!)).key).toBe(k);
+    }
+    // A key change in the body may be modal too.
+    expect(sixTab(`${header}key: G\n| w 3:0 |\nkey: A dorian\n| w 3:2 |\n`).bars[1].key).toBe('A dorian');
+  });
+
+  it('still rejects what is not a key', () => {
+    for (const k of ['A blues', 'Am7', 'H minor', 'A dorian minor']) {
+      expect(errorsOf(`${header}key: ${k}\n| w 3:0 |\n`)[0], k).toMatchObject({ message: 'Not a key.', line: 3 });
+    }
+  });
+
+  it('transposes a modal key and keeps its mode', () => {
+    expect(transposeKey('A dorian', 2)).toBe('B dorian');
+    expect(transposeKey('E Phrygian', 1)).toBe('F phrygian');
+    expect(transposeKey('A mixolydian', -2)).toBe('G mixolydian');
+  });
+
+  it('writes the mode and the parent signature to MusicXML and reads them back', () => {
+    const song = sixTab(`${header}key: A dorian\n| w 2:1 |\n`);
+    const xml = toMusicXml(song);
+    expect(xml).toContain('<fifths>1</fifths>');
+    expect(xml).toContain('<mode>dorian</mode>');
+    expect(importMusicXml(xml).song.key).toBe('A dorian');
   });
 });

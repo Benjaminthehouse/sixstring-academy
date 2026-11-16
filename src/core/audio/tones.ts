@@ -15,8 +15,11 @@ export type GuitarTone = 'steel' | 'nylon' | 'clean' | 'driven' | 'muted' | 'har
 export type BassTone = 'bass-finger' | 'bass-pick' | 'bass-upright';
 /** A physical instrument the string model can render. */
 export type StringInstrument = 'steel' | 'nylon' | 'clean' | 'driven' | BassTone;
-/** How the note is played on that instrument. */
-export type Articulation = 'normal' | 'palm-mute' | 'dead' | 'harmonic';
+/**
+ * How the note is played on that instrument. `legato` is a note sounded by the fretting hand alone
+ * (a hammer-on or pull-off with nothing ringing to carry on from): no pick noise, a rounder attack.
+ */
+export type Articulation = 'normal' | 'palm-mute' | 'dead' | 'harmonic' | 'legato';
 
 /** Static soft-clipping stage between the `pre` and `post` filters of a bus. */
 export interface DriveSpec {
@@ -320,7 +323,7 @@ const TONE_ALIASES: Record<string, ToneName> = {
   bass: 'bass-finger', 'electric-bass': 'bass-finger', 'picked-bass': 'bass-pick', upright: 'bass-upright', 'double-bass': 'bass-upright',
 };
 
-const ARTICULATIONS: readonly Articulation[] = ['normal', 'palm-mute', 'dead', 'harmonic'];
+const ARTICULATIONS: readonly Articulation[] = ['normal', 'palm-mute', 'dead', 'harmonic', 'legato'];
 
 /**
  * Turn any tone id (a stored setting, an alias such as `acoustic` or `classical`, a typo) into a tone

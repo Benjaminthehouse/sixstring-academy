@@ -2884,7 +2884,7 @@
       "title": "Seventh-Chord Arpeggios in C",
       "level": 7,
       "goal": "Arpeggiate the seven diatonic seventh chords of C major",
-      "spec": "16 bars, 4/4, eighth notes in fifth position: Cmaj7 (C E G B), Dm7 (D F A C), Em7 (E G B D), Fmaj7 (F A C E), G7 (G B D F), Am7 (A C E G), Bm7b5 (B D F A), one bar up and down each, then an 8-bar melody over Dm7 G7 Cmaj7 that outlines them. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, eighth notes in fifth position: bars 1-7 Cmaj7 (C E G B), Dm7 (D F A C), Em7 (E G B D), Fmaj7 (F A C E), G7 (G B D F), Am7 (A C E G), Bm7b5 (B D F A), one bar up and down each; bar 8 Cmaj7 again, landing on the high C; bars 9-16 an 8-bar melody over Dm7 G7 Cmaj7 that outlines them. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "seventh chords",
         "diatonic harmony",
@@ -2956,7 +2956,7 @@
       "title": "CAGED: The Major Scale in Five Positions",
       "level": 7,
       "goal": "Play C major in the five CAGED positions and join them",
-      "spec": "20 bars, 4/4, eighth notes: C major from root to root and back in each position (C shape frets 0-3, A shape frets 2-6, G shape frets 4-8, E shape frets 7-10, D shape frets 9-13), then a 4-bar original melody in each position.",
+      "spec": "30 bars, 4/4, eighth notes: six bars in each of the five positions (C shape frets 0-3, A shape frets 2-6, G shape frets 4-8, E shape frets 7-10, D shape frets 9-13): two bars of C major from root to root and back, then a 4-bar original melody in the same position.",
       "teaches": [
         "CAGED scale positions",
         "major scale",
@@ -2980,7 +2980,7 @@
       "title": "Mode Study: A Ionian (major)",
       "level": 6,
       "goal": "Hear the major scale as a mode: its colour is the major seventh, G#",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Ionian: A B C# D E F# G#. Vamp Amaj7 (x02120) to D (xx0232): the Amaj7 carries the G#, and the D (not D#) rules out Lydian. Colour note: G#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Ionian: A B C# D E F# G#. Vamp Amaj7 (x02120) to D (xx0232): the Amaj7 carries the G#, and the D (not D#) rules out Lydian. Colour note: G#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -2992,7 +2992,7 @@
       "title": "Mode Study: A Dorian",
       "level": 6,
       "goal": "Minor with a bright sixth: F#",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Dorian: A B C D E F# G. Vamp Am (x02210) to D (xx0232); the D major chord carries the F#. Colour note: F#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Dorian: A B C D E F# G. Vamp Am (x02210) to D (xx0232); the D major chord carries the F#. Colour note: F#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3004,7 +3004,7 @@
       "title": "Mode Study: A Mixolydian",
       "level": 6,
       "goal": "Major with a flat seventh: G natural",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Mixolydian: A B C# D E F# G. Vamp A (x02220) to G (320003). Colour note: G. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Mixolydian: A B C# D E F# G. Vamp A (x02220) to G (320003). Colour note: G. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3016,7 +3016,7 @@
       "title": "Mode Study: A Aeolian (natural minor)",
       "level": 6,
       "goal": "The natural minor and its flat sixth: F",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Aeolian: A B C D E F G. Vamp Am (x02210), F (133211), G (320003): two bars of Am, one each of F and G. Colour note: F. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, a four-bar vamp played four times and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16 (F and G share bar 15); a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Aeolian: A B C D E F G. Vamp Am (x02210), F (133211), G (320003): two bars of Am, one each of F and G. Colour note: F. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3028,7 +3028,7 @@
       "title": "Mode Study: A Phrygian",
       "level": 7,
       "goal": "Minor with a flat second: Bb, the Spanish-sounding mode",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Phrygian: A Bb C D E F G. Vamp Am (x02210) to Bb (x13331). Colour note: Bb, resolving down to A. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Phrygian: A Bb C D E F G. Vamp Am (x02210) to Bb (x13331). Colour note: Bb, resolving down to A. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3040,7 +3040,7 @@
       "title": "Mode Study: A Lydian",
       "level": 7,
       "goal": "Major with a raised fourth: D#, the dreamy mode",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Lydian: A B C# D# E F# G#. Vamp A (x02220) to B (x24442). Colour note: D#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Lydian: A B C# D# E F# G#. Vamp A (x02220) to B (x24442). Colour note: D#. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",
@@ -3052,7 +3052,7 @@
       "title": "Mode Study: A Locrian",
       "level": 8,
       "goal": "The unstable mode: flat second and flat fifth (Bb and Eb)",
-      "spec": "16 bars, 4/4, the vamp changing every 2 bars; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Locrian: A Bb C D Eb F G. Vamp Am7b5 (x0101x) to Bbmaj7 (x1323x). Colour notes: Eb and Bb. Explain why songs rarely stay here: its home chord is diminished. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
+      "spec": "16 bars, 4/4, the vamp changing every 2 bars and ending with a two-bar cadence in bars 15-16 that comes home to the tonic chord in bar 16; a melody of quarter and eighth notes that lands on the colour note on a strong beat at least four times and ends on A. Backing part included. A Locrian: A Bb C D Eb F G. Vamp Am7b5 (x0101x) to Bbmaj7 (x1323x). Colour notes: Eb and Bb. Explain why songs rarely stay here: its home chord is diminished. Original material: it must not quote or imitate any existing song, riff or lick closely enough to be recognised.",
       "teaches": [
         "modes",
         "colour notes",

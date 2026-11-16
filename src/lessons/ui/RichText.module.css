@@ -8,6 +8,11 @@
   font-feature-settings: 'tnum' 1;
 }
 
+/* A term or symbol with the punctuation that follows it, or a run such as 10-8-8: one line. */
+.keep {
+  white-space: nowrap;
+}
+
 .term {
   display: inline;
   margin: 0;

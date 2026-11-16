@@ -3,7 +3,7 @@
  * review, on the course adapted to where the learner is, or why it cannot run (still loading,
  * coming soon, not on the path, nothing due). Pure.
  */
-import { findLesson, practiceSource, reviewSource, type SessionSource } from '@/lessons';
+import { courseMap, findLesson, practiceSource, reviewSource, type LessonNode, type SessionSource } from '@/lessons';
 import type { ProgressState } from '@/core/progress';
 import { courseForUnit, outlineLesson, outlineUnit, type TheoryCourse } from '@/content/theory';
 import { adaptCourse, type Conditions } from './conditions';
@@ -12,12 +12,37 @@ import type { LearnView } from './route';
 /** The addresses that run a session. */
 export type SessionView = Extract<LearnView, { kind: 'lesson' | 'checkpoint' | 'practice' | 'review' }>;
 
+/**
+ * A lesson further along the path than the learner (a link from a teacher's lesson, a bookmark):
+ * it still runs, with a short note saying so. `missing`: the lessons it builds on that are not done
+ * yet, in path order; `next`: where the learner is on the path.
+ */
+export interface Ahead {
+  missing: Array<{ unitId: string; lessonId: string; title: string }>;
+  next: { unitId: string; lessonId: string } | null;
+}
+
 /** What an address resolves to. */
 export type ResolvedSession =
   | { status: 'loading' }
   | { status: 'missing'; title: string; text: string }
   | { status: 'nothing-due' }
-  | { status: 'ready'; source: SessionSource; unitId: string | null; params: string[] };
+  | { status: 'ready'; source: SessionSource; unitId: string | null; params: string[]; ahead?: Ahead | null };
+
+/** Whether a lesson is ahead of the learner (locked on their map), and what it builds on. Null when it is open. */
+export function aheadOf(theory: TheoryCourse, lessonId: string, progress: ProgressState, now: number): Ahead | null {
+  const map = courseMap(theory.course, progress, now);
+  const nodes = new Map<string, LessonNode>();
+  for (const u of map.units) for (const l of u.lessons) nodes.set(l.id, l);
+  const node = nodes.get(lessonId);
+  if (!node || node.state !== 'locked') return null;
+  const missing = node.missing.map((id) => {
+    const known = nodes.get(id);
+    const planned = outlineLesson(id);
+    return { unitId: known?.unitId ?? planned?.unitId ?? '', lessonId: id, title: known?.title ?? planned?.lesson.title ?? id };
+  });
+  return { missing, next: map.next };
+}
 
 /** The unit an address is about (a lesson's own unit, whatever the link says), or null for the review. */
 export function sessionUnit(view: SessionView): string | null {
@@ -49,7 +74,8 @@ export function resolveSession(view: SessionView, theory: TheoryCourse, conditio
   const course = adaptCourse(courseForUnit(theory, unitId), conditions);
   if (view.kind === 'lesson') {
     if (!findLesson(course, view.lessonId)) return { status: 'missing', title: 'That lesson is not on the path', text: 'Pick a lesson from the path instead.' };
-    return { status: 'ready', source: { mode: 'lesson', course, lessonId: view.lessonId }, unitId, params: [unitId, view.lessonId] };
+    // A lesson ahead of the learner runs (reading ahead is allowed); the screen says it is ahead.
+    return { status: 'ready', source: { mode: 'lesson', course, lessonId: view.lessonId }, unitId, params: [unitId, view.lessonId], ahead: aheadOf(theory, view.lessonId, progress, now) };
   }
   if (view.kind === 'checkpoint') return { status: 'ready', source: { mode: 'checkpoint', course, unitId }, unitId, params: [unitId, 'checkpoint'] };
   return { status: 'ready', source: practiceSource(course, unitId, progress), unitId, params: [unitId, 'practice'] };

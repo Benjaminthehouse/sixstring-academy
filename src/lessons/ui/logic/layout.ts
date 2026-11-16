@@ -50,3 +50,17 @@ export function positionOfKey(key: string): number | null {
   if (!/^[1-9]$/.test(key)) return null;
   return Number(key) - 1;
 }
+
+const MATCH_LETTERS = 'ABCDEF';
+
+/** The letter key (A–F) of the right-hand column of a match exercise at a display position, or null past six. */
+export function matchLetter(position: number): string | null {
+  return position >= 0 && position < MATCH_LETTERS.length ? MATCH_LETTERS[position] : null;
+}
+
+/** The right-hand position a letter key picks (`'b'` or `'B'` -> 1), or null. */
+export function matchLetterIndex(key: string): number | null {
+  if (key.length !== 1) return null;
+  const at = MATCH_LETTERS.indexOf(key.toUpperCase());
+  return at < 0 ? null : at;
+}

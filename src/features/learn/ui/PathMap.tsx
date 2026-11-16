@@ -3,7 +3,7 @@
  * lesson nodes and the trail between them, and the units still being written ("coming soon"). The
  * node states come from the lesson engine's course map: locked, available, current, done.
  */
-import { useMemo, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject } from 'react';
+import { Fragment, useMemo, type KeyboardEvent as ReactKeyboardEvent, type MutableRefObject, type ReactNode } from 'react';
 import { Badge, Button, Heading, Icon, ProgressBar, Text, cx, useElementSize } from '@/ui';
 import type { PathLesson, PathStage, PathUnitView } from '../model/path';
 import { windingLayout } from '../model/winding';
@@ -202,8 +202,12 @@ export function ComingSoon({ units }: { units: PathUnitView[] }) {
   );
 }
 
-/** A stage: its header, then its units in order (written ones as path, runs of unwritten ones as a list). */
-export function StageSection({ stage, phases, handlers }: { stage: PathStage; phases: Map<string, number>; handlers: MapHandlers }) {
+/**
+ * A stage: its header, then its units in order (written ones as path, runs of unwritten ones as a
+ * list). `after` puts something right after one unit's stretch of path (a new learner's "Find my
+ * level" and switches follow the first unit, so the first lesson is on the first screen).
+ */
+export function StageSection({ stage, phases, handlers, after }: { stage: PathStage; phases: Map<string, number>; handlers: MapHandlers; after?: { unitId: string; node: ReactNode } | null }) {
   const blocks: Array<{ key: string; written: PathUnitView | null; soon: PathUnitView[] }> = [];
   for (const u of stage.units) {
     if (u.node) blocks.push({ key: u.path.outline.id, written: u, soon: [] });
@@ -228,7 +232,16 @@ export function StageSection({ stage, phases, handlers }: { stage: PathStage; ph
         </Text>
       </header>
       <ol className={styles.units}>
-        {blocks.map((b) => (b.written ? <UnitBlock key={b.key} unit={b.written} phase={phases.get(b.key) ?? 0} handlers={handlers} /> : <ComingSoon key={b.key} units={b.soon} />))}
+        {blocks.map((b) =>
+          b.written ? (
+            <Fragment key={b.key}>
+              <UnitBlock unit={b.written} phase={phases.get(b.key) ?? 0} handlers={handlers} />
+              {after && after.unitId === b.key && <li className={styles.after}>{after.node}</li>}
+            </Fragment>
+          ) : (
+            <ComingSoon key={b.key} units={b.soon} />
+          ),
+        )}
       </ol>
     </section>
   );

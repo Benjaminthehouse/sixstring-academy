@@ -6,8 +6,8 @@
 # The words of the traditional verse are written above the phrase they belong to; play it as an
 # instrumental, or sing them. A little vibrato (~) on the long fretted notes. No Western chords:
 # the teacher's track is an open-string drone, E (string 6) and B (string 2).
-# The key line reads E minor because the content checks only read major and minor keys; the tune
-# is in the E in scale, with F natural and no G.
+# The key line reads E Phrygian (no sharps or flats, home on E): the E in scale, E F A B C, is
+# five of its seven notes, with F natural and no G or D.
 title: Sakura, Sakura
 id: sakura
 composer: Traditional Japanese
@@ -18,7 +18,7 @@ difficulty: 3
 tags: melody, japanese, in scale, vibrato, slow
 tempo: 66
 time: 4/4
-key: Em
+key: E Phrygian
 
 track: Melody
 role: lead

@@ -862,7 +862,7 @@ const unit: TeacherUnit = {
   glossary: [
     { id: 'study', term: 'study', definition: 'A piece with a technical purpose and real music in it; also called an etude.' },
     { id: 'hemiola', term: 'hemiola', definition: 'Six beats regrouped: two groups of three heard as three groups of two, as when 6/8 alternates with 3/4.' },
-    { id: 'rubato', term: 'rubato', definition: 'Time borrowed and paid back within a phrase, so the phrase still ends on the beat.' },
+    { id: 'rubato', term: 'rubato', definition: 'Time stretched for expression and given back within the phrase, so the music breathes and the phrase still lands on the beat.' },
     { id: 'rondo', term: 'rondo', definition: 'A form in which a refrain returns between contrasting episodes: A B A C A.' },
     // Not `pedal-point`: unit 8 defines that one first, as a bass note, and the course keeps the
     // first definition; the Asturias pedal is the open B above or inside the moving line.

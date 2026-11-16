@@ -11,7 +11,7 @@ import { useStepKeys } from '../keys';
 import {
   EMPTY_MATCH, emptyFill, fillBackspace, fillPlace, fillTapBlank, fillWords, matchComplete, matchTap, orderBackspace, orderTap, pairOf, type FillDraft, type MatchDraft,
 } from '../logic/drafts';
-import { digitFor } from '../logic/layout';
+import { digitFor, matchLetter, matchLetterIndex } from '../logic/layout';
 import { KeyHints } from './parts';
 import type { ExerciseViewProps } from './types';
 import styles from './Exercises.module.css';
@@ -56,12 +56,18 @@ export function MatchView({ exercise, presentation, review, onDraft, hints }: Ex
     onDraft(matchComplete(next, n) ? { type: 'match-pairs', pairs: next.pairs } : null);
   };
 
+  // The left column answers to numbers (1–6), the right to letters (A–F): six pairs need twelve keys.
   useStepKeys(
     {
       digit: (p) => {
-        if (p < n) tap('left', left[p]);
-        else if (p < 2 * n) tap('right', right[p - n]);
-        else return false;
+        if (p >= n) return false;
+        tap('left', left[p]);
+        return true;
+      },
+      char: (k) => {
+        const p = matchLetterIndex(k);
+        if (p === null || p >= n) return false;
+        tap('right', right[p]);
         return true;
       },
       backspace: () => {
@@ -105,7 +111,7 @@ export function MatchView({ exercise, presentation, review, onDraft, hints }: Ex
           {right.map((index, position) => {
             const s = stateOf('right', index);
             return (
-              <Tile key={index} state={s.state} badge={s.badge} hint={hints && !review ? digitFor(position + n) : null} onClick={() => tap('right', index)} disabled={!!review} data-right={index}>
+              <Tile key={index} state={s.state} badge={s.badge} hint={hints && !review ? matchLetter(position) : null} onClick={() => tap('right', index)} disabled={!!review} data-right={index}>
                 <RichText text={exercise.pairs[index].right} />
               </Tile>
             );
@@ -117,7 +123,7 @@ export function MatchView({ exercise, presentation, review, onDraft, hints }: Ex
           {draft.pairs.length === n ? 'All matched. Check when you are ready.' : `${draft.pairs.length} of ${n} matched. Tap one item, then its partner.`}
         </Text>
       )}
-      <KeyHints show={hints && !review}>Numbers pick items, Backspace undoes the last pair.</KeyHints>
+      <KeyHints show={hints && !review}>Numbers pick on the left, letters on the right; Backspace undoes the last pair.</KeyHints>
     </div>
   );
 }

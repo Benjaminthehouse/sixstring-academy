@@ -697,3 +697,92 @@ describe('transport: loop, seek and pause under hands that are not gentle', () =
     expect(tr.now()).toBeCloseTo(3, 9);
   });
 });
+
+describe('transport: jumps and restarts', () => {
+  it('jumpAt carries on from another tick at the very moment, like a loop wrap: no gap, nothing doubled', () => {
+    const { tr, run } = make({ bpm: 120 });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    const notes: Array<{ tick: number; time: number }> = [];
+    tr.scheduleRepeat((time, tick) => notes.push({ tick, time }), 960);
+    tr.start();
+    run(0.5);
+    const at = tr.nextBarLine();
+    expect(at).toBe(3840);
+    let jumpedAt = -1;
+    expect(tr.jumpAt(at, 8 * 3840, (time) => (jumpedAt = time))).toBe(true);
+    run(4);
+    // Bar 0 played to its end, then bar 8 at once, on the same grid.
+    expect(jumpedAt).toBeCloseTo(0.05 + 2, 9);
+    expect(notes.map((n) => n.tick).slice(0, 7)).toEqual([0, 960, 1920, 2880, 8 * 3840, 8 * 3840 + 960, 8 * 3840 + 1920]);
+    for (let i = 1; i < notes.length; i++) expect(notes[i].time - notes[i - 1].time).toBeCloseTo(0.5, 9);
+    expect(beats.map((b) => b.bar).slice(0, 6)).toEqual([0, 0, 0, 0, 8, 8]);
+    // Where the music is, as heard.
+    expect(tr.position(0.05 + 2.6).bar).toBe(8);
+  });
+
+  it('a change made at the jump (meter, tempo) applies exactly there', () => {
+    const { tr, run } = make({ bpm: 120, ts: '4/4' });
+    const beats: BeatEvent[] = [];
+    tr.on('beat', (e) => beats.push(e));
+    tr.start();
+    run(0.2);
+    tr.jumpAt(tr.nextBarLine(), 0, () => {
+      tr.setTimeSignature('3/4');
+      tr.setTempo(60);
+    });
+    run(6);
+    const after = beats.slice(4);
+    expect(after[0].time - beats[3].time).toBeCloseTo(0.5, 9);
+    expect(after.slice(0, 4).map((b) => [b.bar, b.beat, b.beatsInBar])).toEqual([[0, 0, 3], [0, 1, 3], [0, 2, 3], [1, 0, 3]]);
+    expect(after[1].time - after[0].time).toBeCloseTo(1, 9);
+  });
+
+  it('a jump is refused when not playing or already behind, replaced by a newer one, and dropped by stop', () => {
+    const { tr, run } = make({ bpm: 120 });
+    expect(tr.jumpAt(3840, 0)).toBe(false);
+    tr.start();
+    run(1.5);
+    expect(tr.jumpAt(0, 3840)).toBe(false);
+    const seen: number[] = [];
+    tr.jumpAt(tr.nextBarLine(), 3840 * 4, () => seen.push(4));
+    tr.jumpAt(tr.nextBarLine(), 3840 * 6, () => seen.push(6));
+    run(3);
+    expect(seen).toEqual([6]);
+    tr.jumpAt(tr.nextBarLine(), 0, () => seen.push(0));
+    tr.stop();
+    tr.start();
+    run(6);
+    expect(seen).toEqual([6]);
+  });
+
+  it('stopping and starting again at once does not tell visual listeners "stop" after the music is back', () => {
+    const { tr, clock, run } = make({ bpm: 120 });
+    clock.latency = 0.05;
+    const heard: string[] = [];
+    tr.onVisual('stop', () => heard.push('stop'));
+    tr.onVisual('start', () => heard.push('start'));
+    tr.start();
+    run(1);
+    heard.length = 0;
+    tr.stop();
+    tr.start();
+    run(2);
+    expect(heard).toEqual(['start']);
+    // A plain stop is still heard.
+    tr.stop();
+    run(3);
+    expect(heard).toEqual(['start', 'stop']);
+  });
+
+  it('scheduleVisual hands back a cancel', () => {
+    const { tr, clock } = make();
+    const ran: number[] = [];
+    const off = tr.scheduleVisual(0.1, () => ran.push(1));
+    tr.scheduleVisual(0.1, () => ran.push(2));
+    off();
+    clock.t = 0.2;
+    tr.flushVisual();
+    expect(ran).toEqual([2]);
+  });
+});

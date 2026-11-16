@@ -97,6 +97,16 @@ export function arcadeParams(game: ArcadeGameId, tonic: string, scale: string, s
   return shape ? [game, scaleSlug(tonic, scale), shape] : [game, scaleSlug(tonic, scale)];
 }
 
+/**
+ * Params for the Live Fretboard showing this scale and shape on the learner's own guitar,
+ * `['scale', 'a', 'minor-pentatonic', 'box-1']` (`#camera--scale--a--minor-pentatonic--box-1`);
+ * every note of the scale (`all`) without a shape. The camera numbers shapes in their first octave:
+ * an `-8va` shape goes as the same fingering an octave down.
+ */
+export function cameraParams(tonic: string, scale: string, shape: string | null): string[] {
+  return ['scale', noteSlug(tonic), scale, shape ? shape.replace(/-8va$/, '') : 'all'];
+}
+
 /** Which pattern system a shape id belongs to. */
 export function systemOfShape(shape: string): PatternSystem | null {
   if (shape.startsWith('caged-')) return 'caged';

@@ -31,6 +31,7 @@ import {
   setDifficulty,
   suggestedPairs,
   targetPerMinute,
+  trainerSetup,
   trendWords,
 } from '../model/trainer';
 import { changePartners } from '../model/usage';
@@ -77,18 +78,27 @@ interface Outcome {
 }
 
 /** The trainer. */
-export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: string[]; tuning: string; known: ReadonlySet<string> }) {
+export function Trainer({ chordsFromUrl, optionsFromUrl = [], tuning, known }: { chordsFromUrl: string[]; optionsFromUrl?: string[]; tuning: string; known: ReadonlySet<string> }) {
   const { naming } = useMusicSettings();
   const [stored, setStored] = useLocalState<Settings>('chords.trainer', DEFAULTS);
   const settings = sanitize(stored);
   const patch = useCallback((p: Partial<Settings>) => setStored((prev) => ({ ...sanitize(prev), ...p })), [setStored]);
 
-  // Chords named in the address win (a "Practise changes" link from a chord page).
-  const urlKey = chordsFromUrl.join('|');
+  // What the address names wins, as if chosen by hand: the chords (a "Practise changes" link from a
+  // chord page), and the way to practise with its tempo and beats (a lesson's link).
+  const urlKey = `${chordsFromUrl.join('|')}/${optionsFromUrl.join('|')}`;
   useEffect(() => {
-    if (!chordsFromUrl.length) return;
-    const list = chordsFromUrl.length === 1 ? [chordsFromUrl[0], changePartners(chordsFromUrl[0])[0] ?? 'C'] : chordsFromUrl;
-    patch({ chords: list.slice(0, 4) });
+    const next: Partial<Settings> = {};
+    if (chordsFromUrl.length) {
+      const list = chordsFromUrl.length === 1 ? [chordsFromUrl[0], changePartners(chordsFromUrl[0])[0] ?? 'C'] : chordsFromUrl;
+      next.chords = list.slice(0, 4);
+    }
+    const setup = trainerSetup(optionsFromUrl);
+    // The ring-true check needs a microphone; where the host refuses one, one-minute changes stand in.
+    if (setup.mode) next.mode = setup.mode === 'check' && micRefusedByHost() ? 'minute' : setup.mode;
+    if (setup.bpm !== undefined) next.bpm = setup.bpm;
+    if (setup.beats !== undefined) next.beats = setup.beats;
+    if (Object.keys(next).length) patch(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlKey]);
 
@@ -363,7 +373,7 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
   const startLabel = settings.mode === 'minute' ? 'Start one minute' : settings.mode === 'timed' ? `Start at ${settings.bpm} BPM` : 'Start checking';
   return (
     <Page title="Chord-change trainer" subtitle="Changing chords cleanly, in time, is the first wall every guitarist meets. A minute a day knocks it down." back={{ to: 'chords', label: 'Chords' }}>
-    <div data-trainer data-phase="setup" data-skill={skillId}>
+    <div data-trainer data-phase="setup" data-skill={skillId} data-mode={settings.mode} data-bpm={settings.bpm} data-beats={settings.beats}>
       <div className={styles.setup}>
         <div className={styles.column}>
           <Section title="Your chords" description="Two to four chords. Tap one to swap it.">

@@ -36,6 +36,7 @@ import {
   ChipGroup,
   IconButton,
   Kbd,
+  LinkButton,
   Page,
   SegmentedControl,
   Text,
@@ -49,7 +50,7 @@ import {
 } from '@/ui';
 import { DegreeLegend, useMusicSettings, type FretCell, type TabViewHandle } from '@/ui/music';
 import { ScalePlayer } from './audio/player';
-import { DEFAULT_ADDRESS, arcadeParams, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, type ScaleAddress } from './model/address';
+import { DEFAULT_ADDRESS, arcadeParams, cameraParams, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, type ScaleAddress } from './model/address';
 import { droneFor, vampFor } from './model/backing';
 import { displayScaleName, rootChoices, scaleTitle, stepRoot } from './model/catalog';
 import {
@@ -468,6 +469,8 @@ export default function ScalesScreen({ params }: RouteProps) {
     [isPhone],
   );
   const playAlong = useMemo(() => arcadeParams('run-the-scale', tonic, scale.id, shape?.id ?? null), [tonic, scale.id, shape?.id]);
+  // The Live Fretboard with this shape (every note when the neck shows them all) on the learner's own guitar.
+  const onGuitar = useMemo(() => cameraParams(tonic, scale.id, view === 'all' ? null : shape?.id ?? null), [tonic, scale.id, view, shape?.id]);
   const closePicker = useCallback(() => setPickerOpen(false), []);
   const closeOptions = useCallback(() => setOptionsOpen(false), []);
   const onLeftHanded = useCallback((left: boolean) => setPrefs({ handedness: left ? 'left' : 'right' }), []);
@@ -725,6 +728,16 @@ export default function ScalesScreen({ params }: RouteProps) {
           {compact && <div className={styles.phoneTools}>{viewTools}</div>}
           {view !== 'all' && view !== 'compare' && (
             <ShapePicker systems={systems} system={system} onSystem={onSystem} shapes={shapes} shape={shape} onShape={onShape} learnt={learnt} />
+          )}
+          {view !== 'compare' && (
+            <div className={styles.onGuitar}>
+              <LinkButton to="camera" params={onGuitar} variant="secondary" size="sm" iconLeft="Camera" iconRight="ArrowRight" wrap data-scales-camera="">
+                See it on your guitar
+              </LinkButton>
+              <Text variant="caption" tone="muted" as="span">
+                Your camera puts these dots on your own frets.
+              </Text>
+            </div>
           )}
         </section>
 

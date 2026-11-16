@@ -136,6 +136,14 @@
   overflow: hidden;
 }
 
+/* "See it on your guitar": the Live Fretboard with this shape, and one line saying what that is. */
+.onGuitar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
 .legendRow {
   display: flex;
   flex-wrap: wrap;

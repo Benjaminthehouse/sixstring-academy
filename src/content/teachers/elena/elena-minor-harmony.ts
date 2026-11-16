@@ -813,7 +813,7 @@ const unit: TeacherUnit = {
     { id: 'falseta', term: 'falseta', definition: 'A short melodic passage a flamenco guitarist plays between sections of strumming.' },
     { id: 'neapolitan', term: 'Neapolitan', definition: 'A major chord on the flattened second degree, usually in first inversion: {c:Bb/D} in {k:A minor}.' },
     { id: 'augmented-sixth', term: 'augmented sixth chord', definition: 'A chromatic chord whose outer notes, an augmented sixth apart, move out by half steps to the dominant.' },
-    { id: 'hemiola', term: 'hemiola', definition: 'Three groups of two heard across two groups of three, or the reverse: the accents shift while the bar keeps its length.' },
+    { id: 'hemiola', term: 'hemiola', definition: 'Six beats regrouped: two groups of three heard as three groups of two, as when 6/8 alternates with 3/4.' },
     { id: 'pedal-point', term: 'pedal point', definition: 'A bass note held or repeated while the harmony changes above it.' },
   ],
 };

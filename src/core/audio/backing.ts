@@ -734,7 +734,14 @@ function arrangeGuitar(ctx: Ctx, out: BackingEvent[]): void {
         case 'P': emit(tick, bar, full, all.slice(n - 3), written * Math.min(1, style.guitarGate * 1.2), 0.66, 'up', 0.004, 'normal'); break;
         case 'M': emit(tick, bar, power, [0, 1], ctx.stepTicks, 0.82, 'down', 0.006, 'palm-mute'); break;
         case 'A': emit(tick, bar, power, [0, 1, 2], written * 0.95, 0.95, 'down', 0.008, 'normal'); break;
-        default: break;
+        default:
+          if (token >= '1' && token <= '6') {
+            // Fingerpicking: one string of the chord shape, the bass (thumb) a little stronger. A
+            // string the shape does not have (6 on a five-string shape) is its top string.
+            const i = Math.min(n - 1, Number(token) - 1);
+            emit(tick, bar, full, [i], ring, i === 0 ? 0.7 : 0.56, 'down', 0, 'normal');
+          }
+          break;
       }
     }
   }
@@ -750,6 +757,8 @@ function fillKind(ctx: Ctx, bar: number, fills: boolean): 'full' | 'half' | null
 
 function arrangeDrums(ctx: Ctx, out: BackingEvent[], fills: boolean): void {
   const { style, rng } = ctx;
+  // A band without a drummer: no groove, no fills, no cymbals, no ending hit.
+  if (style.percussion === false) return;
   let crashNext = true; // open the tune with a crash
   for (let bar = 0; bar < ctx.totalBars; bar++) {
     const barStart = bar * ctx.barTicks;

@@ -18,7 +18,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, parseSixTab, type Beat, type Song, type Track } from '@/core/song';
-import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
+import { chordPcs, keyModeName, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
 
 const PPQ = 960;
@@ -119,8 +119,8 @@ const SONGS: Expected[] = [
       'q q h | q q h | q q q q | q e e h | q q q q | q e e h | q q q q |' +
       'q e e h | q q q q | q e e h | q q h | q q h | q q e e q | w',
     chords: '',
-    // The key line has to read as E minor (see sakura/meta.ts); the tune keeps to the E in scale.
-    key: 'E minor',
+    // The key line reads E Phrygian (see sakura/meta.ts); the tune keeps to the E in scale, five of its notes.
+    key: 'E phrygian',
     scale: ['E', 'in'],
     range: ['B2', 'C4'],
     strong: [],
@@ -233,7 +233,7 @@ describe.each(SONGS.map((s) => [s.id, s] as [string, Expected]))('batch 3: %s', 
 
   it('keeps to its key, scale and range, and ends on the home note', () => {
     const k = parseKey(song.key ?? '');
-    expect(k && `${k.tonic} ${k.mode}`).toBe(want.key);
+    expect(k && `${k.tonic} ${keyModeName(k)}`).toBe(want.key);
     const allowed = scalePcs(want.scale[0], want.scale[1]);
     const notes = notesOf(melody);
     const outside = notes.filter((n) => !allowed.includes(n.midi % 12)).map((n) => `bar ${barNo(want, n.bar)}: ${name(n.midi)}`);

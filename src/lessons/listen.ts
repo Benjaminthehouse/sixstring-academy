@@ -11,8 +11,10 @@ import {
   NoteRecorder, compareNotes, waitForChord, waitForNote, type ChordSpec, type PitchSource, type WaitForChordOptions, type WaitForNoteOptions,
 } from '@/core/pitch';
 import { chordPcs, parallelChord, parseChord, parseNote, relativeChord } from '@/core/theory';
+import { voicingFor } from './figures';
 import { PLAY_CHORD_THRESHOLD, phraseMidi, playNoteTarget } from './grade';
-import type { Answer, CourseLevel, PlayChordExercise, PlayExercise, PlayNoteExercise } from './types';
+import { parseDuration, tickSeconds } from './rhythm';
+import type { Answer, CourseLevel, PlayChordExercise, PlayExercise, PlayNoteExercise, PlayPhraseExercise } from './types';
 
 /** Cents either side that still count as the note, per level (an exercise may set its own). */
 export const PLAY_TOLERANCE_CENTS: Readonly<Record<CourseLevel, number>> = { beginner: 45, intermediate: 35, expert: 25 };
@@ -22,7 +24,7 @@ export const PLAY_TRIES = 3;
 
 /** Options for listening. */
 export interface ListenOptions {
-  /** Give up after this long, in ms of audio time. Default 20 000 (30 000 for a phrase). */
+  /** Give up after this long, in ms of audio time. Default 20 000 (for a phrase: `phraseListenMs`). */
   timeoutMs?: number;
   /** Aborting resolves with "nothing heard". */
   signal?: AbortSignal;
@@ -65,22 +67,52 @@ export function noteWaitArgs(exercise: PlayNoteExercise, opts: ListenOptions = {
   };
 }
 
-/** `waitForChord` arguments for a play-chord exercise: the chord and the look-alikes it must beat. */
+/**
+ * `waitForChord` arguments for a play-chord exercise: the chord and the look-alikes it must beat.
+ * The strum is graded against the shape the exercise shows (its `frets`, else the library shape):
+ * the pitch classes that shape really sounds and its lowest note. A shell, rootless or extended
+ * grip leaves tones of the symbol out on purpose, and a power chord has no third at all, so the
+ * symbol's full list of tones would fail every honest strum.
+ */
 export function chordWaitArgs(exercise: PlayChordExercise, opts: ListenOptions = {}): { chord: ChordSpec; options: WaitForChordOptions } {
   const chord = parseChord(exercise.chord);
   const spec = (symbol: string): ChordSpec | null => {
     const c = parseChord(symbol);
     return c ? { name: c.symbol, pcs: chordPcs(c), bass: parseNote(c.bass ?? c.root)?.chroma } : null;
   };
-  const target: ChordSpec = spec(exercise.chord) ?? { pcs: [] };
+  let target: ChordSpec = spec(exercise.chord) ?? { pcs: [] };
+  const voicing = voicingFor(exercise.chord, exercise.frets, { tuning: exercise.tuning, capo: exercise.capo });
+  if (voicing && voicing.midi.length > 0) {
+    const pcs = [...new Set(voicing.midi.map((m) => ((m % 12) + 12) % 12))];
+    const lowest = Math.min(...voicing.midi);
+    target = { name: target.name ?? exercise.chord, pcs, bass: ((lowest % 12) + 12) % 12 };
+  }
+  const same = (a: readonly number[], b: readonly number[]): boolean => a.length === b.length && a.every((pc) => b.includes(pc));
   const rivals: ChordSpec[] = [];
   if (chord) {
     for (const symbol of [parallelChord(chord), relativeChord(chord)]) {
       const rival = symbol ? spec(symbol) : null;
-      if (rival) rivals.push(rival);
+      // A rival that sounds exactly like the shape could never score lower: leave it out.
+      if (rival && !same(rival.pcs, target.pcs)) rivals.push(rival);
     }
   }
   return { chord: target, options: { threshold: PLAY_CHORD_THRESHOLD, timeoutMs: opts.timeoutMs ?? 20_000, rivals } };
+}
+
+/** The least time a phrase gets before listening gives up, in ms. */
+export const PHRASE_LISTEN_MIN_MS = 40_000;
+
+/**
+ * How long to listen for a phrase before giving up, in ms: at least `PHRASE_LISTEN_MIN_MS`, and
+ * twice the phrase at its tempo plus ten seconds to get ready (a 16-bar melody at 80 BPM lasts
+ * 48 s, so it gets 106 s).
+ */
+export function phraseListenMs(exercise: PlayPhraseExercise): number {
+  const tempo = exercise.tempo && exercise.tempo > 0 ? exercise.tempo : 80;
+  let ticks = 0;
+  for (const n of exercise.notes ?? []) ticks += parseDuration(n.duration)?.ticks ?? 0;
+  const seconds = tickSeconds(ticks, tempo);
+  return Math.max(PHRASE_LISTEN_MIN_MS, Math.round((seconds * 2 + 10) * 1000));
 }
 
 function listening(run: (resolve: (answer: Answer) => void) => { cancel: () => void; finish: () => void }): Listening {
@@ -187,7 +219,7 @@ export function listenFor(source: PitchSource, exercise: PlayExercise, opts: Lis
 
   return listening((resolve) => {
     const expected = phraseMidi(exercise);
-    const timeoutMs = opts.timeoutMs ?? 30_000;
+    const timeoutMs = opts.timeoutMs ?? phraseListenMs(exercise);
     let startTime = Number.NaN;
     const offs: Array<() => void> = [];
     const played = (): number[] => recorder.notes.map((n) => n.midi);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Browser check of Progressions (#progressions). Run: node e2e/progressions.cjs [--quick] [--only desktop|phone|sync|themes]
+ * Browser check of Progressions (#progressions). Run: node e2e/progressions.cjs [--quick] [--only desktop|phone|sync|address|themes]
  *
  * Everything is driven through the screen (clicks, taps, keys), the way a learner would.
  *
@@ -22,6 +22,11 @@
  *           by side
  *  sync     independent of the band's reports: the app's real audio output is recorded, each bass
  *           root found by onset and pitch, and the big chord name must change 0–60 ms after it
+ *  address  a lesson's jam link sets tempo, style and times through (`--t72--ballad--x2`); the
+ *           tempo hint never calls a slower tempo wrong; `--hide-chart` hides every chord name
+ *           (big chord, next, chart, title) until "Show the chords"; a new learner gets plain
+ *           words (no roman numerals, "E minor with D♯" for harmonic minor), an intermediate one
+ *           the numerals
  *  themes   screenshots of browse, a page, the jam (playing) and the builder, phone and desktop,
  *           light and dark (e2e/out/progressions-*.png)
  *
@@ -551,11 +556,87 @@ async function themes() {
   }
 }
 
+// ── Addresses, chords by ear, plain words ────────────────────────────────────────────────────
+
+const NUMERAL = /(^|[\s(–·-])[b♭#♯]?(?:iii|ii|iv|vii|vi|v|i|III|II|IV|VII|VI|V|I)(?:°|ø|\+|maj|m|\d)*(?=$|[\s)–·\-/,:.])/;
+
+async function address() {
+  await withApp({ size: 'desktop', theme: 'dark' }, async ({ page, url, errors }) => {
+    await page.addInitScript(SEED);
+    // A fresh profile is a beginner: plain words. A lesson's link sets the band up.
+    await open(page, url, 'progressions--classical-minor-cadence--e--jam--t72--ballad--x2', '[data-jam]');
+    await page.waitForTimeout(400);
+    check('address: tempo 72 and the ballad style', (await attr(page, '[data-jam]', 'data-tempo')) === '72' && (await attr(page, '[data-jam]', 'data-style')) === 'ballad',
+      `${await attr(page, '[data-jam]', 'data-tempo')} ${await attr(page, '[data-jam]', 'data-style')}`);
+    const stored = await page.evaluate(() => ({ jam: JSON.parse(localStorage.getItem('ssa:progressions.jam') || '{}'), memory: JSON.parse(localStorage.getItem('ssa:progressions.memory') || '{}') }));
+    check('address: two times through instead of looping, remembered like a choice by hand', stored.jam.loop === false && stored.jam.choruses === 2 && stored.memory['classical-minor-cadence']?.tempo === 72, JSON.stringify(stored));
+    check('address: kept in the address after the key is read', (await page.evaluate(() => location.hash)) === '#progressions--classical-minor-cadence--e--jam--t72--ballad--x2', await page.evaluate(() => location.hash));
+
+    check('plain words: on for a new learner', (await attr(page, '[data-jam]', 'data-plain')) === 'true');
+    const title = await page.textContent('[data-jam-title]');
+    check('plain words: the title has no roman numerals', title === 'Minor cadence', title);
+    const role = (await page.textContent('[data-now-role]')) || '';
+    check('plain words: the first chord is called the home chord, not i', role.trim() === 'Home chord', role);
+    const chart = (await page.textContent('[data-chart]')) || '';
+    check('plain words: the chart shows chords without numerals', !NUMERAL.test(chart.replace(/[A-G][♯♭]?(?:m|7|maj7|dim|sus\d)*/g, ' ')) && /Em/.test(chart), chart);
+    const chips = await page.evaluate(() => [...document.querySelectorAll('[aria-label="Scale to solo with"] [role="radio"], [aria-label="Scale to solo with"] button')].map((b) => b.textContent.trim()));
+    check('plain words: no "Harmonic minor"; E minor with D♯ instead', chips.length > 0 && !chips.some((c) => /harmonic/i.test(c)) && chips.some((c) => c === 'E minor with D♯'), chips.join(' | '));
+    const hint = (await page.textContent('[data-scale-hint]')) || '';
+    check('plain words: the scale hint has no "harmonic"', !/harmonic/i.test(hint), hint);
+
+    // The tempo hint never says a slower tempo asked for by a lesson is wrong.
+    await open(page, url, 'progressions--minor-i-bvi-bvii--a--jam--t72', '[data-jam]');
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Band', exact: true }).click();
+    await page.waitForSelector('[role="dialog"]', { timeout: 10000 });
+    const sheet = (await page.textContent('[role="dialog"]')) || '';
+    check('tempo hint: below the usual range is "how you learn it", never "sits best"', /Usually 90 to 140 BPM\. Slower is how you learn it/.test(sheet) && !/sits best/.test(sheet), sheet.slice(0, 400));
+    await page.keyboard.press('Escape');
+
+    // Chords by ear: names hidden until the learner shows them.
+    await open(page, url, 'progressions--pop-axis--g--jam--hide-chart', '[data-jam]');
+    await page.waitForTimeout(400);
+    const hiddenState = await page.evaluate(() => ({
+      hidden: document.querySelector('[data-jam]').getAttribute('data-hidden'),
+      big: document.querySelector('[data-now-chord]').textContent,
+      next: document.querySelector('[data-next-chord]')?.textContent,
+      chart: document.querySelector('[data-chart]').textContent,
+      masked: document.querySelector('[data-chart]').getAttribute('data-masked'),
+      title: document.querySelector('[data-jam-title]').textContent,
+      role: document.querySelector('[data-now-role]').textContent,
+    }));
+    check('hide-chart: every chord name hidden', hiddenState.hidden === 'true' && hiddenState.big === '?' && hiddenState.next === '?' && hiddenState.masked === 'true' && !/[A-G]/.test(hiddenState.chart) && hiddenState.title === 'Chords by ear', JSON.stringify(hiddenState));
+    check('hide-chart: the bar number instead of the chord', /^Bar 1 of 4$/.test(hiddenState.role.trim()), hiddenState.role);
+    await page.locator('[data-play]').click();
+    await until(page, () => Number(document.querySelector('[data-jam]')?.getAttribute('data-serial')) >= 2, null, 20000);
+    const playing = await page.evaluate(() => ({ big: document.querySelector('[data-now-chord]').textContent, band: document.querySelector('[data-jam]').getAttribute('data-band-chord') }));
+    check('hide-chart: still hidden while the band plays', playing.big === '?' && !!playing.band, JSON.stringify(playing));
+    await page.locator('[data-play]').click();
+    await page.locator('[data-reveal]').click();
+    await page.waitForTimeout(300);
+    const shown = await page.evaluate(() => ({ hidden: document.querySelector('[data-jam]').getAttribute('data-hidden'), chart: document.querySelector('[data-chart]').textContent, big: document.querySelector('[data-now-chord]').textContent }));
+    check('hide-chart: "Show the chords" reveals them', shown.hidden === 'false' && /G/.test(shown.chart) && /D/.test(shown.chart) && shown.big !== '?', JSON.stringify(shown));
+
+    // A learner past the beginner course sees the numerals and the real scale names.
+    await page.evaluate(async () => (await import('/src/core/progress/index.ts')).setProfile({ experience: 'intermediate' }));
+    await open(page, url, 'progressions--classical-minor-cadence--e--jam', '[data-jam]');
+    await page.waitForTimeout(400);
+    const expert = await page.evaluate(() => ({
+      plain: document.querySelector('[data-jam]').getAttribute('data-plain'),
+      role: document.querySelector('[data-now-role]').textContent,
+      chips: [...document.querySelectorAll('[aria-label="Scale to solo with"] [role="radio"], [aria-label="Scale to solo with"] button')].map((b) => b.textContent.trim()),
+    }));
+    check('intermediate learner: numerals and scale names as before', expert.plain === 'false' && expert.role.trim() === 'i' && expert.chips.some((c) => /harmonic minor/i.test(c)), JSON.stringify(expert));
+    check('address checks without console errors', errors.length === 0, errors.join(' | '));
+  });
+}
+
 (async () => {
   try {
     if (!only || only === 'desktop') await desktop();
     if (!only || only === 'phone') await phone();
     if (!only || only === 'sync') await sync();
+    if (!only || only === 'address') await address();
     if (!only || only === 'themes') await themes();
   } catch (e) {
     check('the run finished', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' ') : String(e));

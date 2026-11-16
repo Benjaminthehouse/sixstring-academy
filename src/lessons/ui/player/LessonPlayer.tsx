@@ -186,6 +186,8 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
   const skip = () => dispatch({ type: 'skip' });
   const cantPlay = useCallback(() => void dispatch({ type: 'cant-play', scope: 'session' }), [dispatch]);
   const micUnavailable = useCallback(() => void dispatch({ type: 'mic', available: false }), [dispatch]);
+  // After "I can't play right now" every play step opens as its tapping version; one tap brings the microphone back.
+  const useMic = useCallback(() => void dispatch({ type: 'mic', available: true }), [dispatch]);
 
   const askToLeave = () => {
     if (done || !isResumable(state)) {
@@ -213,6 +215,8 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
     if (!done || !state.summary) return { kind: 'path' };
     const s = state.summary;
     if (s.outcome === 'out-of-hearts' && state.unitId) return { kind: 'practice', unitId: state.unitId };
+    // A lesson below the pass mark: the obvious next step is the same lesson again.
+    if (s.outcome === 'failed' && s.mode === 'lesson') return { kind: 'retry' };
     if (s.outcome === 'failed') return { kind: 'path' };
     if (s.outcome === 'quit') return { kind: 'path' };
     if (course && source.mode !== 'review') {
@@ -228,6 +232,8 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
 
   const goNext = () => {
     if (next.kind === 'path') return onExit();
+    // A retry runs here, whoever hosts the player: it is the same session again.
+    if (next.kind === 'retry') return restart();
     if (onNext) return onNext(next);
     if (next.kind === 'lesson' && course) restart({ mode: 'lesson', course, lessonId: next.lessonId });
     else if (next.kind === 'practice' && course) restart(practiceSource(course, next.unitId, session.port.getState()));
@@ -347,6 +353,7 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
                   setPrimary={setPrimary}
                   onCantPlay={step.usesMic ? cantPlay : undefined}
                   onMicUnavailable={step.usesMic ? micUnavailable : undefined}
+                  onUseMic={step.alternative && !isArtifact() && !feedback ? useMic : undefined}
                   hints={hints}
                   level={state.level}
                   naming={naming}
@@ -371,7 +378,7 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
                           {exitLabel}
                         </Button>
                       )}
-                      {state.summary?.outcome === 'failed' && (
+                      {state.summary?.outcome === 'failed' && next.kind !== 'retry' && (
                         <Button onClick={() => restart()} data-action="retry" wrap>
                           Try again
                         </Button>

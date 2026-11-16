@@ -57,7 +57,7 @@ export function scopeFrets(scope: Scope): number[] {
 
 /** Every position a scope covers, string by string (thinnest first), fret by fret. */
 export function scopePositions(scope: Scope, ctx: Pick<NeckContext, 'tuning'>): Pos[] {
-  const allowed = new Set(pcsOf(scope.notes));
+  const allowed = new Set(scope.pcs ? scope.pcs.map((pc) => ((pc % 12) + 12) % 12) : pcsOf(scope.notes));
   const only = scope.only ? new Set(scope.only) : null;
   const n = stringCount(ctx);
   const out: Pos[] = [];

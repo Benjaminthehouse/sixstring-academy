@@ -17,9 +17,11 @@ import {
   semitonesToDegree, semitonesToInterval, spellInKey, staffPosition, transpose, type NoteNaming,
 } from '@/core/theory';
 import { checkText, compareNoteNames, normalizeNote, specMarkup, specValue, type TextCheck } from './answers';
+import { chordBuildNote } from './chord-words';
 import { keyAlteration, positionProblem, shownAccidental, voicingFor } from './figures';
-import { parseRhythm, tickSeconds } from './rhythm';
+import { parseRhythm, rhythmCounts, tickSeconds } from './rhythm';
 import { createRng, shuffleAway } from './rng';
+import { exerciseSpelling, spellPitch, spellingOfName } from './spelling';
 import { plainText, textKey } from './text';
 import type {
   Answer, AnswerSpec, ChoiceExercise, ChoiceOption, ChordBuildExercise, CourseLevel, Exercise, FeedbackDetail,
@@ -36,6 +38,11 @@ export interface GradeContext {
   level?: CourseLevel;
   /** The learner's note-naming system, so typed answers such as "H" or "Do" are understood. */
   naming?: NoteNaming;
+  /**
+   * Chord symbols the course has taught so far. A wrong chord shape is named ("That shape is C")
+   * only when it is a common chord in this list; without the list, only when it is a common chord.
+   */
+  chordsTaught?: readonly string[];
 }
 
 /** The markup text of a rich text. */
@@ -307,7 +314,8 @@ function gradeTaps(exercise: TapRhythmExercise, tapsRaw: readonly number[], ctx:
   const score = targets.length === 0 ? 0 : hits / Math.max(targets.length, taps.length);
   const mistimed = onsets.some((o) => o.verdict === 'early' || o.verdict === 'late');
   const near: NearMiss | undefined = !ok && hits >= Math.ceil(targets.length / 2) ? (extra.length > rule.extraTaps && hits >= needed ? 'extra' : mistimed ? 'timing' : 'incomplete') : undefined;
-  const answer = exercise.rhythm.pattern;
+  // The counting a learner says, never the pattern code ("et et et q q"): the screen draws the rhythm itself.
+  const answer = rhythmCounts(exercise.rhythm) || exercise.rhythm.pattern;
   return result(exercise, ok, score, answer, { type: 'tap-rhythm', onsets, extra, toleranceMs, offsetMs: Math.round(offset * 1000), needed, hits }, { near });
 }
 
@@ -388,11 +396,21 @@ function describeFind(exercise: FretboardFindExercise, targets: readonly NamedPo
   return targets.length > 6 ? `${what}: ${targets.length} places` : `${what}: ${where}`;
 }
 
+/** The strings a fretboard-find region allows, in words ("string 5", "strings 6 and 5", "strings 6, 5 and 4"). */
+function stringsWords(strings: readonly number[]): string {
+  const list = [...strings].sort((a, b) => b - a);
+  if (list.length === 1) return `string ${list[0]}`;
+  return `strings ${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
 function gradeFind(exercise: FretboardFindExercise, positionsRaw: readonly NeckPosition[]): GradeResult {
   const opts = neckOpts(exercise);
   const targets = findTargets(exercise);
   const targetKeys = new Set(targets.map(posKey));
   const targetPcs = new Set(targets.map((t) => t.midi % 12));
+  // Taps that are not answers are named in the music of the question: inside an A chord the note
+  // at string 1, fret 9 is C♯, not D♭.
+  const context = exerciseSpelling(exercise) ?? spellingOfName(targets[0]?.note) ?? undefined;
   const seen = new Set<string>();
   const given: NeckPosition[] = [];
   for (const p of positionsRaw) {
@@ -405,14 +423,23 @@ function gradeFind(exercise: FretboardFindExercise, positionsRaw: readonly NeckP
     .filter((p) => !targetKeys.has(posKey(p)))
     .map((p) => {
       const midi = midiAt(p, opts);
-      return { ...p, midi, note: spellMidi(midi, undefined, { octave: false }) };
+      return { ...p, midi, note: spellPitch(midi, context, { octave: false }) };
     });
   const missed = exercise.mode === 'all' ? targets.filter((t) => !seen.has(posKey(t))).map((t) => ({ string: t.string, fret: t.fret })) : [];
   const ok = targets.length > 0 && wrong.length === 0 && (exercise.mode === 'all' ? missed.length === 0 : hits.length >= 1);
   const score = exercise.mode === 'all' ? (hits.length - wrong.length) / Math.max(1, targets.length) : 0;
-  const octaveSlip = wrong.length > 0 && exercise.octave === 'exact' && wrong.every((w) => targetPcs.has(w.midi % 12));
-  const near: NearMiss | undefined = ok ? undefined : octaveSlip ? 'octave' : wrong.length === 0 && hits.length > 0 ? 'incomplete' : undefined;
-  const note = octaveSlip ? 'Right note name, but in a different octave: this one asks for the exact pitch.' : undefined;
+  // A right pitch on a string the question leaves out: right note, wrong string.
+  const allowed = exercise.strings && exercise.strings.length > 0 ? exercise.strings : null;
+  const targetMidis = new Set(targets.map((t) => t.midi));
+  const samePitch = (w: NamedPosition): boolean => (exercise.octave === 'exact' ? targetMidis.has(w.midi) : targetPcs.has(w.midi % 12));
+  const otherString = allowed !== null && wrong.length > 0 && wrong.every((w) => !allowed.includes(w.string) && samePitch(w));
+  const octaveSlip = !otherString && wrong.length > 0 && exercise.octave === 'exact' && wrong.every((w) => targetPcs.has(w.midi % 12));
+  const near: NearMiss | undefined = ok || otherString ? undefined : octaveSlip ? 'octave' : wrong.length === 0 && hits.length > 0 ? 'incomplete' : undefined;
+  const note = otherString
+    ? `Right note, but on string ${wrong[0].string}: this one asks for ${stringsWords(allowed!)}.`
+    : octaveSlip
+      ? 'Right note name, but in a different octave: this one asks for the exact pitch.'
+      : undefined;
   return result(exercise, ok, score, describeFind(exercise, targets), { type: 'fretboard-find', targets, hits, wrong, missed }, { near, note });
 }
 
@@ -454,8 +481,22 @@ function gradeTextAgainst(exercise: Exercise, type: 'fretboard-name' | 'staff-re
 
 /** The reference shape of a chord-build (fingers) or play-chord exercise: frets low to high, or null when none exists. */
 export function referenceFrets(exercise: ChordBuildExercise | PlayChordExercise): Array<number | null> | null {
-  const voicing = voicingFor(exercise.chord, exercise.frets, 'tuning' in exercise ? neckOpts(exercise) : {});
+  // Tuning and capo always count, whether or not the exercise names a tuning.
+  const voicing = voicingFor(exercise.chord, exercise.frets, neckOpts(exercise));
   return voicing ? [...voicing.frets] : null;
+}
+
+/** True when a shape's lowest sounding note is the bass a slash chord asks for (always true for other chords). */
+function bassMatches(chordSymbol: string, frets: ReadonlyArray<number | null>, opts: { tuning?: string; capo?: number }, count: number): boolean {
+  const c = parseChord(chordSymbol);
+  if (!c?.bass) return true;
+  let lowest: number | null = null;
+  frets.forEach((f, i) => {
+    if (f === null) return;
+    const midi = midiAt({ string: count - i, fret: f }, opts);
+    if (lowest === null || midi < lowest) lowest = midi;
+  });
+  return lowest !== null && ((lowest % 12) + 12) % 12 === parseNote(c.bass)?.chroma;
 }
 
 /** The one chord tone a missing-note exercise leaves out, or null when it is not exactly one. */
@@ -490,6 +531,8 @@ function gradeChordBuild(exercise: ChordBuildExercise, answer: Extract<Answer, {
   } catch (error) {
     problem = error instanceof Error ? error.message : 'the shape cannot be played';
   }
+  // A slash chord is defined by its bass: C/G with the C shape (C in the bass) is not C/G.
+  if (problem === null && !bassMatches(exercise.chord, frets, opts, count)) problem = `the lowest note is not the ${parseChord(exercise.chord)?.bass ?? ''} the chord asks for`;
   const ok = exercise.accept === 'this-shape' ? matchesReference : problem === null;
   const pcs = new Set(chordPcs(exercise.chord));
   const wrongStrings: number[] = [];
@@ -501,9 +544,10 @@ function gradeChordBuild(exercise: ChordBuildExercise, answer: Extract<Answer, {
   });
   const same = reference ? reference.filter((f, i) => f === frets[i]).length / count : 0;
   const near: NearMiss | undefined = !ok && wrongStrings.length === 0 && frets.some((f) => f !== null) ? 'incomplete' : undefined;
-  const shape = reference ? reference.map((f) => (f === null ? 'x' : String(f))).join(reference.some((f) => f !== null && f > 9) ? '-' : '') : '';
-  const note = !ok && built && parseChord(built)?.symbol !== parseChord(exercise.chord)?.symbol ? `That shape is {c:${built}}.` : undefined;
-  return result(exercise, ok, same, `{c:${exercise.chord}}: ${shape}`, { type: 'chord-build', task: 'fingers', frets: reference ?? [], built, problem, wrongStrings }, { near, note });
+  // Plain words for a beginner; the screen shows the right box. No fret strings ("022000"), and
+  // the learner's shape is named only when it is a common chord the course has taught.
+  const note = ok ? undefined : chordBuildNote({ chord: exercise.chord, frets, reference, accept: exercise.accept ?? 'any-voicing', tuning: exercise.tuning, capo: exercise.capo, built, taught: ctx.chordsTaught });
+  return result(exercise, ok, same, `{c:${exercise.chord}}`, { type: 'chord-build', task: 'fingers', frets: reference ?? [], built, problem, wrongStrings }, { near, note });
 }
 
 // ── Staff ──────────────────────────────────────────────────────────────────────────────────────
@@ -609,7 +653,9 @@ function gradePlayPhrase(exercise: PlayPhraseExercise, answer: Extract<Answer, {
   const pass = exercise.pass ?? 0.8;
   const ok = expected.length > 0 && comparison.accuracy >= pass - 1e-9;
   const near: NearMiss | undefined = !ok && comparison.accuracy >= 0.5 ? 'incomplete' : undefined;
-  const answerText = expected.map((m) => `{n:${spellMidi(m, undefined, { octave: false })}}`).join(' ');
+  // Named in the phrase's key (an A major phrase has C♯, never D♭).
+  const context = exerciseSpelling(exercise);
+  const answerText = expected.map((m) => `{n:${spellPitch(m, context, { octave: false })}}`).join(' ');
   return result(exercise, ok, comparison.accuracy, answerText, { type: 'play-phrase', expected, played, correct: comparison.correct, missed: comparison.missed, extra: comparison.extra }, { near });
 }
 

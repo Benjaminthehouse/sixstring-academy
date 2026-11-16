@@ -698,7 +698,7 @@ const unit: TeacherUnit = {
   checkpoint: { sample: 8, maxMistakes: 2 },
   glossary: [
     { id: 'colour-note', term: 'colour note', definition: 'The note that sets a mode apart from plain major or minor: Dorian\'s major sixth, Lydian\'s raised fourth, Mixolydian\'s flat seventh.' },
-    { id: 'drone', term: 'drone', definition: 'A note held or repeated under the music, so that every other note is heard against it.' },
+    { id: 'drone', term: 'drone', definition: 'A note held or repeated under the music, often an open string left ringing, so that every other note is heard against it.' },
     { id: 'vamp', term: 'vamp', definition: 'A short chord pattern, often two chords, repeated for as long as the soloist needs.' },
     { id: 'phrygian-dominant', term: 'Phrygian dominant', definition: 'Phrygian with a major third: the scale over flamenco\'s major home chord. On E: {n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}.' },
     { id: 'rasgueado', term: 'rasgueado', definition: 'The flamenco strum: the fingers flick out across the strings one after another, a quick roll of separate strokes.' },

@@ -3,8 +3,8 @@
  * specific: "You found 2 of the 4"), the right answer when it was missed, and why it is right.
  * Built from the grader's typed feedback, so every exercise type speaks the same way.
  */
-import { midiToNote } from '@/core/theory';
 import { optionLabel } from '../../grade';
+import { exerciseSpelling, spellPitch } from '../../spelling';
 import type { SessionFeedback } from '../../session';
 import type { AnswerSpec, Exercise, FeedbackDetail, GradeResult, RichText } from '../../types';
 
@@ -58,8 +58,10 @@ export function valueMarkup(kind: AnswerSpec['kind'] | 'note', value: string): s
   }
 }
 
-function noteOf(midi: number): string {
-  return `{n:${midiToNote(midi)}}`;
+/** A heard pitch as markup, named in the exercise's key; without the octave where targets are labelled by place. */
+function noteOf(midi: number, exercise: Exercise): string {
+  const byPlace = (exercise.type === 'play-note' || exercise.type === 'play-phrase') && exercise.labels === 'place';
+  return `{n:${spellPitch(midi, exerciseSpelling(exercise), { octave: !byPlace })}}`;
 }
 
 /** The kind of value a text-graded exercise compares, for marking up what the learner gave. */
@@ -95,11 +97,14 @@ export function wrongLine(exercise: Exercise, result: GradeResult): RichText | n
     case 'order': {
       const total = d.solution.length;
       const right = Math.max(0, total - d.wrongAt.filter((i) => i < total).length);
-      return right === 0 ? 'None of the tiles were in the right place yet.' : `${count(right, 'tile')} of ${total} were in the right place.`;
+      return right === 0 ? 'None of the tiles is in the right place yet.' : `${right} of the ${total} tiles ${right === 1 ? 'is' : 'are'} in the right place.`;
     }
     case 'fill-blanks': {
       const right = d.ok.filter(Boolean).length;
-      return `${right} of ${count(d.ok.length, 'blank')} ${right === 1 ? 'was' : 'were'} right.`;
+      const total = d.ok.length;
+      if (total === 1) return 'That word does not fit the blank.';
+      if (right === 0) return `None of the ${total} blanks is right yet.`;
+      return `${right} of the ${total} blanks ${right === 1 ? 'is' : 'are'} right.`;
     }
     case 'type-answer':
     case 'fretboard-name':
@@ -141,7 +146,7 @@ export function wrongLine(exercise: Exercise, result: GradeResult): RichText | n
       return d.placed ? `You placed {n:${d.placed}}.` : 'Place a note on a line or a space first.';
     case 'play-note':
       if (d.played === null) return 'I did not hear a clear note.';
-      return `I heard ${noteOf(d.played)}${result.near === 'octave' ? ': the right note, an octave away' : ''}.`;
+      return `I heard ${noteOf(d.played, exercise)}${result.near === 'octave' ? ': the right note, an octave away' : ''}.`;
     case 'play-chord': {
       const parts: string[] = [];
       if (d.missing.length > 0) parts.push(`missing ${d.missing.map((n) => `{n:${n}}`).join(', ')}`);

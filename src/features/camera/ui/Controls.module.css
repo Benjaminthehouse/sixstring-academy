@@ -6,10 +6,20 @@
   min-width: 0;
 }
 
+/* The root beside the scale or chord type; each on its own row when the column is too narrow for
+   both (large text), so the Root select never shrinks below its value. */
 .pair {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-2);
+}
+.pair > :first-child {
+  flex: 1 1 5.5rem;
+  min-width: 0;
+}
+.pair > :last-child {
+  flex: 2 1 9rem;
+  min-width: 0;
 }
 
 .stepper {

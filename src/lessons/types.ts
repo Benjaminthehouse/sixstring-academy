@@ -88,11 +88,17 @@ export interface FretboardFigure {
   strings?: number[];
   /** Tuning id or name understood by the guitar engine. Default `standard`. */
   tuning?: string;
+  /** A capo on this fret: dots and `frets` count from the capo (fret 0 sits on it). */
   capo?: number;
   /** Root note for degree labels and for checking `degree` claims. */
   root?: string;
   /** What unlabelled dots show. Default `note`. */
   labels?: 'note' | 'degree' | 'finger' | 'none';
+  /**
+   * Key that spells the note names of the dots (`A major`: C♯, not D♭). Default: the derived
+   * chord or scale, else the key the dots imply.
+   */
+  key?: string;
   caption?: RichText;
 }
 
@@ -183,6 +189,9 @@ export interface RhythmFigure extends RhythmSpec {
   caption?: RichText;
 }
 
+/** How the targets of a play exercise are labelled: by note name (`E2`) or by place (`string 6, open`). */
+export type PlayLabels = 'note' | 'place';
+
 /** One event of a tab phrase: a fretted note, or a rest. */
 export type TabNote = { string: number; fret: number; duration: DurationCode } | { rest: true; duration: DurationCode };
 
@@ -192,6 +201,8 @@ export interface TabFigure {
   notes: TabNote[];
   tuning?: string;
   capo?: number;
+  /** Key that spells the phrase's note names. Default: the key its notes imply. */
+  key?: string;
   /** Time signature. Default `4/4`. */
   time?: string;
   tempo?: number;
@@ -385,6 +396,8 @@ export interface TapRhythmExercise extends ExerciseBase {
    * `first-tap`: the learner starts when ready and the first tap is taken as beat one.
    */
   start?: 'count-in' | 'first-tap';
+  /** Show the counting ("1 & 2 &") under the notation. Default true; false when counts would confuse (a pickup, a pad count of its own). */
+  counting?: boolean;
 }
 
 /** What to find on the neck. */
@@ -414,6 +427,8 @@ export interface FretboardFindExercise extends ExerciseBase {
   shown?: FretDot[];
   tuning?: string;
   capo?: number;
+  /** Key that spells the notes named in the feedback (`A major`: C♯, not D♭). Default: the chord, scale or note asked for. */
+  key?: string;
 }
 
 /** A position is shown: name its note, its interval from a root, or its scale degree. */
@@ -496,14 +511,29 @@ export interface PlayNoteExercise extends PlayBase {
   where?: NeckPosition;
   /** How far off still counts, in cents. Default 45. */
   toleranceCents?: number;
+  /** Key that spells the notes it names (the one heard when it is not the one asked for). Default: as `note` is written. */
+  key?: string;
+  /** Label the target by note name (`E2`, default) or by place (`string 6, open`: friendlier before octaves are taught). */
+  labels?: PlayLabels;
+  /** Show no note names (a "find it by ear" or reading test). The feedback still names them. */
+  hideNames?: boolean;
+  /** Show the note on a staff only: no neck, no names (a reading test). Implies `hideNames`. */
+  staffOnly?: boolean;
 }
 
 /** Strum a chord. */
 export interface PlayChordExercise extends PlayBase {
   type: 'play-chord';
   chord: string;
-  /** The shape to show. Default: the first library voicing. */
+  /** The shape to show, and the one graded. Default: the first library voicing. */
   frets?: FretsInput;
+  /** Fingers per string, low to high (`'x32010'`); the box draws them. Default: worked out. */
+  fingers?: string;
+  /** Hide the chord box: the learner finds the shape on the neck (the box is shown after the answer). */
+  hideDiagram?: boolean;
+  tuning?: string;
+  /** A capo on this fret: `frets` count from it and `chord` names what SOUNDS. */
+  capo?: number;
 }
 
 /** Play a short phrase, note by note. */
@@ -516,6 +546,14 @@ export interface PlayPhraseExercise extends PlayBase {
   pass?: number;
   tuning?: string;
   capo?: number;
+  /** Key that spells the note names. Default: the key the phrase's notes imply. */
+  key?: string;
+  /** Label the notes by name (default) or by place (`string 5, fret 3`). */
+  labels?: PlayLabels;
+  /** Show no note names under the tab (the feedback still names them). */
+  hideNames?: boolean;
+  /** Show the phrase on a staff only: no tab, no names (a reading test). Implies `hideNames`. */
+  staffOnly?: boolean;
 }
 
 /** A flashcard: recall the back from the front and rate yourself. Used in reviews. */

@@ -6,6 +6,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { href, navigate } from '@/app/router';
+import { isArtifact } from '@/core/platform';
 import { chordTones, getChordType, parseChord, type Chord } from '@/core/theory';
 import { ActionBar, Badge, Button, Icon, IconButton, Kbd, LinkButton, Section, SegmentedControl, Switch, Text, useIsMobile, useLocalState } from '@/ui';
 import { arpeggioMarkers, ChordDiagram, Fretboard, NoteBadge, useMusicSettings, voicingOnBoard } from '@/ui/music';
@@ -13,6 +14,7 @@ import { setKnown, useVoicingSet } from '../hooks/data';
 import { useShortcuts } from '../hooks/keys';
 import { arpeggiateVoicing, strumSequence, strumVoicing } from '../hooks/sound';
 import { easierAlternatives } from '../model/alternatives';
+import { cameraChordParams } from '../model/camera';
 import { familyOfType } from '../model/catalog';
 import { chordParam, displayDegree, displaySymbol } from '../model/symbols';
 import { changePartners, chordUsage } from '../model/usage';
@@ -120,6 +122,13 @@ export function ChordPage({ symbol, initialVoicing, tuning, known, primaryAction
       Practise changes
     </LinkButton>
   );
+  // The Live Fretboard draws this shape on the learner's own guitar (not where the host refuses a camera).
+  const cameraParams = useMemo(() => (v && !isArtifact() ? cameraChordParams(symbol, v.frets, tuning) : null), [symbol, v, tuning]);
+  const seeIt = cameraParams && (
+    <LinkButton variant="ghost" iconLeft="ScanEye" to="camera" params={cameraParams} className={styles.seeIt} title="The camera draws this shape on your own guitar's neck" data-see-on-guitar={cameraParams.join('--')}>
+      See it on your guitar
+    </LinkButton>
+  );
 
   return (
     <div className={styles.page} data-chord-page={symbol}>
@@ -181,6 +190,7 @@ export function ChordPage({ symbol, initialVoicing, tuning, known, primaryAction
           <div className={styles.buttons}>
             {knownButton}
             {!isMobile && practise}
+            {seeIt}
           </div>
           {!isMobile && (
             <Text variant="caption" tone="muted" className={styles.hint}>

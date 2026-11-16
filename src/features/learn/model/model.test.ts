@@ -13,7 +13,7 @@ import { adaptCourse, adaptLesson, adaptUnit, conditionsLine, isListeningStep, i
 import { completedUnits, focusUnit, pathView, refillUnit, unitAfter } from './path';
 import { MAX_PROBES, nextProbe, probePool, probeVerdict, recordProbe, startPlacement, unitsKnown } from './placement';
 import { learnParams, parseLearnParams, type LearnView } from './route';
-import { resolveSession, sessionUnit } from './session';
+import { aheadOf, resolveSession, sessionUnit } from './session';
 import { nextPhase, swingOf, windingLayout } from './winding';
 
 const NOW = Date.parse('2026-11-16T10:00:00Z');
@@ -230,11 +230,35 @@ describe('what a session address runs', () => {
 
   it('says when a unit is coming soon, or a lesson is not on the path', async () => {
     const theory = assembleTheory(await loadWrittenUnits());
-    const soon = resolveSession({ kind: 'lesson', unitId: 'the-six-strings', lessonId: 'string-numbers' }, theory, AT, fresh(), NOW);
+    // Every unit of the syllabus is written now: a unit still being written is made up here.
+    const unwritten = { ...theory, units: theory.units.map((u) => (u.outline.id === 'the-six-strings' ? { ...u, status: 'coming-soon' as const, unit: null } : u)) };
+    const soon = resolveSession({ kind: 'lesson', unitId: 'the-six-strings', lessonId: 'string-numbers' }, unwritten, AT, fresh(), NOW);
     expect(soon.status === 'missing' && soon.title).toBe('Unit 2 is coming soon');
+    // Written, it runs.
+    expect(resolveSession({ kind: 'lesson', unitId: 'the-six-strings', lessonId: 'string-numbers' }, theory, AT, fresh(), NOW).status).toBe('ready');
     const nope = resolveSession({ kind: 'lesson', unitId: 'nope', lessonId: 'nope' }, theory, AT, fresh(), NOW);
     expect(nope.status === 'missing' && nope.title).toBe('That lesson is not on the path');
     expect(resolveSession({ kind: 'practice', unitId: 'nope' }, theory, AT, fresh(), NOW).status).toBe('missing');
+  });
+
+  // Review bug: a link to a lesson the learner has not reached (a teacher's theory link, an old
+  // bookmark) ran it with no word that it was ahead. It still runs; the screen is told it is ahead.
+  it('runs a lesson ahead of the learner, saying what it builds on and where they are', async () => {
+    const theory = assembleTheory(await loadWrittenUnits());
+    const view = { kind: 'lesson', unitId: 'sound-and-pitch', lessonId: 'pitch-high-and-low' } as const;
+    const ahead = resolveSession(view, theory, AT, fresh(), NOW);
+    expect(ahead.status).toBe('ready');
+    if (ahead.status !== 'ready') throw new Error('not ready');
+    expect(ahead.ahead?.missing.map((m) => m.lessonId)).toEqual(['a-sound-is-a-vibration']);
+    expect(ahead.ahead?.missing[0]).toMatchObject({ unitId: 'sound-and-pitch', title: 'A sound is a vibration' });
+    expect(ahead.ahead?.next).toEqual({ unitId: 'sound-and-pitch', lessonId: 'a-sound-is-a-vibration' });
+    expect(aheadOf(theory, 'pitch-high-and-low', fresh(), NOW)).toEqual(ahead.ahead);
+    // Once the lesson before it is done, it is simply the next lesson.
+    const reached = resolveSession(view, theory, AT, withDone(['theory:sound-and-pitch:a-sound-is-a-vibration']), NOW);
+    expect(reached.status === 'ready' && reached.ahead).toBeNull();
+    // The first lesson is never ahead.
+    const first = resolveSession({ kind: 'lesson', unitId: 'sound-and-pitch', lessonId: 'a-sound-is-a-vibration' }, theory, AT, fresh(), NOW);
+    expect(first.status === 'ready' && first.ahead).toBeNull();
   });
 
   it('runs checkpoints and drills on the unit, and a review only when cards are due', async () => {

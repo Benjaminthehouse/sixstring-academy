@@ -59,7 +59,9 @@ import { TunerSettings, type MicChoice } from './components/TunerSettings';
 import { RetuneSteps, TuningSheet } from './components/TuningSheet';
 import { queryMicPermission, useReferenceTone, useTunerSession } from './hooks';
 import { LEVEL_MESSAGES } from './model/advice';
+import { parseTunerParams } from './model/address';
 import { resolveTuning, type SavedTuning } from './model/catalog';
+import { MAX_CREDIT_SEC, tuneActivity } from './model/credit';
 import { DEFAULT_OPTIONS, OPTIONS_KEY, SAVED_TUNINGS_KEY, sanitizeOptions, sanitizeSavedTunings, toleranceCents, type TunerOptions } from './model/options';
 import type { Confirmation } from './model/session';
 import { buildTargets, clampA4, clampCapo, noteParts, stringWords, targetsLabel } from './model/targets';
@@ -79,13 +81,31 @@ function failureReason(reason: MediaFailure | 'audio-failed'): MediaFailure {
 }
 
 /** The Tuner screen (`#tuner`). */
-export default function TunerScreen(_props: RouteProps) {
+export default function TunerScreen({ params }: RouteProps) {
   const prefs = usePrefs();
   const [storedOptions, setStoredOptions] = useLocalState<TunerOptions>(OPTIONS_KEY, DEFAULT_OPTIONS);
   const options = useMemo(() => sanitizeOptions(storedOptions), [storedOptions]);
   const [storedTunings, setStoredTunings] = useLocalState<SavedTuning[]>(SAVED_TUNINGS_KEY, []);
   const saved = useMemo(() => sanitizeSavedTunings(storedTunings), [storedTunings]);
   const [capo, setCapo] = useState(0);
+
+  // An address (`#tuner--dadgad`, `#tuner--capo-2`) picks the tuning and capo once per arrival, the
+  // same as choosing them by hand: the tuning becomes the learner's, everywhere in the app.
+  const addressKey = params.join('--');
+  const tuningIdRef = useRef(prefs.tuningId);
+  tuningIdRef.current = prefs.tuningId;
+  useEffect(() => {
+    const address = parseTunerParams(addressKey ? addressKey.split('--') : []);
+    if (!address) return;
+    if (address.tuning && address.tuning.id !== tuningIdRef.current) {
+      setPrefs({ tuningId: address.tuning.id });
+      toast.info(`Tuning: ${address.tuning.name}`, {
+        description: address.tuning.id === 'standard' ? 'Back to standard tuning.' : `${address.tuning.label}. Chord shapes and the fretboard follow it too, until you change it back.`,
+        id: 'tuner-address',
+      });
+    }
+    if (address.capo !== undefined) setCapo(address.capo);
+  }, [addressKey]);
 
   const twoPane = useMediaQuery(TWO_PANE_QUERY);
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
@@ -131,9 +151,9 @@ export default function TunerScreen(_props: RouteProps) {
 
   useWakeLock(listening || tone.playing !== null);
 
-  /** For progress: when this visit began, whether it was already recorded, and the latest result. */
+  /** For progress: when this visit began, what was recorded already (none, part of a guided run, all strings), and the latest result. */
   const visitStart = useRef(Date.now());
-  const recorded = useRef(false);
+  const recorded = useRef<'none' | 'partial' | 'full'>('none');
   const lastResult = useRef<ActivityResult | null>(null);
 
   const patchOptions = useCallback((patch: Partial<TunerOptions>) => setStoredOptions((prev) => ({ ...sanitizeOptions(prev), ...patch })), [setStoredOptions]);
@@ -171,6 +191,9 @@ export default function TunerScreen(_props: RouteProps) {
   );
 
   const stopMic = useCallback(() => {
+    // Stopping part of the way through a guided run: the strings tuned so far count.
+    const g = session.getView().guide;
+    if (g && !g.finished) creditPartialRef.current();
     tone.stop();
     session.stop();
   }, [session, tone]);
@@ -219,13 +242,37 @@ export default function TunerScreen(_props: RouteProps) {
         if (heard) session.hush(c.all ? 0.9 : 0.55);
         if (!c.all) return;
         setFinale((n) => n + 1);
-        // One tuner activity per visit, however many tunings are tuned in it (the store caps the XP per day as well).
-        if (!recorded.current) {
-          recorded.current = true;
-          const durationSec = Math.min(1800, Math.max(1, Math.round((Date.now() - visitStart.current) / 1000)));
+        // One finished tuning per visit, however many tunings are tuned in it (the store caps the XP
+        // per day as well); one that follows partial credit for a guided run completes it.
+        if (recorded.current !== 'full') {
+          recorded.current = 'full';
+          const durationSec = Math.min(MAX_CREDIT_SEC, Math.max(1, Math.round((Date.now() - visitStart.current) / 1000)));
           lastResult.current = recordActivity({ kind: 'tuner', durationSec, route: 'tuner', title: `Tuned to ${tuningNameRef.current}` });
         }
       }),
+    [session],
+  );
+
+  /**
+   * Partial credit for a guided run that ended with strings skipped, or was stopped or left part of
+   * the way: the strings tuned count (see `model/credit.ts`). Once per visit, and never after a
+   * finished tuning.
+   */
+  const creditPartial = useCallback(() => {
+    if (recorded.current !== 'none') return;
+    const activity = tuneActivity(session.getView().confirmed, { seconds: (Date.now() - visitStart.current) / 1000, tuningName: tuningNameRef.current });
+    if (!activity || activity.completed !== false) return;
+    recorded.current = 'partial';
+    lastResult.current = recordActivity(activity);
+  }, [session]);
+  const creditPartialRef = useRef(creditPartial);
+  creditPartialRef.current = creditPartial;
+  // Leaving in the middle of a guided run still counts the strings tuned.
+  useEffect(
+    () => () => {
+      const g = session.getView().guide;
+      if (g && !g.finished) creditPartialRef.current();
+    },
     [session],
   );
 
@@ -236,9 +283,11 @@ export default function TunerScreen(_props: RouteProps) {
     const g = session.getView().guide;
     if (!g) return;
     patchOptions({ guideSeen: true });
+    // Strings skipped: the ones tuned still count, for part of the credit.
+    creditPartial();
     setSummary({ kind: 'guide', confirmed: [...session.getView().confirmed], skipped: [...g.skipped], seconds: Math.max(1, Math.round((g.finishedAt - g.startedAt) / 1000)), result: lastResult.current });
     lastResult.current = null;
-  }, [guideFinished, session, patchOptions]);
+  }, [guideFinished, session, patchOptions, creditPartial]);
 
   // --- actions -----------------------------------------------------------------------------------
 
@@ -612,7 +661,12 @@ export default function TunerScreen(_props: RouteProps) {
               <>
                 {view.mode === 'guide' ? (
                   <>
-                    <IconButton icon="Square" label="Stop listening (Space)" variant="secondary" size="lg" className={styles.compact} onClick={stopMic} data-tuner-stop="" />
+                    {/* Labelled like Stop everywhere else: an unlabelled square read as "pause" or nothing at all. */}
+                    <Tooltip content="Space">
+                      <Button size="lg" iconLeft="Square" onClick={stopMic} aria-label="Stop listening" data-tuner-stop="">
+                        Stop
+                      </Button>
+                    </Tooltip>
                     <Button size="lg" iconLeft="SkipForward" onClick={() => session.skipGuideString()} data-tuner-skip="">
                       Skip
                     </Button>

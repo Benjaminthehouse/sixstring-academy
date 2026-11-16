@@ -4,7 +4,8 @@
  * Messages are written for the author who has to fix them: bar numbers are 1-based, and the
  * message says what is wrong and what would make it right.
  */
-import { chordPcs, isNoChord, midiToNote, parseChord } from '@/core/theory';
+import { buildVoicing } from '@/core/guitar';
+import { chordPcs, chroma, isNoChord, midiToNote, parseChord } from '@/core/theory';
 import { MAX_FRET, barCapacity, barLength, formatTimeSig, midiOf, trackCapo, trackTuning, valueFromTicks, valueTicks } from './model';
 import type { Note, Song, SongIssue, Track } from './types';
 
@@ -98,6 +99,9 @@ export function validateSong(song: Song, opts: ValidateOptions = {}): SongIssue[
       const sounding = c.voicing.flatMap((f, i) => (f === null ? [] : [(((song.tuning[i] + song.capo + f) % 12) + 12) % 12]));
       if (sounding.some((pc) => !want.has(pc))) {
         warn('chord-voicing-mismatch', `The shape ${c.voicing.map((f) => (f === null ? 'x' : f)).join('')} at bar ${c.bar + 1} does not sound ${c.symbol}${song.capo ? ` with capo ${song.capo} (chord symbols name what sounds: the shape name is for display)` : ''}.`, { bar: c.bar });
+      } else {
+        const label = voicingLabelProblem(c.symbol, c.voicing, song.tuning, song.capo, { bassMidi: bassPartAt(song, c.bar, c.tick) });
+        if (label) warn('chord-voicing-label', `The shape ${formatShape(c.voicing)} at bar ${c.bar + 1} ${label}.`, { bar: c.bar });
       }
     }
   });
@@ -118,6 +122,71 @@ export function assertValidSong(song: Song): Song {
   const errors = validateSong(song, { notation: false }).filter((i) => i.level === 'error');
   if (errors.length) throw new RangeError(`"${song.meta?.title}" is not a valid song:\n- ${errors.map((e) => e.message).join('\n- ')}`);
   return song;
+}
+
+/** `x32010`, or `x-10-12-…` when a fret has two digits. */
+function formatShape(frets: ReadonlyArray<number | null>): string {
+  const parts = frets.map((f) => (f === null ? 'x' : String(f)));
+  return parts.some((p) => p.length > 1) ? parts.join('-') : parts.join('');
+}
+
+/**
+ * What is wrong with naming a shape by a chord symbol, or null when the symbol names exactly what
+ * the shape sounds. The chord's guitar engine names the shape (`buildVoicing(symbol, frets).chord`):
+ * a lowest note other than the root makes it an inversion (`Dm` played xx3235 sounds `Dm/F`), a slash
+ * bass that is not the lowest note is not that slash chord, and a shape without the third (or the
+ * seventh of a seventh chord) is another chord. Shapes no hand can hold are judged by the bass alone.
+ *
+ * Two inversions keep the plain symbol, as guitar charts write them: a plain major or minor triad
+ * with its fifth lowest (the one-finger G `xx0003`, D strummed from string 5), whose sound stays the
+ * chord's; and any shape over a bass part (`bassMidi`, the lowest note a bass track plays there)
+ * that sounds the root below it, so the band plays the plain chord (a drop-2 comp, a reggae chop).
+ * A third or a seventh in the bass changes the chord and is always reported.
+ */
+export function voicingLabelProblem(
+  symbol: string,
+  frets: ReadonlyArray<number | null>,
+  tuning: readonly number[],
+  capo = 0,
+  opts: { bassMidi?: number | null } = {},
+): string | null {
+  const requested = parseChord(symbol);
+  if (!requested || isNoChord(symbol)) return null;
+  try {
+    const built = buildVoicing(requested, [...frets], { tuning: [...tuning], capo });
+    if (built.chord === requested.symbol) return null;
+    const lowest = Math.min(...built.midi);
+    const sameChord = built.root === requested.root && built.type === requested.type.id && !requested.bass;
+    const triad = requested.type.id === 'major' || requested.type.id === 'minor';
+    if (sameChord && triad && (((lowest - chroma(requested.root)) % 12) + 12) % 12 === 7) return null;
+    const bassHasRoot = opts.bassMidi != null && opts.bassMidi < lowest && ((opts.bassMidi % 12) + 12) % 12 === chroma(requested.root);
+    if (sameChord && bassHasRoot) return null;
+    return `sounds ${built.chord}, not ${requested.symbol}${built.chord.startsWith(`${requested.symbol}/`) ? ': its lowest note is not the root (write the slash chord, or start the shape on the root)' : ''}`;
+  } catch (e) {
+    const why = e instanceof Error ? e.message.replace(/^.*? is not a voicing of [^:]+: /, '') : String(e);
+    // Whether a hand can hold the shape is the fingering's business, not the label's: check the bass only.
+    if (/hand|fingering/.test(why)) {
+      const sounding = frets.flatMap((f, i) => (f === null ? [] : [tuning[i] + capo + f]));
+      if (!sounding.length) return null;
+      const bassPc = ((Math.min(...sounding) % 12) + 12) % 12;
+      const wantPc = chroma(requested.bass ?? requested.root);
+      return bassPc === wantPc ? null : `has ${midiToNote(Math.min(...sounding)).replace(/-?\d+$/, '')} in the bass, not ${requested.bass ?? requested.root}`;
+    }
+    return why;
+  }
+}
+
+/** The lowest note a bass part (a track with role `bass`) is sounding at a point of the song, or null. */
+function bassPartAt(song: Song, bar: number, tick: number): number | null {
+  let low: number | null = null;
+  for (const t of song.tracks) {
+    if (t.role !== 'bass') continue;
+    for (const b of t.measures[bar]?.beats ?? []) {
+      if (b.start > tick || b.start + b.duration <= tick) continue;
+      for (const n of b.notes) if (!n.dead && (low === null || n.midi < low)) low = n.midi;
+    }
+  }
+  return low;
 }
 
 function inSong(song: Song, bar: number, tick: number): boolean {

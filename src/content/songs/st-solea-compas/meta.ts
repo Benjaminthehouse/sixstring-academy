@@ -8,7 +8,7 @@ export default defineSong({
   level: 7,
   style: 'latin',
   kind: 'study',
-  key: 'A minor',
+  key: 'E Phrygian',
   teaches: ['The 12-beat solea cycle: accents on 3, 6, 8, 10, 12', 'Rasgueado on the accents, thumb in between', 'E and F: the cycle comes home on 10', 'A short falseta in E Phrygian'],
   skills: ['rhythm', 'strumming', 'chords', 'melody'],
   tags: ['flamenco', 'solea', 'compas', 'rasgueado', 'phrygian', 'accents', '12 beats', 'falseta', 'spanish'],

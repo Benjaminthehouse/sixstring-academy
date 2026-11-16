@@ -348,12 +348,29 @@ export function PathScreen({ focus }: { focus: string | null }) {
     </ActionBar>
   );
 
+  // A new learner on a phone sees where to start first: the first unit's path comes straight after
+  // the stages, and the switches and "Find my level" follow it (they sat above it, which put the
+  // first lesson about 700 px down a 390 px phone).
+  const firstFirst = !wide && !view.started && next ? next.unit.path.outline.id : null;
+  const conditionsBar = <ConditionsBar conditions={conditions} onChange={setConditions} />;
+  const after = firstFirst
+    ? {
+        unitId: firstFirst,
+        node: (
+          <>
+            {placement}
+            {conditionsBar}
+          </>
+        ),
+      }
+    : null;
+
   return (
     <Page title="Theory Path" subtitle="Bite-sized theory, always on the neck. Two to five minutes a lesson." className={styles.page}>
-      <div className={cx(styles.layout, wide && styles.wide)} data-learn-map="" data-layout={wide ? 'wide' : 'phone'}>
+      <div className={cx(styles.layout, wide && styles.wide)} data-learn-map="" data-layout={wide ? 'wide' : 'phone'} data-first-run={firstFirst ? '' : undefined}>
         <div className={styles.main}>
           <StageStrip view={view} onJump={jumpToStage} />
-          <ConditionsBar conditions={conditions} onChange={setConditions} />
+          {!firstFirst && conditionsBar}
           {failed.size > 0 && (
             <div className={styles.failed} role="alert">
               <Text variant="caption">Some lessons could not be loaded. Check your connection.</Text>
@@ -363,10 +380,10 @@ export function PathScreen({ focus }: { focus: string | null }) {
             </div>
           )}
           {!wide && review}
-          {!view.started && placement}
-          <div className={styles.stages}>
+          {!view.started && !firstFirst && placement}
+          <div className={cx(styles.stages, firstFirst && styles.stagesFirst)}>
             {view.stages.map((s) => (
-              <StageSection key={s.id} stage={s} phases={phases} handlers={handlers} />
+              <StageSection key={s.id} stage={s} phases={phases} handlers={handlers} after={after} />
             ))}
           </div>
           {!wide && view.started && (

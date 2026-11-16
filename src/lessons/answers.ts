@@ -213,13 +213,20 @@ export function normalizeNumber(raw: string): number | null {
   return values.length === 1 ? values[0] : null;
 }
 
-/** A comparison key for free text: lower case, no accents, no punctuation, single spaces. */
+/**
+ * A comparison key for free text: lower case, no accents, no punctuation, single spaces. A minus
+ * right after a number is kept, because it is part of the answer: "6-" is the Nashville number of
+ * a minor chord on 6, and "6" alone is a major one. Every other dash separates words.
+ */
 export function normalizeText(raw: string): string {
   return ascii(raw)
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9#°+/ ]+/g, ' ')
+    .replace(/[‐-―−]/g, '-')
+    .replace(/(\d)\s*-(?![\da-z])/g, '$1\u0000')
+    .replace(/[^a-z0-9#°+/\u0000 ]+/g, ' ')
+    .replace(/\u0000/g, '-')
     .replace(/\s+/g, ' ')
     .trim();
 }

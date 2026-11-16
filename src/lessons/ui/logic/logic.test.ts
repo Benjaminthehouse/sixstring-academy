@@ -245,7 +245,7 @@ describe('summary', () => {
   it('shows the numbers that mean something', () => {
     const report = {
       mode: 'lesson', outcome: 'completed', title: 'x', exercises: 7, accuracy: 6 / 7, firstTry: 6, mistakes: 1, perfect: false, bestCombo: 4, durationSec: 161,
-      xp: 10, crown: { before: 0, after: 1, gained: true }, factsAdded: 2, cardsReviewed: 0, heartsLeft: 4, missed: [], unlocked: [], next: 'continue',
+      xp: 10, crown: { before: 0, after: 1, gained: true }, factsAdded: 2, cardsReviewed: 0, heartsLeft: 4, missed: [], unlocked: [], score: 6 / 7, next: 'continue',
       xpAwarded: 10, multiplier: 1, leveledUp: false, level: 2, goalMetNow: true, streakExtended: true, streak: 3, gems: 0, quests: [], achievements: [], hearts: 4,
     } as SessionReport;
     const stats = summaryStats(report);
@@ -286,9 +286,13 @@ describe('staff', () => {
     expect(staffPositionName(4)).toBe('3rd line');
     expect(staffPositionName(8)).toBe('top line');
     expect(staffPositionName(9)).toBe('space above the staff');
-    expect(staffPositionName(10)).toBe('1st ledger line above');
-    expect(staffPositionName(-2)).toBe('1st ledger line below');
-    expect(staffPositionName(-3)).toBe('below ledger line 1');
+    expect(staffPositionName(10)).toBe('1st ledger line above the staff');
+    expect(staffPositionName(11)).toBe('space above the 1st ledger line');
+    expect(staffPositionName(-2)).toBe('1st ledger line below the staff');
+    expect(staffPositionName(-3)).toBe('space below the 1st ledger line');
+    expect(staffPositionName(-5)).toBe('space below the 2nd ledger line');
+    // Every position reads after "On the", above and below the staff alike.
+    for (let p = -9; p <= 17; p++) expect(`On the ${staffPositionName(p)}`).toMatch(/^On the (bottom|top|\d(st|nd|rd|th)|space) /);
   });
 
   it('draws ledger lines only outside the staff', () => {

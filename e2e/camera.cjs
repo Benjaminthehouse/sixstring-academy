@@ -4,7 +4,7 @@
  *
  *   node e2e/camera.cjs                  everything (about 10 minutes on a busy machine once the fixture exists;
  *                                        the first run renders it, about 5 minutes more)
- *   node e2e/camera.cjs --only live,tools   some groups: live, mirror, tools, content, lifecycle, nocamera, bigtext, shots
+ *   node e2e/camera.cjs --only live,tools   some groups: live, mirror, tools, content, lifecycle, nocamera, bigtext, zoom, shots
  *   node e2e/camera.cjs --verbose        print every check, not just failures
  *
  * The camera plays `e2e/camera-fixture.cjs`'s video: a rendered steel-string neck that sways,
@@ -31,8 +31,14 @@
  *              and the vision worker, and logs the session as practice
  *   nocamera   no camera: MediaBlocked once, then the drawn neck with the same dots; the next visit
  *              goes straight to the drawn neck
- *   bigtext    text at 200 percent: no sideways scroll, "Start camera" whole, the picture keeps its room
+ *   bigtext    text at 200 percent: no sideways scroll, "Start camera" whole, the picture keeps its room,
+ *              the Root select has room for its value (on a desktop the controls go under the picture)
+ *   zoom       phone upright: the picture zooms in on the notes by itself, the dots get readable
+ *              (radius >= 9 px) and stay on the right frets; the zoom button shows the whole picture
  *   shots      screenshots: desktop and phone sideways (dark and light), phone upright
+ *
+ * Dots are scored through the view the screen drew with (`view.crop` while zoomed), so every
+ * group checks the zoomed picture as well.
  *
  * Added in review (each caught a real bug): focus kept on the picture after "Start camera"; a tap
  * beside the neck in "Fix the fret numbers" refused at once; pagehide logs the session; the
@@ -292,16 +298,23 @@ async function liveGroups(browser, url, fixture, geo, ov) {
       // Known limit of the tracker (reported to the vision module): while the neck slides out of the
       // picture it can trail it for a moment at full confidence. Kept as a regression guard.
       check('live', 'neck sliding out of the picture and back: >= 60% of frames right', moving.frames === 0 || moving.right >= 0.6 * moving.frames, `${moving.right}/${moving.frames}; wrong: ${JSON.stringify(moving.wrong.slice(0, 4))}`);
-      // Following the drift: the same dot moves with the neck, and stays right.
+      // Following the drift: the same dot moves with the neck, and stays right. Measured in the
+      // camera's pixels (through the zoom, which may follow the neck too).
       const drift = (lo, hi) => {
-        const xs = log.filter((e) => e.shown >= lo && e.shown <= hi).map((e) => e.markers.find((m) => m.string === 6 && m.fret === 5)).filter(Boolean).map((m) => m.x);
+        const xs = log
+          .filter((e) => e.shown >= lo && e.shown <= hi)
+          .map((e) => {
+            const m = e.markers.find((k) => k.string === 6 && k.fret === 5);
+            return m ? ov.displayToFrame({ x: m.x, y: m.y }, e.view, e.vw, e.vh).x : null;
+          })
+          .filter((x) => x !== null);
         return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
       };
       const before = drift(140, 155);
       const after = drift(225, 240);
       const driftLog = log.filter((e) => e.shown >= 150 && e.shown < 240);
       const driftScore = score(geo, ov, truth, driftLog);
-      check('live', 'the dots follow the neck as it drifts across the picture', Math.abs(after - before) > 60, `string 6 fret 5 moved ${Math.round(after - before)} px`);
+      check('live', 'the dots follow the neck as it drifts across the picture', Math.abs(after - before) > 80, `string 6 fret 5 moved ${Math.round(after - before)} camera px`);
       const driftGhost = driftLog.filter((e) => e.notes === 'ghost').length;
       check('live', 'while drifting, solid dots stay on the right frets (outlines when the neck moves faster than this machine tracks)', driftScore.frames + driftGhost > 10 && driftScore.right >= 0.9 * driftScore.frames, `${driftScore.right}/${driftScore.frames} solid frames right, ${driftGhost} frames as outlines`);
       // Leaving the picture: no solid dot on a frame without the neck; the screen says it lost it.
@@ -348,7 +361,9 @@ async function stageView(page) {
   return page.evaluate(() => {
     const el = document.querySelector('[data-camera-stage]');
     const v = el.querySelector('video');
-    return { view: { width: el.clientWidth, height: el.clientHeight, mirrored: document.querySelector('[data-ui-page][data-mode]').getAttribute('data-mirrored') === 'true', fit: 'contain' }, vw: v.videoWidth, vh: v.videoHeight };
+    // While zoomed in on the notes only part of the picture is shown (the screen keeps it in its debug record).
+    const crop = window.__cam?.debug?.crop ?? undefined;
+    return { view: { width: el.clientWidth, height: el.clientHeight, mirrored: document.querySelector('[data-ui-page][data-mode]').getAttribute('data-mirrored') === 'true', fit: 'contain', crop }, vw: v.videoWidth, vh: v.videoHeight };
   });
 }
 
@@ -641,12 +656,28 @@ async function bigText(url) {
         const stage = document.querySelector('[data-camera-stage]').getBoundingClientRect();
         const panel = document.querySelector('[data-ui-page] aside').getBoundingClientRect();
         const start = [...document.querySelectorAll('[data-camera-stage] button')].find((b) => /Start camera/.test(b.textContent)).getBoundingClientRect();
-        return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, stageW: stage.width, panelW: panel.width, startInside: start.bottom <= stage.bottom + 1 && start.right <= stage.right + 1 && start.width > 0 };
+        const layout = document.querySelector('[data-layout]')?.getAttribute('data-layout');
+        return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, stageW: stage.width, panelW: panel.width, stageBottom: stage.bottom, panelTop: panel.top, layout, startInside: start.bottom <= stage.bottom + 1 && start.right <= stage.right + 1 && start.width > 0 };
       });
+      // Review: at 200% on a desktop the controls column shrank until the Root select showed only its arrow.
+      const root = await s.page.getByLabel('Root', { exact: true }).first().evaluate((sel) => {
+        const cs = getComputedStyle(sel);
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const text = sel.options[sel.selectedIndex]?.text ?? '';
+        return { text, need: Math.ceil(ctx.measureText(text).width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)), have: sel.clientWidth };
+      }).catch(() => null);
       await s.page.screenshot({ path: path.join(OUT, `bigtext-${r.name}.png`) });
       check('bigtext', `${r.name}: no sideways scroll`, m.overflow <= 1, m.overflow);
       check('bigtext', `${r.name}: "Start camera" is whole, inside the picture box`, m.startInside, JSON.stringify(m));
-      if (r.name !== 'phone') check('bigtext', `${r.name}: the picture keeps most of the width beside the controls`, m.stageW >= 1.3 * m.panelW, `${Math.round(m.stageW)} vs ${Math.round(m.panelW)} px`);
+      // (Held sideways the controls are in a sheet behind "Controls".)
+      if (r.name !== 'sideways') check('bigtext', `${r.name}: the Root select has room for its value`, root && root.text && root.have >= root.need, JSON.stringify(root));
+      if (r.name !== 'phone') {
+        // Beside the controls with most of the width, or (no room for both) the full width above them.
+        const room = m.layout === 'stacked' ? m.panelTop >= m.stageBottom - 1 && m.stageW >= 0.95 * m.panelW : m.stageW >= 1.3 * m.panelW;
+        check('bigtext', `${r.name}: the picture keeps its room (${m.layout})`, room, `${Math.round(m.stageW)} vs ${Math.round(m.panelW)} px`);
+      }
+      if (r.name === 'desktop') check('bigtext', 'desktop: with 200% text the controls go under the picture (no room beside it)', m.layout === 'stacked', m.layout);
       await s.close();
     }
   } finally {
@@ -725,6 +756,50 @@ async function shots(url, fixture) {
   }
 }
 
+/**
+ * Zoom in on the notes (review: on an upright phone the dots were about 12 px across and their
+ * labels could not be read). On by default: the picture is cropped around the notes, the dots get
+ * bigger and stay on the right frets; the button shows the whole picture again.
+ */
+async function zoomGroup(url, fixture, geo, ov) {
+  const browser = await launch(fixture.video);
+  try {
+    const s = await open(browser, url, { name: 'zoom-phone', viewport: { width: 390, height: 844 }, mobile: true });
+    const { page } = s;
+    try {
+      await s.goto(ROUTE);
+      await installRecorder(page, fixture.truth.code);
+      const { locked } = await startCamera(page);
+      check('zoom', 'phone upright: the neck locks', locked);
+      if (!locked) return;
+      const median = (log) => {
+        const r = log.flatMap((e) => e.markers.filter((m) => !m.ghost).map((m) => m.radius)).sort((a, b) => a - b);
+        return r.length ? r[r.length >> 1] : NaN;
+      };
+      await waitForFrame(page, 20, 110);
+      await page.waitForTimeout(1200);
+      const on = await record(page, 2500);
+      const css = await page.evaluate(() => getComputedStyle(document.querySelector('[data-camera-stage] video')).transform);
+      const zoomed = on.filter((e) => e.view.crop).length;
+      const sc = score(geo, ov, fixture.truth, on, { steady: true });
+      await page.screenshot({ path: path.join(OUT, 'zoom-phone-on.png') });
+      check('zoom', 'the picture zooms in on the notes by itself (picture and dots together)', on.length > 10 && zoomed >= 0.8 * on.length && /matrix/.test(css), `${zoomed}/${on.length} frames zoomed, video transform ${css}`);
+      check('zoom', 'zoomed in, the dots are big enough to read (median radius >= 9 px)', median(on) >= 9, median(on).toFixed(1));
+      check('zoom', 'zoomed in, the dots are still on the right frets', sc.frames > 10 && sc.right >= 0.95 * sc.frames, `${sc.right}/${sc.frames}; wrong ${JSON.stringify(sc.wrong.slice(0, 3))}`);
+      await page.getByRole('button', { name: 'Zoom in on the notes (Z)' }).click();
+      await page.waitForTimeout(1500);
+      const off = await record(page, 2000);
+      await page.screenshot({ path: path.join(OUT, 'zoom-phone-off.png') });
+      check('zoom', 'the zoom button shows the whole picture again (and the small dots)', off.length > 5 && off.every((e) => !e.view.crop) && median(off) < median(on), `radius ${median(off).toFixed(1)} vs ${median(on).toFixed(1)}`);
+      check('zoom', 'no page errors', s.errors.length === 0, s.errors.slice(0, 2).join(' | '));
+    } finally {
+      await s.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 
 async function main() {
@@ -744,6 +819,7 @@ async function main() {
     }
     if (want('nocamera')) await noCamera(server.url);
     if (want('bigtext')) await bigText(server.url);
+    if (want('zoom')) await zoomGroup(server.url, fixture, geo, ov);
     if (want('shots')) await shots(server.url, fixture);
   } finally {
     await server.close();

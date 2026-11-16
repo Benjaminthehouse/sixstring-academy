@@ -190,7 +190,7 @@ export function TapRhythmView({ exercise, review, onSubmit, setPrimary, hints, l
     <div className={styles.answerArea}>
       {showNotation && (
         <div className={styles.rhythmBox}>
-          <RhythmView rhythm={exercise.rhythm.pattern} time={exercise.rhythm.time} />
+          <RhythmView rhythm={exercise.rhythm.pattern} time={exercise.rhythm.time} counting={exercise.counting !== false} />
         </div>
       )}
       <div className={styles.tapMeta}>

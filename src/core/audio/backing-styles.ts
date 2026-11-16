@@ -10,7 +10,8 @@
  *           N next chord's root, anticipated · W walking-bass note · - hold · . rest
  *   keys    C chord · c soft chord · s short stab · 1-4 single chord note (arpeggio) · - hold · . rest
  *   guitar  D/d down-strum (loud/soft) · U/u up-strum · x dead strum · B bass note · P plucked chord
- *           M palm-muted chug · A accented open power chord · - hold · . rest
+ *           M palm-muted chug · A accented open power chord · 1-6 one string of the chord, low to
+ *           high (fingerpicked arpeggio; 6 = the top string of a five-string shape) · - hold · . rest
  *
  * These are original grooves in familiar idioms; nothing is transcribed from a recording.
  */
@@ -33,7 +34,12 @@ export type BackingStyleId =
   | 'folk'
   | 'metal'
   | 'latin'
-  | 'waltz';
+  | 'waltz'
+  | 'rumba'
+  | 'gospel'
+  | 'ska'
+  | 'classical'
+  | 'tango';
 
 /** One bar of drums: a step string per drum. */
 export type DrumBar = Partial<Record<DrumName, string>>;
@@ -56,6 +62,11 @@ export interface BackingStyle {
   grid: number;
   drums: DrumBar[];
   fills: DrumBar[];
+  /**
+   * False for a band without a drummer (classical, tango): no groove, no fills, no cymbals, no
+   * ending hit. The count-in still clicks. Default true.
+   */
+  percussion?: boolean;
   /** Overall drum loudness (ballads and folk are played softer). */
   drumLevel: number;
   /** Hit the bass drum together with the crash that opens a section (default true; false keeps beat one empty). */
@@ -329,6 +340,83 @@ export const BACKING_STYLES: Record<BackingStyleId, BackingStyle> = {
     bass: ['Q-------....'], bassTurn: 'Q-----..A---', bassTurnChance: 0.4, bassTone: 'bass-upright', bassLevel: 1.5, bassGate: 0.9,
     keys: ['....s...s...'], keysVoice: 'epiano', keysGate: 0.6, keysVoicing: 'close', keysLevel: 1.3,
     guitar: ['B...d...d...'], guitarTone: 'steel', guitarGate: 0.9, guitarLevel: 0.8,
+    countIn: 'sidestick',
+  },
+  rumba: {
+    id: 'rumba', name: 'Flamenco rumba', description: 'Palmas and cajón, a driving rumba strum with the chop on 2 and 4.',
+    timeSignature: { numerator: 4, denominator: 4 }, beatsPerBar: 4, beatTicks: Q,
+    tempo: { default: 104, min: 84, max: 132 }, feel: 'straight', grid: 16,
+    drums: [
+      { clap: '....X.x.....X.x.', kick: 'X.....x.X.....x.', snare: '....x.......x...', shaker: 'x.o.x.o.x.o.x.o.' },
+      { clap: '....X.x.....X.x.', kick: 'X.....x.X.....x.', snare: '....x.......x..o', shaker: 'x.o.x.o.x.o.x.o.' },
+    ],
+    fills: [
+      { clap: 'X.x.X.x.X.x.X.xx', kick: 'X.....x.X.......', snare: '....x...x.x.xxxx' },
+    ],
+    drumLevel: 0.9,
+    bass: ['R.....5.R.....N.'], bassTone: 'bass-finger', bassLevel: 1.35, bassGate: 0.8,
+    keys: ['................'], keysVoice: 'epiano', keysGate: 0.5, keysVoicing: 'close', keysLevel: 1,
+    guitar: ['D..Ux.U.D..Ux.U.'], guitarTone: 'nylon', guitarGate: 0.6, guitarLevel: 1,
+    countIn: 'clap',
+  },
+  gospel: {
+    id: 'gospel', name: 'Gospel shuffle', description: 'Organ chords, hand claps with the backbeat, a bass that walks into each chord.',
+    timeSignature: { numerator: 4, denominator: 4 }, beatsPerBar: 4, beatTicks: Q,
+    tempo: { default: 88, min: 66, max: 126 }, feel: 'shuffle', grid: 12,
+    drums: [
+      { hihatClosed: 'x.xx.xx.xx.x', snare: '...X.....X..', clap: '...X.....X..', kick: 'X.....x.....' },
+      { hihatClosed: 'x.xx.xx.xx.x', snare: '...X.....X..', clap: '...X.....X..', kick: 'X....xx.....' },
+    ],
+    fills: [
+      { hihatClosed: 'x.xx.x......', snare: '...X..xx.xXx', tomHigh: '......x.....', tomLow: '.........x..', kick: 'X...........' },
+    ],
+    drumLevel: 0.9,
+    bass: ['R....R5..3..'], bassTurn: 'R....R5..A..', bassTone: 'bass-finger', bassLevel: 1.3, bassGate: 0.85,
+    keys: ['C....cC..c.c'], keysVoice: 'organ', keysGate: 0.9, keysVoicing: 'close', keysLevel: 1.25,
+    guitar: ['d..D.ud..D.u'], guitarTone: 'clean', guitarGate: 0.5, guitarLevel: 0.7,
+    countIn: 'clap',
+  },
+  ska: {
+    id: 'ska', name: 'Ska', description: 'Fast and bright: chords chopped on every off-beat, a walking bass, snare on 2 and 4.',
+    timeSignature: { numerator: 4, denominator: 4 }, beatsPerBar: 4, beatTicks: Q,
+    tempo: { default: 144, min: 112, max: 184 }, feel: 'straight', grid: 16,
+    drums: [
+      { hihatClosed: 'x.x.x.x.x.x.x.x.', snare: '....X.......X...', kick: 'X.......X.......' },
+      { hihatClosed: 'x.x.x.x.x.x.x.x.', snare: '....X.......X...', kick: 'X.......X.....x.' },
+    ],
+    fills: [
+      { hihatClosed: 'x.x.x.x.........', snare: '....X...X.X.XXXX', kick: 'X.......X.......' },
+    ],
+    drumLevel: 0.85,
+    bass: ['R...3...5...A...'], bassTone: 'bass-finger', bassLevel: 1.45, bassGate: 0.75,
+    keys: ['..s...s...s...s.'], keysVoice: 'organ', keysGate: 0.4, keysVoicing: 'close', keysLevel: 2.2,
+    guitar: ['..U...U...U...U.'], guitarTone: 'clean', guitarGate: 0.25, guitarLevel: 1.1,
+    countIn: 'sidestick',
+  },
+  classical: {
+    id: 'classical', name: 'Classical arpeggios', description: 'No drums: broken chords rippling under you, a soft bass on the strong beats.',
+    timeSignature: { numerator: 4, denominator: 4 }, beatsPerBar: 4, beatTicks: Q,
+    tempo: { default: 72, min: 48, max: 104 }, feel: 'straight', grid: 16,
+    drums: [{}],
+    fills: [{}],
+    percussion: false,
+    drumLevel: 0.5,
+    bass: ['R-------5-------'], bassTone: 'bass-upright', bassLevel: 1.1, bassGate: 0.95,
+    keys: ['1.2.3.4.3.2.3.4.'], keysVoice: 'epiano', keysGate: 3, keysVoicing: 'close', keysLevel: 0.9,
+    guitar: ['1.3.4.5.6.5.4.3.'], guitarTone: 'nylon', guitarGate: 1.5, guitarLevel: 1,
+    countIn: 'sidestick',
+  },
+  tango: {
+    id: 'tango', name: 'Tango', description: 'No drums: a marcato on every beat, then the 3-3-2 síncopa, bass and piano locked together.',
+    timeSignature: { numerator: 4, denominator: 4 }, beatsPerBar: 4, beatTicks: Q,
+    tempo: { default: 120, min: 96, max: 136 }, feel: 'straight', grid: 16,
+    drums: [{}],
+    fills: [{}],
+    percussion: false,
+    drumLevel: 0.5,
+    bass: ['R...R...5...R...', 'R.....5.....A...'], bassTone: 'bass-upright', bassLevel: 1.4, bassGate: 0.55,
+    keys: ['C...c...C...c...', 'C.....c.....c...'], keysVoice: 'epiano', keysGate: 0.35, keysVoicing: 'close', keysLevel: 1.3,
+    guitar: ['D...d...D...d...', 'D.....d.....d...'], guitarTone: 'nylon', guitarGate: 0.4, guitarLevel: 1,
     countIn: 'sidestick',
   },
 };

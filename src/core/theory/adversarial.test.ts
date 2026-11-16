@@ -174,7 +174,8 @@ describe('spelling in all thirty keys', () => {
       ['a-Moll', 'A minor'], ['C-Dur', 'C major'], ['B-Dur', 'Bb major'], ['h-Moll', 'B minor'], ['H-Dur', 'B major'],
       ['fis-Moll', 'F# minor'], ['Es-Dur', 'Eb major'], ['As-Dur', 'Ab major'], ['cis-Moll', 'C# minor'], ['b-Moll', 'Bb minor'],
       ['Des-Dur', 'Db major'], ['Ges-Dur', 'Gb major'],
-      ['D dorian', null], ['Am7', null], ['C4', null], ['', null], ['H', null], ['Gs-Dur', null], ['key of', null],
+      // The other modes are keys too (signature of the parent major); a scale that is not a mode is not.
+      ['D dorian', 'D dorian'], ['D blues', null], ['Am7', null], ['C4', null], ['', null], ['H', null], ['Gs-Dur', null], ['key of', null],
     ];
     for (const [text, expected] of cases) expect(T.getKey(text)?.name ?? null, JSON.stringify(text)).toBe(expected);
   });

@@ -119,6 +119,10 @@ function playingStyle(def: InstrumentDef, art: Articulation, midi: number, neck:
         level: 0.8,
         fast: base.fast * 0.35,
       };
+    case 'legato':
+      // The fretting finger hammers (or pulls) the string: no pick, so no pick click, and a blunter,
+      // darker attack than a pick stroke. The level is the caller's (the synth sets it).
+      return { ...base, brightness: 0.55, slope: 0.15, noise: 0, pick: clamp(base.pick * 1.6, 0.05, 0.4) };
     default:
       return base;
   }

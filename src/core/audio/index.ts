@@ -21,7 +21,12 @@ export type { SoundDefaults, SoundDefaultsSource } from './defaults';
 
 // Guitar and bass synth
 export { GuitarSynth, getBass, getGuitar, playBass, pluck, stopAll, strum } from './guitar';
-export type { GuitarSynthOptions, PlayOptions, PlayStrumOptions, VoiceHandle } from './guitar';
+export type { GuitarSynthOptions, Legato, PlayOptions, PlayStrumOptions, VoiceHandle } from './guitar';
+// Expression (bends, slides, vibrato, legato) and phrases
+export { SLIDE_IN_SEMITONES, SLIDE_OUT_SEMITONES, VIBRATO_DEFAULTS, bendOf, parseTabTechnique, pitchCurve, slideGlide, slideGlideSeconds, smoothstep, vibratoOf } from './expression';
+export type { BendSpec, NoteExpression, PitchCurve, TabTechniqueStep, VibratoSpec } from './expression';
+export { playLineOverChord, playPhrase, tabPhrase } from './phrase';
+export type { LineOverChordOptions, PhraseHandle, PhraseNote, PhraseOptions, TabPhraseOptions } from './phrase';
 export { applyFx, renderPluck, renderRawPluck, renderSequence, renderStrum, strumPlan } from './pluck';
 export type { PluckOptions, PluckSpec, RawPluck, SequenceNote, SequenceOptions, StrumNote, StrumOptions, StrumRenderOptions } from './pluck';
 export { INSTRUMENTS, TONE_NAMES, locateOnNeck, normalizeTone, resolveTone, velocityGain } from './tones';
@@ -45,7 +50,7 @@ export type { AccentLevel, BarBeatTick, Meter, MeterBeat, MeterChange, MusicalPo
 export { Transport, beatTempo } from './transport';
 export type { BarEvent, BeatEvent, EventSource, ScheduledCallback, TickLike, TransportClock, TransportEventMap, TransportOptions, TransportPosition, TransportState } from './transport';
 export { VisualQueue } from './visual-sync';
-export { MAX_TEMPO, MIN_TEMPO, Metronome, SUBDIVISIONS, TapTempo, clickPattern, isSilentBar, speedTrainerBpm, speedTrainerLength, subdivisionOffsets } from './metronome';
+export { MAX_TEMPO, METRONOME_START_DELAY, MIN_TEMPO, Metronome, SUBDIVISIONS, TapTempo, clickPattern, isSilentBar, speedTrainerBpm, speedTrainerLength, subdivisionOffsets } from './metronome';
 export type { Click, MetronomeBeat, MetronomeOptions, MetronomeOutput, SilentBarsConfig, SpeedTrainerConfig, Subdivision } from './metronome';
 
 // Backing band

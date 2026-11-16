@@ -12,15 +12,16 @@ import { loadSongText, songEntry } from '@/content/songs';
 import { getExercise } from '@/content/technique';
 import { parseSixTab } from '@/core/song';
 import { parsePlayerParams } from '@/features/player/model/params';
+import { outlineLesson } from '@/content/theory';
 import { TEXT_LIMITS, assertValidCourse, formatProblems, glossaryFor, grade, looseSymbols, parseRichText, phraseMidi, textLength, validateCourse, type Exercise, type PlayPhraseExercise, type RichText, type SessionFeedback } from '@/lessons';
 // The panel's verdict words, from the engine's pure feedback module (the UI barrel also loads components).
 import { feedbackCopy } from '@/lessons/ui/logic/feedback';
 import {
-  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, assembleCourse, compileCourse, courseMeta, echoes, hasArt, isTaskStep, loadTeacherCourse, pickLine, strayUnitFiles, taskSong,
-  writtenUnitIds, type TaskStep, type TeacherCourse, type TeacherKey, type TeacherUnit,
+  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, THEORY_LINKS, assembleCourse, compileCourse, courseMeta, echoes, hasArt, isTaskStep, loadTeacherCourse, pickLine, recordTask, strayUnitFiles,
+  taskRoute, taskSong, theoryLinksOf, theoryTask, toolTask, writtenUnitIds, type TaskStep, type TeacherCourse, type TeacherKey, type TeacherUnit,
 } from './index';
 
-interface PlanLesson { id: string; title: string; kind: string; minutes: number }
+interface PlanLesson { id: string; title: string; kind: string; minutes: number; theory?: string[] }
 interface PlanUnit { id: string; title: string; goal: string; lessons: PlanLesson[] }
 interface PlanCourse { id: string; title: string; units: PlanUnit[] }
 const PLAN = (plan as { courses: PlanCourse[] }).courses;
@@ -45,6 +46,33 @@ function textProblems(text: RichText, limit: number, glossary: ReturnType<typeof
   return out;
 }
 
+/** Why a Theory Path task's params do not name a lesson of the path, or null when they do. */
+function theoryTargetProblem(params: readonly string[] | undefined): string | null {
+  const [unit, lesson] = params ?? [];
+  if (!unit || !lesson || (params ?? []).length !== 2) return `expected [unit, lesson], got ${JSON.stringify(params)}`;
+  const found = outlineLesson(lesson);
+  if (!found) return `no Theory Path lesson "${lesson}"`;
+  return found.unitId === unit ? null : `"${lesson}" is in unit "${found.unitId}", not "${unit}"`;
+}
+
+describe('the task helpers', () => {
+  it('build the addresses of the Theory Path, the Recorder and the scanner', () => {
+    const theory = theoryTask({ id: 'numbers', title: 'String numbers', lesson: 'the-six-strings/string-numbers', minutes: 4, body: 'Read it on the Theory Path.' });
+    expect(taskRoute(theory)).toEqual({ route: 'learn', params: ['the-six-strings', 'string-numbers'] });
+    expect(theoryTargetProblem(theory.params)).toBeNull();
+    expect(theoryTargetProblem(['sound-and-pitch', 'string-numbers'])).toMatch(/is in unit "the-six-strings"/);
+    expect(theoryTargetProblem(['the-six-strings'])).toMatch(/expected/);
+    const take = recordTask({ id: 'record-show', title: 'Record your show', label: 'hot-cross-buns-week-1', minutes: 3, body: 'Record it once, start to finish.' });
+    expect(taskRoute(take)).toEqual({ route: 'record', params: ['hot-cross-buns-week-1'] });
+    expect(taskRoute(recordTask({ id: 'r', title: 'Record', minutes: 2, body: 'x' }))).toEqual({ route: 'record', params: [] });
+    expect(taskRoute(toolTask({ id: 'scan', title: 'Scan a page', tool: 'scan', minutes: 5, body: 'x' }))).toEqual({ route: 'scan', params: [] });
+    expect(TASK_TOOLS.theory.name).toBe('the Theory Path');
+    // The scanner and the Theory Path are routes of the app (the Recorder's route is added by its own screen).
+    expect(ROUTE_BY_NAME[TASK_TOOLS.scan.route]).toBeTruthy();
+    expect(ROUTE_BY_NAME[TASK_TOOLS.theory.route]).toBeTruthy();
+  });
+});
+
 describe('the outline', () => {
   it('is the reviewed plan, unit by unit and lesson by lesson', () => {
     const fromPlan = PLAN.map((c) => ({
@@ -61,6 +89,20 @@ describe('the outline', () => {
       expect(PROFILES[t].courseTitle).toBe(OUTLINE.find((c) => c.id === t)!.title);
       expect(PROFILES[t].courseDescription.length).toBeLessThanOrEqual(TEXT_LIMITS.courseDescription);
     }
+  });
+
+  it("knows each lesson's Theory Path links as the plan has them, and each leads to a lesson of the path", () => {
+    const fromPlan: Record<string, string[]> = {};
+    for (const c of PLAN) for (const u of c.units) for (const l of u.lessons) if (l.theory?.length) fromPlan[l.id.split('/')[2]] = l.theory;
+    expect(JSON.parse(JSON.stringify(THEORY_LINKS))).toEqual(fromPlan);
+    const broken: string[] = [];
+    for (const [lesson, links] of Object.entries(THEORY_LINKS)) {
+      for (const { unitId, lessonId } of theoryLinksOf(lesson)) if (outlineLesson(lessonId)?.unitId !== unitId) broken.push(`${lesson} -> ${unitId}/${lessonId}`);
+      expect(links.length).toBeGreaterThan(0);
+    }
+    expect(broken).toEqual([]);
+    expect(theoryLinksOf('meet-your-guitar')[0]).toEqual({ unitId: 'the-six-strings', lessonId: 'string-numbers' });
+    expect(theoryLinksOf('no-such-lesson')).toEqual([]);
   });
 
   it('never uses a lesson slug that would collide with a route word', () => {
@@ -174,6 +216,26 @@ describe.each(TEACHER_KEYS)('the written units of %s', (teacher) => {
     }
   });
 
+  // Review bug: the course keeps the first unit's definition of a term (`compileCourse`), and each
+  // unit's own test compiles it alone, so a later unit's different words were never shown and never
+  // compared ("rubato", "hemiola", "secondary dominant" ... had two or three versions).
+  it('define a term the same way in every unit that defines it', async () => {
+    const tc = await course(teacher);
+    const sorted = (g: object) => JSON.stringify(Object.fromEntries(Object.entries(g).sort(([a], [b]) => a.localeCompare(b))));
+    const first = new Map<string, { unit: string; text: string }>();
+    const clashes: string[] = [];
+    for (const unit of tc.units) {
+      for (const g of unit.glossary ?? []) {
+        const seen = first.get(g.id);
+        if (!seen) first.set(g.id, { unit: unit.id, text: sorted(g) });
+        else if (seen.text !== sorted(g)) clashes.push(`"${g.id}": ${seen.unit} says ${seen.text}, ${unit.id} says ${sorted(g)}`);
+      }
+    }
+    expect(clashes).toEqual([]);
+    // What the learner is shown is that one definition.
+    for (const g of tc.course.glossary ?? []) expect(sorted(g)).toBe(first.get(g.id)?.text);
+  });
+
   it('pass the lesson engine with no error and no warning', async () => {
     const tc = await course(teacher);
     if (tc.units.length === 0) return;
@@ -213,6 +275,8 @@ describe.each(TEACHER_KEYS)('the written units of %s', (teacher) => {
               expect(req.songId, where).toBe(target.params?.[0]);
               expect(req.section, `${where}: every Player param is understood`).toBeNull();
             }
+            if (target.tool === 'theory') expect(theoryTargetProblem(target.params), where).toBeNull();
+            if (target.tool === 'record') expect((target.params ?? []).length, `${where}: the Recorder takes one name`).toBeLessThanOrEqual(1);
           }
           const song = taskSong(step);
           if (song && !songEntry(song)) expect(step.fallback, `${where}: "${song}" is not in the song library, so the task needs a fallback`).toBeTruthy();

@@ -139,6 +139,36 @@ export function parseRhythm(spec: RhythmSpec | string): ParsedRhythm {
   return { time, bars: barTexts.length, barTicks, totalTicks: barTexts.length * barTicks, events, onsets, problems };
 }
 
+/**
+ * The counting of the struck notes of a rhythm, as a learner says it: `'q e e q q'` -> "1, 2 &, 3, 4";
+ * beats are separated by commas, bars by " | ". Triplets are counted "1 trip let"; a note off every
+ * grid is counted with its beat number. Empty for a rhythm that cannot be read.
+ */
+export function rhythmCounts(spec: RhythmSpec | string): string {
+  const parsed = parseRhythm(spec);
+  if (parsed.problems.length > 0) return '';
+  const unit = parsed.time.unitTicks;
+  const bars: string[] = [];
+  for (let bar = 0; bar < parsed.bars; bar++) {
+    const beats = new Map<number, string[]>();
+    for (const e of parsed.events) {
+      if (e.bar !== bar || !e.attack) continue;
+      const inBar = e.tick - bar * parsed.barTicks;
+      const beat = Math.floor(inBar / unit);
+      const within = inBar % unit;
+      let word = e.count;
+      if (!word) word = within * 3 === unit ? 'trip' : within * 3 === unit * 2 ? 'let' : String(beat + 1);
+      // The first syllable of a beat that starts off the beat still says which beat it belongs to.
+      const list = beats.get(beat) ?? [];
+      if (list.length === 0 && within !== 0 && !/^\d+$/.test(word)) list.push(`(${beat + 1})`);
+      list.push(word);
+      beats.set(beat, list);
+    }
+    bars.push([...beats.entries()].sort((a, b) => a[0] - b[0]).map(([, words]) => words.join(' ')).join(', '));
+  }
+  return bars.filter((b) => b !== '').join(' | ');
+}
+
 /** Seconds of a tick at a tempo given in quarter notes per minute. */
 export function tickSeconds(tick: number, tempo: number): number {
   return (tick / PPQ) * (60 / tempo);

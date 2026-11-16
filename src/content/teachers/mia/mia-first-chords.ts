@@ -847,7 +847,7 @@ const unit: TeacherUnit = {
   glossary: [
     { id: 'chord-box', term: 'chord box', definition: 'A picture of a chord: strings up and down (string 6 on the left), frets across, fingers in the dots, o for open and x for not played.' },
     { id: 'round', term: 'round', definition: 'A song in which a second voice starts the same tune a few bars later, and the two still fit together.' },
-    { id: 'accent', term: 'accent', definition: 'A note or strum played a little louder than the others, like beat 1 of a bar.' },
+    { id: 'accent', term: 'accent', definition: 'A note or strum played a little louder than the ones around it, such as beat 1 of every bar.' },
     { id: 'chord-chart', term: 'chord chart', definition: 'The chords of a song written in order, line by line, often above the words.' },
   ],
 };

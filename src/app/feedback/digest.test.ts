@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, type ProgressEvent } from '@/core/progress';
-import { MAX_TOASTS_PER_BURST, REWARD_CARD_ID, REWARD_CARD_MAX_MS, XpTally, digest, isAlertToast, mergeRewardItems, rewardCard, xpItem, xpToastDetail } from './digest';
+import { MAX_TOASTS_PER_BURST, REWARD_CARD_ID, REWARD_CARD_MAX_MS, XpTally, compactCard, digest, isAlertToast, mergePlans, mergeRewardItems, rewardCard, xpItem, xpToastDetail } from './digest';
 
 const at = 1_000_000;
 const xp = (amount: number): ProgressEvent => ({ type: 'xp-gained', at, amount, base: amount, multiplier: 1, source: 'theory-lesson', tag: 'theory', total: 100 + amount });
@@ -202,5 +202,46 @@ describe('the reward card', () => {
     expect(later.map((t) => t.id)).toEqual(['shell-xp', 'shell-quest', 'shell-ach-b']);
     expect(later[0].title).toBe('+25 XP');
     expect(mergeRewardItems(later, null, []).length).toBeLessThanOrEqual(MAX_TOASTS_PER_BURST + 1);
+  });
+});
+
+describe('news held while a lesson ran', () => {
+  it('is merged into one moment: XP added up, each toast once, one dialog per level, the biggest confetti and sound', () => {
+    const first = digest([xp(15), goal, extended(4), achievement('bronze', 'a1')]);
+    const levelUp: ProgressEvent = { type: 'level-up', at, from: 2, to: 3, title: 'Open Strings', gems: 10 };
+    const second = digest([xp(10), levelUp, achievement('gold', 'g1'), { type: 'heart-lost', at, remaining: 3, empty: false }]);
+    const third = digest([xp(5), { type: 'level-up', at, from: 3, to: 4, title: 'Strummer', gems: 15 }, achievement('bronze', 'a1')]);
+    const merged = mergePlans([first, second, third]);
+    expect(merged.xp).toBe(30);
+    // The goal toast names only the first moment's XP: the total needs its own line.
+    expect(merged.xpInToast).toBe(false);
+    expect(merged.toasts.filter((t) => t.id === 'shell-ach-a1')).toHaveLength(1);
+    expect(merged.toasts.some((t) => t.id === 'shell-goal')).toBe(true);
+    expect(merged.modals.filter((m) => m.kind === 'level')).toEqual([{ kind: 'level', level: 4, title: 'Strummer', gems: 25 }]);
+    expect(merged.modals.some((m) => m.kind === 'achievement' && m.id === 'g1')).toBe(true);
+    expect(merged.confetti).toBe('high');
+    expect(merged.sound).toBe('levelUp');
+    // The heart's flash was shown at the moment itself.
+    expect(merged.heartsLeft).toBeNull();
+  });
+
+  it('keeps the goal as the XP line when it already names every gain, and is empty for nothing', () => {
+    const merged = mergePlans([digest([xp(15), goal, extended(4)]), digest([])]);
+    expect(merged.xpInToast).toBe(true);
+    expect(mergePlans([])).toEqual(digest([]));
+  });
+});
+
+describe('the compact reward card', () => {
+  it('is used on a phone with large text, not at the normal size or on a desktop', () => {
+    // 390 px phone: 22.4 rem at 16 px, 14.9 rem at 150 %, 11.2 rem at 200 %.
+    expect(compactCard(390, 16)).toBe(false);
+    expect(compactCard(360, 16)).toBe(false);
+    expect(compactCard(390, 24)).toBe(true);
+    expect(compactCard(390, 32)).toBe(true);
+    // A desktop at 200 %: the card is its full 26 rem.
+    expect(compactCard(1280, 32)).toBe(false);
+    // A broken measurement falls back to the default size.
+    expect(compactCard(390, Number.NaN)).toBe(false);
   });
 });

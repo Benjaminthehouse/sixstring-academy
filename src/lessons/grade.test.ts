@@ -400,11 +400,13 @@ describe('chord-build', () => {
     expect(grade(em, { type: 'chord-build', frets: [null, null, 2, 0, 0, 0] }).correct).toBe(true);
     const major = grade(em, { type: 'chord-build', frets: [0, 2, 2, 1, 0, 0] });
     expect(major.correct).toBe(false);
-    expect(major.feedback.note).toBe('That shape is {c:E}.');
+    // Plain words: the common chord it makes (taught or not: no list given), then the string at fault.
+    expect(major.feedback.note).toBe('That shape is {c:E}. String 3 sounds {n:G#}, which is not in {c:Em}.');
     if (major.feedback.detail.type !== 'chord-build' || major.feedback.detail.task !== 'fingers') throw new Error('detail');
     expect(major.feedback.detail.wrongStrings).toEqual([3]);
     expect(major.feedback.detail.built).toBe('E');
-    expect(major.feedback.answer).toBe('{c:Em}: 022000');
+    // The answer is the chord; the screen draws its box (no fret strings such as 022000).
+    expect(major.feedback.answer).toBe('{c:Em}');
     expect(grade(em, { type: 'chord-build', frets: [null, null, null, null, null, null] }).correct).toBe(false);
     expect(grade(em, { type: 'chord-build' }).correct).toBe(false);
   });

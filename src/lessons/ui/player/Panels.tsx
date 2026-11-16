@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Button, Celebration, Heading, Icon, Modal, Stat, Text, cx, usePrefersReducedMotion } from '@/ui';
+import { RhythmView } from '@/ui/music';
 import type { SessionReport } from '../../effects';
 import type { Exercise } from '../../types';
 import type { SessionFeedback } from '../../session';
@@ -50,11 +51,19 @@ export function FeedbackPanel({ exercise, feedback, seed, combo, heartsLeft = nu
           </span>
         )}
       </div>
-      {copy.answer && (
+      {copy.answer && exercise.type === 'tap-rhythm' ? (
+        // A rhythm is shown as a rhythm, with the counting a learner says: never as its code.
+        <div className={styles.feedbackAnswer} data-feedback-rhythm="">
+          <span className={styles.feedbackLabel}>Answer</span> <span>Tap on {copy.answer}</span>
+          <div className={styles.feedbackRhythm}>
+            <RhythmView rhythm={exercise.rhythm.pattern} time={exercise.rhythm.time} counting={exercise.counting !== false} />
+          </div>
+        </div>
+      ) : copy.answer ? (
         <p className={styles.feedbackAnswer}>
           <span className={styles.feedbackLabel}>Answer</span> <RichText text={copy.answer.replace(/\n/g, ' · ')} />
         </p>
-      )}
+      ) : null}
       {copy.explain && (
         <p className={styles.feedbackExplain}>
           <RichText text={copy.explain} />
@@ -101,7 +110,7 @@ export interface SummaryViewProps {
 export function SummaryView({ report, teacher }: SummaryViewProps) {
   const headline = summaryHeadline(report);
   const stats = summaryStats(report);
-  const line = teacherLine(teacher, report.outcome, report.perfect);
+  const line = teacherLine(teacher, report.outcome, report.perfect, report.mode);
   const reduced = usePrefersReducedMotion();
   const [fire, setFire] = useState(false);
   useEffect(() => {
@@ -113,7 +122,7 @@ export function SummaryView({ report, teacher }: SummaryViewProps) {
     <section className={styles.summary} aria-labelledby="lesson-summary-title" data-summary={report.outcome}>
       {headline.celebrate && <Celebration fire={fire} intensity={report.perfect ? 'high' : 'medium'} />}
       <div className={cx(styles.summaryBadge, styles[`summary-${headline.tone}`], !reduced && styles.pop)} aria-hidden="true">
-        <Icon name={headline.tone === 'ok' ? (report.mode === 'checkpoint' ? 'Trophy' : report.perfect ? 'Sparkles' : 'Check') : headline.tone === 'warn' ? (report.outcome === 'out-of-hearts' ? 'HeartCrack' : 'Flag') : report.outcome === 'quit' ? 'LogOut' : 'CalendarCheck'} size={40} />
+        <Icon name={headline.tone === 'ok' ? (report.mode === 'checkpoint' ? 'Trophy' : report.perfect ? 'Sparkles' : 'Check') : headline.tone === 'warn' ? (report.outcome === 'out-of-hearts' ? 'HeartCrack' : 'Flag') : report.outcome === 'quit' ? 'LogOut' : report.outcome === 'failed' ? 'RotateCcw' : 'CalendarCheck'} size={40} />
       </div>
       <Heading level={2} size="3xl" display id="lesson-summary-title" className={styles.summaryTitle}>
         {headline.title}
@@ -141,7 +150,7 @@ export function SummaryView({ report, teacher }: SummaryViewProps) {
           <Icon name="CircleCheck" size="sm" /> Daily goal reached.
         </p>
       )}
-      {report.missed.length > 0 && report.outcome === 'completed' && (
+      {report.missed.length > 0 && (report.outcome === 'completed' || (report.outcome === 'failed' && report.mode === 'lesson')) && (
         <div className={styles.missed}>
           <Heading level={3} size="md">
             Worth another look

@@ -1032,7 +1032,7 @@ const unit: TeacherUnit = {
     { id: 'fugal-answer', term: 'answer', definition: 'In a fugue, the second entry of the subject, moved to the dominant (a fifth higher in the key).' },
     { id: 'countersubject', term: 'countersubject', definition: 'The line a voice plays against the subject or answer after its own entry, written to fit it.' },
     { id: 'dadgad', term: 'DADGAD', definition: 'A tuning, D A D G A D from string 6 to string 1: standard with strings 6, 2 and 1 a whole step down.' },
-    { id: 'drone', term: 'drone', definition: 'A note that keeps sounding under a melody, often an open string left ringing.' },
+    { id: 'drone', term: 'drone', definition: 'A note held or repeated under the music, often an open string left ringing, so that every other note is heard against it.' },
   ],
 };
 

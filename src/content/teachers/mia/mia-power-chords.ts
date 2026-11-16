@@ -811,7 +811,7 @@ const unit: TeacherUnit = {
     { id: 'twelve-bar-blues', term: '12-bar blues', definition: 'A 12-bar chord pattern on the 1st, 4th and 5th notes of a key. In A: A A A A, D D A A, E D A E.' },
     { id: 'shuffle', term: 'shuffle', definition: 'A rhythm that swings its eighth notes long-short, like a heartbeat: the first of each pair two thirds of the beat.' },
     { id: 'accent', term: 'accent', definition: 'A note or strum played a little louder than the ones around it, such as beat 1 of every bar.' },
-    { id: 'riff', term: 'riff', definition: 'A short, catchy pattern repeated through a song.' },
+    { id: 'riff', term: 'riff', definition: 'A short, catchy pattern of notes or chords repeated through a song, often on the low strings.' },
   ],
 };
 

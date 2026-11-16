@@ -8,7 +8,7 @@
 # Four cycles of compas (bars 1-16), then a closing falseta of two cycles (bars 17-24): a short
 # melody in E Phrygian (E F G A B C D), every note a thumb rest stroke, accents still on 3, 6, 8,
 # 10 and 12, closing on an E chord on count 10.
-# The key signature is that of A minor: E Phrygian uses the same notes, centred on E.
+# The key is E Phrygian: the notes of A minor (no sharps or flats), centred on E.
 title: Flamenco Rhythm: the 12-Beat Cycle
 composer: Sixstring Academy
 source: Original study in the rhythm of solea
@@ -17,7 +17,7 @@ difficulty: 7
 tags: flamenco, solea, compas, rasgueado, phrygian, accents, 12 beats
 tempo: 108
 time: 3/4
-key: Am
+key: E Phrygian
 
 track: Your part
 role: rhythm

@@ -37,12 +37,19 @@ export type TaskTool =
   | 'fretboard'
   | 'scales'
   | 'arcade'
-  | 'progressions';
+  | 'progressions'
+  | 'scan'
+  | 'record'
+  | 'theory';
 
 /** Where a task leads: a tool and the params of its address (`#play--hot-cross-buns--wait`). */
 export interface TaskTarget {
   tool: TaskTool;
-  /** Route params after the tool's route name. For the Player the first is the song id. */
+  /**
+   * Route params after the tool's route name. For the Player the first is the song id; for the
+   * Recorder the take's name (`['hot-cross-buns-week-1']`); for the Theory Path the unit and the
+   * lesson (`['the-six-strings', 'string-numbers']`).
+   */
   params?: string[];
 }
 

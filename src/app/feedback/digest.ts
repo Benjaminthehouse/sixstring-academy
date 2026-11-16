@@ -213,6 +213,42 @@ export function digest(events: readonly ProgressEvent[]): FeedbackPlan {
   return plan;
 }
 
+const CONFETTI_RANK = { low: 1, medium: 2, high: 3 } as const;
+const SOUND_RANK: Record<FeedbackSound, number> = { heartLost: 1, gem: 2, streak: 3, achievement: 4, levelUp: 5 };
+
+/**
+ * The plans of several moments as one (news held back while a lesson ran, shown when it ends): the
+ * XP added up, each toast once (the newest version), one dialog per level (the highest, its gems
+ * added up) and per streak milestone (the last), every rare achievement, the biggest confetti and
+ * sound. The heart count is left out: its flash was shown at the moment itself. Pure.
+ */
+export function mergePlans(plans: readonly FeedbackPlan[]): FeedbackPlan {
+  const out: FeedbackPlan = { xp: 0, xpInToast: false, toasts: [], modals: [], confetti: null, sound: null, heartsLeft: null };
+  const toasts = new Map<string, PlannedToast>();
+  let level: Extract<PlannedModal, { kind: 'level' }> | null = null;
+  let streak: Extract<PlannedModal, { kind: 'streak' }> | null = null;
+  const achievements = new Map<string, PlannedModal>();
+  for (const p of plans) {
+    out.xp += p.xp;
+    for (const t of p.toasts) {
+      toasts.delete(t.id);
+      toasts.set(t.id, t);
+    }
+    for (const m of p.modals) {
+      if (m.kind === 'level') level = level ? { ...(m.level >= level.level ? m : level), gems: level.gems + m.gems } : m;
+      else if (m.kind === 'streak') streak = m;
+      else achievements.set(m.id, m);
+    }
+    if (p.confetti && (!out.confetti || CONFETTI_RANK[p.confetti] > CONFETTI_RANK[out.confetti])) out.confetti = p.confetti;
+    if (p.sound && (!out.sound || SOUND_RANK[p.sound] > SOUND_RANK[out.sound])) out.sound = p.sound;
+  }
+  out.toasts = [...toasts.values()];
+  // The goal toast names the XP of its own moment: the total needs its own line unless every gain is in it.
+  out.xpInToast = out.xp > 0 && out.toasts.some((t) => t.id === 'shell-goal') && plans.every((p) => p.xp === 0 || p.xpInToast);
+  out.modals = [...(level ? [level] : []), ...(streak ? [streak] : []), ...achievements.values()];
+  return out;
+}
+
 // --- The reward card ---------------------------------------------------------------------------
 
 /** One line of the reward card, under its headline. */
@@ -232,6 +268,21 @@ export interface RewardCard extends PlannedToast {
 export const REWARD_CARD_ID = 'shell-reward';
 /** The longest the card stays up, however much it carries. */
 export const REWARD_CARD_MAX_MS = 8000;
+
+/** Below this width (in rem, so in the learner's own text size) the reward card is compact. */
+export const COMPACT_CARD_REM = 18;
+
+/**
+ * True when the reward card has little room for its words: a phone with large text (at 200 % on a
+ * 390 px phone it is about 11 rem wide). The card then keeps each line to its title (no details, no
+ * clamped half-words) so it does not cover most of a lesson's summary. The card is the kit toast's
+ * width: the screen less its 16 px gutters, at most 26 rem.
+ */
+export function compactCard(viewportWidth: number, remPx: number): boolean {
+  const rem = remPx > 0 && Number.isFinite(remPx) ? remPx : 16;
+  const width = Math.min(viewportWidth - 32, 26 * rem);
+  return width / rem < COMPACT_CARD_REM;
+}
 
 /** Alerts stay toasts of their own (a warning, a streak that ended); everything else is a reward. */
 export function isAlertToast(t: PlannedToast): boolean {

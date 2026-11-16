@@ -17,34 +17,43 @@ import { fifthsOf, note, noteFromFifths, noteFromSlug, noteSlug, parseNote, simp
 import { chordFitsScale, harmonizeScale, scaleNotes, type ScaleChord } from './scale';
 
 /**
- * The mode of a key: major, minor, or one of the five other modes of the major scale. Ionian is
- * read as major and Aeolian as minor. Only minor keys have harmonic and melodic forms.
+ * Major or minor. A key in one of the other modes says which in `modal`; its `mode` is `minor`,
+ * because like a minor key it is written with the signature of another key (its relative major).
+ * `mode === 'major'` therefore always means "the tonic's own major scale gives the signature".
  */
-export type KeyMode = 'major' | 'minor' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
-/** The quality of a key's third: what a mode is closest to (Dorian, Phrygian, Locrian: minor). */
-export type KeyQuality = 'major' | 'minor';
+export type KeyMode = 'major' | 'minor';
+/** The five modes of the major scale other than major (Ionian) and minor (Aeolian). */
+export type ModalMode = 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
+/** Any of the seven modes a key can be in. */
+export type KeyModeName = KeyMode | ModalMode;
 
-/** Every key mode, brightest first (Lydian … Locrian), as the modes of the major scale are usually ordered by colour. */
-export const KEY_MODES: readonly KeyMode[] = ['lydian', 'major', 'mixolydian', 'dorian', 'minor', 'phrygian', 'locrian'];
+/** The seven key modes, brightest first (Lydian … Locrian), the order the modes are usually taught by colour. */
+export const KEY_MODE_NAMES: readonly KeyModeName[] = ['lydian', 'major', 'mixolydian', 'dorian', 'minor', 'phrygian', 'locrian'];
 /** The five modes other than major and minor. */
-export const MODAL_KEY_MODES: readonly KeyMode[] = ['dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'];
+export const MODAL_MODES: readonly ModalMode[] = ['dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'];
 
 // Steps on the line of fifths from the parent major tonic up to the mode's tonic (G major -> A Dorian: 2).
-const MODE_OFFSET: Readonly<Record<KeyMode, number>> = { lydian: -1, major: 0, mixolydian: 1, dorian: 2, minor: 3, phrygian: 4, locrian: 5 };
+const MODE_OFFSET: Readonly<Record<KeyModeName, number>> = { lydian: -1, major: 0, mixolydian: 1, dorian: 2, minor: 3, phrygian: 4, locrian: 5 };
 // The scale id of each mode in the scale catalogue.
-const MODE_SCALE: Readonly<Record<KeyMode, string>> = {
+const MODE_SCALE: Readonly<Record<KeyModeName, string>> = {
   major: 'major', minor: 'minor', dorian: 'dorian', phrygian: 'phrygian', lydian: 'lydian', mixolydian: 'mixolydian', locrian: 'locrian',
 };
 
-/** Major or minor third: `modeQuality('dorian')` -> `minor`, `modeQuality('mixolydian')` -> `major`. */
-export function modeQuality(mode: KeyMode): KeyQuality {
+/** The quality of a mode's third: `modeQuality('dorian')` -> `minor`, `modeQuality('mixolydian')` -> `major`. */
+export function modeQuality(mode: KeyModeName): KeyMode {
   return mode === 'major' || mode === 'lydian' || mode === 'mixolydian' ? 'major' : 'minor';
 }
 
-/** True for a key in one of the five modes other than major and minor (A Dorian, E Phrygian). */
-export function isModalKey(input: { mode: KeyMode }): boolean {
-  return input.mode !== 'major' && input.mode !== 'minor';
+/** The full mode of a key or key reference: its `modal` mode when it has one, else major or minor. */
+export function keyModeName(input: { mode: KeyMode; modal?: ModalMode }): KeyModeName {
+  return input.modal ?? input.mode;
 }
+
+/** True for a key in one of the five modes other than major and minor (A Dorian, E Phrygian). */
+export function isModalKey(input: { modal?: ModalMode }): boolean {
+  return input.modal !== undefined;
+}
+
 /** The three jobs a chord can do in a key. */
 export type HarmonicFunction = 'tonic' | 'subdominant' | 'dominant';
 /** The three forms of the minor scale. */
@@ -70,15 +79,18 @@ export interface Key {
   /** Chord-style short name: `F#m`, `C`; a modal key has none and repeats its name (`A dorian`). */
   short: string;
   tonic: string;
+  /** `major` for a major key; `minor` for a minor key and for a modal one (see `KeyMode`). */
   mode: KeyMode;
+  /** The mode, for a key in one of the five other modes (A Dorian: `dorian`); absent for major and minor keys. */
+  modal?: ModalMode;
   /** Position of the signature on the line of fifths (same as `signature.fifths`); a mode takes its parent major's. */
   fifths: number;
   signature: KeySignature;
   /** The major scale, the natural minor scale for a minor key, or the mode (A Dorian: A B C D E F# G). */
   scale: string[];
-  /** Harmonic minor (raised seventh); null for major keys. */
+  /** Harmonic minor (raised seventh); null for major and modal keys. */
   harmonicMinor: string[] | null;
-  /** Melodic minor, ascending form (raised sixth and seventh); null for major keys. */
+  /** Melodic minor, ascending form (raised sixth and seventh); null for major and modal keys. */
   melodicMinor: string[] | null;
   /** Name of the relative key (same signature); for a modal key, the parent major (A Dorian -> `G major`). */
   relative: string;
@@ -88,13 +100,14 @@ export interface Key {
   theoretical: boolean;
 }
 
-/** A key given as its parts. */
+/** A key given as its parts. A modal key is `{ tonic: 'A', mode: 'minor', modal: 'dorian' }` (`modal` wins over `mode`). */
 export interface KeyRef {
   tonic: string;
   mode: KeyMode;
+  modal?: ModalMode;
 }
 
-/** Anything that names a key: `'A minor'`, `'F#m'`, `'bb-major'`, a `{ tonic, mode }` pair or a `Key`. */
+/** Anything that names a key: `'A minor'`, `'F#m'`, `'bb-major'`, `'A Dorian'`, a `{ tonic, mode, modal? }` pair or a `Key`. */
 export type KeyInput = string | KeyRef | Key;
 
 // Sharps arrive in fifths order F C G D A E B; flats in the reverse order.
@@ -119,11 +132,11 @@ const KEY_SLUG_RE = /^([a-g](?:-sharp|-flat|b)*)-(major|minor|dorian|phrygian|ly
 const MINOR_WORDS = new Set(['m', 'min', 'mi', 'minor', '-', 'moll', 'aeolian']);
 const MAJOR_WORDS = new Set(['', 'maj', 'major', 'ma', 'dur', 'ionian']);
 // The other modes, with the abbreviations chord charts use ("A mix", "E phryg").
-const MODE_WORDS: ReadonlyMap<string, KeyMode> = new Map([
+const MODE_WORDS: ReadonlyMap<string, ModalMode> = new Map([
   ['dorian', 'dorian'], ['dor', 'dorian'], ['phrygian', 'phrygian'], ['phryg', 'phrygian'], ['phr', 'phrygian'],
   ['lydian', 'lydian'], ['lyd', 'lydian'], ['mixolydian', 'mixolydian'], ['mixo', 'mixolydian'], ['mix', 'mixolydian'],
   ['locrian', 'locrian'], ['loc', 'locrian'],
-] as Array<[string, KeyMode]>);
+] as Array<[string, ModalMode]>);
 // German note names as they appear in key names: Fis-Moll, Es-Dur, As-Dur, B-Dur (B flat), H-Moll (B).
 const GERMAN_KEY_RE = /^([a-hA-H])(is|es|s)?[\s-]*(dur|moll)$/i;
 
@@ -156,7 +169,7 @@ export function parseKey(input: string): KeyRef | null {
   const slug = KEY_SLUG_RE.exec(text.toLowerCase());
   if (slug) {
     const tonic = noteFromSlug(slug[1]);
-    return tonic ? { tonic, mode: slug[2] as KeyMode } : null;
+    return tonic ? refOf(tonic, slug[2] as KeyModeName) : null;
   }
   const german = parseGermanKey(text);
   if (german) return german;
@@ -173,13 +186,18 @@ export function parseKey(input: string): KeyRef | null {
   if (MINOR_WORDS.has(word)) return { tonic: tonic.pcName, mode: 'minor' };
   if (MAJOR_WORDS.has(word)) return { tonic: tonic.pcName, mode: 'major' };
   const modal = MODE_WORDS.get(word);
-  if (modal) return { tonic: tonic.pcName, mode: modal };
+  if (modal) return refOf(tonic.pcName, modal);
   return null;
+}
+
+/** A key reference for a tonic in any of the seven modes. */
+function refOf(tonic: string, mode: KeyModeName): KeyRef {
+  return mode === 'major' || mode === 'minor' ? { tonic, mode } : { tonic, mode: 'minor', modal: mode };
 }
 
 const KEY_CACHE = new Map<string, Key>();
 
-function buildKey(tonicName: string, mode: KeyMode): Key {
+function buildKey(tonicName: string, mode: KeyModeName): Key {
   const tonic = note(tonicName).pcName;
   const cacheKey = `${tonic} ${mode}`;
   const cached = KEY_CACHE.get(cacheKey);
@@ -193,7 +211,7 @@ function buildKey(tonicName: string, mode: KeyMode): Key {
     name: cacheKey,
     short: mode === 'minor' ? `${tonic}m` : mode === 'major' ? tonic : cacheKey,
     tonic,
-    mode,
+    ...(mode === 'major' || mode === 'minor' ? { mode } : { mode: 'minor' as const, modal: mode }),
     fifths,
     signature: keySignature(fifths),
     scale: scaleNotes(tonic, MODE_SCALE[mode]),
@@ -210,10 +228,10 @@ function buildKey(tonicName: string, mode: KeyMode): Key {
 /** The key for a name, id, `{ tonic, mode }` pair or existing key; null when it cannot be read. */
 export function getKey(input: KeyInput): Key | null {
   if (typeof input !== 'string') {
-    return parseNote(input.tonic) ? buildKey(input.tonic, input.mode) : null;
+    return parseNote(input.tonic) ? buildKey(input.tonic, keyModeName(input)) : null;
   }
   const ref = parseKey(input);
-  return ref ? buildKey(ref.tonic, ref.mode) : null;
+  return ref ? buildKey(ref.tonic, keyModeName(ref)) : null;
 }
 
 /** The key for a name or reference, throwing a RangeError when it is invalid. */
@@ -245,7 +263,7 @@ function standardFifths(fifths: number): number {
  * The key with a given signature: `keyFromSignature(3)` -> A major, `keyFromSignature(-3, 'minor')`
  * -> C minor, `keyFromSignature(1, 'dorian')` -> A Dorian.
  */
-export function keyFromSignature(fifths: number, mode: KeyMode = 'major'): Key {
+export function keyFromSignature(fifths: number, mode: KeyModeName = 'major'): Key {
   return buildKey(noteFromFifths(fifths + MODE_OFFSET[mode]), mode);
 }
 
@@ -284,13 +302,13 @@ export function enharmonicKey(input: KeyInput): Key | null {
   const k = key(input);
   const candidates = [k.fifths - 12, k.fifths + 12].filter((f) => Math.abs(f) <= 7);
   if (candidates.length === 0) return null;
-  return keyFromSignature(candidates[0], k.mode);
+  return keyFromSignature(candidates[0], keyModeName(k));
 }
 
 /** A key's readable spelling: itself, or its enharmonic equivalent when it has more than seven accidentals. */
 export function practicalKey(input: KeyInput): Key {
   const k = key(input);
-  return k.theoretical ? keyFromSignature(standardFifths(k.fifths), k.mode) : k;
+  return k.theoretical ? keyFromSignature(standardFifths(k.fifths), keyModeName(k)) : k;
 }
 
 /** The keys nearest to a key. */
@@ -307,14 +325,18 @@ export interface KeyNeighbors {
   subdominantRelative: Key;
 }
 
-/** A key's neighbours on the circle of fifths, plus its relative and parallel keys. */
+/**
+ * A key's neighbours on the circle of fifths, plus its relative and parallel keys. A modal key's
+ * neighbours are in the same mode (A Dorian: E Dorian and D Dorian) and their relatives are their
+ * parent major keys.
+ */
 export function neighborKeys(input: KeyInput): KeyNeighbors {
   const k = key(input);
   const other: KeyMode = k.mode === 'major' ? 'minor' : 'major';
-  const at = (delta: number, mode: KeyMode) => keyFromSignature(standardFifths(k.fifths + delta), mode);
+  const at = (delta: number, mode: KeyModeName) => keyFromSignature(standardFifths(k.fifths + delta), mode);
   return {
-    dominant: at(1, k.mode),
-    subdominant: at(-1, k.mode),
+    dominant: at(1, keyModeName(k)),
+    subdominant: at(-1, keyModeName(k)),
     relative: relativeKey(k),
     parallel: practicalKey(parallelKey(k)),
     dominantRelative: at(1, other),
@@ -367,7 +389,7 @@ export function circleOfFifths(): CircleSlot[] {
 /** The scale of a key; for minor keys choose the natural (default), harmonic or melodic form. */
 export function keyScale(input: KeyInput, variant: MinorVariant = 'natural'): string[] {
   const k = key(input);
-  if (k.mode !== 'minor' || variant === 'natural') return [...k.scale];
+  if (!k.harmonicMinor || !k.melodicMinor || variant === 'natural') return [...k.scale];
   return [...(variant === 'harmonic' ? k.harmonicMinor! : k.melodicMinor!)];
 }
 
@@ -384,7 +406,7 @@ export interface DiatonicChord extends ScaleChord {
  * the sixth degree is the subdominant's relative, and the seventh degree, lowered or raised, leans
  * toward the tonic as a dominant. A modal key uses the table of its third (`modeQuality`).
  */
-export const DEGREE_FUNCTIONS: Readonly<Record<KeyQuality, readonly HarmonicFunction[]>> = {
+export const DEGREE_FUNCTIONS: Readonly<Record<KeyMode, readonly HarmonicFunction[]>> = {
   major: ['tonic', 'subdominant', 'tonic', 'subdominant', 'dominant', 'tonic', 'dominant'],
   minor: ['tonic', 'subdominant', 'tonic', 'subdominant', 'dominant', 'subdominant', 'dominant'],
 };
@@ -404,10 +426,11 @@ export interface DiatonicOptions {
  */
 export function diatonicChords(input: KeyInput, opts: DiatonicOptions = {}): DiatonicChord[] {
   const k = key(input);
-  const variant: MinorVariant = k.mode === 'minor' ? opts.minor ?? 'natural' : 'natural';
-  const scaleId = k.mode !== 'minor' ? MODE_SCALE[k.mode] : variant === 'natural' ? 'minor' : `${variant}-minor`;
+  const name = keyModeName(k);
+  const variant: MinorVariant = name === 'minor' ? opts.minor ?? 'natural' : 'natural';
+  const scaleId = name !== 'minor' ? MODE_SCALE[name] : variant === 'natural' ? 'minor' : `${variant}-minor`;
   // Melodic minor has a major-like upper half, so its sixth-degree chord is a tonic substitute again.
-  const functions = modeQuality(k.mode) === 'major' || variant === 'melodic' ? DEGREE_FUNCTIONS.major : DEGREE_FUNCTIONS.minor;
+  const functions = modeQuality(name) === 'major' || variant === 'melodic' ? DEGREE_FUNCTIONS.major : DEGREE_FUNCTIONS.minor;
   return harmonizeScale(k.tonic, scaleId, { sevenths: opts.sevenths }).map((c, index) => ({
     ...c,
     function: functions[index],
@@ -423,7 +446,7 @@ export function diatonicChords(input: KeyInput, opts: DiatonicOptions = {}): Dia
 export function keyChords(input: KeyInput, opts: { sevenths?: boolean } = {}): DiatonicChord[] {
   const k = key(input);
   const natural = diatonicChords(k, { sevenths: opts.sevenths });
-  if (k.mode !== 'minor') return natural;
+  if (keyModeName(k) !== 'minor') return natural;
   const harmonic = diatonicChords(k, { sevenths: opts.sevenths, minor: 'harmonic' });
   return [...natural, harmonic[4], harmonic[6]];
 }
@@ -703,5 +726,5 @@ export function chordInKey(symbol: string | Chord, input: KeyInput): boolean {
   // The plain scale holds no enharmonic trap, so pitches are enough there; the altered minor forms do.
   const chordMask = maskOfNotes(c.notes);
   if ((maskOfNotes(k.scale) & chordMask) === chordMask) return true;
-  return k.mode === 'minor' && [k.harmonicMinor!, k.melodicMinor!].some((form) => chordFitsScale(c, form));
+  return !!k.harmonicMinor && !!k.melodicMinor && [k.harmonicMinor, k.melodicMinor].some((form) => chordFitsScale(c, form));
 }

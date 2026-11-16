@@ -20,6 +20,9 @@ import styles from './Exercises.module.css';
 
 // ── Choice / listen-choice ─────────────────────────────────────────────────────────────────────
 
+/** Figure kinds that need a full row to be read whole (a bar of rhythm, a staff, a tab, a neck). */
+const WIDE_FIGURES: ReadonlySet<string> = new Set(['rhythm', 'staff', 'tab', 'fretboard', 'keyboard']);
+
 function Options({ exercise, presentation, review, onDraft, hints }: ExerciseViewProps<ChoiceExercise | ListenChoiceExercise>) {
   const multiple = exercise.type === 'choice' && exercise.multiple === true;
   const order = presentation.options ?? exercise.options.map((_o, i) => i);
@@ -27,6 +30,8 @@ function Options({ exercise, presentation, review, onDraft, hints }: ExerciseVie
   const [selected, setSelected] = useState<number[]>(given ?? []);
   const detail = review && (review.result.feedback.detail.type === 'choice' || review.result.feedback.detail.type === 'listen-choice') ? review.result.feedback.detail : null;
   const withFigures = exercise.options.some((o) => o.figure);
+  // A rhythm, a staff, a tab or a neck needs the whole width to be read: one per row on a phone.
+  const wideFigures = exercise.options.some((o) => o.figure && WIDE_FIGURES.has(o.figure.kind));
 
   const pick = (index: number) => {
     if (review) return;
@@ -53,7 +58,7 @@ function Options({ exercise, presentation, review, onDraft, hints }: ExerciseVie
           Choose every answer that fits.
         </Text>
       )}
-      <div className={cx(styles.options, withFigures && styles.optionsGrid)} role={multiple ? 'group' : undefined}>
+      <div className={cx(styles.options, withFigures && styles.optionsGrid, wideFigures && styles.optionsWide)} role={multiple ? 'group' : undefined}>
         {order.map((index, position) => {
           const option = exercise.options[index];
           return (
@@ -67,7 +72,8 @@ function Options({ exercise, presentation, review, onDraft, hints }: ExerciseVie
               onClick={() => pick(index)}
               data-option={index}
             >
-              {option.figure && <FigureView figure={option.figure} size="sm" />}
+              {/* In an option a chord box shows no name: the name would be the answer. */}
+              {option.figure && <FigureView figure={option.figure} size="sm" inOption />}
               {option.text !== undefined ? <RichText text={option.text} /> : !option.figure ? `Option ${index + 1}` : null}
             </OptionButton>
           );

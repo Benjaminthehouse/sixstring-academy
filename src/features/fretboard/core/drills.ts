@@ -51,10 +51,14 @@ export const SPRINT_SECONDS = 60;
 
 /**
  * The round a drill plays with the learner's settings. `tapInstead` turns "Play it" into its tap
- * version (no microphone); `blind` gives the blind-spot positions.
+ * version (no microphone); `blind` gives the blind-spot positions; `pc` asks about one note only
+ * (find-the-note, find-every-note and play-the-note; the name drills ignore it).
  */
-export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapInstead?: boolean; blind?: string[] } = {}): RoundPlan {
+export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapInstead?: boolean; blind?: string[]; pc?: number } = {}): RoundPlan {
   const scope: Scope = settingsScope(settings);
+  const oneNote = opts.pc !== undefined && (drill.id === 'find-the-note' || drill.id === 'find-every-note' || drill.id === 'play-the-note');
+  // One note: whether it is natural or not, it is the note asked about.
+  if (oneNote) scope.pcs = [((opts.pc! % 12) + 12) % 12];
   let asks: Ask[];
   let length: number | null = 12;
   let seconds: number | null = null;
@@ -64,7 +68,8 @@ export function drillPlan(drill: Drill, settings: TrainerSettings, opts: { tapIn
       break;
     case 'find-every-note':
       asks = [{ kind: 'every', weight: 1 }];
-      length = 5;
+      // One note named: one question ("Find every C"), not the same one five times.
+      length = oneNote ? 1 : 5;
       break;
     case 'play-the-note':
       asks = [{ kind: opts.tapInstead ? 'find' : 'play', weight: 1 }];

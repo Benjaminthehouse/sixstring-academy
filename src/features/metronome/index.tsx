@@ -20,6 +20,10 @@
  * `data-beat` (index of the lit beat, -1 when stopped), `data-meter` ("7/8(3+2+2)"),
  * `data-subdivision`, `data-layout` (column | sideways | two-pane).
  *
+ * Addresses (`model/address.ts`): `#metronome--t80--3-4--accents-2-3-1` opens set up (tempo, time
+ * signature, subdivision, swing, accents, silent bars), the same as setting those by hand; the
+ * root then carries `data-address` (the params applied).
+ *
  * Keyboard: Space start/stop, Up/Down +-1, Shift+Up/Down +-5, T tap tempo, 1-9 step that beat's
  * accent, Esc closes a sheet. Browser checks: `node e2e/metronome.cjs` (behaviour and timing),
  * `node e2e/metronome-output.cjs` (the real output, measured independently) and
@@ -57,6 +61,7 @@ import { MeterPanel, PracticePanel, PresetsPanel, RhythmPanel, SoundPanel, sound
 import { TempoDial } from './components/TempoDial';
 import { useBottomClearance } from '@/ui';
 import { COMMON_METERS, meterChoice, meterLabel, meterOf, normalizeMeterKey, tempoBeatNote, tempoForRegrouping } from './model/meters';
+import { applyAddress, parseMetronomeParams } from './model/address';
 import { MetronomeSession, practiceToCredit, timerRemaining } from './model/session';
 import {
   DEFAULT_SETTINGS,
@@ -107,7 +112,7 @@ function ownsKeys(el: HTMLElement | null): boolean {
 }
 
 /** The Metronome screen (`#metronome`). */
-export default function MetronomeScreen(_props: RouteProps) {
+export default function MetronomeScreen({ params }: RouteProps) {
   const prefs = usePrefs();
   const sound: ClickSet = normalizeClickSet(prefs.sound.clickSound);
   const [stored, setStored] = useLocalState<unknown>(SETTINGS_KEY, DEFAULT_SETTINGS);
@@ -162,6 +167,23 @@ export default function MetronomeScreen(_props: RouteProps) {
   // --- changing things -------------------------------------------------------------------------
 
   const update = useCallback((fn: (s: MetronomeSettings) => MetronomeSettings) => setStored((prev: unknown) => sanitizeSettings(fn(sanitizeSettings(prev)))), [setStored]);
+
+  // An address (`#metronome--t80--3-4`) sets the metronome up once per arrival, as if by hand.
+  const addressKey = params.join('--');
+  const [applied, setApplied] = useState('');
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+  useEffect(() => {
+    const address = parseMetronomeParams(addressKey ? addressKey.split('--') : []);
+    if (!address) {
+      setApplied('');
+      return;
+    }
+    const next = applyAddress(sanitizeSettings(storedRef.current), address);
+    setStored(next);
+    setApplied(addressKey);
+    toast.info(`Set to ${describeSetup(setupOf(next))}`, { description: 'Ready when you are: press Start.', id: 'metronome-address' });
+  }, [addressKey, setStored]);
 
   const runningRef = useRef(running);
   runningRef.current = running;
@@ -612,6 +634,7 @@ export default function MetronomeScreen(_props: RouteProps) {
         data-meter={settings.meter}
         data-subdivision={settings.subdivision}
         data-visual-only={settings.visualOnly ? 'true' : undefined}
+        data-address={applied || undefined}
       >
         {stage}
         {twoPane && (

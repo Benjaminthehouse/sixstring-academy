@@ -8,7 +8,7 @@ export default defineSong({
   level: 6,
   style: 'folk',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Dorian',
   teaches: ['Dorian: minor with a bright sixth', 'The colour note: F#, carried by the D chord', 'Landing on a colour note over a vamp', 'A Dorian in fifth position'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'dorian', 'colour note', 'vamp', 'minor', 'a minor', 'fifth position'],

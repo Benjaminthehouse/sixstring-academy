@@ -90,6 +90,16 @@ describe('guide', () => {
     expect(g.code).toBe('calibrate');
     expect(g.trust).toBe('calibrate');
   });
+  it('names no button in the calibrate line unless the screen gives its label', () => {
+    // No camera screen has a button called "Calibrate": the default words must not send the learner looking for one.
+    const plain = guide({ ...base, state: 'searching', view: null, suggestCalibration: true });
+    expect(plain.message).not.toMatch(/\bTap\b|Calibrate/);
+    expect(plain.message).toContain('nut and the 12th fret');
+    const named = guide({ ...base, state: 'candidate', suggestCalibration: true, calibrateLabel: 'Mark the neck' });
+    expect(named.code).toBe('calibrate');
+    expect(named.message).toBe('Automatic tracking is struggling here. Tap Mark the neck and mark the nut and the 12th fret.');
+    expect(guide({ ...base, state: 'searching', view: null, suggestCalibration: true, calibrateLabel: '  ' }).message).toBe(plain.message);
+  });
   it('asks to hold still when the board is lost or carried through blur', () => {
     expect(code({ state: 'lost' })).toBe('hold-still');
     expect(code({ state: 'candidate', coasting: true })).toBe('hold-still');

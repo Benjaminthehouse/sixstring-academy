@@ -15,11 +15,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '@/app/router';
-import { useImmersive, useScreenTitle } from '@/app/shell';
+import { useImmersive, useRewardHold, useScreenTitle } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
 import { playUi } from '@/core/audio';
 import { isArtifact } from '@/core/platform';
-import { getProgress, markSkill, touchRecent } from '@/core/progress';
+import { getProgress, markSkill, recordActivity, touchRecent } from '@/core/progress';
 import {
   currentStep, explainOf, isResumable, mistakesLeft, nextLesson, sessionProgress, sessionReport, speakable,
   type Answer, type EffectResults, type SessionSource,
@@ -32,9 +32,10 @@ import { useMusicSettings } from '@/ui/music';
 import { ActionBar, Button, Icon, IconButton, Kbd, Page, ProgressBar, Text, cx, toast, useIsMobile, useIsTouch, useWakeLock } from '@/ui';
 import { OUTLINE, PROFILES, TASK_TOOLS, hasArt, isTaskStep, pickLine, taskRoute, type TaskStep, type TeacherCourse } from '@/content/teachers';
 import { courseStanding } from '../../model/standing';
-import { clearPendingTask, findTaskActivity, readPendingTask, savePendingTask } from '../../model/tasks';
+import { clearPendingTask, findTaskActivity, playAlongLine, playAlongPractice, readPendingTask, savePendingTask } from '../../model/tasks';
 import { inNativeKeys, isCheckable, isTypingTarget, ownsEnter, positionOfKey } from './keys';
 import { Reaction, TaskCard, TeacherCard, TeacherLine, useTaskTarget, type TaskState } from './Steps';
+import { TheoryLinks } from './TheoryLinks';
 import { UnitComplete } from './UnitComplete';
 import { Portrait } from '../Portrait';
 import styles from './Lesson.module.css';
@@ -79,6 +80,8 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
   useImmersive(true, 'focus');
   useScreenTitle(state.title || 'Lesson');
   useWakeLock(!done);
+  // The shell's rewards (the previous lesson's card, a new level) wait for the summary, never over a step.
+  useRewardHold(!done);
 
   // The step as authored (a task, a card with a drawing, the unit's performance).
   const head = state.queue[0];
@@ -112,12 +115,17 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
         fallback: taskTarget.fallback,
         phase: back ? 'back' : 'ready',
         done: back ? findTaskActivity(taskTarget.target, getProgress().log, back.openedAt) : null,
+        unavailable: taskTarget.unavailable,
       }
     : null;
   const backLine = taskState?.done ? pickLine(profile.taskBack.done, state.stats.answers + progress.done) : profile.taskBack.unsure;
+  // Played along in listen mode, which the Player does not log as practice: Continue logs it.
+  const playAlong =
+    task && back && taskState && !taskState.done ? playAlongPractice(taskState.target, { openedAt: back.openedAt, now: Date.now(), minutes: task.minutes, title: taskState.fallback && task.fallback?.title ? task.fallback.title : task.title, logged: null }) : null;
+  if (taskState) taskState.credit = playAlongLine(playAlong);
 
   const openTask = () => {
-    if (!task || !state.lessonId || !taskState) return;
+    if (!task || !state.lessonId || !taskState || taskState.unavailable) return;
     const { route, params: toolParams } = taskRoute(taskState.target);
     savePendingTask({ teacher, lessonId: state.lessonId, taskId: task.id, target: taskState.target, openedAt: Date.now() });
     // Time out in the tool is not lesson time; Today's "Continue" leads back here.
@@ -127,6 +135,13 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
     navigate(route, ...toolParams);
   };
   const leaveTask = () => {
+    if (playAlong) {
+      try {
+        recordActivity(playAlong);
+      } catch {
+        // Practice that could not be logged must not stop the lesson.
+      }
+    }
     clearPendingTask();
     setTaskBack(null);
     dispatch({ type: 'continue' });
@@ -266,7 +281,8 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
         }
         e.preventDefault();
         if (done) goNext();
-        else if (task && taskState?.phase === 'ready') openTask();
+        else if (task && taskState?.phase === 'ready' && !taskState.unavailable) openTask();
+        else if (task && taskState?.phase === 'ready') advance();
         else if (state.phase === 'feedback' || step?.kind === 'card') advance();
         else check();
         return;
@@ -380,6 +396,7 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                     </div>
                   )}
                   <SummaryView report={report} teacher="none" />
+                  {state.mode === 'lesson' && state.lessonId && report.outcome !== 'quit' && <TheoryLinks lessonId={state.lessonId} />}
                 </div>
               ) : task && taskState ? (
                 <TaskCard teacher={teacher} task={task} state={taskState} backLine={backLine} />
@@ -421,7 +438,7 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                 <div className={cx(styles.barButtons, done && styles.barButtonsDone)}>
                   {hints && !done && (
                     <span className={styles.barKeys} aria-hidden="true">
-                      <Kbd>Enter</Kbd> {task && taskState?.phase === 'ready' ? `open ${tool?.name ?? 'the tool'}` : feedback || step?.kind === 'card' ? 'continue' : primary ? primary.label.toLowerCase() : 'check'} · <Kbd>Esc</Kbd> leave
+                      <Kbd>Enter</Kbd> {task && taskState?.phase === 'ready' ? (taskState.unavailable ? 'skip' : `open ${tool?.name ?? 'the tool'}`) : feedback || step?.kind === 'card' ? 'continue' : primary ? primary.label.toLowerCase() : 'check'} · <Kbd>Esc</Kbd> leave
                     </span>
                   )}
                   {done ? (
@@ -442,14 +459,20 @@ export function TeacherPlayer({ tc, source: initialSource, params, onExit }: Tea
                     </>
                   ) : task && taskState ? (
                     taskState.phase === 'ready' ? (
-                      <>
-                        <Button variant="ghost" onClick={advance} data-action="skip-task" className={styles.skip}>
-                          {isMobile ? 'Skip' : 'Skip for now'}
+                      taskState.unavailable ? (
+                        <Button variant="primary" size="lg" iconRight="ArrowRight" className={styles.primary} onClick={advance} ref={continueRef} data-action="skip-task">
+                          Skip for now
                         </Button>
-                        <Button variant="primary" size="lg" iconRight="ArrowUpRight" className={styles.primary} onClick={openTask} disabled={taskTarget.checking} data-action="open-task" wrap>
-                          {`Open ${tool?.name ?? 'the tool'}`}
-                        </Button>
-                      </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" onClick={advance} data-action="skip-task" className={styles.skip}>
+                            {isMobile ? 'Skip' : 'Skip for now'}
+                          </Button>
+                          <Button variant="primary" size="lg" iconRight="ArrowUpRight" className={styles.primary} onClick={openTask} disabled={taskTarget.checking} data-action="open-task" wrap>
+                            {`Open ${tool?.name ?? 'the tool'}`}
+                          </Button>
+                        </>
+                      )
                     ) : (
                       <>
                         <Button variant="ghost" iconLeft="RotateCcw" onClick={openTask} data-action="open-again" className={styles.skip}>

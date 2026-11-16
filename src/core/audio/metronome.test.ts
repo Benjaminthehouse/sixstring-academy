@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Metronome, TapTempo, clickPattern, isSilentBar, speedTrainerBpm, speedTrainerLength, subdivisionOffsets, type MetronomeBeat } from './metronome';
+import { METRONOME_START_DELAY as D, Metronome, TapTempo, clickPattern, isSilentBar, speedTrainerBpm, speedTrainerLength, subdivisionOffsets, type MetronomeBeat } from './metronome';
 import type { ClickLevel } from './percussion';
 import { resolveMeter } from './timeline';
 import type { TransportClock } from './transport';
@@ -160,12 +160,12 @@ describe('metronome on the transport', () => {
     m.subdivision = 'eighth';
     m.start();
     run(1.9);
-    // Quarter = 120, so an eighth is 0.25 s; the first bar starts after the 0.08 s start delay.
+    // Quarter = 120, so an eighth is 0.25 s; the first bar starts after the metronome's short start delay.
     const bar = played.slice(0, 7);
     expect(bar.map((p) => p.level)).toEqual(['accent', 'sub', 'beat', 'sub', 'beat', 'sub', 'sub']);
-    bar.forEach((p, i) => expect(p.time).toBeCloseTo(0.08 + i * 0.25, 9));
+    bar.forEach((p, i) => expect(p.time).toBeCloseTo(D + i * 0.25, 9));
     expect(played[7].level).toBe('accent');
-    expect(played[7].time).toBeCloseTo(0.08 + 7 * 0.25, 9);
+    expect(played[7].time).toBeCloseTo(D + 7 * 0.25, 9);
     m.stop();
     expect(m.running).toBe(false);
   });
@@ -194,7 +194,7 @@ describe('metronome on the transport', () => {
     expect(seen.slice(4, 8).every((b) => b.silent && b.level === null)).toBe(true);
     expect(seen[0].tempo).toBe(240);
     // Only the audible clicks reached the output: 3 in bar 0, none in bar 1, 3 in bar 2.
-    const inFirstTwoBars = played.filter((p) => p.time < 0.08 + 2 - 1e-6);
+    const inFirstTwoBars = played.filter((p) => p.time < D + 2 - 1e-6);
     expect(inFirstTwoBars.length).toBe(3);
   });
 
@@ -221,7 +221,25 @@ describe('metronome on the transport', () => {
     run(3.2);
     expect(seen.slice(0, 4).map((b) => [b.countIn, b.bar, b.beat])).toEqual([[true, -1, 0], [true, -1, 1], [true, -1, 2], [false, 0, 0]]);
     expect(played.slice(0, 4).map((p) => p.level)).toEqual(['accent', 'beat', 'beat', 'accent']);
-    expect(played[3].time).toBeCloseTo(0.08 + 1.5, 9);
+    expect(played[3].time).toBeCloseTo(D + 1.5, 9);
+  });
+
+  it('Start is immediate: the first click comes within the short start delay, not the 80 ms a song waits', () => {
+    expect(D).toBeLessThanOrEqual(0.025);
+    for (const countIn of [0, 1]) {
+      const { m, clock, played, run } = rig({ tempo: 100 });
+      clock.t = 12.345;
+      m.countInBars = countIn;
+      m.start();
+      // (A live transport runs this first pass inside start() itself, still in the Start handler.)
+      m.transport.process();
+      expect(played.length).toBeGreaterThan(0);
+      expect(played[0].time - 12.345).toBeCloseTo(D, 9);
+      expect(played[0].level).toBe('accent');
+      run(14);
+      expect(played[1].time - played[0].time).toBeCloseTo(0.6, 9);
+      m.dispose();
+    }
   });
 
   it('follows tempo, accent and sound changes while running', () => {
@@ -340,10 +358,10 @@ describe('metronome: nothing clicks after it has been told to stop', () => {
     const { m, clicks, run } = rigWithCancel(60);
     m.subdivision = 'sixteenth';
     m.start();
-    run(2.3); // inside the third beat: clicks at 2.08, 2.33 ... are scheduled or about to be
+    run(2.3); // inside the third beat: clicks at 2.02, 2.27 ... are scheduled or about to be
     m.subdivision = 'triplet';
     run(6);
-    const times = clicks.map((c) => +(c.time - 0.08).toFixed(6));
+    const times = clicks.map((c) => +(c.time - D).toFixed(6));
     // Beat 3 (2.0 .. 3.0) is finished in sixteenths; beat 4 onwards is in triplets.
     expect(times.filter((t) => t >= 2 && t < 3)).toEqual([2, 2.25, 2.5, 2.75]);
     expect(times.filter((t) => t >= 3 && t < 4)).toEqual([3, 3.333333, 3.666667]);

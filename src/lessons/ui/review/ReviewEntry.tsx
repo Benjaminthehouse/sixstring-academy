@@ -19,11 +19,17 @@ export interface ReviewEntryProps {
   onStart: () => void;
   /** Render nothing when no card is due (default false: a quiet "all caught up" line). */
   hideWhenEmpty?: boolean;
+  /**
+   * How loudly it asks. `card` (default): a raised card with the primary "Review now", for a screen
+   * where reviewing is the next thing to do. `quiet`: a flat row with a secondary button, for a
+   * screen that already has its own primary action (a course page with "Start lesson").
+   */
+  variant?: 'card' | 'quiet';
   className?: string;
 }
 
 /** A small card that leads into today's review. */
-export function ReviewEntry({ courses, onStart, hideWhenEmpty, className }: ReviewEntryProps) {
+export function ReviewEntry({ courses, onStart, hideWhenEmpty, variant = 'card', className }: ReviewEntryProps) {
   const progress = useProgress((s) => s);
   const due = useMemo(() => dueFactCards(courses, progress, Date.now()), [courses, progress]);
   const known = useMemo(() => Object.values(progress.srs.items).filter((i) => i.kind === FACT_CARD_KIND).length, [progress]);
@@ -32,7 +38,7 @@ export function ReviewEntry({ courses, onStart, hideWhenEmpty, className }: Revi
   const session = Math.min(count, DEFAULT_REVIEW_SIZE);
   const minutes = Math.max(1, Math.round((session * 12) / 60));
   return (
-    <div className={cx(styles.card, count === 0 && styles.quiet, className)} data-review-entry={count}>
+    <div className={cx(styles.card, (count === 0 || variant === 'quiet') && styles.quiet, className)} data-review-entry={count} data-variant={variant}>
       <span className={styles.icon} aria-hidden="true">
         <Icon name={count > 0 ? 'Layers' : 'CircleCheck'} size="md" />
       </span>
@@ -43,7 +49,7 @@ export function ReviewEntry({ courses, onStart, hideWhenEmpty, className }: Revi
         </Text>
       </div>
       {count > 0 && (
-        <Button variant="primary" iconLeft="RotateCcw" onClick={onStart} className={styles.button} data-review-start="">
+        <Button variant={variant === 'quiet' ? 'secondary' : 'primary'} iconLeft="RotateCcw" onClick={onStart} className={styles.button} data-review-start="">
           Review now
         </Button>
       )}

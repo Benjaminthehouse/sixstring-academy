@@ -20,7 +20,7 @@
  *     unavailable or the learner taps "I can't play right now".
  */
 import { applyAttempt, xpFor, type ActivityInput, type ActivityKind, type MasteryLevel, type ReviewGrade, type SkillRecord } from '@/core/progress';
-import type { NoteNaming } from '@/core/theory';
+import { parseChord, type NoteNaming } from '@/core/theory';
 import { nextDifficulty, START_DIFFICULTY } from './adaptive';
 import { generateExercise, isGenerated } from './generators';
 import { grade, presentExercise, promptOf, solve, type Presentation } from './grade';
@@ -50,6 +50,12 @@ export const MAX_STEP_MS = 90_000;
 export const FACT_CARD_KIND = 'theory-fact';
 /** Current version of the saved session format. */
 export const SESSION_VERSION = 1;
+/**
+ * The share of a lesson that must be learned for it to count as finished (`lessonScore`): below
+ * it the lesson ends as practice, with a kind word and a retry, and no completion, crown or cards.
+ * "I don't know" through a whole lesson scores 0.
+ */
+export const LESSON_PASS_SCORE = 0.5;
 
 const PLAY_TYPES: ReadonlySet<string> = new Set(['play-note', 'play-chord', 'play-phrase']);
 
@@ -174,11 +180,16 @@ export interface SessionSummary {
   /** Lesson ids a passed checkpoint marked as done. */
   unlocked: string[];
   /**
+   * How much of the session was learned, 0 to 1 (`lessonScore`): a question right the first time
+   * counts 1, right on its come-back 1/2, never right 0. A lesson needs `LESSON_PASS_SCORE`.
+   */
+  score: number;
+  /**
    * The obvious next step: `continue` (on to the next thing), `practice` (out of hearts: a
    * practice session gives hearts back), `lessons` (checkpoint not passed: take the lessons),
-   * `resume` (left early).
+   * `retry` (a lesson below the pass mark: take it again), `resume` (left early).
    */
-  next: 'continue' | 'practice' | 'lessons' | 'resume';
+  next: 'continue' | 'practice' | 'lessons' | 'retry' | 'resume';
 }
 
 /** The whole session. Plain JSON. */
@@ -233,6 +244,12 @@ export interface SessionState {
   unlock: Array<{ lessonId: string; skill: string }>;
   /** Practice: skills whose remembered difficulty is updated at the end. */
   practiced: string[];
+  /**
+   * Chord symbols the course has shown up to this point (lessons and checkpoints of reached
+   * units), so feedback names a learner's wrong shape only when it is a chord they have met.
+   * Absent in reviews and in sessions saved before it existed.
+   */
+  taught?: string[];
   /** The lesson's skill record at the start (for the crown in the summary); null for a skill never tried. */
   skillBefore: SkillRecord | null;
   /** False when no skill record was passed at the start: the summary then makes no crown prediction. */
@@ -389,6 +406,41 @@ function drawExercises(lessons: readonly Lesson[], size: number, seed: number): 
   return out;
 }
 
+/**
+ * Every chord symbol some lessons show: `{c:…}` in any text, the `chord` of an exercise or a find,
+ * the `symbol` of a chord figure, the `chords` of a progression. Sorted, canonical, no duplicates.
+ */
+export function chordsShown(lessons: readonly Lesson[]): string[] {
+  const found = new Set<string>();
+  const add = (raw: string): void => {
+    const c = parseChord(raw);
+    if (c) found.add(c.symbol);
+  };
+  let text = '';
+  try {
+    text = JSON.stringify(lessons);
+  } catch {
+    return [];
+  }
+  for (const m of text.matchAll(/\{c:([^}]+)\}/g)) add(m[1]);
+  for (const m of text.matchAll(/"(?:chord|symbol)":"([^"]+)"/g)) add(m[1]);
+  for (const m of text.matchAll(/"chords":\[([^\]]*)\]/g)) for (const s of m[1].matchAll(/"([^"]+)"/g)) add(s[1]);
+  return [...found].sort();
+}
+
+/** The lessons of a course up to a unit (and up to a lesson of it), in course order. */
+function lessonsUpTo(course: Course, unitId: string, lessonId: string | null): Lesson[] {
+  const out: Lesson[] = [];
+  for (const unit of course.units) {
+    for (const lesson of unit.lessons) {
+      out.push(lesson);
+      if (unit.id === unitId && lesson.id === lessonId) return out;
+    }
+    if (unit.id === unitId) return out;
+  }
+  return out;
+}
+
 /** A fact as a flashcard, for facts without an exercise of their own. */
 export function flashcardOf(fact: Fact): FlashcardExercise {
   const card: FlashcardExercise = { type: 'flashcard', front: fact.front, back: fact.back };
@@ -476,6 +528,7 @@ export function createSession(source: SessionSource, options: SessionOptions): S
   // Hearts are the mistake budget of THEORY lessons (the progress rules): teacher lessons,
   // checkpoints, practice and reviews never use them.
   const usesHearts = source.mode === 'lesson' && source.course.teacher === 'none';
+  const taught = source.mode !== 'review' && unitId !== null ? chordsShown(lessonsUpTo(source.course, unitId, lessonId)) : null;
   const state: SessionState = {
     v: SESSION_VERSION,
     mode: source.mode,
@@ -511,6 +564,7 @@ export function createSession(source: SessionSource, options: SessionOptions): S
     graded: [],
     unlock,
     practiced,
+    ...(taught ? { taught } : {}),
     skillBefore: source.mode === 'lesson' ? (options.skill ?? null) : null,
     skillKnown: source.mode === 'lesson' && options.skill !== undefined,
     summary: null,
@@ -560,15 +614,32 @@ function accuracyOf(stats: SessionStats): number {
   return stats.asked === 0 ? 1 : stats.firstTry / stats.asked;
 }
 
+/**
+ * How much of a session was learned, 0 to 1: each question answered right the first time counts
+ * 1, right on a come-back (after a mistake or "I don't know") 1/2, never right 0. 1 when nothing
+ * was asked. A lesson is finished at `LESSON_PASS_SCORE`.
+ */
+export function lessonScore(state: Pick<SessionState, 'results'>): number {
+  const results = Object.values(state.results);
+  if (results.length === 0) return 1;
+  const credit = results.reduce((sum, r) => sum + (r.firstTry ? 1 : r.solved ? 0.5 : 0), 0);
+  return credit / results.length;
+}
+
 function clockOut(state: SessionState, at: number): number {
   if (state.paused) return state.activeMs;
   return state.activeMs + Math.min(MAX_STEP_MS, Math.max(0, at - state.stepStartedAt));
 }
 
-function finish(state: SessionState, outcome: SessionOutcome, at: number, effects: SessionEffect[]): SessionStep {
+function finish(state: SessionState, reached: SessionOutcome, at: number, effects: SessionEffect[]): SessionStep {
   const activeMs = clockOut(state, at);
   const durationSec = Math.round(activeMs / 1000);
   const { stats } = state;
+  const score = lessonScore(state);
+  // Reaching the end is not enough: a lesson skipped or guessed through counts as practice, so the
+  // path, the crowns and the unit celebration mean what they say.
+  const belowPass = reached === 'completed' && state.mode === 'lesson' && stats.asked > 0 && score < LESSON_PASS_SCORE - 1e-9;
+  const outcome: SessionOutcome = belowPass ? 'failed' : reached;
   const completed = outcome === 'completed';
   const accuracy = accuracyOf(stats);
   const perfect = completed && stats.mistakes === 0 && stats.asked > 0;
@@ -602,8 +673,9 @@ function finish(state: SessionState, outcome: SessionOutcome, at: number, effect
     if (completed) {
       xp = guideline;
     } else {
-      // Leaving early earns the half share for an unfinished attempt, in proportion to what was done.
-      xp = Math.floor(guideline * progress);
+      // Leaving early earns the half share for an unfinished attempt, in proportion to what was done;
+      // a lesson below the pass mark in proportion to what was learned (nothing for skipping it all).
+      xp = Math.floor(guideline * progress * (belowPass ? Math.min(1, score / LESSON_PASS_SCORE) : 1));
       input.xp = xp;
       input.progress = progress;
     }
@@ -650,7 +722,8 @@ function finish(state: SessionState, outcome: SessionOutcome, at: number, effect
     heartsLeft: state.hearts,
     missed,
     unlocked,
-    next: outcome === 'completed' ? 'continue' : outcome === 'out-of-hearts' ? 'practice' : outcome === 'failed' ? 'lessons' : 'resume',
+    score,
+    next: outcome === 'completed' ? 'continue' : outcome === 'out-of-hearts' ? 'practice' : belowPass ? 'retry' : outcome === 'failed' ? 'lessons' : 'resume',
   };
   return {
     state: { ...state, phase: 'done', outcome, feedback: null, activeMs, endedAt: at, paused: false, summary },
@@ -698,12 +771,13 @@ function judge(state: SessionState, answer: Answer | null): SessionStep {
   const effects: SessionEffect[] = [];
   const skipped = answer === null;
   let result: GradeResult;
+  const ctx = { level: state.level, naming: state.naming ?? undefined, chordsTaught: state.taught };
   if (answer === null) {
     // A skip shows the right answer without pretending the learner gave one.
-    const shown = grade(exercise, solve(exercise), { level: state.level, naming: state.naming ?? undefined });
+    const shown = grade(exercise, solve(exercise), ctx);
     result = { correct: false, score: 0, feedback: shown.feedback };
   } else {
-    result = grade(exercise, answer, { level: state.level, naming: state.naming ?? undefined });
+    result = grade(exercise, answer, ctx);
   }
   const { stats, results } = record(state, entry, exercise, result.correct, skipped);
 
@@ -798,7 +872,14 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       return { state: { ...state, micOff, queue: [swapped, ...state.queue.slice(1)] }, effects: [] };
     }
     case 'mic': {
-      if (action.available) return { state: state.micOff ? { ...state, micOff: false } : state, effects: [] };
+      if (action.available) {
+        const head = state.queue[0];
+        // The learner asked to play again: the step on screen goes back to its microphone version too.
+        const restore = state.phase === 'step' && head !== undefined && head.alt && !isCard(head.step) && isPlay(literal(head.step as ExerciseStep, state, head.key));
+        if (!state.micOff && !restore) return { state, effects: [] };
+        const queue = restore ? [{ ...head, exercise: literal(head.step as ExerciseStep, state, head.key), alt: false }, ...state.queue.slice(1)] : state.queue;
+        return { state: { ...state, micOff: false, queue }, effects: [] };
+      }
       const next: SessionState = { ...state, micOff: true };
       return { state: state.phase === 'step' ? enter(next) : next, effects: [] };
     }

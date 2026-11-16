@@ -5,7 +5,7 @@
  * time changes, repeats and endings, sections as rehearsal marks. Slashes of a rhythm track are
  * written as slash noteheads.
  */
-import { getKey, midiToNote, parseChord, parseNote, spellInKey } from '@/core/theory';
+import { getKey, keyModeName, midiToNote, parseChord, parseNote, spellInKey } from '@/core/theory';
 import { barLength, trackCapo, trackTuning, valueFromTicks } from './model';
 import type { Beat, Note, NoteValue, Song, Track } from './types';
 import { PPQ } from './types';
@@ -123,7 +123,7 @@ function partXml(song: Song, track: Track, index: number): string {
     if (bar === 0) attrs.push(leaf('divisions', PPQ));
     if (bar === 0 || info.key) {
       const k = getKey(keyAt[bar]);
-      attrs.push(tag('key', null, leaf('fifths', k?.fifths ?? 0), leaf('mode', k?.mode ?? 'major')));
+      attrs.push(tag('key', null, leaf('fifths', k?.fifths ?? 0), leaf('mode', k ? keyModeName(k) : 'major')));
     }
     if (bar === 0 || prevInfo.time.numerator !== info.time.numerator || prevInfo.time.denominator !== info.time.denominator) {
       attrs.push(tag('time', null, leaf('beats', info.time.numerator), leaf('beat-type', info.time.denominator)));
@@ -174,8 +174,12 @@ function partXml(song: Song, track: Track, index: number): string {
       };
       if (!beat.notes.length) {
         if (beat.slash) {
+          const marks = [
+            beat.stroke ? tag('technical', null, tag(beat.stroke === 'down' ? 'down-bow' : 'up-bow', null)) : '',
+            beat.accent ? tag('articulations', null, tag('accent', null)) : '',
+          ].filter(Boolean);
           out.push(tag('note', null, pitchXml(71, 'C'), leaf('duration', beat.duration), leaf('voice', 1), typeXml(value), leaf('stem', 'none'), leaf('notehead', 'slash'),
-            beat.stroke ? tag('notations', null, tag('technical', null, tag(beat.stroke === 'down' ? 'down-bow' : 'up-bow', null))) : '', lyricXml()));
+            marks.length ? tag('notations', null, ...marks) : '', lyricXml()));
         } else {
           const whole = beat.start === 0 && beat.duration === barLength(info);
           out.push(tag('note', null, tag('rest', whole ? { measure: 'yes' } : null), leaf('duration', beat.duration), leaf('voice', 1), whole ? '' : typeXml(value)));
@@ -197,7 +201,7 @@ function partXml(song: Song, track: Track, index: number): string {
         technical.push(leaf('string', n.string), leaf('fret', n.fret));
         const arts: string[] = [];
         if (n.staccato) arts.push(tag('staccato', null));
-        if (n.accent) arts.push(tag('accent', null));
+        if (n.accent || beat.accent) arts.push(tag('accent', null));
         const notations = [
           n.tie ? tag('tied', { type: 'stop' }) : '',
           startsTie.has(n) ? tag('tied', { type: 'start' }) : '',

@@ -56,8 +56,12 @@ export function UnitComplete({ teacher, unit, milestone, tc, played }: UnitCompl
       <Heading level={2} size="3xl" display id="unit-done-title" className={styles.unitTitle}>
         {unit.title}
       </Heading>
-      <Text tone="muted" data-played={played ? 'mic' : 'tapped'}>
-        {played ? `You performed ${milestone.piece}, start to finish.` : `You know ${milestone.piece} from start to finish.`}
+      {/*
+        Only the piece is named here: what the learner did with it is the teacher's to say just below
+        ("You know how {piece} goes, start to finish ..."), so the screen never says it twice.
+      */}
+      <Text tone="muted" data-played={played ? 'mic' : 'tapped'} data-show-piece="">
+        {`Your show: ${milestone.piece}`}
       </Text>
 
       <figure className={styles.celebrate}>

@@ -40,6 +40,10 @@ export function summaryHeadline(summary: Pick<SessionSummary, 'mode' | 'outcome'
   if (outcome === 'out-of-hearts') {
     return { title: 'Out of hearts for now', subtitle: 'A short practice round brings them all back, and what you did here still counts.', tone: 'warn', celebrate: false };
   }
+  if (outcome === 'failed' && mode === 'lesson') {
+    // Below the pass mark (skipped or guessed through): it counted as practice. Kind, and a way back in.
+    return { title: 'Good practice', subtitle: 'This round counts as practice. Take the lesson once more to finish it: what you just saw comes easier the second time.', tone: 'info', celebrate: false };
+  }
   if (outcome === 'failed') {
     return { title: 'Not this time', subtitle: 'The checkpoint allows only a few mistakes. The lessons of this unit will get you there.', tone: 'warn', celebrate: false };
   }
@@ -84,14 +88,19 @@ export function summaryStats(report: SessionReport): SummaryStat[] {
   return out;
 }
 
-/** A line from the course's teacher at the end, in their voice (null for the Theory Path). */
-export function teacherLine(teacher: string, outcome: SessionSummary['outcome'], perfect: boolean): string | null {
-  const lines: Record<string, Partial<Record<SessionSummary['outcome'] | 'perfect', string>>> = {
+/**
+ * A line from the course's teacher at the end, in their voice (null for the Theory Path). Give the
+ * session `mode` so a lesson below the pass mark gets its own line ("once more"), not the
+ * checkpoint's ("study the unit").
+ */
+export function teacherLine(teacher: string, outcome: SessionSummary['outcome'], perfect: boolean, mode?: SessionMode): string | null {
+  const lines: Record<string, Partial<Record<SessionSummary['outcome'] | 'perfect' | 'retry', string>>> = {
     mia: {
       perfect: 'Every single one. You are getting the hang of this.',
       completed: 'That is one more thing your hands and ears know now. Well done.',
       'out-of-hearts': 'That is all right. A little practice and we pick it up again.',
       failed: 'No rush. The lessons will get you there, one at a time.',
+      retry: 'Let us run it once more. It sticks much better the second time.',
       quit: 'Good stopping point. Come back to it whenever you are ready.',
     },
     dev: {
@@ -99,6 +108,7 @@ export function teacherLine(teacher: string, outcome: SessionSummary['outcome'],
       completed: 'Nice. Now go use it in a song.',
       'out-of-hearts': 'Happens to everyone. Run a quick practice set and come back swinging.',
       failed: 'Not yet. Hit the lessons and we will try this again.',
+      retry: 'Good warm-up. One more pass and it is yours.',
       quit: 'Cool. Run it again whenever you have a minute.',
     },
     elena: {
@@ -106,11 +116,13 @@ export function teacherLine(teacher: string, outcome: SessionSummary['outcome'],
       completed: 'Good. Precision comes from repetition; come back tomorrow.',
       'out-of-hearts': 'Mistakes are information. Practise, then return.',
       failed: 'The standard is high on purpose. Study the unit and try again.',
+      retry: 'That was a first reading. Now we play it properly.',
       quit: 'Stopping is allowed. Returning is expected.',
     },
   };
   const set = lines[teacher];
   if (!set) return null;
+  if (outcome === 'failed' && mode === 'lesson') return set.retry ?? null;
   return (perfect && outcome === 'completed' ? set.perfect : set[outcome]) ?? null;
 }
 

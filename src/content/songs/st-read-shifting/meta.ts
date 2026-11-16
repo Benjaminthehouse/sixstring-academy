@@ -15,5 +15,6 @@ export default defineSong({
   about:
     'Each section sits in one position with its own key and meter, so before you play it, find the position and say the key signature out loud. Every shift has a moment to happen in, an open string ringing or a note you already hold, so the hand moves while something sounds instead of leaving a gap. The usual trouble is bar 15, where 3/4 turns into 6/8: both hold six eighths, but 6/8 sways in two big beats of three, so count "1 2 3 4 5 6" and lean on 1 and 4.',
   plan: 'st-read-shifting',
+  prefersNotation: true,
   added: '2026-11-16',
 });

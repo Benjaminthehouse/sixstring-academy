@@ -936,7 +936,7 @@ const unit: TeacherUnit = {
     celebrate: 'You played the opening of Für Elise, from the rocking {n:E} to the {c:E} answer with its {n:G#}. That is Beethoven, on your guitar: a real showpiece. Next: power chords, the blues, and a riff of your own.',
   },
   glossary: [
-    { id: 'riff', term: 'riff', definition: 'A short pattern of notes repeated through a song, often on the low strings.' },
+    { id: 'riff', term: 'riff', definition: 'A short, catchy pattern of notes or chords repeated through a song, often on the low strings.' },
     { id: 'lick', term: 'lick', definition: 'A short phrase of notes you learn once and reuse in many songs and solos.' },
     { id: 'hammer-on', term: 'hammer-on', definition: 'A second note sounded without picking: a finger comes down hard and fast just behind a fret. Written h in tab.' },
     { id: 'pull-off', term: 'pull-off', definition: 'A lower note sounded without picking: the fretting finger plucks the string slightly sideways as it leaves. Written p in tab.' },

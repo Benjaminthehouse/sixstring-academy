@@ -990,7 +990,7 @@ const unit: TeacherUnit = {
     { id: 'drop-2', term: 'drop-2', definition: 'A voicing made by dropping the second-highest note of a close-position four-note chord an octave.' },
     { id: 'drop-3', term: 'drop-3', definition: 'A voicing made by dropping the third-highest note of a close-position four-note chord an octave. It skips a string.' },
     { id: 'extension', term: 'extension', definition: 'A chord tone above the seventh: the 9, 11 or 13.' },
-    { id: 'half-diminished', term: 'half-diminished', definition: 'A minor seventh chord with a flat fifth, as in {c:Bm7b5}: root, minor third, flat fifth, minor seventh.' },
+    { id: 'half-diminished', term: 'half-diminished', definition: 'A seventh chord of root, minor third, flat fifth and minor seventh: {c:Am7b5} is {n:A} {n:C} {n:Eb} {n:G}.' },
     { id: 'charleston', term: 'Charleston', definition: 'A comping rhythm: a chord on beat 1 and another on the and of 2.' },
     { id: 'comping', term: 'comping', definition: 'Accompanying a soloist with chords, and complementing them: short, rhythmic, leaving space.' },
     { id: 'anticipation', term: 'anticipation', definition: 'A chord played half a beat early, on the and of 4, and tied into the bar where it belongs.' },

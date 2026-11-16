@@ -8,8 +8,8 @@
  * `position()` (read it in requestAnimationFrame for a smooth cursor).
  */
 import {
-  Transport, engineClock, getBass, getGuitar, playClick,
-  type ClickSet, type ToneName, type TransportClock,
+  GuitarSynth, Transport, engineClock, getBass, getGuitar, playClick,
+  type AudioEngine, type ClickSet, type ToneName, type TransportClock,
 } from '@/core/audio';
 import { barCapacity } from './model';
 import { buildPlayEvents, type PlayEvent, type PlayNote, type PlayStrum, type ScheduleOptions } from './schedule';
@@ -37,35 +37,48 @@ export interface LiveOutputOptions {
   bassTone?: ToneName;
   /** Metronome sound (default woodblock). */
   clickSet?: ClickSet;
+  /**
+   * Play into this engine with the player's own guitar and bass (an offline render, a test) instead
+   * of the shared synths on the live engine.
+   */
+  engine?: AudioEngine;
 }
 
-/** The real output: the shared guitar and bass synths and the engine's click. */
+/** The real output: the shared guitar and bass synths and the engine's click. Techniques are played by the guitar voice. */
 export function liveOutput(opts: LiveOutputOptions = {}): SongPlayerOutput {
   const takeBack = new Set<() => void>();
+  const engine = opts.engine;
+  let ownGuitar: GuitarSynth | null = null;
+  let ownBass: GuitarSynth | null = null;
+  const guitarSynth = (): GuitarSynth => (engine ? (ownGuitar ??= new GuitarSynth({ engine })) : getGuitar());
+  const bassSynth = (): GuitarSynth => (engine ? (ownBass ??= new GuitarSynth({ engine, bus: 'bass', tone: 'bass-finger', mono: true })) : getBass());
   return {
     note(e, time, seconds) {
-      const synth = e.instrument === 'bass' ? getBass() : getGuitar();
+      const synth = e.instrument === 'bass' ? bassSynth() : guitarSynth();
       synth.pluck(e.midi, time, {
         string: e.string, duration: seconds, velocity: e.velocity, articulation: e.articulation, letRing: e.letRing,
         ...(e.cents ? { cents: e.cents } : {}), tone: e.instrument === 'bass' ? opts.bassTone ?? 'bass-finger' : opts.tone,
+        ...(e.legato ? { legato: e.legato } : {}), ...(e.bend ? { bend: e.bend } : {}), ...(e.vibrato ? { vibrato: true } : {}),
+        ...(e.slideIn ? { slideIn: e.slideIn } : {}), ...(e.slideOut ? { slideOut: e.slideOut } : {}), ...(e.accent ? { accent: true } : {}),
       });
     },
     strum(e, time, seconds) {
-      const synth = e.instrument === 'bass' ? getBass() : getGuitar();
+      const synth = e.instrument === 'bass' ? bassSynth() : guitarSynth();
       synth.strum(e.midis, time, {
         direction: e.direction, strings: e.strings, velocity: e.velocity, duration: seconds,
         ...(e.muted ? { articulation: 'dead' as const } : {}), ...(opts.tone ? { tone: opts.tone } : {}),
+        ...(e.accent ? { accent: true } : {}), ...(e.letRing ? { letRing: true } : {}),
       });
     },
     click(level, time) {
-      const back = playClick(opts.clickSet ?? 'woodblock', level, time);
+      const back = playClick(opts.clickSet ?? 'woodblock', level, time, 1, engine);
       takeBack.add(back);
       // Forget it once it has sounded; a take-back after that is harmless anyway.
       setTimeout(() => takeBack.delete(back), 4000);
     },
     stopAll(time) {
-      getGuitar().stopAll(time);
-      getBass().stopAll(time);
+      guitarSynth().stopAll(time);
+      bassSynth().stopAll(time);
       for (const back of takeBack) back();
       takeBack.clear();
     },
@@ -84,7 +97,7 @@ export function liveOutput(opts: LiveOutputOptions = {}): SongPlayerOutput {
           }
         }
       }
-      await Promise.all([getGuitar().preload(guitar), getBass().preload(bass)]);
+      await Promise.all([guitarSynth().preload(guitar), bassSynth().preload(bass)]);
     },
   };
 }
@@ -167,6 +180,8 @@ export class SongPlayer {
   private loopTicks: { start: number; end: number } | null = null;
   private passes = 0;
   private rangeEnd: number | null = null;
+  /** Audio time the first beat of the current run is heard. */
+  private musicStart: number | null = null;
   /** Metronome click on every beat. */
   metronome: boolean;
   /** Bars of count-in before playing from a stop. */
@@ -206,6 +221,13 @@ export class SongPlayer {
       this.transport.onVisual('bar', (e) => {
         const b = this.timeline.bars[e.bar];
         if (b) this.emit({ type: 'bar', index: b.index, bar: b.bar, time: e.time });
+      }),
+      this.transport.on('start', (e) => {
+        // During a count-in the transport knows when the music proper will begin.
+        this.musicStart = this.transport.timeAt(e.tick) ?? e.time;
+      }),
+      this.transport.on('seek', (e) => {
+        if (this.transport.state === 'playing') this.musicStart = e.time;
       }),
       this.transport.on('loop', (e) => this.onLoop(e.count)),
       this.transport.on('end', () => this.onEnd()),
@@ -469,6 +491,22 @@ export class SongPlayer {
       state: this.stateNow, tick, sec: this.timeline.secondsAt(tick), index: at.index, bar: at.bar, pass: at.pass, beat: at.beat, barProgress: at.barProgress,
       countIn: p.countIn ? { beat: p.countIn.beat, beats: p.countIn.beatsInBar } : null,
     };
+  }
+
+  /**
+   * Audio-clock time the first beat of the current run is heard, after the count-in: where `play()`
+   * or `playRange()` started the music, or where a seek while playing landed it. Judge the learner's
+   * timing against the click from here (pitch events on the same clock). Null before anything has
+   * been played.
+   */
+  get firstBeatTime(): number | null {
+    return this.musicStart;
+  }
+
+  /** Audio-clock time a song tick (still ahead on the current pass) will be heard; null when not playing. */
+  audioTimeAt(tick: number): number | null {
+    if (this.stateNow !== 'playing' || !Number.isFinite(tick)) return null;
+    return this.transport.timeAt(tick + this.offset);
   }
 
   /** The beat of a track sounding now (for the fretboard), or null in a gap. */

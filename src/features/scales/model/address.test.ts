@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { formatHash, parseHash } from '@/app/router';
 import { PATTERN_SYSTEMS, scalePatterns } from '@/core/guitar';
 import { SCALES } from '@/core/theory';
-import { DEFAULT_ADDRESS, arcadeParams, isShapeId, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, systemOfShape } from './address';
+import { parseCameraParams } from '../../camera/model/address';
+import { DEFAULT_ADDRESS, arcadeParams, cameraParams, isShapeId, parseScaleParams, practiceEntry, scaleParams, shapeSkillId, systemOfShape } from './address';
 import { rootChoices } from './catalog';
 
 describe('scale addresses', () => {
@@ -81,6 +82,27 @@ describe('shape ids', () => {
     expect(practiceEntry(played, Number.NaN)).toBeNull();
     expect(practiceEntry(null, 300)).toBeNull();
     expect(practiceEntry({ ...played, address: { ...played.address, shape: null } }, 300)).toBeNull();
+  });
+
+  it('links to the Live Fretboard with the same scale and shape ("See it on your guitar")', () => {
+    expect(cameraParams('A', 'minor-pentatonic', 'box-1')).toEqual(['scale', 'a', 'minor-pentatonic', 'box-1']);
+    expect(formatHash('camera', ...cameraParams('F#', 'dorian', '3nps-4-8va'))).toBe('#camera--scale--f-sharp--dorian--3nps-4');
+    expect(cameraParams('Bb', 'major', null)).toEqual(['scale', 'bb', 'major', 'all']);
+    // The camera reads back exactly what the scales screen shows, for every scale, key and first-octave shape.
+    for (const s of SCALES) {
+      for (const root of rootChoices(s.id)) {
+        const route = parseHash(formatHash('camera', ...cameraParams(root.tonic, s.id, null)));
+        expect(parseCameraParams(route.params), `${root.tonic} ${s.id}`).toEqual({ kind: 'scale', tonic: root.tonic, scale: s.id, shape: 'all' });
+      }
+    }
+    for (const scale of ['major', 'minor-pentatonic', 'dorian', 'harmonic-minor']) {
+      for (const system of PATTERN_SYSTEMS) {
+        for (const p of scalePatterns('E', scale, { system, allOctaves: true })) {
+          const route = parseHash(formatHash('camera', ...cameraParams('E', scale, p.id)));
+          expect(parseCameraParams(route.params), p.id).toEqual({ kind: 'scale', tonic: 'E', scale, shape: p.id.replace(/-8va$/, '') });
+        }
+      }
+    }
   });
 
   it('hands the Arcade a game, the scale slug and the shape', () => {

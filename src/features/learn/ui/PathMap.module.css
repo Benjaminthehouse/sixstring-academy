@@ -43,6 +43,13 @@
   list-style: none;
 }
 
+/* Something placed after a unit's path (a new learner's switches and "Find my level"). */
+.after {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
 /* Unit header */
 .unit {
   display: flex;

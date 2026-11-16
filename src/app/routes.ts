@@ -58,6 +58,7 @@ export const ROUTES: RouteDef[] = [
   // Tools
   { name: 'tuner', title: 'Tuner', blurb: 'Accurate chromatic tuner with alternate tunings.', section: 'tools', icon: 'Gauge', inHub: true, needs: ['mic'], load: () => import('@/features/tuner') },
   { name: 'metronome', title: 'Metronome', blurb: 'Click, accents, subdivisions and a speed trainer.', section: 'tools', icon: 'Timer', inHub: true, load: () => import('@/features/metronome') },
+  { name: 'record', title: 'Recorder', blurb: 'Record yourself and listen back, with a count-in and last week’s take beside it.', section: 'tools', icon: 'Mic', inHub: true, needs: ['mic'], load: () => import('@/features/recorder') },
   { name: 'camera', title: 'Live Fretboard', blurb: 'Point your webcam at the neck and see the notes on your frets.', section: 'tools', icon: 'ScanEye', inHub: true, needs: ['camera'], load: () => import('@/features/camera') },
   { name: 'scan', title: 'Scan & Import', blurb: 'Turn a printed sheet, photo, PDF or tab file into a lesson.', section: 'tools', icon: 'ScanLine', inHub: true, load: () => import('@/features/scanner') },
 

@@ -10,6 +10,7 @@ import { createActions, createProgressStore, memoryStorage, setProgressStore, ty
 import { Sheet, UIProvider, toast } from '@/ui';
 import { statsSheet } from '../shell/stats';
 import { GlobalFeedback } from './GlobalFeedback';
+import { holdRewards, rewardsHeld } from './hold';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -26,6 +27,25 @@ const moment = async (ms = 90) => {
 };
 const toasts = () => Array.from(document.querySelectorAll('[data-toast]')).map((el) => ({ id: el.getAttribute('data-toast'), text: el.textContent ?? '' }));
 const dialog = () => document.querySelector('[role="dialog"]');
+const releases: Array<() => void> = [];
+/** A lesson's steps come on screen (the runner holds the rewards); returns its end. */
+const lessonStarts = async () => {
+  let release = () => undefined as void;
+  await act(async () => {
+    release = holdRewards();
+  });
+  releases.push(release);
+  return async () => {
+    await act(async () => release());
+  };
+};
+const keepGoing = async () => {
+  for (let i = 0; i < 3 && dialog(); i++) {
+    const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+    await act(async () => button?.click());
+    await moment(400);
+  }
+};
 
 beforeEach(async () => {
   vi.useFakeTimers();
@@ -46,9 +66,11 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await act(async () => {
+    for (const release of releases.splice(0)) release();
     toast.clear();
     root.unmount();
   });
+  document.documentElement.style.fontSize = '';
   host.remove();
   document.body.innerHTML = '';
   setProgressStore(null);
@@ -359,5 +381,117 @@ describe('events from before the shell was listening', () => {
     });
     await moment();
     expect(toasts()[0]?.text).toContain('+7 XP');
+  });
+});
+
+describe('rewards between lessons', () => {
+  // Review bug (about ten reviewers, theory and teacher courses): going straight from a summary to the
+  // next lesson left "+XP / achievement / daily goal" and the level-up dialog over its first card
+  // and answer buttons for several seconds on a 390 px phone.
+  it("takes the last lesson's card off the screen when the next lesson starts", async () => {
+    await act(async () => {
+      actions.recordActivity({ kind: 'theory-lesson', id: 'theory:sound-and-pitch:a-sound-is-a-vibration', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240 });
+    });
+    await moment();
+    await keepGoing();
+    expect(toasts().length).toBeGreaterThan(0);
+    await lessonStarts();
+    await moment(400);
+    expect(toasts()).toEqual([]);
+    expect(dialog()).toBeNull();
+  });
+
+  it('holds news (a new level included) while the lesson runs and shows it at its end: the dialog first, then the card', async () => {
+    const end = await lessonStarts();
+    expect(rewardsHeld()).toBe(true);
+    await act(async () => {
+      actions.awardXp(25, 'test'); // a new level, the daily goal met
+    });
+    await moment(2000);
+    expect(toasts()).toEqual([]);
+    expect(dialog()).toBeNull();
+    await end();
+    await moment();
+    expect(dialog()?.textContent).toContain('Level up');
+    expect(toasts()).toEqual([]);
+    await keepGoing();
+    expect(toasts().map((t) => t.text).join(' ')).toContain('Daily goal met');
+  });
+
+  it('still flashes a lost heart at once: that is the lesson speaking', async () => {
+    await lessonStarts();
+    await act(async () => {
+      actions.loseHeart();
+    });
+    await moment();
+    expect(Array.from(document.querySelectorAll('[role="status"]')).some((el) => el.textContent === '4 hearts left')).toBe(true);
+  });
+
+  it('puts a level-up dialog nobody answered away while the lesson runs, and brings it back at its end', async () => {
+    await act(async () => {
+      actions.awardXp(25, 'test');
+    });
+    await moment();
+    expect(dialog()?.textContent).toContain('Level up');
+    const end = await lessonStarts();
+    await moment(400);
+    expect(dialog()).toBeNull();
+    expect(toasts()).toEqual([]);
+    await end();
+    await moment(400);
+    expect(dialog()?.textContent).toContain('Level up');
+    await keepGoing();
+    expect(toasts().map((t) => t.text).join(' ')).toContain('Daily goal met');
+  });
+
+  it('a dialog the learner already answered does not come back', async () => {
+    await act(async () => {
+      actions.awardXp(25, 'test');
+    });
+    await moment();
+    const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going') as HTMLButtonElement;
+    await act(async () => button.click());
+    // The same key press both closed the dialog and went on to the next lesson.
+    const end = await lessonStarts();
+    await moment(400);
+    expect(dialog()).toBeNull();
+    expect(toasts()).toEqual([]);
+    await end();
+    await moment(400);
+    expect(dialog()).toBeNull();
+  });
+});
+
+describe('the reward card at a large text size', () => {
+  it('keeps each line to its title, so it stays small, and sizes its icons in rem', async () => {
+    document.documentElement.style.fontSize = '32px';
+    const width = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    try {
+      await act(async () => {
+        actions.setPrefs({ dailyGoalXp: 50 });
+        actions.recordActivity({ kind: 'theory-lesson', id: 'theory:unit-1:lesson-1', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240 });
+      });
+      await moment();
+      await keepGoing();
+      const lines = Array.from(document.querySelectorAll('[data-toast="shell-reward"] li'));
+      expect(lines.length).toBeGreaterThan(0);
+      // Only the title: "3 achievements unlocked", never "3 achievements unlocked · First Strum, ...".
+      for (const li of lines) expect(li.textContent).not.toContain(' · ');
+      expect(document.querySelector('[data-toast="shell-reward"] [data-toast-icon]')).not.toBeNull();
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    }
+  });
+
+  it('shows the details at the normal size', async () => {
+    await act(async () => {
+      actions.setPrefs({ dailyGoalXp: 50 });
+      actions.recordActivity({ kind: 'theory-lesson', id: 'theory:unit-1:lesson-1', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240 });
+    });
+    await moment();
+    await keepGoing();
+    const text = Array.from(document.querySelectorAll('[data-toast="shell-reward"] li')).map((li) => li.textContent).join(' | ');
+    expect(text).toContain(' · ');
   });
 });

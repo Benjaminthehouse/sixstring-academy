@@ -144,6 +144,8 @@ export class BackingBand {
   private readonly volume: Record<BackingInstrument, number> = { drums: 1, bass: 1, keys: 1, guitar: 1 };
   private readonly muted: Record<BackingInstrument, boolean> = { drums: false, bass: false, keys: false, guitar: true };
   private partIds: number[] = [];
+  /** An arrangement waiting for the next bar line to take over (see `change`). */
+  private pending: BackingArrangement | null = null;
   private readonly offs: Array<() => void> = [];
   private readonly chordListeners = new Set<(c: ChordChange) => void>();
   private readonly owns: boolean;
@@ -173,17 +175,63 @@ export class BackingBand {
 
   /**
    * Arrange a progression (one pass, bar by bar) and get ready to play it. Stops anything playing.
-   * Returns the arrangement so the UI can draw the chord chart.
+   * Returns the arrangement so the UI can draw the chord chart. To change what a playing band
+   * plays without stopping it, use `change`.
    */
   load(bars: readonly BackingBar[], opts: BackingOptions): BackingArrangement {
     this.transport.stop();
     this.output.stopAll();
+    const arrangement = this.arrange(bars, opts);
+    this.install(arrangement, opts);
+    this.transport.seek(0);
+    return arrangement;
+  }
+
+  /**
+   * Change the progression, style, tempo or options while the band plays, without stopping it: the
+   * band finishes the bar it is in and the new arrangement takes over on the next bar line, at the
+   * same bar of the form (wrapped into the new length), with no count-in and no gap. During the
+   * count-in the change is made at once. When the band is not playing this is `load`.
+   * Returns the new arrangement.
+   */
+  change(bars: readonly BackingBar[], opts: BackingOptions): BackingArrangement {
+    const tr = this.transport;
+    const old = this.current;
+    if (tr.state !== 'playing' || !old) return this.load(bars, opts);
+    const arrangement = this.arrange(bars, opts);
+    if (tr.position().countIn) {
+      // Nothing of the old arrangement has sounded yet: swap it now and start the new one on time.
+      tr.cancelJump();
+      this.install(arrangement, opts);
+      return arrangement;
+    }
+    const at = tr.nextBarLine();
+    const oldBar = Math.max(0, Math.round(at / old.barTicks));
+    const bodyBars = Math.max(1, Math.round(arrangement.bodyTicks / arrangement.barTicks));
+    const newBar = oldBar < bodyBars ? oldBar : oldBar % arrangement.chorusBars;
+    this.pending = arrangement;
+    const ok = tr.jumpAt(at, newBar * arrangement.barTicks, () => {
+      if (this.pending !== arrangement) return;
+      this.pending = null;
+      this.install(arrangement, opts);
+    });
+    if (!ok) return this.load(bars, opts);
+    return arrangement;
+  }
+
+  /** The arrangement for a progression and options (a looping band has no ending). */
+  private arrange(bars: readonly BackingBar[], opts: BackingOptions): BackingArrangement {
+    const loop = opts.loop ?? false;
+    return arrangeBacking(bars, { ...opts, ending: loop ? false : opts.ending });
+  }
+
+  /** Put an arrangement on the transport: its meter, tempo, loop or end, and its parts. */
+  private install(arrangement: BackingArrangement, opts: BackingOptions): void {
     for (const id of this.partIds) this.transport.clear(id);
     this.partIds = [];
     const style = BACKING_STYLES[opts.style];
     this.styleDef = style;
     const loop = opts.loop ?? false;
-    const arrangement = arrangeBacking(bars, { ...opts, ending: loop ? false : opts.ending });
     this.current = arrangement;
     this.beatsPerMinute = Math.max(20, Math.min(400, finiteOr(opts.tempo, style.tempo.default)));
     const tr = this.transport;
@@ -198,7 +246,6 @@ export class BackingBand {
       tr.clearLoop();
       tr.setEnd(arrangement.lengthTicks);
     }
-    tr.seek(0);
     this.partIds.push(
       tr.addPart(arrangement.events, (time, ev) => this.play(ev, time)),
       tr.addPart(
@@ -212,7 +259,6 @@ export class BackingBand {
         },
       ),
     );
-    return arrangement;
   }
 
   private play(ev: BackingEvent, time: number): void {
@@ -253,6 +299,7 @@ export class BackingBand {
 
   /** Stop and silence the band. */
   stop(): void {
+    this.pending = null;
     this.transport.stop();
     this.output.stopAll();
   }

@@ -35,9 +35,35 @@
 }
 
 .keyboard {
+  position: relative;
   width: 100%;
   max-width: 30rem;
-  overflow-x: auto;
+  margin-inline: auto;
+}
+/* Buttons laid over the drawn keys: the drawing shrinks to any phone, the keys stay tappable. */
+.keyLayer {
+  position: absolute;
+  inset: 0;
+}
+.keyButton {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.keyButtonBlack {
+  z-index: 1;
+}
+.keyButton:active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.keyButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .circle {
@@ -45,6 +71,65 @@
 }
 .circleSm {
   width: min(100%, 11rem);
+}
+
+/* Content that scrolls sideways inside its box: a soft edge and an arrow where more is hidden. */
+.scrollHint {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+.scrollHint[data-more-right]::after,
+.scrollHint[data-more-left]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.75rem;
+  pointer-events: none;
+  z-index: 1;
+}
+.scrollHint[data-more-right]::after {
+  right: 0;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--figure-bg, var(--bg)) 85%, transparent));
+}
+.scrollHint[data-more-left]::before {
+  left: 0;
+  background: linear-gradient(to left, transparent, color-mix(in srgb, var(--figure-bg, var(--bg)) 85%, transparent));
+}
+.scrollArrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-top: -1rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  animation: nudge 1.6s var(--ease) 2;
+}
+.scrollRight {
+  right: 2px;
+}
+.scrollLeft {
+  left: 2px;
+}
+@keyframes nudge {
+  50% {
+    transform: translateX(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrollArrow {
+    animation: none;
+  }
 }
 
 /* Tab */

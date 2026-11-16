@@ -8,7 +8,7 @@ export default defineSong({
   level: 6,
   style: 'rock',
   kind: 'study',
-  key: 'A major',
+  key: 'A Mixolydian',
   teaches: ['Mixolydian: major with a flat seventh', 'The colour note: G natural', 'Landing on a colour note over a vamp', 'Open strings inside a melody'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'mixolydian', 'colour note', 'vamp', 'folk rock', 'flat seventh', 'a major', 'open strings'],

@@ -32,18 +32,26 @@ export class VisualQueue {
     this.soundingNow = soundingNow;
   }
 
-  /** Queue `fn` to run when the output reaches audio time `time`. */
-  add(time: number, fn: () => void): void {
+  /**
+   * Queue `fn` to run when the output reaches audio time `time`. Returns a function that takes it
+   * back (a no-op once it has run): call it when the sound is cancelled or the screen goes away.
+   */
+  add(time: number, fn: () => void): () => void {
     // A time that is not a number would sit at the head of the queue for ever and hold up everything
     // behind it: treat it as "now".
     if (!Number.isFinite(time)) time = this.soundingNow();
-    if (typeof fn !== 'function') return;
+    if (typeof fn !== 'function') return () => undefined;
     const e = this.entries;
     let i = e.length;
     while (i > 0 && e[i - 1].time > time) i--;
-    e.splice(i, 0, { time, fn });
+    const entry: Entry = { time, fn };
+    e.splice(i, 0, entry);
     if (e.length > MAX_WAITING) e.splice(0, e.length - MAX_WAITING);
     this.pump();
+    return () => {
+      const at = this.entries.indexOf(entry);
+      if (at >= 0) this.entries.splice(at, 1);
+    };
   }
 
   /** Number of callbacks waiting. */

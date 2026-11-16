@@ -8,7 +8,7 @@ export default defineSong({
   level: 5,
   style: 'world',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Dorian',
   teaches: ['Chords on the offbeat, silence on the beat', 'Muting by easing off the fretting pressure', 'Two small shapes on strings 4, 3 and 2', 'The half-time feel: chops on 2 and 4'],
   skills: ['strumming', 'rhythm', 'chords', 'technique'],
   tags: ['offbeat', 'reggae', 'ska', 'chops', 'muting', 'syncopation', 'am', 'd', 'dorian'],

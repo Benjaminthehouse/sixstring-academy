@@ -12,7 +12,7 @@
  * stopping at the first.
  */
 import { customTuning, parseFrets, tuning as resolveTuning } from '@/core/guitar';
-import { isNoChord, parseChord } from '@/core/theory';
+import { isNoChord, parseChord, parseKey } from '@/core/theory';
 import { MAX_FRET, barCapacity, formatTimeSig, midiOf, parseTimeSig, slugify, tupletNormal, uniqueId, valueTicks } from './model';
 import type { Annotation, BarInfo, Beat, ChordEvent, LeftFinger, Measure, Note, NoteValue, RightFinger, Section, Song, SongMeta, StrumPattern, TempoChange, TimeSig, Track, TrackRole } from './types';
 import { describeTicks, validateSong } from './validate';
@@ -287,9 +287,10 @@ export function parseSixTab(text: string, opts: SixTabParseOptions = {}): SixTab
 
   function readKey(value: string, line: number, col: number): boolean {
     const k = value.trim();
-    const m = /^([A-G](?:#|b)?)\s*(m|min|minor|maj|major)?$/i.exec(k);
-    if (!m || !/^[A-G]/.test(k)) {
-      fail(line, col, 'Not a key.', 'a key like G, Em, F# minor or Bb major', value);
+    // Major and minor, or one of the other modes of the major scale (written with its parent major's signature).
+    const m = /^([A-G](?:#|b)?)\s*(m|min|minor|maj|major|ionian|dorian|phrygian|lydian|mixolydian|aeolian|locrian)?$/i.exec(k);
+    if (!m || !/^[A-G]/.test(k) || !parseKey(k)) {
+      fail(line, col, 'Not a key.', 'a key like G, Em, F# minor, Bb major or A dorian', value);
       return false;
     }
     return true;
@@ -719,13 +720,21 @@ export function parseSixTab(text: string, opts: SixTabParseOptions = {}): SixTab
         state.lastOnString.clear();
         return beat;
       }
-      if (t === '/' || t === 'D' || t === 'U' || t === 'X') {
+      // A slash: / D U X, with ">" for an accented (harder) strum: D> U> />.
+      const slash = /^([/DUX])(>)?$/.exec(t);
+      if (slash) {
+        const s = slash[1];
         beat.slash = true;
-        if (t === 'D') beat.stroke = 'down';
-        if (t === 'U') beat.stroke = 'up';
-        if (t === 'X') beat.mutedStrum = true;
+        if (s === 'D') beat.stroke = 'down';
+        if (s === 'U') beat.stroke = 'up';
+        if (s === 'X') beat.mutedStrum = true;
+        if (slash[2]) beat.accent = true;
         if (tok.mods) applyMods(tok.mods, beat, null, line);
         return beat;
+      }
+      if (/^[/DUX]>.+/.test(t)) {
+        fail(line, tok.col + 2, `Unexpected "${t.slice(2)}" after the accented slash ${t.slice(0, 2)}.`, 'a space before the next token', t.slice(2));
+        return null;
       }
       const note = readNote(tok.text, tok.col, state, line);
       if (!note) return null;
@@ -876,7 +885,11 @@ export function parseSixTab(text: string, opts: SixTabParseOptions = {}): SixTab
         case 'pm': each((n) => { n.palmMute = true; }); break;
         case 'lr': each((n) => { n.letRing = true; }); break;
         case 'st': each((n) => { n.staccato = true; }); break;
-        case 'ac': each((n) => { n.accent = true; }); break;
+        case 'ac':
+          // On a slash or a whole chord group the beat is accented (the strum is harder); on a note, the note.
+          if (beat && !note && (beat.slash || beat.notes.length > 1)) beat.accent = true;
+          if (!(beat?.slash && !note)) each((n) => { n.accent = true; });
+          break;
         case 'vib': each((n) => { n.vibrato = true; }); break;
         case 'x': each((n) => { n.dead = true; }); break;
         case 'gh': each((n) => { n.ghost = true; }); break;

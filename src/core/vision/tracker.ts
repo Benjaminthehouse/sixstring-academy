@@ -105,6 +105,8 @@ export interface FretboardTrackerOptions {
   unstableWindowMs?: number;
   /** The detector to drive (default: `createFretboardDetector()`). */
   detector?: Detector;
+  /** The label of the screen's assisted-calibration button, named in `guidance.message` when calibration is offered (default: no button named). */
+  calibrateLabel?: string;
 }
 
 /** "Is this fret N?": a visible cell the UI can highlight while asking for one tap. */
@@ -438,6 +440,7 @@ export class FretboardTracker {
       suggestCalibration,
       coasting: result.diagnostics.reason === 'coasting',
       stringsSeen,
+      calibrateLabel: this.opts.calibrateLabel,
     });
     const out: TrackerUpdate = {
       state: this.current,

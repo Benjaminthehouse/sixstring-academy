@@ -1,8 +1,5 @@
 import { defineSong } from '../types';
 
-// Key: A Phrygian. The content test's key reader (parseKey) knows only major and minor, so the
-// key is written as A minor, the minor key that shares the Phrygian tonic; the mode is named in
-// the title, the tags and the text.
 export default defineSong({
   title: 'Mode Study: A Phrygian',
   composer: 'Sixstring Academy',
@@ -11,7 +8,7 @@ export default defineSong({
   level: 7,
   style: 'latin',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Phrygian',
   teaches: ['Phrygian: minor with a flat second', 'The colour note: Bb, falling to A', 'The Phrygian cadence, Bb to Am', 'A Phrygian in fifth position'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'phrygian', 'colour note', 'vamp', 'spanish', 'flamenco', 'a minor', 'fifth position'],

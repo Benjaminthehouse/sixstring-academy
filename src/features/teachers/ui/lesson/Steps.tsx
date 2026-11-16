@@ -3,6 +3,7 @@
  * sends the learner to a tool and welcomes them back, and the short reaction after an answer.
  */
 import { useEffect, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { ROUTE_BY_NAME } from '@/app/routes';
 import { teacherById } from '@/app/teachers';
 import { getLibrary } from '@/core/library';
 import type { PracticeSession } from '@/core/progress';
@@ -102,10 +103,23 @@ export interface TaskState {
   phase: 'ready' | 'back';
   /** What the progress log shows was done there since, when anything. */
   done: PracticeSession | null;
+  /** The tool is not part of this app yet (and there is no fallback): the task can only be skipped. */
+  unavailable?: boolean;
+  /** Back from playing along, which the tool did not log: what Continue will log ("... count as practice"). */
+  credit?: string | null;
 }
 
-/** Decide where a task leads: its own target, or the fallback when its song is not in the library. */
-export function useTaskTarget(task: TaskStep): { target: TaskTarget; fallback: boolean; checking: boolean } {
+/** True when the tool's screen is part of this build of the app (a newer tool may not be yet). */
+export function toolAvailable(target: TaskTarget): boolean {
+  return !!ROUTE_BY_NAME[TASK_TOOLS[target.tool]?.route ?? ''];
+}
+
+/**
+ * Decide where a task leads: its own target, or the fallback when its song is not in the library
+ * or its tool is not in the app. `unavailable`: neither can be opened (the card then offers only
+ * "Skip for now").
+ */
+export function useTaskTarget(task: TaskStep): { target: TaskTarget; fallback: boolean; checking: boolean; unavailable: boolean } {
   const song = taskSong(task);
   const [missing, setMissing] = useState<boolean | null>(song ? null : false);
   useEffect(() => {
@@ -119,8 +133,13 @@ export function useTaskTarget(task: TaskStep): { target: TaskTarget; fallback: b
       live = false;
     };
   }, [song]);
-  if (missing && task.fallback) return { target: { tool: task.fallback.tool, ...(task.fallback.params ? { params: task.fallback.params } : {}) }, fallback: true, checking: false };
-  return { target: { tool: task.tool, ...(task.params ? { params: task.params } : {}) }, fallback: false, checking: missing === null };
+  const own: TaskTarget = { tool: task.tool, ...(task.params ? { params: task.params } : {}) };
+  const toolMissing = !toolAvailable(own);
+  if ((missing || toolMissing) && task.fallback) {
+    const target: TaskTarget = { tool: task.fallback.tool, ...(task.fallback.params ? { params: task.fallback.params } : {}) };
+    return { target, fallback: true, checking: false, unavailable: !toolAvailable(target) };
+  }
+  return { target: own, fallback: false, checking: missing === null && !toolMissing, unavailable: toolMissing };
 }
 
 /** A task: what to do in which tool and for how long, then (back from it) what was seen. */
@@ -152,6 +171,11 @@ export function TaskCard({ teacher, task, state, backLine }: { teacher: TeacherK
                 {done ? `: ${done}` : ''}
               </Text>
             )}
+            {!state.done && state.credit && (
+              <Text tone="muted" data-task-credit="">
+                {state.credit}
+              </Text>
+            )}
           </div>
         </div>
       ) : null}
@@ -172,9 +196,14 @@ export function TaskCard({ teacher, task, state, backLine }: { teacher: TeacherK
           <RichText text={task.tip} />
         </Callout>
       )}
-      {state.phase === 'ready' && (
+      {state.phase === 'ready' && !state.unavailable && (
         <Text variant="caption" tone="muted" className={styles.taskNote}>
           <Icon name="Bookmark" size="xs" /> Your place in this lesson is kept. Come back here when you are done.
+        </Text>
+      )}
+      {state.phase === 'ready' && state.unavailable && (
+        <Text variant="caption" tone="muted" className={styles.taskNote} data-task-unavailable="">
+          <Icon name="Info" size="xs" /> {`${capital(tool.name)} is not in this version of the app yet. Skip this one for now; the rest of the lesson works without it.`}
         </Text>
       )}
     </article>

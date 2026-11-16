@@ -134,6 +134,19 @@ export function defaultTempo(feel: ProgressionFeel): number {
   return Math.round((feel.tempo[0] + feel.tempo[1]) / 2);
 }
 
+/**
+ * The line under the tempo control. It names the range the progression is usually played in and
+ * never scolds a slower tempo: a lesson that asks for 100 BPM where the style usually runs at 120
+ * to 180 is asking for the right thing, so below the range it says slow is how it is learned.
+ */
+export function tempoHint(feel: Pick<ProgressionFeel, 'tempo'>, bpm: number): string {
+  const [lo, hi] = feel.tempo;
+  const range = `${lo} to ${hi} BPM`;
+  if (bpm < lo) return `Usually ${range}. Slower is how you learn it: speed up once the changes feel easy.`;
+  if (bpm > hi) return `Usually ${range}. You are playing it faster than that.`;
+  return `Usually played at ${range}.`;
+}
+
 /** A tempo kept inside what the style can play. */
 export function clampTempo(style: BackingStyleId, bpm: number): number {
   const s = BACKING_STYLES[style].tempo;
@@ -326,6 +339,18 @@ export function jamNeck(view: { phone: boolean; sideways: boolean; wide: boolean
   if (view.sideways) return { maxFret: asked, size: 'sm' };
   if (!view.wide) return { maxFret: 12, size: view.phone ? 'sm' : 'md' };
   return { maxFret: asked, size: asked <= 15 ? 'lg' : asked <= 19 ? 'md' : 'sm' };
+}
+
+/**
+ * Dots for the jam neck while the chords are hidden: the notes of the home key only (the home note
+ * filled, the rest as rings), so nothing gives a chord away.
+ */
+export function keyMarkers(home: Pick<HomeKey, 'tonic' | 'scale'>, opts: { maxFret?: number; tuning?: Tuning } = {}): FretMarker[] {
+  try {
+    return scaleMarkers(home.tonic, home.scale, { maxFret: opts.maxFret ?? 12, label: 'note', color: 'neutral', shape: 'ring', ...(opts.tuning ? { tuning: opts.tuning } : {}) });
+  } catch {
+    return [];
+  }
 }
 
 /**

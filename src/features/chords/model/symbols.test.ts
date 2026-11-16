@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_TYPES } from '@/core/theory';
 import { chordsOfType } from './catalog';
-import { chordFromParam, chordParam, chordSkillId, displaySymbol, fromSkillSlug, readSymbol, skillSlug, viewFromParams } from './symbols';
+import { chordFromParam, chordParam, chordSkillId, displaySymbol, fromSkillSlug, readSymbol, skillSlug, TRAINER_OPTION, viewFromParams } from './symbols';
 
 const SAFE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -81,9 +81,15 @@ describe('views', () => {
     expect(viewFromParams(['g'])).toEqual({ view: 'chord', symbol: 'G', voicing: null });
     expect(viewFromParams(['f-sharp-m7'])).toEqual({ view: 'chord', symbol: 'F#m7', voicing: null });
     expect(viewFromParams(['f-major', '2'])).toEqual({ view: 'chord', symbol: 'F', voicing: 2 });
-    expect(viewFromParams(['trainer'])).toEqual({ view: 'trainer', chords: [] });
-    expect(viewFromParams(['trainer', 'g-major', 'c-major'])).toEqual({ view: 'trainer', chords: ['G', 'C'] });
-    expect(viewFromParams(['changes'])).toEqual({ view: 'trainer', chords: [] });
+    expect(viewFromParams(['trainer'])).toEqual({ view: 'trainer', chords: [], options: [] });
+    expect(viewFromParams(['trainer', 'g-major', 'c-major'])).toEqual({ view: 'trainer', chords: ['G', 'C'], options: [] });
+    expect(viewFromParams(['changes'])).toEqual({ view: 'trainer', chords: [], options: [] });
+    // Settings in the address are kept apart from the chords, whatever their order.
+    expect(viewFromParams(['trainer', 'timed', 'g-major', 't70', 'c-major', 'beats-2'])).toEqual({ view: 'trainer', chords: ['G', 'C'], options: ['timed', 't70', 'beats-2'] });
+    expect(viewFromParams(['trainer', 'em', 'am', 'check'])).toEqual({ view: 'trainer', chords: ['Em', 'Am'], options: ['check'] });
+    // No setting word reads as a chord, and no chord param reads as a setting.
+    for (const word of ['minute', 'one-minute', 'timed', 'in-time', 'check', 'ring-true', 't70', 'beats-2']) expect(chordFromParam(word), word).toBeNull();
+    for (const t of CHORD_TYPES) for (const s of chordsOfType(t)) expect(TRAINER_OPTION.test(chordParam(s)), s).toBe(false);
     expect(viewFromParams(['identify', 'x32010'])).toEqual({ view: 'identify', shape: 'x32010' });
     expect(viewFromParams(['mine'])).toEqual({ view: 'mine' });
     expect(viewFromParams(['type', 'm7'])).toEqual({ view: 'type', family: 'm7' });

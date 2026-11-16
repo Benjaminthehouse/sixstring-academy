@@ -3,12 +3,12 @@
  * Every fact in a generated exercise is computed by the theory engine.
  */
 import {
-  chordNotes, chordPcs, chordTones, circleOfFifths, diatonicChords, distractorNotes, enharmonics,
+  chordNotes, chordPcs, chordTones, chordToRoman, circleOfFifths, diatonicChords, distractorNotes, enharmonics,
   getChordType, getScale, interval, intervalName, keySignature, neighborKeys, parallelChord, parseChord, parseInterval, parseNote, parseRoman,
-  pcToNote, relativeKey, romanToChord, scaleContains, scaleNotes, similarChordTypes, transpose, type Key,
+  pcToNote, relativeKey, romanToChord, scaleContains, scaleNotes, similarChordTypes, transpose, type Key, type RomanNumeral,
 } from '@/core/theory';
 import type { ChordBuildExercise, FillBlanksExercise, MatchPairsExercise, OrderExercise } from '../types';
-import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, keysUpTo, noteList, ordinal, pool, retry, scaleTitle } from './core';
+import { article, awkward, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, keyPool, keysFromList, keysUpTo, noteList, ordinal, pool, respell, retry, scaleTitle } from './core';
 
 const NATURALS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'M2', 'm2', 'P8', 'M6', 'm6', 'm7', 'M7', 'A4'];
@@ -38,6 +38,11 @@ function keysFor(maxAccidentals: number | undefined, modes: ReadonlyArray<'major
 
 // ── Intervals ──────────────────────────────────────────────────────────────────────────────────
 
+/** The everyday other name of an interval's size, for drilling the spelling (A2 or m3?). */
+export const INTERVAL_TWINS: Readonly<Record<string, string>> = {
+  m3: 'A2', A2: 'm3', M3: 'd4', d4: 'M3', A4: 'd5', d5: 'A4', m6: 'A5', A5: 'm6', M6: 'd7', d7: 'M6', m7: 'A6', A6: 'm7',
+};
+
 export const intervalName_ = defineGenerator({
   kind: 'interval-name',
   summary: 'Two notes are named; choose the interval between them.',
@@ -45,8 +50,9 @@ export const intervalName_ = defineGenerator({
   params: [
     { name: 'intervals', type: 'string[]', default: 'P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4', description: 'Interval pool, easiest first.' },
     { name: 'roots', type: 'string[]', default: 'C G D A E F B Bb Eb F# Ab C#', description: 'Lower-note pool, easiest first.' },
+    { name: 'twins', type: 'boolean', default: 'false', description: 'Also offer the other name of the same size (A2 beside m3, d5 beside A4), so the letters decide.' },
   ],
-  check: (p) => checkParams().intervals('intervals', p.intervals, 2).notes('roots', p.roots).problems,
+  check: (p) => checkParams().intervals('intervals', p.intervals, 2).notes('roots', p.roots).bool('twins', p.twins).problems,
   make(p, { rng, difficulty }) {
     const intervals = pool(p.intervals ?? INTERVALS_EASY_FIRST, difficulty);
     const roots = pool(p.roots ?? ROOTS_EASY_FIRST, difficulty, 4);
@@ -61,13 +67,17 @@ export const intervalName_ = defineGenerator({
       () => ({ ivl: intervals[0], root: 'C', upper: transpose('C', intervals[0]) }),
     );
     const ivl = interval(pick.ivl);
-    const wrong = intervalDistractors(rng, ivl.name, p.intervals ?? INTERVALS_EASY_FIRST);
+    const twin = p.twins === true ? INTERVAL_TWINS[ivl.name] : undefined;
+    const wrong = twin ? [twin, ...intervalDistractors(rng, ivl.name, p.intervals ?? INTERVALS_EASY_FIRST, 2)] : intervalDistractors(rng, ivl.name, p.intervals ?? INTERVALS_EASY_FIRST);
+    // The twin is the same size: only the letters tell them apart, so the explanation counts them for it too.
+    const twinWords = twin ? ` ${cap(article(intervalName(twin)))} ${intervalName(twin)} is the same size but spans ${count(interval(twin).number, 'letter name')}.` : '';
     return choiceOf(
       rng,
       {
         prompt: `Which interval is it from {n:${pick.root}} up to {n:${pick.upper}}?`,
         // The letters are counted whatever the accidentals: E♭ to F is E, F, so a 2nd.
-        explain: `{n:${pick.root}} to {n:${pick.upper}} spans ${count(ivl.number, 'letter name')} (${lettersBetween(pick.root, ivl.number)}), so it is ${ivl.number === 8 ? 'an octave' : `a ${ordinal(ivl.number)}`}; ${count(ivl.semitones, 'half step')} ${ivl.semitones === 1 ? 'makes' : 'make'} it ${article(intervalName(ivl.name))} ${intervalName(ivl.name)}.`,
+        explain: `{n:${pick.root}} to {n:${pick.upper}} spans ${count(ivl.number, 'letter name')} (${lettersBetween(pick.root, ivl.number)}), so it is ${ivl.number === 8 ? 'an octave' : `a ${ordinal(ivl.number)}`}; ${count(ivl.semitones, 'half step')} ${ivl.semitones === 1 ? 'makes' : 'make'} it ${article(intervalName(ivl.name))} ${intervalName(ivl.name)}.${twinWords}`,
+        ...(twin ? { spelling: 'exact' as const } : {}),
       },
       cap(intervalName(ivl.name)),
       wrong.map((w) => cap(intervalName(w))),
@@ -111,12 +121,12 @@ export const semitonesMatch = defineGenerator({
   summary: 'Match interval names with their size in half steps.',
   produces: ['match-pairs'],
   params: [
-    { name: 'intervals', type: 'string[]', default: 'P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4', description: 'Interval pool, easiest first.' },
+    { name: 'intervals', type: 'string[]', default: 'P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4', description: 'Interval pool, easiest first. Compound intervals (M9, P11, M13 ... up to P15) are allowed.' },
     { name: 'pairs', type: 'number', default: '4', description: 'Pairs per exercise, 3 to 5.' },
   ],
   check: (p) =>
     checkParams()
-      .intervals('intervals', p.intervals, 3)
+      .intervals('intervals', p.intervals, 3, true)
       .int('pairs', p.pairs, 3, 5)
       .need(
         !p.intervals || !p.intervals.every((i) => parseInterval(i)) || new Set(p.intervals.map((i) => interval(i).semitones)).size >= (p.pairs ?? 4),
@@ -128,11 +138,16 @@ export const semitonesMatch = defineGenerator({
     const intervals = pool(distinct(p.intervals ?? INTERVALS_EASY_FIRST, (i) => interval(i).semitones, 99), difficulty, wanted);
     const chosen = rng.sample(intervals, wanted).sort((a, b) => interval(a).semitones - interval(b).semitones);
     const largest = chosen[chosen.length - 1];
+    const big = interval(largest);
+    // A compound interval is an octave plus its simple twin: that is how it is counted and found.
+    const explain = big.semitones > 12
+      ? `One half step is one fret. ${cap(article(intervalName(largest)))} ${intervalName(largest)} is an octave (12) plus ${article(intervalName(big.simple))} ${intervalName(big.simple)} (${big.semitones - 12}): ${count(big.semitones, 'half step')}.`
+      : `One half step is one fret. ${cap(article(intervalName(largest)))} ${intervalName(largest)} is ${count(big.semitones, 'fret')} up one string.`;
     const out: MatchPairsExercise = {
       type: 'match-pairs',
       prompt: 'Match each interval with its size.',
       pairs: chosen.map((i) => ({ left: cap(intervalName(i)), right: count(interval(i).semitones, 'half step') })),
-      explain: `One half step is one fret. ${cap(article(intervalName(largest)))} ${intervalName(largest)} is ${count(interval(largest).semitones, 'fret')} up one string.`,
+      explain,
     };
     return out;
   },
@@ -140,24 +155,41 @@ export const semitonesMatch = defineGenerator({
 
 // ── Single notes ───────────────────────────────────────────────────────────────────────────────
 
+const BLACK_PCS = new Set([1, 3, 6, 8, 10]);
+
 export const stepUp = defineGenerator({
   kind: 'step-up',
-  summary: 'Which note is one or more frets (half steps) above a note?',
+  summary: 'Which note is one or more frets (half steps) above a note? Wrong options stay within the notes the pools can reach.',
   produces: ['choice'],
   params: [
     { name: 'steps', type: 'number[]', default: '[1, 2]', description: 'Distances in half steps to draw from (1 to 11).' },
     { name: 'roots', type: 'string[]', default: 'C D E F G A B', description: 'Starting-note pool.' },
+    { name: 'spelling', type: "'sharps' | 'flats'", default: "'sharps'", description: 'Name the in-between notes with sharps or with flats.' },
   ],
-  check: (p) => checkParams().list('steps', p.steps, (s) => Number.isInteger(s) && s >= 1 && s <= 11, '[1, 2]').notes('roots', p.roots).problems,
+  check: (p) => checkParams().list('steps', p.steps, (s) => Number.isInteger(s) && s >= 1 && s <= 11, '[1, 2]').notes('roots', p.roots).oneOf('spelling', p.spelling, ['sharps', 'flats']).problems,
   make(p, { rng }) {
-    const steps = rng.pick(p.steps ?? [1, 2]);
-    const root = rng.pick(p.roots ?? NATURALS);
+    const stepPool = p.steps ?? [1, 2];
+    const rootPool = p.roots ?? NATURALS;
+    const prefer = p.spelling ?? 'sharps';
+    const steps = rng.pick(stepPool);
+    const root = rng.pick(rootPool);
     const rootPc = pcOf(root);
-    const walk = Array.from({ length: steps + 1 }, (_u, i) => (i === 0 ? root : pcToNote((rootPc + i) % 12, 'sharps')));
+    const walk = Array.from({ length: steps + 1 }, (_u, i) => (i === 0 ? root : pcToNote((rootPc + i) % 12, prefer)));
     const target = walk[walk.length - 1];
+    const targetPc = pcOf(target);
     const twin = enharmonics(target).find((n) => Math.abs(parseNote(n)?.alt ?? 9) === 1 && !NATURALS.includes(target));
     const distance = steps === 1 ? 'one fret (a half step)' : steps === 2 ? 'two frets (a whole step)' : `${steps} frets`;
     const shown = walk.length <= 6 ? `: ${noteList(walk, ', ')}` : '';
+    // Wrong options are named the way the drill names notes, and a black key is offered only when
+    // the pools can make one: a drill of whole steps from C D F G A never shows a sharp or a flat.
+    const blackAllowed = rootPool.some((r) => BLACK_PCS.has(pcOf(r)) || stepPool.some((s) => BLACK_PCS.has((pcOf(r) + s) % 12)));
+    const offsets = [-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, 6];
+    const wrong = distinct(
+      offsets.map((o) => (targetPc + o + 12) % 12).filter((pc) => pc !== rootPc && (blackAllowed || !BLACK_PCS.has(pc))),
+      (pc) => pc,
+      3,
+      [targetPc],
+    ).map((pc) => pcToNote(pc, prefer));
     return choiceOf(
       rng,
       {
@@ -165,7 +197,7 @@ export const stepUp = defineGenerator({
         explain: `Each fret raises the note by a half step${shown}. ${count(steps, 'fret')} above {n:${root}} is {n:${target}}${twin ? `, also called {n:${twin}}` : ''}.`,
       },
       `{n:${target}}`,
-      distractorNotes(target, { count: 3, exclude: [root] }).map((n) => `{n:${n}}`),
+      wrong.map((n) => `{n:${n}}`),
     );
   },
 });
@@ -204,14 +236,14 @@ export const scaleNotes_ = defineGenerator({
   summary: 'The notes of a scale: arrange them, complete them, or spot the outsider.',
   produces: ['order', 'fill-blanks', 'choice'],
   params: [
-    { name: 'scales', type: 'string[]', default: "['major']", description: 'Scale ids, easiest first (5 to 7 notes).' },
+    { name: 'scales', type: 'string[]', default: "['major']", description: 'Scale ids, easiest first (5 to 8 notes: whole-tone and diminished too).' },
     { name: 'tonics', type: 'string[]', default: 'C G D F A E Bb Eb B Ab', description: 'Tonic pool, easiest first.' },
     { name: 'form', type: "'order' | 'fill' | 'odd-one-out'", default: "'order'", description: 'Arrange the notes, complete the scale, or find the note that is not in it.' },
   ],
   check: (p) =>
     checkParams()
       .scales('scales', p.scales)
-      .list('scales', p.scales, (s) => (getScale(s)?.size ?? 0) >= 5 && (getScale(s)?.size ?? 99) <= 7, "['major', 'minor-pentatonic'] (5 to 7 notes)")
+      .list('scales', p.scales, (s) => (getScale(s)?.size ?? 0) >= 5 && (getScale(s)?.size ?? 99) <= 8, "['major', 'minor-pentatonic', 'whole-tone'] (5 to 8 notes)")
       .notes('tonics', p.tonics)
       .oneOf('form', p.form, ['order', 'fill', 'odd-one-out']).problems,
   make(p, { rng, difficulty }) {
@@ -407,15 +439,18 @@ export const degreeInKey = defineGenerator({
     { name: 'modes', type: "('major' | 'minor')[]", default: "['major']", description: 'Modes to draw keys from.' },
     { name: 'maxAccidentals', type: 'number', default: '4', description: 'Largest signature used, 0 to 7.' },
     { name: 'degrees', type: 'number[]', default: '[5, 3, 4, 2, 6, 7]', description: 'Degrees to ask about (1 to 7), easiest first.' },
+    { name: 'keys', type: 'string[]', default: 'from modes and maxAccidentals', description: "An explicit key pool, easiest first (['C major', 'A major']). Replaces modes and maxAccidentals." },
   ],
   check: (p) =>
     checkParams()
       .oneOf('ask', p.ask, ['note', 'degree'])
       .list('modes', p.modes, (m) => m === 'major' || m === 'minor', "['major', 'minor']")
       .int('maxAccidentals', p.maxAccidentals, 0, 7)
-      .list('degrees', p.degrees, (d) => Number.isInteger(d) && d >= 1 && d <= 7, '[5, 3, 4]').problems,
+      .list('degrees', p.degrees, (d) => Number.isInteger(d) && d >= 1 && d <= 7, '[5, 3, 4]')
+      .keys('keys', p.keys)
+      .keysOrSignature(p).problems,
   make(p, { rng, difficulty }) {
-    const key = rng.pick(keysFor(p.maxAccidentals, p.modes, difficulty));
+    const key = rng.pick(keyPool(p, difficulty));
     const degree = rng.pick(pool(p.degrees ?? [5, 3, 4, 2, 6, 7], difficulty));
     const note = key.scale[degree - 1];
     const counted = `Count up the scale: ${key.scale.slice(0, degree).map((n, i) => (i === degree - 1 ? `**{n:${n}}**` : `{n:${n}}`)).join(' ')}.`;
@@ -575,15 +610,18 @@ export const diatonicChord = defineGenerator({
     { name: 'modes', type: "('major' | 'minor')[]", default: "['major']", description: 'Modes to draw keys from.' },
     { name: 'maxAccidentals', type: 'number', default: '4', description: 'Largest signature used, 0 to 7.' },
     { name: 'sevenths', type: 'boolean', default: 'false', description: 'Seventh chords instead of triads.' },
+    { name: 'keys', type: 'string[]', default: 'from modes and maxAccidentals', description: "An explicit key pool, easiest first (['C major', 'G major', 'A major', 'E major']). Replaces modes and maxAccidentals." },
   ],
   check: (p) =>
     checkParams()
       .oneOf('ask', p.ask, ['chord', 'quality'])
       .list('modes', p.modes, (m) => m === 'major' || m === 'minor', "['major', 'minor']")
       .int('maxAccidentals', p.maxAccidentals, 0, 7)
-      .bool('sevenths', p.sevenths).problems,
+      .bool('sevenths', p.sevenths)
+      .keys('keys', p.keys)
+      .keysOrSignature(p).problems,
   make(p, { rng, difficulty }) {
-    const key = rng.pick(keysFor(p.maxAccidentals, p.modes, difficulty));
+    const key = rng.pick(keyPool(p, difficulty));
     const chords = diatonicChords(key, { sevenths: p.sevenths === true });
     const degree = rng.pick(pool(DEGREES_EASY_FIRST, difficulty, 4));
     const chord = chords[degree - 1];
@@ -619,24 +657,102 @@ export const diatonicChord = defineGenerator({
   },
 });
 
+const SEMITONE_WORDS: Record<number, string> = { 11: 'a half step below' };
+
+/**
+ * Why a numeral is that chord in that key, or null when this drill cannot explain it (a tritone
+ * substitute, a secondary of a secondary, a doubly altered numeral, a double sharp or flat).
+ * Numerals take their accidental from the major scale on the tonic, in minor keys too, so a
+ * numeral whose root is not the key's own note on that degree says how it was moved.
+ */
+export function explainNumeral(numeral: RomanNumeral, key: Key, symbol: string): string | null {
+  const chord = parseChord(symbol);
+  if (!chord || numeral.substitute || Math.abs(numeral.alt) > 1 || awkward(chord.root)) return null;
+  const kind = `${chord.type.name}${/chord$/.test(chord.type.name) ? '' : ' chord'}`;
+  if (numeral.target) {
+    const target = numeral.target;
+    if (target.target || target.substitute || Math.abs(target.alt) > 1) return null;
+    const own = numeral.text.split('/')[0];
+    let targetSymbol: string;
+    try {
+      targetSymbol = romanToChord(target.text, key);
+    } catch {
+      return null;
+    }
+    const targetRoot = parseChord(targetSymbol)?.root;
+    if (!targetRoot || awkward(targetRoot) || pcOf(transpose(targetRoot, numeral.interval)) !== pcOf(chord.root)) return null;
+    const gap = interval(numeral.interval);
+    const where = SEMITONE_WORDS[gap.semitones] ?? `${article(intervalName(gap.name))} ${intervalName(gap.name)} above`;
+    return `{r:${numeral.text}} is the {r:${own}} of {r:${target.text}}. In {k:${key.name}}, {r:${target.text}} is {c:${targetSymbol}}; the ${kind} ${where} its root {n:${targetRoot}} is {c:${symbol}}.`;
+  }
+  const degree = numeral.degree;
+  const ownNote = key.scale[degree - 1];
+  if (pcOf(ownNote) === pcOf(chord.root)) {
+    // Numerals take their accidental from the major scale (the engine's convention), so ♭III in A minor needs a word.
+    const flatNote = key.mode === 'minor' && numeral.alt < 0 ? ` The ${numeral.alt === -1 ? 'flat' : 'double flat'} says it sits lower than in the major scale.` : '';
+    return `{r:${numeral.text}} is the ${kind} on the ${ordinal(degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.${flatNote}`;
+  }
+  const majorNote = scaleNotes(key.tonic, 'major')[degree - 1];
+  if (numeral.alt !== 0 && pcOf(majorNote) === pcOf(ownNote)) {
+    // A borrowed or chromatic chord: the key's own note, lowered or raised.
+    const moved = numeral.alt < 0 ? 'lowered' : 'raised';
+    const borrowed = key.mode === 'major' && /parallel minor/.test(chordToRoman(symbol, key).explanation) ? ` Major keys borrow it from {k:${key.tonic} minor}.` : '';
+    return `{r:${numeral.text}} is the ${kind} on the ${ordinal(degree)} note ${moved} by a half step. In {k:${key.name}} the ${ordinal(degree)} note is {n:${ownNote}}; ${moved}, it is {n:${chord.root}}, so the chord is {c:${symbol}}.${borrowed}`;
+  }
+  if (numeral.alt === 0 && key.mode === 'minor' && pcOf(majorNote) === pcOf(chord.root)) {
+    // III, VI, VII, vii° in a minor key: the major scale's note, a half step above the natural minor's.
+    return `{r:${numeral.text}} is the ${kind} on the ${ordinal(degree)} note of the major scale on {n:${key.tonic}}, {n:${chord.root}}. {k:${key.name}} has {n:${ownNote}} there, so this is the raised ${ordinal(degree)}: {c:${symbol}}.`;
+  }
+  return null;
+}
+
+/** Every key a roman-chord step can draw, at any difficulty. */
+function romanKeys(p: { keys?: string[]; modes?: Array<'major' | 'minor'>; maxAccidentals?: number }): Key[] {
+  return p.keys ? keysFromList(p.keys) : keysUpTo(p.maxAccidentals ?? 4, p.modes ?? ['major']);
+}
+
 export const romanChord = defineGenerator({
   kind: 'roman-chord',
-  summary: 'Roman numerals and the chords they stand for in a key.',
+  summary: 'Roman numerals and the chords they stand for in a key. Borrowed (bVII, iv in major) and secondary (V/V, V7/ii) numerals are explained; others are refused.',
   produces: ['choice'],
   params: [
     { name: 'direction', type: "'to-chord' | 'to-roman'", default: "'to-chord'", description: 'Numeral given, choose the chord; or chord given, choose the numeral.' },
     { name: 'numerals', type: 'string[]', default: 'the diatonic triads of the key, I IV V first', description: 'Numeral pool, easiest first.' },
     { name: 'modes', type: "('major' | 'minor')[]", default: "['major']", description: 'Modes to draw keys from.' },
     { name: 'maxAccidentals', type: 'number', default: '4', description: 'Largest signature used, 0 to 7.' },
+    { name: 'keys', type: 'string[]', default: 'from modes and maxAccidentals', description: "An explicit key pool, easiest first (['C major', 'G major', 'A major']). Replaces modes and maxAccidentals." },
   ],
-  check: (p) =>
-    checkParams()
+  check: (p) => {
+    const check = checkParams()
       .oneOf('direction', p.direction, ['to-chord', 'to-roman'])
       .list('numerals', p.numerals, (n) => typeof n === 'string' && parseRoman(n) !== null, "['I', 'IV', 'V', 'vi']")
       .list('modes', p.modes, (m) => m === 'major' || m === 'minor', "['major', 'minor']")
-      .int('maxAccidentals', p.maxAccidentals, 0, 7).problems,
+      .int('maxAccidentals', p.maxAccidentals, 0, 7)
+      .keys('keys', p.keys)
+      .keysOrSignature(p);
+    if (check.problems.length > 0 || !p.numerals) return check.problems;
+    // Every numeral must be explainable in every key the step can draw: the explanation is the lesson.
+    const keys = romanKeys(p);
+    for (const text of p.numerals) {
+      const numeral = parseRoman(text)!;
+      const bad = keys.find((key) => {
+        try {
+          return explainNumeral(numeral, key, romanToChord(numeral, key)) === null;
+        } catch {
+          return true;
+        }
+      });
+      if (bad) {
+        check.need(
+          false,
+          `"numerals" holds "${text}", which this drill cannot spell or explain in ${bad.name}. Use plain numerals (I, ii, bVII, iv) or secondary chords (V/V, V7/ii, vii°/V) in keys where their notes need no double sharp or flat.`,
+        );
+      }
+    }
+    return check.problems;
+  },
   make(p, { rng, difficulty }) {
-    const key = rng.pick(keysFor(p.maxAccidentals, p.modes, difficulty));
+    const key = rng.pick(keyPool(p, difficulty));
     const diatonic = diatonicChords(key);
     const own = DEGREES_EASY_FIRST.map((d) => diatonic[d - 1].roman);
     const numerals = pool(p.numerals ?? own, difficulty, 3);
@@ -644,9 +760,9 @@ export const romanChord = defineGenerator({
     const symbol = romanToChord(numeral, key);
     const chord = parseChord(symbol)!;
     const others = diatonic.filter((c) => pcOf(c.root) !== pcOf(chord.root));
-    // Numerals take their accidental from the major scale (the engine's convention), so ♭III in A minor needs a word.
-    const flatNote = key.mode === 'minor' && numeral.alt < 0 ? ` The ${numeral.alt === -1 ? 'flat' : 'double flat'} says it sits lower than in the major scale.` : '';
-    const explain = `{r:${numeral.text}} is the ${chord.type.name}${/chord$/.test(chord.type.name) ? '' : ' chord'} on the ${ordinal(numeral.degree)} note of the scale. In {k:${key.name}} that note is {n:${chord.root}}, so the chord is {c:${symbol}}.${flatNote}`;
+    const explain = explainNumeral(numeral, key, symbol);
+    // generatorProblems refuses numerals it cannot explain; a step that skipped validation gets the stand-in question.
+    if (explain === null) throw new RangeError(`Cannot explain ${numeral.text} in ${key.name}`);
     if (p.direction === 'to-roman') {
       return choiceOf(
         rng,

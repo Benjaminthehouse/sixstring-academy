@@ -20,6 +20,8 @@ export interface Onset {
   lyric?: string;
   stroke?: Beat['stroke'];
   slash?: boolean;
+  /** The whole onset is accented (`Beat.accent`): an accented slash or strum. */
+  accent?: boolean;
   text?: string;
   /** How long the onset lasts when nothing says otherwise (a slash has no notes to carry a sustain). */
   length?: number;
@@ -86,6 +88,7 @@ export function buildMeasures(onsets: readonly Onset[], bars: ReadonlyArray<{ st
       if (o.lyric) beat.lyric = o.lyric;
       if (o.stroke) beat.stroke = o.stroke;
       if (o.slash) beat.slash = true;
+      if (o.accent) beat.accent = true;
       if (o.text) beat.text = o.text;
       const v = valueFromTicks(duration);
       if (v) beat.value = v;

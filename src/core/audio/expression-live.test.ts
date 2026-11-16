@@ -1,0 +1,367 @@
+/**
+ * Expression on the live voice, checked on the strict Web Audio stand-in: what the guitar asks of
+ * Web Audio for bends, slides, vibrato, hammer-ons and pull-offs, accents, the scheduled drone, and
+ * the cancel handles of visual callbacks. (What actually comes out is measured in the browser by
+ * `e2e/audio-expression.cjs`, rendering the real graph offline.)
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AudioEngine, closeAudio, getEngine, onAudioClosed, onAudioUnlocked, scheduleVisual, unlockAudio } from './engine';
+import { GuitarSynth } from './guitar';
+import { playLineOverChord, playPhrase, tabPhrase } from './phrase';
+import { velocityGain } from './tones';
+import { VisualQueue } from './visual-sync';
+import { startDrone } from './voices';
+import { MockContext, MockParam, MockSource, asAudioContext, type ParamEvent } from './web-audio-mock';
+
+const FS = 48000;
+const CHAIN = 0.006; // the master chain's look-ahead, which every node start compensates
+
+function runningEngine(): { ctx: MockContext; engine: AudioEngine } {
+  const ctx = new MockContext(FS);
+  ctx.state = 'running';
+  const engine = new AudioEngine(asAudioContext(ctx), { reverb: false });
+  engine.markUnlocked();
+  return { ctx, engine };
+}
+
+/** Buffer sources started on the context, in the order they were made. */
+const sources = (ctx: MockContext): MockSource[] => (ctx.created as MockSource[]).filter((s) => s.kind === 'bufferSource' && s.startedAt !== null);
+const rateEvents = (s: MockSource, kind?: ParamEvent['kind']): ParamEvent[] => s.playbackRate.events.filter((e) => !kind || e.kind === kind);
+/** The gain node a source plays into, and its level. */
+const gainOf = (s: MockSource): MockParam => (s.outputs[0] as unknown as { gain: MockParam }).gain;
+const ratio = (semitones: number): number => Math.pow(2, semitones / 12);
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] });
+});
+
+afterEach(async () => {
+  await closeAudio();
+  vi.useRealTimers();
+  delete (globalThis as Record<string, unknown>).AudioContext;
+});
+
+describe('bends, vibrato and slides on one note', () => {
+  it('a bend is a playback-rate curve from the fretted pitch to the bent one, starting just after the pick', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, duration: 0.8, bend: 2 });
+    const [src] = sources(ctx);
+    expect(src.startedAt).toBeCloseTo(1 - CHAIN, 9);
+    expect(src.playbackRate.value).toBe(1); // struck at the fretted pitch
+    const curve = rateEvents(src, 'curve');
+    expect(curve).toHaveLength(1);
+    expect(curve[0].time).toBeCloseTo(1 - CHAIN + 0.03, 6);
+    expect(curve[0].value).toBeCloseTo(ratio(2), 6); // arrives a whole tone up
+  });
+
+  it('a pre-bend is struck bent; bend and release ends back at the fretted pitch; a quarter tone is a quarter tone', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(64, 1, { string: 2, duration: 1, bend: { amount: 1, pre: true } });
+    g.pluck(67, 1, { string: 1, duration: 1, bend: { amount: 2, release: true } });
+    g.pluck(57, 1, { string: 4, duration: 1, bend: 0.5 });
+    const [pre, release, quarter] = sources(ctx);
+    expect(pre.playbackRate.value).toBeCloseTo(ratio(1), 9);
+    expect(rateEvents(release, 'curve')[0].value).toBeCloseTo(1, 6);
+    expect(rateEvents(quarter, 'curve')[0].value).toBeCloseTo(ratio(0.5), 6);
+  });
+
+  it('cents and A4 still apply under a bend', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.a4 = 442;
+    g.pluck(60, 1, { cents: 10, bend: 2, duration: 1 });
+    const [src] = sources(ctx);
+    const base = Math.pow(2, (10 + 1200 * Math.log2(442 / 440)) / 1200);
+    expect(src.playbackRate.value).toBeCloseTo(base, 9);
+    expect(rateEvents(src, 'curve')[0].value).toBeCloseTo(base * ratio(2), 6);
+  });
+
+  it('vibrato and a slide out are curves too; the slide out also fades the note', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, duration: 1, vibrato: true });
+    g.pluck(64, 1, { string: 2, duration: 0.6, slideOut: 'down' });
+    const [vib, out] = sources(ctx);
+    expect(rateEvents(vib, 'curve')).toHaveLength(1);
+    expect(rateEvents(vib, 'curve')[0].time).toBeGreaterThan(1 - CHAIN + 0.1);
+    expect(rateEvents(out, 'curve')[0].value).toBeCloseTo(ratio(-7), 6);
+    expect(gainOf(out).events.some((e) => e.kind === 'ramp' && e.value < gainOf(out).value * 0.1)).toBe(true);
+  });
+
+  it('a slide into a note starts a few frets below and arrives', () => {
+    const { ctx, engine } = runningEngine();
+    new GuitarSynth({ engine }).pluck(62, 1, { string: 3, duration: 0.5, slideIn: 'below' });
+    const [src] = sources(ctx);
+    expect(src.playbackRate.value).toBeCloseTo(ratio(-3), 9);
+    expect(rateEvents(src, 'curve')[0].value).toBeCloseTo(1, 6);
+  });
+});
+
+describe('hammer-ons, pull-offs and slides between notes', () => {
+  it('a hammer-on carries the ringing string on: its pitch steps up on the beat, the finger adds a soft attack, no new pick stroke', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    // "5h7" on the G string: fret 5 (C4 = 60), then fret 7 hammered (D4 = 62).
+    g.pluck(60, 1, { string: 3, duration: 0.3 });
+    const first = sources(ctx)[0];
+    const h = g.pluck(62, 1.3, { string: 3, duration: 0.4, legato: 'hammer' });
+    expect(h.startTime).toBeCloseTo(1.3, 9);
+    // The string is still the same voice ...
+    expect(g.activeVoices).toBe(1);
+    // ... re-pitched at the hammer, on the render quantum nearest the beat (within 64 samples).
+    const step = rateEvents(first, 'set').at(-1)!;
+    expect(step.value).toBeCloseTo(ratio(2), 9);
+    expect(Math.abs(step.time - (1.3 - CHAIN))).toBeLessThanOrEqual(64 / FS + 1e-6);
+    // Its release moved from the end of the first note to the end of the second.
+    expect(first.stoppedAt!).toBeGreaterThan(1.3 + 0.4 - CHAIN);
+    expect(first.stoppedAt!).toBeLessThan(1.3 + 0.4 + 0.2);
+    // One more source: the finger's own attack, softer than a pick stroke and dying away.
+    const all = sources(ctx);
+    expect(all).toHaveLength(2);
+    const attack = all[1];
+    expect(attack.startedAt).toBeCloseTo(1.3 - CHAIN, 9);
+    const peak = gainOf(attack).events.find((e) => e.kind === 'set')!.value;
+    expect(peak).toBeLessThan(velocityGain(0.8) * 0.6);
+    expect(peak).toBeGreaterThan(velocityGain(0.8) * 0.3);
+    expect(attack.stoppedAt!).toBeLessThan(1.3 + 1);
+  });
+
+  it('a pull-off steps down; a chain of them keeps one string sounding', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(62, 1, { string: 3, duration: 0.25 });
+    g.pluck(60, 1.25, { string: 3, duration: 0.25, legato: 'pull' });
+    g.pluck(62, 1.5, { string: 3, duration: 0.25, legato: 'hammer' });
+    g.pluck(60, 1.75, { string: 3, duration: 0.5, legato: 'pull' });
+    const main = sources(ctx)[0];
+    expect(rateEvents(main, 'set').map((e) => +e.value.toFixed(6))).toEqual([ratio(-2), 1, ratio(-2)].map((v) => +v.toFixed(6)));
+    expect(g.activeVoices).toBe(1);
+    // Each finger attack is cut short by the next one (the string moves on).
+    const attacks = sources(ctx).slice(1);
+    expect(attacks).toHaveLength(3);
+    expect(attacks[0].stoppedAt!).toBeLessThan(1.5 + 0.1);
+  });
+
+  it('a slide glides the ringing string to the new fret, arriving on the beat, with no new attack', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, duration: 0.5 });
+    g.pluck(62, 1.5, { string: 3, duration: 0.5, legato: 'slide' });
+    const all = sources(ctx);
+    expect(all).toHaveLength(1);
+    const glide = rateEvents(all[0], 'curve');
+    expect(glide).toHaveLength(1);
+    expect(glide[0].value).toBeCloseTo(ratio(2), 6);
+    // It begins a moment before the new note (0.03-0.12 s) so that it lands on it.
+    const lead = 1.5 - CHAIN - glide[0].time;
+    expect(lead).toBeGreaterThanOrEqual(0.03 - 1e-6);
+    expect(lead).toBeLessThanOrEqual(0.12 + 1e-6);
+  });
+
+  it('a bend on a hammered note bends from the new pitch', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, duration: 0.3 });
+    g.pluck(62, 1.3, { string: 3, duration: 0.8, legato: 'hammer', bend: 1 });
+    const main = sources(ctx)[0];
+    const curve = rateEvents(main, 'curve').at(-1)!;
+    expect(curve.value).toBeCloseTo(ratio(3), 6);
+  });
+
+  it('with nothing ringing (first note, after a rest, another string), a hammer-on is a soft note of its own', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(62, 1, { string: 3, duration: 0.3, legato: 'hammer' });
+    g.pluck(60, 2, { string: 3, duration: 0.2 });
+    g.pluck(62, 3, { string: 3, duration: 0.3, legato: 'hammer' }); // the 0.2 s note stopped long before
+    g.pluck(67, 3.5, { string: 1, duration: 0.3, legato: 'pull' }); // nothing on string 1
+    const all = sources(ctx);
+    expect(all).toHaveLength(4);
+    const picked = gainOf(all[1]).value;
+    for (const i of [0, 2, 3]) {
+      expect(gainOf(all[i]).value).toBeCloseTo(velocityGain(0.8) * 0.62, 9);
+      expect(gainOf(all[i]).value).toBeLessThan(picked);
+    }
+  });
+
+  it('a hammer-on without a string carries on the last note played', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(57, 1, { duration: 0.3 });
+    g.pluck(59, 1.3, { duration: 0.3, legato: 'hammer' });
+    expect(rateEvents(sources(ctx)[0], 'set').at(-1)!.value).toBeCloseTo(ratio(2), 9);
+    expect(g.activeVoices).toBe(1);
+  });
+
+  it('stopping the legato note stops the string', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, duration: 0.3 });
+    const h = g.pluck(62, 1.3, { string: 3, legato: 'hammer' });
+    h.stop(1.5);
+    // (Stopped with the guitar's release: a 15 ms fade, and the source ends once it has faded.)
+    expect(sources(ctx)[0].stoppedAt!).toBeLessThan(1.65);
+  });
+});
+
+describe('accents and strums', () => {
+  it('an accent plays the note about 3 dB harder and brighter', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(52, 1, { string: 4, velocity: 0.7 });
+    g.pluck(52, 2, { string: 4, velocity: 0.7, accent: true });
+    const [plain, accented] = sources(ctx);
+    const db = 20 * Math.log10(gainOf(accented).value / gainOf(plain).value);
+    expect(db).toBeGreaterThan(2);
+    expect(db).toBeLessThan(5);
+    expect(accented.buffer).not.toBe(plain.buffer); // a brighter rendering
+  });
+
+  it('an accented strum: every string harder', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.strum([40, 47, 52, 56, 59, 64], 1, { velocity: 0.6 });
+    g.strum([40, 47, 52, 56, 59, 64], 2, { velocity: 0.6, accent: true });
+    const all = sources(ctx);
+    for (let i = 0; i < 6; i++) expect(gainOf(all[6 + i]).value).toBeGreaterThan(gainOf(all[i]).value * 1.2);
+  });
+});
+
+describe('phrases', () => {
+  it('"5b7" on the G string plays one note bent a whole tone; "5h7" two notes, the second hammered', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    const bend = tabPhrase('5b7', 3)!;
+    expect(bend).toHaveLength(1);
+    expect(bend[0]).toMatchObject({ midi: 60, string: 3, bend: { amount: 2 } });
+    playPhrase(bend, 1, { synth: g });
+    expect(rateEvents(sources(ctx)[0], 'curve')[0].value).toBeCloseTo(ratio(2), 6);
+
+    const ctx2 = runningEngine();
+    const g2 = new GuitarSynth({ engine: ctx2.engine });
+    const hammer = tabPhrase('5h7', 3, { noteSeconds: 0.3 })!;
+    expect(hammer.map((n) => [n.midi, n.at, n.legato])).toEqual([[60, 0, undefined], [62, 0.3, 'hammer']]);
+    const h = playPhrase(hammer, 1, { synth: g2 });
+    expect(h.startTime).toBe(1);
+    expect(h.endTime).toBeCloseTo(1 + 0.3 + 0.3 * 1.6, 9);
+    expect(g2.activeVoices).toBe(1);
+    expect(rateEvents(sources(ctx2.ctx)[0], 'set').at(-1)!.value).toBeCloseTo(ratio(2), 9);
+    expect(tabPhrase('5h7', 9)).toBeNull();
+    expect(tabPhrase('nope', 3)).toBeNull();
+    // Drop D: the low string is a tone lower.
+    expect(tabPhrase('3', 6, { tuning: [38, 45, 50, 55, 59, 64] })![0].midi).toBe(41);
+  });
+
+  it('a line over a held chord: the chord keeps ringing under every note of the line', () => {
+    const { ctx, engine } = runningEngine();
+    const line = [64, 65, 67].map((midi, i) => ({ midi, at: 0.5 + i * 0.4, duration: 0.4, string: 1 }));
+    const h = playLineOverChord([48, 52, 55, 60], line, 1, { engine });
+    expect(h.endTime).toBeGreaterThanOrEqual(1 + 0.5 + 0.8 + 0.4 - 1e-9);
+    const all = sources(ctx);
+    const chord = all.filter((s) => s.startedAt! < 1.1);
+    expect(chord).toHaveLength(4);
+    // Released only when the line is over, not when a line note lands on one of its strings.
+    for (const s of chord) expect(s.stoppedAt!).toBeGreaterThan(1 + 0.5 + 0.8 + 0.4 - 0.05);
+    h.stop(1.2);
+    for (const s of chord) expect(s.stoppedAt!).toBeLessThan(1.5);
+    // On the keys instead: oscillators.
+    const { ctx: c2, engine: e2 } = runningEngine();
+    playLineOverChord([48, 52, 55], line, 1, { engine: e2, chordVoice: 'organ' });
+    expect(c2.count('oscillator')).toBe(3);
+  });
+});
+
+describe('a drone on the audio clock', () => {
+  it('starts and stops where it is told to, and changes root on the beat', () => {
+    const { ctx, engine } = runningEngine();
+    const drone = startDrone({ root: 45, when: 2, duration: 3, fadeIn: 0.1 }, engine);
+    expect(drone.startTime).toBe(2);
+    const oscs = (ctx.created as MockSource[]).filter((s) => s.kind === 'oscillator');
+    expect(oscs.length).toBeGreaterThan(0);
+    for (const o of oscs) expect(o.startedAt).toBeCloseTo(2 - CHAIN, 9);
+    // Fades out at 2 + 3 s.
+    for (const o of oscs) expect(o.stoppedAt!).toBeGreaterThan(5 - CHAIN);
+    expect(drone.running).toBe(true);
+    drone.setRoot(50, 3);
+    const after = (ctx.created as MockSource[]).filter((s) => s.kind === 'oscillator' && !oscs.includes(s));
+    expect(after.length).toBe(oscs.length);
+    for (const o of after) expect(o.startedAt).toBeCloseTo(3 - CHAIN, 9);
+    for (const o of oscs) expect(o.stoppedAt!).toBeLessThan(3.5);
+    // The new root still ends where the drone was told to end.
+    for (const o of after) expect(o.stoppedAt!).toBeGreaterThan(5 - CHAIN);
+    for (const o of after) expect(o.stoppedAt!).toBeLessThan(7);
+    // Once the stop has come, it lets go of the context.
+    ctx.advance(5.5);
+    vi.advanceTimersByTime(6000);
+    expect(drone.running).toBe(false);
+  });
+});
+
+describe('cancel and unsubscribe handles', () => {
+  it('a visual callback can be taken back before it runs', () => {
+    let now = 0;
+    const q = new VisualQueue(() => now);
+    const ran: string[] = [];
+    const cancelA = q.add(1, () => ran.push('a'));
+    q.add(1, () => ran.push('b'));
+    cancelA();
+    now = 1.1;
+    q.flush();
+    expect(ran).toEqual(['b']);
+    expect(() => cancelA()).not.toThrow();
+  });
+
+  it('scheduleVisual returns a working cancel on the shared engine and without Web Audio', async () => {
+    const ran: string[] = [];
+    const off = scheduleVisual(0, () => ran.push('no audio'));
+    off();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ran).toEqual([]);
+    (globalThis as Record<string, unknown>).AudioContext = class extends MockContext {
+      constructor() {
+        super(FS);
+      }
+    };
+    await unlockAudio();
+    const at = getEngine().now() + 0.1;
+    const cancel = scheduleVisual(at, () => ran.push('cancelled'));
+    scheduleVisual(at, () => ran.push('live'));
+    cancel();
+    getEngine().visual.flush(at + 0.01);
+    expect(ran).toEqual(['live']);
+  });
+
+  it('onAudioUnlocked and onAudioClosed return unsubscribe functions', async () => {
+    const calls: string[] = [];
+    const off = onAudioUnlocked(() => calls.push('unlocked'));
+    const kept = onAudioUnlocked(() => calls.push('kept'));
+    const offClosed = onAudioClosed(() => calls.push('closed'));
+    off();
+    offClosed();
+    (globalThis as Record<string, unknown>).AudioContext = class extends MockContext {
+      constructor() {
+        super(FS);
+      }
+    };
+    await unlockAudio();
+    await closeAudio();
+    expect(calls).toEqual(['kept']);
+    kept();
+  });
+});
+
+describe('nonsense never throws and never reaches Web Audio as NaN', () => {
+  it('bends, vibrato and legato with garbage', () => {
+    const { engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    expect(() => {
+      g.pluck(60, 1, { bend: NaN, vibrato: { rate: NaN, depth: Infinity }, slideIn: 'sideways' as never, duration: NaN });
+      g.pluck(60, 1.5, { bend: { amount: Infinity, release: true }, legato: 'tap' as never });
+      g.pluck(62, 1.6, { legato: 'hammer', string: 99 });
+      g.pluck(NaN, 2, { legato: 'slide' });
+      g.strum([40, NaN, 52], 3, { accent: true });
+    }).not.toThrow();
+  });
+});

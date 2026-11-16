@@ -10,7 +10,7 @@ import {
 } from './chord';
 import { CHROMATIC_DEGREES, intervalBetween, intervalToDegree, transpose } from './interval';
 import {
-  DEGREE_FUNCTIONS, detectKeyFromChords, diatonicChords, key,
+  DEGREE_FUNCTIONS, detectKeyFromChords, diatonicChords, key, modeQuality,
   type HarmonicFunction, type Key, type KeyInput, type MinorVariant,
 } from './key';
 import { note, simplifyNote } from './note';
@@ -173,10 +173,13 @@ export function chordToRoman(symbol: string | Chord, keyInput: KeyInput, context
     return { ...base, roman: literal, relation: 'diatonic', function: fn, variant: 'natural', explanation: `Diatonic: the ${literal} chord of ${k.name}, a ${fn} chord.` };
   }
   if (k.mode === 'minor') {
-    const forms: Array<[MinorVariant, string[]]> = [['natural', k.scale], ['harmonic', k.harmonicMinor!], ['melodic', k.melodicMinor!]];
+    // A modal key (A Dorian) has only its own scale; its chords take the functions of its third.
+    const forms = ([['natural', k.scale], ['harmonic', k.harmonicMinor], ['melodic', k.melodicMinor]] as Array<[MinorVariant, string[] | null]>)
+      .filter((f): f is [MinorVariant, string[]] => f[1] !== null);
+    const brightMode = !!k.modal && modeQuality(k.modal) === 'major';
     for (const [variant, names] of forms) {
       if (!(variant === 'natural' ? soundsIn(names) : fits(names))) continue;
-      const fn = functionOf(variant === 'melodic' ? FUNCTIONS_MAJOR : FUNCTIONS_MINOR);
+      const fn = functionOf(variant === 'melodic' || brightMode ? FUNCTIONS_MAJOR : FUNCTIONS_MINOR);
       const from = variant === 'natural' ? '' : ` (from ${variant} minor)`;
       return { ...base, roman: literal, relation: 'diatonic', function: fn, variant, explanation: `Diatonic: the ${literal} chord of ${k.name}${from}, a ${fn} chord.` };
     }

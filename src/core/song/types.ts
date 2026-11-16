@@ -108,6 +108,8 @@ export interface Beat {
   mutedStrum?: boolean;
   /** Pick direction for a single note, strum direction for a chord or slash. */
   stroke?: Stroke;
+  /** An accented stroke: the whole beat (a strum, a slash, or every note struck) is played harder. */
+  accent?: boolean;
   /** Lyric syllable sung on this beat; a syllable that continues the word ends with `-` (`A-`, `maz-`, `ing`). */
   lyric?: string;
   /** Short text attached to the beat (a performance hint). */

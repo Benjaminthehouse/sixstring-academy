@@ -15,5 +15,6 @@ export default defineSong({
   about:
     'Eight notes, one finger per fret: finger 1 always plays fret 1, finger 2 fret 2 and finger 3 fret 3, on whichever string you are reading. Say each note name before you play it, slowly at first; a calm, singing tune should come out, each four-bar phrase ending on a longer note. The common mistake is reading the tab numbers instead of the notes: cover the tab, read the notes, and check yourself against the tab only when you are unsure.',
   plan: 'st-read-first-c',
+  prefersNotation: true,
   added: '2026-11-16',
 });

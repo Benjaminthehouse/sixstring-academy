@@ -23,7 +23,7 @@ import { createAlignDetector, type AlignDetector, type AlignView } from './align
 import type { NumberingDecision } from './align/numbering';
 import type { PoseScore } from './align/score';
 import { boardProfiles, boardShift, type BoardProfiles } from './flow';
-import { applyHomography, boardOutline, comparePoses, computeVisibleFrets, confirmFretAt, fretAtX, fretX, invertHomography, makePose, multiply, neckModel, poseDistancePx, renumberPose } from './geometry';
+import { applyHomography, boardOutline, comparePoses, computeVisibleFrets, confirmFretAt, fretAtX, fretSpacingPx, fretX, invertHomography, makePose, multiply, neckModel, poseDistancePx, renumberPose } from './geometry';
 import { carryNumbering, createLineDetector, lineConfidence, type LineDetector, type LineLimits, type LineView } from './lines/detector';
 import { resolveMarkers } from './lines/markers';
 import { resolveNumbering as resolveLineNumbering, type NumberingResult } from './lines/numbering';
@@ -213,6 +213,19 @@ const SLIP_MAX_RESIDUAL = 0.3;
 const COAST_CONFIDENCE = 0.3;
 /** How long a trusted pose keeps lending its fret numbers after the board was lost, in milliseconds. */
 const ANCHOR_LIFE_MS = 3000;
+/**
+ * A tracked pose that moved more than this many fret cells in one frame, and more than
+ * `JUMP_RATIO` times the track's usual motion, jumped (a cut, the camera knocked, the trackers
+ * latching onto wires of another board): its numbers were carried by nearness over more than half a
+ * fret, so they are a guess and are read off the image again. A swaying neck moves 0.05-0.2 cells a
+ * frame; a cut on the alt bench measured 0.9.
+ */
+const JUMP_CELLS = 0.5;
+const JUMP_RATIO = 4;
+/** Smoothing of the track's usual motion per frame (fret cells). */
+const MOTION_RATE = 0.2;
+/** Confidence of numbers carried across a jump until the image confirms them (below 0.5: a guess). */
+const JUMP_GUESS = 0.45;
 
 function scaleH(H: Mat3, sx: number, sy: number): Mat3 {
   return [H[0] * sx, H[1] * sx, H[2] * sx, H[3] * sy, H[4] * sy, H[5] * sy, H[6], H[7], H[8]];
@@ -318,6 +331,8 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   let flowFrom: { profiles: BoardProfiles; H: Mat3; width: number } | null = null;
   /** Consecutive frames the pose has been carried by the flow alone. */
   let coasting = 0;
+  /** Usual motion of the tracked board per frame, in fret cells (what a jump is measured against). */
+  let motion = 0;
 
   /** Polished line pose (working pixels of the line view) -> candidate with the evidence of both approaches. */
   const describe = (source: 'lines' | 'align', Hline: Mat3, refine: RefineResult, lv: LineView, av: AlignView, model: NeckModel, polarity: 1 | -1, movedStrings = 0): BoardCandidate => {
@@ -449,6 +464,17 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   const sameH = (a: Mat3, b: Mat3): boolean => {
     for (let i = 0; i < 9; i++) if (Math.abs(a[i] - b[i]) > 1e-9 * (1 + Math.abs(a[i]))) return false;
     return true;
+  };
+
+  /** The board jumped between the pose handed out last and this one (see `JUMP_CELLS`); otherwise the move counts toward the usual motion. */
+  const jumpOf = (before: FretboardPose, after: FretboardPose): boolean => {
+    const vis = after.visibleFrets;
+    const mid = vis.max >= vis.min ? Math.max(1, Math.round((vis.min + vis.max) / 2)) : 6;
+    const moved = poseDistancePx(before, after) / Math.max(1e-6, fretSpacingPx(after, mid));
+    if (!Number.isFinite(moved)) return false;
+    if (moved > Math.max(JUMP_CELLS, JUMP_RATIO * motion)) return true;
+    motion += MOTION_RATE * (moved - motion);
+    return false;
   };
 
   const detect = (frame: Frame, input: DetectOptions = {}): DetectionResult => {
@@ -685,6 +711,27 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     // every comparison with the last trusted pose, is a vote for a whole-fret shift (or for none).
     tracked++;
     settled++;
+    const jumped = continues && !coasted ? jumpOf(previousPose, pose) : false;
+    if (jumped) {
+      stats.jump = 1;
+      // A cut or a knock: the trackers followed the last pose onto whatever wires are near it now,
+      // with the old perspective and the old numbers. Look at the whole frame again, as on a first
+      // detection (numbers read off this frame alone), and keep the tracked pose only when that
+      // finds nothing better backed.
+      const fresh = detect(frame, { ...input, previousPose: undefined });
+      const freshStats = fresh.diagnostics.stats ?? {};
+      if (fresh.pose && (freshStats.evidence ?? -Infinity) >= best.evidence) {
+        timings.redetect = fresh.diagnostics.timings.total;
+        timings.total = performance.now() - t0;
+        return { pose: fresh.pose, diagnostics: { ...fresh.diagnostics, timings: { ...fresh.diagnostics.timings, ...timings }, stats: { ...freshStats, jump: 1, redetected: 1 } } };
+      }
+      // Kept: the numbers came across the jump by nearness alone, a guess until the image says
+      // otherwise. From here on this is a new track, so the trusted pose from before it has a say too.
+      pose = { ...pose, numbering: pose.numbering === 'assumed' ? 'assumed' : 'tracked', numberingConfidence: Math.min(pose.numberingConfidence, JUMP_GUESS) };
+      votes.clear();
+      settled = 0;
+      trackStart = now;
+    }
     const sure = pose.numberingConfidence;
     if (sure < 0.99 && !coasted) {
       t1 = performance.now();
@@ -806,6 +853,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
       flowFrom = null;
       coasting = 0;
       trackStart = 0;
+      motion = 0;
     },
   };
 }

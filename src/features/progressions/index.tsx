@@ -4,7 +4,9 @@
  *   #progressions                         browse by style and level, search; cards play a preview
  *   #progressions--<id>[--<key>]          one progression: key picker (capo when awkward), chart,
  *                                         shapes chosen to keep changes small, why it works, try this
- *   #progressions--<id>[--<key>]--jam     jam with the band: big now/next chords, the neck, a scale
+ *   #progressions--<id>[--<key>]--jam     jam with the band: big now/next chords, the neck, a scale;
+ *       [--t96][--waltz][--x2][--hide-chart]   set up by the address: tempo, style, times through,
+ *                                         chord names hidden until revealed (see API.md)
  *   #progressions--builder                build your own (draft kept on the device), save, transpose
  *   #progressions--builder--jam           jam over the draft
  *   #progressions--builder--<my-id>       open a saved progression in the builder
@@ -14,12 +16,12 @@
  * `audio/preview.ts` strums previews; `ui/useBand.ts` drives the `BackingBand`; `ui/` draws it with
  * the kit. Browser check: `node e2e/progressions.cjs`.
  */
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { redirect } from '@/app/router';
 import type { RouteProps } from '@/app/routes';
 import { progressionSkillId, type Progression } from '@/content/progressions';
 import { toast, useLocalState } from '@/ui';
-import { parseAddress, progressionParams } from './model/address';
+import { parseAddress, progressionParams, type JamOptions } from './model/address';
 import { STARTER_DRAFT, draftProgression, draftTitle, sanitizeDraft, setKey, type BuilderDraft } from './model/builder';
 import { feelFor } from './model/jam';
 import { defaultTonic, tonicFromParam } from './model/keys';
@@ -55,12 +57,15 @@ function PageRoute({ progression, tonic: fromAddress }: { progression: Progressi
   return <ProgressionPage progression={progression} tonic={tonic} />;
 }
 
-function JamRoute({ progression: p, tonic: fromAddress }: { progression: Progression; tonic: string | null }) {
+function JamRoute({ progression: p, tonic: fromAddress, options }: { progression: Progression; tonic: string | null; options: JamOptions }) {
   const [tonic, remember, remembered] = useTonic(p, fromAddress);
+  // A new key keeps the rest of the address (it was applied already; a reload finds it the same).
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
   const onTonic = useCallback(
     (t: string) => {
       remember({ tonic: t });
-      redirect('progressions', ...progressionParams(p.id, t, true));
+      redirect('progressions', ...progressionParams(p.id, t, true, optionsRef.current));
     },
     [p.id, remember],
   );
@@ -75,6 +80,7 @@ function JamRoute({ progression: p, tonic: fromAddress }: { progression: Progres
       activityParams={progressionParams(p.id, tonic, true)}
       remembered={remembered}
       remember={remember}
+      address={options}
     />
   );
 }
@@ -138,7 +144,7 @@ export default function Progressions({ params }: RouteProps) {
     case 'page':
       return <PageRoute key={address.progression.id} progression={address.progression} tonic={address.tonic} />;
     case 'jam':
-      return <JamRoute key={address.progression.id} progression={address.progression} tonic={address.tonic} />;
+      return <JamRoute key={address.progression.id} progression={address.progression} tonic={address.tonic} options={address.options} />;
     case 'builder':
       return <Builder draft={draft} setDraft={setDraft} />;
     case 'builder-jam':

@@ -7,7 +7,7 @@
  * tests run them over thousands of generated exercises.
  */
 import { midiAt, tuning as resolveTuning } from '@/core/guitar';
-import { getKey, getScale, isDegree, parseChord, parseInterval, parseNote, staffPosition } from '@/core/theory';
+import { getKey, getScale, isDegree, midiToNote, parseChord, parseInterval, parseNote, staffPosition } from '@/core/theory';
 import { checkText, compareNoteNames, normalizeNote, specProblems } from './answers';
 import { figureProblems, positionProblem, voicingFor } from './figures';
 import { getGenerator, generatorProblems, isGenerated } from './generators';
@@ -225,6 +225,48 @@ function checkKey(c: Collector, key: string | undefined): void {
   if (key !== undefined && !getKey(key)) c.error('exercise.shape', `"${key}" is not a key. Write it like "G major" or "E minor".`);
 }
 
+/** The display options of play-note and play-phrase: `labels`, `hideNames`, `staffOnly`. */
+function checkPlayDisplay(c: Collector, exercise: { labels?: unknown; hideNames?: unknown; staffOnly?: unknown }, midis: readonly number[]): void {
+  if (exercise.labels !== undefined && exercise.labels !== 'note' && exercise.labels !== 'place') c.error('exercise.shape', '"labels" must be \'note\' (E2) or \'place\' (string 6, open).');
+  for (const flag of ['hideNames', 'staffOnly'] as const) {
+    if (exercise[flag] !== undefined && typeof exercise[flag] !== 'boolean') c.error('exercise.shape', `"${flag}" must be true or false.`);
+  }
+  if (exercise.staffOnly === true) {
+    const far = midis.find((m) => Math.abs(staffPosition(midiToNote(m), {}).ledgerLines) > 4);
+    if (far !== undefined) c.error('exercise.shape', `staffOnly draws the notes on the staff, but ${midiToNote(far)} needs more than four ledger lines. Keep to E2–E6 (sounding), or show the neck.`);
+    if (exercise.labels === 'place') c.warn('exercise.shape', 'staffOnly shows no neck and no names, so labels: \'place\' has nothing to label. Remove one of them.');
+  }
+}
+
+/**
+ * Options that give the answer away: when the options are pictures, the right one must not be the
+ * only one whose caption (or text) repeats a symbol the prompt asks about ("Which box is {c:G}?"
+ * with "{c:G}" under the right box).
+ */
+function checkGiveaway(c: Collector, prompt: RichText | undefined, options: readonly ChoiceOption[]): void {
+  if (prompt === undefined || !Array.isArray(options) || !options.some((o) => o.figure)) return;
+  const symbols = (text: RichText | undefined): Set<string> => {
+    const out = new Set<string>();
+    if (text === undefined) return out;
+    for (const t of tokenize(text, { glossary: c.ctx.glossary })) {
+      if (t.type === 'note' || t.type === 'chord' || t.type === 'interval' || t.type === 'degree' || t.type === 'roman' || t.type === 'key') out.add(`${t.type}:${t.value}`);
+    }
+    return out;
+  };
+  const asked = symbols(prompt);
+  if (asked.size === 0) return;
+  const shown = options.map((o) => {
+    const set = symbols(o.text);
+    const caption = o.figure && 'caption' in o.figure ? o.figure.caption : undefined;
+    for (const s of symbols(caption)) set.add(s);
+    return [...set].some((s) => asked.has(s));
+  });
+  const right = options.map((o, i) => (o.correct ? i : -1)).filter((i) => i >= 0);
+  if (right.length > 0 && right.every((i) => shown[i]) && shown.filter(Boolean).length === right.length) {
+    c.warn('exercise.giveaway', 'The right option is the only one whose words repeat what the prompt asks for, so it can be picked without looking at the pictures. Take the name out of its caption or text (chord boxes in options are drawn without their names).');
+  }
+}
+
 function checkPolicy(c: Collector, value: unknown, field: string, meaning: string): boolean {
   if (value === 'exact' || value === 'any') return true;
   c.error('exercise.policy', `"${field}" is missing. State it for this exercise: ${meaning}`);
@@ -253,6 +295,7 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
   switch (exercise.type) {
     case 'choice':
       checkOptions(c, exercise.options, exercise.multiple === true, exercise.spelling === 'exact', false);
+      checkGiveaway(c, exercise.prompt, exercise.options);
       break;
     case 'listen-choice':
       if (!exercise.sound) c.error('exercise.shape', 'A listen-choice exercise needs a "sound".');
@@ -334,6 +377,7 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
         break;
       }
       if (!['notation', 'audio', 'both'].includes(exercise.show)) c.error('exercise.shape', '"show" must be \'notation\', \'audio\' or \'both\'.');
+      if (exercise.counting !== undefined && typeof exercise.counting !== 'boolean') c.error('exercise.shape', '"counting" must be true or false.');
       if (exercise.start === 'first-tap' && !parsed.events[0]?.attack) c.error('exercise.ungradable', 'With start: \'first-tap\' the rhythm must begin with a note, because the first tap is taken as beat one. Start with a note or use the count-in.');
       const times = tapTargets(exercise);
       for (let i = 1; i < times.length; i++) {
@@ -346,6 +390,7 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
     }
     case 'fretboard-find': {
       if (!checkTuning(c, exercise)) break;
+      checkKey(c, exercise.key);
       const okOctave = checkPolicy(c, exercise.octave, 'octave', "'exact' when only that very pitch counts, 'any' when any octave of the note does.");
       if (exercise.mode !== 'one' && exercise.mode !== 'all') c.error('exercise.shape', '"mode" must be \'one\' (tap one right place) or \'all\' (tap every right place).');
       const frets = exercise.frets;
@@ -486,16 +531,28 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
           if (bad) c.error('figure.invalid', `"where": ${bad}.`);
           else if (midiAt(exercise.where) !== n.midi) c.error('figure.invalid', `"where" (string ${exercise.where.string}, fret ${exercise.where.fret}) does not sound ${exercise.note}. Fix the position or the note.`);
         }
+        if (exercise.labels === 'place' && !exercise.where && !exercise.staffOnly) c.error('exercise.shape', 'labels: \'place\' names the target by string and fret, so the exercise needs "where".');
+        checkPlayDisplay(c, exercise, [n.midi]);
       }
+      checkKey(c, exercise.key);
       checkPolicy(c, exercise.octave, 'octave', "'exact' when that very pitch must be played, 'any' when any octave of the note is fine.");
       break;
     }
-    case 'play-chord':
-      if (!parseChord(exercise.chord)) c.error('exercise.shape', `"chord" is "${exercise.chord}", which is not a chord symbol.`);
-      else if (!voicingFor(exercise.chord, exercise.frets)) {
-        c.error('figure.invalid', exercise.frets !== undefined ? `The shape ${JSON.stringify(exercise.frets)} is not a voicing of ${exercise.chord}.` : `The chord library has no shape for ${exercise.chord}; give one with "frets".`);
+    case 'play-chord': {
+      if (!checkTuning(c, exercise)) break;
+      if (exercise.hideDiagram !== undefined && typeof exercise.hideDiagram !== 'boolean') c.error('exercise.shape', '"hideDiagram" must be true or false.');
+      if (!parseChord(exercise.chord)) {
+        c.error('exercise.shape', `"chord" is "${exercise.chord}", which is not a chord symbol.`);
+        break;
+      }
+      const shape = voicingFor(exercise.chord, exercise.frets, { tuning: exercise.tuning, capo: exercise.capo });
+      if (!shape) {
+        c.error('figure.invalid', exercise.frets !== undefined ? `The shape ${JSON.stringify(exercise.frets)} is not a voicing of ${exercise.chord}${exercise.capo ? ` with a capo at fret ${exercise.capo} (frets count from the capo; the chord names what sounds)` : ''}.` : `The chord library has no shape for ${exercise.chord}; give one with "frets".`);
+      } else if (exercise.fingers !== undefined && !voicingFor(exercise.chord, shape.frets, { tuning: exercise.tuning, capo: exercise.capo, fingers: exercise.fingers })) {
+        c.error('figure.invalid', `The fingers "${exercise.fingers}" do not fit the shape ${shape.frets.map((f) => (f === null ? 'x' : f)).join('')}: give one finger (1–4, 0 open, x muted) per string, low to high, that a hand can hold.`);
       }
       break;
+    }
     case 'play-phrase': {
       if (!checkTuning(c, exercise)) break;
       const notes = Array.isArray(exercise.notes) ? exercise.notes : [];
@@ -503,6 +560,8 @@ function checkExerciseBody(c: Collector, exercise: Exercise): void {
       c.count(phraseMidi({ ...exercise, notes }).length, 'phraseNotes', 'notes in the phrase');
       checkPolicy(c, exercise.octave, 'octave', "'exact' when the phrase must be played at pitch, 'any' when the note names are enough.");
       if (exercise.pass !== undefined && !(exercise.pass > 0 && exercise.pass <= 1)) c.error('exercise.shape', '"pass" must be a share between 0 and 1, such as 0.8.');
+      checkKey(c, exercise.key);
+      checkPlayDisplay(c, exercise, phraseMidi({ ...exercise, notes }));
       break;
     }
     case 'flashcard':

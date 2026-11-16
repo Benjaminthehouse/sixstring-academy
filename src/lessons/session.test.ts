@@ -163,7 +163,9 @@ describe('wrong answers come back', () => {
       if (currentStep(d.state)?.kind === 'exercise') d.answer(false);
       d.next();
     }
-    expect(d.state.outcome).toBe('completed');
+    // Every answer wrong: the end is reached, but below the pass mark it counts as practice.
+    expect(d.state.outcome).toBe('failed');
+    expect(d.state.summary).toMatchObject({ next: 'retry', score: 0, xp: 0 });
     expect(d.state.stats.requeued).toBeLessThanOrEqual(MAX_REQUEUES);
     expect(d.state.stats.requeued).toBe(Math.min(MAX_REQUEUES, 5 * MAX_RETRIES));
     expect(d.state.summary).toMatchObject({ accuracy: 0, firstTry: 0, exercises: 5 });

@@ -5,69 +5,182 @@
  */
 import { chordVoicings, midiAt, positionsForMidi, positionsForPitchClass, spellMidi, tuning as resolveTuning } from '@/core/guitar';
 import {
-  chordNotes, chordPcs, distractorNotes, getScale, interval, intervalName, parseChord, parseNote, scaleNotes,
+  chordNotes, chordPcs, distractorIntervals, distractorNotes, getScale, interval, intervalName, intervalToDegree, parseChord, parseInterval, parseNote, scaleNotes,
   scalePcs, semitonesToDegree, semitonesToInterval,
 } from '@/core/theory';
 import { spellInterval } from '../grade';
+import { COUNT_LIMITS, MAX_FRET } from '../limits';
+import type { Rng } from '../rng';
 import type {
   ChordBuildExercise, Exercise, FretboardFindExercise, FretboardNameExercise, NeckPosition, OrderExercise, PlayNoteExercise, TypeAnswerExercise,
 } from '../types';
-import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, noteList, ordinal, pool, retry, scaleTitle } from './core';
+import { article, cap, checkParams, choiceOf, count, defineGenerator, distinct, intervalDistractors, noteList, ordinal, pool, respell, retry, scaleTitle } from './core';
 
 const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
 const INTERVALS_EASY_FIRST = ['P5', 'P4', 'M3', 'm3', 'P8', 'M2', 'm2', 'M6', 'm6', 'm7', 'M7', 'A4'];
 
-// Going up a string, notes are named with sharps throughout (E F F# G G# A), never a mix of sharps and flats.
-const noteAtPos = (pos: NeckPosition, tuning?: string): string => spellMidi(midiAt(pos, { tuning }), { prefer: 'sharps' }, { octave: false });
+// Going up a string, notes are named with sharps throughout (E F F# G G# A), never a mix of sharps and flats
+// (or with flats throughout when a drill asks for them).
+const noteAtPos = (pos: NeckPosition, tuning?: string, prefer: 'sharps' | 'flats' = 'sharps'): string => spellMidi(midiAt(pos, { tuning }), { prefer }, { octave: false });
 const where = (pos: NeckPosition): string => (pos.fret === 0 ? `open string ${pos.string}` : `string ${pos.string}, fret ${pos.fret}`);
 
 function validStrings(strings: readonly number[] | undefined): boolean {
   return strings === undefined || (Array.isArray(strings) && strings.length > 0 && strings.every((s) => Number.isInteger(s) && s >= 1 && s <= 6));
 }
 
+/** How far from the root, in frets, a note still sits in the same hand position (and so belongs on the picture). */
+const REACH = 4;
+
+/** The degree label of an interval for a degree question: 1–7 for simple ones, 9 11 13 (♭9 ♯9 ♯11 ♭13) for compound ones; null otherwise. */
+function degreeOfInterval(name: string): string | null {
+  const ivl = parseInterval(name);
+  if (!ivl) return null;
+  if (ivl.semitones <= 12) return semitonesToDegree(ivl.semitones % 12);
+  const degree = intervalToDegree(ivl.name);
+  return /^[b#]?(9|11|13)$/.test(degree) ? degree : null;
+}
+
+const COMPOUND_DEGREES = ['b9', '9', '#9', '11', '#11', 'b13', '13'];
+const COMPOUND_FALLBACK = ['m9', 'M9', 'm10', 'M10', 'P11', 'P12', 'm13', 'M13', 'P8', 'M7'];
+
+/** A root and an interval placed on the neck: its answers, and the picture that shows them. */
+interface Placement {
+  ivl: string;
+  root: NeckPosition;
+  /** Answers inside the root's own fret range (what `name` and `degree` questions point at). */
+  targets: NeckPosition[];
+  /** Answers within a hand's reach of the root: the shapes a learner is taught. */
+  near: NeckPosition[];
+  /** Frets the picture shows: the root's range widened to hold `near`; null when that does not fit a phone. */
+  picture: [number, number] | null;
+}
+
+function place(ivl: string, root: NeckPosition, lo: number, hi: number): Placement {
+  const midi = midiAt(root) + interval(ivl).semitones;
+  const notRoot = (t: NeckPosition): boolean => !(t.string === root.string && t.fret === root.fret);
+  const targets = positionsForMidi(midi, { minFret: lo, maxFret: hi }).filter(notRoot);
+  const everywhere = positionsForMidi(midi, { minFret: 0, maxFret: MAX_FRET }).filter(notRoot);
+  let near = everywhere.filter((t) => Math.abs(t.fret - root.fret) <= REACH);
+  // On the thinnest strings the only place may be further along the same string: show the nearest.
+  if (near.length === 0 && everywhere.length > 0) {
+    const gap = Math.min(...everywhere.map((t) => Math.abs(t.fret - root.fret)));
+    near = everywhere.filter((t) => Math.abs(t.fret - root.fret) === gap);
+  }
+  const frets = [lo, hi, ...near.map((t) => t.fret)];
+  const picture: [number, number] = [Math.min(...frets), Math.max(...frets)];
+  const fits = near.length > 0 && picture[1] - picture[0] + 1 <= COUNT_LIMITS.fretSpan[1];
+  return { ivl, root, targets, near, picture: fits ? picture : null };
+}
+
+/** Whether a placement can make a question of this kind. */
+function usable(c: Placement, ask: 'find' | 'name' | 'degree'): boolean {
+  const compound = interval(c.ivl).semitones > 12;
+  // Simple intervals named on the neck keep the original rule (a second dot inside the root's range).
+  if (!compound && ask !== 'find') return c.targets.length > 0;
+  if (ask === 'degree' && degreeOfInterval(c.ivl) === null) return false;
+  return c.picture !== null;
+}
+
+/** Every root position of the params, in a fixed order. */
+function roots(strings: readonly number[], lo: number, hi: number): NeckPosition[] {
+  return strings.flatMap((string) => Array.from({ length: hi - lo + 1 }, (_u, i) => ({ string, fret: lo + i })));
+}
+
+/** Wrong interval names for a compound answer: its simple twin (M2 for M9) first, then nearby sizes. */
+function compoundDistractors(rng: Rng, answer: string, poolList: readonly string[]): string[] {
+  const ivl = interval(answer);
+  const candidates = [ivl.simple, ...distractorIntervals(answer, { count: 6 }), ...rng.shuffle(poolList), ...COMPOUND_FALLBACK];
+  return distinct(candidates.filter((i) => (parseInterval(i)?.semitones ?? 0) >= 1 && (parseInterval(i)?.direction ?? 0) > 0), (i) => interval(i).semitones, 3, [ivl.semitones]);
+}
+
 export const intervalOnNeck = defineGenerator({
   kind: 'interval-on-neck',
-  summary: 'A root is shown on the fretboard: find the note an interval above it, or name the interval or degree of a second dot.',
-  produces: ['fretboard-find', 'fretboard-name'],
+  summary: 'A root is shown on the fretboard: find the note an interval above it, or name the interval or degree of a second dot. Compound intervals (9ths to 13ths) are named from a picture.',
+  produces: ['fretboard-find', 'fretboard-name', 'choice'],
   params: [
-    { name: 'intervals', type: 'string[]', default: 'P5 P4 M3 m3 P8 M2 m2 M6 m6 m7 M7 A4', description: 'Interval pool, easiest first.' },
-    { name: 'ask', type: "'find' | 'name' | 'degree'", default: "'find'", description: 'Tap the note; name the interval; or name the scale degree.' },
+    { name: 'intervals', type: 'string[]', default: 'P5 P4 M3 m3 P8 M2 m2 M6 m6 m7 M7 A4', description: 'Interval pool, easiest first. Compound intervals (M9, M10, P11, M13 ... up to P15) are allowed where the neck fits them.' },
+    { name: 'ask', type: "'find' | 'name' | 'degree'", default: "'find'", description: 'Tap the note; name the interval; or name the scale degree (9, 11, 13 for compound intervals).' },
     { name: 'strings', type: 'number[]', default: '[6, 5]', description: 'Strings the root may be on.' },
-    { name: 'frets', type: '[number, number]', default: '[0, 7]', description: 'Fret range used, inclusive (at least 4 frets wide).' },
+    { name: 'frets', type: '[number, number]', default: '[0, 7]', description: 'Frets the root may be on, inclusive (at least 4 frets wide). The picture widens so every answer near the root is on it.' },
   ],
-  check: (p) =>
-    checkParams()
-      .intervals('intervals', p.intervals)
+  check: (p) => {
+    const check = checkParams()
+      .intervals('intervals', p.intervals, 1, true)
       .oneOf('ask', p.ask, ['find', 'name', 'degree'])
       .need(validStrings(p.strings), '"strings" must be a list of string numbers from 1 to 6, like [6, 5].')
-      .span('frets', p.frets, 0, 15, 3).problems,
+      .span('frets', p.frets, 0, 15, 3);
+    if (check.problems.length > 0) return check.problems;
+    const ask = p.ask ?? 'find';
+    const [lo, hi] = p.frets ?? [0, 7];
+    const all = roots(p.strings ?? [6, 5], lo, hi);
+    for (const ivl of p.intervals ?? []) {
+      if (interval(ivl).semitones <= 12) continue;
+      if (ask === 'degree' && degreeOfInterval(ivl) === null) {
+        check.need(false, `"${ivl}" has no degree name (degrees above the octave are 9, 11 and 13 with ♭ or ♯). Use ask: 'name' for it, or take it out.`);
+      } else if (!all.some((root) => usable(place(ivl, root, lo, hi), ask))) {
+        check.need(false, `"${ivl}" does not fit: from no root on strings ${(p.strings ?? [6, 5]).join(', ')} between frets ${lo} and ${hi} is it on the neck near enough to show. Use lower strings for the root or a lower interval.`);
+      }
+    }
+    return check.problems;
+  },
   make(p, { rng, difficulty }) {
     const intervals = pool(p.intervals ?? INTERVALS_EASY_FIRST, difficulty);
     const strings = p.strings ?? [6, 5];
     const [lo, hi] = p.frets ?? [0, 7];
-    const range = { minFret: lo, maxFret: hi };
-    const candidate = (ivl: string, root: NeckPosition): { ivl: string; root: NeckPosition; targets: NeckPosition[] } => ({
-      ivl,
-      root,
-      targets: positionsForMidi(midiAt(root) + interval(ivl).semitones, range).filter((t) => !(t.string === root.string && t.fret === root.fret)),
-    });
+    const ask = p.ask ?? 'find';
     const pick = retry(
       40,
-      () => candidate(rng.pick(intervals), { string: rng.pick(strings), fret: rng.range(lo, hi) }),
-      (c) => c.targets.length > 0,
-      // A fifth above the low string's lowest fret is always two frets up on the next string.
-      () => candidate('P5', { string: 6, fret: lo }),
+      () => place(rng.pick(intervals), { string: rng.pick(strings), fret: rng.range(lo, hi) }, lo, hi),
+      (c) => usable(c, ask),
+      // Out of luck: the first placement that works, or a fifth above the low string's lowest fret.
+      () => intervals.flatMap((ivl) => roots(strings, lo, hi).map((root) => place(ivl, root, lo, hi))).find((c) => usable(c, ask)) ?? place('P5', { string: 6, fret: lo }, lo, hi),
     );
     const ivl = interval(pick.ivl);
     const name = intervalName(ivl.name);
+    const compound = ivl.semitones > 12;
     // The same spelling the grader's feedback uses, so prompt and answer agree.
     const { root: rootNote, target: targetNote } = spellInterval(midiAt(pick.root), ivl.name);
     const shown = [{ ...pick.root, role: 'root' as const, label: 'R' }];
-    const fact = `${cap(article(name))} ${name} above {n:${rootNote}} is {n:${targetNote}}: ${count(ivl.semitones, 'half step')} (${count(ivl.semitones, 'fret')} on one string) higher.`;
-    if (p.ask === 'name' || p.ask === 'degree') {
+    const size = compound
+      ? `${count(ivl.semitones, 'half step')}, an octave plus ${article(intervalName(ivl.simple))} ${intervalName(ivl.simple)}`
+      : `${count(ivl.semitones, 'half step')} (${count(ivl.semitones, 'fret')} on one string)`;
+    const fact = `${cap(article(name))} ${name} above {n:${rootNote}} is {n:${targetNote}}: ${size} higher.`;
+    if ((ask === 'name' || ask === 'degree') && compound) {
+      // The lesson engine names positions up to an octave apart, so a compound interval is asked
+      // as a choice beside a picture of both dots (the second one in the root's hand position).
+      const position = rng.pick(pick.near);
+      const figure = {
+        kind: 'fretboard' as const,
+        frets: pick.picture!,
+        labels: 'none' as const,
+        dots: [{ ...pick.root, role: 'root' as const, label: 'R' }, { ...position, role: 'target' as const, label: '?' }],
+      };
+      if (ask === 'degree') {
+        const degree = degreeOfInterval(ivl.name)!;
+        const wrong = distinct(
+          [...COMPOUND_DEGREES].sort((a, b) => Math.abs(COMPOUND_DEGREES.indexOf(a) - COMPOUND_DEGREES.indexOf(degree)) - Math.abs(COMPOUND_DEGREES.indexOf(b) - COMPOUND_DEGREES.indexOf(degree))),
+          (d) => d,
+          3,
+          [degree],
+        );
+        return choiceOf(
+          rng,
+          { prompt: `The root (R) is {n:${rootNote}}. Which degree is the other dot (?), counted above the octave?`, explain: `${fact} Above the octave, that note is the {d:${degree}}.`, figure },
+          `{d:${degree}}`,
+          wrong.map((d) => `{d:${d}}`),
+        );
+      }
+      return choiceOf(
+        rng,
+        { prompt: `The root (R) is {n:${rootNote}}. What interval is the other dot (?) above it?`, explain: fact, figure },
+        cap(name),
+        compoundDistractors(rng, ivl.name, p.intervals ?? INTERVALS_EASY_FIRST).map((i) => cap(intervalName(i))),
+      );
+    }
+    if (ask === 'name' || ask === 'degree') {
       const position = rng.pick(pick.targets);
       const base: Omit<FretboardNameExercise, 'ask' | 'options' | 'prompt' | 'explain'> = { type: 'fretboard-name', position, root: pick.root, spelling: 'any' };
-      if (p.ask === 'degree') {
+      if (ask === 'degree') {
         const degree = semitonesToDegree(ivl.semitones % 12);
         const others = [1, -1, 2, -2, 3, -3].map((d) => semitonesToDegree((((ivl.semitones + d) % 12) + 12) % 12));
         const out: FretboardNameExercise = {
@@ -95,7 +208,8 @@ export const intervalOnNeck = defineGenerator({
       find: { interval: ivl.name, from: pick.root },
       mode: 'one',
       octave: 'exact',
-      frets: [lo, hi],
+      // Every answer within the root's hand position is on the picture, not just those inside `frets`.
+      frets: pick.picture ?? [lo, hi],
       shown,
       prompt: `The dot (R) is {n:${rootNote}}. Tap the note ${article(name)} ${name} above it.`,
       explain: fact,
@@ -113,13 +227,15 @@ export const noteOnString = defineGenerator({
     { name: 'frets', type: '[number, number]', default: '[0, 5]', description: 'Fret range, inclusive.' },
     { name: 'naturals', type: 'boolean', default: 'false', description: 'Only ask about natural notes.' },
     { name: 'ask', type: "'name' | 'find' | 'fret'", default: "'name'", description: 'Name the shown position; tap the named note; or type its fret number.' },
+    { name: 'spelling', type: "'sharps' | 'flats' | 'both'", default: "'sharps'", description: 'Name the in-between notes with sharps, with flats, or either (each question picks one).' },
   ],
   check: (p) =>
     checkParams()
       .need(validStrings(p.strings), '"strings" must be a list of string numbers from 1 to 6, like [6, 5].')
       .span('frets', p.frets, 0, 15, 2)
       .bool('naturals', p.naturals)
-      .oneOf('ask', p.ask, ['name', 'find', 'fret']).problems,
+      .oneOf('ask', p.ask, ['name', 'find', 'fret'])
+      .oneOf('spelling', p.spelling, ['sharps', 'flats', 'both']).problems,
   make(p, { rng }) {
     const strings = p.strings ?? [6];
     const [lo, hi] = p.frets ?? [0, 5];
@@ -130,10 +246,11 @@ export const noteOnString = defineGenerator({
       // "Which fret is E?" on the E string has the dull answer zero.
       .filter((f) => ask !== 'fret' || f > 0 || hi === 0);
     const fret = rng.pick(frets.length ? frets : [lo]);
+    const prefer: 'sharps' | 'flats' = p.spelling === 'flats' ? 'flats' : p.spelling === 'both' ? (rng.chance() ? 'sharps' : 'flats') : 'sharps';
     const position = { string, fret };
-    const note = noteAtPos(position);
-    const open = noteAtPos({ string, fret: 0 });
-    const walk = Array.from({ length: fret + 1 }, (_u, f) => noteAtPos({ string, fret: f }));
+    const note = noteAtPos(position, undefined, prefer);
+    const open = noteAtPos({ string, fret: 0 }, undefined, prefer);
+    const walk = Array.from({ length: fret + 1 }, (_u, f) => noteAtPos({ string, fret: f }, undefined, prefer));
     const counted = fret === 0 ? `String ${string} played open is {n:${open}}.` : fret <= 5 ? `String ${string} is {n:${open}} when open, and each fret is a half step: ${noteList(walk, ', ')}.` : `String ${string} is {n:${open}} when open. Fret ${fret} is ${fret} half steps higher: {n:${note}}.`;
     if (ask === 'find') {
       const out: FretboardFindExercise = {
@@ -164,7 +281,8 @@ export const noteOnString = defineGenerator({
       position,
       ask: 'note',
       spelling: 'any',
-      options: rng.shuffle([note, ...distractorNotes(note, { count: 3 })]),
+      // Wrong options use the drill's names too: a sharps drill never shows a flat.
+      options: rng.shuffle([note, ...distractorNotes(note, { count: 3 }).map((n) => respell(n, prefer))]),
       prompt: `Which note is at ${where(position)}?`,
       explain: counted,
     };

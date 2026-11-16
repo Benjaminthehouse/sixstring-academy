@@ -24,6 +24,9 @@
  *              does too, and the A string (whose note lies nearer the low E) makes it ask which
  *              string it is instead of guessing
  *   guide      the first-time flow: Start leads through all six strings to the summary
+ *   address    `#tuner--dadgad` makes DADGAD the learner's tuning, `#tuner--standard--capo-2` sets
+ *              the capo; a guided run with strings skipped, or stopped part of the way, gets partial
+ *              credit in the progress log; the guided Stop is labelled on a phone and the bar fits
  *   byear      the microphone refused (declined, and inside the Claude viewer): no dead end, the
  *              reference notes really sound at the right pitch, the by-ear flow reaches its summary
  *   controls   keyboard shortcuts, lock and release, stop and start, tab hidden and back, leaving
@@ -401,6 +404,69 @@ async function guide() {
     await page.waitForSelector('[data-tuner-summary]', { state: 'detached', timeout: 5000 });
     check('after the summary the tuner carries on in automatic mode', (await lib.readout(page)).mode === 'auto');
     noErrors(errors);
+  });
+}
+
+/** The tuner entries of the progress log, newest first. */
+const tunerLog = (page) => page.evaluate(async () => (await import('/src/core/progress/index.ts')).getProgress().log.filter((e) => e.kind === 'tuner').map((e) => ({ title: e.title, sec: e.durationSec })));
+
+async function address() {
+  // A lesson's link opens the tuner on a tuning (it becomes the learner's tuning) and a capo.
+  await open({}, async ({ page, goto, errors }) => {
+    await goto('tuner', 'dadgad');
+    await page.waitForSelector('[data-tuner-layout][data-tuning="dadgad"]', { timeout: 20000 });
+    const pref = await page.evaluate(async () => (await import('/src/core/progress/index.ts')).getProgress().prefs.tuningId);
+    check('address: #tuner--dadgad tunes to DADGAD and makes it the learner’s tuning', pref === 'dadgad', pref);
+    check('address: a toast says which tuning', (await page.getByText('Tuning: DADGAD').count()) > 0);
+    await goto('tuner', 'standard', 'capo-2');
+    await page.waitForSelector('[data-tuner-layout][data-tuning="standard"][data-capo="2"]', { timeout: 20000 });
+    check('address: #tuner--standard--capo-2 sets the capo', (await page.locator('[data-tuner-capo="2"]').count()) === 1);
+    noErrors(errors, 'address: no console errors');
+  });
+
+  // Partial credit: a guided run with three strings tuned and three skipped counts for something.
+  const three = STRINGS.slice(0, 3).map((s) => ({ pluck: { midi: s.midi, cents: 0.5, dur: 1.5, damp: false }, gap: 0.5 }));
+  const recording = await lib.makeRecording('guide-partial', three, { lead: 3.5, tail: 4 });
+  await open({ recording, mobile: true, seed: { guideSeen: false } }, async ({ page, errors }) => {
+    await restart(page);
+    await attr(page, 'mode', 'guide');
+    await page.waitForSelector(`${lib.READOUT}[data-tuned="6,5,4"]`, { timeout: recording.seconds * 1000 + 8000 });
+    // The guided Stop says what it does on a phone, and the three buttons fit.
+    const bar = await page.evaluate(() => {
+      const stop = document.querySelector('[data-tuner-stop]');
+      const buttons = [...document.querySelectorAll('[data-tuner-stop], [data-tuner-skip], [data-tuner-reference]')].filter((b) => b.offsetParent);
+      return {
+        stop: stop.textContent.trim(),
+        cut: buttons.filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent.trim()),
+        outside: buttons.filter((b) => b.getBoundingClientRect().right > document.documentElement.clientWidth + 1).map((b) => b.textContent.trim()),
+      };
+    });
+    check('guided: Stop is labelled on a phone', bar.stop === 'Stop', JSON.stringify(bar));
+    check('guided: Stop, Skip and Hear fit at 390 px', bar.cut.length === 0 && bar.outside.length === 0, JSON.stringify(bar));
+    check('nothing recorded while the run is going', (await tunerLog(page)).length === 0);
+    for (let i = 0; i < 3; i++) {
+      await page.click('[data-tuner-skip]');
+      await sleep(250);
+    }
+    await page.waitForSelector('[data-tuner-summary="partial"]', { timeout: 8000 });
+    const log = await tunerLog(page);
+    check('a guided run with strings skipped gets partial credit', log.length === 1 && log[0].title === 'Tuned 3 of 6 strings (Standard)', JSON.stringify(log));
+    check('the summary shows what it earned', (await page.locator('[data-tuner-summary] [data-xp], [data-tuner-summary] p').filter({ hasText: /XP|already yours/ }).count()) > 0);
+    noErrors(errors, 'partial (skipped): no console errors');
+  });
+
+  // Stopping part of the way through a guided run also counts the strings tuned.
+  const two = STRINGS.slice(0, 2).map((s) => ({ pluck: { midi: s.midi, cents: -0.5, dur: 1.5, damp: false }, gap: 0.5 }));
+  const shortRec = await lib.makeRecording('guide-stop', two, { lead: 3.5, tail: 3 });
+  await open({ recording: shortRec, mobile: true, seed: { guideSeen: false } }, async ({ page, errors }) => {
+    await restart(page);
+    await attr(page, 'mode', 'guide');
+    await page.waitForSelector(`${lib.READOUT}[data-tuned="6,5"]`, { timeout: shortRec.seconds * 1000 + 8000 });
+    await page.click('[data-tuner-stop]');
+    await state(page, 'idle');
+    const log = await tunerLog(page);
+    check('stopping a guided run part of the way gets partial credit', log.length === 1 && log[0].title === 'Tuned 2 of 6 strings (Standard)', JSON.stringify(log));
+    noErrors(errors, 'partial (stopped): no console errors');
   });
 }
 
@@ -943,7 +1009,7 @@ async function review() {
   }
 }
 
-const GROUPS = { standard, tunings, chromatic, reference, capo, quiet, far, guide, byear: byEar, controls, autostart, picker, layout, review };
+const GROUPS = { standard, tunings, chromatic, reference, capo, quiet, far, guide, address, byear: byEar, controls, autostart, picker, layout, review };
 
 (async () => {
   let failedGroups = 0;

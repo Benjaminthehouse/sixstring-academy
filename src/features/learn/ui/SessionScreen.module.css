@@ -18,3 +18,38 @@
 .screen > [data-ui-action-bar] {
   margin-top: auto;
 }
+/* Wraps the lesson player without a box of its own: only there to watch its phase. */
+.run {
+  display: contents;
+}
+
+/* "This lesson is ahead of where you are": a slim note above the lesson, with the way back. */
+.ahead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  /* The lesson's own column: gutters on a phone, 44 rem centred on a wide screen. */
+  margin-block-start: var(--sp-3);
+  margin-inline: max(var(--gutter, 16px), calc((100% - 44rem) / 2));
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--info-soft);
+}
+.aheadIcon {
+  display: inline-flex;
+  flex: none;
+  color: var(--info-text);
+}
+.aheadText {
+  flex: 1 1 14rem;
+  min-width: 0;
+  color: var(--fg);
+}
+.aheadActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-left: auto;
+}

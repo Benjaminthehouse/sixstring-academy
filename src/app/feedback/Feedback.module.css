@@ -6,6 +6,18 @@
 .xpIcon svg {
   fill: color-mix(in srgb, currentColor 30%, transparent);
 }
+/*
+ * The toast's icon is sized in rem, not pixels, so it grows with the learner's text size like the
+ * words beside it (CSS sizes win over the SVG's width and height attributes).
+ */
+.toastIcon {
+  display: inline-flex;
+}
+.toastIcon svg,
+[data-toast-icon] > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
 
 /* ---------- The reward card: one headline, a line for each other piece of news ---------- */
 .cardDetail {
@@ -34,12 +46,18 @@
 .cardLine .xpIcon {
   color: var(--xp);
 }
+/* Line icons follow the text size too (they stayed 14 px at 200 % text). */
+.cardLine svg {
+  width: 1em;
+  height: 1em;
+}
+/*
+ * A line wraps at word boundaries and is never cut: at a large text size the card drops the details
+ * instead (`compactCard`), so no line ends in a clipped half-word ("3 achieveme…").
+ */
 .cardLineText {
   min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 .cardLineText strong {
   color: var(--fg);

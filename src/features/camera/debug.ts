@@ -3,7 +3,7 @@
  * module through the dev server, so it is the same instance the screen uses). Plain data and an
  * optional hook; nothing here runs unless a test installs the hook.
  */
-import type { VisionPipeline } from '@/core/vision';
+import type { CropRect, VisionPipeline } from '@/core/vision';
 
 /** One drawn dot, in CSS pixels of the stage. */
 export interface DebugMarker {
@@ -12,6 +12,8 @@ export interface DebugMarker {
   fret: number;
   x: number;
   y: number;
+  /** Radius of the dot on screen (CSS px). */
+  radius: number;
   ghost: boolean;
 }
 
@@ -19,8 +21,8 @@ export interface DebugMarker {
 export interface RenderInfo {
   timeMs: number;
   video: HTMLVideoElement;
-  /** The stage box and how the picture is fitted into it. */
-  view: { width: number; height: number; mirrored: boolean; fit: 'contain' };
+  /** The stage box and how the picture is fitted into it (`crop`: the part shown while zoomed in on the notes). */
+  view: { width: number; height: number; mirrored: boolean; fit: 'contain'; crop?: CropRect };
   videoWidth: number;
   videoHeight: number;
   state: string;
@@ -47,7 +49,9 @@ export interface CameraDebug {
   /** Times the camera was started and released. */
   starts: number;
   releases: number;
+  /** The part of the picture shown now while zoomed in on the notes (null: the whole picture), for taps in tests. */
+  crop: CropRect | null;
 }
 
 /** The record. */
-export const cameraDebug: CameraDebug = { frames: 0, hook: null, stream: null, pipeline: null, starts: 0, releases: 0 };
+export const cameraDebug: CameraDebug = { frames: 0, hook: null, stream: null, pipeline: null, starts: 0, releases: 0, crop: null };

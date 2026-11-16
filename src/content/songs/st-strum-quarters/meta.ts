@@ -8,7 +8,7 @@ export default defineSong({
   level: 1,
   style: 'folk',
   kind: 'study',
-  key: 'E minor',
+  key: 'E Dorian',
   teaches: ['Four even downstrums in every bar', 'A little extra weight on beat 1', 'Em and A, four bars each', 'Keeping the beat through a mistake'],
   skills: ['strumming', 'chords', 'rhythm'],
   tags: ['downstrums', 'quarter notes', 'steady beat', 'em', 'a chord'],

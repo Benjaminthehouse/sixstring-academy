@@ -10,7 +10,7 @@ export const ROUTE_KEYWORDS: Readonly<Record<string, string>> = {
   home: 'today plan daily streak goal quests continue start dashboard',
   study: 'learn theory teachers lessons courses study',
   studio: 'play practise practice songs games drills studio',
-  tools: 'tuner metronome camera scanner utilities',
+  tools: 'tuner metronome recorder camera scanner utilities',
   profile: 'me progress achievements preferences options theme dark light account stats shop gems level export import backup left handed',
   learn: 'theory lessons course notes intervals keys harmony reading quiz review cards flashcards bite sized',
   teachers: 'teacher mia brooks dev okafor elena varga course beginner intermediate expert advanced lessons guided',
@@ -27,6 +27,7 @@ export const ROUTE_KEYWORDS: Readonly<Record<string, string>> = {
   practice: 'routine session timer log plan schedule journal diary',
   tuner: 'tune tuning pitch strings drop d standard cents out of tune',
   metronome: 'click tempo bpm beat speed trainer tap',
+  record: 'record recording recorder yourself myself listen back playback take takes voice memo compare last week',
   camera: 'webcam live fretboard video overlay detect frets phone',
   scan: 'scanner import pdf photo picture sheet partitura partiture score musicxml guitar pro gp midi upload file printed',
 };

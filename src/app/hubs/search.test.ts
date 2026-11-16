@@ -44,6 +44,10 @@ describe('searchRoutes', () => {
     expect(find('glossary')[0]).toBe('reference');
     expect(find('mia')[0]).toBe('teachers');
     expect(find('achievements')[0]).toBe('profile');
+    expect(find('record')[0]).toBe('record');
+    expect(find('record myself')[0]).toBe('record');
+    expect(find('voice memo')).toEqual(['record']);
+    expect(find('listen back')[0]).toBe('record');
   });
 
   it('matches as the learner types', () => {

@@ -8,7 +8,7 @@ export default defineSong({
   level: 7,
   style: 'latin',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Dorian',
   teaches: ['A two-bar syncopated bossa-style pattern', 'Thumb on beats 1 and 3, fingers off the beat', 'Am7 and D7 in fifth position', 'Holding a groove without speeding up'],
   skills: ['fingerpicking', 'rhythm', 'chords'],
   tags: ['bossa', 'latin', 'brazilian', 'syncopation', 'seventh chords', 'a minor', 'dorian', 'thumb independence'],

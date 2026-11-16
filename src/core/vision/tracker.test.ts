@@ -180,6 +180,24 @@ describe('FretboardTracker state machine (scripted detector)', () => {
     expect(u.state).toBe('searching');
     expect(u.reason).toBe('detector-error');
   });
+
+  it("names the screen's calibration button in the coaching when told its label", () => {
+    // A plain grey room (a black frame would be coached as too dark first).
+    const grey: Frame = { data: new Uint8ClampedArray(W * H * 4).fill(128), width: W, height: H };
+    const plain = new FretboardTracker({ detector: fakeDetector(() => null), suggestCalibrationAfterMs: 100 });
+    const named = new FretboardTracker({ detector: fakeDetector(() => null), suggestCalibrationAfterMs: 100 });
+    named.setOptions({ calibrateLabel: 'Mark the neck' });
+    let a = plain.update(grey, 0);
+    let b = named.update(grey, 0);
+    for (let i = 1; i <= 6; i++) {
+      a = plain.update(grey, i * 33);
+      b = named.update(grey, i * 33);
+    }
+    expect(a.guidance.code).toBe('calibrate');
+    expect(a.guidance.message).not.toContain('Calibrate');
+    expect(b.guidance.code).toBe('calibrate');
+    expect(b.guidance.message).toContain('Tap Mark the neck');
+  });
 });
 
 describe('FretboardTracker on rendered scenes', () => {

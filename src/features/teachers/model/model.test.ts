@@ -3,7 +3,7 @@ import type { PracticeSession, SkillRecord } from '@/core/progress';
 import { OUTLINE, type CourseOutline } from '@/content/teachers';
 import { parseTeachersParams, teachersParams, type TeachersView } from './route';
 import { courseStanding, lessonsReady, recommendTeacher, type CourseStanding } from './standing';
-import { clearPendingTask, describeActivity, findTaskActivity, readPendingTask, savePendingTask, taskSkillId, PENDING_MAX_AGE_MS } from './tasks';
+import { clearPendingTask, describeActivity, findTaskActivity, isListenPlayAlong, playAlongLine, playAlongPractice, readPendingTask, savePendingTask, taskSkillId, PENDING_MAX_AGE_MS } from './tasks';
 
 const outline = (id: 'mia' | 'dev' | 'elena'): CourseOutline => OUTLINE.find((c) => c.id === id)!;
 
@@ -109,6 +109,20 @@ describe('tasks', () => {
     expect(taskSkillId({ tool: 'technique', params: ['tech-warm-up'] })).toBe('technique:tech-warm-up');
     expect(taskSkillId({ tool: 'technique', params: ['warm-up'] })).toBe('technique:tech-warm-up');
     expect(taskSkillId({ tool: 'tuner' })).toBeNull();
+    // A Theory Path lesson is recognised by its own skill id.
+    expect(taskSkillId({ tool: 'theory', params: ['the-six-strings', 'string-numbers'] })).toBe('theory:the-six-strings:string-numbers');
+    expect(taskSkillId({ tool: 'scan' })).toBeNull();
+  });
+
+  it('recognises a theory lesson, a scan and a recording done in their tools', () => {
+    const lesson = entry({ id: 'lesson', kind: 'theory-lesson', skillId: 'theory:the-six-strings:string-numbers', startedAt: 15_000 });
+    const otherLesson = entry({ id: 'other-lesson', kind: 'theory-lesson', skillId: 'theory:the-six-strings:string-names', startedAt: 16_000 });
+    const scan = entry({ id: 'scan', kind: 'scan', startedAt: 17_000 });
+    const take = entry({ id: 'take', kind: 'other', startedAt: 18_000 });
+    const log = [lesson, otherLesson, scan, take];
+    expect(findTaskActivity({ tool: 'theory', params: ['the-six-strings', 'string-numbers'] }, log, 12_000)?.id).toBe('lesson');
+    expect(findTaskActivity({ tool: 'scan' }, log, 12_000)?.id).toBe('scan');
+    expect(findTaskActivity({ tool: 'record', params: ['first-show'] }, log, 12_000)?.id).toBe('take');
   });
 
   it('finds the work done since the task was opened', () => {
@@ -137,6 +151,26 @@ describe('tasks', () => {
     expect(describeActivity(entry({ durationSec: 119.6 }))).toBe('2 min');
     expect(describeActivity(entry({ durationSec: 59.7 }))).toBe('1 min');
     expect(describeActivity(entry({ durationSec: 61.2 }))).toBe('1 min 1 s');
+  });
+
+  // Review bug: playing along in listen mode (a 4-bar loop, round and round) was never logged as
+  // practice: the Player logs a listen run only after 30 s in one go.
+  it('logs a play-along in listen mode the Player did not log', () => {
+    const along = { tool: 'player' as const, params: ['st-open-string-duet', 'm1-4'] };
+    expect(isListenPlayAlong(along)).toBe(true);
+    expect(isListenPlayAlong({ tool: 'player', params: ['hot-cross-buns', 'wait'] })).toBe(false);
+    expect(isListenPlayAlong({ tool: 'player', params: ['hot-cross-buns', 'm1-4', 't85', 'flow'] })).toBe(false);
+    expect(isListenPlayAlong({ tool: 'tuner' })).toBe(false);
+    const credit = playAlongPractice(along, { openedAt: 0, now: 3 * 60_000 + 10_000, minutes: 4, title: 'Open-String Duet', logged: null });
+    expect(credit).toEqual({ kind: 'song', id: 'song:st-open-string-duet', title: 'Open-String Duet', durationSec: 190, completed: false, route: 'play', params: ['st-open-string-duet'] });
+    expect(playAlongLine(credit)).toBe('Continue, and your 3 minutes of playing along count as practice.');
+    // Away for an hour: no more than the task's minutes and two more.
+    expect(playAlongPractice(along, { openedAt: 0, now: 3_600_000, minutes: 4, title: 'x', logged: null })?.durationSec).toBe(360);
+    // A glance, a tool that judged, or a run the Player logged itself: nothing added.
+    expect(playAlongPractice(along, { openedAt: 0, now: 10_000, minutes: 4, title: 'x', logged: null })).toBeNull();
+    expect(playAlongPractice({ tool: 'player', params: ['hot-cross-buns', 'wait'] }, { openedAt: 0, now: 300_000, minutes: 4, title: 'x', logged: null })).toBeNull();
+    expect(playAlongPractice(along, { openedAt: 0, now: 300_000, minutes: 4, title: 'x', logged: entry({}) })).toBeNull();
+    expect(playAlongLine(null)).toBeNull();
   });
 
   describe('the pending task', () => {

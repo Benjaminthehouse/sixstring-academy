@@ -214,6 +214,16 @@ export interface GuideInput {
   coasting: boolean;
   /** The strings in view do not match the neck model: how many there seem to be (null = no doubt). */
   stringsSeen: number | null;
+  /** The label of the screen's button for assisted calibration, named in the 'calibrate' message (none: the message names no button). */
+  calibrateLabel?: string;
+}
+
+/** The 'calibrate' line: names the screen's button when it has one (`calibrateLabel`), else no button at all. */
+export function calibrateMessage(label?: string): string {
+  const name = label?.trim();
+  return name
+    ? `Automatic tracking is struggling here. Tap ${name} and mark the nut and the 12th fret.`
+    : 'Automatic tracking is struggling here. Mark the neck by hand: show where the nut and the 12th fret are.';
 }
 
 const MESSAGES: Record<GuidanceCode, string> = {
@@ -227,7 +237,7 @@ const MESSAGES: Record<GuidanceCode, string> = {
   'show-nut': 'Show the nut, where the headstock starts, once so the frets can be numbered.',
   'confirm-fret': 'Is this the fret shown? Tap to confirm, or tap a fret you know.',
   'check-guitar-type': 'This neck seems to have a different number of strings. Pick your guitar type, or mark the neck by hand.',
-  calibrate: 'Automatic tracking is struggling here. Tap Calibrate and mark the nut and the 12th fret.',
+  calibrate: calibrateMessage(),
 };
 
 /** Too dark: the sensor noise of a gain-cranked camera, or a picture that is simply black. */
@@ -252,7 +262,7 @@ export function guide(input: GuideInput): TrackerGuidance {
     visibleFrets: view?.visibleFrets ?? 0,
     nutInView: view?.nutInView ?? false,
   };
-  const say = (code: GuidanceCode, trust: GuidanceTrust, message = MESSAGES[code]): TrackerGuidance => ({ code, trust, message, measures });
+  const say = (code: GuidanceCode, trust: GuidanceTrust, message = code === 'calibrate' ? calibrateMessage(input.calibrateLabel) : MESSAGES[code]): TrackerGuidance => ({ code, trust, message, measures });
   if (state === 'searching' || !view) {
     if (tooDark(frame)) return say('too-dark', input.suggestCalibration ? 'calibrate' : 'wait');
     if (frame.clipped > OPERATING_LIMITS.maxClipped) return say('too-bright', input.suggestCalibration ? 'calibrate' : 'wait');

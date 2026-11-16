@@ -19,15 +19,35 @@ export interface DisplayView {
   mirrored?: boolean;
   /** How the frame is fitted into width x height (default 'fill'). */
   fit?: 'fill' | 'contain' | 'cover';
+  /**
+   * Only this part of the frame is shown (fractions 0..1 of the frame, before mirroring), fitted
+   * into the box as `fit` says: a zoom (`neckCrop`, `CropFollower`). Absent: the whole frame.
+   */
+  crop?: CropRect;
+}
+
+/** A part of the frame as fractions of its width and height (0..1), before any mirroring. */
+export interface CropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** Scale and offset taking frame pixels to display pixels (before any mirroring). */
 export function displayTransform(view: DisplayView, frameWidth: number, frameHeight: number): { sx: number; sy: number; ox: number; oy: number } {
-  const fx = view.width / frameWidth;
-  const fy = view.height / frameHeight;
-  if (!view.fit || view.fit === 'fill' || !(frameWidth > 0 && frameHeight > 0)) return { sx: fx, sy: fy, ox: 0, oy: 0 };
+  const c = view.crop;
+  const cropped = !!c && c.width > 0 && c.height > 0 && frameWidth > 0 && frameHeight > 0;
+  // The shown part of the frame, in frame pixels.
+  const x0 = cropped ? c.x * frameWidth : 0;
+  const y0 = cropped ? c.y * frameHeight : 0;
+  const w = cropped ? c.width * frameWidth : frameWidth;
+  const h = cropped ? c.height * frameHeight : frameHeight;
+  const fx = view.width / w;
+  const fy = view.height / h;
+  if (!view.fit || view.fit === 'fill' || !(frameWidth > 0 && frameHeight > 0)) return { sx: fx, sy: fy, ox: -x0 * fx, oy: -y0 * fy };
   const s = view.fit === 'contain' ? Math.min(fx, fy) : Math.max(fx, fy);
-  return { sx: s, sy: s, ox: (view.width - frameWidth * s) / 2, oy: (view.height - frameHeight * s) / 2 };
+  return { sx: s, sy: s, ox: (view.width - w * s) / 2 - x0 * s, oy: (view.height - h * s) / 2 - y0 * s };
 }
 
 /** The pose moved onto the display canvas (scaled and fitted, and mirrored if the display is). */

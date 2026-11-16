@@ -83,15 +83,17 @@ export interface ChartProps {
   now?: ChartPos | null;
   /** Tap a chord: strum it (or whatever the screen wants). */
   onTap?: (chord: ResolvedChord, pos: ChartPos) => void;
-  /** Numerals on top (default) or chords only. */
+  /** Numerals on top (default) or chords only (also left out of what a screen reader says). */
   numerals?: boolean;
+  /** Chord names hidden ("?"), for working them out by ear; the bars and the lit bar stay. */
+  masked?: boolean;
   className?: string;
 }
 
 /** The chart, bar by bar, four bars a line, a section label on the line where it starts. */
-export function Chart({ lines, naming, now, onTap, numerals = true, className }: ChartProps) {
+export function Chart({ lines, naming, now, onTap, numerals = true, masked = false, className }: ChartProps) {
   return (
-    <div className={cx(styles.chart, className)} data-chart>
+    <div className={cx(styles.chart, className)} data-chart data-masked={masked ? 'true' : undefined}>
       {lines.map((line, li) => (
         <div key={li} className={styles.chartLine}>
           {line.label && <span className={styles.chartLabel}>{line.label}</span>}
@@ -108,11 +110,16 @@ export function Chart({ lines, naming, now, onTap, numerals = true, className }:
                       data-slot={`${bar.index}:${i}`}
                       data-now={lit ? 'true' : undefined}
                       aria-current={lit ? 'true' : undefined}
-                      aria-label={`Bar ${bar.index + 1}: ${chordName(c.symbol, naming)}, ${formatSlot(c.token)}${bar.chords.length > 1 ? `, ${c.beats} beats` : ''}`}
+                      aria-label={
+                        masked
+                          ? `Bar ${bar.index + 1}: chord hidden${bar.chords.length > 1 ? `, ${c.beats} beats` : ''}`
+                          : `Bar ${bar.index + 1}: ${chordName(c.symbol, naming)}${numerals ? `, ${formatSlot(c.token)}` : ''}${bar.chords.length > 1 ? `, ${c.beats} beats` : ''}`
+                      }
+                      disabled={masked && !onTap}
                       onClick={() => onTap?.(c, { bar: bar.index, index: i })}
                     >
-                      {numerals && <span className={styles.numeral}>{formatSlot(c.token)}</span>}
-                      <span className={styles.chordSym}>{chordName(c.symbol, naming)}</span>
+                      {numerals && !masked && <span className={styles.numeral}>{formatSlot(c.token)}</span>}
+                      <span className={styles.chordSym}>{masked ? '?' : chordName(c.symbol, naming)}</span>
                     </button>
                   );
                 })}

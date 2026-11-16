@@ -3,28 +3,32 @@
  * section or bar range out as a looping exercise, and slower practice versions. All return a new
  * song; the input is never changed.
  */
-import { getKey, transposeBySemitones, transposeChordBySemitones } from '@/core/theory';
+import { getKey, keyModeName, transposeBySemitones, transposeChordBySemitones } from '@/core/theory';
 import { arrangeTrack, type ArrangeOptions } from './arranger';
 import { MAX_FRET, barCapacity, barLength, cloneSong, midiOf, restBeats, slugify, tempoAtBar, trackCapo, trackTuning, uniqueId, valueFromTicks } from './model';
 import type { BarInfo, Beat, ChordEvent, Note, Song, TimeSig, Track } from './types';
 
-/** Key name moved by semitones, keeping its mode; spelled the practical way (Gb rather than F# major only when simpler). */
+/**
+ * Key name moved by semitones, keeping its mode; spelled the practical way (Gb rather than F# major
+ * only when simpler). `transposeKey('Em', 1)` -> `Fm`; `transposeKey('A dorian', 2)` -> `B dorian`.
+ */
 export function transposeKey(key: string, semitones: number): string {
   const k = getKey(key);
   if (!k) return key;
+  const mode = keyModeName(k);
   const semis = ((semitones % 12) + 12) % 12;
   const shifted = transposeBySemitones(k.tonic, semis, semitones >= 0 ? 'sharps' : 'flats');
   const candidates = [shifted, transposeBySemitones(k.tonic, semis, 'flats'), transposeBySemitones(k.tonic, semis, 'sharps')];
   let best = shifted;
   let bestCount = Infinity;
   for (const tonic of candidates) {
-    const g = getKey(`${tonic} ${k.mode}`);
+    const g = getKey({ tonic, mode: k.mode, modal: k.modal });
     if (g && !g.theoretical && g.signature.count < bestCount) {
       best = tonic;
       bestCount = g.signature.count;
     }
   }
-  return k.mode === 'minor' ? `${best}m` : best;
+  return k.modal ? `${best} ${mode}` : k.mode === 'minor' ? `${best}m` : best;
 }
 
 /** Options for `transposeSong`. */

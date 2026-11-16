@@ -179,6 +179,8 @@ export class Transport {
   private countInState: CountIn | null = null;
   /** A glide started by `setTempo(bpm, { rampBeats })`: where it runs and the tempo it ends on. */
   private ramp: { start: number; end: number; bpm: number } | null = null;
+  /** A jump set with `jumpAt`: at tick `at`, carry on from `to`. */
+  private jump: { at: number; to: number; then?: (time: number) => void } | null = null;
   private version = 0;
   private readonly sources = new Map<number, EventSource>();
   private nextId = 1;
@@ -241,9 +243,12 @@ export class Transport {
     }
   }
 
-  /** Run `fn` when the sound scheduled at audio time `time` is heard (keeps visuals in step). */
-  scheduleVisual(time: number, fn: () => void): void {
-    this.visual.add(time, fn);
+  /**
+   * Run `fn` when the sound scheduled at audio time `time` is heard (keeps visuals in step).
+   * Returns a function that cancels it. Stopping, pausing or seeking drops everything still waiting.
+   */
+  scheduleVisual(time: number, fn: () => void): () => void {
+    return this.visual.add(time, fn);
   }
 
   /** Run the visual callbacks due at `now` (default: the sounding time). Tests call this directly. */
@@ -422,6 +427,45 @@ export class Transport {
     this.version++;
   }
 
+  /**
+   * The first bar line playback has not been scheduled past yet: the earliest place where a change
+   * of the music can still be heard cleanly (at most a bar and the look-ahead away). When not
+   * playing, the bar line at or after the playhead.
+   */
+  nextBarLine(): number {
+    const tick = this._state === 'playing' ? (this.countInState && !this.countInState.done ? this.countInState.startTick : this.frontierTick) : this.playhead;
+    const tl = this.tl;
+    const bar = tl.positionOf(tick).bar;
+    const start = tl.barStart(bar);
+    return start >= tick - 1e-9 ? start : tl.barStart(bar + 1);
+  }
+
+  /**
+   * When playback reaches tick `at`, carry on from tick `to` at that very moment, the way a loop
+   * wraps: nothing already scheduled is cut off, nothing plays twice, no count-in, no gap. `then`
+   * runs there, with the audio time, before anything at `to` is scheduled: the place to swap in new
+   * parts, a new meter or tempo (they take effect exactly at the jump). One jump at a time: a new one
+   * replaces it, `cancelJump()` drops it. False (and nothing set) when not playing, during a
+   * count-in, or when `at` has already been scheduled.
+   */
+  jumpAt(at: TickLike, to: TickLike, then?: (time: number) => void): boolean {
+    const a = this.cleanTick(at);
+    const b = this.cleanTick(to);
+    if (a === null || b === null || this._state !== 'playing') return false;
+    if (this.countInState && !this.countInState.done) return false;
+    if (a < this.frontierTick - 1e-9) return false;
+    this.jump = { at: a, to: b, then };
+    this.version++;
+    return true;
+  }
+
+  /** Drop a jump set with `jumpAt` that has not happened yet. */
+  cancelJump(): void {
+    if (!this.jump) return;
+    this.jump = null;
+    this.version++;
+  }
+
   // --- scheduling API --------------------------------------------------------------------------
 
   /** Register a custom event source. Returns an id for `clear`. */
@@ -505,11 +549,15 @@ export class Transport {
     this.lastStart = tick;
     this.loops = 0;
     this.ending = null;
+    this.jump = null;
     this.anchors = [];
     this.frontierTick = tick;
     this.frontierTime = time;
     this._state = 'playing';
     this.version++;
+    // A stop (or pause) that is not heard yet is over: started again at once (a reload, a restart),
+    // its visual listeners would hear "stop" after the music has begun again.
+    this.visual.clear();
     if (bars > 0) {
       const meter = this.tl.meterAt(tick);
       const bpm = this.tl.bpmAt(tick) * this.rate;
@@ -553,6 +601,7 @@ export class Transport {
     this.anchors = [];
     this.countInState = null;
     this.ending = null;
+    this.jump = null;
     this.version++;
     this.visual.clear();
     this.releaseClock?.();
@@ -571,6 +620,7 @@ export class Transport {
       const time = this.clock.now() + this.startDelay / 2;
       this.countInState = null;
       this.ending = null;
+      this.jump = null;
       this.anchors = [{ time, tick, sec: this.tl.ticksToSeconds(tick), timeline: this.tl, rate: this.rate }];
       this.frontierTick = tick;
       this.frontierTime = time;
@@ -688,7 +738,7 @@ export class Transport {
       const a = this.anchors[this.anchors.length - 1];
       const target = tickOf(a, horizon);
       let boundary = Infinity;
-      let kind: 'loop' | 'end' | 'ramp' | null = null;
+      let kind: 'loop' | 'end' | 'ramp' | 'jump' | null = null;
       if (this.loopRegion && this.frontierTick < this.loopRegion.end) {
         boundary = this.loopRegion.end;
         kind = 'loop';
@@ -700,6 +750,10 @@ export class Transport {
       if (this.ramp && this.ramp.end < boundary && this.frontierTick < this.ramp.end) {
         boundary = this.ramp.end;
         kind = 'ramp';
+      }
+      if (this.jump && this.jump.at <= boundary && this.frontierTick <= this.jump.at) {
+        boundary = this.jump.at;
+        kind = 'jump';
       }
       const limit = Math.min(target, boundary);
       // Rounding can leave the frontier a hair short of the horizon with no whole tick to gain.
@@ -736,6 +790,15 @@ export class Transport {
         this.anchors.push({ time: this.frontierTime, tick: start, sec: this.tl.ticksToSeconds(start), timeline: this.tl, rate: this.rate });
         this.frontierTick = start;
         this.emit('loop', { time: this.frontierTime, count: this.loops });
+      } else if (limit >= boundary && kind === 'jump' && this.jump) {
+        const { to, then } = this.jump;
+        this.jump = null;
+        this.settleRamp(to);
+        this.anchors.push({ time: this.frontierTime, tick: to, sec: this.tl.ticksToSeconds(to), timeline: this.tl, rate: this.rate });
+        this.frontierTick = to;
+        this.version++;
+        // Whatever `then` changes (meter, tempo, loop) applies from here: the frontier is at `to`.
+        then?.(this.frontierTime);
       } else if (limit >= boundary && kind === 'ramp' && this.ramp) {
         // The glide has arrived: from here on the tempo is simply its target.
         const bpm = this.ramp.bpm;

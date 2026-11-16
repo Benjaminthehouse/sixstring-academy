@@ -14,8 +14,12 @@ import styles from './Shell.module.css';
 /**
  * True once the screen's own heading has scrolled out from under the bar (or the screen has no
  * visible heading). The bar only repeats the title then, so a page never shows its name twice.
+ *
+ * Re-checked on scroll, resize and any change inside `<main>`: a screen that hides its header
+ * part-way (the live camera view turns its `Page` header into a screen-reader-only heading when the
+ * camera starts) has to get its title in the bar at scroll 0, without a scroll or a new route.
  */
-function useHeadingOutOfView(routeKey: string, barHeight: number): boolean {
+export function useHeadingOutOfView(routeKey: string, barHeight: number): boolean {
   const [out, setOut] = useState(false);
   useEffect(() => {
     let frame = 0;
@@ -36,10 +40,12 @@ function useHeadingOutOfView(routeKey: string, barHeight: number): boolean {
     schedule();
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
-    // The lazy screen replaces the loading skeleton after the route has already changed.
+    // The lazy screen replaces the loading skeleton after the route has already changed, and a
+    // screen may swap its visible header for a hidden one (or back) at any depth. Checks are
+    // coalesced to one per frame, so a busy screen costs one measurement per frame at most.
     const main = document.getElementById('main');
     const observer = main && typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : null;
-    if (main && observer) observer.observe(main, { childList: true });
+    if (main && observer) observer.observe(main, { childList: true, subtree: true });
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('scroll', schedule);

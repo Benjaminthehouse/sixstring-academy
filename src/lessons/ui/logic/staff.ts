@@ -62,9 +62,13 @@ export function ledgerLines(position: number): number[] {
   return out;
 }
 
-const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
+const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
 
-/** The name of a staff position in plain words ("2nd line", "space above the staff"). */
+/**
+ * The name of a staff position in plain words, as a noun phrase that reads after "on the": "2nd
+ * line", "space above the staff", "2nd ledger line below the staff", "space below the 1st ledger
+ * line". Every position above and below the staff has one.
+ */
 export function staffPositionName(position: number): string {
   if (position >= 0 && position <= 8) {
     const n = Math.floor(position / 2);
@@ -75,10 +79,12 @@ export function staffPositionName(position: number): string {
   if (position === -1) return 'space below the staff';
   if (position > 9) {
     const ledger = Math.floor((position - 8) / 2);
-    return position % 2 === 0 ? `${ORD[ledger - 1] ?? `${ledger}th`} ledger line above` : `above ledger line ${ledger}`;
+    const name = `${ORD[ledger - 1] ?? `${ledger}th`} ledger line`;
+    return position % 2 === 0 ? `${name} above the staff` : `space above the ${name}`;
   }
   const ledger = Math.floor(-position / 2);
-  return position % 2 === 0 ? `${ORD[ledger - 1] ?? `${ledger}th`} ledger line below` : `below ledger line ${ledger}`;
+  const name = `${ORD[ledger - 1] ?? `${ledger}th`} ledger line`;
+  return position % 2 === 0 ? `${name} below the staff` : `space below the ${name}`;
 }
 
 /** The staff position under a point, from its y (in the drawing's units), clamped to a range. */

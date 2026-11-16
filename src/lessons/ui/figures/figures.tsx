@@ -3,22 +3,23 @@
  * NotationView, PianoKeys, CircleOfFifths, RhythmView, StrumPattern) wherever it has the
  * component. Tablature has no shared component yet, so it is drawn here as a small SVG.
  */
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Button, Icon, PlayButton, Text, cx } from '@/ui';
 import {
-  ChordDiagram, CircleOfFifths, Fretboard, NotationView, PianoKeys, RhythmView, StrumPattern, degreeText, noteText, useMusicSettings,
-  type FretMarker, type NotationNote, type PianoHighlight,
+  ChordDiagram, CircleOfFifths, Fretboard, NotationView, PianoKeys, RhythmView, StrumPattern, degreeText, noteText, pianoLayout, useMusicSettings,
+  type FretCell, type FretMarker, type MusicColor, type NotationNote, type PianoHighlight,
 } from '@/ui/music';
 import { midiToNote } from '@/core/theory';
 import { describeSound } from '../../sound';
 import { resolveFigure } from '../../figures';
 import type {
-  AudioFigure, ChordFigure, CircleFigure, Figure, FigureKind, FretboardFigure, KeyboardFigure, RhythmFigure, RichText as RichTextValue, StaffFigure, TabFigure,
+  AudioFigure, ChordFigure, CircleFigure, DotRole, Figure, FigureKind, FretboardFigure, KeyboardFigure, RhythmFigure, RichText as RichTextValue, StaffFigure, TabFigure,
 } from '../../types';
 import { RichText, usePlainText } from '../RichText';
 import { canPlaySlow } from '../logic/sound';
 import { useSoundPlayer } from '../useSound';
 import { dotColor } from './colors';
+import { ScrollHint } from './ScrollHint';
 import styles from './Figures.module.css';
 
 /** Props every figure renderer takes. */
@@ -26,6 +27,8 @@ export interface FigureProps<F extends Figure = Figure> {
   figure: F;
   /** `sm` inside an answer option, `md` (default) beside a prompt or on a card. */
   size?: 'sm' | 'md';
+  /** The figure is an answer option: it must not print what would give the answer away (a chord box's name). */
+  inOption?: boolean;
 }
 
 function Caption({ text }: { text: RichTextValue | null | undefined }) {
@@ -47,9 +50,11 @@ function Unavailable({ what }: { what: string }) {
 
 // ── Fretboard ──────────────────────────────────────────────────────────────────────────────────
 
-/** A fretboard diagram with labelled, colour-coded dots. */
+/** A fretboard diagram with labelled, colour-coded dots. Tapping the neck plays the note there, as everywhere in the app. */
 export function FretboardFigureView({ figure, size = 'md' }: FigureProps<FretboardFigure>) {
   const resolved = useMemo(() => resolveFigure(figure), [figure]);
+  const player = useSoundPlayer();
+  const playCell = useCallback((cell: FretCell) => player.play({ kind: 'notes', notes: [midiToNote(cell.midi)], tempo: 60 }), [player]);
   const markers = useMemo<FretMarker[]>(
     () =>
       resolved.dots.map((d) => ({
@@ -65,9 +70,28 @@ export function FretboardFigureView({ figure, size = 'md' }: FigureProps<Fretboa
       })),
     [resolved, figure.dots],
   );
+  // In an answer option the whole option is the button: the neck stays a picture there.
+  const playable = size !== 'sm';
   return (
     <figure className={styles.figure}>
-      <Fretboard tuning={resolved.tuning} capo={resolved.capo || undefined} frets={resolved.frets} markers={markers} size={size === 'sm' ? 'sm' : 'md'} />
+      {/* Its cells are buttons: Enter, Space and the arrows belong to them, not to the player. */}
+      <ScrollHint>
+        <div data-own-enter="" data-native-keys="">
+          <Fretboard
+            tuning={resolved.tuning}
+            capo={resolved.capo || undefined}
+            // The window counts from the capo; the board is drawn in frets on the wood.
+            frets={resolved.board}
+            markers={markers}
+            size={size === 'sm' ? 'sm' : 'md'}
+            onCellClick={playable ? playCell : undefined}
+            // Tappable, but no wider than the picture it was: it must still fit a phone.
+            minFretWidth={playable ? 24 : undefined}
+            maxFretWidth={playable ? 28 * 3.9 : undefined}
+            cellLabels="note"
+          />
+        </div>
+      </ScrollHint>
       <Caption text={resolved.caption} />
     </figure>
   );
@@ -75,13 +99,18 @@ export function FretboardFigureView({ figure, size = 'md' }: FigureProps<Fretboa
 
 // ── Chord ──────────────────────────────────────────────────────────────────────────────────────
 
-/** A chord box. */
-export function ChordFigureView({ figure, size = 'md' }: FigureProps<ChordFigure>) {
+/** A chord box. With a capo it draws the capo; in an answer option it hides its name, which would be the answer. */
+export function ChordFigureView({ figure, size = 'md', inOption }: FigureProps<ChordFigure>) {
   const resolved = useMemo(() => resolveFigure(figure), [figure]);
   if (!resolved) return <Unavailable what="chord" />;
+  const title = inOption ? false : undefined;
   return (
     <figure className={cx(styles.figure, styles.centred)}>
-      <ChordDiagram frets={resolved.frets} fingers={resolved.fingers} chord={resolved.symbol ?? undefined} size={size === 'sm' ? 'sm' : 'md'} footer={size === 'sm' ? 'none' : 'notes'} />
+      {resolved.voicing ? (
+        <ChordDiagram voicing={resolved.voicing} fingers={figure.fingers} chord={resolved.symbol ?? undefined} title={title} size={size === 'sm' ? 'sm' : 'md'} footer={size === 'sm' ? 'none' : 'notes'} />
+      ) : (
+        <ChordDiagram frets={resolved.frets} fingers={resolved.fingers} chord={resolved.symbol ?? undefined} title={title} size={size === 'sm' ? 'sm' : 'md'} footer={size === 'sm' ? 'none' : 'notes'} />
+      )}
       <Caption text={resolved.caption} />
     </figure>
   );
@@ -116,27 +145,87 @@ export function StaffFigureView({ figure }: FigureProps<StaffFigure>) {
 
 // ── Keyboard ───────────────────────────────────────────────────────────────────────────────────
 
-/** A piano keyboard with highlighted keys. */
+/** The SVG geometry of the music kit's piano (white key width and heights, in its own units). */
+const PIANO = { w: 24, h: 96, blackH: 60 } as const;
+
+/**
+ * The colour of a highlighted key. Degree roles keep their degree colours; a plain highlighted
+ * key is the accent, unless the figure also shows degree colours: then it is neutral, because the
+ * third's colour (--deg-3) is almost the accent's and the two would read as one.
+ */
+function keyColor(role: DotRole, anyDegree: boolean): MusicColor {
+  const c = dotColor(role, null);
+  if (c !== 'neutral' && c !== 'accent') return c;
+  return anyDegree && role !== 'target' ? 'neutral' : 'accent';
+}
+
+/**
+ * A piano keyboard with highlighted keys; a tapped key sounds. The keys are drawn by the music
+ * kit as a picture (which shrinks to any phone: nine white keys fit 360 px) and tapped through a
+ * layer of buttons laid over them here, so tapping never forces the keyboard wider than the screen.
+ */
 export function KeyboardFigureView({ figure }: FigureProps<KeyboardFigure>) {
   const resolved = useMemo(() => resolveFigure(figure), [figure]);
   // Anything that shows a note can play it: a tapped key sounds.
   const player = useSoundPlayer();
-  const highlight = useMemo<PianoHighlight[]>(
-    () =>
-      figure.keys.map((k) => {
-        const key = typeof k === 'string' ? { note: k } : k;
-        const out: PianoHighlight = { note: key.note, color: dotColor(key.role ?? 'tone', null) === 'neutral' ? 'accent' : dotColor(key.role ?? 'tone', null) };
-        if (key.label) out.label = key.label;
-        return out;
-      }),
-    [figure.keys],
-  );
+  const highlight = useMemo<PianoHighlight[]>(() => {
+    const keys = figure.keys.map((k) => (typeof k === 'string' ? { note: k } : k));
+    const anyDegree = keys.some((k) => k.role === 'root' || k.role === 'third' || k.role === 'fifth' || k.role === 'seventh');
+    return keys.map((key) => {
+      const out: PianoHighlight = { note: key.note, color: keyColor(key.role ?? 'tone', anyDegree) };
+      if (key.label) out.label = key.label;
+      // A ghost key is "for reference": drawn faint, like a ghost dot on the neck.
+      if (key.role === 'ghost') out.state = 'ghost';
+      else if (key.role === 'target') out.state = 'target';
+      return out;
+    });
+  }, [figure.keys]);
+  const layout = useMemo(() => pianoLayout(resolved.from, resolved.to), [resolved.from, resolved.to]);
+  const [focus, setFocus] = useState<number | null>(null);
+  const refs = useRef(new Map<number, HTMLButtonElement>());
+  const totalW = layout.whiteCount * PIANO.w + 2;
+  const totalH = PIANO.h + 2;
+  const current = focus ?? layout.keys.find((k) => !k.black)?.midi ?? layout.from;
+  const play = (midi: number): void => player.play({ kind: 'notes', notes: [midiToNote(midi)], tempo: 60 });
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = Math.min(layout.to, Math.max(layout.from, current + step));
+    setFocus(next);
+    refs.current.get(next)?.focus();
+  };
+  const ordered = [...layout.keys.filter((k) => !k.black), ...layout.keys.filter((k) => k.black)];
   return (
     <figure className={cx(styles.figure, styles.centred)}>
       {/* Its keys are buttons: Enter, Space and the arrows belong to them, not to the player. */}
-      <div className={styles.keyboard} data-own-enter="" data-native-keys="">
+      <div className={styles.keyboard} data-own-enter="" data-native-keys="" style={{ maxWidth: `min(30rem, ${layout.whiteCount * 56}px)` }} data-keyboard-figure="">
         {/* The keys the card is about carry their own names; octave marks (C4) would be jargon here. */}
-        <PianoKeys from={resolved.from} to={resolved.to} highlight={highlight} labels={highlight.length > 0 ? 'none' : 'c'} onKeyPress={({ midi }) => player.play({ kind: 'notes', notes: [midiToNote(midi)], tempo: 60 })} />
+        <PianoKeys from={resolved.from} to={resolved.to} highlight={highlight} labels={highlight.length > 0 ? 'none' : 'c'} />
+        <div className={styles.keyLayer} role="group" aria-label="Piano keys: tap one to hear it; arrow keys move" onKeyDown={onKeyDown}>
+          {ordered.map((k) => (
+            <button
+              key={k.midi}
+              ref={(el) => {
+                if (el) refs.current.set(k.midi, el);
+                else refs.current.delete(k.midi);
+              }}
+              type="button"
+              className={cx(styles.keyButton, k.black && styles.keyButtonBlack)}
+              style={{
+                left: `${((1 + k.x * PIANO.w) / totalW) * 100}%`,
+                width: `${((k.w * PIANO.w) / totalW) * 100}%`,
+                top: `${(1 / totalH) * 100}%`,
+                height: `${((k.black ? PIANO.blackH : PIANO.h) / totalH) * 100}%`,
+              }}
+              tabIndex={k.midi === current ? 0 : -1}
+              aria-label={midiToNote(k.midi, { prefer: 'sharps' })}
+              onFocus={() => setFocus(k.midi)}
+              onClick={() => play(k.midi)}
+              data-key-midi={k.midi}
+            />
+          ))}
+        </div>
       </div>
       <Caption text={resolved.caption} />
     </figure>
@@ -204,6 +293,7 @@ export function TabFigureView({ figure, size = 'md' }: FigureProps<TabFigure>) {
   const words = resolved.notes.map((n) => (n.rest ? 'rest' : `string ${n.string} fret ${n.fret}`)).join(', ');
   return (
     <figure className={styles.figure}>
+      <ScrollHint>
       <div className={styles.tabScroll}>
         <svg className={styles.tab} viewBox={`0 0 ${width} ${height}`} style={{ width: Math.max(width * 1.25, 260) }} role="img" aria-label={`Tab: ${words}`}>
           {labels.map((l, i) => (
@@ -231,6 +321,7 @@ export function TabFigureView({ figure, size = 'md' }: FigureProps<TabFigure>) {
           )}
         </svg>
       </div>
+      </ScrollHint>
       {size !== 'sm' && (
         <div>
           <Button
@@ -297,11 +388,11 @@ export const FIGURE_RENDERERS: Renderers = {
 };
 
 /** Draw any lesson figure. */
-export function FigureView({ figure, size, className }: FigureProps & { className?: string }) {
+export function FigureView({ figure, size, inOption, className }: FigureProps & { className?: string }) {
   const Render = FIGURE_RENDERERS[figure.kind] as (props: FigureProps) => ReactNode;
   return (
     <div className={cx(styles.host, className)} data-figure={figure.kind}>
-      <Render figure={figure} size={size} />
+      <Render figure={figure} size={size} inOption={inOption} />
     </div>
   );
 }

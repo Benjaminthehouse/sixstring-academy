@@ -2,7 +2,7 @@
  * Shared machinery of the exercise generators: the definition shape, the difficulty-aware pools,
  * parameter checks and small wording helpers.
  */
-import { MAJOR_KEYS, MINOR_KEYS, distractorIntervals, getChordType, getScale, interval, parseInterval, parseNote, type Key } from '@/core/theory';
+import { MAJOR_KEYS, MINOR_KEYS, distractorIntervals, getChordType, getKey, getScale, interval, parseInterval, parseNote, pcToNote, type Key } from '@/core/theory';
 import type { Rng } from '../rng';
 import type { ChoiceExercise, ChoiceOption, CourseLevel, Exercise, ExerciseType, GeneratorKind } from '../types';
 import type { GeneratorParamsMap } from './params';
@@ -65,6 +65,30 @@ export function keysUpTo(maxAccidentals: number, modes: ReadonlyArray<'major' | 
   return all
     .filter((k) => Math.abs(k.fifths) <= limit)
     .sort((a, b) => Math.abs(a.fifths) - Math.abs(b.fifths) || b.fifths - a.fifths || (a.mode === b.mode ? 0 : a.mode === 'major' ? -1 : 1));
+}
+
+/** The keys of an explicit `keys` parameter (unknown names dropped; `validateCourse` reports them). */
+export function keysFromList(names: readonly string[]): Key[] {
+  return names.map((name) => getKey(name)).filter((k): k is Key => k !== null);
+}
+
+/**
+ * The key pool of a generator with `keys`, `modes` and `maxAccidentals` parameters: the explicit
+ * list when given, otherwise the simplest signatures first. Either way the start of it at low difficulty.
+ */
+export function keyPool(p: { keys?: string[]; modes?: ReadonlyArray<'major' | 'minor'>; maxAccidentals?: number }, difficulty: number, fallbackMax = 4): Key[] {
+  const all = p.keys ? keysFromList(p.keys) : keysUpTo(p.maxAccidentals ?? fallbackMax, p.modes ?? ['major']);
+  return pool(all, difficulty, 4);
+}
+
+/**
+ * A note name in the spelling a drill uses for black keys: `F#` or `Gb`. Natural notes stay as
+ * they are; only a single sharp or flat is respelled.
+ */
+export function respell(note: string, prefer: 'sharps' | 'flats'): string {
+  const n = parseNote(note);
+  if (!n || n.alt === 0 || Math.abs(n.alt) > 1 || [0, 2, 4, 5, 7, 9, 11].includes(n.chroma)) return note;
+  return pcToNote(n.chroma, prefer);
 }
 
 /** Try `make` until `ok` accepts the result, at most `tries` times; then return `fallback()`. */
@@ -189,18 +213,38 @@ export class ParamCheck {
     return this.list(name, value, (n) => typeof n === 'string' && parseNote(n) !== null && parseNote(n)!.octave === null, "['C', 'G', 'F#']");
   }
 
-  /** Simple ascending intervals from m2 to P8. */
-  intervals(name: string, value: readonly string[] | undefined, min = 1): this {
+  /** Ascending intervals from m2 to P8, or to P15 (two octaves) when `compound` is set. */
+  intervals(name: string, value: readonly string[] | undefined, min = 1, compound = false): this {
+    const top = compound ? 24 : 12;
     return this.list(
       name,
       value,
       (i) => {
         const ivl = typeof i === 'string' ? parseInterval(i) : null;
-        return ivl !== null && ivl.direction > 0 && ivl.semitones >= 1 && ivl.semitones <= 12;
+        return ivl !== null && ivl.direction > 0 && ivl.semitones >= 1 && ivl.semitones <= top;
       },
-      "['P5', 'M3', 'm3'] (m2 to P8)",
+      compound ? "['P5', 'M3', 'M9', 'P11'] (m2 to P15)" : "['P5', 'M3', 'm3'] (m2 to P8)",
       min,
     );
+  }
+
+  /** A list of key names (`'A major'`, `'E minor'`) the theory engine knows, each with seven sharps or flats at most. */
+  keys(name: string, value: readonly string[] | undefined, modes?: ReadonlyArray<'major' | 'minor'>): this {
+    // Modal keys (A Dorian) are not major or minor keys: these drills count their chords and degrees from major and minor scales.
+    const ok = (k: unknown): boolean => {
+      const key = typeof k === 'string' ? getKey(k) : null;
+      return key !== null && !key.theoretical && (key as { modal?: string }).modal === undefined && (!modes || modes.includes(key.mode));
+    };
+    this.list(name, value, ok, modes && modes.length === 1 ? `['C ${modes[0]}', 'G ${modes[0]}'] (${modes[0]} keys)` : "['C major', 'A major', 'E minor'] (major and minor keys)");
+    return this;
+  }
+
+  /** `keys` replaces `modes` and `maxAccidentals`: refuse both at once. */
+  keysOrSignature(p: { keys?: unknown; modes?: unknown; maxAccidentals?: unknown }): this {
+    if (p.keys !== undefined && (p.modes !== undefined || p.maxAccidentals !== undefined)) {
+      this.problems.push('"keys" lists the keys itself, so "modes" and "maxAccidentals" have no effect beside it. Remove them, or remove "keys".');
+    }
+    return this;
   }
 
   scales(name: string, value: readonly string[] | undefined): this {

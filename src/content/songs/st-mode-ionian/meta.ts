@@ -8,7 +8,7 @@ export default defineSong({
   level: 6,
   style: 'folk',
   kind: 'study',
-  key: 'A major',
+  key: 'A Ionian',
   teaches: ['The major scale heard as a mode', 'The colour note: G#, the major seventh', 'Landing on a colour note over a vamp', 'A major in fourth position'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'ionian', 'major scale', 'colour note', 'vamp', 'amaj7', 'a major', 'fourth position'],

@@ -11,8 +11,10 @@
  * `dev-pentatonic.test.ts` checks the boxes against the plan's lists, every fret the text names,
  * the tab against the library's studies, and each Player tempo against the song's own.
  *
- * Mo Li Hua and Morning Mood are not in the song library yet: their tasks fall back to the nearest
- * pieces that are (Amazing Grace's tune, G major pentatonic; Pentatonic Across the Neck over C).
+ * Mo Li Hua is in the library (the first half of the verse, played plain and then with slides from
+ * two frets below); Morning Mood is not yet. Each task keeps a fallback to the nearest piece that is
+ * (Amazing Grace's tune, G major pentatonic; Pentatonic Across the Neck over C), used only while
+ * its song is missing.
  */
 import { scalePatterns, type ScalePattern } from '@/core/guitar';
 import type { FretDot, TabNote } from '@/lessons';
@@ -681,7 +683,7 @@ const majorPentatonic: TeacherLesson = {
       song: 'mo-li-hua',
       tempo: 85,
       minutes: 5,
-      body: 'Play it at 85 % (about 56 BPM), then 100 % (66 BPM). Slide lightly into the long notes from a fret below. Every note is {n:G}, {n:A}, {n:B}, {n:D} or {n:E}.',
+      body: 'Play it at 85 % (about 56 BPM), then 100 % (66 BPM): the first half of the verse, twice. The first time plain; the second time slide lightly into each long note from two frets below, as the tab shows. Every note is {n:G}, {n:A}, {n:B}, {n:D} or {n:E}.',
       tip: 'A slide into a note is an ornament: quick and light, so the long note itself still lands on the beat.',
       fallback: {
         tool: 'player',
@@ -832,8 +834,8 @@ const unit: TeacherUnit = {
   glossary: [
     { id: 'pent-box', term: 'box', definition: 'One of the five shapes the pentatonic scale makes on the neck, two notes on each string, overlapping its neighbours like tiles.' },
     { id: 'slide', term: 'slide', definition: 'Moving a fretted finger along the string to another fret without lifting it, so you hear the pitch glide.' },
-    { id: 'pull-off', term: 'pull-off', definition: 'Plucking a string with the fretting finger as it leaves, so a lower fretted or open note sounds without picking.' },
-    { id: 'vibrato', term: 'vibrato', definition: 'A steady, even wobble in the pitch of a held note, made by rocking or slightly bending the string.' },
+    { id: 'pull-off', term: 'pull-off', definition: 'Sounding a lower note on the same string without picking: the fretting finger flicks off the string, plucking it, so a lower fret or the open string sounds.' },
+    { id: 'vibrato', term: 'vibrato', definition: 'A steady, even wobble in the pitch of a held note, made by small repeated bends and releases: it makes the note sing.' },
     { id: 'chord-tone', term: 'chord tone', definition: 'A note that belongs to the chord being played. A phrase that ends on one sounds settled.' },
   ],
 };

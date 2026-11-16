@@ -26,6 +26,8 @@ export interface Scope {
   onlyFrets?: number[];
   /** When set, only these positions (`string:fret` keys): the learner's blind spots. */
   only?: string[];
+  /** When set, only these pitch classes (a drill on one note: "find every C"); overrides `notes`. */
+  pcs?: number[];
 }
 
 /** What the trainer needs to know about the guitar and the reader. */

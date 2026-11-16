@@ -7,7 +7,10 @@ import { createRng } from '../rng';
 import type { CourseLevel, Exercise, GeneratedStep, GeneratorKind } from '../types';
 import type { GeneratorDef } from './core';
 import { EAR_GENERATORS } from './ear';
+import { FRETWORK_GENERATORS } from './fretwork';
+import { NASHVILLE_GENERATORS } from './nashville';
 import { NECK_GENERATORS } from './neck';
+import { READING_GENERATORS } from './reading';
 import { STAFF_GENERATORS } from './staff';
 import { THEORY_GENERATORS } from './theory';
 import { TIME_GENERATORS } from './time';
@@ -17,10 +20,13 @@ export type * from './params';
 
 const ALL: ReadonlyArray<GeneratorDef<GeneratorKind>> = [
   ...THEORY_GENERATORS,
+  ...NASHVILLE_GENERATORS,
   ...NECK_GENERATORS,
+  ...FRETWORK_GENERATORS,
   ...TIME_GENERATORS,
   ...EAR_GENERATORS,
   ...STAFF_GENERATORS,
+  ...READING_GENERATORS,
 ] as unknown as ReadonlyArray<GeneratorDef<GeneratorKind>>;
 
 /** Every generator by kind. */

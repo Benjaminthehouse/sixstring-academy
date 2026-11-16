@@ -540,30 +540,42 @@ export interface DroneStartOptions extends DroneOptions {
   volume?: number;
   /** Seconds to fade in (default 0.8). */
   fadeIn?: number;
+  /** Audio-clock time the drone starts (default now): a lesson sound or an ear drill can place it under its notes. */
+  when?: number;
+  /** Seconds after `when` it fades out and stops by itself (default: until `stop()`). */
+  duration?: number;
+  /** Seconds of that fade-out (default 0.6). */
+  fadeOut?: number;
 }
 
 /** A running drone. */
 export interface DroneHandle {
-  /** Change the root (and keep the fifth / octave settings) with a short crossfade. */
-  setRoot(midi: number): void;
+  /**
+   * Change the root (and keep the fifth / octave settings) with a short crossfade. With `when` (an
+   * audio-clock time) the change is made exactly then, for a drone that follows the chords.
+   */
+  setRoot(midi: number, when?: number): void;
   /** Turn the fifth on or off. */
   setFifth(on: boolean): void;
   setVolume(volume: number): void;
-  /** Fade out and stop (default 0.6 s). */
-  stop(fade?: number): void;
+  /** Fade out and stop (default 0.6 s), now or at audio time `when`. */
+  stop(fade?: number, when?: number): void;
   readonly running: boolean;
+  /** Audio-clock time the drone starts (0 where there is no audio). */
+  readonly startTime: number;
 }
 
 /**
  * Start a sustained drone (root, or root + fifth) to practise scales and intonation against.
- * It keeps the audio context awake until stopped.
+ * It keeps the audio context awake until stopped. `when` and `duration` place it on the audio clock.
  */
 export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): DroneHandle {
   if (!engine && !audioSupported()) {
-    return { setRoot: () => undefined, setFifth: () => undefined, setVolume: () => undefined, stop: () => undefined, running: false };
+    return { setRoot: () => undefined, setFifth: () => undefined, setVolume: () => undefined, stop: () => undefined, running: false, startTime: 0 };
   }
   engine ??= getEngine();
-  const ctx = engine.ctx;
+  const eng = engine;
+  const ctx = eng.ctx;
   const out = ctx.createGain();
   out.gain.value = clamp(finiteOr(opts.volume, 0.8), 0, 1.5);
   const lowpass = ctx.createBiquadFilter();
@@ -571,20 +583,30 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
   lowpass.frequency.value = DRONE_LOWPASS_HZ;
   lowpass.Q.value = -3; // dB: no resonance, close to a gentle first-order slope near the corner
   lowpass.connect(out);
-  out.connect(engine.bus('drone'));
-  const wave = periodicWave(engine, 'drone', DRONE_PARTIALS);
+  out.connect(eng.bus('drone'));
+  const wave = periodicWave(eng, 'drone', DRONE_PARTIALS);
   const state = { root: clamp(finiteOr(opts.root, 45), 0, 127), fifth: !!opts.fifth, octave: opts.octave ?? true, a4: clamp(finiteOr(opts.a4, 440), 220, 880) };
-  let release: (() => void) | null = engine.hold();
+  let release: (() => void) | null = eng.hold();
   let running = true;
+  const startAt = eng.startTime(opts.when);
 
   interface Layer {
     group: GainNode;
     nodes: OscillatorNode[];
   }
   let current: Layer | null = null;
+  /** A stop placed on the audio clock (`duration`, `stop(fade, when)`): every layer ends there. */
+  let ending: { at: number; fade: number } | null = null;
 
-  const build = (fade: number): Layer => {
-    const t = engine.now();
+  /** A new set of oscillators fading in from audio time `at` (default now). */
+  const build = (fade: number, at?: number): Layer => {
+    const layer = makeLayer(fade, at);
+    if (ending) retire(layer, ending.fade, ending.at);
+    return layer;
+  };
+
+  const makeLayer = (fade: number, at?: number): Layer => {
+    const t = eng.nodeTime(eng.startTime(at));
     const group = ctx.createGain();
     group.gain.setValueAtTime(0, t);
     group.gain.linearRampToValueAtTime(1, t + fade);
@@ -612,10 +634,15 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
     return { group, nodes };
   };
 
-  const retire = (layer: Layer, fade: number): void => {
-    const t = engine.now();
-    layer.group.gain.cancelScheduledValues(t);
-    layer.group.gain.setTargetAtTime(0, t, fade / 3);
+  /** Fade a set of oscillators out from audio time `at` (default now) and let them go. */
+  const retire = (layer: Layer, fade: number, at?: number): void => {
+    const t = eng.nodeTime(eng.startTime(at));
+    try {
+      layer.group.gain.cancelScheduledValues(t);
+      layer.group.gain.setTargetAtTime(0, t, fade / 3);
+    } catch {
+      // ignore
+    }
     for (const n of layer.nodes) {
       try {
         n.stop(t + fade * 2);
@@ -632,7 +659,7 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
     };
   };
 
-  current = build(clamp(finiteOr(opts.fadeIn, 0.8), 0.005, 10));
+  current = build(clamp(finiteOr(opts.fadeIn, 0.8), 0.005, 10), startAt);
 
   // A root dragged across a slider asks for dozens of changes a second. Each change crossfades to a
   // new set of oscillators, so changes are spaced out: the latest request always wins, and no more
@@ -640,6 +667,7 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
   const MIN_GAP_MS = 70;
   let lastBuild = -Infinity;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let endTimer: ReturnType<typeof setTimeout> | null = null;
   const clock = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const rebuild = (): void => {
     if (!running) return;
@@ -660,9 +688,59 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
     current = build(fade);
   };
 
+  function stop(fade = 0.6, when?: number): void {
+    if (!running) return;
+    const f = clamp(finiteOr(fade, 0.6), 0.01, 10);
+    const at = eng.startTime(when);
+    if (at > eng.now() + 0.05) {
+      // A stop in the future: fade there (a root change before then ends there too), and let go
+      // once it is over.
+      ending = { at, fade: f };
+      if (current) retire(current, f, at);
+      if (endTimer !== null) clearTimeout(endTimer);
+      endTimer = setTimeout(() => finish(f), Math.max(0, (at - eng.now()) * 1000));
+      return;
+    }
+    if (current) retire(current, f);
+    finish(f);
+  }
+
+  function finish(f: number): void {
+    if (!running) return;
+    running = false;
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    if (endTimer !== null) clearTimeout(endTimer);
+    endTimer = null;
+    current = null;
+    eng.touch(eng.now() + f * 2 + 1);
+    release?.();
+    release = null;
+    setTimeout(() => {
+      try {
+        out.disconnect();
+        lowpass.disconnect();
+      } catch {
+        // ignore
+      }
+    }, (f * 2 + 0.5) * 1000);
+  }
+
+  const duration = finiteOr(opts.duration, NaN);
+  if (duration > 0) stop(clamp(finiteOr(opts.fadeOut, 0.6), 0.01, 10), startAt + duration);
+
   return {
-    setRoot(midi: number) {
-      if (!Number.isFinite(midi) || midi === state.root) return;
+    setRoot(midi: number, when?: number) {
+      if (!Number.isFinite(midi) || !running) return;
+      const at = when !== undefined && Number.isFinite(when) ? eng.startTime(when) : null;
+      if (at !== null && at > eng.now() + 0.02) {
+        // A change on the audio clock: crossfade exactly then (no throttling: it is one change).
+        state.root = clamp(midi, 0, 127);
+        if (current) retire(current, 0.06, at);
+        current = build(0.06, at);
+        return;
+      }
+      if (midi === state.root) return;
       state.root = clamp(midi, 0, 127);
       rebuild();
     },
@@ -673,31 +751,13 @@ export function startDrone(opts: DroneStartOptions = {}, engine?: AudioEngine): 
     },
     setVolume(volume: number) {
       if (!Number.isFinite(volume)) return;
-      out.gain.setTargetAtTime(clamp(volume, 0, 1.5), engine.now(), 0.05);
+      out.gain.setTargetAtTime(clamp(volume, 0, 1.5), eng.now(), 0.05);
     },
-    stop(fade = 0.6) {
-      if (!running) return;
-      running = false;
-      const f = clamp(finiteOr(fade, 0.6), 0.01, 10);
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
-      if (current) retire(current, f);
-      current = null;
-      engine.touch(engine.now() + f * 2 + 1);
-      release?.();
-      release = null;
-      setTimeout(() => {
-        try {
-          out.disconnect();
-          lowpass.disconnect();
-        } catch {
-          // ignore
-        }
-      }, (f * 2 + 0.5) * 1000);
-    },
+    stop,
     get running() {
       return running;
     },
+    startTime: startAt,
   };
 }
 

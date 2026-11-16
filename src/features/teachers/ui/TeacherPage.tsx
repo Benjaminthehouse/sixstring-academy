@@ -4,20 +4,30 @@
  * rest of the journey from the plan. The other two teachers are one tap away; progress in every
  * course is kept.
  */
-import { useMemo } from 'react';
-import { navigate } from '@/app/router';
-import { useScreenTitle } from '@/app/shell';
-import { teacherById } from '@/app/teachers';
-import { getProgress, setProfile } from '@/core/progress';
-import { nextLesson } from '@/lessons';
-import { CourseMap, ReviewEntry } from '@/lessons/ui';
-import { Badge, Icon, LinkButton, Page, ProgressRing, Section, Skeleton, Text, cx } from '@/ui';
-import { PROFILES, TEACHER_KEYS, type TeacherKey } from '@/content/teachers';
-import { Portrait } from './Portrait';
-import { SpeakButton } from './Speak';
-import { savedTeacherLesson, useStandings } from './useStandings';
-import { useTeacherCourse } from './useTeacherCourse';
-import styles from './TeacherPage.module.css';
+import { useMemo } from "react";
+import { navigate } from "@/app/router";
+import { useScreenTitle } from "@/app/shell";
+import { teacherById } from "@/app/teachers";
+import { getProgress, setProfile } from "@/core/progress";
+import { nextLesson } from "@/lessons";
+import { CourseMap, ReviewEntry } from "@/lessons/ui";
+import {
+  Badge,
+  Icon,
+  LinkButton,
+  Page,
+  ProgressRing,
+  Section,
+  Skeleton,
+  Text,
+  cx,
+} from "@/ui";
+import { PROFILES, TEACHER_KEYS, type TeacherKey } from "@/content/teachers";
+import { Portrait } from "./Portrait";
+import { SpeakButton } from "./Speak";
+import { savedTeacherLesson, useStandings } from "./useStandings";
+import { useTeacherCourse } from "./useTeacherCourse";
+import styles from "./TeacherPage.module.css";
 
 /** A teacher's page. */
 export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
@@ -46,31 +56,53 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
 
   const start = (lessonId: string) => {
     setProfile({ teacher });
-    navigate('teachers', teacher, lessonId);
+    navigate("teachers", teacher, lessonId);
   };
 
   return (
-    <Page title={card.name} eyebrow={`${card.level} course`} subtitle={profile.courseTitle} back={{ to: 'teachers', label: 'Teachers' }} gap={8}>
+    <Page
+      title={card.name}
+      eyebrow={`${card.level} course`}
+      subtitle={profile.courseTitle}
+      back={{ to: "teachers", label: "Teachers" }}
+      gap={8}
+    >
+      {/* All three always show: tiles on a phone, one per row at a large text size; never a row cut at the edge. */}
       <nav className={styles.switcher} aria-label="Teachers">
-        {TEACHER_KEYS.map((t) => {
-          const c = teacherById(t);
-          const here = t === teacher;
-          return (
-            <a key={t} href={`#teachers--${t}`} className={cx(styles.switch, here && styles.switchHere)} aria-current={here ? 'page' : undefined} data-switch={t}>
-              <Portrait teacher={t} size={2.25} ring={here} />
-              <span className={styles.switchText}>
-                <span className={styles.switchName}>{c.first}</span>
-                <span className={styles.switchLevel}>
-                  {standings[t].done > 0 ? `${standings[t].done} of ${standings[t].total}` : c.level}
-                  {t === recommendation.teacher && t !== teacher ? ' · for you' : ''}
+        <div className={styles.switchRow}>
+          {TEACHER_KEYS.map((t) => {
+            const c = teacherById(t);
+            const here = t === teacher;
+            return (
+              <a
+                key={t}
+                href={`#teachers--${t}`}
+                className={cx(styles.switch, here && styles.switchHere)}
+                aria-current={here ? "page" : undefined}
+                data-switch={t}
+              >
+                <Portrait teacher={t} size={2.25} ring={here} />
+                <span className={styles.switchText}>
+                  <span className={styles.switchName}>{c.first}</span>
+                  <span className={styles.switchLevel}>
+                    {standings[t].done > 0
+                      ? `${standings[t].done} of ${standings[t].total}`
+                      : c.level}
+                    {t === recommendation.teacher && t !== teacher
+                      ? " · for you"
+                      : ""}
+                  </span>
                 </span>
-              </span>
-            </a>
-          );
-        })}
+              </a>
+            );
+          })}
+        </div>
       </nav>
 
-      <section className={cx(styles.hero, styles[`tone-${teacher}`])} aria-label={`About ${card.first}`}>
+      <section
+        className={cx(styles.hero, styles[`tone-${teacher}`])}
+        aria-label={`About ${card.first}`}
+      >
         <Portrait teacher={teacher} className={styles.portrait} label />
         <div className={styles.about}>
           <Text>{profile.bio}</Text>
@@ -79,7 +111,10 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
               <p>{profile.sample}</p>
             </blockquote>
             <figcaption>
-              <SpeakButton teacher={teacher} text={profile.sample}>{`Hear ${card.first}`}</SpeakButton>
+              <SpeakButton
+                teacher={teacher}
+                text={profile.sample}
+              >{`Hear ${card.first}`}</SpeakButton>
             </figcaption>
           </figure>
           <ul className={styles.teaches} aria-label="In this course">
@@ -92,7 +127,13 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
           </ul>
         </div>
         <div className={styles.progress}>
-          <ProgressRing value={standing.done} max={standing.total} size={88} tone="ok" label={`${standing.done} of ${standing.total} lessons done`}>
+          <ProgressRing
+            value={standing.done}
+            max={standing.total}
+            size={88}
+            tone="ok"
+            label={`${standing.done} of ${standing.total} lessons done`}
+          >
             <span className={styles.ringNumber}>{standing.done}</span>
             <span className={styles.ringOf}>of {standing.total}</span>
           </ProgressRing>
@@ -102,7 +143,11 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
             ) : upNext ? (
               <>
                 <Text variant="caption" tone="muted">
-                  {upNext.resume ? 'Pick up where you left off' : standing.done === 0 ? 'Your first lesson' : 'Up next'}
+                  {upNext.resume
+                    ? "Pick up where you left off"
+                    : standing.done === 0
+                      ? "Your first lesson"
+                      : "Up next"}
                 </Text>
                 <Text weight="semibold">{upNext.title}</Text>
                 <LinkButton
@@ -115,11 +160,14 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
                   data-action="next-lesson"
                   data-lesson={upNext.id}
                 >
-                  {upNext.resume ? 'Continue lesson' : 'Start lesson'}
+                  {upNext.resume ? "Continue lesson" : "Start lesson"}
                 </LinkButton>
               </>
             ) : written ? (
-              <Text tone="muted">You have done every lesson written so far. New units are on their way.</Text>
+              <Text tone="muted">
+                You have done every lesson written so far. New units are on
+                their way.
+              </Text>
             ) : (
               // Nothing to start here yet: the one action is somewhere to play today (the plan is below).
               <div className={styles.preparing} data-preparing={teacher}>
@@ -127,11 +175,22 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
                   Lessons being written
                 </Text>
                 <Text>{profile.preparing}</Text>
-                <LinkButton to="learn" variant="primary" size="lg" data-action="next-lesson" wrap>
+                <LinkButton
+                  to="learn"
+                  variant="primary"
+                  size="lg"
+                  data-action="next-lesson"
+                  wrap
+                >
                   Open the Theory Path
                 </LinkButton>
-                {teacher !== 'mia' && (
-                  <LinkButton to="teachers" params={['mia']} variant="ghost" wrap>
+                {teacher !== "mia" && (
+                  <LinkButton
+                    to="teachers"
+                    params={["mia"]}
+                    variant="ghost"
+                    wrap
+                  >
                     Learn with Mia meanwhile
                   </LinkButton>
                 )}
@@ -148,15 +207,26 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
         </div>
       ) : written ? (
         <>
-          <ReviewEntry courses={[tc.course]} onStart={() => navigate('teachers', teacher, 'review')} hideWhenEmpty />
-          <Section title="Your course" description={`${tc.units.reduce((n, u) => n + u.lessons.length, 0)} lessons ready, ${standing.total} in the whole course.`}>
+          <ReviewEntry
+            courses={[tc.course]}
+            onStart={() => navigate("teachers", teacher, "review")}
+            hideWhenEmpty
+          />
+          <Section
+            title="Your course"
+            description={`${tc.units.reduce((n, u) => n + u.lessons.length, 0)} lessons ready, ${standing.total} in the whole course.`}
+          >
             <div data-course-map-wrap="">
               <CourseMap
                 course={tc.course}
                 autoScroll={false}
                 onStartLesson={(_u, lessonId) => start(lessonId)}
-                onStartCheckpoint={(unitId) => navigate('teachers', teacher, 'checkpoint', unitId)}
-                onPractice={(unitId) => navigate('teachers', teacher, 'practice', unitId)}
+                onStartCheckpoint={(unitId) =>
+                  navigate("teachers", teacher, "checkpoint", unitId)
+                }
+                onPractice={(unitId) =>
+                  navigate("teachers", teacher, "practice", unitId)
+                }
               />
             </div>
           </Section>
@@ -164,7 +234,15 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
       ) : null}
 
       {tc && tc.upcoming.length > 0 && (
-        <Section title={written ? 'Later in the course' : 'The course'} description={written ? 'Units still being written, in the order you will meet them.' : 'What you will learn, unit by unit.'} divided>
+        <Section
+          title={written ? "Later in the course" : "The course"}
+          description={
+            written
+              ? "Units still being written, in the order you will meet them."
+              : "What you will learn, unit by unit."
+          }
+          divided
+        >
           <ol className={styles.upcoming} data-upcoming="">
             {tc.upcoming.map((u) => {
               const n = tc.outline.units.findIndex((o) => o.id === u.id) + 1;

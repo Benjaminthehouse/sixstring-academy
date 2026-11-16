@@ -7,7 +7,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { flattenSong, formatSixTabError, parseSixTab, validateSong, type Song } from '@/core/song';
-import { parseKey } from '@/core/theory';
+import { keyModeName, parseKey } from '@/core/theory';
 import plan from '@/content/plan/repertoire.json';
 import { SONG_ENTRIES, loadSongText, songEntry, songTextIds } from './index';
 import { SONG_KINDS, SONG_SKILLS, SONG_STYLES, type SongEntry } from './types';
@@ -28,11 +28,11 @@ const PLAN = new Map<string, PlanItem>(
 /** Folders on disk (one per song). */
 const folders = readdirSync(HERE).filter((name) => statSync(HERE + name).isDirectory()).sort();
 
-/** "G" / "G major" / "Gmaj" -> "G major"; null when unreadable. */
+/** "G" / "G major" / "Gmaj" -> "G major", "A Dorian" -> "A dorian"; null when unreadable. */
 function keyName(text: string | undefined): string | null {
   if (!text) return null;
   const k = parseKey(text);
-  return k ? `${k.tonic} ${k.mode}` : null;
+  return k ? `${k.tonic} ${keyModeName(k)}` : null;
 }
 
 /** Parse a registered song's text, failing with every error and its position. */
@@ -149,6 +149,22 @@ describe.each(SONG_ENTRIES.map((e) => [e.id, e] as [string, SongEntry]))('%s', (
     expect(entry.plan, `${meta}: a song from the plan uses the plan's id as its folder name ("${entry.plan}/")`).toBe(id);
     expect(entry.level, `${meta}: the plan puts "${entry.plan}" at level ${item!.level}`).toBe(item!.level);
     if (item!.key) expect(keyName(entry.key), `${meta}: the plan writes "${entry.plan}" in ${item!.key}`).toBe(keyName(item!.key));
+  });
+});
+
+describe('reading studies', () => {
+  const readers = SONG_ENTRIES.filter((e) => e.prefersNotation);
+
+  it('open with the notation: every reading study of the plan, and nothing that is not one', () => {
+    const studies = SONG_ENTRIES.filter((e) => /^st-read-/.test(e.id)).map((e) => e.id).sort();
+    expect(studies).toEqual(['st-read-fifth-position', 'st-read-first-c', 'st-read-first-g', 'st-read-first-sharps', 'st-read-second-position', 'st-read-seventh-position', 'st-read-shifting']);
+    expect(readers.map((e) => e.id).sort()).toEqual(studies);
+  });
+
+  it.each(readers.map((e) => [e.id, e] as [string, SongEntry]))('%s has notes to read and says it is about reading', async (id, entry) => {
+    const song = await parsed(id);
+    expect(song.tracks[0].measures.some((m) => m.beats.some((b) => b.notes.length > 0)), `${id}: the first part has no notes to read`).toBe(true);
+    expect(entry.tags, `${id}/meta.ts: tag it "reading"`).toContain('reading');
   });
 });
 

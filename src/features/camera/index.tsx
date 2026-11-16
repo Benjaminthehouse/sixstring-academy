@@ -16,9 +16,12 @@
  * Addresses: `model/address.ts` (`#camera--scale--a--minor-pentatonic--box-1` ...). The root
  * mirrors state for tests: `data-mode` (guide | starting | live | blocked | drawn | hidden),
  * `data-state` (tracker state), `data-tool`, `data-content`, `data-mirrored`, `data-hands`,
- * `data-listen`, `data-step`. Keyboard: Space play / next note, arrows previous / next, F full
- * screen, M mirror, Esc leaves a tool or full screen. Browser checks: `node e2e/camera.cjs` (the
- * builder's fixture, every feature) and `node e2e/camera-alt.cjs` (independent scenes, dot accuracy).
+ * `data-listen`, `data-step`, `data-layout` (wide | stacked | sideways: `model/layout.ts`).
+ * Keyboard: Space play / next note, arrows previous / next, F full screen, M mirror, Z zoom in on
+ * the notes (on by default: the picture is cropped around the notes when their dots would be too
+ * small to read, `neckCrop` in `@/core/vision`), Esc leaves a tool or full screen. Browser checks:
+ * `node e2e/camera.cjs` (the builder's fixture, every feature) and `node e2e/camera-alt.cjs`
+ * (independent scenes, dot accuracy).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { redirect } from '@/app/router';
@@ -30,7 +33,24 @@ import { explainMediaFailure, isArtifact } from '@/core/platform';
 import { recordActivity, setPrefs, usePrefs } from '@/core/progress';
 import { cameraDeviceId, cameraMirrored, learnerTuning } from '@/core/settings';
 import { formatNote } from '@/core/theory';
-import { displayToFrame, fitOverlayCanvas, frameToDisplay, locatePixel, poseFromWireTaps, type MarkerColor, type PipelineRender, type PipelineUpdate, type Point, type VisionOptions } from '@/core/vision';
+import {
+  CropFollower,
+  FULL_CROP,
+  displayToFrame,
+  fitOverlayCanvas,
+  frameToDisplay,
+  isFullCrop,
+  locatePixel,
+  neckCrop,
+  poseFromWireTaps,
+  videoCropTransform,
+  type CropRect,
+  type MarkerColor,
+  type PipelineRender,
+  type PipelineUpdate,
+  type Point,
+  type VisionOptions,
+} from '@/core/vision';
 import { Banner, Button, Icon, IconButton, MediaBlocked, Page, RadioGroup, Sheet, Spinner, Stepper as NumberStepper, Text, cx, toast, useEventListener, useLocalState, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, useMusicSettings, type FretCell } from '@/ui/music';
 import { cameraDebug } from './debug';
@@ -44,6 +64,7 @@ import { boardRange, chordNotes, chordTitle, matchHeard, scaleNotes, scaleTitle,
 import { answers, drillNote, nextTarget, type DrillTarget } from './model/drill';
 import { GUITAR_KINDS, defaultGuitarKind, isGuitarKind, neckFor, stringCountOf, stringNamesFor, type GuitarKind } from './model/guitar';
 import { frettingHand, handAdvice, type FingerReading } from './model/hands';
+import { cameraLayout } from './model/layout';
 import { NO_VISIT, visitActivities, type VisitTotals } from './model/session';
 import { describeStep, stepHeard, stepNotes } from './model/song';
 import { DrawnPoses, TRUSTED, drawnOffset, expectedTrail, nextDrawnTrust, nextMotion, trailTooLong, type DrawnTrust, type NeckMotion } from './model/honesty';
@@ -73,6 +94,9 @@ const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 540px)';
 
 /** How long the green "heard it" flash lasts (ms). */
 const FLASH_MS = 700;
+
+/** How long the zoom holds after the board stops being locked before it eases back to the whole picture (ms). */
+const ZOOM_HOLD_MS = 900;
 
 export default function CameraScreen({ params }: RouteProps) {
   // ── What to show ────────────────────────────────────────────────────────────────────────────
@@ -105,9 +129,31 @@ export default function CameraScreen({ params }: RouteProps) {
   const [handsOn, setHandsOn] = useLocalState<boolean>('camera.hands', false);
   const [drillPrefs, setDrillPrefs] = useLocalState<{ revealed: boolean; accidentals: boolean }>('camera.drill', { revealed: true, accidentals: false });
   const [blockedBefore, setBlockedBefore] = useLocalState<boolean>('camera.blockedOnce', false);
+  // Zoom to the notes when their dots would be too small to read (an upright phone): on by default.
+  const [storedZoom, setZoom] = useLocalState<boolean>('camera.zoom', true);
+  const zoomOn = storedZoom !== false;
   const reducedMotion = usePrefersReducedMotion();
-  const wide = useMediaQuery(WIDE_QUERY);
+  const wideViewport = useMediaQuery(WIDE_QUERY);
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
+  // The controls go beside the picture only with room for them in the text size in use (200% text
+  // on a desktop still matches the viewport query).
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layoutBox, setLayoutBox] = useState({ widthPx: 0, remPx: 16 });
+  useEffect(() => {
+    const el = layoutRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const widthPx = el.clientWidth;
+      setLayoutBox((b) => (b.widthPx === widthPx && b.remPx === remPx ? b : { widthPx, remPx }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const layout = cameraLayout({ wideViewport, sideways, ...layoutBox });
+  const wide = layout === 'wide';
 
   /** The tuning the shapes are built in: the learner's, or a standard one for another guitar type. */
   const neckTuning = useMemo(() => {
@@ -244,6 +290,23 @@ export default function CameraScreen({ params }: RouteProps) {
 
   const handFrameRef = useRef<HandFrame | null>(null);
 
+  // Zoom to the notes: the part of the picture shown (eased by the follower, same for the video and
+  // the dots), and what it last aimed at, held for a moment when the lock blinks.
+  const zoomRef = useRef(zoomOn);
+  zoomRef.current = zoomOn;
+  const cropFollower = useRef(new CropFollower());
+  const cropRef = useRef<CropRect | undefined>(undefined);
+  const zoomAim = useRef<{ crop: CropRect; at: number }>({ crop: FULL_CROP, at: -Infinity });
+  const videoCss = useRef<string | null>(null);
+  /** Show the whole picture again, at once (a marking tool needs all of it; the camera stopped). */
+  const unzoom = useCallback(() => {
+    cropFollower.current.reset();
+    zoomAim.current = { crop: FULL_CROP, at: -Infinity };
+    cropRef.current = undefined;
+    cameraDebug.crop = null;
+    setVideoCrop(videoRef.current, null, videoCss);
+  }, []);
+
   const onRender = useCallback((r: PipelineRender) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -254,8 +317,17 @@ export default function CameraScreen({ params }: RouteProps) {
     if (!paletteRef.current) paletteRef.current = readStagePalette(canvas);
     const s = statusRef.current;
     const u = r.latest?.update;
-    const view = { width: box.width, height: box.height, mirrored: mirroredRef.current, fit: 'contain' as const };
+    const whole: { width: number; height: number; mirrored: boolean; fit: 'contain'; crop?: CropRect } = { width: box.width, height: box.height, mirrored: mirroredRef.current, fit: 'contain' };
     const pose = r.pose;
+    // Zoom: aim at the notes while locked; keep the aim through a short blink of the lock.
+    if (zoomRef.current && pose && s.state === 'locked' && s.notes !== 'none') zoomAim.current = { crop: neckCrop(pose, notesRef.current, whole), at: r.timeMs };
+    else if (!zoomRef.current || r.timeMs - zoomAim.current.at > ZOOM_HOLD_MS) zoomAim.current = { crop: FULL_CROP, at: zoomAim.current.at };
+    const crop = cropFollower.current.update(zoomAim.current.crop, r.timeMs, reducedRef.current);
+    const view = isFullCrop(crop) ? whole : { ...whole, crop };
+    cropRef.current = view.crop;
+    cameraDebug.crop = view.crop ?? null;
+    const shown = videoRef.current;
+    if (shown) setVideoCrop(shown, videoCropTransform(view, shown.videoWidth, shown.videoHeight), videoCss);
     if (pose) drawnPoses.current.push(r.timeMs, pose);
     // Fingertips: the newest hand landmarks read through this frame's pose (only on a locked board).
     let fingers: FingerReading[] | null = null;
@@ -297,7 +369,7 @@ export default function CameraScreen({ params }: RouteProps) {
         videoHeight: video.videoHeight,
         state: u?.state ?? 'searching',
         notes: s.notes,
-        markers: res.markers.map((m) => ({ string: m.string, fret: m.note.fret, x: m.x, y: m.y, ghost: !!m.note.ghost })),
+        markers: res.markers.map((m) => ({ string: m.string, fret: m.note.fret, x: m.x, y: m.y, radius: m.radius, ghost: !!m.note.ghost })),
         numbering: u?.pose?.numbering ?? null,
         guidance: u?.guidance.code ?? null,
         trust: u?.guidance.trust ?? null,
@@ -357,8 +429,9 @@ export default function CameraScreen({ params }: RouteProps) {
       drawnPoses.current.clear();
       drawnTrust.current = TRUSTED;
       clearOverlay(canvasRef.current);
+      unzoom();
     }
-  }, [camera.phase]);
+  }, [camera.phase, unzoom]);
 
   // ── Without a camera ────────────────────────────────────────────────────────────────────────
   const [drawn, setDrawn] = useState(false);
@@ -490,7 +563,8 @@ export default function CameraScreen({ params }: RouteProps) {
   const [tool, setTool] = useState<Tool | null>(null);
   const toolRef = useRef<Tool | null>(null);
   toolRef.current = tool;
-  const view = useCallback(() => ({ width: stageSize.current.width, height: stageSize.current.height, mirrored: mirroredRef.current, fit: 'contain' as const }), []);
+  // The picture as shown now, zoom included: taps go back to the camera's pixels through it.
+  const view = useCallback(() => ({ width: stageSize.current.width, height: stageSize.current.height, mirrored: mirroredRef.current, fit: 'contain' as const, crop: cropRef.current }), []);
   const freeze = useCallback((on: boolean) => {
     frozen.current = on;
     const p = camera.pipeline.current;
@@ -507,10 +581,13 @@ export default function CameraScreen({ params }: RouteProps) {
       if (!live) return;
       setSheet(false);
       if (kind === 'calibrate') {
+        // Marking needs the whole picture (the nut and the frets far from the notes).
+        unzoom();
         freeze(true);
         clearOverlay(canvasRef.current);
         setTool({ kind, pair: DEFAULT_WIRES, taps: [], error: null, choosing: false });
       } else if (kind === 'stickers') {
+        unzoom();
         freeze(true);
         clearOverlay(canvasRef.current);
         setTool({ kind, frets: DEFAULT_STICKER_FRETS, colors: [], error: null });
@@ -519,7 +596,7 @@ export default function CameraScreen({ params }: RouteProps) {
         setTool({ kind, tap: preset ?? null, current: preset ? fretUnder(preset) : null, error: null });
       }
     },
-    [live, freeze], // eslint-disable-line react-hooks/exhaustive-deps
+    [live, freeze, unzoom], // eslint-disable-line react-hooks/exhaustive-deps
   );
   /** The fret the tracker gives the cell under a stage point (null when it is not on the board). */
   const fretUnder = (p: Point): number | null => {
@@ -666,6 +743,7 @@ export default function CameraScreen({ params }: RouteProps) {
     }
     if ((e.key === 'f' || e.key === 'F') && live) setFocus((v) => !v);
     if (e.key === 'm' || e.key === 'M') setPrefs({ camera: { mirrored: !mirrored } });
+    if (e.key === 'z' || e.key === 'Z') setZoom(!zoomOn);
   });
 
   // ── The practice log ────────────────────────────────────────────────────────────────────────
@@ -1047,6 +1125,15 @@ export default function CameraScreen({ params }: RouteProps) {
             <StatusPill status={status} />
             <div className={stage.hudTools}>
               {(sideways || focus) && <IconButton icon="SlidersHorizontal" label="Show the controls" variant="secondary" className={stage.hudIcon} onClick={() => setSheet(true)} />}
+              <IconButton
+                icon="ZoomIn"
+                label="Zoom in on the notes (Z)"
+                variant="secondary"
+                pressed={zoomOn}
+                className={stage.hudIcon}
+                onClick={() => setZoom(!zoomOn)}
+                data-camera-zoom={zoomOn ? 'on' : 'off'}
+              />
               <IconButton icon="FlipHorizontal2" label="Mirror the picture (M)" variant="secondary" pressed={mirrored} className={stage.hudIcon} onClick={() => setPrefs({ camera: { mirrored: !mirrored } })} />
               <IconButton icon={focus ? 'Minimize2' : 'Maximize2'} label={focus ? 'Leave full screen (Esc)' : 'Full screen (F)'} variant="secondary" className={stage.hudIcon} onClick={() => setFocus((v) => !v)} />
               <IconButton icon="CameraOff" label="Turn the camera off" variant="secondary" className={stage.hudIcon} onClick={() => camera.stop()} />
@@ -1121,7 +1208,7 @@ export default function CameraScreen({ params }: RouteProps) {
       <p className="sr-only" aria-live="polite">
         {live ? said : ''}
       </p>
-      <div className={styles.layout} data-layout={sideways ? 'sideways' : wide ? 'wide' : 'stacked'}>
+      <div ref={layoutRef} className={styles.layout} data-layout={layout}>
         <div className={styles.stageCol}>
           {mode === 'drawn' && (
             <Banner
@@ -1223,6 +1310,17 @@ export default function CameraScreen({ params }: RouteProps) {
       </Sheet>
     </Page>
   );
+}
+
+/**
+ * Show the part of the picture the overlay is drawn for (a `videoCropTransform`), or the whole
+ * picture with the element's own styling (null). Written only when it changes (once per frame at most).
+ */
+function setVideoCrop(video: HTMLVideoElement | null, css: string | null, last: { current: string | null }): void {
+  if (!video || last.current === css) return;
+  last.current = css;
+  video.style.transform = css ?? '';
+  video.style.transformOrigin = css ? '0 0' : '';
 }
 
 /** The frets a song needs on a drawn neck (all of its notes, so the board does not jump between steps). */

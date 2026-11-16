@@ -39,6 +39,7 @@ anyone listing it. `classifyKey(key)` gives the class; the exceptions, each with
 | `secret` | `ai.*` (the API key) | never / never | kept |
 | `progress` | `progress`, `progress.*` | via the progress export | via `resetProgress` |
 | `songs` | `library.*` (the songs' key-value fallback) | song by song (`@/core/library`) | only with "also delete my songs" |
+| device-only blobs, not in key-value storage | the Recorder's takes: IndexedDB `ssa-recorder` (`takes.json` + `take/<id>`, `features/recorder/model/store.ts`), to move to the platform blob store under the same keys | no / no (too large: about 0.5 MB a minute; the screen says so and offers "Save as a file") | kept (deleted take by take on the Recorder screen) |
 
 So: a new key needs a line in `DATA_RULES` only when it is **not** the learner's (it describes this
 device or screen, is work in progress, or is secret). Something the learner made or earned (rather than

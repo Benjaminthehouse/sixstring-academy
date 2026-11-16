@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estimateDifficulty, parseSixTab, validateSong, type Beat, type Song, type Track } from '@/core/song';
-import { chordPcs, midiToNote, parseKey, scalePcs } from '@/core/theory';
+import { chordPcs, keyModeName, midiToNote, parseKey, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
 
 const PPQ = 960;
@@ -114,7 +114,7 @@ const SONGS: Expected[] = [
     notes: join(SAILOR_CHORUS, SAILOR_VERSE, SAILOR_CHORUS),
     rhythm: join(SAILOR_CHORUS_R, SAILOR_VERSE_R, SAILOR_CHORUS_R),
     chords: '1:Em 5:D 9:Em 13:D 15:Em 17:Em 21:D 25:Em 29:D 31:Em 33:Em 37:D 41:Em 45:D 47:Em',
-    key: 'E minor',
+    key: 'E dorian',
     scale: ['E', 'dorian'],
     range: ['D3', 'E4'],
     strong: ONE,
@@ -383,7 +383,7 @@ describe.each(SONGS.map((s) => [s.id, s] as [string, Expected]))('batch 2: %s', 
 
   it('keeps to its key, scale and range, and ends where it should', () => {
     const k = parseKey(song.key ?? '');
-    expect(k && `${k.tonic} ${k.mode}`).toBe(want.key);
+    expect(k && `${k.tonic} ${keyModeName(k)}`).toBe(want.key);
     const allowed = scalePcs(want.scale[0], want.scale[1]);
     const notes = notesOf(melody);
     const outside = notes.filter((x) => !allowed.includes(x.midi % 12)).map((x) => `${n(x.bar)}:${name(x.midi)}`);

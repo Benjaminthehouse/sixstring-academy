@@ -8,7 +8,7 @@ export default defineSong({
   level: 8,
   style: 'jazz',
   kind: 'study',
-  key: 'A minor',
+  key: 'A Locrian',
   teaches: ['Locrian: A Bb C D Eb F G', 'Two colour notes: Bb (flat 2) and Eb (flat 5)', 'Why a diminished home chord never settles', 'Am7b5 and Bbmaj7'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'locrian', 'half-diminished', 'colour note', 'vamp', 'flat fifth', 'a minor', 'fifth position'],

@@ -4,16 +4,16 @@
  * (guitar at hand, sound on). Waits for the unit's chunk behind a skeleton, never a blank. When a
  * lesson or checkpoint finishes a unit, the way out passes through a short celebration.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActionBar, Button, EmptyState, Page, Skeleton, Stack } from '@/ui';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { ActionBar, Button, EmptyState, Icon, IconButton, Page, Skeleton, Stack, Text } from '@/ui';
 import { navigate } from '@/app/router';
-import { useImmersive } from '@/app/shell';
+import { useImmersive, useRewardHold } from '@/app/shell';
 import { getProgress, useProgress } from '@/core/progress';
 import { courseMap } from '@/lessons';
 import { LessonPlayer, type NextStep } from '@/lessons/ui';
 import { completedUnits } from '../model/path';
 import { learnParams } from '../model/route';
-import { resolveSession, sessionUnit, type ResolvedSession, type SessionView } from '../model/session';
+import { resolveSession, sessionUnit, type Ahead, type ResolvedSession, type SessionView } from '../model/session';
 import { useConditions, useTheory } from '../useTheory';
 import { UnitComplete } from './UnitComplete';
 import styles from './SessionScreen.module.css';
@@ -32,6 +32,24 @@ function Loading() {
       </div>
     </Page>
   );
+}
+
+/**
+ * True once the lesson player inside `ref` shows its summary (`data-phase="done"`). The player is
+ * the lesson engine's, so its phase is read from the attribute it publishes.
+ */
+function usePlayerDone(ref: RefObject<HTMLElement | null>, active: boolean): boolean {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    const root = ref.current;
+    if (!active || !root) return undefined;
+    const read = () => setDone(root.querySelector('[data-lesson-player]')?.getAttribute('data-phase') === 'done');
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-phase'] });
+    return () => observer.disconnect();
+  }, [ref, active]);
+  return active && done;
 }
 
 /** Run one session of the Theory Path. */
@@ -60,6 +78,13 @@ export function SessionScreen({ view }: { view: SessionView }) {
   }, [resolved, theory, progress]);
 
   const [celebrating, setCelebrating] = useState<{ unitId: string; then: () => void; label: string | null } | null>(null);
+
+  // While the lesson is loading or its steps are on screen, the shell's rewards (the previous
+  // lesson's card, a new level) wait: they belong on a summary, never over a question.
+  const runRef = useRef<HTMLDivElement | null>(null);
+  const playerDone = usePlayerDone(runRef, resolved.status === 'ready' && !celebrating);
+  useRewardHold(!celebrating && ((resolved.status === 'loading' && failed.size === 0) || (resolved.status === 'ready' && !playerDone)));
+  const [aheadClosed, setAheadClosed] = useState(false);
 
   if (celebrating) {
     return (
@@ -119,5 +144,37 @@ export function SessionScreen({ view }: { view: SessionView }) {
     else leave(backToPath, null);
   };
   const key = `${source.mode}:${params.join('--')}`;
-  return <LessonPlayer key={key} source={source} route="learn" params={params} onExit={() => leave(backToPath, null)} onNext={onNext} />;
+  const ahead = resolved.ahead && !aheadClosed && !playerDone ? resolved.ahead : null;
+  return (
+    <div ref={runRef} className={styles.run} data-session-run="">
+      {ahead && <AheadNote ahead={ahead} onClose={() => setAheadClosed(true)} />}
+      <LessonPlayer key={key} source={source} route="learn" params={params} onExit={() => leave(backToPath, null)} onNext={onNext} />
+    </div>
+  );
+}
+
+/**
+ * A lesson further along the path than the learner (opened from a teacher's lesson or an old link)
+ * runs, with this short note above it: what it builds on, and the way to where they are.
+ */
+function AheadNote({ ahead, onClose }: { ahead: Ahead; onClose: () => void }) {
+  const [first, ...rest] = ahead.missing;
+  const builds = first ? ` It builds on “${first.title}”${rest.length > 0 ? ` and ${rest.length} more` : ''}.` : '';
+  const where = ahead.next;
+  return (
+    <aside className={styles.ahead} role="note" aria-label="This lesson is ahead of you" data-ahead={ahead.missing.map((m) => m.lessonId).join(' ')}>
+      <span className={styles.aheadIcon} aria-hidden="true">
+        <Icon name="Signpost" size="md" />
+      </span>
+      <Text variant="caption" className={styles.aheadText}>
+        {`This lesson is ahead of where you are on the path.${builds} You can take it now.`}
+      </Text>
+      <div className={styles.aheadActions}>
+        <Button size="sm" variant="secondary" iconLeft="Route" onClick={() => (where ? navigate('learn', where.unitId) : navigate('learn'))} data-ahead-back="">
+          Back to where you are
+        </Button>
+        <IconButton icon="X" label="Hide this note" size="sm" onClick={onClose} data-ahead-close="" />
+      </div>
+    </aside>
+  );
 }

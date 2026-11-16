@@ -92,7 +92,7 @@ from `@/core/progress` anyway.
 | `{ type: 'skip', at }` | "I don't know": shows the answer, costs no heart, the exercise comes back |
 | `{ type: 'continue', at }` | leave a card, or leave the feedback of an answer |
 | `{ type: 'cant-play', scope: 'step' \| 'session', at }` | "I can't play right now": swap the play exercise for its alternative (this one, or all from now on) |
-| `{ type: 'mic', available, at }` | the microphone went away (swap from now on) or came back (send this only when the learner asks to play again) |
+| `{ type: 'mic', available, at }` | the microphone went away (swap from now on) or came back (send this only when the learner asks to play again: the step on screen goes back to its microphone version too) |
 | `{ type: 'pause', at }` / `{ type: 'resume', at, hearts? }` | screen hidden / shown; time away is not counted, `hearts` re-syncs the heart count |
 | `{ type: 'quit', at }` | leave for good (records an unfinished attempt when something was answered) |
 
@@ -116,6 +116,11 @@ move the bar backwards), `mistakesLeft(state)` (checkpoints), `sessionAccuracy(s
   lesson on the last heart still completes it.
 - **Checkpoints** are tests: no come-backs, and more than `maxMistakes` (default `CHECKPOINT_MISTAKES` = 3)
   mistakes ends them with `outcome: 'failed'` (`summary.next: 'lessons'`). A pass marks every lesson of the unit done.
+- **A lesson needs a pass mark.** Reaching the end is not enough: `lessonScore(state)` counts each question 1 when
+  right the first time, 1/2 when right on its come-back, 0 when never right; below `LESSON_PASS_SCORE` (0.5) the lesson
+  ends `failed` with `summary.next: 'retry'`: it counts as practice (`completed: false`, XP in proportion to what was
+  learned, so "I don't know" through a whole lesson earns none), adds no cards, gives no crown and finishes no unit.
+  The player says so kindly and offers "Try again". Checkpoints, practice and reviews keep their own rules.
 - **Combo** counts right answers in a row (`stats.combo`, `bestCombo`).
 - **Time** counts per step up to `MAX_STEP_MS` (90 s); `pause` / `resume` leave time away out.
 - **Adaptive difficulty** moves only on generated exercises (A9).
@@ -123,14 +128,17 @@ move the bar backwards), `mistakesLeft(state)` (checkpoints), `sessionAccuracy(s
 ### The summary
 
 `state.summary: SessionSummary` — `mode outcome title exercises accuracy firstTry mistakes perfect bestCombo
-durationSec xp crown factsAdded cardsReviewed heartsLeft missed unlocked next`. `accuracy` is the share of
-exercises answered right at the **first** attempt. `xp` is the guideline amount (`xpFor`: a theory lesson 10, 15
+durationSec xp crown factsAdded cardsReviewed heartsLeft missed unlocked score next`. `accuracy` is the share of
+exercises answered right at the **first** attempt; `score` is `lessonScore` (above). `xp` is the guideline amount (`xpFor`: a theory lesson 10, 15
 when perfect; leaving early earns the unfinished half share in proportion to what was done); `crown` is
 `{ before, after, gained }` predicted with the progress module's own rule (null when no skill record was given).
 `missed` lists the prompts never answered right ("worth another look"); `unlocked` the lessons a passed checkpoint
 marked done. `sessionReport(summary, effectResults): SessionReport` adds what the store really did: `xpAwarded
 multiplier leveledUp level goalMetNow streakExtended streak gems quests achievements hearts` (and the stored crown).
-`outcome`: `completed | out-of-hearts | failed | quit`; `next`: `continue | practice | lessons | resume`.
+`outcome`: `completed | out-of-hearts | failed | quit` (`failed`: a checkpoint over its mistakes, or a lesson below
+the pass mark); `next`: `continue | practice | lessons | retry | resume`.
+The session also keeps `state.taught`: the chord symbols the course has shown up to this lesson (`chordsShown(lessons)`),
+so feedback names a wrong chord shape only when it is a chord the learner has met.
 
 ## A4. Effects
 
@@ -180,7 +188,7 @@ correct `Answer` (for a "show me" button); `answerText(exercise)` is the right a
 Button values of `fretboard-name`, `staff-read` and `chord-build` are plain (`'F#'`, `'m3'`, `'b3'`): format them
 for display with the theory formatters.
 
-`grade(exercise, answer, { level?, naming? }): GradeResult` is what the reducer calls (use it directly in a
+`grade(exercise, answer, { level?, naming?, chordsTaught? }): GradeResult` is what the reducer calls (use it directly in a
 gallery): `{ correct, score (0–1 partial credit), near?, invalid?, feedback }`.
 `feedback` = `{ answer (markup of the right answer), explain, note? (a line about THIS answer), detail }`.
 `near` says why a wrong answer was close: `enharmonic | octave | timing | incomplete | extra | case`.
@@ -190,6 +198,23 @@ typed answers; per-note `TapVerdict`s (`hit | early | late | missed`, `errorMs`)
 `offsetMs`; fretboard `targets hits wrong missed` (each with the note it sounds); the chord the learner really
 built (`built`, `wrongStrings`); the placed staff note; what was played. `wrongAnswers(exercise)` lists the wrong
 answers an exercise's own distractors offer (galleries and tests).
+
+Words a beginner understands, never codes: a wrong chord shape gets `chordBuildNote` ("String 2 sounds B, which is
+not in Am.", "No string plays G#, and E needs it", "The lowest string you play sounds C; C/G needs G at the bottom"),
+named as a chord only when `nameableChord(built, chord, chordsTaught)` allows it (a common chord the course has
+taught; never "Cmaj7/E"); the answer is the chord (`{c:Em}`) and the screen draws its box, never a fret string
+such as `022000`. A slash chord is graded with its bass even with `accept: 'any-voicing'`. A tap-rhythm's answer is
+its counting (`rhythmCounts(spec)`: "1, 2 &, (3) &, 4"), and the screen draws the rhythm, never the pattern code.
+A fretboard-find with `strings` says "Right note, but on string 5: this one asks for string 6." for a right pitch
+tapped elsewhere.
+
+**Spelling in context.** Pitches that are heard or tapped are named in the music of the exercise, never with the
+key-less commonest name: `exerciseSpelling(exercise)` is the context (its `key`; else the written note of a
+play-note, the chord or scale of a fretboard-find, the chord of a play-chord or chord-build, the key a phrase's
+notes imply), `spellPitch(midi, context, { octave? })` the name (C♯4 in A major, D♯4 in Für Elise, never D♭4).
+`inferSpelling(midis)` is the key a set of pitches implies (null for a single pitch class), `keySpelling(key)`,
+`spellingOfName(name)` (sharps or flats as a written name suggests), `tabMidi(notes, { tuning?, capo? })`. The
+graders, the feedback and the play screens all use them.
 
 Answer normalisers, used by the graders and usable for live input hints: `normalizeNote normalizeInterval
 normalizeChord normalizeDegree normalizeRoman normalizeNumber normalizeText`, `compareNoteNames(a, b)`,
@@ -209,7 +234,8 @@ formatToken(token, { system: prefs.noteNaming });   // note, chord and key token
 speak(speakable(card.body), { voice: course.teacher === 'none' ? 'narrator' : course.teacher });
 ```
 
-`plainText(text, { format? })`, `textLength(text)` (visible characters), `textKey(text)` (comparison key),
+The UI's `RichText` keeps punctuation with the term or symbol before it and hyphenated number runs ("10-8-8",
+"x-3-2-0-1-0") on one line. `plainText(text, { format? })`, `textLength(text)` (visible characters), `textKey(text)` (comparison key),
 `parseRichText(text)` (tokens + `problems`), `describeSymbol(kind, raw)`, `looseSymbols(text)` (music symbols
 typed as plain text), and the speech helpers `sayNote sayChord sayInterval sayDegree sayRoman sayKey`. Glossary:
 `GLOSSARY`, `glossaryTerm(id)`, `glossaryFor(course)` (the built-in terms plus the course's own).
@@ -221,8 +247,8 @@ engines, or `null` when it cannot be drawn (`figureProblems(figure)` says why):
 
 | kind | resolved fields |
 |---|---|
-| `fretboard` | `tuning capo frets [lo, hi] root labels caption`, `dots[]`: `string fret midi note degree role label finger` |
-| `chord` | `symbol frets fingers barres baseFret midi tuning capo caption`, `notes[]`: `string fret midi note degree` |
+| `fretboard` | `tuning capo frets [lo, hi] board [lo, hi] root labels caption`, `dots[]`: `string fret midi note degree role label finger` (`frets` counts from the capo like the dots; `board` is the same window in frets on the wood, for `Fretboard`'s `frets` with `capo`: `boardFrets(window, capo)`) |
+| `chord` | `symbol frets fingers barres baseFret midi tuning capo voicing caption`, `notes[]`: `string fret midi note degree` (`voicing` carries the capo for the box) |
 | `staff` | `clef guitar key { name, fifths, accidentals, positions } time caption`, `notes[]`: `note midi position ledgerPositions accidental stem duration label` (position 0 = bottom line; `accidental` is what must be DRAWN, after the key signature) |
 | `keyboard` | `from to` (MIDI, white keys), `keys[]`: `midi note label role black` |
 | `circle` | `key { name, mode, fifths, accidentals } show`, `slots[12]`: `index major[] minor[] fifths majorState minorState` (`selected \| highlight \| null`) |
@@ -264,6 +290,10 @@ dispatch({ type: 'answer', answer: await listening, at: Date.now() });          
 resolves with an `Answer`: right as soon as the note, chord or phrase is heard; wrong after `PLAY_TRIES` (3) other
 notes or failed strums, carrying what was heard so the feedback can say so. `noteWaitArgs(exercise)` and
 `chordWaitArgs(exercise)` expose the arguments (tolerance `PLAY_TOLERANCE_CENTS` per level: 45 / 35 / 25 cents).
+A chord is listened for as the shape the exercise shows (its `frets`, `capo` and `tuning`, else the library
+shape): that shape's own pitch classes and lowest note, so shell, rootless and extended grips and power chords can
+pass. A phrase is listened to for `phraseListenMs(exercise)`: twice its length at its tempo plus ten seconds, at
+least `PHRASE_LISTEN_MIN_MS` (40 s).
 `currentStep(state).usesMic` is true while the step still listens; after a swap `alternative` is true and the
 exercise is an ordinary one. Always offer "I can't play right now" on a play step.
 
@@ -540,8 +570,12 @@ positions must exist, and every note or degree you claim must be what is really 
 | `strings?` | limit derived dots to these strings |
 | `root?` | root note for degree labels and degree claims |
 | `labels?` | what unlabelled dots show: `note` (default), `degree`, `finger`, `none` |
-| `tuning?`, `capo?` | tuning id (`drop-d`); frets count from the capo |
+| `tuning?`, `capo?` | tuning id (`drop-d`); dots and `frets` count from the capo (fret 0 sits on it); the board drawn moves up the neck with it |
+| `key?` | key that spells the dots' note names (`'A major'`: C♯, not D♭). Default: the derived chord or scale, else the sharps or flats of the claimed notes, else the key all the dots imply |
 | `caption?` | text under the figure (at most 80 characters) |
+
+On a card the neck is live: tapping it plays the note there, as everywhere in the app. A neck wider than the
+phone scrolls inside its box, with a visible edge and arrow where more is hidden.
 
 **`chord`** — a chord diagram: a `symbol`, a shape, or both (then the shape is checked against the symbol).
 
@@ -552,7 +586,9 @@ positions must exist, and every note or degree you claim must be what is really 
 <!-- /gen -->
 
 `symbol?`, `frets?` (`'x32010'` or `[null, 3, 2, 0, 1, 0]`, low string first), `fingers?` (`'x32010'`),
-`tuning?`, `capo?`, `caption?`. With only a `symbol`, the first shape of the chord library is drawn.
+`tuning?`, `capo?`, `caption?`. With only a `symbol`, the first shape of the chord library is drawn. With a `capo`
+the frets count from it, the `symbol` names what SOUNDS (shape G at capo 2 is `A`), and the box draws the capo.
+A chord box used as a choice option is drawn without its name (the name would be the answer).
 
 **`staff`** — notes in treble clef as the guitar reads it: write the **sounding** pitch and it is drawn an
 octave higher (`E3` is the bottom line, `E2` the low E string three ledger lines down).
@@ -576,7 +612,9 @@ covers are not repeated), `time?`, `clef?` (`treble` default, `bass`), `guitar?`
 <!-- /gen -->
 
 `keys` (pitches with octaves, or `{ note, label?, role? }`), `from?` / `to?` (white keys; default: the octaves
-around the keys; at most three octaves), `caption?`.
+around the keys; at most three octaves), `caption?`. A `ghost` key is drawn faint; when some keys carry degree
+roles (`root third fifth seventh`) the plain ones are neutral, so the third's colour is never mistaken for the
+accent. Every key sounds when tapped, and the keyboard always fits the phone (nine white keys at 360 px).
 
 **`circle`** — the circle of fifths with one key selected.
 
@@ -625,7 +663,8 @@ The notation, used everywhere a rhythm is written:
 ```
 <!-- /gen -->
 
-`notes` (`{ string, fret, duration }` or `{ rest: true, duration }`), `tuning?`, `capo?`, `time?`, `tempo?`, `caption?`.
+`notes` (`{ string, fret, duration }` or `{ rest: true, duration }`), `tuning?`, `capo?`, `time?`, `tempo?`, `key?`
+(spells its notes; default: the key they imply), `caption?`.
 
 **`audio`** — a play button.
 
@@ -635,7 +674,8 @@ The notation, used everywhere a rhythm is written:
 ```
 <!-- /gen -->
 
-`sound`, `label?` (at most 28 characters), `caption?`. A `Sound` is one of:
+`sound`, `label?` (at most 28 characters), `caption?`. `describeSound(sound)` is its short description ("one note",
+"3 notes together", "a chord"). A `Sound` is one of:
 
 | `kind` | fields |
 |---|---|
@@ -697,7 +737,10 @@ pitch (`{n:C#}` and `{n:Db}`) in one option list are rejected unless the exercis
 `options` (2 to 6): `{ text?, figure?, correct?, why? }`; `why` is shown when that wrong option is picked.
 Exactly one `correct`, unless `multiple: true` (then every correct option must be picked; partial credit is
 given). `shuffle: false` keeps your order (numbers, "higher / lower"). `spelling: 'exact'` only when enharmonic
-twins among the options are the point.
+twins among the options are the point. Options that are chord boxes are drawn without their names; options that
+are rhythms, staves, tabs, necks or keyboards get a whole row each on a phone. The validator warns
+(`exercise.giveaway`) when the right option is the only picture whose caption or text repeats what the prompt asks
+for ("Which box is {c:G}?" with "The {c:G} shape" under the right box).
 
 ### `true-false`
 

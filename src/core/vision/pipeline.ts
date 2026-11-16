@@ -7,10 +7,12 @@
  *   pipeline.stop();                       // releases the worker, the frame loop and the video
  *
  * Per displayed video frame (`requestVideoFrameCallback`, else `requestAnimationFrame`):
- *  1. If the vision worker is idle, the frame is shrunk to the working size on the GPU
- *     (`createImageBitmap` with a resize) and the bitmap is transferred to the worker, which reads
- *     the pixels back and runs `FretboardTracker`. If the worker is still busy, the frame is dropped:
- *     frames never queue, so latency never grows.
+ *  1. If the vision worker is idle, the camera frame is handed to it: wrapped as a WebCodecs
+ *     `VideoFrame` and transferred (about 0.1 ms here; the worker shrinks it to the working size and
+ *     reads the pixels), or, without WebCodecs, shrunk with `createImageBitmap` (a synchronous copy
+ *     and resize on this thread: 8-9 ms a frame in headless Chromium) and the bitmap transferred.
+ *     The worker runs `FretboardTracker`. If the worker is still busy, the frame is dropped: frames
+ *     never queue, so latency never grows.
  *  2. `onRender` is called with the pose carried forward to this frame's display time
  *     (`PosePredictor`), so the overlay keeps up with the video instead of trailing it.
  *
@@ -27,13 +29,16 @@
 import type { MarkerColor } from './color-markers';
 import { scalePose } from './geometry';
 import { PosePredictor, type PredictorOptions } from './predict';
-import type { FrameProbe, FrameTiming, VisionOptions, VisionRequest, VisionResponse } from './protocol';
+import { VIDEO_FRAMES_UNREADABLE, type FrameProbe, type FrameTiming, type VisionOptions, type VisionRequest, type VisionResponse } from './protocol';
 import { QualityController, type QualityOptions, type QualitySettings } from './quality';
 import type { TrackerUpdate } from './tracker';
 import type { FretboardPose, Point, Rect } from './types';
 
 /** Where the tracker runs. */
 export type PipelineMode = 'worker' | 'main' | 'idle';
+
+/** How a frame travels to the tracker (see `PipelineStats.transfer`). */
+export type FrameTransfer = 'video-frame' | 'bitmap' | 'pixels';
 
 /** One processed frame, as it reaches the main thread. */
 export interface PipelineUpdate {
@@ -87,9 +92,20 @@ export interface PipelineStats {
   detectMs: number;
   /** Median of frame timestamp -> answer on the main thread, ms. */
   latencyMs: number;
-  /** Median and maximum main-thread time the pipeline itself takes per video frame (grab and send; not your `onRender`), ms. */
+  /**
+   * Main-thread time the pipeline itself takes per video frame, ms: everything it does on this
+   * thread (grabbing and sending frames, wherever that happens, and the hand-off of a resized
+   * bitmap) over the last two seconds, divided by the video frames seen (not your `onRender`).
+   */
   mainThreadMs: number;
+  /** The longest single piece of that work, ms. */
   mainThreadMaxMs: number;
+  /** Share of wall-clock time the pipeline kept the main thread busy over the last two seconds (0..1). */
+  mainThreadShare: number;
+  /** Median main-thread time to hand one frame to the tracker (sent frames only), ms. */
+  grabMs: number;
+  /** How frames reach the tracker: a transferred `VideoFrame`, a resized `ImageBitmap`, or pixels read here. */
+  transfer: FrameTransfer;
   /** Working frame size and the adaptive settings in force. */
   workingWidth: number;
   workingHeight: number;
@@ -209,6 +225,8 @@ export class VisionPipeline {
   private currentMode: PipelineMode = 'idle';
   private bitmaps = false;
   private resizeBitmaps = true;
+  /** The worker reads transferred `VideoFrame`s and this thread can make them. */
+  private videoFrames = false;
   private ready = false;
   private running = false;
   private paused = false;
@@ -217,7 +235,7 @@ export class VisionPipeline {
   private lastVideoFrames = -1;
   private generation = 0;
   private seq = 0;
-  private inFlight: { seq: number; frameTime: number; sentAt: number; width: number; height: number } | null = null;
+  private inFlight: { seq: number; frameTime: number; sentAt: number; width: number; height: number; via: FrameTransfer } | null = null;
   private lastSize = { width: 0, height: 0 };
   private nextDetectAt = 0;
   /** Timestamp of the newest frame dropped while the tracker was busy (sent as soon as it is free). */
@@ -232,7 +250,10 @@ export class VisionPipeline {
   private readonly processedTimes = new Ring(256);
   private readonly workerTimes = new Ring(128);
   private readonly latencies = new Ring(128);
-  private readonly mainTimes = new Ring(128);
+  /** Every piece of main-thread work the pipeline does (ms, at its start time), and the cost of each frame hand-off. */
+  private readonly mainTimes = new Ring(512);
+  private readonly grabTimes = new Ring(128);
+  private startedAt = 0;
 
   /** Create a pipeline (nothing starts until `start`). */
   constructor(options: PipelineOptions = {}) {
@@ -287,6 +308,7 @@ export class VisionPipeline {
     const generation = ++this.generation;
     this.running = true;
     this.paused = false;
+    this.startedAt = now();
     let video: FrameCallbackVideo;
     // Duck-typed (a video element from another realm, or a stand-in in tests, is still a video).
     if (typeof (source as Partial<HTMLVideoElement>).videoWidth === 'number') {
@@ -359,6 +381,7 @@ export class VisionPipeline {
     this.workerTimes.clear();
     this.latencies.clear();
     this.mainTimes.clear();
+    this.grabTimes.clear();
     this.setMode('idle');
   }
 
@@ -423,6 +446,10 @@ export class VisionPipeline {
     };
     const worker = this.workerTimes.recent();
     const medians = this.quality.medians;
+    const busy = this.mainTimes.recent(since);
+    const busyMs = busy.reduce((a, b) => a + b, 0);
+    const offered = this.offeredTimes.recent(since).length;
+    const span = Math.max(1, Math.min(2000, t - this.startedAt));
     return {
       mode: this.currentMode,
       running: this.running,
@@ -438,8 +465,11 @@ export class VisionPipeline {
       trackMs: medians.track,
       detectMs: medians.detect,
       latencyMs: quantile(this.latencies.recent(), 0.5),
-      mainThreadMs: quantile(this.mainTimes.recent(), 0.5),
-      mainThreadMaxMs: Math.max(0, ...this.mainTimes.recent()),
+      mainThreadMs: offered > 0 ? busyMs / offered : 0,
+      mainThreadMaxMs: Math.max(0, ...busy),
+      mainThreadShare: Math.min(1, busyMs / span),
+      grabMs: quantile(this.grabTimes.recent(), 0.5),
+      transfer: this.transferNow(),
       workingWidth: this.lastSize.width,
       workingHeight: this.lastSize.height,
       quality: this.quality.settings,
@@ -499,6 +529,7 @@ export class VisionPipeline {
           this.worker = worker;
           this.bitmaps = msg.bitmaps && typeof createImageBitmap === 'function';
           this.resizeBitmaps = true;
+          this.videoFrames = msg.videoFrames === true && typeof VideoFrame === 'function';
           this.setMode('worker');
           this.configureHost();
           this.ready = true;
@@ -516,6 +547,7 @@ export class VisionPipeline {
     if (generation !== this.generation) return;
     this.host = createVisionHost();
     this.bitmaps = false;
+    this.videoFrames = false;
     // The main thread is shared with the UI: smaller budgets, more spacing between detections.
     this.quality = new QualityController({ trackBudgetMs: 30, detectBudgetMs: 60, detectDuty: 0.35, ...this.options.quality });
     this.setMode('main', message);
@@ -591,7 +623,11 @@ export class VisionPipeline {
       case 'error': {
         if (msg.type === 'error') {
           this.counters.errors++;
-          if (msg.seq !== undefined && this.inFlight?.seq === msg.seq) this.inFlight = null;
+          if (msg.seq !== undefined && this.inFlight?.seq === msg.seq) {
+            // A worker that cannot draw camera frames after all: bitmaps from the next frame on.
+            if (this.inFlight.via === 'video-frame' && msg.message === VIDEO_FRAMES_UNREADABLE) this.videoFrames = false;
+            this.inFlight = null;
+          }
         }
         const id = msg.id;
         if (id !== undefined) {
@@ -649,7 +685,11 @@ export class VisionPipeline {
       this.droppedFrameTime = -Infinity;
       // Counted as dropped when it arrived; it is processed after all.
       this.counters.dropped--;
+      // Main-thread work like any other frame's grab (most frames are sent from here when the
+      // tracker is the bottleneck), so it is counted.
+      const t0 = now();
       this.maybeSend(frameTime);
+      this.mainTimes.push(now() - t0, t0);
     }
   }
 
@@ -728,10 +768,45 @@ export class VisionPipeline {
     const size = workingSizeFor(video.videoWidth, video.videoHeight, this.quality.settings.workingWidth);
     if (size.width <= 0) return;
     const seq = ++this.seq;
-    this.inFlight = { seq, frameTime, sentAt: now(), width: size.width, height: size.height };
+    const t0 = now();
+    const via = this.transferNow();
+    this.inFlight = { seq, frameTime, sentAt: t0, width: size.width, height: size.height, via };
     this.lastSize = size;
-    if (this.worker && this.bitmaps) this.sendBitmap(video, seq, frameTime, size);
+    if (via === 'video-frame') this.sendVideoFrame(video, seq, frameTime, size);
+    else if (via === 'bitmap') this.sendBitmap(video, seq, frameTime, size);
     else this.sendPixels(video, seq, frameTime, size);
+    this.grabTimes.push(now() - t0, t0);
+  }
+
+  /** How the next frame goes to the tracker. */
+  private transferNow(): FrameTransfer {
+    if (!this.worker) return 'pixels';
+    if (this.videoFrames) return 'video-frame';
+    return this.bitmaps ? 'bitmap' : 'pixels';
+  }
+
+  /**
+   * Wrap the camera frame on screen (no copy, no resize here) and transfer it; the worker shrinks
+   * and reads it. Where the browser cannot wrap this video, bitmaps take over at once.
+   */
+  private sendVideoFrame(video: HTMLVideoElement, seq: number, frameTime: number, size: { width: number; height: number }): void {
+    let frame: VideoFrame;
+    try {
+      frame = new VideoFrame(video, { timestamp: Math.round(frameTime * 1000) });
+    } catch {
+      this.videoFrames = false;
+      if (this.inFlight?.seq === seq) this.inFlight.via = this.transferNow();
+      if (this.bitmaps) this.sendBitmap(video, seq, frameTime, size);
+      else this.sendPixels(video, seq, frameTime, size);
+      return;
+    }
+    const worker = this.worker;
+    if (!worker) {
+      frame.close();
+      if (this.inFlight?.seq === seq) this.inFlight = null;
+      return;
+    }
+    worker.postMessage({ type: 'video-frame', frame, width: size.width, height: size.height, timeMs: frameTime, seq } satisfies VisionRequest, [frame]);
   }
 
   private sendBitmap(video: HTMLVideoElement, seq: number, frameTime: number, size: { width: number; height: number }): void {
@@ -745,11 +820,13 @@ export class VisionPipeline {
     }
     pending.then(
       (bitmap) => {
+        const t0 = now();
         if (generation !== this.generation || !this.worker || this.inFlight?.seq !== seq) {
           bitmap.close();
           return;
         }
         this.worker.postMessage({ type: 'bitmap', bitmap, width: size.width, height: size.height, timeMs: frameTime, seq } satisfies VisionRequest, [bitmap]);
+        this.mainTimes.push(now() - t0, t0);
       },
       () => {
         if (generation !== this.generation) return;

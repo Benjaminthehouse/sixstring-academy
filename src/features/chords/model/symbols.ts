@@ -138,11 +138,17 @@ export function fromSkillSlug(slugText: string): Chord | null {
 export type ChordView =
   | { view: 'library' }
   | { view: 'chord'; symbol: string; voicing: number | null }
-  | { view: 'trainer'; chords: string[] }
+  | { view: 'trainer'; chords: string[]; options: string[] }
   | { view: 'identify'; shape: string | null }
   | { view: 'mine' }
   | { view: 'type'; family: string }
   | { view: 'root'; root: string };
+
+/**
+ * Params of the trainer that are settings rather than chords (`timed`, `t70`, `beats-2`); the
+ * trainer reads them with `trainerSetup` (model/trainer.ts).
+ */
+export const TRAINER_OPTION = /^(?:minute|one-minute|timed|in-time|check|ring-true|t\d{2,3}|beats-\d)$/;
 
 /** Turn the route params into a view. Unknown params fall back to the library, never a dead end. */
 export function viewFromParams(params: readonly string[]): ChordView {
@@ -152,7 +158,11 @@ export function viewFromParams(params: readonly string[]): ChordView {
       return { view: 'library' };
     case 'trainer':
     case 'changes':
-      return { view: 'trainer', chords: rest.map(chordFromParam).filter((s): s is string => !!s).slice(0, 4) };
+      return {
+        view: 'trainer',
+        chords: rest.filter((p) => !TRAINER_OPTION.test(p)).map(chordFromParam).filter((s): s is string => !!s).slice(0, 4),
+        options: rest.filter((p) => TRAINER_OPTION.test(p)),
+      };
     case 'identify':
     case 'name':
     case 'shape':

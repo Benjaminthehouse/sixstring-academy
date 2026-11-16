@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, soundingPitch, validateSong, type Note, type Song } from '@/core/song';
-import { chordPcs, isNoChord, midiToNote, noteToMidi, parseChord, parseKey, scalePcs } from '@/core/theory';
+import { chordPcs, isNoChord, keyModeName, midiToNote, noteToMidi, parseChord, parseKey, scalePcs } from '@/core/theory';
 import { scalePatterns, tryBuildVoicing, voicingProblem } from '@/core/guitar';
 import boxTwoMeta from '@/content/songs/st-pent-box-2/meta';
 import boxThreeMeta from '@/content/songs/st-pent-box-3/meta';
@@ -170,7 +170,7 @@ function shapeSounds(frets: string): string[] {
 
 const keyOf = (text: string | undefined) => {
   const k = text ? parseKey(text) : null;
-  return k ? `${k.tonic} ${k.mode}` : null;
+  return k ? `${k.tonic} ${keyModeName(k)}` : null;
 };
 
 // ---------------------------------------------------------------- chord shapes (written out by hand)
@@ -561,10 +561,10 @@ describe('batch 10: st-strum-reggae', () => {
     expect(outside(bass.flatMap((b) => b.midis), scalePcs('A', 'dorian'))).toEqual([]);
   });
 
-  it('is written in A minor (the D chord gives the Dorian F#), and the estimate lands near level 5', () => {
+  it('is written in A Dorian (the D chord gives the Dorian F#), and the estimate lands near level 5', () => {
     const song = load('st-strum-reggae');
-    expect(keyOf(song.key)).toBe('A minor');
-    expect(keyOf(reggaeMeta.key)).toBe('A minor');
+    expect(keyOf(song.key)).toBe('A dorian');
+    expect(keyOf(reggaeMeta.key)).toBe('A dorian');
     const est = estimate(song, 'Your chops');
     console.info(est.text);
     expect(Math.abs(est.level - 5), est.text).toBeLessThanOrEqual(1);

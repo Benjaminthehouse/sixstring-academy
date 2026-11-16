@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the fretboard trainer (src/features/fretboard). Run:
- *   node e2e/fretboard.cjs [--verbose] [--shots] [--only screens,phone,desktop,every,sprint,learned,layout,mic,nomic,review,micrelease]
+ *   node e2e/fretboard.cjs [--verbose] [--shots] [--only screens,phone,desktop,every,address,sprint,learned,layout,mic,nomic,review,micrelease]
  *
  * Real Chromium, real Web Audio.
  *
@@ -16,6 +16,8 @@
  *  desktop  "Name the note" with all twelve notes on a desktop, answered from the keyboard: letters,
  *           Shift for sharps, Space to show the answer, Enter to go on, Escape to leave
  *  every    "Find every one": tap every place a note lives, one wrong tap on the way
+ *  address  a lesson's link sets a drill up: `--strings-6-5--note-c` stores the strings and asks
+ *           only for C on them; `--note-f-sharp` asks one "find every F♯" question, then the summary
  *  sprint   the one-minute sprint counts down and counts the notes named
  *  layout   phone: the pad keys are at least 44 px and sit in the lower half; a phone held sideways
  *           shows frets 0 to 12 without scrolling and the pad without scrolling the page; desktop
@@ -327,6 +329,53 @@ async function every(browser, url) {
     await s.shot('every-desktop');
     const errs = s.takeErrors();
     check('every', 'no console errors', errs.length === 0, errs.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// address: a lesson's link sets the drill up
+// ---------------------------------------------------------------------------------------------
+async function address(browser, url) {
+  const s = await open(browser, url, { mobile: true });
+  const { page } = s;
+  try {
+    // "Find C on strings 6 and 5": the strings are stored as the drill's settings, the note is this round's.
+    await s.goto('fretboard--drill--find-the-note--strings-6-5--note-c');
+    const h1 = (await page.locator('main h1').first().textContent()) || '';
+    check('address', 'the title names the note', h1.trim() === 'Find the note: C', h1);
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:fretboard.settings') || '{}'));
+    check('address', 'strings 6 and 5 are stored as the drill settings', JSON.stringify(stored.strings) === '[5,6]', JSON.stringify(stored));
+    const how = (await page.locator('main').innerText()) || '';
+    check('address', 'the intro says it is one note and which strings', /One note this round: C/.test(how) && /strings 5, 6/.test(how), how.slice(0, 400));
+    check('address', 'no sideways scroll', (await s.sideways()) <= 1);
+    await page.locator('[data-fb-start]').click();
+    const asked = [];
+    for (let i = 0; i < 4; i++) {
+      const q = await waitQuestion(page, i);
+      asked.push(q);
+      await answerByTap(page, q, true);
+      await page.waitForFunction(() => ['answered', 'asking'].includes(document.querySelector('[data-fb-round]')?.getAttribute('data-phase')), null, { timeout: 5000 });
+      if ((await page.getAttribute('[data-fb-round]', 'data-phase')) === 'answered') await page.keyboard.press('Enter');
+    }
+    check('address', 'every question asks for C on string 6 or 5', asked.every((q) => q.kind === 'find' && q.pc === 0 && (q.string === 6 || q.string === 5)), JSON.stringify(asked.map((q) => [q.kind, q.name, q.string])));
+    await page.keyboard.press('Escape');
+
+    // "Find every F sharp": not a natural note, but named, it is the note of the round; one question.
+    await s.goto('fretboard--drill--find-every-note--note-f-sharp--strings-1-2-3-4-5-6');
+    const h1b = (await page.locator('main h1').first().textContent()) || '';
+    check('address', 'find every F♯: the title', h1b.trim() === 'Find every one: F♯', h1b);
+    await page.locator('[data-fb-start]').click();
+    const q = await waitQuestion(page, 0);
+    check('address', 'find every F♯: asks for F♯ everywhere', q.kind === 'every' && q.pc === 6 && q.targets.length >= 6, `${q.kind} ${q.pc} ${q.targets?.length}`);
+    await answerByTap(page, q, true);
+    await page.waitForFunction(() => document.querySelector('[data-fb-round]')?.getAttribute('data-phase') === 'answered', null, { timeout: 5000 });
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-passed]', { timeout: 10000 });
+    check('address', 'find every F♯: one question, then the summary', (await page.evaluate(() => window.__fb.results.length)) === 1);
+    const errs = s.takeErrors();
+    check('address', 'no console errors', errs.length === 0, errs.join(' | '));
   } finally {
     await s.close();
   }
@@ -769,6 +818,7 @@ withApp({}, async ({ browser, url }) => {
     ['phone', phone],
     ['desktop', desktop],
     ['every', every],
+    ['address', address],
     ['sprint', sprint],
     ['learned', learned],
     ['layout', layout],

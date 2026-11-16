@@ -11,6 +11,7 @@
  *   calibration       four taps / dragged quadrilateral / one-tap numbering / nudges
  *   color markers     two tapped coloured markers as anchors (marker mode)
  *   overlay           marker placement and frame <-> display conversion
+ *   zoom              zoom to the neck: crop the picture around the notes so the dots can be read
  *   geometry          the neck model and projection maths every overlay needs (also the camera
  *                     centre and markers on the raised strings as seen)
  *   guidance          coaching for the learner and the operating limits (`TrackerUpdate.guidance`)
@@ -57,7 +58,7 @@ export {
   type TrackerUpdate,
 } from './tracker';
 export { createVisionHost, type FrameProbe, type FrameTiming, type VisionHostEnvironment, type VisionOptions, type VisionRequest, type VisionResponse } from './protocol';
-export { VisionPipeline, workingSizeFor, type PipelineMode, type PipelineOptions, type PipelineRender, type PipelineStats, type PipelineUpdate } from './pipeline';
+export { VisionPipeline, workingSizeFor, type FrameTransfer, type PipelineMode, type PipelineOptions, type PipelineRender, type PipelineStats, type PipelineUpdate } from './pipeline';
 export { PosePredictor, type PredictorOptions } from './predict';
 export { QualityController, type FrameWork, type QualityOptions, type QualitySettings } from './quality';
 export {
@@ -71,7 +72,7 @@ export {
   type OverlayPalette,
   type OverlayResult,
 } from './draw';
-export { OPERATING_LIMITS, frameStats, guide, viewStats, type FrameStats, type GuidanceCode, type GuidanceTrust, type GuideInput, type TrackerGuidance, type ViewStats } from './guidance';
+export { OPERATING_LIMITS, calibrateMessage, frameStats, guide, viewStats, type FrameStats, type GuidanceCode, type GuidanceTrust, type GuideInput, type TrackerGuidance, type ViewStats } from './guidance';
 export { readStringCount, stringCountDoubt, type StringCountReading } from './string-count';
 export { MIN_MARKER_CHROMA, MIN_MARKER_SATURATION, findColorBlobs, readMarkerNumbering, sampleMarkerColor, type ColorBlob, type MarkerReading } from './color-markers';
 export { createDetector, createFretboardDetector, type FittedBoard, type FretboardDetector, type FretboardDetectorOptions } from './detector';
@@ -87,7 +88,8 @@ export {
   type QuadSpan,
   type WireTap,
 } from './calibration';
-export { displayToFrame, displayTransform, frameToDisplay, placeMarkers, poseForDisplay, type DisplayView, type MarkerPlacement } from './overlay';
+export { displayToFrame, displayTransform, frameToDisplay, placeMarkers, poseForDisplay, type CropRect, type DisplayView, type MarkerPlacement } from './overlay';
+export { CropFollower, FULL_CROP, cropZoom, isFullCrop, neckCrop, videoCropTransform, type CropFollowerOptions, type NeckCropOptions } from './zoom';
 export {
   INLAY_FRETS,
   DOUBLE_INLAY_FRETS,

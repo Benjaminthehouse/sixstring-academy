@@ -13,14 +13,14 @@
  */
 import type { Course } from '@/lessons';
 import { compileCourse, teacherStepOf, type CourseMeta } from './compile';
-import { OUTLINE } from './outline';
+import { OUTLINE, THEORY_LINKS } from './outline';
 import { PROFILES } from './profiles';
 import type { CourseOutline, OutlineUnit, TeacherKey, TeacherLesson, TeacherStep, TeacherUnit } from './types';
 
 export * from './types';
 export * from './tasks';
 export { compileCourse, compileLesson, compileStep, compileUnit, hasArt, isTaskStep, teacherStepOf, type CourseMeta } from './compile';
-export { OUTLINE } from './outline';
+export { OUTLINE, THEORY_LINKS } from './outline';
 export { PROFILES, echoes, pickLine, profileOf, type TeacherProfile } from './profiles';
 
 /** The teachers, beginner to expert. */
@@ -38,6 +38,17 @@ const LOADER_BY_UNIT = new Map<string, () => Promise<{ default: TeacherUnit }>>(
 for (const [path, load] of Object.entries(LOADERS)) {
   const [teacher, unit] = partsOf(path);
   if (teacher) LOADER_BY_UNIT.set(`${teacher}/${unit}`, load);
+}
+
+/**
+ * The Theory Path lessons the plan links to a teacher lesson, in the plan's order, as the parts of
+ * their address (`#learn--<unitId>--<lessonId>`). Empty when it has none.
+ */
+export function theoryLinksOf(lessonId: string): Array<{ unitId: string; lessonId: string }> {
+  return (THEORY_LINKS[lessonId] ?? []).map((link) => {
+    const [unitId, lesson] = link.split('/');
+    return { unitId, lessonId: lesson };
+  });
 }
 
 /** True for one of the three teacher ids. */

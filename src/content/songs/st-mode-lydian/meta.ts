@@ -1,8 +1,5 @@
 import { defineSong } from '../types';
 
-// Key: A Lydian. The content test's key reader (parseKey) knows only major and minor, so the key
-// is written as A major, the major key that shares the Lydian tonic; the mode is named in the
-// title, the tags and the text.
 export default defineSong({
   title: 'Mode Study: A Lydian',
   composer: 'Sixstring Academy',
@@ -11,7 +8,7 @@ export default defineSong({
   level: 7,
   style: 'folk',
   kind: 'study',
-  key: 'A major',
+  key: 'A Lydian',
   teaches: ['Lydian: major with a raised fourth', 'The colour note: D#, carried by the B chord', 'Letting the raised fourth float over A', 'A Lydian in fourth position'],
   skills: ['melody', 'chords'],
   tags: ['modes', 'lydian', 'colour note', 'vamp', 'raised fourth', 'dreamy', 'a major', 'fourth position'],

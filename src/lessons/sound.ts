@@ -275,8 +275,11 @@ export function soundPlan(sound: Sound): SoundPlan {
 /** A short description of a sound for screen readers and logs ("C3 then E3", "A minor chord"). */
 export function describeSound(sound: Sound): string {
   switch (sound.kind) {
-    case 'notes':
-      return sound.together ? `${sound.notes.length} notes together` : `${sound.notes.length} notes`;
+    case 'notes': {
+      const n = sound.notes.length;
+      if (n === 1) return 'one note';
+      return sound.together ? `${n} notes together` : `${n} notes`;
+    }
     case 'interval':
       return sound.play === 'together' ? 'two notes together' : 'two notes';
     case 'chord':
@@ -286,7 +289,7 @@ export function describeSound(sound: Sound): string {
     case 'strum':
       return 'a strumming pattern';
     case 'progression':
-      return `${sound.chords.length} chords`;
+      return sound.chords.length === 1 ? 'one chord' : `${sound.chords.length} chords`;
     case 'rhythm':
       return 'a rhythm';
     case 'tab':

@@ -6,6 +6,7 @@ import { useProgress } from '@/core/progress';
 import { soundPrefs } from '@/core/settings';
 import { ActionBar, Button, CountdownRing, Heading, Icon, IconButton, Kbd, MediaBlocked, Page, ProgressBar, StarRating, Text, cx, useEventListener, useIsMobile, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, type FretBox, type FretMarker } from '@/ui/music';
+import { applyDrillAddress, changesSettings, drillParams, SINGLE_NOTE_DRILLS, type DrillAddress } from '../core/address';
 import { drillPlan, type Drill } from '../core/drills';
 import { boardRange, midiAtPos, posKey, scopeHasAccidentals } from '../core/neck';
 import { pcForKey, spell } from '../core/notes';
@@ -23,8 +24,8 @@ import { useRound, type RoundApi } from './useRound';
 import { useTrainer, type Trainer } from './useTrainer';
 import styles from './Trainer.module.css';
 
-/** Props of {@link RoundScreen}: a step of the method, or a free drill. */
-export type RoundScreenProps = { stage: Stage; drill?: undefined } | { drill: Drill; stage?: undefined };
+/** Props of {@link RoundScreen}: a step of the method, or a free drill (set up by its address). */
+export type RoundScreenProps = { stage: Stage; drill?: undefined; address?: undefined } | { drill: Drill; stage?: undefined; address?: DrillAddress };
 
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -40,19 +41,31 @@ function withOctave(trainer: Trainer, midi: number): string {
 /** A round: the intro (what this step teaches, or how the drill works), the questions, the summary. */
 export function RoundScreen(props: RoundScreenProps) {
   const trainer = useTrainer();
-  const { stage, drill } = props;
+  const { stage, drill, address } = props;
+  // The address's strings, frets and note set are stored as the drill's settings (as "Change"
+  // would), once per address; its single note is for this round only.
+  const addressKey = drill && address ? drillParams(drill.id, address).join('--') : '';
+  const trainerRef = useRef(trainer);
+  trainerRef.current = trainer;
+  useEffect(() => {
+    if (!address || !changesSettings(address)) return;
+    const t = trainerRef.current;
+    t.setSettings(applyDrillAddress(t.settings, address, t.tuning.stringCount, t.maxFret));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressKey]);
+  const note = drill && address?.note && SINGLE_NOTE_DRILLS.includes(drill.id) ? address.note : null;
   const [tapInstead, setTapInstead] = useState(false);
   // "Tap the notes instead" is an action: the tap round starts as soon as its plan is ready.
   const [startTapping, setStartTapping] = useState(false);
   const [sheet, setSheet] = useState(false);
   const mic = useMic();
   const blind = useMemo(() => (drill?.id === 'blind-spots' ? blindSpots(trainer.stats, trainer.ctx, [0, trainer.maxFret], 8).map(posKey) : undefined), [drill?.id, trainer.stats, trainer.ctx, trainer.maxFret]);
-  const title = stage ? stageTitle(stage, trainer.ctx, trainer.fmt) : drill!.title;
+  const title = stage ? stageTitle(stage, trainer.ctx, trainer.fmt) : note ? `${drill!.title}: ${trainer.fmt(note.name)}` : drill!.title;
   const plan = useMemo<RoundPlan>(() => {
     if (stage) return { skillId: stageSkillId(stage), title, asks: stage.asks, scope: stage.scope(trainer.ctx, trainer.maxFret), length: stage.length, seconds: null, passAt: 0.8, options: stage.options };
-    return drillPlan(drill!, trainer.settings, { tapInstead, blind });
+    return { ...drillPlan(drill!, trainer.settings, { tapInstead, blind, pc: note?.pc }), title };
     // Blind spots are read when the round is planned; a new round re-reads them.
-  }, [stage, drill, trainer.ctx, trainer.maxFret, trainer.settings, tapInstead, blind?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stage, drill, trainer.ctx, trainer.maxFret, trainer.settings, tapInstead, blind?.join(','), note?.pc, title]); // eslint-disable-line react-hooks/exhaustive-deps
   const params = stage ? ['stage', stage.id] : ['drill', drill!.id];
   const api = useRound(plan, trainer, { params, title: stage ? `Fretboard step ${stage.n}: ${title}` : `Fretboard: ${title}`, playOctaves: trainer.settings.playOctaves });
   const playing = api.phase === 'asking' || api.phase === 'answered';
@@ -156,7 +169,7 @@ export function RoundScreen(props: RoundScreenProps) {
   if (!playing || !api.question) {
     return (
       <>
-        <Intro trainer={trainer} stage={stage} drill={drill} title={title} plan={plan} mic={mic} usesMic={usesMic} onStart={begin} onSettings={() => setSheet(true)} onTapInstead={tapNow} />
+        <Intro trainer={trainer} stage={stage} drill={drill} title={title} plan={plan} mic={mic} usesMic={usesMic} onStart={begin} onSettings={() => setSheet(true)} onTapInstead={tapNow} noteName={note ? trainer.fmt(note.name) : undefined} />
         {sheetEl}
       </>
     );
@@ -182,9 +195,11 @@ interface IntroProps {
   onStart: () => void;
   onSettings: () => void;
   onTapInstead: () => void;
+  /** The one note this round asks about (from the address), displayed. */
+  noteName?: string;
 }
 
-function Intro({ trainer, stage, drill, title, plan, mic, usesMic, onStart, onSettings, onTapInstead }: IntroProps) {
+function Intro({ trainer, stage, drill, title, plan, mic, usesMic, onStart, onSettings, onTapInstead, noteName }: IntroProps) {
   const skill = useProgress((s) => s.skills[plan.skillId]);
   const best = bestResult(skill);
   const lesson = useMemo(() => (stage ? stageLesson(stage, trainer.ctx, trainer.fmt, trainer.maxFret) : null), [stage, trainer.ctx, trainer.fmt, trainer.maxFret]);
@@ -253,7 +268,7 @@ function Intro({ trainer, stage, drill, title, plan, mic, usesMic, onStart, onSe
               ))}
             </ol>
           ) : (
-            <DrillHow trainer={trainer} drill={drill!} plan={plan} onSettings={onSettings} />
+            <DrillHow trainer={trainer} drill={drill!} plan={plan} onSettings={onSettings} noteName={noteName} />
           )}
           {usesMic && (
             <div className={styles.micNote}>
@@ -340,9 +355,10 @@ function DrillExample({ trainer, drill, plan }: { trainer: Trainer; drill: Drill
   );
 }
 
-function DrillHow({ trainer, drill, plan, onSettings }: { trainer: Trainer; drill: Drill; plan: RoundPlan; onSettings: () => void }) {
+function DrillHow({ trainer, drill, plan, onSettings, noteName }: { trainer: Trainer; drill: Drill; plan: RoundPlan; onSettings: () => void; noteName?: string }) {
   const lines: string[] = [drill.how];
-  if (plan.seconds) lines.push('Right answers move straight on. A miss shows the answer for a moment, then the next note comes.');
+  if (noteName) lines.push(plan.length === 1 ? `One note this round: every ${noteName} on your part of the neck.` : `One note this round: ${noteName}, wherever it sits on the strings you practise. ${plan.length} questions.`);
+  else if (plan.seconds) lines.push('Right answers move straight on. A miss shows the answer for a moment, then the next note comes.');
   else lines.push(`${plan.length} questions. They lean toward the places you miss most, so the round stays at about four right answers in five.`);
   lines.push('Miss one and you see where it is and how to work it out from the nearest dot.');
   return (

@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo } from 'react';
 import { navigate } from '@/app/router';
-import { useImmersive, useScreenTitle } from '@/app/shell';
+import { useImmersive, useRewardHold, useScreenTitle } from '@/app/shell';
 import { teacherById } from '@/app/teachers';
 import { getProgress, setProfile } from '@/core/progress';
 import { findUnit, practiceSource, reviewSource, type SessionSource } from '@/lessons';
@@ -55,6 +55,8 @@ export function LessonRoute({ view }: { view: SessionView }) {
 function Loading() {
   useImmersive(true, 'focus');
   useScreenTitle(null);
+  // A lesson is starting: the previous one's rewards have had their summary.
+  useRewardHold(true);
   return (
     <Page title="Lesson" hideHeader className={styles.page}>
       <div className={styles.player} aria-busy="true" data-lesson-loading="">

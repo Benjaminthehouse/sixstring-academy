@@ -76,7 +76,7 @@ export function TeachingCard({ card, onNext }: TeachingCardProps) {
   const { teacher, glossary } = useLessonContext();
   const layout = cardLayout(card);
   const start = useRef<{ x: number; y: number } | null>(null);
-  const spoken = [card.title ?? '', speakable(card.body, { glossary }), card.tip ? speakable(card.tip, { glossary }) : ''].filter(Boolean).join('. ');
+  const spoken = [card.title ? speakable(card.title, { glossary }) : '', speakable(card.body, { glossary }), card.tip ? speakable(card.tip, { glossary }) : ''].filter(Boolean).join('. ');
 
   const onDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse') return;
@@ -99,8 +99,9 @@ export function TeachingCard({ card, onNext }: TeachingCardProps) {
       </div>
       <div className={styles.cardMain}>
         {card.title && (
+          // Titles take the same markup as the body ({c:Am7}, {n:F#}); plain text stays plain.
           <Heading level={2} size="2xl" display className={styles.cardTitle}>
-            {card.title}
+            <RichText text={card.title} terms={false} />
           </Heading>
         )}
         <div className={styles.cardBody}>
@@ -135,6 +136,8 @@ export interface ExerciseFrameProps {
   setPrimary: (action: PrimaryAction | null) => void;
   onCantPlay?: () => void;
   onMicUnavailable?: () => void;
+  /** On a tapping version: go back to playing it into the microphone (shown as a small link under the prompt). */
+  onUseMic?: () => void;
   hints: boolean;
   level: CourseLevel;
   naming: NoteNaming | null;
@@ -168,10 +171,19 @@ export function ExerciseFrame(props: ExerciseFrameProps) {
         <Heading level={2} size="xl" display className={styles.prompt} id={`${props.uid}-prompt`}>
           <RichText text={prompt} />
         </Heading>
-        {alternative && alternativeReason && (
-          <Text variant="caption" tone="muted">
-            {alternativeReason}
-          </Text>
+        {alternative && (alternativeReason || props.onUseMic) && (
+          <div className={styles.altRow}>
+            {alternativeReason && (
+              <Text variant="caption" tone="muted">
+                {alternativeReason}
+              </Text>
+            )}
+            {props.onUseMic && (
+              <Button variant="ghost" size="sm" iconLeft="Mic" onClick={props.onUseMic} data-use-mic="" data-own-enter="">
+                Play it on my guitar instead
+              </Button>
+            )}
+          </div>
         )}
         {hint && !review && (
           <div className={styles.hint}>

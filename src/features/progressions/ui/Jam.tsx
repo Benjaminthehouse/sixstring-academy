@@ -5,6 +5,11 @@
  * of passes, count-in, who plays). The shown chord follows `band.onChord`, so it changes when the
  * change is heard. The screen stays awake while this view is open.
  *
+ * An address can set the band up (`--t96--waltz--x2`, see model/address.ts) and hide the chord
+ * names until the learner reveals them (`--hide-chart`), for working the chords out by ear. A
+ * learner new to the guitar (see `needsPlainWords`) gets plain words: no roman numerals, and a
+ * scale or mode named by its notes ("A minor with G♯").
+ *
  * Keyboard: Space play / pause, ←/→ key, ↑/↓ tempo.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,14 +21,16 @@ import {
   ActionBar, Button, ChipGroup, Icon, IconButton, Page, PlayButton, SegmentedControl, Select, Sheet, Stack, Stepper, Switch, Text,
   cx, useEventListener, useIsMobile, useMediaQuery, usePrefersReducedMotion, useWakeLock,
 } from '@/ui';
-import { usePrefs } from '@/core/progress';
+import { usePrefs, useProgress } from '@/core/progress';
 import { fretCount, learnerTuning } from '@/core/settings';
 import { Fretboard, useMusicSettings } from '@/ui/music';
 import { strumChord, stopPreview } from '../audio/preview';
 import {
-  FASTER_BY, chordAt, clampTempo, defaultTempo, distanceText, endingChord, feelsFor, finishedText, glyphCount, jamMarkers, jamNeck, positionOf, scaleChoices, scaleFor, upcoming,
+  FASTER_BY, chordAt, clampTempo, defaultTempo, distanceText, endingChord, feelsFor, finishedText, glyphCount, jamMarkers, jamNeck, keyMarkers, positionOf, scaleChoices, scaleFor, tempoHint, upcoming,
   type ChartPos,
 } from '../model/jam';
+import { jamOptionParams, type JamOptions } from '../model/address';
+import { needsPlainWords, plainKeyName, plainRole, plainScaleName, plainTitle } from '../model/plain';
 import { chartLines } from '../model/page';
 import { stepTonic } from '../model/keys';
 import { Chart, KeyPicker } from './Pieces';
@@ -58,10 +65,12 @@ export interface JamViewProps {
   remember: (patch: { tempo?: number; style?: BackingStyleId }) => void;
   /** Feels to offer first (default: the progression's own and its alternatives). */
   feels?: ProgressionFeel[];
+  /** What the address set up (tempo, style, times through, chart hidden), applied once per arrival. */
+  address?: JamOptions;
 }
 
 /** The jam view. */
-export function JamView({ progression: p, tonic, onTonic, back, title, skillId, activityParams, remembered, remember, feels }: JamViewProps) {
+export function JamView({ progression: p, tonic, onTonic, back, title, skillId, activityParams, remembered, remember, feels, address }: JamViewProps) {
   const { naming } = useMusicSettings();
   const isPhone = useIsMobile();
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
@@ -69,9 +78,11 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const reducedMotion = usePrefersReducedMotion();
   useImmersive(true, 'focus');
   useWakeLock(true);
-  useScreenTitle(title);
   const [settings, update] = useJamSettings();
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const plain = useProgress(needsPlainWords);
+  // Chord names hidden until the learner shows them (the address's `hide-chart`, or the band sheet).
+  const [hidden, setHidden] = useState(!!address?.hideChart);
 
   // ── Feel, tempo, the band's input ───────────────────────────────────────────────────────
   const { suggested, others } = useMemo(() => {
@@ -82,6 +93,21 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const feel = allFeels.find((f) => f.backing === remembered.style) ?? suggested[0];
   const tempo = clampTempo(feel.backing, remembered.tempo ?? defaultTempo(feel));
   const style = BACKING_STYLES[feel.backing];
+
+  // The address sets the band up once per arrival, as if by hand (so it is remembered too).
+  const addressKey = address ? jamOptionParams(address).join('--') : '';
+  useEffect(() => {
+    if (!address) return;
+    const chosen = address.style ? allFeels.find((f) => f.backing === address.style) : undefined;
+    if (chosen || address.tempo !== undefined) {
+      const f = chosen ?? feel;
+      remember({ ...(chosen ? { style: chosen.backing } : {}), tempo: clampTempo(f.backing, address.tempo ?? defaultTempo(f)) });
+    }
+    if (address.passes !== undefined) update({ loop: false, choruses: address.passes });
+    setHidden(!!address.hideChart);
+    // Only when the address changes: later changes are the learner's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressKey]);
 
   const setup = useMemo(() => {
     const base = backingFor(p, tonic, { feel, tempo });
@@ -130,7 +156,14 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const next = endingNow ? null : upcoming(resolved, pos, passesLeft);
   const counting = band.status === 'count-in' && band.countBeat !== null;
   const started = heard !== null;
-  const bigText = counting ? String(band.countBeat) : chordName(nowSymbol, naming);
+  const bigText = counting ? String(band.countBeat) : hidden ? '?' : chordName(nowSymbol, naming);
+  const chordNames = useMemo(() => resolved.bars.flat().map((c) => chordName(c.symbol, naming)), [resolved, naming]);
+  const shownTitle = hidden ? 'Chords by ear' : plain ? plainTitle(title, chordNames) : title;
+  useScreenTitle(shownTitle);
+  const shownKey = plain ? plainKeyName(resolved.key, naming) : keyName(resolved.key, naming);
+  const nameScale = (t: string, sc: string) => (plain ? plainScaleName(t, sc, naming) : scaleName(t, sc, naming));
+  /** What the line under the big chord says: its numeral, or in plain words only "Home chord". */
+  const roleOf = (c: ResolvedChord) => (plain ? plainRole(c.root, resolved.key) ?? '' : formatSlot(c.token));
 
   // ── The neck ────────────────────────────────────────────────────────────────────────────
   const choices = useMemo(() => scaleChoices(p, tonic), [p, tonic]);
@@ -145,7 +178,10 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   const { maxFret, size: neckSize } = jamNeck({ phone: isPhone, sideways, wide }, fretCount(prefs));
   // The neck is the learner's guitar: in Drop D the low E-string notes sit two frets higher.
   const tuning = useMemo(() => learnerTuning(prefs), [prefs]);
-  const markers = useMemo(() => jamMarkers(neckSymbol, soloScale, { maxFret, tuning }), [neckSymbol, soloScale, maxFret, tuning]);
+  const markers = useMemo(
+    () => (hidden ? keyMarkers(resolved.key, { maxFret, tuning }) : jamMarkers(neckSymbol, soloScale, { maxFret, tuning })),
+    [hidden, resolved.key, neckSymbol, soloScale, maxFret, tuning],
+  );
   const lines = useMemo(() => chartLines(p, resolved), [p, resolved]);
 
   // Keep the bar that sounds in view inside the chart's own scroll box (never the page).
@@ -161,7 +197,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
 
   const scaleOptions = choices.map((c) => ({
     value: c.id,
-    label: c.id === 'chord' ? 'Follow the chords' : c.id === 'off' ? 'Chord tones only' : scaleName(c.scale!.tonic, c.scale!.scale, naming),
+    label: c.id === 'chord' ? 'Follow the chords' : c.id === 'off' ? 'Chord tones only' : nameScale(c.scale!.tonic, c.scale!.scale),
   }));
 
   // ── Controls ────────────────────────────────────────────────────────────────────────────
@@ -190,8 +226,8 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   });
 
   const tapChord = useCallback((c: ResolvedChord) => {
-    if (!playing) void strumChord(c.symbol);
-  }, [playing]);
+    if (!playing && !hidden) void strumChord(c.symbol);
+  }, [playing, hidden]);
 
   const statusText = band.status === 'loading'
     ? 'Getting the band ready…'
@@ -241,6 +277,8 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
         data-style={feel.backing}
         data-tempo={tempo}
         data-scale={soloScale ? `${soloScale.tonic} ${soloScale.scale}` : ''}
+        data-hidden={hidden ? 'true' : 'false'}
+        data-plain={plain ? 'true' : 'false'}
       >
         <header className={styles.top}>
           <a className={styles.back} href={href(back.to, ...back.params)}>
@@ -248,9 +286,9 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
             <span>{back.label}</span>
           </a>
           <div className={styles.topTitle}>
-            <Text as="p" weight="semibold" truncate className={styles.title}>{title}</Text>
-            <Text size="sm" tone="muted" truncate>
-              {keyName(resolved.key, naming)} · {style.name} · {tempo} BPM
+            <Text as="p" weight="semibold" truncate className={styles.title} data-jam-title>{shownTitle}</Text>
+            <Text size="sm" tone="muted" truncate data-jam-key>
+              {shownKey} · {style.name} · {tempo} BPM
             </Text>
           </div>
           <Button iconLeft="SlidersHorizontal" onClick={() => setOptionsOpen(true)} className={styles.optionsButton}>
@@ -264,7 +302,9 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
             <span className={cx(styles.big, counting && styles.count)} data-now-chord data-len={glyphCount(bigText)}>
               {bigText}
             </span>
-            <span className={styles.nowNumeral}>{counting ? `Then ${chordName(current.symbol, naming)}` : endingNow ? 'The ending' : formatSlot(current.token)}</span>
+            <span className={styles.nowNumeral} data-now-role>
+              {counting ? (hidden ? 'Then the first chord' : `Then ${chordName(current.symbol, naming)}`) : endingNow ? 'The ending' : hidden ? `Bar ${pos.bar + 1} of ${resolved.bars.length}` : roleOf(current)}
+            </span>
             <div className={styles.beats} ref={beatsRef} aria-hidden="true">
               {Array.from({ length: resolved.beatsPerBar }, (_, i) => (
                 <span key={i} className={styles.dot} data-dot />
@@ -275,8 +315,8 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
             <span className={styles.label}>Next</span>
             {next ? (
               <>
-                <span className={styles.nextChord} data-next-chord data-len={glyphCount(chordName(next.chord.symbol, naming))}>{chordName(next.chord.symbol, naming)}</span>
-                <span className={styles.nextWhen}>{formatSlot(next.chord.token)} · {distanceText(next.beats, resolved.beatsPerBar)}</span>
+                <span className={styles.nextChord} data-next-chord data-len={hidden ? 1 : glyphCount(chordName(next.chord.symbol, naming))}>{hidden ? '?' : chordName(next.chord.symbol, naming)}</span>
+                <span className={styles.nextWhen} data-next-when>{[hidden ? '' : roleOf(next.chord), distanceText(next.beats, resolved.beatsPerBar)].filter(Boolean).join(' · ')}</span>
               </>
             ) : (
               <>
@@ -287,6 +327,11 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
           </div>
           <div className={styles.status}>
             <Text size="sm" tone="muted" aria-live="polite">{statusText}</Text>
+            {hidden && (
+              <Button size="sm" iconLeft="Eye" onClick={() => setHidden(false)} data-reveal>
+                Show the chords
+              </Button>
+            )}
             {finished && band.status === 'idle' && faster > tempo && (
               <Button size="sm" iconLeft="FastForward" onClick={goFaster} data-faster>
                 Play it at {faster} BPM
@@ -297,14 +342,22 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
 
         <section className={styles.neck} aria-label="On the neck">
           <div className={styles.neckBoard}>
-            <Fretboard tuning={tuning} frets={[0, maxFret]} markers={markers} size={neckSize} aria-label={`${chordName(neckSymbol, naming)} on the neck${soloScale ? `, with ${scaleName(soloScale.tonic, soloScale.scale, naming)}` : ''}`} />
+            <Fretboard
+              tuning={tuning}
+              frets={[0, maxFret]}
+              markers={markers}
+              size={neckSize}
+              aria-label={hidden ? `The notes of ${shownKey} on the neck` : `${chordName(neckSymbol, naming)} on the neck${soloScale ? `, with ${nameScale(soloScale.tonic, soloScale.scale)}` : ''}`}
+            />
           </div>
           <div className={styles.scaleRow}>
-            <ChipGroup aria-label="Scale to solo with" options={scaleOptions} value={choice.id} onChange={(v) => update({ scale: v })} scroll={sideways ? 'always' : 'auto'} />
-            <Text size="sm" tone="muted" className={styles.scaleHint}>
-              {soloScale
-                ? `Over ${chordName(neckSymbol, naming)}: ${scaleName(soloScale.tonic, soloScale.scale, naming)}. Filled dots are the chord’s own notes (R = root), rings the rest of the scale.`
-                : `The dots are the notes of ${chordName(neckSymbol, naming)}: R is the root, then its third, fifth and so on.`}
+            {!hidden && <ChipGroup aria-label="Scale to solo with" options={scaleOptions} value={choice.id} onChange={(v) => update({ scale: v })} scroll={sideways ? 'always' : 'auto'} />}
+            <Text size="sm" tone="muted" className={styles.scaleHint} data-scale-hint>
+              {hidden
+                ? `The notes of ${shownKey}, the home note filled. Listen to the bass: it mostly plays each chord’s root. Find that note here, then the chord, and write it down bar by bar.`
+                : soloScale
+                  ? `Over ${chordName(neckSymbol, naming)}: ${plain && choice.id === 'chord' ? `the notes that fit ${chordName(neckSymbol, naming)} best` : nameScale(soloScale.tonic, soloScale.scale)}. Filled dots are the chord’s own notes (R = root), rings the rest of the scale.`
+                  : `The dots are the notes of ${chordName(neckSymbol, naming)}: R is the root, then its third, fifth and so on.`}
             </Text>
           </div>
           {wide && (
@@ -319,7 +372,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
         </section>
 
         <section className={styles.chartPane} aria-label="Chart" ref={chartRef}>
-          <Chart lines={lines} naming={naming} now={started && !counting && !endingNow ? pos : null} onTap={tapChord} />
+          <Chart lines={lines} naming={naming} now={started && !counting && !endingNow ? pos : null} onTap={hidden ? undefined : tapChord} numerals={!plain} masked={hidden} />
         </section>
 
         {wide && (
@@ -348,12 +401,13 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
               { group: 'Other styles', options: others.map((f) => ({ value: f.backing, label: `${BACKING_STYLES[f.backing].name} (${f.meter})` })) },
             ]}
           />
-          <Stepper label="Tempo" unit="BPM" min={clampTempo(feel.backing, 0)} max={clampTempo(feel.backing, 999)} step={2} largeStep={10} value={tempo} onChange={setTempo} hint={`This style sits best between ${style.tempo.min} and ${style.tempo.max}.`} />
+          <Stepper label="Tempo" unit="BPM" min={clampTempo(feel.backing, 0)} max={clampTempo(feel.backing, 999)} step={2} largeStep={10} value={tempo} onChange={setTempo} hint={tempoHint(feel, tempo)} />
           <div>
             <Text weight="semibold" size="sm">Key</Text>
             <KeyPicker progression={p} tonic={tonic} onChange={onTonic} naming={naming} />
           </div>
           <Switch label="Loop until I stop" description="Off: the band plays a number of times through, then an ending." checked={settings.loop} onChange={(v) => update({ loop: v })} />
+          <Switch label="Hide the chord names" description="Work the chords out by ear, then show them to check." checked={hidden} onChange={setHidden} data-hide-chords />
           {!settings.loop && <Stepper label="Times through" min={1} max={16} value={settings.choruses} onChange={(v) => update({ choruses: v })} />}
           <div>
             <Text weight="semibold" size="sm">Count-in</Text>

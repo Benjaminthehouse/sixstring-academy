@@ -5,7 +5,7 @@
  * repeats and endings. Parts without tab are put on the neck by the arranger. Compressed `.mxl`
  * files are opened with jszip (loaded on demand).
  */
-import { keyFromSignature, normalizeChordSymbol } from '@/core/theory';
+import { keyFromSignature, normalizeChordSymbol, type KeyModeName } from '@/core/theory';
 import { arrangeTrack, type ArrangeOptions } from './arranger';
 import { buildMeasures, type Onset, type OnsetNote } from './import-util';
 import { barCapacity, slugify, uniqueId } from './model';
@@ -22,6 +22,11 @@ export interface MusicXmlOptions {
 }
 
 const STEP_PC: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+/** `<mode>` values of a MusicXML key, as key modes. */
+const MODE_NAMES: ReadonlyMap<string, KeyModeName> = new Map<string, KeyModeName>([
+  ['major', 'major'], ['ionian', 'major'], ['minor', 'minor'], ['aeolian', 'minor'],
+  ['dorian', 'dorian'], ['phrygian', 'phrygian'], ['lydian', 'lydian'], ['mixolydian', 'mixolydian'], ['locrian', 'locrian'],
+]);
 
 const KIND_SYMBOL: Record<string, string> = {
   major: '', minor: 'm', augmented: 'aug', diminished: 'dim', dominant: '7', 'major-seventh': 'maj7', 'minor-seventh': 'm7',
@@ -88,6 +93,8 @@ interface RawNote extends OnsetNote {
   hammerStart?: boolean;
   pullStart?: boolean;
   stroke?: 'down' | 'up';
+  /** An accented slash (the accent belongs to the beat: a slash has no notes). */
+  beatAccent?: boolean;
 }
 
 interface PartData {
@@ -168,7 +175,9 @@ export function importMusicXml(text: string, opts: MusicXmlOptions = {}): Import
             if (k && first) {
               const fifths = numOf(k, 'fifths');
               if (Number.isFinite(fifths)) {
-                const mode = textOf(k, 'mode') === 'minor' ? 'minor' : 'major';
+                // MusicXML names the seven modes as we do (ionian and aeolian are major and minor).
+                const written = textOf(k, 'mode').trim().toLowerCase();
+                const mode = MODE_NAMES.has(written) ? MODE_NAMES.get(written)! : 'major';
                 const key = keyFromSignature(Math.max(-7, Math.min(7, fifths)), mode);
                 if (mi === 0 || !keyName) keyName = key.short;
                 else info.key = key.short;
@@ -278,9 +287,11 @@ export function importMusicXml(text: string, opts: MusicXmlOptions = {}): Import
               const strokeEl = technical.find((t) => kid(t, 'down-bow') || kid(t, 'up-bow'));
               const ly = kid(el, 'lyric');
               const syl = textOf(ly, 'syllabic');
+              const slashArts = notations.flatMap((n) => kids(n, 'articulations'));
               part.notes.push({
                 measure: mi, tick: start, staff, voice, midi: NaN, slash: true, tieStop: false, hasTab: true, sustain: dur,
                 ...(strokeEl ? { stroke: kid(strokeEl, 'down-bow') ? 'down' : 'up' } : {}),
+                ...(slashArts.some((a) => kid(a, 'accent') || kid(a, 'strong-accent')) ? { beatAccent: true } : {}),
                 ...(ly && textOf(ly, 'text') ? { lyric: textOf(ly, 'text') + (syl === 'begin' || syl === 'middle' ? '-' : '') } : {}),
               });
               break;
@@ -438,12 +449,13 @@ export function importMusicXml(text: string, opts: MusicXmlOptions = {}): Import
         o = { tick: n.tick, notes: [] };
         onsets.push(o);
       }
-      const { tick: _t, measure: _m, staff: _s, voice: _v, tieStop, hasTab, lyric, slideStart: _sl, hammerStart: _h, pullStart: _p, stroke, slash, ...rest } = n;
+      const { tick: _t, measure: _m, staff: _s, voice: _v, tieStop, hasTab, lyric, slideStart: _sl, hammerStart: _h, pullStart: _p, stroke, slash, beatAccent, ...rest } = n;
       void _t; void _m; void _s; void _v; void _sl; void _h; void _p;
       if (lyric && !o.lyric) o.lyric = lyric;
       if (stroke) o.stroke = stroke;
       if (slash) {
         o.slash = true;
+        if (beatAccent) o.accent = true;
         if (n.sustain !== undefined) o.length = n.sustain;
         continue;
       }
