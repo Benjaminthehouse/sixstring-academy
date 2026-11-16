@@ -811,6 +811,7 @@ async function pass2(browser, url) {
     // record of their own. (They used to land in the progressions drill's record, and its page and
     // the hub then said "you often hear pop-vi-iv-i-v as pop-axis".)
     await desk.goto('ear--progression--pop-axis');
+    await desk.page.waitForSelector('[data-ear-start]', { timeout: 30000 }).catch(async () => console.log('    (no Start: at', desk.page.url(), (await desk.page.locator('main').innerText()).slice(0, 160).replace(/\s+/g, ' '), ')'));
     await clearToasts(desk.page);
     await desk.page.locator('[data-ear-start]').click();
     for (let i = 0; i < 6; i++) {
