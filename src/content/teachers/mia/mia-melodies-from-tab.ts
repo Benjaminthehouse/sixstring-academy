@@ -864,9 +864,9 @@ const unit: TeacherUnit = {
   milestone: {
     lesson: 'melody-recital',
     step: 'show',
-    piece: 'the Jingle Bells encore',
+    piece: 'the first line of Jingle Bells',
     song: 'jingle-bells',
-    celebrate: 'You played your encore to the end and kept going. Three melodies and an encore make a recital, and tab is now yours to read. Next we add two new chords, {c:D} and {c:A7}, and a steady beat to strum them to.',
+    celebrate: 'You played the first line of your encore to the end and kept going. Three melodies and an encore make a recital, and tab is now yours to read. Next: two new chords, {c:D} and {c:A7}, and a steady beat to strum them to.',
   },
   glossary: [
     { id: 'fifth', term: 'fifth', definition: 'The distance from a note to the note five letter names higher, counting both: G up to D is a fifth.' },
