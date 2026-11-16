@@ -47,7 +47,6 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   const [noteText, setNoteText] = useState('');
   const [result, setResult] = useState<ActivityResult | null>(null);
   const [runState, setRunState] = useState<RunState>('idle');
-  const [current, setCurrent] = useState<{ bar: number; beat: number } | null>(null);
   const step = steps[index];
   const part = step?.part !== undefined ? e.parts[step.part] : undefined;
   const song = useMemo(() => (part ? partSong(e, part, tempo) : null), [e, part, tempo]);
@@ -66,10 +65,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   useEffect(
     () =>
       runner.subscribe((ev) => {
-        if (ev.type === 'state') {
-          setRunState(ev.state);
-          if (ev.state === 'idle') setCurrent(null);
-        } else if (ev.type === 'beat') setCurrent({ bar: ev.bar, beat: ev.beat });
+        if (ev.type === 'state') setRunState(ev.state);
       }),
     [runner],
   );
@@ -192,7 +188,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
           <Text tone="muted">{step.text}</Text>
         </div>
       </div>
-      {song && <Demo ref={tab} song={song} current={current} showFretboard={wide} diagrams={song.chords.length > 0 && part?.check.kind === 'onsets'} />}
+      {song && <Demo ref={tab} song={song} source={runner} showFretboard={wide} diagrams={song.chords.length > 0 && part?.check.kind === 'onsets'} />}
       {step.reflect && (
         <TextArea label="One thing that felt tense today" value={noteText} onChange={setNoteText} maxLength={200} rows={2} hint="Saved with this cool-down, so you can watch for it next time." />
       )}

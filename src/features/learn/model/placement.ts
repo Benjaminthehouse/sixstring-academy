@@ -2,8 +2,8 @@
  * "Find my level": a short adaptive quiz for learners who already know some theory. It assumes
  * knowledge runs in path order (whoever knows unit 7 knows unit 3) and searches for the first unit
  * the learner does not know: probes at units 1, 2, 4, 8, 16 ... while they pass, then halves the
- * gap after the first miss. A beginner is done after two or three questions; someone who knows half
- * the path, after about eight probes. Each probe is two questions from one unit (a third decides a
+ * gap after the first miss (or once a doubling would overshoot the path). A beginner is done after
+ * two or three questions; any level of the 43 units is found in at most ten probes. Each probe is two questions from one unit (a third decides a
  * split). Passing the quiz marks the units below the level done, as a checkpoint pass does.
  */
 import { createRng, isGenerated, type ExerciseStep, type Step, type Unit } from '@/lessons';
@@ -11,8 +11,8 @@ import { adaptUnit, type Conditions } from './conditions';
 
 /** Questions per probe; one more when they split. */
 export const PROBE_QUESTIONS = 2;
-/** The most probes one quiz asks (a cap; the search needs at most seven for 43 units). */
-export const MAX_PROBES = 9;
+/** The most probes one quiz asks: enough to find any level of the 43 units exactly. */
+export const MAX_PROBES = 10;
 
 /** The search over the units, in path order. */
 export interface PlacementSearch {
@@ -36,7 +36,9 @@ export function startPlacement(count: number): PlacementSearch {
 /** The index of the unit to probe next, or null when the level is found (or the probe budget is spent). */
 export function nextProbe(s: PlacementSearch): number | null {
   if (s.known >= s.limit || s.probes.length >= MAX_PROBES) return null;
-  if (s.galloping) return Math.min(s.limit - 1, s.known === 0 ? 0 : 2 * s.known - 1);
+  const jump = s.known === 0 ? 0 : 2 * s.known - 1;
+  // Doubling past the end would only probe the last unit: halve the rest instead.
+  if (s.galloping && jump < s.limit - 1) return jump;
   return Math.floor((s.known + s.limit - 1) / 2);
 }
 

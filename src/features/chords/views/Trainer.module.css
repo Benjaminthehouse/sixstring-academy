@@ -428,3 +428,8 @@
     width: min(9rem, 30vw);
   }
 }
+
+/* Why the microphone did not open, right under the choice that needs it. */
+.micNote:empty {
+  display: none;
+}

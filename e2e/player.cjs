@@ -603,7 +603,6 @@ async function long(browser, url) {
       return { svgs: all.length, notes: document.querySelectorAll('[data-tab-view] [data-beat]').length };
     });
     check('long', 'only the lines near the view are drawn (not all 200 bars)', tiles.notes > 0 && tiles.notes < 200 * 8 * 0.5, JSON.stringify(tiles));
-    const banner = await page.evaluate(() => /Bar 40|bar 40/.test(document.body.innerText) || (window.__pl.cursor && window.__pl.cursor.bar === 39));
     await page.locator('[data-player-play]').click();
     await waitPhase(page, 'playing', 20000);
     await page.waitForTimeout(1500);
@@ -647,8 +646,10 @@ async function long(browser, url) {
     await page.waitForTimeout(600);
     const held = await page.locator('[data-player-score]').evaluate((el) => el.scrollTop);
     check('long', 'when the learner scrolls, the view waits before following again', held < 50, held);
+    const firstBar = (await dbg(page)).bars[0];
+    const tempoNow = await page.locator('[data-player-tempo]').first().getAttribute('data-player-tempo');
     await page.keyboard.press('Escape');
-    check('long', 'the address started it at bar 40 at 150 %', banner && (await page.locator('[data-player-tempo]').first().getAttribute('data-player-tempo')) === '150');
+    check('long', 'the address (m40, t150) started it at bar 40 at 150 %', firstBar && firstBar.bar === 39 && tempoNow === '150', `${firstBar && firstBar.bar + 1} ${tempoNow}`);
     await page.evaluate(async (songId) => {
       const lib = await import('/src/core/library/index.ts');
       await lib.getLibrary().remove(songId);

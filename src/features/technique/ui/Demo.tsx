@@ -2,10 +2,11 @@
  * The demonstration of a part: the tab (with a cursor that follows the click or the guide guitar)
  * and the notes on a fretboard, the one being played lit up.
  */
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import { noteAt } from '@/core/guitar';
 import type { Song } from '@/core/song';
-import { useIsMobile } from '@/ui';
+import { useIsMobile, useLatest } from '@/ui';
+import type { RunnerEvent } from '../engine/runner';
 import { Fretboard, type FretMarker, type MusicColor } from '@/ui/music';
 import { TabView, type TabNoteState, type TabViewHandle } from '@/ui/music/tab';
 import styles from '../Technique.module.css';
@@ -71,11 +72,43 @@ export function partMarkers(song: Song, current: { bar: number; beat: number } |
   return { markers, frets: [from, to] };
 }
 
+/** Where the beats come from: the screen's runner. */
+export interface BeatSource {
+  subscribe(fn: (e: RunnerEvent) => void): () => void;
+}
+
+/**
+ * The fretboard of a part with the note being played lit. It listens to the runner itself, so a
+ * new note re-renders only the board, not the whole screen and its tab.
+ */
+function LiveBoard({ song, keyName, source, follow }: { song: Song; keyName?: string; source?: BeatSource; follow: boolean }) {
+  const mobile = useIsMobile();
+  const [current, setCurrent] = useState<{ bar: number; beat: number } | null>(null);
+  const followRef = useLatest(follow);
+  useEffect(() => {
+    setCurrent(null);
+    if (!source) return undefined;
+    return source.subscribe((ev) => {
+      if (ev.type === 'beat') setCurrent(followRef.current ? { bar: ev.bar, beat: ev.beat } : null);
+      else if (ev.type === 'state' && ev.state === 'idle') setCurrent(null);
+    });
+  }, [source, song, followRef]);
+  const { markers, frets } = useMemo(() => partMarkers(song, current, keyName), [song, current, keyName]);
+  if (!markers.length) return null;
+  return (
+    <div className={styles.boardBox}>
+      <Fretboard frets={frets} markers={markers} size={mobile ? 'sm' : 'md'} fretNumbers="all" capo={song.capo || undefined} />
+    </div>
+  );
+}
+
 /** Props of the demonstration. */
 export interface DemoProps {
   song: Song;
-  /** The beat being played now (for the fretboard), or null. */
-  current: { bar: number; beat: number } | null;
+  /** The runner whose beats light the fretboard. */
+  source?: BeatSource;
+  /** Light every note (false when the notes come too fast to follow). */
+  follow?: boolean;
   noteStates?: Readonly<Record<string, TabNoteState>> | null;
   /** Key for note names. */
   keyName?: string;
@@ -86,9 +119,8 @@ export interface DemoProps {
 }
 
 /** Tab and fretboard of a part. The ref is the tab's handle, for the cursor. */
-export const Demo = forwardRef<TabViewHandle, DemoProps>(function Demo({ song, current, noteStates, keyName, showFretboard = true, diagrams, notation }, ref) {
+export const Demo = forwardRef<TabViewHandle, DemoProps>(function Demo({ song, source, follow = true, noteStates, keyName, showFretboard = true, diagrams, notation }, ref) {
   const mobile = useIsMobile();
-  const { markers, frets } = useMemo(() => partMarkers(song, current, keyName), [song, current, keyName]);
   const bars = song.bars.length;
   return (
     <div className={styles.demo}>
@@ -104,11 +136,7 @@ export const Demo = forwardRef<TabViewHandle, DemoProps>(function Demo({ song, c
           aria-label={`Tab: ${song.meta.title}`}
         />
       </div>
-      {showFretboard && markers.length > 0 && (
-        <div className={styles.boardBox}>
-          <Fretboard frets={frets} markers={markers} size={mobile ? 'sm' : 'md'} fretNumbers="all" capo={song.capo || undefined} />
-        </div>
-      )}
+      {showFretboard && <LiveBoard song={song} keyName={keyName} source={source} follow={follow} />}
     </div>
   );
 });

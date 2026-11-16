@@ -1,0 +1,276 @@
+.tone-mia {
+  --tone: var(--deg-2);
+}
+.tone-dev {
+  --tone: var(--deg-5);
+}
+.tone-elena {
+  --tone: var(--deg-6);
+}
+
+/* Switch teacher */
+.switcher {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: calc(-1 * var(--sp-2)) calc(-1 * var(--page-gutter, 16px)) 0;
+  padding: var(--sp-1) var(--page-gutter, 16px);
+}
+.switcher::-webkit-scrollbar {
+  display: none;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 52px;
+  padding: var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  flex: none;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
+}
+.switch:hover {
+  border-color: var(--line-strong);
+}
+.switch:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.switchHere {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.switchText {
+  display: grid;
+  line-height: 1.15;
+}
+.switchName {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.switchLevel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+/* About the teacher, and the next lesson */
+.hero {
+  display: grid;
+  gap: var(--sp-5);
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'portrait progress'
+    'about about';
+  align-items: center;
+}
+.portrait {
+  grid-area: portrait;
+  --portrait-size: 6.5rem;
+}
+.about {
+  grid-area: about;
+  display: grid;
+  gap: var(--sp-3);
+  max-width: 40rem;
+}
+.progress {
+  grid-area: progress;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.next {
+  display: none;
+}
+.ringNumber {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1;
+}
+.ringOf {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.sample {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-1);
+}
+.sample blockquote {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid color-mix(in oklab, var(--tone) 70%, var(--line));
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--surface-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.sample blockquote p {
+  margin: 0;
+}
+.sample figcaption {
+  margin-left: calc(-1 * var(--sp-2));
+}
+.teaches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-1);
+  color: var(--fg-muted);
+}
+.teaches li {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+}
+.tick {
+  color: var(--ok);
+  flex: none;
+  position: relative;
+  top: 3px;
+}
+
+/* Phones: the next lesson sits under the about text, full width, in the thumb's reach. */
+@media (max-width: 899px) {
+  .hero {
+    grid-template-areas:
+      'portrait progress'
+      'about about'
+      'next next';
+  }
+  .next {
+    grid-area: next;
+  }
+  .progress {
+    display: contents;
+  }
+  .progress > :first-child {
+    grid-area: progress;
+    justify-self: end;
+  }
+  .next {
+    display: grid;
+    gap: var(--sp-1);
+    padding: var(--sp-4);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  .next > :last-child {
+    margin-top: var(--sp-2);
+  }
+}
+
+/* Wide: portrait, words, and a card with the ring and the next lesson. */
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: auto minmax(0, 1fr) 18rem;
+    grid-template-areas: 'portrait about progress';
+    align-items: start;
+    gap: var(--sp-8);
+  }
+  .portrait {
+    --portrait-size: 8.5rem;
+  }
+  .progress {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--sp-5);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+  .progress > :first-child {
+    align-self: center;
+  }
+  .next {
+    display: grid;
+    gap: var(--sp-1);
+    text-align: center;
+  }
+  .next > :last-child {
+    margin-top: var(--sp-3);
+  }
+}
+
+.loading {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+/* No lessons written yet */
+.preparing {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+}
+.preparing > div {
+  display: grid;
+  gap: var(--sp-2);
+}
+.preparingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+/* The rest of the journey */
+.upcoming {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.upcomingUnit {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: var(--sp-3);
+  align-items: start;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.upcomingUnit:last-child {
+  border-bottom: 0;
+}
+.unitNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+.unitText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 44rem;
+}
+@media (min-width: 900px) {
+  .upcoming {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--sp-8);
+  }
+  .upcomingUnit:nth-last-child(2):nth-child(odd) {
+    border-bottom: 0;
+  }
+}

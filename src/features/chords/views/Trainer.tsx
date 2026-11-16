@@ -5,11 +5,11 @@
  * round is one `chord-change` activity on the set's `chord-change:` skill; the one-minute trend
  * and the timed tempo live in that skill's data.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useImmersive } from '@/app/shell';
 import { playUi, unlockAudio } from '@/core/audio';
 import { dayKey, getProgressStore, recordActivity, useSkill, type ActivityResult } from '@/core/progress';
-import { ActionBar, Badge, Banner, Button, Callout, Celebration, ChipGroup, Icon, IconButton, MediaBlocked, Page, RadioGroup, Section, SegmentedControl, StarRating, Stat, Stepper, Text, XpChip, useIsMobile, useIsTouch, useLocalState, useWakeLock } from '@/ui';
+import { ActionBar, Badge, Banner, Button, Callout, Celebration, ChipGroup, Icon, IconButton, MediaBlocked, Page, RadioGroup, Section, SegmentedControl, StarRating, Stat, Stepper, Text, XpChip, useIsMobile, useIsTouch, useLocalState, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { ChordDiagram, useMusicSettings } from '@/ui/music';
 import { useShortcuts } from '../hooks/keys';
 import { micRefusedByHost, useMic } from '../hooks/useMic';
@@ -114,6 +114,15 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
   useWakeLock(phase === 'running');
 
   const needsMic = settings.mode === 'check' || settings.input === 'mic';
+  // Why the microphone did not open, shown beside the choice that needs it and brought into view:
+  // the Start button sits in the bottom bar, far below on a phone, and a silent tap is a dead end.
+  const micFailed = needsMic && mic.status === 'failed' && !!mic.failure;
+  const micNoteRef = useRef<HTMLDivElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+  useEffect(() => {
+    if (micFailed && phase === 'setup') micNoteRef.current?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [micFailed, phase]);
 
   const start = useCallback(
     async (override?: Partial<Settings>) => {
@@ -432,6 +441,21 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
               </Callout>
             )}
             {hostRefusesMic && <Text variant="caption" tone="muted">The microphone is switched off where this copy of the app is running, so changes are counted with taps.</Text>}
+            <div ref={micNoteRef} className={styles.micNote} aria-live="polite" data-mic-status={micFailed ? 'failed' : mic.status}>
+              {micFailed && (
+                <MediaBlocked
+                  reason={mic.failure!}
+                  device="microphone"
+                  onRetry={() => void start()}
+                  onContinueWithout={() => {
+                    patch({ input: 'tap', mode: settings.mode === 'check' ? 'minute' : settings.mode });
+                    mic.stop();
+                  }}
+                  continueLabel="Count with taps instead"
+                />
+              )}
+              {needsMic && mic.status === 'starting' && <Banner tone="info" title="Opening the microphone…" />}
+            </div>
           </Section>
         </div>
         <div className={styles.column}>
@@ -453,19 +477,6 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
           </Section>
         </div>
       </div>
-      {mic.status === 'failed' && mic.failure && (
-        <MediaBlocked
-          reason={mic.failure}
-          device="microphone"
-          onRetry={() => void start()}
-          onContinueWithout={() => {
-            patch({ input: 'tap', mode: settings.mode === 'check' ? 'minute' : settings.mode });
-            mic.stop();
-          }}
-          continueLabel="Count with taps instead"
-        />
-      )}
-      {mic.status === 'starting' && <Banner tone="info" title="Opening the microphone…" />}
       <ActionBar start={touch ? undefined : <Text variant="caption" tone="muted">Press Enter to start</Text>}>
         <Button variant="primary" iconLeft="Play" loading={mic.status === 'starting'} onClick={() => void start()} data-start>
           {startLabel}

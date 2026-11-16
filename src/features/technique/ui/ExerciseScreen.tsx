@@ -141,7 +141,7 @@ export function ExerciseScreen({ e }: { e: TechniqueExercise }) {
           {x.part.note}
         </Text>
       )}
-      <Demo ref={tab} song={x.song} current={x.current} noteStates={x.take?.noteStates ?? null} keyName={x.part.key} diagrams={x.part.check.kind === 'onsets' && x.song.chords.length > 0} notation={notation} />
+      <Demo ref={tab} song={x.song} source={x.runner} follow={x.follow} noteStates={x.take?.noteStates ?? null} keyName={x.part.key} diagrams={x.part.check.kind === 'onsets' && x.song.chords.length > 0} notation={notation} />
     </Card>
   );
 

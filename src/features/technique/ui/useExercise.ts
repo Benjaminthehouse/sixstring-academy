@@ -11,7 +11,7 @@ import { getProgressStore, recordActivity, useProgress, usePrefs, type ActivityR
 import type { Song } from '@/core/song';
 import { useLocalState } from '@/ui';
 import { tickHealthClock } from '../engine/health-clock';
-import { TakeListener, type InputLevel, type TakeData } from '../engine/listen';
+import { TakeListener, type TakeData } from '../engine/listen';
 import { ExerciseRunner, type RunState } from '../engine/runner';
 import { localDay, readRecord, type TechniqueRecord } from '../model/history';
 import { afterPass, clampTempo, nudge as nudgeTempo, startTempo, type LadderMove } from '../model/ladder';
@@ -113,12 +113,10 @@ export function useExercise(e: TechniqueExercise) {
   const activityRef = useRef(activity);
   activityRef.current = activity;
   const [countIn, setCountIn] = useState<{ beat: number; beats: number } | null>(null);
-  const [current, setCurrent] = useState<{ bar: number; beat: number } | null>(null);
   const [guide, setGuide] = useLocalState<boolean>('technique.guide', false);
   const [micWanted, setMicWanted] = useLocalState<boolean>('technique.mic', false);
   const [takeClick, setTakeClick] = useState<boolean>(part.check.kind !== 'onsets' || part.click === 'backbeat' || part.click === 'offbeat');
   const [mic, setMic] = useState<MicState>({ kind: 'off' });
-  const [level, setLevel] = useState<InputLevel | null>(null);
   const [take, setTake] = useState<TakeView | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [note, setNote] = useState<PassNote | null>(null);
@@ -153,8 +151,7 @@ export function useExercise(e: TechniqueExercise) {
     const sec = song.bars.length * (60 / songBpm(part, tempo)) * 4;
     return sec > 0 ? beats / sec : 0;
   }, [song, part, tempo]);
-  const followRef = useRef(true);
-  followRef.current = notesPerSec <= 8;
+  const follow = notesPerSec <= 8;
 
   const finishTakeRef = useRef<() => void>(() => undefined);
 
@@ -165,15 +162,11 @@ export function useExercise(e: TechniqueExercise) {
           setRunState(ev.state);
           if (ev.state === 'idle') {
             setCountIn(null);
-            setCurrent(null);
             if (activityRef.current === 'take') finishTakeRef.current();
             else setActivity('idle');
           }
         } else if (ev.type === 'countin') setCountIn({ beat: ev.beat, beats: ev.beats });
-        else if (ev.type === 'beat') {
-          setCountIn(null);
-          if (followRef.current) setCurrent({ bar: ev.bar, beat: ev.beat });
-        }
+        else if (ev.type === 'beat') setCountIn(null);
       }),
     [runner],
   );
@@ -207,8 +200,6 @@ export function useExercise(e: TechniqueExercise) {
   // Keep the screen awake while practising.
   useEffect(() => (playing ? keepAwake() : undefined), [playing]);
 
-  // The live input level while the microphone is open.
-  useEffect(() => listener.onLevel((l) => setLevel((prev) => (prev && Math.abs(prev.db - l.db) < 1.5 && prev.clipping === l.clipping ? prev : l))), [listener]);
   useEffect(
     () =>
       listener.onLost(() => {
@@ -223,7 +214,6 @@ export function useExercise(e: TechniqueExercise) {
     if (!micWanted) {
       listener.stop();
       setMic({ kind: 'off' });
-      setLevel(null);
     }
   }, [micWanted, listener]);
 
@@ -428,7 +418,7 @@ export function useExercise(e: TechniqueExercise) {
     runState,
     activity,
     countIn,
-    current,
+    follow,
     guide,
     setGuide: (on: boolean) => {
       setGuide(on);
@@ -438,7 +428,6 @@ export function useExercise(e: TechniqueExercise) {
     setMicWanted,
     mic,
     micReason,
-    level,
     takeClick,
     setTakeClick,
     take,

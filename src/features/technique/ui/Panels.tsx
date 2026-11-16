@@ -1,5 +1,5 @@
 /** The pieces of an exercise screen: ladder, phone bar, take result, history, how-to-play. */
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { HANDS, SKILL_GROUPS, getExercise, type TechniqueExercise } from '@/content/technique';
 import { href } from '@/app/router';
 import type { ActivityResult } from '@/core/progress';
@@ -26,6 +26,7 @@ import {
   cx,
   focusRing,
 } from '@/ui';
+import type { InputLevel, TakeListener } from '../engine/listen';
 import type { TechniqueRecord } from '../model/history';
 import { climbs, ladderFraction, MAX_TEMPO, MIN_TEMPO, rungCount, rungOf } from '../model/ladder';
 import type { Verdict } from '../model/takes';
@@ -148,14 +149,25 @@ export function MicControls({ x }: { x: ExerciseState }) {
       {x.micWanted && x.mic.kind === 'blocked' && (
         <MediaBlocked reason={x.mic.reason} device="microphone" align="start" level={4} onRetry={() => void x.openMic()} onContinueWithout={() => x.setMicWanted(false)} continueLabel="Judge it by ear instead" />
       )}
-      {x.micWanted && x.level && x.mic.kind === 'ready' && (
-        <div className={styles.meterRow}>
-          <Meter label="Microphone level" value={Math.max(0, Math.min(1, (x.level.db + 70) / 70))} low={Math.max(0, (x.level.gateDb + 70) / 70)} tone={x.level.clipping ? 'warn' : 'ok'} segments={12} />
-          <Text size="xs" tone="muted">
-            {x.level.clipping ? 'Too loud: move back a little' : x.level.db < x.level.gateDb ? 'Listening' : 'Hearing you'}
-          </Text>
-        </div>
-      )}
+      {x.micWanted && x.mic.kind === 'ready' && <MicLevel listener={x.listener} />}
+    </div>
+  );
+}
+
+/**
+ * The live microphone level. It listens to the microphone itself (about 30 readings a second), so
+ * only the meter re-renders, never the whole screen.
+ */
+function MicLevel({ listener }: { listener: TakeListener }) {
+  const [level, setLevel] = useState<InputLevel | null>(null);
+  useEffect(() => listener.onLevel((l) => setLevel((prev) => (prev && Math.abs(prev.db - l.db) < 1.5 && prev.clipping === l.clipping ? prev : l))), [listener]);
+  if (!level) return null;
+  return (
+    <div className={styles.meterRow}>
+      <Meter label="Microphone level" value={Math.max(0, Math.min(1, (level.db + 70) / 70))} low={Math.max(0, (level.gateDb + 70) / 70)} tone={level.clipping ? 'warn' : 'ok'} segments={12} />
+      <Text size="xs" tone="muted">
+        {level.clipping ? 'Too loud: move back a little' : level.db < level.gateDb ? 'Listening' : 'Hearing you'}
+      </Text>
     </div>
   );
 }

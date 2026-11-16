@@ -35,7 +35,7 @@
  */
 @media (min-width: 720px) and (max-width: 899.98px) {
   ol[aria-label='Notifications'][aria-live] {
-    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--sp-3));
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + var(--action-bar-h, 0px) + var(--sp-3));
   }
 }
 

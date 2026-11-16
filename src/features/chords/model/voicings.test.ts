@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkVoicingFingering, formatFrets } from '@/core/guitar';
 import { CHORD_TYPES, chordPcs } from '@/core/theory';
 import { chordsOfType } from './catalog';
-import { defaultIndex, defaultVoicing, difficultyWord, groupOf, isPlayable, voicingSet } from './voicings';
+import { defaultIndex, defaultVoicing, difficultyWord, groupOf, isPlayable, shapeNote, voicingSet } from './voicings';
 
 describe('every chord in the catalog', () => {
   it('has at least one playable voicing in all 12 roots, or a clear note saying why not', () => {
@@ -79,10 +79,11 @@ describe('a chord page’s shapes', () => {
     }
   });
 
-  it('say so when the shapes leave tones out', () => {
+  it('say so when a shape leaves tones out (of that shape, not of the chord)', () => {
     const set = voicingSet('C13');
     expect(set.all.length).toBeGreaterThan(0);
-    if (set.all[0].omitted.length) expect(set.note).toMatch(/leave out/);
+    for (const v of set.all) expect(shapeNote(v) === null).toBe(v.omitted.length === 0);
+    expect(set.all.some((v) => v.omitted.length > 0 && /leaves out/.test(shapeNote(v)!))).toBe(true);
     expect(voicingSet('C').note).toBeNull();
   });
 
