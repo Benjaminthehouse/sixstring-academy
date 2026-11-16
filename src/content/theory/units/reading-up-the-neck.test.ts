@@ -462,6 +462,13 @@ describe('reading-up-the-neck: the facts and checkpoint answers', () => {
     expect(answerOf(ninth)).toBe('Fret 9');
   });
 
+  it('every wrong option of a checkpoint choice says why it is wrong (a test gives no second try)', () => {
+    for (const s of unit.checkpoint!.steps!) {
+      if (!('type' in s) || s.type !== 'choice') continue;
+      for (const o of s.options) if (!o.correct) expect(o.why, `${plainText(s.prompt)} / ${plainText(o.text ?? '')}`).toBeTruthy();
+    }
+  });
+
   it('the highest note of fifth position sounds C5 at string 1, fret 8', () => {
     expect(midiAt({ string: 1, fret: 8 })).toBe(midiOf('C5'));
     expect(Math.max(...[...FIFTH_LOW, ...FIFTH_HIGH].map((n) => midiOf(n[2])))).toBe(midiOf('C5'));

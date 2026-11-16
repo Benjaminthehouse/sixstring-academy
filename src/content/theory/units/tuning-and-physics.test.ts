@@ -335,6 +335,17 @@ describe('tuning-and-physics: alternate tunings', () => {
     expect(Math.sqrt(2)).toBeCloseTo(1.41, 2);
   });
 
+  it('every wrong option of a checkpoint choice says why it is wrong, and the numbers in the whys hold', () => {
+    for (const s of unit.checkpoint!.steps!) {
+      if (!('type' in s) || s.type !== 'choice') continue;
+      for (const o of s.options) if (!o.correct) expect(o.why, `${plainText(s.prompt)} / ${plainText(o.text ?? '')}`).toBeTruthy();
+    }
+    expect([2, 3, 4].map((n) => n * 110)).toEqual([220, 330, 440]); // harmonics 2, 3 and 4 of the A string
+    expect([hz('A3'), hz('A5')]).toEqual([220, 880]);
+    expect(Math.abs(fretDistance(5, 648) - 162)).toBeLessThan(1);
+    expect(100 / 2).toBe(50); // a quarter tone: half a half step
+  });
+
   it('the checkpoint 5th harmonic of 110 Hz is 550 Hz, near C#5', () => {
     expect(5 * 110).toBe(550);
     expect(Math.abs(cents(550 / hz('C#5')))).toBeLessThan(15);

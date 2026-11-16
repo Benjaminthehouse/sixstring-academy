@@ -1021,7 +1021,12 @@ const unit: Unit = {
       {
         type: 'choice',
         prompt: 'Concert pitch sets {n:A4} at what frequency?',
-        options: [{ text: '220 Hz' }, { text: '432 Hz', why: 'Some players like 432, but concert pitch is 440.' }, { text: '440 Hz', correct: true }, { text: '880 Hz' }],
+        options: [
+          { text: '220 Hz', why: 'That is {n:A3}, one octave below {n:A4}.' },
+          { text: '432 Hz', why: 'Some players like 432, but concert pitch is 440.' },
+          { text: '440 Hz', correct: true },
+          { text: '880 Hz', why: 'That is {n:A5}, one octave above {n:A4}.' },
+        ],
         shuffle: false,
         explain: 'Concert pitch is {n:A4} = 440 Hz: string 1, fret 5.',
       },
@@ -1066,7 +1071,12 @@ const unit: Unit = {
       {
         type: 'choice',
         prompt: 'The open string 5 vibrates at 110 Hz. At what frequency is its 5th harmonic?',
-        options: [{ text: '220 Hz' }, { text: '330 Hz' }, { text: '440 Hz' }, { text: '550 Hz', correct: true }],
+        options: [
+          { text: '220 Hz', why: 'That is 2 × 110: the 2nd harmonic, one octave up.' },
+          { text: '330 Hz', why: 'That is 3 × 110: the 3rd harmonic, an octave and a fifth up.' },
+          { text: '440 Hz', why: 'That is 4 × 110: the 4th harmonic, two octaves up.' },
+          { text: '550 Hz', correct: true },
+        ],
         shuffle: false,
         explain: '5 × 110 = 550 Hz: two octaves and a major third above {n:A2}, near {n:C#5}.',
       },
@@ -1090,7 +1100,7 @@ const unit: Unit = {
       {
         type: 'choice',
         prompt: 'On a 648 mm scale, where is fret 12?',
-        options: [{ text: '162 mm from the nut' }, { text: '324 mm from the nut', correct: true }, { text: '486 mm from the nut', why: 'That is fret 24, three quarters of the way.' }],
+        options: [{ text: '162 mm from the nut', why: 'That is a quarter of the way, near fret 5.' }, { text: '324 mm from the nut', correct: true }, { text: '486 mm from the nut', why: 'That is fret 24, three quarters of the way.' }],
         shuffle: false,
         explain: 'Fret 12 sits exactly halfway: 648 ÷ 2 = 324 mm.',
       },
@@ -1107,7 +1117,12 @@ const unit: Unit = {
       {
         type: 'choice',
         prompt: 'How many cents are in one equal-tempered half step?',
-        options: [{ text: '12' }, { text: '50' }, { text: '100', correct: true }, { text: '1200', why: 'That is the whole octave.' }],
+        options: [
+          { text: '12', why: 'That is how many half steps fill an octave.' },
+          { text: '50', why: 'That is half a half step, a quarter tone.' },
+          { text: '100', correct: true },
+          { text: '1200', why: 'That is the whole octave.' },
+        ],
         shuffle: false,
         explain: 'Twelve half steps of 100 cents make the 1200-cent octave.',
       },

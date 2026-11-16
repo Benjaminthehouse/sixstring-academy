@@ -875,7 +875,12 @@ const unit: Unit = {
       {
         type: 'choice',
         prompt: 'In ninth position, which fret is under your first finger?',
-        options: [{ text: 'Fret 1' }, { text: 'Fret 5' }, { text: 'Fret 9', correct: true }, { text: 'Fret 12', why: 'Fret 12 is under finger 4 in ninth position.' }],
+        options: [
+          { text: 'Fret 1', why: 'Fret 1 under the first finger is first position.' },
+          { text: 'Fret 5', why: 'That is fifth position.' },
+          { text: 'Fret 9', correct: true },
+          { text: 'Fret 12', why: 'Fret 12 is under finger 4 in ninth position.' },
+        ],
         shuffle: false,
         explain: 'A position is named after the fret under the first finger: ninth position covers frets 9 to 12.',
       },
