@@ -1,14 +1,16 @@
-# Sixstring Academy — the guitar school (`guitar/`)
+# Sixstring Academy — the guitar school
 
 A complete, offline-first guitar school that runs entirely in the browser: tuner, live fretboard
 camera, sheet scanner/importer, interactive song player, a bite-sized theory course, three teachers
 (beginner / intermediate / expert), every scale and chord, scale games, progressions, ear, rhythm
-and technique training. It is independent of the MMO packages in this repo: nothing here imports
-from `extension/` or `backend/`, and nothing there depends on this.
+and technique training. Its home is the repository Benjaminthehouse/sixstring-academy; status,
+limits and the to-do list are in `docs/STATUS.md`.
 
-There is **no backend**. All logic, content and assets ship with the app.
+There is **no backend of its own**. All logic, content and assets ship with the app. Optional
+accounts (the same progress on several devices) use a Supabase project the owner sets up:
+`docs/accounts-setup.md`.
 
-## Commands (run from `guitar/`)
+## Commands (run from the repository root)
 
 ```bash
 npm run dev            # http://localhost:5173 (localhost is a secure context: mic + camera work)
