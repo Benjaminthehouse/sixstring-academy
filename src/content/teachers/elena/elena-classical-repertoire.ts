@@ -849,7 +849,7 @@ const unit: TeacherUnit = {
   milestone: {
     lesson: 'summit-pieces',
     step: 'show',
-    piece: 'the Rondo alla Turca opening',
+    piece: 'Rondo alla Turca (opening)',
     song: 'rondo-alla-turca',
     celebrate: 'Mozart\'s turns, cleanly and without stopping: that is a performance. Now you have a summit and twelve weeks to climb it. Record week 1; in week 12 you will hear what deliberate work does.',
   },

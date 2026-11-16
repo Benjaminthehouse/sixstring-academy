@@ -101,7 +101,11 @@ describe('voice-leading: every shape written in the text', () => {
     expect(buildVoicing('C', 'xxx553').chord).toBe('C');
     expect(buildVoicing('D/A', 'xxx232').chord).toBe('D/A');
     // The line clichés and the facts that quote shapes.
-    expect(['xx7555', 'xx6555', 'xx5555', 'xx4555'].map((s) => identifyFretted(s).symbol)).toEqual(['Am', 'AmMaj7/G#', 'Am7/G', 'Am6/F#']);
+    // The cliché names follow the held Am; the identifier may prefer another name for the same notes (C6/G, F#m7b5).
+    const cliche: Array<[string, string]> = [['Am', 'xx7555'], ['AmMaj7/G#', 'xx6555'], ['Am7/G', 'xx5555'], ['Am6/F#', 'xx4555']];
+    for (const [c, f] of cliche) expect(buildVoicing(c, f).chord).toBe(c);
+    expect(identifyFretted('xx5555').matches.map((m) => m.symbol)).toContain('Am7/G');
+    expect(identifyFretted('xx4555').matches.map((m) => m.symbol)).toContain('Am6/F#');
     expect(['x32010', 'x32110', 'x32310'].map((s) => identifyFretted(s).symbol)).toEqual(['C', 'Caug', 'C7']);
     expect(identifyFretted('x32210').symbol).toBe('Am/C'); // C6 without its 5th
     expect(identifyFretted('x5546x').symbol).toBe('G7/D');
@@ -113,7 +117,7 @@ describe('voice-leading: every shape written in the text', () => {
       ...ofType<ChordBuildExercise>('chord-build').filter((e) => e.task === 'fingers'),
       ...ofType<PlayChordExercise>('play-chord'),
     ];
-    expect(shaped.length).toBe(15);
+    expect(shaped.length).toBe(16);
     for (const e of shaped) expect(buildVoicing(e.chord, e.frets!).chord, `${e.chord} ${String(e.frets)}`).toBe(e.chord);
   });
 });
@@ -146,6 +150,13 @@ describe('voice-leading: common tones', () => {
     expect(fig.dots!.filter((d) => d.role === 'ghost').map((d) => midiAt(d))).toEqual([48, 55]); // where C had C and G
   });
 
+  it('keeps G and B from G to Em, and moves only D', () => {
+    expect(chordNotes('G').filter((n) => !chordNotes('Em').includes(n))).toEqual(['D']);
+    expect(intervalBetween('D', 'E')).toBe('M2');
+    const q = ofType<ChoiceExercise>('choice').find((e) => /From \{c:G\} to \{c:Em\}/.test(String(e.prompt)))!;
+    expect(tagged(correct(q)[0], 'note')).toEqual(['D', 'E']);
+  });
+
   it('moves only string 4 from Am to Fmaj7', () => {
     const am = byString('Am', 'x02210');
     const f = byString('Fmaj7', 'xx3210');
@@ -157,8 +168,10 @@ describe('voice-leading: common tones', () => {
   it('plays a jumpy progression in close root position and a smooth one in open shapes', () => {
     const [jumpy, smooth] = listens(lesson('what-voice-leading-is'));
     const shared = (chords: number[][]): number[] => chords.slice(1).map((c, i) => c.filter((m) => chords[i].includes(m)).length);
+    expect(jumpy.sound).toMatchObject({ kind: 'progression', chords: ['C', 'Am', 'C', 'Am'], voicing: 'close' });
     expect(shared(heard(jumpy))).toEqual([0, 0, 0]);
-    expect(heard(jumpy)[1].map((m, i) => m - heard(jumpy)[0][i])).toEqual([9, 8, 9]); // every voice leaps a sixth
+    const d = heard(jumpy);
+    for (let i = 0; i + 1 < d.length; i++) expect(d[i + 1].map((m, j) => Math.abs(m - d[i][j]))).toEqual([9, 8, 9]); // every voice leaps a sixth
     expect(plainText(correct(jumpy)[0])).toBe('Jumpy');
     expect(shared(heard(smooth)).every((n) => n >= 3)).toBe(true);
     expect(plainText(correct(smooth)[0])).toBe('Smooth');
@@ -321,7 +334,9 @@ describe('voice-leading: line clichés', () => {
     expect(q.length).toBe(2);
     for (const e of q) {
       const fret = Number(plainText(e.prompt).match(/fret (\d)/)![1]);
-      expect(tagged(correct(e)[0], 'chord')[0]).toBe(identifyFretted(`xx${fret}555`).symbol);
+      const answer = tagged(correct(e)[0], 'chord')[0];
+      expect(buildVoicing(answer, `xx${fret}555`).chord).toBe(answer);
+      for (const o of e.options.filter((x) => !x.correct)) expect(tryBuildVoicing(tagged(o.text ?? '', 'chord')[0], `xx${fret}555`)).toBeNull();
     }
     const fig = card(lesson('line-cliches'), 0).figure;
     if (fig?.kind !== 'fretboard') throw new Error('expected a fretboard');

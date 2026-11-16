@@ -115,11 +115,11 @@ const whatVoiceLeadingIs: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Four chords. Smooth or jumpy voice leading?',
-      sound: { kind: 'progression', chords: ['C', 'Am', 'F', 'G'], tempo: 70, voicing: 'close' },
+      prompt: '{c:C} and {c:Am} again, voiced another way. Smooth or jumpy voice leading?',
+      sound: { kind: 'progression', chords: ['C', 'Am', 'C', 'Am'], tempo: 70, voicing: 'close' },
       options: [{ text: 'Smooth' }, { text: 'Jumpy', correct: true }],
       shuffle: false,
-      explain: 'Every chord was in root position, so all three voices leapt together at each change: jumpy.',
+      explain: 'Each chord was stacked up from its own root, so all three voices leapt a sixth at every change: jumpy. Same chords, worse voice leading.',
     },
     {
       type: 'listen-choice',
@@ -128,6 +128,17 @@ const whatVoiceLeadingIs: Lesson = {
       options: [{ text: 'Smooth', correct: true }, { text: 'Jumpy' }],
       shuffle: false,
       explain: 'Open {c:C}, {c:Am}, {c:Fmaj7} and {c:C} share most of their notes, so at each change only one or two voices move, by a step: smooth.',
+    },
+    {
+      type: 'choice',
+      prompt: 'From {c:G} to {c:Em}, which note of {c:G} has to move?',
+      options: [
+        { text: '{n:D}, up a whole step to {n:E}', correct: true },
+        { text: '{n:G}', why: '{c:Em} is {n:E} {n:G} {n:B}: {n:G} is in both chords, so it can stay.' },
+        { text: '{n:B}', why: '{n:B} is in both chords, so it can stay.' },
+      ],
+      explain: '{c:G} is {n:G} {n:B} {n:D} and {c:Em} is {n:E} {n:G} {n:B}: keep {n:G} and {n:B}, and move only {n:D} up to {n:E}.',
+      fact: 'voice-smooth-leading',
     },
     {
       type: 'choice',
