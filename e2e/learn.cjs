@@ -3,14 +3,18 @@
  * Browser check of the Theory Path (#learn), on a phone (390 px, touch) and a desktop (1280 px,
  * keyboard), in both themes:
  *
- *   phone    the map (stages, coming-soon units, Continue in the thumb zone, a locked lesson's
- *            sheet), the first lesson from "Start" to its summary, the map updated, the review of
- *            the new cards, bad and coming-soon links
+ *   phone    the map for a new learner (every unit written, the first lesson on the first screen
+ *            above Continue, the switches and "Find my level" after the first unit, a locked
+ *            lesson's sheet), the first lesson from "Start" to its summary (the rewards shown there),
+ *            straight on to the next lesson with nothing of the last one's rewards over it, the map
+ *            updated, the review of the new cards, a link to a lesson ahead (it opens with a note
+ *            and a way back) and a bad link
  *   desktop  the side panel (lesson, unit list), keyboard walk, "no sound / no guitar" lesson
  *            (no listening or play step shows), the checkpoint passed with the unit celebration,
  *            a practice drill
  *   hearts   a new learner out of hearts before finishing a lesson is offered the refill drill
- *   placement "Find my level" answered right (unit 1 unlocked) and with "I don't know" (start at 1)
+ *   placement "Find my level": unit 1 answered right and unit 2 with "I don't know" (unit 1 known,
+ *            unlocked), and everything with "I don't know" (start at 1)
  *   layout   360 px, text at 200 %, a phone held sideways, a tablet, 1100 and 1440 px: no sideways
  *            scroll, titles on screen, stage names whole, Continue in one row, the right layout
  *
@@ -98,11 +102,12 @@ async function nodeState(page, id) {
  * Play the session on screen to its summary with right answers. Play steps take "I can't play
  * right now" (no microphone here). Returns the exercise types that were shown.
  */
-async function playToSummary(page, L, how, mode) {
+async function playToSummary(page, L, how, mode, { keepDialogs = false } = {}) {
   const types = [];
   for (let guard = 0; guard < 90; guard++) {
     const kind = await lib.onScreen(page);
     if (kind === 'summary') {
+      if (keepDialogs) return types;
       await page.waitForTimeout(700);
       await dismissDialogs(page);
       return types;
@@ -182,8 +187,7 @@ async function runPhone(L) {
     check(group, 'the map opens with the first lesson up next', (await nodeState(page, FIRST)) === 'current');
     check(group, 'every other lesson of unit 1 is locked', (await nodeState(page, SECOND)) === 'locked');
     check(group, 'three stages', (await page.locator('[data-stage]').count()) === 3);
-    const soon = await page.getAttribute('[data-stage="beginner"] [data-coming-soon]', 'data-coming-soon');
-    check(group, 'units not written yet are listed as coming soon, in place', /the-six-strings/.test(soon || ''), soon);
+    check(group, 'every unit of the path is written: none is listed as coming soon', (await page.locator('[data-coming-soon]').count()) === 0);
     check(group, 'no sideways scroll', (await noSideScroll(page)) <= 1, await noSideScroll(page));
     const bar = await page.locator('[data-continue-bar]').boundingBox();
     const vh = page.viewportSize().height;
@@ -194,7 +198,10 @@ async function runPhone(L) {
     const top = await page.evaluate(() => window.scrollY);
     check(group, 'a new learner sees the top of the page first', top < 20, top);
     await page.screenshot({ path: path.join(OUT, 'learn-phone-dark.png') });
-    check(group, 'the first lesson is on the first screen or one swipe away', firstNode && firstNode.y < vh * 1.6, firstNode && Math.round(firstNode.y));
+    // Review bug: the first lesson sat about 700 px down a 390 px phone, under the switches and "Find my level".
+    check(group, 'the first lesson is on the first screen, above the Continue bar', firstNode && bar && firstNode.y >= 52 && firstNode.y + firstNode.height <= bar.y, firstNode && bar && `${Math.round(firstNode.y)}-${Math.round(firstNode.y + firstNode.height)} / bar ${Math.round(bar.y)}`);
+    const offer = await page.locator('[data-placement-offer]').boundingBox();
+    check(group, 'for a new learner "Find my level" and the switches come after the first unit', offer && firstNode && offer.y > firstNode.y && (await page.locator('[data-first-run] [data-conditions]').count()) === 1, offer && Math.round(offer.y));
     // Phones select nothing (a tap opens a sheet): no node is a pressed toggle with a ring around it.
     const pressed = await page.locator('[data-node][aria-pressed]').count();
     check(group, 'no node wears a selection ring on a phone', pressed === 0, pressed);
@@ -217,16 +224,43 @@ async function runPhone(L) {
     check(group, 'the lesson is immersive (no tab bar)', (await page.getAttribute('[data-immersive]', 'data-immersive')) === 'focus');
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(OUT, 'learn-phone-lesson.png') });
-    const types = await playToSummary(page, L, 'touch', 'lesson');
+    const types = await playToSummary(page, L, 'touch', 'lesson', { keepDialogs: true });
     check(group, 'the first lesson runs to its summary', (await lib.onScreen(page)) === 'summary', types.join(' '));
+    // The rewards are felt on the summary (the shell's card, or a new level's dialog first).
+    let felt = false;
+    for (let i = 0; i < 20 && !felt; i++) {
+      felt = await page.evaluate(() => !!document.querySelector('[role="dialog"]') || [...document.querySelectorAll('[data-toast]')].some((t) => (t.getAttribute('data-toast') || '').startsWith('shell-')));
+      if (!felt) await page.waitForTimeout(150);
+    }
+    check(group, 'the summary shows the rewards', felt);
     await page.screenshot({ path: path.join(OUT, 'learn-phone-summary.png') });
     const progress = await stored(page);
     check(group, 'the lesson is recorded as done', progress && progress.skills[`theory:${UNIT}:${FIRST}`]?.completed === true);
     const cards = progress ? Object.keys(progress.srs.items).filter((k) => k.startsWith('theory-path:')) : [];
     check(group, 'its three facts became review cards', cards.length === 3, cards.join(' '));
 
-    await lib.tap(page, '[data-action="exit"]');
-    await page.waitForSelector('[data-learn-map]', { timeout: 30000 });
+    // Straight on to the next lesson (the learner answers the level dialog and taps Next at once):
+    // nothing of the last lesson's rewards covers the new lesson's first card. It used to, for seconds.
+    for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 0; i++) {
+      // Forced: the confetti over the dialog keeps Playwright's "stable" check waiting; a finger is not.
+      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true });
+      await page.waitForTimeout(80);
+    }
+    await lib.tap(page, '[data-action="next"]');
+    await page.waitForSelector('[data-lesson-player][data-phase="step"]', { timeout: 60000 });
+    check(group, 'Next opens the next lesson', (await page.evaluate(() => location.hash)) === `#learn--${UNIT}--${SECOND}`);
+    const covered = [];
+    for (let i = 0; i < 16; i++) {
+      covered.push(...(await page.evaluate(() => [
+        ...[...document.querySelectorAll('[data-toast]')].filter((t) => (t.getAttribute('data-toast') || '').startsWith('shell-') && getComputedStyle(t).opacity !== '0').map((t) => t.getAttribute('data-toast')),
+        ...(document.querySelector('[role="dialog"]') ? ['dialog'] : []),
+      ])));
+      if (i === 3) await page.screenshot({ path: path.join(OUT, 'learn-phone-next-lesson.png') });
+      await page.waitForTimeout(250);
+    }
+    check(group, "for 4 s nothing of the last lesson's rewards covers the next lesson", covered.length === 0, [...new Set(covered)].join(' '));
+
+    await open(page, url, `learn--${UNIT}`);
     await page.waitForTimeout(600);
     check(group, 'back on the map, the lesson is done', (await nodeState(page, FIRST)) === 'done');
     check(group, 'and the next one is up next', (await nodeState(page, SECOND)) === 'current');
@@ -251,10 +285,17 @@ async function runPhone(L) {
     await page.waitForSelector('[data-learn-map]', { timeout: 30000 });
     check(group, 'after the review, back on the map', (await page.evaluate(() => location.hash)).startsWith('#learn'));
 
+    // A link to a lesson the learner has not reached (a teacher's theory link): it runs, with a note
+    // saying it is ahead and a way back to where they are.
+    await open(page, url, `learn--${UNIT}--the-octave`, '[data-lesson-player]');
+    await page.waitForSelector('[data-ahead]', { timeout: 30000 });
+    const ahead = await page.locator('[data-ahead]').innerText();
+    check(group, 'a lesson ahead of the learner opens, saying it is ahead', /ahead of where you are/.test(ahead) && (await page.locator('[data-lesson-player][data-phase="step"]').count()) === 1, ahead.replace(/\n/g, ' ').slice(0, 200));
+    await page.screenshot({ path: path.join(OUT, 'learn-phone-ahead.png') });
+    await lib.tap(page, '[data-ahead-back]');
+    await page.waitForSelector('[data-learn-map]', { timeout: 30000 });
+    check(group, 'and its way back leads to where the learner is', (await page.evaluate(() => location.hash)) === `#learn--${UNIT}`, await page.evaluate(() => location.hash));
     // Links that cannot run say so and lead back.
-    await open(page, url, 'learn--the-six-strings--string-numbers');
-    const soonText = await page.locator('main').innerText();
-    check(group, 'a lesson of an unwritten unit says it is coming soon', /Unit 2 is coming soon/.test(soonText), soonText.replace(/\n/g, ' ').slice(0, 160));
     await open(page, url, 'learn--nope--nope');
     const badText = await page.locator('main').innerText();
     check(group, 'an unknown lesson says so and offers the path', /not on the path/.test(badText) && /Back to the path/.test(badText), badText.replace(/\n/g, ' ').slice(0, 160));
@@ -409,12 +450,18 @@ async function runDesktop(L) {
   });
 }
 
-/** Answer the placement question on screen: right (`solve`) or "I don't know". */
-async function answerPlacement(page, L, right) {
+/**
+ * Answer the placement question on screen: right (`solve`) or "I don't know". `right` may be a
+ * function of the unit being checked. A tap-rhythm question (timed taps, checked by
+ * e2e/lessons.cjs) is answered "I don't know".
+ */
+async function answerPlacement(page, L, rightFor) {
   const raw = await page.getAttribute('[data-question]', 'data-question');
   const id = await lib.stepId(page);
   if (!raw) throw new Error('No placement question on screen');
   const { exercise, presentation } = JSON.parse(raw);
+  const unit = await page.getAttribute('[data-checking]', 'data-checking');
+  const right = (typeof rightFor === 'function' ? rightFor(unit) : rightFor) && exercise.type !== 'tap-rhythm';
   if (right) {
     const ok = await lib.giveAnswer(page, L, { exercise, presentation }, L.solve(exercise), 'touch');
     if (!ok) throw new Error(`Could not answer a ${exercise.type}`);
@@ -430,7 +477,7 @@ async function answerPlacement(page, L, right) {
     if ((await lib.stepId(page)) !== id) break;
     await page.waitForTimeout(80);
   }
-  return { type: exercise.type, tone };
+  return { type: exercise.type, tone, unit, right };
 }
 
 async function runPlacement(L) {
@@ -445,10 +492,12 @@ async function runPlacement(L) {
     await page.waitForSelector('[data-question]', { timeout: 30000 });
     await page.screenshot({ path: path.join(OUT, 'learn-placement-question.png') });
     const asked = [];
-    for (let i = 0; i < 12 && (await page.locator('[data-placement="result"]').count()) === 0; i++) asked.push(await answerPlacement(page, L, true));
-    check(group, 'right answers are marked right', asked.length > 0 && asked.every((a) => a.tone === 'ok'), asked.map((a) => `${a.type}:${a.tone}`).join(' '));
+    // Unit 1 known, unit 2 not: every unit is written now, so right answers alone would go on and on.
+    for (let i = 0; i < 12 && (await page.locator('[data-placement="result"]').count()) === 0; i++) asked.push(await answerPlacement(page, L, (unit) => unit === UNIT));
+    const rights = asked.filter((a) => a.right);
+    check(group, 'right answers are marked right', rights.length > 0 && rights.every((a) => a.tone === 'ok'), asked.map((a) => `${a.unit}:${a.type}:${a.tone}`).join(' '));
     await page.waitForSelector('[data-placement="result"]', { timeout: 15000 });
-    check(group, 'two right answers pass a unit', asked.length === 2, asked.length);
+    check(group, 'two right answers pass a unit', rights.filter((a) => a.unit === UNIT).length === 2, asked.map((a) => `${a.unit}:${a.right}`).join(' '));
     check(group, 'it finds the level: unit 1 known', (await page.getAttribute('[data-placement="result"]', 'data-known')) === '1');
     await page.screenshot({ path: path.join(OUT, 'learn-placement-result.png') });
     check(group, 'nothing is marked before the learner says so', !Object.values((await stored(page))?.skills ?? {}).some((s) => s.completed));
@@ -502,8 +551,13 @@ async function runLayout() {
         const t = b.firstElementChild;
         return { text: t.textContent, clipped: t.scrollWidth > t.clientWidth + 1, height: Math.round(t.getBoundingClientRect().height) };
       }));
-      check(group, `${c.name}: stage names are whole, one line each`, strip.every((s) => !s.clipped) && new Set(strip.map((s) => s.height)).size === 1, JSON.stringify(strip));
+      // A new learner on a phone has no stage strip (the first stage's header says the same, nearer the first lesson).
+      if (layout === 'phone') check(group, `${c.name}: a new learner's phone map starts with the path, no stage strip`, strip.length === 0 && (await page.locator('[data-first-run]').count()) === 1, JSON.stringify(strip));
+      else check(group, `${c.name}: stage names are whole, one line each`, strip.length === 3 && strip.every((s) => !s.clipped) && new Set(strip.map((s) => s.height)).size === 1, JSON.stringify(strip));
       if (layout === 'phone') {
+        const node = await page.locator(`[data-node="${FIRST}"]`).boundingBox();
+        const cb = await page.locator('[data-continue-bar]').boundingBox();
+        check(group, `${c.name}: the first lesson is on screen, above the Continue bar`, node && cb && node.y >= 0 && node.y + node.height <= cb.y + 1, node && cb && `${Math.round(node.y)}-${Math.round(node.y + node.height)} / bar ${Math.round(cb.y)}`);
         const bar = await page.evaluate(() => {
           const b = document.querySelector('[data-continue-bar]').getBoundingClientRect();
           const q = document.querySelector('[data-continue]').getBoundingClientRect();

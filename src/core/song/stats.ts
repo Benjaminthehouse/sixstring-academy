@@ -79,8 +79,8 @@ export interface TrackStats {
   shifts: number;
   /**
    * Largest number of frets between the lowest and highest fretted note the hand holds at once: a
-   * chord, a note held (tied) under new ones, a hammer-on or pull-off pair, or two notes in quick
-   * succession (within 0.35 s) in one position.
+   * chord, a note held (tied) under new ones, a hammer-on or pull-off pair, or notes played within
+   * 0.75 s of each other in one position.
    */
   maxSpan: number;
   techniques: Partial<Record<TechniqueName, number>>;
@@ -136,8 +136,8 @@ export function songStats(song: Song): SongStats {
 
 /** Fret span one hand covers without moving: four frets, one finger each, plus one fret of reach. */
 const HAND_SPAN = 4;
-/** Two fretted notes closer than this (seconds) are held by the hand together. */
-const TOGETHER_SEC = 0.35;
+/** Fretted notes closer than this (seconds) in one position are under the hand together. */
+const TOGETHER_SEC = 0.75;
 /** Onsets at most this far apart (seconds) are "fast" for endurance. */
 const FAST_GAP_SEC = 0.2;
 
@@ -305,18 +305,20 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
 
   // Fewest positions: extend the current one while everything in it still fits one hand.
   let current: { lo: number; hi: number } | null = null;
-  let previous: (typeof groups)[number] | null = null;
+  let recent: typeof groups = [];
   for (const g of groups) {
     if (current && Math.max(current.hi, g.hi) - Math.min(current.lo, g.lo) <= HAND_SPAN) {
       current.lo = Math.min(current.lo, g.lo);
       current.hi = Math.max(current.hi, g.hi);
-      // Two notes in quick succession in one position are under the hand together.
-      if (previous && g.sec - previous.sec <= TOGETHER_SEC) maxSpan = Math.max(maxSpan, Math.max(previous.hi, g.hi) - Math.min(previous.lo, g.lo));
+      // Notes close together in time in one position are under the hand together.
+      recent = recent.filter((r) => g.sec - r.sec <= TOGETHER_SEC);
+      for (const r of recent) maxSpan = Math.max(maxSpan, Math.max(r.hi, g.hi) - Math.min(r.lo, g.lo));
     } else {
       current = { lo: g.lo, hi: g.hi };
       runs.push(current);
+      recent = [];
     }
-    previous = g;
+    recent.push(g);
   }
   const positions: number[] = [];
   for (const r of runs) if (!positions.includes(Math.max(1, r.lo))) positions.push(Math.max(1, r.lo));
@@ -528,6 +530,7 @@ export function estimateDifficulty(song: Song, opts: { track?: string | number; 
     if (!track) continue;
     if (t.shapes.length && t.chordBeats > 2) diffs.push(...t.shapes);
     if (t.techniques.strumming) diffs.push(...strummedChordDifficulties(song, tl, track));
+    else diffs.push(...heldShapeDifficulties(song, tl, track));
   }
   if (diffs.length) {
     diffs.sort((a, b) => b.difficulty - a.difficulty);
@@ -588,6 +591,29 @@ function strummedChordDifficulties(song: Song, tl: SongTimeline, track: Track): 
       const difficulty = safeChordDifficulty(c.symbol, song);
       out.set(key, { difficulty, barre: difficulty >= 6 });
     }
+  }
+  return [...out.values()];
+}
+
+/**
+ * Shapes a picked part holds: a chord whose written shape (`"F=xx3211"`) the part's notes come
+ * from (two or more strings struck on the shape's frets while the chord lasts), as in Travis
+ * picking, where the hand holds the chord and the fingers pick from it.
+ */
+function heldShapeDifficulties(song: Song, tl: SongTimeline, track: Track): Array<{ difficulty: number; barre: boolean }> {
+  const tuning = trackTuning(song, track);
+  const beats = tl.trackBeats(track.id).filter((b) => b.notes.some((n) => !n.tie));
+  const out = new Map<string, { difficulty: number; barre: boolean }>();
+  for (const c of tl.chords) {
+    if (!c.voicing || c.voicing.length !== tuning.length || isNoChord(c.symbol)) continue;
+    const key = c.voicing.join(',');
+    if (out.has(key)) continue;
+    const matched = new Map<number, number>();
+    for (const b of beats) {
+      if (b.tick < c.tick || b.tick >= c.endTick) continue;
+      for (const n of b.notes) if (!n.tie && !n.dead && c.voicing[tuning.length - n.string] === n.fret) matched.set(n.string, n.fret);
+    }
+    if (matched.size >= 2 && [...matched.values()].some((f) => f > 0)) out.set(key, shapeDifficulty([...c.voicing], false));
   }
   return [...out.values()];
 }

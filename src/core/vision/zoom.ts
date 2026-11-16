@@ -21,12 +21,14 @@ export const FULL_CROP: CropRect = { x: 0, y: 0, width: 1, height: 1 };
 
 /** Options of `neckCrop`. */
 export interface NeckCropOptions {
-  /** Dot radius on screen (CSS px) worth zooming for: magnify just enough to reach it (default 11: labels about 11 px). */
+  /** Dot radius on screen (CSS px) worth zooming for: magnify just enough to reach it (default 10: labels about 10.5 px). */
   readableRadius?: number;
-  /** Most magnification over the whole picture (default 3). */
+  /** Most magnification over the whole picture (default 4). */
   maxZoom?: number;
-  /** Frets of context kept on either side of the notes (default 1). */
+  /** Fret cells of context kept on either side of the notes (default 0.5). */
   marginFrets?: number;
+  /** Room kept beyond each edge of the board, as a share of its width (default 0.15). */
+  air?: number;
   /** Below this magnification the whole picture is shown instead (default 1.25). */
   minZoom?: number;
 }
@@ -53,27 +55,28 @@ export function neckCrop(pose: FretboardPose, notes: readonly FretPosition[], vi
   const fw = pose.frameWidth;
   const fh = pose.frameHeight;
   if (!(fw > 0 && fh > 0 && view.width > 0 && view.height > 0) || notes.length === 0) return FULL_CROP;
-  const readable = options.readableRadius ?? 11;
-  const maxZoom = options.maxZoom ?? 3;
-  const margin = options.marginFrets ?? 1;
+  const readable = options.readableRadius ?? 10;
+  const maxZoom = options.maxZoom ?? 4;
+  const margin = options.marginFrets ?? 0.5;
   const whole = displayTransform({ ...view, crop: undefined, fit: 'contain' }, fw, fh).sx;
   const placed = placeMarkers(pose, notes).filter((p) => p.visible && p.radius > 0);
   if (placed.length === 0 || !(whole > 0)) return FULL_CROP;
   const radii = placed.map((p) => p.radius).sort((a, b) => a - b);
   const shown = radii[radii.length >> 1] * whole;
   if (shown >= readable) return FULL_CROP;
-  // The board around the notes: their frets plus `margin` either side, edge to edge with some air.
+  // The board around the notes: the cells they sit in plus `margin` cells either side, edge to edge
+  // with a little air (fret positions may be fractional: wire n is at L(1 - 2^(-n/12))).
   const frets = placed.map((p) => p.fret);
   const m = pose.model;
-  const lo = Math.max(0, Math.min(...frets) - 1 - margin);
+  const lo = Math.min(...frets) - 1 - margin;
   const hi = Math.min(m.fretCount, Math.max(...frets) + margin);
-  const x0 = lo === 0 ? -14 : fretX(m, lo);
+  const x0 = lo <= 0 ? (Math.min(...frets) === 0 ? -14 : -4) : fretX(m, lo);
   const x1 = fretX(m, hi);
   const pts: Point[] = [];
   for (const x of [x0, x1]) {
     const bass = boardEdgeY(m, Math.max(0, x), 'bass');
     const treble = boardEdgeY(m, Math.max(0, x), 'treble');
-    const air = 0.35 * (treble - bass);
+    const air = (options.air ?? 0.15) * (treble - bass);
     pts.push(applyHomography(pose.H, x, bass - air), applyHomography(pose.H, x, treble + air));
   }
   if (!pts.every((p) => Number.isFinite(p.x + p.y))) return FULL_CROP;

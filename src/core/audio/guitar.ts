@@ -604,12 +604,13 @@ export class GuitarSynth {
       }
       const g = ctx.createGain();
       const peak = velocityGain(velocity) * LEGATO_ATTACK[legato as 'hammer' | 'pull'] * clamp(finiteOr(opts.gain, 1), 0, 8);
+      // It decays about as a freshly struck note does at first (the ringing string carries the rest).
       g.gain.setValueAtTime(peak, node);
-      g.gain.setTargetAtTime(0, node + 0.03, 0.09);
+      g.gain.setTargetAtTime(0, node + 0.03, 0.16);
       src.connect(g);
       g.connect(this.input(attack.instrument));
       src.start(node);
-      src.stop(node + 0.75);
+      src.stop(node + 1.2);
       prev.layers.push({ src, gain: g });
     }
 

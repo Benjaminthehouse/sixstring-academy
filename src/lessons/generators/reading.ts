@@ -129,9 +129,9 @@ function namesQuestion(rng: Rng, bar: readonly Fretted[], s: TabSettings): Choic
   const right = bar.map((q) => nameOf(midiAt(q)));
   return choiceOf(
     rng,
-    { prompt: 'Which notes does this bar of tab play?', explain: `${HOW_TAB_READS} This bar plays ${noteList(right)}.`, figure: tabFigure(bar) },
-    noteList(right),
-    wrongLists(rng, bar, s, 3).map((list) => noteList(list)),
+    { prompt: 'Which notes does this bar of tab play?', explain: `${HOW_TAB_READS} This bar plays ${listOf(right)}.`, figure: tabFigure(bar) },
+    listOf(right),
+    wrongLists(rng, bar, s, 3).map((list) => listOf(list)),
   );
 }
 
@@ -204,7 +204,7 @@ export const tabPlay = defineGenerator({
       octave: 'exact',
       tempo: p.tempo ?? 70,
       prompt: 'Play this bar of tab, one note at a time.',
-      explain: `${HOW_TAB_READS} The bar is ${noteList(names)}.`,
+      explain: `${HOW_TAB_READS} The bar is ${listOf(names)}.`,
       alternative: namesQuestion(rng, bar, s),
     };
     return out;
@@ -387,7 +387,7 @@ export const sightReading = defineGenerator({
         prompt: `Which tab plays this passage in ${positionWords(position)}?`,
         figure: staffOf(passage),
         options: rng.shuffle([{ figure: right, correct: true }, ...wrong.map((figure) => ({ figure }))]),
-        explain: `${signatureWords(key)} The notes are ${noteList(names)}, sounding an octave below where they are written, played in ${where}.`,
+        explain: `${signatureWords(key)} The notes are ${listOf(names)}, sounding an octave below where they are written, played in ${where}.`,
       };
       return out;
     }
@@ -413,9 +413,9 @@ function passageQuestion(rng: Rng, passage: Passage, tail = ''): ChoiceExercise 
   const wrong = distinct(lists, pcKey, 3, [pcKey(names)]);
   return choiceOf(
     rng,
-    { prompt: 'Which notes does this passage play?', explain: `${signatureWords(passage.key)} So the passage reads ${noteList(names)}.${tail}`, figure: staffOf(passage) },
-    noteList(names),
-    wrong.map((list) => noteList(list)),
+    { prompt: 'Which notes does this passage play?', explain: `${signatureWords(passage.key)} So the passage reads ${listOf(names)}.${tail}`, figure: staffOf(passage) },
+    listOf(names),
+    wrong.map((list) => listOf(list)),
   );
 }
 
@@ -447,7 +447,7 @@ export const sightPlay = defineGenerator({
       key: key.name,
       staffOnly: true,
       prompt: `Read it and play it in ${positionWords(position)} (frets ${lo} to ${hi}). Take your time.`,
-      explain: `${signatureWords(key)} The passage is ${noteList(names)}.`,
+      explain: `${signatureWords(key)} The passage is ${listOf(names)}.`,
       alternative: passageQuestion(rng, passage),
     };
     return out;

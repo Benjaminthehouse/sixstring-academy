@@ -59,9 +59,9 @@ describe('neckCrop', () => {
     const view = { ...PHONE, crop };
     const zoom = cropZoom(view, W, H);
     expect(zoom).toBeGreaterThan(1.5);
-    expect(zoom).toBeLessThanOrEqual(3 + 1e-9);
-    // Readable dots (11 px radius wanted; the notes may stop the zoom a little short of it).
-    expect(median * zoom).toBeGreaterThanOrEqual(Math.min(11, median * 3) - 0.5);
+    expect(zoom).toBeLessThanOrEqual(4 + 1e-9);
+    // Readable dots (10 px radius wanted; the notes may stop the zoom a little short of it).
+    expect(median * zoom).toBeGreaterThanOrEqual(Math.min(10, median * 4) - 0.5);
     // Every note is on screen, with room for its dot.
     for (const m of placeMarkers(p, BOX1)) {
       const d = frameToDisplay(m, view, W, H);
@@ -79,7 +79,7 @@ describe('neckCrop', () => {
   });
 
   it('leaves a big picture alone, and has nothing to zoom on without notes', () => {
-    // The neck close to the camera, filling the frame, on a desktop stage: dots already 11+ px.
+    // The neck close to the camera, filling the frame, on a desktop stage: dots already 10+ px.
     const close = poseFromTaps({ nut: [{ x: 630, y: 110 }, { x: 632, y: 200 }], fret: [{ x: 40, y: 120 }, { x: 44, y: 240 }], fretNumber: 12 }, W, H) as FretboardPose;
     expect(isFullCrop(neckCrop(close, BOX1, DESKTOP))).toBe(true);
     expect(isFullCrop(neckCrop(pose(), [], PHONE))).toBe(true);
@@ -91,7 +91,7 @@ describe('neckCrop', () => {
     const crop = neckCrop(p, BOX1, tall);
     const view = { ...tall, crop };
     expect(isFullCrop(crop)).toBe(false);
-    expect(cropZoom(view, W, H)).toBeLessThanOrEqual(3 + 1e-9);
+    expect(cropZoom(view, W, H)).toBeLessThanOrEqual(4 + 1e-9);
     for (const m of placeMarkers(p, BOX1)) {
       const d = frameToDisplay(m, view, W, H);
       expect(d.x).toBeGreaterThan(0);

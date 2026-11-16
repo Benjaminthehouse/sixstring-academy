@@ -655,7 +655,8 @@ async function runBetween(L) {
 
     // Straight on: the learner answers the level-up dialog and goes to the next lesson at once.
     for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 0; i++) {
-      await page.getByRole('button', { name: /Keep going|Next/ }).first().tap();
+      // Forced: the confetti over the dialog keeps Playwright's "stable" check waiting; a finger is not.
+      await page.locator('[role="dialog"]').getByRole('button', { name: /^(Keep going|Next)$/ }).first().tap({ force: true });
       await page.waitForTimeout(80);
     }
     await press(page, 'touch', '[data-action="next"]');
