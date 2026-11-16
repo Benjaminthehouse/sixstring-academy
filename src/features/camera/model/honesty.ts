@@ -13,9 +13,9 @@
 import { projectMarker, type FretboardPose } from '@/core/vision';
 
 /** Drawn this far off (in string spacings) or more, the dots turn into outlines. */
-export const OFF_GHOST = 0.4;
+export const OFF_GHOST = 0.5;
 /** Back to solid dots only after this many answers in a row at most `OFF_SOLID` off. */
-export const OFF_SOLID = 0.3;
+export const OFF_SOLID = 0.35;
 export const SOLID_AFTER = 1;
 
 /** Where to compare: the corners and middle of the region the notes cover, else the outer strings at the first, middle and last fret in view. */
