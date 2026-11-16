@@ -76,6 +76,7 @@ export function Capture({ scan }: { scan: ScanState }) {
   const hasReading = !!(draft || text);
   const readLabel = hasReading ? 'Read again' : allText ? 'Read the text' : pages.length > 1 ? `Read ${pages.length} pages` : 'Read the music';
   const changes = scan.history?.past.length ?? 0;
+  const goOn = () => scan.setPhase(draft ? 'music' : 'text');
 
   const readAgain = async () => {
     if (changes > 0) {
@@ -137,10 +138,16 @@ export function Capture({ scan }: { scan: ScanState }) {
                 <Button size="sm" iconLeft="ScanLine" disabled={looking || nothing || !!adding} onClick={() => void readAgain()} data-scan-read="">
                   {readLabel}
                 </Button>
-              ) : undefined
+              ) : (
+                // Pasted text has no pages, so no action bar: the way back is here.
+                <Button size="sm" variant="primary" iconRight="ArrowRight" onClick={goOn} data-scan-continue="">
+                  Continue checking
+                </Button>
+              )
             }
           >
-            {changes > 0 ? `With your ${changes === 1 ? 'change' : `${changes} changes`}. ` : ''}Continue checking it, or read the pages again for a new reading.
+            {changes > 0 ? `With your ${changes === 1 ? 'change' : `${changes} changes`}. ` : ''}
+            {pages.length > 0 ? 'Continue checking it, or read the pages again for a new reading.' : 'Continue checking it, or bring in a sheet below to start a new one.'}
           </Banner>
         )}
 
@@ -212,7 +219,7 @@ export function Capture({ scan }: { scan: ScanState }) {
               </Button>
             )}
             {hasReading ? (
-              <Button variant="primary" iconRight="ArrowRight" size="lg" onClick={() => scan.setPhase(draft ? 'music' : 'text')} data-scan-continue="">
+              <Button variant="primary" iconRight="ArrowRight" size="lg" onClick={goOn} data-scan-continue="">
                 Continue checking
               </Button>
             ) : (
@@ -432,7 +439,7 @@ function PasteSheet({ open, seed, onClose, onUse }: { open: boolean; seed: strin
       }
     >
       <Stack gap={4}>
-        <TextArea label="Tab or chords" value={value} onChange={setValue} rows={10} mono autoGrow data-autofocus placeholder={'e|-----0---3---|\nB|---1-------0-|\n...'} />
+        <TextArea label="Tab or chords" value={value} onChange={setValue} rows={10} mono autoGrow className={styles.tabText} data-autofocus placeholder={'e|-----0---3---|\nB|---1-------0-|\n...'} />
         <p className={cx(styles.detect, known && styles.detectOk)} aria-live="polite">
           <Icon name={known ? 'CircleCheck' : 'Info'} size="sm" />
           {hint}

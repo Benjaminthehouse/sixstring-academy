@@ -548,6 +548,24 @@ describe('batch 8 review: what the teacher plays against your chords', () => {
     // The second section names its chord where it starts, for a learner who loops it.
     expect(song.chords.find((c) => c.bar === 8 && c.tick === 0)?.symbol).toBe('D');
   });
+
+  it('says in words the fingerings the chord boxes cannot show', () => {
+    // SixTab shapes carry no fingers, so the Player's chord boxes take the engine's fingering:
+    // Em with 1 and 2, and the decorations as new grips. The studies teach Em with 2 and 3 (so the
+    // pair moves to Am and 2 stays for B7) and each decoration as one added finger, so the
+    // annotations over the first bar of each must say so.
+    const em = load('st-change-em-am-em-b7');
+    for (const bar of [0, 8]) expect(em.annotations.find((a) => a.bar === bar)?.text, `bar ${bar + 1}`).toMatch(/Em with (fingers )?2 and 3/);
+    const sus = load('st-sus-embellish');
+    const notes = sus.annotations.map((a) => `${a.bar + 1}:${a.text}`);
+    expect(notes).toEqual(expect.arrayContaining(['1:Dsus4: add finger 4 on string 1', '3:Asus4: add finger 4 on string 2', '5:Cadd9: add finger 4 on string 2', '9:Dsus2: lift finger 2 off string 1', '11:Asus2: lift finger 3 off string 2']));
+    // Added on top of the plain chord's fingers, finger 4 is always the highest fret on its string.
+    for (const [plain, decorated, string] of [['xx0232', 'xx0233', 1], ['x02220', 'x02230', 2], ['x32010', 'x32030', 2]] as Array<[string, string, number]>) {
+      const i = 6 - string;
+      expect(Number(decorated[i]), `${decorated}`).toBeGreaterThan(Number(plain[i]));
+      expect(Math.max(...[...decorated].filter((f) => f !== 'x').map(Number)), `${decorated}: finger 4 on the top fret`).toBe(Number(decorated[i]));
+    }
+  });
 });
 
 describe('batch 8: the cross-check catches a wrong fret', () => {

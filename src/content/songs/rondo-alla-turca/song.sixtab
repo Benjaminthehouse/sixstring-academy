@@ -1,0 +1,30 @@
+# Rondo alla Turca, theme (repertoire plan: rondo-alla-turca). The opening eight bars of the
+# A minor theme of Mozart's Rondo (Piano Sonata K. 331, third movement), the right-hand melody
+# only, an octave below the piano, played twice as the composer repeats it. It starts with the turn
+# B A G# A and the leap to C: the open string 2 (B), string 3 fret 2 (A), string 3 fret 1 (G#),
+# string 2 fret 1 (C). The turns climb: around C, around E, twice around A, up to the top C; then
+# the line falls C B A G#, A E F D, to the close C B A. The cadence (C, B, A) is written in plain
+# quarter notes, without ornaments.
+# Positions: first position for bars 1-2 (finger 4 for D# on string 2 fret 4); bar 3 shifts to
+# fourth position on string 1 (finger 1 on fret 4: G#, 2 on 5: A, 4 on 7: B); bar 4 moves up to
+# fifth position for the top C (finger 4 on fret 8); in bar 5 finger 1 slips back from A to G#;
+# the open E in bar 6 brings the hand back to first position.
+# Pick every sixteenth down-up (or alternate i and m), down on the beat.
+title: Rondo alla Turca (theme)
+composer: Wolfgang Amadeus Mozart
+source: Piano Sonata in A major, K. 331 (1784), third movement, Alla Turca: the opening A minor theme, right-hand melody; arranged for guitar for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Mozart died in 1791); this arrangement is original to Sixstring Academy
+difficulty: 6
+tags: mozart, classical, sixteenth notes, turns, alternate picking, position shifts
+tempo: 108
+time: 2/4
+key: Am
+pickup: q
+
+track: Melody
+role: lead
+[Theme]
+| ^"Down-up on every sixteenth" s 2:0{dn} 3:2{up 2} 3:1{dn 1} 3:2{up 2} |: e 2:1{1} r s 2:3{3} 2:1{1} 2:0 2:1 | e 1:0 r s 1:1{1} 1:0 2:4{4} 1:0 |
+| ^"Fourth position" s 1:7{4} 1:5{2} 1:4{1} 1:5{2} 1:7 1:5 1:4 1:5 | ^"Fifth position" q 1:8{4} e 1:5{1} 1:7{3} | 1:8{4} 1:7{3} 1:5{1} 1:4{1} |
+| 1:5{2} 1:0 1:1{1} 2:3{3} | q 2:1{1} 2:0 | [1] q 3:2{2} s 2:0 3:2{2} 3:1{1} 3:2 :| [2] h 3:2{2} ||

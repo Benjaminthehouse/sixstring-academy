@@ -2,7 +2,8 @@
  * The scanner's working state and everything it does, in one hook so the screens stay thin:
  * the pages (adding photos, PDFs and the sample, the quick look, rotate / crop / retake / reorder),
  * reading them (music through the sheet reader, text through OCR), the proofreading draft with its
- * undo history, the AI helper, and saving to the library.
+ * undo history, the AI helper, and saving to the library. Unsaved work outlives the screen for
+ * the rest of the visit (kept in this module when the screen unmounts), and a reload asks first.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createOmrWorker, type OmrWorkerClient } from '@/core/omr/worker/client';
@@ -173,7 +174,13 @@ export function useScan() {
         const r = await looker.current.look(gray);
         if (!alive.current) return;
         let cleanUrl: string | undefined;
-        if (r.clean) cleanUrl = URL.createObjectURL(await toBlob(canvasOfGray(r.clean) as AnyCanvas, 'image/png'));
+        const current = () => alive.current && pagesRef.current.some((p) => p.id === page.id && p.url === page.url);
+        if (r.clean) {
+          const blob = await toBlob(canvasOfGray(r.clean) as AnyCanvas, 'image/png');
+          // Turned, cropped or removed meanwhile: that picture is gone, so is its cleaned view.
+          if (!current()) return;
+          cleanUrl = URL.createObjectURL(blob);
+        }
         const tab = r.staves.filter((s) => s.kind === 'tab').length;
         const notation = r.staves.length - tab;
         const words = describeLook({ kind: r.kind, tab, notation, quality: r.quality, skew: r.skew, staffSpace: r.staffSpace, paperCover: r.paperCover, textLines: r.textLines });
@@ -325,14 +332,19 @@ export function useScan() {
   }, []);
 
   /** Put a removed page back where it was (undo). */
-  const restorePage = useCallback((page: Page, index: number) => {
-    removed.current = removed.current.filter((p) => p !== page);
-    setPages((list) => {
-      const out = list.slice();
-      out.splice(Math.min(index, out.length), 0, page);
-      return out;
-    });
-  }, []);
+  const restorePage = useCallback(
+    (page: Page, index: number) => {
+      removed.current = removed.current.filter((p) => p !== page);
+      setPages((list) => {
+        const out = list.slice();
+        out.splice(Math.min(index, out.length), 0, page);
+        return out;
+      });
+      // Removed before its quick look finished: look again, or Read would wait for it forever.
+      if (!page.look) void lookAt(page);
+    },
+    [lookAt],
+  );
 
   const reorder = useCallback((from: number, to: number) => setPages((list) => movePage(list, from, to)), []);
 

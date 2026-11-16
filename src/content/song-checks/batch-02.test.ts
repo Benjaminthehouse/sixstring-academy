@@ -11,6 +11,10 @@
  *
  * Bar numbers are 1-based; in a song with a pickup the pickup is bar 0.
  * Michael, Row the Boat Ashore (also in this batch) is not written: see the batch report.
+ *
+ * Independent review (2026-11-16): Deck the Halls' last fa-la-la was wrong in the song and in this
+ * file alike (E E E D C. B | A A G); it is E E E E D. C | B A G, and a test below keeps the old
+ * version failing. The reading study was rewritten to be mostly stepwise, as its plan asks.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

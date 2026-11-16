@@ -1,0 +1,37 @@
+# Mode Study: A Aeolian (natural minor) (repertoire plan: st-mode-aeolian). An original 16-bar
+# melody over a four-bar vamp played four times: Am (x02210) for two bars, then F (133211) and
+# G (320003) for one bar each. F, the flat sixth, is the colour of Aeolian: the sad, serious
+# sound of natural minor. In the last time round F and G share bar 15, so the tune can come home
+# to A in bar 16 (F, G, Am: the classic Aeolian cadence).
+# The melody lands on F on a strong beat in bars 3 (beats 1 and 3), 7, 11 and 15, over the F chord.
+# Fifth position: finger 1 on fret 5, finger 2 on fret 6 (F on string 2), finger 4 on fret 8.
+# The same place on the neck as the Dorian study: only F# becomes F.
+title: Mode Study: A Aeolian (natural minor)
+composer: Sixstring Academy
+source: Original study on the Aeolian mode
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: modes, aeolian, natural minor, colour note, vamp
+tempo: 80
+time: 4/4
+key: Am
+
+track: Your melody
+role: lead
+[Vamp]
+| "Am=x02210" q 1:5{1} e 1:8{4} 1:7p{3} h 1:5p~{1} | e 2:5{1} 3:7{3} 3:5p{1} 3:7h{3} h 2:5{1} |
+| "F=133211" q 2:6{2} e 1:5{1} 2:8{4} h 2:6~{2} | "G=320003" q 2:8{4} e 2:6p{2} 2:5p{1} h 3:7{3} |
+| "Am=x02210" q 2:5 e 3:5 2:5 q 1:5 e 2:8 2:5 | q 3:5 e 3:7h 2:5 h 4:7{3} |
+| "F=133211" h 2:6~{2} e 2:5{1} 2:6h{2} q 1:5 | "G=320003" q 2:8 e 2:6p 2:5p q 3:7 3:4{1} |
+| "Am=x02210" q 3:5{1} e 2:5 2:8 q 1:5 e 1:8{4} 1:7p{3} | h 1:8~{4} q 1:7{3} 1:5{1} |
+| "F=133211" q 1:5 e 1:8 1:5 h 2:6~{2} | "G=320003" e 1:7{3} 1:5p{1} 2:8{4} 2:6p{2} q 2:8 3:7 |
+| "Am=x02210" q 2:5 e 1:5 2:8 q 2:5 e 3:7 3:5p | h 4:7 e 3:5 3:7h q 2:5 |
+| "F=133211" q 2:6 e 2:5 2:6h "G=320003" q 2:8 e 1:5 1:7h | "Am=x02210" w 1:5~ ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| q D D D e D U | q D D D e D U | q D D D e D U | q D D D e D U |
+| q D D D e D U | q D D D e D U | q D D D e D U | q D D D e D U |
+| q D D D e D U | q D D D e D U | q D D D e D U | q D D D e D U |
+| q D D D e D U | q D D D e D U | q D D D e D U | w D ||

@@ -36,9 +36,11 @@ export const THEORY_GLOSSARY: readonly GlossaryTerm[] = [
   T('bend', 'bend', 'Pushing a pressed string sideways across the neck so its pitch rises. Tab writes it b: 7b9 bends fret 7 until it sounds like fret 9.'),
   T('vibrato', 'vibrato', 'A quick, even wobble of a note\'s pitch, made by moving the fretting finger slightly. Tab writes it ~.'),
   T('phrase', 'phrase', 'A musical sentence: a short group of notes that ends with a small pause or a longer note. Many melodies use four-bar phrases.'),
+  // notes-on-the-neck
+  T('fret-marker', 'fret marker', 'A dot set into the neck to show where you are: usually at frets 3, 5, 7 and 9, with a double dot at 12. Also called a position marker.'),
   // functional-harmony
   T('predominant', 'predominant', 'Another name for the subdominant job: the chords that usually come just before the dominant chord, such as the chord on degree 4.'),
-  T('leading-tone', 'leading tone', 'The 7th note of a major scale, a half step below the tonic. It pulls up to the tonic: B to C in C major.'),
+  T('leading-tone', 'leading tone', 'The note a half step below the tonic, which pulls up to it: B in C major, or G sharp in A minor when the 7th is raised.'),
   // reading-first-position
   T('natural-sign', 'natural sign', 'A sign that cancels a sharp or a flat, so the note is played plain: F instead of F sharp.'),
   T('repeat-sign', 'repeat sign', 'A thick and a thin bar line with two dots. Play the music between the two repeat signs again.'),

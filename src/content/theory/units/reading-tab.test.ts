@@ -206,11 +206,12 @@ describe('reading-tab: what tab does not tell you', () => {
     expect(stems.replace(/ \| /g, ' ')).toBe(patternOf(line));
   });
 
-  it('the listening question plays that line and its right option is its rhythm; the others start notes elsewhere', () => {
+  it('the listening question plays the first bar of that line and its right option is its rhythm; the others start notes elsewhere', () => {
     const q = exercises(l).find((e): e is ListenChoiceExercise => e.type === 'listen-choice')!;
-    expect(q.sound.kind === 'tab' && q.sound.notes).toEqual(line);
+    expect(q.sound.kind === 'tab' && q.sound.notes).toEqual(line.slice(0, 3));
     const right = q.options.find((o) => o.correct)!.figure as { pattern: string };
-    expect(right.pattern).toBe('q q h | w');
+    expect(right.pattern).toBe(patternOf(line.slice(0, 3)));
+    expect(right.pattern).toBe('q q h');
     const onsets = q.options.map((o) => parseRhythm((o.figure as { pattern: string }).pattern).onsets.join(','));
     expect(new Set(onsets).size).toBe(q.options.length);
   });

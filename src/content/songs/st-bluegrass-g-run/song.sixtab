@@ -1,0 +1,36 @@
+# Bluegrass Rhythm and the G Run (repertoire plan: st-bluegrass-g-run). An original 16-bar rhythm
+# study in G: two 8-bar phrases on G (320003), C (x32010) and D (xx0232). Every bar is bass on
+# beats 1 and 3, a down-strum of strings 4 to 1 on beats 2 and 4. Bass notes: G alternates string 6
+# fret 3 (G) and the open string 4 (D); C alternates string 5 fret 3 (C) and string 6 fret 3 (G);
+# D alternates the open string 4 (D) and the open string 5 (A). Before each C the G bar puts
+# string 5 fret 2 (B) on beat 3, so the bass steps up B to C.
+# Each phrase ends with the G run in eighth notes (bars 7 and 15): bass on 1, a short strum on 2,
+# then the open string 3 (G), string 4 fret 2 (E), the open string 4 (D), the open string 5 (A)
+# with a hammer-on to fret 2 (B), landing on string 6 fret 3 (G) on beat 1 of the next bar.
+# Pick the run strictly down-up: up on the "and" of 2, down on 3, up, down on 4, and the hammer-on
+# needs no pick. In the run, finger 1 takes string 4 fret 2, finger 2 hammers string 5 fret 2 and
+# finger 3 lands on string 6 fret 3: the G chord is back under your hand. G is fingered 3-2-4
+# (6:3, 5:2, 1:3); for C, fingers 3 and 2 each move one string toward the floor and finger 1 adds
+# string 2 fret 1.
+title: Bluegrass Rhythm and the G Run
+composer: Sixstring Academy
+source: Original rhythm study in the bluegrass style
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: bluegrass, boom-chick, g run, bass run, flatpicking, hammer-on
+tempo: 120
+time: 4/4
+key: G
+
+track: Your part
+role: rhythm
+[Phrase 1]
+| ^"Bass, strum, bass, strum" "G=320003" q 6:3{3} (4:0 3:0 2:0 1:3{4}){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | 6:3 (4:0 3:0 2:0 1:3){dn} 5:2{2} (4:0 3:0 2:0 1:3){dn} |
+| "C=x32010" 5:3{3} (4:2{2} 3:0 2:1{1} 1:0){dn} 6:3{3} (4:2 3:0 2:1 1:0){dn} | 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} |
+| "G=320003" 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | "D=xx0232" 4:0 (4:0 3:2{1} 2:3{3} 1:2{2}){dn} 5:0 (4:0 3:2 2:3 1:2){dn} |
+| ^"The G run" "G=320003" q 6:3 e (4:0 3:0 2:0 1:3){dn} 3:0{up} 4:2{dn 1} 4:0{up} 5:0{dn} 5:2h{2} | q 6:3{3} (4:0 3:0 2:0 1:3){dn} 5:2{2} (4:0 3:0 2:0 1:3){dn} |
+[Phrase 2]
+| "C=x32010" 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} | 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} |
+| "G=320003" 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} |
+| "D=xx0232" 4:0 (4:0 3:2 2:3 1:2){dn} 5:0 (4:0 3:2 2:3 1:2){dn} | 4:0 (4:0 3:2 2:3 1:2){dn} 5:0 (4:0 3:2 2:3 1:2){dn} |
+| ^"The G run" "G=320003" q 6:3 e (4:0 3:0 2:0 1:3){dn} 3:0{up} 4:2{dn 1} 4:0{up} 5:0{dn} 5:2h{2} | q 6:3{3} (4:0 3:0 2:0 1:3){dn} h (6:3 5:2 4:0 3:0 2:0 1:3){dn} ||

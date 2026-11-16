@@ -781,8 +781,53 @@ async function groupAi(browser, url, fx) {
  */
 async function groupReview(browser, url, fx) {
   const g = 'review';
-  const p = await newPage(browser, url);
+  // Count the picture URLs the screen makes and frees.
+  const p = await newPage(browser, url, {
+    init: () => {
+      const live = new Set();
+      window.__liveUrls = live;
+      const make = URL.createObjectURL.bind(URL);
+      const free = URL.revokeObjectURL.bind(URL);
+      URL.createObjectURL = (o) => {
+        const u = make(o);
+        live.add(u);
+        return u;
+      };
+      URL.revokeObjectURL = (u) => {
+        live.delete(u);
+        free(u);
+      };
+    },
+  });
   await openScan(p);
+  const menu = async (index, item) => {
+    await p.page.locator(`[data-scan-page="${index}"]`).getByRole('button', { name: /^More for/ }).click();
+    await p.page.getByRole('menuitem', { name: item }).click();
+  };
+  // A page removed while it is still being looked at, then put back: it is looked at again.
+  await p.page.click('[data-scan-sample]');
+  await p.page.waitForSelector('[data-scan-page="0"]');
+  await menu(0, 'Remove this page');
+  await p.page.getByRole('button', { name: 'Undo' }).click();
+  await waitLooked(p, 1, 60000).catch(() => undefined);
+  const restored = await p.page.evaluate(() => window.__ssaScan.pages.map((x) => !!x.look));
+  check(g, 'a page put back with Undo is looked at, so Read does not wait forever', restored.length === 1 && restored[0] && (await p.page.isEnabled('[data-scan-read]')), restored);
+  // Pictures are freed: a page turned twice, a page removed for good, then Start over.
+  await startOver(p);
+  await p.page.click('[data-scan-sample]');
+  await waitLooked(p, 1);
+  await menu(0, 'Turn right');
+  await menu(0, 'Turn left');
+  await waitLooked(p, 1);
+  await menu(0, 'Remove this page');
+  await p.page.waitForTimeout(300);
+  await p.page.click('[data-scan-sample]');
+  await waitLooked(p, 1);
+  await startOver(p);
+  await p.page.waitForTimeout(500);
+  const leaked = await p.page.evaluate(() => window.__liveUrls.size);
+  check(g, 'after Start over every picture the screen made is freed (removed and turned pages too)', leaked === 0, leaked);
+
   await p.page.click('[data-scan-sample]');
   await waitLooked(p, 1);
   // The progress bar only moves forward (the chord names are read after the music).
@@ -867,6 +912,31 @@ async function groupReview(browser, url, fx) {
   check(g, 'that photo can be saved (the library refused it before)', savedOk);
   check(g, 'desktop: no browser errors', p.errors.length === 0, p.errors.slice(0, 3));
   await p.close();
+
+  // Pasted tab: it has no pages, so the way back after leaving is in the banner; tab text shows
+  // every character (a font ligature drew "|-" as one glyph).
+  {
+    const t = await newPage(browser, url, { mobile: true });
+    await openScan(t);
+    await t.page.click('[data-scan-paste]');
+    await t.page.getByRole('textbox', { name: 'Tab or chords' }).fill(ASCII_TAB.join('\n'));
+    const ligPaste = await t.page.evaluate(() => getComputedStyle(document.querySelector('[role="dialog"] textarea')).fontVariantLigatures);
+    await t.page.click('[data-scan-paste-use]');
+    await t.page.waitForSelector('[data-scan="text"]', { timeout: 60000 });
+    await t.page.getByRole('radio', { name: 'Text' }).click();
+    const ligText = await t.page.evaluate(() => getComputedStyle(document.querySelector('[data-scan="text"] textarea')).fontVariantLigatures);
+    check(g, 'tab text is shown without ligatures, in the paste sheet and the text view', ligPaste === 'none' && ligText === 'none', { ligPaste, ligText });
+    await t.page.evaluate(() => { location.hash = '#home'; });
+    await t.page.waitForSelector('main[data-route="home"]', { timeout: 30000 });
+    await t.page.evaluate(() => { location.hash = '#scan'; });
+    await t.page.waitForSelector('[data-scan="capture"]', { timeout: 60000 });
+    const way = await t.page.$('[data-scan-continue]');
+    if (way) await way.click();
+    const back = await t.page.waitForSelector('[data-scan="text"]', { timeout: 15000 }).then(() => true, () => false);
+    check(g, 'pasted text: leave and come back, "Continue checking" brings it back', !!way && back);
+    check(g, 'pasted text: no browser errors', t.errors.length === 0, t.errors.slice(0, 3));
+    await t.close();
+  }
 
   // The narrowest phone, and a phone with text at 200 %: nothing scrolls sideways.
   for (const [tag, opts] of [['360 px', { viewport: { width: 360, height: 740 }, mobile: true }], ['text at 200 %', { mobile: true, init: () => document.addEventListener('DOMContentLoaded', () => document.documentElement.style.setProperty('font-size', '200%', 'important')) }]]) {

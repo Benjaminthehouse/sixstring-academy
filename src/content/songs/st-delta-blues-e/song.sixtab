@@ -1,0 +1,34 @@
+# Fingerstyle Blues in E, steady thumb (repertoire plan: st-delta-blues-e). An original 12-bar
+# country blues: E E E E | A A E E | B7 A E E. The thumb (p) plays steady quarter notes, lightly
+# palm-muted, on one open bass string per chord: the open string 6 (E) in E bars, the open
+# string 5 (A) in A bars, string 5 fret 2 (B) in the B7 bar. It never stops and never changes.
+# The fingers (i on strings 3 and 2, m on string 1) play an E minor pentatonic melody in open
+# position on strings 1-3, with slides: into string 1 fret 3 (G) from below, into string 2
+# fret 3 (D) from below, and from the blue note, string 3 fret 3 (B flat), up to fret 4 (B).
+# Swing: each beat is long-short, written as a triplet quarter (q3) then a triplet eighth (e3),
+# so the melody's off-beat notes fall between thumb strokes.
+# Ideas: bars 1 and 7 fall from G to B; the blue-note slide B flat-B and A-G answer it in bars 2,
+# 4, 8 and 12; bar 6 climbs G A B D E against the A bass; bar 9 slides into D over B.
+title: Fingerstyle Blues in E (steady thumb)
+composer: Sixstring Academy
+source: Original fingerstyle blues study
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: blues, fingerstyle, country blues, monotonic bass, swing, slide, blue note
+tempo: 84
+time: 4/4
+key: E
+
+[12-bar blues]
+| ^"Thumb: steady quarters, lightly muted" "E7" q (6:0{pm P} /1:3{3 M}) q3 (6:0{pm} 1:0) e3 2:3{3 I} q (6:0{pm} 2:0) 6:0{pm} |
+| ^"Blue note: B flat slides to B" q3 (6:0{pm} 3:3{3 I}) e3 3:4s{3} q3 (6:0{pm} 3:2{2}) e3 3:0 q 6:0{pm} q3 6:0{pm} e3 1:0 |
+| q3 (6:0{pm} 1:3{3}) e3 1:0 q3 (6:0{pm} 1:3) e3 1:0 q3 (6:0{pm} 2:3{3}) e3 2:0 q (6:0{pm} 3:2{2}) |
+| q3 (6:0{pm} 3:3{3}) e3 3:4s{3} q (6:0{pm} 3:2{2}) (6:0{pm} 3:0) 6:0{pm} |
+| ^"Thumb moves to string 5" "A7" q (5:0{pm} /1:3{3}) q3 (5:0{pm} 1:0) e3 2:3{3} q (5:0{pm} 2:0) (5:0{pm} 3:2{2}) |
+| q3 (5:0{pm} 3:0) e3 3:2{2} q3 (5:0{pm} 2:0) e3 2:3{3} q (5:0{pm} 1:0) 5:0{pm} |
+| "E7" q (6:0{pm} /1:3{3}) q3 (6:0{pm} 1:0) e3 2:3{3} q (6:0{pm} 2:0) 6:0{pm} |
+| q3 (6:0{pm} 3:3{3}) e3 3:4s{3} q3 (6:0{pm} 3:2{2}) e3 3:0 q 6:0{pm} 6:0{pm} |
+| ^"Thumb on string 5 fret 2" "B7" q (5:2{pm 1} /2:3{3}) q3 (5:2{pm} 2:0) e3 3:2{2} q (5:2{pm} 2:0) 5:2{pm} |
+| "A7" q (5:0{pm} /1:3{3}) q3 (5:0{pm} 1:0) e3 2:3{3} q3 (5:0{pm} 2:0) e3 3:2{2} q 5:0{pm} |
+| "E7" q (6:0{pm} /1:3{3}) q3 (6:0{pm} 1:0) e3 1:3{3} q3 (6:0{pm} 1:0) e3 2:3{3} q (6:0{pm} 2:0) |
+| q3 (6:0{pm} 3:3{3}) e3 3:4s{3} q3 (6:0{pm} 3:2{2}) e3 3:0 h (6:0 2:0 1:0) ||

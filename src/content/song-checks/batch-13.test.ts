@@ -1,13 +1,20 @@
 import { it } from 'vitest';
-import { scalePatterns, identifyFretted, buildVoicing } from '@/core/guitar';
-it('explore', () => {
-  for (const up of [false, true]) {
-    for (const p of scalePatterns('A', 'minor-pentatonic', { upTheNeck: up })) {
-      console.log(up, p.id, p.name, p.positionName, p.position, p.minFret, p.maxFret, p.notes.map((n) => `${n.string}:${n.fret}${n.note}{${n.finger}}${n.stretch ? 'S' : ''}${n.shift ? 'H' : ''}`).join(' '));
-    }
-  }
-  for (const s of ['x02120', 'xx0232', 'x02210', 'x02220', '320003', '133211', '244222', '022100', 'x35553', '577555', '355433', '875558', '8-10-10-9-8-8', 'x-x-10-12-13-12', 'x-15-14-12-13-12', 'x-x-5-7-8-7', 'x-10-9-7-8-7', 'x-10-12-12-12-10']) {
-    const v = (() => { try { return buildVoicing(identifyFretted(s)?.symbol ?? 'C', s); } catch (e) { return String(e); } })();
-    console.log(s, identifyFretted(s)?.symbol, typeof v === 'string' ? v : `${v.fingers.join(',')} ${v.label} diff ${v.difficulty} barres ${JSON.stringify(v.barres)}`);
+import { parseSixTab, estimateDifficulty, flattenSong, songStats } from '@/core/song';
+import { midiToNote } from '@/core/theory';
+import { loadSongText } from '@/content/songs';
+const IDS = ['st-pent-connect', 'st-barre-progression', 'st-caged-chords', 'st-mode-ionian', 'st-mode-dorian', 'st-mode-mixolydian', 'st-mode-aeolian', 'st-chord-melody-1', 'st-read-fifth-position'];
+it('explore', async () => {
+  for (const id of IDS) {
+    const song = parseSixTab(await loadSongText(id)).song!;
+    const t0 = song.tracks[0];
+    const est = estimateDifficulty(song, { track: t0.id });
+    const all = estimateDifficulty(song);
+    const st = songStats(song).tracks[0];
+    console.log(id, 'first-track level', est.level, est.score, JSON.stringify(est.factors), '| all', all.level, '| shifts', st.shifts, 'maxSpan', st.maxSpan, 'frets', JSON.stringify(st.frets), 'positions', st.positions.join(','));
+    console.log('  chords', song.chords.map((c) => `${c.bar}:${c.tick}:${c.symbol}`).join(' '));
+    const tl = flattenSong(song);
+    const bars: string[][] = [];
+    for (const b of tl.trackBeats(t0.id)) { const bar = b.bar; (bars[bar] ??= []).push(b.notes.length ? b.notes.filter((n) => !n.tie).map((n) => midiToNote(n.midi, { prefer: id.includes('fifth') ? 'auto' : 'sharps' })).join('+') : 'r'); }
+    console.log('  ' + bars.map((b, i) => `${i + 1}[${b.join(' ')}]`).join(' '));
   }
 });

@@ -475,7 +475,7 @@ const seventhsInAMinorKey: Lesson = {
       title: 'The raised 7th',
       body: 'Raise the 7th of {n:A} minor from {n:G} to {n:G#} (harmonic minor) and two chords change. {c:Em7} becomes {c:E7}, the dominant {r:V7} that pulls home. The chord on {n:G#} becomes {c:G#dim7}, the {r:vii°7}: {n:G#} {n:B} {n:D} {n:F}.',
       figure: { kind: 'chord', symbol: 'E7', frets: '020100', caption: '{c:E7}, 020100: the {n:G#} is string 3, fret 1.' },
-      tip: 'In {c:E7} the {n:G#} sits on string 3, fret 1. In {c:Am7} that string plays {n:A} at fret 2: a half step up, home.',
+      tip: 'In {c:E7} the {n:G#} sits on string 3, fret 1, a half step under {n:A}. Play {c:Am} (x02210) next and that string rises to {n:A} at fret 2.',
     },
     {
       type: 'listen-choice',
@@ -483,7 +483,7 @@ const seventhsInAMinorKey: Lesson = {
       sound: { kind: 'progression', chords: ['E7', 'Am7'], beats: 3, tempo: 80 },
       options: [{ text: '{c:Em7}: the minor {r:v7}' }, { text: '{c:E7}: the dominant {r:V7}', correct: true }],
       shuffle: false,
-      explain: 'It was {c:E7}: its {n:G#} on string 3 pulls up a half step into the {n:A} of {c:Am7}. {c:Em7} has {n:G}, which lands more softly.',
+      explain: 'It was {c:E7}: its {n:G#}, a half step under {n:A}, pulls hard toward the root of {c:Am7}. {c:Em7} has {n:G} instead, which lands more softly.',
     },
     {
       type: 'true-false',
@@ -740,7 +740,7 @@ const barreSeventhShapes: Lesson = {
     {
       type: 'card',
       title: 'The A shape, as a seventh',
-      body: 'The A-shape barre at fret 1 is {c:Bb} (x13331), root {n:Bb} on string 5. Lift the finger off string 3 and the barre plays {n:Ab}: {c:Bb7}, x13131. From there, string 2 at fret 2 gives {c:Bbm7} (x13121); string 3 at fret 2 gives {c:Bbmaj7} (x13231).',
+      body: 'The A-shape barre at fret 1 is {c:Bb} (x13331), root {n:Bb} on string 5. Leave string 3 to the barre and it plays {n:Ab}: {c:Bb7}, x13131. From there, string 2 at fret 2 gives {c:Bbm7} (x13121); string 3 at fret 2 gives {c:Bbmaj7} (x13231).',
       figure: { kind: 'chord', symbol: 'Bb7', frets: 'x13131', caption: '{c:Bb7}, x13131: root {n:Bb} on string 5, fret 1.' },
     },
     {
@@ -870,7 +870,7 @@ const hearingSevenths: Lesson = {
       sound: { kind: 'chord', chord: 'Amaj7', frets: 'x02120' },
       options: [{ text: 'Major 7', correct: true }, { text: 'Dominant 7' }],
       shuffle: false,
-      explain: 'That was {c:Amaj7}, x02120. Its 7th, {n:G#}, is a half step under the root: soft and shimmering.',
+      explain: 'That was {c:Amaj7}, x02120. Its 7th, {n:G#}, is a half step below the {n:A} an octave up: soft and shimmering.',
     },
     {
       type: 'match-pairs',
@@ -886,12 +886,24 @@ const hearingSevenths: Lesson = {
       fact: 'sevenths-colours',
     },
     {
+      type: 'choice',
+      prompt: 'Which chord has its 7th only a half step below the octave, so it rubs?',
+      options: [
+        { text: '{c:Amaj7}', correct: true },
+        { text: '{c:A7}', why: '{c:A7} has the minor 7th, {n:G}: a whole step below the octave.' },
+        { text: '{c:Am7}', why: '{c:Am7} has the minor 7th, {n:G}: a whole step below the octave.' },
+        { text: '{c:Am7b5}', why: '{c:Am7b5} has the minor 7th too, {n:G}.' },
+      ],
+      explain: 'Only the major 7 has the major 7th: {n:G#} in {c:Amaj7}, a half step under the {n:A} above.',
+      fact: 'sevenths-distance-below-octave',
+    },
+    {
       type: 'listen-choice',
       prompt: 'And this one: major 7 or dominant 7?',
       sound: { kind: 'chord', chord: 'A7', frets: 'x02020' },
       options: [{ text: 'Major 7' }, { text: 'Dominant 7', correct: true }],
       shuffle: false,
-      explain: 'That was {c:A7}, x02020. Its 7th, {n:G}, is a whole step under the root: bluesy, wanting to move.',
+      explain: 'That was {c:A7}, x02020. Its 7th, {n:G}, is a whole step below the {n:A} an octave up: bluesy, wanting to move.',
     },
     {
       type: 'true-false',

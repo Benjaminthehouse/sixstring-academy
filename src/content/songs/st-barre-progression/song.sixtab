@@ -1,0 +1,36 @@
+# Barre Progression: I-vi-IV-V (repertoire plan: st-barre-progression). An original 16-bar study
+# on the I-vi-IV-V progression. Bars 1-8 in A: A (x02220), the F#m barre at fret 2 (244222),
+# D (xx0232) and E (022100). Bars 9-16 the same progression in C, every chord a barre: C as an
+# A-shape barre at fret 3 (x35553), Am as an E-shape minor barre at fret 5 (577555), F as the
+# E-shape barre at fret 1 (133211) and G as the E-shape barre at fret 3 (355433).
+# The folk strum in every one-chord bar: down, down-up, (miss), up, down-up. Bars 7 and 15 change
+# to V on beat 3 (down, down-up for each chord), and each half ends on its I chord.
+# The teacher's bass plays the root on beat 1 and the fifth on beat 3.
+title: Barre Progression: I-vi-IV-V
+composer: Sixstring Academy
+source: Original study on the I-vi-IV-V progression, in A and in C
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: barre chords, i-vi-iv-v, folk strum, transposing
+tempo: 92
+time: 4/4
+key: A
+
+track: Your strum
+role: rhythm
+[In A]
+strum: D-DU-UDU
+| "A=x02220" q D e D U r U D U | "F#m=244222" q D e D U r U D U | "D=xx0232" q D e D U r U D U | "E=022100" q D e D U r U D U |
+| "A=x02220" q D e D U r U D U | "F#m=244222" q D e D U r U D U | "D=xx0232" q D e D U "E=022100" q D e D U | "A=x02220" w D ||
+[In C]
+strum: D-DU-UDU
+| "C=x35553" q D e D U r U D U | "Am=577555" q D e D U r U D U | "F=133211" q D e D U r U D U | "G=355433" q D e D U r U D U |
+| "C=x35553" q D e D U r U D U | "Am=577555" q D e D U r U D U | "F=133211" q D e D U "G=355433" q D e D U | "C=x35553" w D ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[In A]
+| h 3:0 2:2 | 4:2 3:4 | 2:0 3:0 | 4:0 3:2 | 3:0 2:2 | 4:2 3:4 | 2:0 2:2 | w 3:0 ||
+[In C]
+| h 3:3 4:3 | 3:0 4:0 | 4:1 3:3 | 4:3 2:0 | 3:3 4:3 | 3:0 4:0 | 4:1 4:3 | w 3:3 ||

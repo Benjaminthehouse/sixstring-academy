@@ -7,28 +7,29 @@
 # strings 3 to 1 (A3 up to G4). The teacher plays the bass line, also in first position.
 # Counterpoint: on every beat the two voices sound a third or tenth, a sixth, a fifth or an octave
 # apart; the only other sounds on a beat are the seventh of A7 in bar 2 (G, which falls to F) and
-# notes over a moving bass that step on at once. No parallel fifths or octaves. The bass moves when
-# you hold (the half notes in bars 1-2 and 5-6 against your quarters) and holds when you move.
+# passing notes between beats. No parallel fifths or octaves. The two lines rarely share a rhythm:
+# where you run in eighths the bass holds a half note, and in bars 3, 7 and 23 it walks in quarters;
+# in bar 3 (and 19) it walks down D C B flat to A in tenths with you.
 title: Duet: Baroque-Style Duo in D minor
 composer: Sixstring Academy
 source: Original duet for two guitars, in the style of a Baroque minuet
 licence: Original study for Sixstring Academy
 difficulty: 5
 tags: duet, baroque, minuet, binary form, two parts, d minor
-tempo: 92
+tempo: 108
 time: 3/4
 key: Dm
 
 track: You (upper voice)
 role: lead
 [First half]
-|: ^"First position: finger = fret" "Dm" q 2:3{3} 1:1{1} e 1:0 2:3{3} | "A7" q 2:2{2} 1:0 1:3{3} | "Dm" q 1:1{1} 1:0 2:3{3} | "A" q 1:0 2:2{2} 3:2{2} |
-| "Dm" q 1:1 2:3 1:0 | "Bb" q 1:1 e 1:3 1:1 q 2:3 | "C7" q 1:0 e 1:3 1:1 q 1:0 | "F" h. 1:1 :|
+|: ^"First position: finger = fret" "Dm" e 2:3{3} 1:0 q 1:1{1} e 1:0 2:3{3} | "A7" e 2:2{2} 2:3{3} 1:0 1:1{1} q 1:3{3} | "Dm" q 1:1{1} 1:0 2:3{3} | "A" q 1:0 2:2{2} 3:2{2} |
+| "Dm" e 1:1 1:0 q 2:3 1:0 | "Bb" q 1:1 e 1:3 1:1 q 2:3 | "C7" q 1:0 e 1:3 1:1 q 1:0 | "F" h. 1:1 :|
 [Second half]
-|: "F" q. 1:1 e 1:0 q 2:3 | "C" q. 1:0 e 2:3 q 2:1{1} | "F" q 3:2{2} 2:1{1} 1:1{1} | "D" q. 1:2{2} e 1:0 q 2:3 |
+|: "F" q. 1:1 e 1:0 q 2:3 | "C" q. 1:0 e 2:3 q 2:1{1} | "F" e 3:2{2} 3:3{3} 2:1{1} 2:3{3} 1:0 1:1{1} | "D" q. 1:2{2} e 1:0 q 2:3 |
 | "Gm" q 3:3{3} 2:3{3} 1:3{3} | "Dm" q. 1:1 e 1:0 q 2:3 | "Gm/Bb" q. 1:3 e 1:1 q 2:3 | "A" h 1:0 q 2:2{2} |
-| "Dm" q 2:3 1:1 e 1:0 2:3 | "A7" q 2:2 1:0 1:3 | "Dm" q 1:1 1:0 2:3 | "A" q 1:0 2:2 3:2 |
-| "Bb" q 2:3 e 1:1 1:3 q 1:1 | "Gm" q 3:3 2:3 1:3 | "A" q. 1:0 e 2:3 q 2:2 | "Dm" h. 2:3 :|
+| "Dm" e 2:3 1:0 q 1:1 e 1:0 2:3 | "A7" e 2:2 2:3 1:0 1:1 q 1:3 | "Dm" q 1:1 1:0 2:3 | "A" q 1:0 2:2 3:2 |
+| "Bb" e 2:3 1:0 1:1 1:3 1:1 2:3 | "Gm" q 3:3 2:3 1:3 | "A" q. 1:0 e 2:3 q 2:2 | "Dm" h. 2:3 :|
 
 track: Teacher (bass line)
 role: lead
@@ -36,7 +37,7 @@ role: lead
 |: h 4:0 q 5:0 | h 5:4 q 5:0 | q 4:0 5:3 5:1 | h. 5:0 |
 | h 4:0 q 5:3 | h 5:1 q 6:1 | q 5:3 5:1 5:3 | h. 6:1 :|
 [Second half]
-|: h 5:0 q 5:1 | h 5:3 q 6:0 | h 6:1 q 5:0 | h 4:0 q 4:4 |
+|: h 5:0 q 5:1 | h 5:3 q 6:0 | h 6:1 q 5:3 | h 4:0 q 4:4 |
 | h 3:0 q 6:3 | h 4:0 q 6:1 | h. 5:1 | h. 5:0 |
 | h 4:0 q 5:0 | h 5:4 q 5:0 | q 4:0 5:3 5:1 | h. 5:0 |
 | h. 5:1 | h. 6:3 | q 5:0 5:4 5:0 | h. 4:0 :|

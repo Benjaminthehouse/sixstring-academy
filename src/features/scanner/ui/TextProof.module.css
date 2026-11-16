@@ -96,6 +96,9 @@
   line-height: 1.45;
   white-space: pre;
   overflow-x: auto;
+  /* Tab is read character by character: no ligature may turn "|-" or "->" into one glyph. */
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
 }
 .hint {
   display: flex;

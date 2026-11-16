@@ -1,0 +1,44 @@
+# CAGED: One Chord, Five Shapes (repertoire plan: st-caged-chords). An original 20-bar study,
+# one shape per bar. C climbs the neck in its five shapes: C (x32010), A shape at fret 3 (x35553),
+# G shape (875558), E shape at fret 8 (8-10-10-9-8-8), D shape (x-x-10-12-13-12) and the C shape
+# again twelve frets up (x-15-14-12-13-12); then back down to the open C. G climbs the same way:
+# G (320003), E shape (355433), D shape (x-x-5-7-8-7), C shape (x-10-9-7-8-7), A shape
+# (x-10-12-12-12-10), and back down to the open G.
+# Every bar: the lowest root alone on beat 1, the whole shape on beat 2, the next root up alone on
+# beat 3, the whole shape on beat 4. The finger on each root is the one the chord box shows.
+title: CAGED: One Chord, Five Shapes
+composer: Sixstring Academy
+source: Original study on the CAGED shapes of C and G
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: caged, chord shapes, roots, whole neck
+tempo: 72
+time: 4/4
+key: C
+
+track: Your shapes
+role: rhythm
+[C up the neck]
+| "C=x32010" ^"C shape: roots on strings 5 and 2" q 5:3{3} (5:3 4:2 3:0 2:1 1:0) 2:1{1} (5:3 4:2 3:0 2:1 1:0) |
+| "C=x35553" ^"A shape: roots on strings 5 and 3" q 5:3{1} (5:3 4:5 3:5 2:5 1:3) 3:5{3} (5:3 4:5 3:5 2:5 1:3) |
+| "C=875558" ^"G shape: roots on strings 6, 3 and 1" q 6:8{3} (6:8 5:7 4:5 3:5 2:5 1:8) 3:5{1} (6:8 5:7 4:5 3:5 2:5 1:8) |
+| "C=8-10-10-9-8-8" ^"E shape: roots on strings 6, 4 and 1" q 6:8{1} (6:8 5:10 4:10 3:9 2:8 1:8) 4:10{4} (6:8 5:10 4:10 3:9 2:8 1:8) |
+| "C=x-x-10-12-13-12" ^"D shape: roots on strings 4 and 2" q 4:10{1} (4:10 3:12 2:13 1:12) 2:13{4} (4:10 3:12 2:13 1:12) |
+| "C=x-15-14-12-13-12" ^"C shape, 12 frets up: roots on strings 5 and 2" q 5:15{4} (5:15 4:14 3:12 2:13 1:12) 2:13{2} (5:15 4:14 3:12 2:13 1:12) |
+[C back down]
+| "C=x-x-10-12-13-12" ^"D shape" q 4:10 (4:10 3:12 2:13 1:12) 2:13 (4:10 3:12 2:13 1:12) |
+| "C=8-10-10-9-8-8" ^"E shape" q 6:8 (6:8 5:10 4:10 3:9 2:8 1:8) 4:10 (6:8 5:10 4:10 3:9 2:8 1:8) |
+| "C=875558" ^"G shape" q 6:8 (6:8 5:7 4:5 3:5 2:5 1:8) 3:5 (6:8 5:7 4:5 3:5 2:5 1:8) |
+| "C=x35553" ^"A shape" q 5:3 (5:3 4:5 3:5 2:5 1:3) 3:5 (5:3 4:5 3:5 2:5 1:3) |
+| "C=x32010" ^"C shape" q 5:3 (5:3 4:2 3:0 2:1 1:0) 2:1 (5:3 4:2 3:0 2:1 1:0) ||
+[G up the neck]
+| "G=320003" ^"G shape: roots on strings 6, 3 and 1" q 6:3{2} (6:3 5:2 4:0 3:0 2:0 1:3) 3:0 (6:3 5:2 4:0 3:0 2:0 1:3) |
+| "G=355433" ^"E shape: roots on strings 6, 4 and 1" q 6:3{1} (6:3 5:5 4:5 3:4 2:3 1:3) 4:5{4} (6:3 5:5 4:5 3:4 2:3 1:3) |
+| "G=x-x-5-7-8-7" ^"D shape: roots on strings 4 and 2" q 4:5{1} (4:5 3:7 2:8 1:7) 2:8{4} (4:5 3:7 2:8 1:7) |
+| "G=x-10-9-7-8-7" ^"C shape: roots on strings 5 and 2" q 5:10{4} (5:10 4:9 3:7 2:8 1:7) 2:8{2} (5:10 4:9 3:7 2:8 1:7) |
+| "G=x-10-12-12-12-10" ^"A shape: roots on strings 5 and 3" q 5:10{1} (5:10 4:12 3:12 2:12 1:10) 3:12{3} (5:10 4:12 3:12 2:12 1:10) |
+[G back down]
+| "G=x-10-9-7-8-7" ^"C shape" q 5:10 (5:10 4:9 3:7 2:8 1:7) 2:8 (5:10 4:9 3:7 2:8 1:7) |
+| "G=x-x-5-7-8-7" ^"D shape" q 4:5 (4:5 3:7 2:8 1:7) 2:8 (4:5 3:7 2:8 1:7) |
+| "G=355433" ^"E shape" q 6:3 (6:3 5:5 4:5 3:4 2:3 1:3) 4:5 (6:3 5:5 4:5 3:4 2:3 1:3) |
+| "G=320003" ^"G shape" q 6:3 (6:3 5:2 4:0 3:0 2:0 1:3) h (6:3 5:2 4:0 3:0 2:0 1:3) ||

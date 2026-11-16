@@ -1,0 +1,37 @@
+# Mode Study: A Dorian (repertoire plan: st-mode-dorian). An original 16-bar melody over a
+# two-chord vamp: Am (x02210) for two bars, then D (xx0232) for two. The D major chord carries
+# F#, the colour of Dorian: a minor scale with a bright sixth.
+# The melody lands on F# on a strong beat in bars 3, 4, 8, 11, 12 and 15, over D, and passes
+# through it over Am in bars 10 and 13, where it is the major sixth that makes Dorian. The last
+# bars change faster (D in bar 15, Am in bar 16) so the tune can come home to A.
+# Fifth position: finger 1 on fret 5, finger 3 on fret 7 (F# on string 2), finger 4 on fret 8.
+# The same place on the neck as the Aeolian study: only F becomes F#.
+title: Mode Study: A Dorian
+composer: Sixstring Academy
+source: Original study on the Dorian mode
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: modes, dorian, colour note, vamp, minor
+tempo: 96
+time: 4/4
+key: Am
+
+track: Your melody
+role: lead
+[Vamp]
+| "Am=x02210" q 1:5{1} e 2:8{4} 2:5{1} q 3:5{1} 3:7{3} | e 2:5{1} 3:7{3} 3:5p{1} 3:7h{3} h 2:5~{1} |
+| "D=xx0232" q 2:7{3} e 1:5{1} 2:7{3} q 3:7{3} e 2:5{1} 2:7h{3} | q 1:5{1} e 1:7h{3} 1:5p{1} h 2:7~{3} |
+| "Am=x02210" q 2:5 e 3:5 3:7h q 2:5 2:8 | e 1:5 2:8 2:5 3:7 q 3:5 4:7{3} |
+| "D=xx0232" q 3:7 e 2:5 2:7h q 1:5 2:7 | h 2:7~ e 2:5 2:7h q 2:8{4} |
+| "Am=x02210" q 1:5 e 1:8{4} 1:7p{3} q 1:5 e 2:8 2:5 | e 3:5 3:7h 2:5 2:7h h 2:5 |
+| "D=xx0232" q 2:7 e 1:5 1:7h q 1:5p e 2:7 2:5 | e 3:7 2:5 2:7h 1:5 h 2:7~ |
+| "Am=x02210" q 2:5 e 2:7h 2:8h q 1:5 e 2:8 2:5 | q 1:8{4} e 1:7p 1:5p q 2:5 2:8 |
+| "D=xx0232" q 2:7 e 2:5 2:7h q 1:5 1:7 | "Am=x02210" w 1:5~ ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| q D e r U r U D U | q D e r U r U D U | q D e r U r U D U | q D e r U r U D U |
+| q D e r U r U D U | q D e r U r U D U | q D e r U r U D U | q D e r U r U D U |
+| q D e r U r U D U | q D e r U r U D U | q D e r U r U D U | q D e r U r U D U |
+| q D e r U r U D U | q D e r U r U D U | q D e r U r U D U | w D ||

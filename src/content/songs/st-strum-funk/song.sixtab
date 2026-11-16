@@ -1,0 +1,41 @@
+# Strumming: Sixteenth-Note Funk (repertoire plan: st-strum-funk). An original 8-bar study on one
+# chord, E9 (x76777): finger 2 on string 5 fret 7, finger 1 on string 4 fret 6, finger 3 laid flat
+# across strings 3, 2 and 1 at fret 7. String 6 is muted by the tip of finger 2.
+# The strumming hand never stops: four strokes in every beat, down on the beat and on the "and",
+# up on the "e" and the "a". D and U strike the chord; X is the same stroke with the fretting
+# fingers relaxed so the strings are muted (a dry scratch). Every X carries its direction.
+# Two 2-bar patterns, each played twice:
+#   A (bars 1-2, 3-4): chord on 1, &, e of 2, a of 2, & of 3, 4, a of 4 | 1, & of 2, a of 2,
+#      e of 3, 4, & of 4
+#   B (bars 5-6, 7-8): chord on 1, a of 1, & of 2, e of 3, a of 3, & of 4 | & of 1, 2, a of 2,
+#      & of 3, 4, then scratches to the end of the bar
+# Squeeze the chord only for the strokes that sound and let go at once, so every chord is short.
+# The teacher's bass plays a plain E and its octave underneath.
+title: Strumming: Sixteenth-Note Funk
+composer: Sixstring Academy
+source: Original strumming study in the funk style
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: strumming, funk, sixteenth notes, muted strums, scratch, e9
+tempo: 92
+time: 4/4
+key: E
+
+track: Your strum
+role: rhythm
+[Pattern A]
+| ^"Down on the beat, up on the e and a" "E9=x76777" s D X{up} D X{up} X{dn} U X{dn} U X{dn} X{up} D X{up} D X{up} X{dn} U | D X{up} X{dn} X{up} X{dn} X{up} D U X{dn} U X{dn} X{up} D X{up} D X{up} |
+| D X{up} D X{up} X{dn} U X{dn} U X{dn} X{up} D X{up} D X{up} X{dn} U | D X{up} X{dn} X{up} X{dn} X{up} D U X{dn} U X{dn} X{up} D X{up} D X{up} |
+[Pattern B]
+| D X{up} X{dn} U X{dn} X{up} D X{up} X{dn} U X{dn} U X{dn} X{up} D X{up} | X{dn} X{up} D X{up} D X{up} X{dn} U X{dn} X{up} D X{up} D X{up} X{dn} X{up} |
+| D X{up} X{dn} U X{dn} X{up} D X{up} X{dn} U X{dn} U X{dn} X{up} D X{up} | X{dn} X{up} D X{up} D X{up} X{dn} U X{dn} X{up} D X{up} D X{up} X{dn} X{up} ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[Pattern A]
+| q 4:0 e r 4:0 q 2:2 e 4:0 r | q 4:0 e r 4:0 q 2:2 e 4:0 r |
+| q 4:0 e r 4:0 q 2:2 e 4:0 r | q 4:0 e r 4:0 q 2:2 e 4:0 r |
+[Pattern B]
+| q 4:0 e r 4:0 q 2:2 e 4:0 r | q 4:0 e r 4:0 q 2:2 e 4:0 r |
+| q 4:0 e r 4:0 q 2:2 e 4:0 r | q 4:0 e r 4:0 q 2:2 e 4:0 r ||

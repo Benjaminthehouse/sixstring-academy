@@ -440,3 +440,9 @@
     border-right: 0;
   }
 }
+
+/* The pasted tab, character by character: no ligature may turn "|-" into one glyph. */
+.tabText textarea {
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
+}

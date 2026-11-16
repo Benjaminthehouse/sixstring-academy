@@ -1,17 +1,215 @@
-import { it } from 'vitest';
-import { chordSlug, chordNotes, scaleNotes } from '@/core/theory';
-import { identifyFretted, noteAt, chordVoicings } from '@/core/guitar';
-import { chordFromParam } from '@/features/chords/model/symbols';
+/**
+ * Cross-checks for Mia's unit 4 (D, A7 and the steady beat) against the engines and the song
+ * library: every fretted note the cards name is the note on the neck, every chord shape is that
+ * chord, the chord charts and bass notes the lessons describe are the library's, and the BPM each
+ * Player task names is the song's tempo times the task's percentage. Run with
+ * `npx vitest run src/content/teachers/mia/mia-d-and-the-beat.test.ts`.
+ */
+import { describe, expect, it } from 'vitest';
+import { loadSongText, songEntry } from '@/content/songs';
+import { identifyFretted, noteAt } from '@/core/guitar';
+import { parseSixTab, type Song } from '@/core/song';
+import { chordNotes, parseChord } from '@/core/theory';
+import { estimateLessonSeconds, formatProblems, validateCourse } from '@/lessons';
+import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
+import type { RichText, TeacherUnit } from '../types';
+import unit from './mia-d-and-the-beat';
 
-it('explore', () => {
-  for (const c of ['Em', 'D', 'A7', 'A', 'E7', 'G', 'C', 'D7', 'Am', 'Dm', 'E', 'B7']) {
-    const s = chordSlug(c);
-    console.log(c, s, chordFromParam(s), chordNotes(c).join(' '), chordVoicings(c)[0].frets.join(','), chordVoicings(c)[0].fingers.join(','));
+// ── helpers (kept in this file: the unit folder holds only unit files and their tests) ──────────
+
+async function song(id: string): Promise<Song> {
+  const { song: s, errors } = parseSixTab(await loadSongText(id));
+  expect(errors, id).toEqual([]);
+  return s!;
+}
+
+/** True when bar `i` is a pickup (shorter than its time signature). */
+function isPickup(s: Song, i: number): boolean {
+  const b = s.bars[i];
+  return b.length !== undefined && b.length < (b.time.numerator * 3840) / b.time.denominator;
+}
+
+/** The chord in force at the start of every full bar (pickups left out). */
+async function chordsByBar(id: string): Promise<string[]> {
+  const s = await song(id);
+  const events = [...s.chords].sort((a, b) => a.bar - b.bar || a.tick - b.tick);
+  const out: string[] = [];
+  for (let i = 0; i < s.bars.length; i++) {
+    if (isPickup(s, i)) continue;
+    const inForce = events.filter((e) => e.bar < i || (e.bar === i && e.tick === 0)).pop();
+    out.push(inForce ? inForce.symbol : 'N.C.');
   }
-  for (const sh of ['xx0232', 'x02020', '320003', '320033', 'x32010', 'xx0212', 'x02210', 'xx0231', '022100', '020100', 'x21202', '022000', 'x02220']) {
-    const r = identifyFretted(sh);
-    console.log(sh, r.symbol, r.notes.map((n) => `${n.string}:${n.fret}=${n.note}`).join(' '));
+  return out;
+}
+
+/** Every chord sounding in each full bar (the one in force at the bar line and any that start in it). */
+async function chordsInBars(id: string): Promise<string[][]> {
+  const s = await song(id);
+  const events = [...s.chords].sort((a, b) => a.bar - b.bar || a.tick - b.tick);
+  const out: string[][] = [];
+  for (let i = 0; i < s.bars.length; i++) {
+    if (isPickup(s, i)) continue;
+    const start = events.filter((e) => e.bar < i || (e.bar === i && e.tick === 0)).pop();
+    const inside = events.filter((e) => e.bar === i && e.tick > 0).map((e) => e.symbol);
+    out.push([...(start ? [start.symbol] : []), ...inside]);
   }
-  console.log(scaleNotes('D', 'major').join(' '), scaleNotes('G', 'major').join(' '), scaleNotes('E', 'minor').join(' '), scaleNotes('A', 'minor').join(' '));
-  console.log(noteAt({ string: 3, fret: 1 }, { context: { chord: 'E7' } }));
+  return out;
+}
+
+/** The single note on beat 1 of each bar of the strum part, by the chord in force: `{ D: '4:0' }`. */
+async function bassByChord(id: string): Promise<Record<string, string>> {
+  const s = await song(id);
+  const rhythm = s.tracks.find((t) => t.role === 'rhythm')!;
+  const chords = await chordsByBar(id);
+  const full = s.bars.map((_, i) => i).filter((i) => !isPickup(s, i));
+  const out: Record<string, string> = {};
+  full.forEach((barIndex, k) => {
+    const first = rhythm.measures[barIndex].beats[0];
+    if (first.start !== 0 || first.notes.length !== 1) return;
+    const pos = `${first.notes[0].string}:${first.notes[0].fret}`;
+    const chord = chords[k];
+    expect(out[chord] === undefined || out[chord] === pos, `${id} bar ${barIndex + 1}: ${chord} bass ${pos} (was ${out[chord]})`).toBe(true);
+    out[chord] = pos;
+  });
+  return out;
+}
+
+/** The strings a shape plays, from string 6 to string 1. */
+function stringsOf(shape: string): number[] {
+  return [...shape].map((c, i) => (c === 'x' ? 0 : 6 - i)).filter((n) => n > 0);
+}
+
+function plain(text: RichText): string {
+  return typeof text === 'string' ? text : text.text;
+}
+
+/**
+ * Problems with the tempos the Player tasks name: every "N % (M BPM)" must be right, and the first
+ * other "M BPM" must be the tempo the task opens at (the song's tempo times its percentage).
+ */
+async function taskBpmProblems(u: TeacherUnit): Promise<string[]> {
+  const out: string[] = [];
+  for (const lesson of u.lessons) {
+    for (const step of lesson.steps) {
+      if (!isTaskStep(step)) continue;
+      const id = taskSong(step);
+      if (!id) continue;
+      if (!songEntry(id)) continue; // a fallback task: no tempo to check against yet
+      const bpm = (await song(id)).tempo[0].bpm;
+      const pctParam = (step.params ?? []).find((p) => /^t\d+$/.test(p));
+      const pct = pctParam ? Number(pctParam.slice(1)) : 100;
+      let text = plain(step.body);
+      for (const m of text.matchAll(/(\d+) % \((?:about )?(\d+) BPM\)/g)) {
+        const want = (bpm * Number(m[1])) / 100;
+        if (Math.abs(want - Number(m[2])) > 1) out.push(`${lesson.id} > ${step.id}: ${m[0]}, but ${m[1]} % of ${bpm} is ${want.toFixed(1)}`);
+      }
+      text = text.replace(/(\d+) % \((?:about )?(\d+) BPM\)/g, '');
+      const first = text.match(/(\d+) BPM/);
+      if (!first) {
+        out.push(`${lesson.id} > ${step.id}: names no BPM`);
+        continue;
+      }
+      const opens = (bpm * pct) / 100;
+      if (Math.abs(opens - Number(first[1])) > 1) out.push(`${lesson.id} > ${step.id}: says ${first[1]} BPM, opens at ${pct} % of ${bpm} = ${opens.toFixed(1)}`);
+    }
+  }
+  return out;
+}
+
+// ── the checks ──────────────────────────────────────────────────────────────────────────────────
+
+const course = compileCourse(courseMeta('mia'), [unit]);
+const at = (string: number, fret: number, chord: string) => noteAt({ string, fret }, { context: { chord }, octave: false });
+
+describe('Mia unit 4: D, A7 and the steady beat', () => {
+  it('passes the lesson engine with no error and no warning', () => {
+    const problems = validateCourse(course);
+    expect(problems, formatProblems(problems)).toEqual([]);
+  });
+
+  it('keeps every engine lesson inside the 2 to 5 minute window', () => {
+    for (const l of unit.lessons) {
+      const s = estimateLessonSeconds(compileLesson(l));
+      expect(s, `${l.id}: ${s} s`).toBeGreaterThanOrEqual(100);
+      expect(s, `${l.id}: ${s} s`).toBeLessThanOrEqual(330);
+    }
+  });
+
+  it('names the notes under the fingers as the neck has them', () => {
+    // D: finger 1 on string 3 fret 2 (A), finger 3 on string 2 fret 3 (D), finger 2 on string 1 fret 2 (F#), open string 4 (D).
+    expect([at(3, 2, 'D'), at(2, 3, 'D'), at(1, 2, 'D'), at(4, 0, 'D')]).toEqual(['A', 'D', 'F#', 'D']);
+    // A7: finger 2 on string 4 fret 2 (E), finger 3 on string 2 fret 2 (C#), the open string 3 (G) between them.
+    expect([at(4, 2, 'A7'), at(2, 2, 'A7'), at(3, 0, 'A7')]).toEqual(['E', 'C#', 'G']);
+    expect(chordNotes('A7')).toEqual(['A', 'C#', 'E', 'G']);
+    // Bass notes: the open strings 4, 5 and 6 under D, A / A7 and E7, each the chord's own root.
+    expect([at(4, 0, 'D'), at(5, 0, 'A7'), at(5, 0, 'A'), at(6, 0, 'E7')]).toEqual(['D', 'A', 'A', 'E']);
+    for (const c of ['D', 'A7', 'A', 'E7']) expect(parseChord(c)!.root).toBe(c[0]);
+  });
+
+  it('draws shapes that are the chords they are called, on the strings the lessons name', () => {
+    expect(identifyFretted('xx0232').symbol).toBe('D');
+    expect(identifyFretted('x02020').symbol).toBe('A7');
+    expect(identifyFretted('020100').symbol).toBe('E7');
+    expect(stringsOf('xx0232')).toEqual([4, 3, 2, 1]);
+    expect(stringsOf('x02020')).toEqual([5, 4, 3, 2, 1]);
+    // The "muddy" D of the listening question is the D shape with the open strings 6 and 5 ringing too,
+    // and their E is not a note of D at all.
+    const muddy = identifyFretted('000232').notes.map((n) => n.midi);
+    expect(muddy).toEqual([40, 45, 50, 57, 62, 66]); // E2 A2 D3 A3 D4 F#4
+    expect(chordNotes('D')).not.toContain('E');
+    // D to A7: finger 3 slides from string 2 fret 3 (D) to fret 2 (C#); finger 2 goes from string 1 to string 4.
+    expect([at(2, 3, 'D'), at(2, 2, 'A7')]).toEqual(['D', 'C#']);
+  });
+
+  it('describes Strumming: Steady Quarters and the Em-D ladder as the library has them', async () => {
+    const em4a4 = ['Em', 'Em', 'Em', 'Em', 'A', 'A', 'A', 'A'];
+    expect(await chordsByBar('st-strum-quarters')).toEqual([...em4a4, ...em4a4]);
+    const ladder = await chordsInBars('st-change-em-d-em-g');
+    expect(ladder.length).toBe(16);
+    expect(new Set(ladder.slice(0, 8).flat())).toEqual(new Set(['Em', 'D']));
+    expect(new Set(ladder.slice(8, 16).flat())).toEqual(new Set(['Em', 'G']));
+  });
+
+  it('describes Strumming: Down-Up Eighths as the library has it: Em two bars, D two bars', async () => {
+    const two = ['Em', 'Em', 'D', 'D'];
+    expect(await chordsByBar('st-strum-eighths')).toEqual([...two, ...two, ...two, ...two]);
+    const s = await song('st-strum-eighths');
+    expect(s.sections.map((x) => [x.name, x.start])).toEqual([['Even eighths', 0], ['Accents on 2 and 4', 8]]);
+  });
+
+  it("plays Drunken Sailor's chords line by line, two downstrums a bar in the first chorus", async () => {
+    const line = ['Em', 'Em', 'Em', 'Em', 'D', 'D', 'D', 'D', 'Em', 'Em', 'Em', 'Em', 'D', 'D', 'Em', 'Em'];
+    expect(await chordsByBar('drunken-sailor')).toEqual([...line, ...line, ...line]);
+    const s = await song('drunken-sailor');
+    expect(s.bars[0].time).toEqual({ numerator: 2, denominator: 4 });
+    const strum = s.tracks.find((t) => t.role === 'rhythm')!;
+    // Bars 1 to 16: two quarter-note slashes a bar; bars 17 on: four eighth-note slashes.
+    for (let i = 0; i < 16; i++) expect(strum.measures[i].beats.map((b) => b.duration), `bar ${i + 1}`).toEqual([960, 960]);
+    for (let i = 16; i < 47; i++) expect(strum.measures[i].beats.map((b) => b.duration), `bar ${i + 1}`).toEqual([480, 480, 480, 480]);
+  });
+
+  it('puts the waltz bass notes where the lessons say', async () => {
+    expect(await bassByChord('st-strum-waltz')).toEqual({ D: '4:0', A7: '5:0' });
+    expect(await bassByChord('down-in-the-valley')).toEqual({ A: '5:0', E7: '6:0' });
+    expect(await bassByChord('clementine')).toEqual({ D: '4:0', A7: '5:0' });
+    expect([...new Set(await chordsByBar('down-in-the-valley'))]).toEqual(['A', 'E7']);
+    expect([...new Set(await chordsByBar('clementine'))]).toEqual(['D', 'A7']);
+    for (const id of ['st-strum-waltz', 'down-in-the-valley', 'clementine']) expect((await song(id)).bars[1].time, id).toEqual({ numerator: 3, denominator: 4 });
+  });
+
+  it("starts Clementine's tune in a one-beat pickup, and the strum on the next 1", async () => {
+    const s = await song('clementine');
+    expect(isPickup(s, 0)).toBe(true);
+    expect(s.bars[0].length).toBe(960);
+    const lead = s.tracks.find((t) => t.role === 'lead')!;
+    const strum = s.tracks.find((t) => t.role === 'rhythm')!;
+    expect(lead.measures[0].beats.some((b) => b.notes.length > 0)).toBe(true);
+    expect(strum.measures[0].beats.every((b) => b.notes.length === 0 && !b.slash)).toBe(true);
+    expect(strum.measures[1].beats[0].start).toBe(0);
+    expect(strum.measures[1].beats[0].notes.length).toBe(1);
+  });
+
+  it('names the BPM of every Player task as the song tempo times its percentage', async () => {
+    expect(await taskBpmProblems(unit)).toEqual([]);
+  });
 });

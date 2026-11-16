@@ -1,0 +1,40 @@
+# Reading: Fifth Position and Flats (repertoire plan: st-read-fifth-position). An original 16-bar
+# reading study in fifth position: finger 1 on fret 5, finger 2 on fret 6, finger 3 on fret 7,
+# finger 4 on fret 8; finger 1 reaches back to fret 4 for B on string 3.
+# Bars 1-8 in C major, all six strings, B natural on string 3 fret 4 and string 1 fret 7.
+# Bars 9-16 in F major: B becomes Bb. The Bb that sits on string 3 fret 3 in first position is
+# string 4 fret 8 here (finger 4), and the high Bb is string 1 fret 6 (finger 2).
+# Rhythms: quarters, eighths, dotted quarters, dotted eighth and sixteenth, rests and a pickup
+# off the beat. The teacher strums the chords.
+title: Reading: Fifth Position and Flats
+composer: Sixstring Academy
+source: Original reading study in fifth position
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: reading, fifth position, flats, c major, f major
+tempo: 76
+time: 4/4
+key: C
+
+track: Melody
+role: lead
+[C major]
+| "C" q 4:5{1} e 3:5{1} 2:5{1} e. 2:8{4} s 2:5{1} q 1:8{4} | "G" q. 1:7{3} e 1:5{1} q 2:8{4} r |
+| "Am" e 1:5 1:8 1:7 1:5 q 2:5 e. 3:5 s 2:5 | "G" q 3:7{3} e 2:5 2:6{2} h 2:8 |
+| "F" e 1:5 2:8 q 2:6 e 3:5 4:7{3} q 5:8{4} | "C" q 4:5{1} e 5:7{3} 4:5 q 3:5 e r 2:5 |
+| "G7" q 3:7{3} e 2:6{2} 3:7 q 3:4{1} 4:5{1} | "C" h 3:5 6:8{4} ||
+key: F
+[F major]
+| "F" q 5:8{4} 4:7{3} e 3:5{1} 4:7 3:5 2:6{2} | "Bb" q 2:6 e 3:7 ^"Bb: string 4, fret 8" 4:8{4} q 3:7 2:6 |
+| "C7" q 2:5{1} e 2:8{4} ^"high Bb: string 1, fret 6" 1:6{2} h 2:8 | "F" e 1:5 1:8 1:5 2:8 q 2:6 r |
+| "Dm" q 3:7 e. 2:5 s 2:6 q 1:5 e 2:8 2:6 | "Bb" q 4:8{4} e 3:7 2:6 e. 1:6{2} s 1:5 q 2:8 |
+| "C7" q 2:5 e 3:5 2:5 q 2:8 1:6{2} | "F" q 1:5 2:6 h 5:8{4} ||
+
+track: Teacher
+role: rhythm
+[C major]
+| "C=x32010" h D D | "G=320003" D D | "Am=x02210" D D | "G=320003" D D |
+| "F=133211" D D | "C=x32010" D D | "G7=320001" D D | "C=x32010" w D ||
+[F major]
+| "F=133211" h D D | "Bb=x13331" D D | "C7=x32310" D D | "F=133211" D D |
+| "Dm=xx0231" D D | "Bb=x13331" D D | "C7=x32310" D D | "F=133211" w D ||

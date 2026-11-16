@@ -1,0 +1,36 @@
+# Mode Study: A Ionian (major) (repertoire plan: st-mode-ionian). An original 16-bar melody over
+# a two-chord vamp: Amaj7 (x02120) for two bars, then D (xx0232) for two. The Amaj7 holds G#, the
+# colour of Ionian; the D chord has D natural (not D#), which keeps the sound from turning Lydian.
+# The melody lands on G# on beat 3 of bars 1, 5, 9 and 13, held, over Amaj7, and uses it as a
+# leading note into A at the end of bars 8 and 15. The last bars change faster (D in bar 15,
+# Amaj7 in bar 16) so the tune can come home to A.
+# Fourth position, one finger per fret: finger 1 on fret 4 (G# on string 1), finger 4 on fret 7.
+title: Mode Study: A Ionian (major)
+composer: Sixstring Academy
+source: Original study on the Ionian mode
+licence: Original study for Sixstring Academy
+difficulty: 6
+tags: modes, ionian, major scale, colour note, vamp
+tempo: 88
+time: 4/4
+key: A
+
+track: Your melody
+role: lead
+[Vamp]
+| "Amaj7=x02120" q 3:6{3} e 2:5{2} 2:7h{4} h 1:4~{1} | e 1:5{2} 1:4p{1} 2:5{2} 3:6{3} h 2:5{2} |
+| "D=xx0232" q 3:7{4} e 2:7{4} 1:5{2} q 1:7{4} 1:5{2} | e 2:7{4} 2:5{2} q 3:7{4} h 4:7{4} |
+| "Amaj7=x02120" q 2:5 e 3:6 2:5 h 1:4~ | e 1:5 1:7h 1:5p 1:4p q 2:5 3:6 |
+| "D=xx0232" q 3:7 e 2:5 2:7h q 1:5 e 2:7 2:5 | e 2:7 2:5 3:7 2:5 q 2:7 1:4 |
+| "Amaj7=x02120" h 1:5~ 1:4~ | e 2:5 2:7h 1:4 1:5h q 1:7 1:5 |
+| "D=xx0232" q 2:7 e 1:5 2:7 q 3:7 e 2:5 2:7h | q 1:5 e 1:7h 1:5p h 2:7~ |
+| "Amaj7=x02120" q 2:5 e 3:6 2:5 h 1:4~ | e 1:5 1:4p 2:5 3:6 q 3:4{1} 3:6{3} |
+| "D=xx0232" q 3:7 e 2:5 2:7h q 1:5 1:4 | "Amaj7=x02120" w 1:5~ ||
+
+track: Backing
+role: rhythm
+[Vamp]
+| q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U |
+| q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U |
+| q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U |
+| q D e D U q D e D U | q D e D U q D e D U | q D e D U q D e D U | w D ||

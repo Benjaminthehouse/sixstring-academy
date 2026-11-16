@@ -691,14 +691,14 @@ const tabAndRhythm: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Listen to this line on string 1. Which rhythm matches it?',
-      sound: { kind: 'tab', notes: RHYTHM_LINE, tempo: 70 },
+      prompt: 'Listen to the first bar of this line on string 1. Which rhythm matches it?',
+      sound: { kind: 'tab', notes: RHYTHM_LINE.slice(0, 3), tempo: 70 },
       options: [
-        { figure: { kind: 'rhythm', pattern: 'q q h | w' }, correct: true },
-        { figure: { kind: 'rhythm', pattern: 'h q q | w' } },
-        { figure: { kind: 'rhythm', pattern: 'q h q | w' } },
+        { figure: { kind: 'rhythm', pattern: 'q q h' }, correct: true },
+        { figure: { kind: 'rhythm', pattern: 'h q q' } },
+        { figure: { kind: 'rhythm', pattern: 'q h q' } },
       ],
-      explain: 'Quarter, quarter, half, then a whole note: two short notes, a longer one, and the last note held for a whole bar.',
+      explain: 'Quarter, quarter, half: two short notes on beats 1 and 2, then one held through beats 3 and 4.',
     },
     {
       type: 'tap-rhythm',

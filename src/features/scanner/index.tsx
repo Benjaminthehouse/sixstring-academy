@@ -6,8 +6,9 @@
  *   #scan--check   proofread printed music: your picture beside the tab, fix what was misread
  *   #scan--text    proofread a chord sheet or typed tab as text beside the song it makes
  *
- * The pages and the reading live in this screen's memory; going back to `#scan` keeps them, so
- * "Back" never loses work. The heavy readers (sheet reader, pdf.js, OCR) load only when used.
+ * The pages and the reading outlive the screen for the rest of the visit (`useScan` keeps them when
+ * the learner goes elsewhere in the app and picks them up on return), and a reload asks first, so
+ * no step loses work. The heavy readers (sheet reader, pdf.js, OCR) load only when used.
  */
 import { useEffect, useRef } from 'react';
 import type { RouteProps } from '@/app/routes';

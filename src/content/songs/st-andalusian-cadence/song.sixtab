@@ -1,0 +1,38 @@
+# Andalusian Cadence with Rasgueado (repertoire plan: st-andalusian-cadence). An original study on
+# the Spanish descending progression Am G F E, one bar each, four times, ending on E: the home chord
+# of E Phrygian (the notes of A minor, centred on E). Shapes: Am (x02210), G (320003), the small
+# F (xx3211), E (022100).
+# Your part, every bar: a four-finger rasgueado on beat 1, written as four even sixteenth-note
+# downstrokes (little finger, ring, middle, index flicking out one after another), then a thumb
+# downstroke on beats 2 and 3. The last bar holds the second thumb stroke.
+# Bars 9-16: a short melody in E Phrygian over the same chords (teacher's part, or yours once the
+# strumming is easy). Each bar's first note is in its chord: bars 9-12 sigh down by step, E F E,
+# D E D, C D C, B C B A B; bars 13-16 run up from A, fall from G and climb an F chord to F, which
+# falls a half step to E, the Phrygian close. Over the E chord the melody leaves out G and G#.
+title: Andalusian Cadence with Rasgueado
+composer: Sixstring Academy
+source: Original study on the Andalusian cadence
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: flamenco, rasgueado, andalusian cadence, phrygian, spanish
+tempo: 80
+time: 3/4
+key: Am
+
+track: Your rasgueado
+role: rhythm
+[Rasgueado]
+| ^"Rasgueado: little, ring, middle, index" "Am=x02210" s D D D D ^"Thumb" q D D | "G=320003" s D D D D q D D | "F=xx3211" s D D D D q D D | "E=022100" s D D D D q D D |
+| "Am=x02210" s D D D D q D D | "G=320003" s D D D D q D D | "F=xx3211" s D D D D q D D | "E=022100" s D D D D q D D |
+[With the melody]
+| "Am=x02210" s D D D D q D D | "G=320003" s D D D D q D D | "F=xx3211" s D D D D q D D | "E=022100" s D D D D q D D |
+| "Am=x02210" s D D D D q D D | "G=320003" s D D D D q D D | "F=xx3211" s D D D D q D D | "E=022100" s D D D D h D ||
+
+track: Melody
+role: lead
+[Rasgueado]
+| h. r | r | r | r |
+| r | r | r | r |
+[With the melody]
+| q. 1:0 e 1:1{1} q 1:0 | q. 2:3{3} e 1:0 q 2:3 | q. 2:1{1} e 2:3{3} q 2:1 | e 2:0 2:1{1} 2:0 3:2{2} q 2:0 |
+| e 3:2{2} 2:0 2:1{1} 2:3{3} q 1:0 | q 1:3{3} e 1:1{1} 1:0 q 2:3{3} | q 3:2{2} 2:1{1} 1:1{1} | h. 1:0 ||

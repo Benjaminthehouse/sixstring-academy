@@ -399,7 +399,17 @@ export function Proofread({ scan }: { scan: ScanState }) {
             title="This picture was hard to read"
             onDismiss={() => setHideHard(true)}
             actions={
-              <Button size="sm" variant="primary" iconLeft="SkipForward" onClick={goNext} data-scan-start-checking="">
+              <Button
+                size="sm"
+                variant="primary"
+                iconLeft="SkipForward"
+                onClick={() => {
+                  // The warning has done its job: give the music the room.
+                  setHideHard(true);
+                  goNext();
+                }}
+                data-scan-start-checking=""
+              >
                 Check them one by one
               </Button>
             }
