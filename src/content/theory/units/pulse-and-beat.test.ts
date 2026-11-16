@@ -10,6 +10,7 @@ import {
   generateExercise, grade, parseRhythm, parseStrum, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type Lesson, type ListenChoiceExercise, type Sound, type Step, type TapRhythmExercise,
 } from '@/lessons';
+import { adaptLesson, adaptUnit } from '@/features/learn/model/conditions';
 import unit from './pulse-and-beat';
 
 const lesson = (id: string): Lesson => {
@@ -267,5 +268,21 @@ describe('pulse-and-beat: every exercise', () => {
     expect(card.body).toMatch(/fretting hand \(the one on the neck\)/);
     expect(card.body).toMatch(/\{t:fret\|frets\}/);
     expect(card.body).toMatch(/\{t:strum\}/);
+  });
+});
+
+describe('pulse-and-beat: on the go', () => {
+  it('still teaches with Sound and Guitar off: at least four quiet questions a lesson, and a full checkpoint', () => {
+    const quiet = { guitar: false, sound: false };
+    for (const l of unit.lessons) {
+      const adapted = adaptLesson(l, quiet);
+      expect(adapted.needsSound, l.id).toBe(false);
+      const left = adapted.lesson.steps.filter((s) => 'generate' in s || s.type !== 'card');
+      expect(left.length, l.id).toBeGreaterThanOrEqual(4);
+      // Every play step that is left is its tapping version.
+      for (const s of left) if (!('generate' in s)) expect(['play-note', 'play-chord', 'play-phrase'], l.id).not.toContain(s.type);
+    }
+    const checkpointSteps = adaptUnit(unit, quiet).checkpoint?.steps ?? [];
+    expect(checkpointSteps.length).toBeGreaterThanOrEqual(6);
   });
 });

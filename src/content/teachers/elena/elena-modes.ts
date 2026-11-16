@@ -87,9 +87,17 @@ const modesAsColours: TeacherLesson = {
         { left: 'Aeolian', right: '{d:b6}: {n:F}' },
         { left: 'Locrian', right: '{d:b5}: {n:Eb}' },
       ],
-      explain: 'Each mode differs from plain major or minor by one note, and that note is its colour: Dorian\'s major sixth, Phrygian\'s flat second, Lydian\'s sharp fourth, Mixolydian\'s flat seventh, Aeolian\'s flat sixth, Locrian\'s flat fifth.',
+      explain: 'Dorian and Phrygian differ from natural minor by one note, Lydian and Mixolydian from major by one: that note is the colour. Aeolian\'s flat sixth is what sets it apart from Dorian; Locrian\'s flat fifth sets it apart from Phrygian.',
       fact: 'mode-colour-notes',
     },
+    playerTask({
+      id: 'study-ionian',
+      title: 'The yardstick: A Ionian',
+      song: 'st-mode-ionian',
+      tempo: 82,
+      minutes: 4,
+      body: 'Mode Study: A Ionian at about 72 BPM, in fourth position: {n:G#} under finger 1 on string 1, over {c:Amaj7} and {c:D}. Plain major, the sound the other modes are measured against. Keep it in your ear: the Lydian study uses the same place on the neck with only {n:D} raised to {n:D#}.',
+    }),
     {
       type: 'listen-choice',
       prompt: 'A scale from A. Dorian or Aeolian? Listen to the sixth note.',
@@ -226,7 +234,7 @@ const dorianAndAeolian: TeacherLesson = {
       song: 'st-mode-aeolian',
       tempo: 90,
       minutes: 4,
-      body: 'The same place on the neck, at about 72 BPM. The {n:F} lands on strong beats over the {c:F} chord; bar 15 is {c:F}, {c:G}, {c:Am}, the cadence that brings Aeolian home.',
+      body: 'The same place on the neck, at about 72 BPM. The {n:F} lands on strong beats over the {c:F} chord; bars 15 and 16 are {c:F} and {c:G}, then {c:Am}, the cadence that brings Aeolian home.',
     }),
     {
       type: 'true-false',
@@ -417,7 +425,7 @@ const phrygianAndFlamenco: TeacherLesson = {
       type: 'card',
       title: 'Flamenco\'s home is major',
       body: 'In flamenco the home chord is usually major: {c:E}, with {n:G#}. That turns E Phrygian into {t:phrygian-dominant|Phrygian dominant}, {n:E} {n:F} {n:G#} {n:A} {n:B} {n:C} {n:D}. The Andalusian cadence, {c:Am} {c:G} {c:F} {c:E}, walks down to that {c:E}; play it with the four-finger {t:rasgueado}.',
-      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Am', 'G', 'F', 'E'], tempo: 80 }, label: 'Hear the Andalusian cadence' },
+      figure: { kind: 'fretboard', frets: [0, 4], derive: { scale: 'phrygian-dominant', tonic: 'E' }, root: 'E', labels: 'degree', caption: 'E Phrygian dominant in open position: {d:b2} and {d:3} side by side.' },
     },
     {
       type: 'choice',
@@ -436,6 +444,7 @@ const phrygianAndFlamenco: TeacherLesson = {
       chord: 'E',
       given: ['E', 'B'],
       options: ['G#', 'G', 'A', 'F#'],
+      figure: { kind: 'audio', sound: { kind: 'progression', chords: ['Am', 'G', 'F', 'E'], tempo: 80 }, label: 'Hear the Andalusian cadence' },
       prompt: 'The cadence ends on {c:E}: {n:E}, {n:B} and which third?',
       explain: '{c:E} is major, so its third is {n:G#}: the note that makes the scale Phrygian dominant.',
     },
@@ -468,7 +477,7 @@ const phrygianAndFlamenco: TeacherLesson = {
       title: 'Andalusian Cadence with Rasgueado',
       song: 'st-andalusian-cadence',
       minutes: 5,
-      body: 'At 80 BPM, in 3/4: the fan on beat 1, the thumb on 2 and 3, over {c:Am} {c:G} {c:F} {c:E}. Then bars 9 to 16, the E Phrygian melody, which closes with {n:F} falling a half step to {n:E}.',
+      body: 'At 80 BPM, in 3/4: the fan on beat 1, the thumb on 2 and 3, over {c:Am} {c:G} {c:F} {c:E}. Then choose the Melody under Parts and play bars 9 to 16, the E Phrygian melody, which closes with {n:F} falling a half step to {n:E}.',
     }),
     {
       type: 'true-false',

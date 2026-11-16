@@ -85,19 +85,24 @@ describe('playing-the-changes: the unit on its own', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^changes-/);
   });
 
-  it('writes every phrase in whole bars of 4/4', () => {
+  it('plays every heard line in whole bars of 4/4, so beat 1 is where the text says', () => {
     const tabs: TabNote[][] = [];
-    for (const e of allExercises()) {
-      if (e.type === 'play-phrase') tabs.push(e.notes);
-      if (e.type === 'listen-choice' && e.sound.kind === 'tab') tabs.push(e.sound.notes);
-    }
+    for (const e of allExercises()) if (e.type === 'listen-choice' && e.sound.kind === 'tab') tabs.push(e.sound.notes);
     for (const l of unit.lessons) for (const s of l.steps) {
-      if (isGenerated(s) || s.type !== 'card' || !s.figure) continue;
-      if (s.figure.kind === 'tab') tabs.push(s.figure.notes);
-      if (s.figure.kind === 'audio' && s.figure.sound.kind === 'tab') tabs.push(s.figure.sound.notes);
+      if (!isGenerated(s) && s.type === 'card' && s.figure?.kind === 'audio' && s.figure.sound.kind === 'tab') tabs.push(s.figure.sound.notes);
     }
-    expect(tabs.length).toBeGreaterThan(15);
+    expect(tabs.length).toBeGreaterThan(10);
     for (const tab of tabs) for (const b of downbeats(tab).bars) expect(b, JSON.stringify(tab)).toBe(4);
+  });
+
+  it('keeps every play step short and evenly spaced, so its tab fits a phone screen', () => {
+    for (const e of allExercises().filter((x): x is PlayPhraseExercise => x.type === 'play-phrase')) {
+      expect(e.notes.length, plain(e.prompt)).toBeLessThanOrEqual(6);
+      const total = e.notes.reduce((t, x) => t + BEATS[x.duration], 0);
+      const shortest = Math.min(...e.notes.map((x) => BEATS[x.duration]));
+      // The tab spreads notes by time over about 34 px a note: keep every gap at 18 px or more.
+      expect((shortest / total) * (Math.max(4, e.notes.length) * 34 - 18), plain(e.prompt)).toBeGreaterThanOrEqual(18);
+    }
   });
 });
 
@@ -230,8 +235,10 @@ describe('playing-the-changes: approach notes and enclosures', () => {
     expect(fig.figure.dots!.map((d) => midiAt(d))).toEqual([63, 64, 65]); // D#4 E4 F4
     const approach = findIn<PlayPhraseExercise>(inLesson('approach-notes'), 'play-phrase', /approach E from D#/);
     const m = notesOf(approach.notes);
-    expect(m.slice(-2)).toEqual([63, 64]);
-    expect(downbeats(approach.notes).first.at(-1)).toBe(64); // E lands on beat 1
+    expect(m).toEqual([60, 63, 64]); // C4, then D#4 into E4
+    // C on beat 3, held into beat 4, D# on its "&", E on the next beat 1.
+    const onsets = approach.notes.reduce<number[]>((acc, _x, i) => [...acc, i === 0 ? 0 : acc[i - 1] + BEATS[approach.notes[i - 1].duration]], []);
+    expect(onsets).toEqual([0, 1.5, 2]);
     const [above, fromBelow] = listens(lesson('approach-notes').steps);
     expect(notesOf(tabOf(above)).slice(-2)).toEqual([65, 64]);
     expect(correct(above)).toBe('From above');
@@ -240,7 +247,7 @@ describe('playing-the-changes: approach notes and enclosures', () => {
     expect(notesOf(tabOf(above)).slice(0, 4)).toEqual(buildVoicing('C', 'x32010').midi.slice(0, 4));
     const enc = findIn<PlayPhraseExercise>(inLesson('enclosures'), 'play-phrase', /Enclose B/);
     expect(notesOf(enc.notes)).toEqual([60, 58, 59]); // C4 A#3 B3
-    expect(downbeats(enc.notes).first.at(-1)).toBe(59);
+    expect(enc.notes.map((x) => x.duration)).toEqual(['e', 'e', 'q']); // two quick notes on beat 4, the target on beat 1
     expect(third('G7')).toBe('B');
     const [enclosed, oneSide] = listens(lesson('enclosures').steps);
     expect(notesOf(tabOf(enclosed)).slice(-3)).toEqual([65, 63, 64]);
@@ -291,20 +298,21 @@ describe('playing-the-changes: arpeggios a third up', () => {
     expect(pos).toEqual(['5:7', '4:5', '4:9', '3:7', '3:9', '2:8', '1:7', '1:10']);
     for (const d of card.figure.dots!) expect(chordPcs('Em7'), `${d.string}:${d.fret}`).toContain(midiAt(d) % 12);
     const play = findIn<PlayPhraseExercise>(inLesson('arpeggio-substitution'), 'play-phrase', /Em7 arpeggio/);
-    expect(play.notes.map((x) => ('rest' in x ? '' : `${x.string}:${x.fret}`))).toEqual(pos);
-    const m = notesOf(play.notes);
-    expect(m).toEqual([...m].sort((a, b) => a - b)); // one climb
+    expect(play.notes.map((x) => ('rest' in x ? '' : `${x.string}:${x.fret}`))).toEqual(pos.slice(0, 6));
+    expect(notesOf(play.notes).at(-1)).toBe(midiAt({ string: 2, fret: 8 })); // "up to string 2, fret 8"
+    const all = card.figure.dots!.map((d) => midiAt(d));
+    expect(all).toEqual([...all].sort((a, b) => a - b)); // one climb
     const [q] = listens(lesson('arpeggio-substitution').steps);
     expect(notesOf(tabOf(q)).slice(0, 4)).toEqual(buildVoicing('Cmaj7', 'x3545x').midi);
-    expect(notesOf(tabOf(q)).slice(4)).toEqual(m);
+    expect(notesOf(tabOf(q)).slice(4)).toEqual(all);
   });
 });
 
 describe('playing-the-changes: outside and back', () => {
   it('slips the D minor pentatonic phrase a fret up into Eb minor pentatonic, then home to D', () => {
-    const play = findIn<PlayPhraseExercise>(inLesson('playing-outside'), 'play-phrase', /slide it up a fret/);
+    const play = findIn<PlayPhraseExercise>(inLesson('playing-outside'), 'play-phrase', /slide the shape up a fret/);
     const notes = play.notes.filter((x): x is Extract<TabNote, { string: number }> => !('rest' in x));
-    const [inside, out, home] = [notes.slice(0, 4), notes.slice(4, 8), notes.slice(8)];
+    const [inside, out, home] = [notes.slice(0, 2), notes.slice(2, 4), notes.slice(4)];
     const dPent = scaleNotes('D', 'minor-pentatonic').map(pc);
     const ebPent = scaleNotes('Eb', 'minor-pentatonic').map(pc);
     for (const x of [...inside, ...home]) expect(dPent).toContain(midiAt(x) % 12);

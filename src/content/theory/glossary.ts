@@ -24,7 +24,7 @@ export const THEORY_GLOSSARY: readonly GlossaryTerm[] = [
   // the-six-strings
   T('tuner', 'tuner', 'A device or app that hears one string and shows its nearest note, and whether it is flat (too low) or sharp (too high).'),
   T('headstock', 'headstock', 'The end of the neck, past the nut, that holds the tuning pegs.'),
-  T('tuning-peg', 'tuning peg', 'A knob on the headstock that a string is wound round. Turn it to tighten or loosen the string.'),
+  T('tuning-peg', 'tuning peg', 'A knob on the headstock that winds one string tighter or looser as you turn it.'),
   T('beating', 'beating', 'The wobble you hear when two notes are almost the same pitch. It slows down as they get closer and stops when they match.'),
   // pulse-and-beat
   T('flag', 'flag', 'The little tail on the stem of a single eighth note. Each flag halves the note\'s length.'),
@@ -254,4 +254,22 @@ export const THEORY_GLOSSARY: readonly GlossaryTerm[] = [
   T('quick-change', 'quick change', 'A 12-bar blues that moves to the four chord in bar 2 and back to the one chord in bar 3.'),
   T('minor-blues', 'minor blues', 'A 12-bar blues with minor chords on degrees 1 and 4, such as A minor 7 and D minor 7 in A.'),
   T('quarter-tone', 'quarter tone', 'Half of a half step: a tiny bend between two frets. Blues players often nudge the flat 3 a quarter tone sharp.'),
+  // reading-up-the-neck
+  T('shift', 'shift', 'Moving the fretting hand along the neck to a new position.'),
+  T('ottava', '8va (ottava)', 'Written over notes with a dashed line: play them an octave higher than written, until the line ends or loco says back to normal.'),
+  T('sight-reading', 'sight-reading', 'Playing a piece of music from the page the first time you see it.'),
+  // tuning-and-physics
+  T('concert-pitch', 'concert pitch', 'The agreed tuning reference: the A above middle C, A4, vibrates at 440 Hz.'),
+  T('fundamental', 'fundamental', 'The lowest and usually strongest frequency in a note: the pitch you hear and name.'),
+  T('harmonic-series', 'harmonic series', 'The frequencies a string sounds at once: its fundamental plus 2, 3, 4, 5 and more times that frequency.'),
+  T('natural-harmonic', 'natural harmonic', 'A bell-like note made by touching a string lightly over a node, such as above fret 12, and plucking it.'),
+  T('node', 'node', 'A point on a vibrating string that stays still. Nodes divide the string into equal parts: halves, thirds, quarters.'),
+  T('scale-length', 'scale length', 'The vibrating length of an open string, from the nut to the saddle. Fret 12 sits halfway.'),
+  T('saddle', 'saddle', 'The strip on the bridge that the strings rest on. It marks the far end of the vibrating string.'),
+  T('intonation', 'intonation', 'How well a guitar plays in tune up the neck. It is adjusted by moving the saddle.'),
+  T('equal-temperament', 'equal temperament', 'The tuning system that splits the octave into twelve equal half steps of 100 cents each.'),
+  T('cent', 'cent', 'A hundredth of a half step. An octave is 1200 cents; a tuner shows how many cents a note is flat or sharp.'),
+  T('pure-interval', 'pure interval', 'An interval tuned to a simple frequency ratio from the harmonic series, such as 3:2 for a fifth or 5:4 for a major third.'),
+  T('alternate-tuning', 'alternate tuning', 'Any tuning other than standard E A D G B E, such as drop D or DADGAD.'),
+  T('open-tuning', 'open tuning', 'An alternate tuning whose open strings sound a chord, such as open G: D G D G B D.'),
 ];

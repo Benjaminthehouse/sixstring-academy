@@ -282,6 +282,73 @@ describe('Elena unit 2: The modes in practice', () => {
     expect(await taskBpmProblems(unit)).toEqual([]);
   });
 
+  it('puts the Aeolian cadence where the study has it: F and G share bar 15, Am is bar 16', async () => {
+    const s = await song('st-mode-aeolian');
+    const inBar = (bar: number) => s.chords.filter((c) => c.bar === bar).map((c) => c.symbol);
+    expect(inBar(14)).toEqual(['F', 'G']);
+    expect(inBar(15)).toEqual(['Am']);
+    expect(plain(task('study-aeolian').body)).toContain('bars 15 and 16 are {c:F} and {c:G}, then {c:Am}');
+    expect(plain(task('study-aeolian').body)).not.toMatch(/bar 15 is/);
+  });
+
+  it('starts the unit on real music: the Ionian study as the yardstick, as the task describes it', async () => {
+    const t = task('study-ionian');
+    expect(t.params).toEqual(['st-mode-ionian', 't82']);
+    const ionian = await song('st-mode-ionian');
+    const lydian = await song('st-mode-lydian');
+    expect(songChords(ionian)).toEqual(new Set(['Amaj7', 'D']));
+    const notes = (s: Song) => s.tracks.find((x) => x.role === 'lead')!.measures.flatMap((m) => m.beats.flatMap((b) => b.notes));
+    // Both in fourth position (frets 4 to 7), G# under finger 1 on string 1.
+    for (const s of [ionian, lydian]) for (const n of notes(s)) expect(n.fret, `${s.meta.title} ${n.string}:${n.fret}`).toBeGreaterThanOrEqual(4);
+    for (const s of [ionian, lydian]) for (const n of notes(s)) expect(n.fret, `${s.meta.title} ${n.string}:${n.fret}`).toBeLessThanOrEqual(7);
+    expect(name(1, 4, { tonic: 'A', scale: 'major' })).toBe('G#');
+    expect(notes(ionian).some((n) => n.string === 1 && n.fret === 4)).toBe(true);
+    // Only D becomes D#: the Ionian study has no D#, the Lydian study no D natural.
+    const pcs = (s: Song) => new Set(notes(s).map((n) => n.midi % 12));
+    expect(pcs(ionian).has(3)).toBe(false);
+    expect(pcs(ionian).has(2)).toBe(true);
+    expect(pcs(lydian).has(2)).toBe(false);
+    expect(pcs(lydian).has(3)).toBe(true);
+    // Every note of the Ionian study is in A major.
+    const PCS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    for (const pc of pcs(ionian)) expect(scaleNotes('A', 'major').map((n) => PCS.indexOf(n)), `pc ${pc}`).toContain(pc);
+    expect(plain(t.body)).toContain('about 72 BPM');
+    expect(plain(t.body)).toContain('fourth position');
+  });
+
+  it('describes the colour notes without claiming every mode is one note from major or minor', () => {
+    const match = steps<{ explain: string }>('modes-as-colours', 'match-pairs')[0];
+    expect(match.explain).not.toMatch(/^Each mode differs/);
+    // Dorian and Phrygian are one note from natural minor; Lydian and Mixolydian one from major;
+    // Aeolian is one note from Dorian and Locrian one from Phrygian.
+    const diff = (a: string, b: string) => scaleNotes('A', a).filter((n) => !scaleNotes('A', b).includes(n));
+    expect(diff('dorian', 'minor')).toEqual(['F#']);
+    expect(diff('phrygian', 'minor')).toEqual(['Bb']);
+    expect(diff('lydian', 'major')).toEqual(['D#']);
+    expect(diff('mixolydian', 'major')).toEqual(['G']);
+    expect(diff('minor', 'dorian')).toEqual(['F']);
+    expect(diff('locrian', 'phrygian')).toEqual(['Eb']);
+    expect(diff('locrian', 'minor').length).toBe(2);
+  });
+
+  it('draws E Phrygian dominant on the flamenco card, and gives the cadence its sound beside the question', () => {
+    const card = lesson('phrygian-and-flamenco').steps.find((s) => (s as { title?: string }).title === 'Flamenco\'s home is major') as { figure: { kind: string; derive?: { scale: string; tonic: string } } };
+    expect(card.figure.kind).toBe('fretboard');
+    expect(card.figure.derive).toEqual({ scale: 'phrygian-dominant', tonic: 'E' });
+    const build = steps<{ figure?: { kind: string; sound?: { chords?: string[] } } }>('phrygian-and-flamenco', 'chord-build')[0];
+    expect(build.figure?.sound?.chords).toEqual(['Am', 'G', 'F', 'E']);
+    // The open-position pattern holds both the flat second and the major third of E.
+    const p = scalePatterns('E', 'phrygian-dominant').find((x) => x.minFret === 0)!;
+    expect(p.notes.some((n) => n.note === 'F')).toBe(true);
+    expect(p.notes.some((n) => n.note === 'G#')).toBe(true);
+  });
+
+  it('names the Andalusian study\'s melody part as the Player lists it', async () => {
+    const s = await song('st-andalusian-cadence');
+    expect(s.tracks.map((x) => x.name)).toContain('Melody');
+    expect(plain(task('andalusian').body)).toContain('choose the Melody under Parts');
+  });
+
   it('falls back to a jam while Red Haired Boy is missing, and names no Player tempo it cannot know', () => {
     const t = task('red-haired-boy');
     expect(t.fallback).toBeTruthy();

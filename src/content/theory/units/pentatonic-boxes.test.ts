@@ -11,7 +11,7 @@ import { degreeInScale, getScale, noteToMidi, pcName, scaleNotes, scalePcs, tran
 import {
   estimateLessonSeconds, findTargets, formatProblems, plainText, resolveFigure, soundPlan, validateCourse,
   type CardStep, type ChoiceExercise, type Exercise, type FillBlanksExercise, type FretboardFigure, type FretboardFindExercise,
-  type FretboardNameExercise, type Lesson, type ListenChoiceExercise, type OrderExercise, type PlayNoteExercise, type PlayPhraseExercise,
+  type FretboardNameExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise, type OrderExercise, type PlayNoteExercise, type PlayPhraseExercise,
   type Step, type TabFigure, type TabNote, type TypeAnswerExercise,
 } from '@/lessons';
 import { assembleTheory } from '../index';
@@ -72,6 +72,7 @@ function pairClaims(text: string): Map<number, number[]> {
   const list = (s: string): number[] => s.match(/\d+/g)!.map(Number);
   for (const m of text.matchAll(/(\d+) and (\d+) on strings? (\d+(?:(?:, | and )\d+)*)/gi)) for (const s of list(m[3])) out.set(s, [Number(m[1]), Number(m[2])]);
   for (const m of text.matchAll(/strings? (\d+(?:(?:, | and )\d+)*) uses? (?:frets )?(\d+) and (\d+)/gi)) for (const s of list(m[1])) out.set(s, [Number(m[2]), Number(m[3])]);
+  for (const m of text.matchAll(/strings? (\d) at (?:frets )?(\d+) and (\d+)/gi)) out.set(Number(m[1]), [Number(m[2]), Number(m[3])]);
   return new Map([...out].sort((a, b) => b[0] - a[0]));
 }
 const byString = (box: readonly Spot[]): Map<number, number[]> => {
@@ -186,19 +187,28 @@ describe('pentatonic-boxes: the five boxes', () => {
     expect(BOXES.map((b) => b[0][2])).toEqual(scaleNotes('A', 'minor-pentatonic'));
     expect(BOXES.map((b) => b[0][1])).toEqual([5, 8, 10, 12, 15]);
     expect(BOXES.every((b) => b[0][0] === 6)).toBe(true);
-    const fig = cards(lesson('box-2'))[2].figure as FretboardFigure;
-    expect(fig.dots!.map((d) => `${d.fret}${d.note}${d.label}`)).toEqual(['5A1', '8C2', '10D3', '12E4', '15G5', '17A1']);
-    for (const d of fig.dots!) expect(nameAt(d)).toBe(d.note);
+    const starts = everyExercise().filter((e): e is MatchPairsExercise => e.type === 'match-pairs' && /first note/.test(plainText(e.prompt)));
+    expect(starts.length).toBe(3);
+    for (const m of starts) {
+      for (const p of m.pairs) {
+        const box = BOXES[Number(/Box (\d)/.exec(plainText(p.left))![1]) - 1];
+        expect(/\{n:([A-G])\}/.exec(String(p.right))![1]).toBe(box[0][2]);
+        const fret = /fret (\d+)/.exec(plainText(p.right));
+        if (fret) expect(Number(fret[1])).toBe(box[0][1]);
+      }
+    }
   });
 
   it('has its roots where the lessons say', () => {
     const roots = UP.map((p) => sorted(p.roots));
     expect(roots[1]).toEqual(sorted([{ string: 4, fret: 7 }, { string: 2, fret: 10 }]));
+    // Box 3's two roots are an octave apart: three strings higher, two frets back.
+    expect(midiAt({ string: 2, fret: 10 }) - midiAt({ string: 5, fret: 12 })).toBe(12);
     expect(roots[2]).toEqual(sorted([{ string: 5, fret: 12 }, { string: 2, fret: 10 }]));
     expect(roots[3]).toEqual(sorted([{ string: 5, fret: 12 }, { string: 3, fret: 14 }]));
     expect(roots[4]).toEqual(sorted([{ string: 6, fret: 17 }, { string: 3, fret: 14 }, { string: 1, fret: 17 }]));
     const rootFinds = finds((e) => 'note' in e.find && e.find.note === 'A');
-    expect(rootFinds.length).toBe(4);
+    expect(rootFinds.length).toBe(3);
     for (const f of rootFinds) {
       const box = sameFrets(f, 7, 10) ? 1 : sameFrets(f, 9, 13) ? 2 : -1;
       expect(sorted(findTargets(f))).toEqual(roots[box]);
@@ -315,7 +325,7 @@ describe('pentatonic-boxes: how the boxes link and repeat', () => {
   it('the travelling phrase slides up string 3 from box 1 into box 2 and on into box 3, ending on the root', () => {
     const notes = played(TRAVEL_PHRASE);
     const onThree = notes.filter((n) => n.string === 3).map((n) => n.fret);
-    expect(onThree).toEqual([5, 7, 9, 9, 12]);
+    expect(onThree).toEqual([5, 7, 9, 12]);
     const has = (box: readonly Spot[], p: Pos) => box.some(([s, f]) => s === p.string && f === p.fret);
     expect(has(BOX_1, { string: 3, fret: 7 }) && !has(BOX_2, { string: 3, fret: 5 })).toBe(true);
     expect(has(BOX_2, { string: 3, fret: 9 }) && !has(BOX_1, { string: 3, fret: 9 })).toBe(true);
@@ -323,7 +333,7 @@ describe('pentatonic-boxes: how the boxes link and repeat', () => {
     for (const n of notes) expect(BOXES.some((b) => has(b, n)), key(n)).toBe(true);
     expect(nameAt(notes[notes.length - 1])).toBe('A');
     const beats: Record<string, number> = { e: 0.5, q: 1, h: 2 };
-    expect(TRAVEL_PHRASE.reduce((sum, n) => sum + beats[n.duration], 0)).toBe(8);
+    expect(TRAVEL_PHRASE.reduce((sum, n) => sum + beats[n.duration], 0)).toBe(4);
     const l = lesson('connecting-the-boxes');
     expect((cards(l)[2].figure as TabFigure).notes).toEqual(TRAVEL_PHRASE);
     const play = exercises(l).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
@@ -333,17 +343,24 @@ describe('pentatonic-boxes: how the boxes link and repeat', () => {
 });
 
 describe('pentatonic-boxes: playing the boxes', () => {
-  it('every box play-phrase climbs its box note for note, and its tapping version lists real box positions in order', () => {
+  it('each box is played in two halves that climb it note for note, and each tapping version lists its half in order', () => {
     const plays: Array<[string, readonly Spot[]]> = [['box-2', BOX_2], ['box-3', BOX_3], ['boxes-4-and-5', BOX_5_LOW]];
     for (const [id, box] of plays) {
-      const play = exercises(lesson(id)).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
-      expect(played(play.notes).map(key), id).toEqual(spots(box).map(key));
-      const alt = play.alternative as OrderExercise;
-      const tiles = alt.tiles.map((t) => /String (\d) fret (\d+)/.exec(plainText(t))!.slice(1).map(Number));
-      const index = tiles.map(([s, f]) => box.findIndex(([bs, bf]) => bs === s && bf === f));
-      expect(index.every((i) => i >= 0), id).toBe(true);
-      expect(index, id).toEqual([...index].sort((a, b) => a - b));
+      const halves = exercises(lesson(id)).filter((e): e is PlayPhraseExercise => e.type === 'play-phrase');
+      expect(halves.length, id).toBe(2);
+      expect(halves.flatMap((h) => played(h.notes).map(key)), id).toEqual(spots(box).map(key));
+      halves.forEach((h, i) => {
+        const alt = h.alternative as OrderExercise;
+        expect(alt.tiles.map((t) => plainText(t)), id).toEqual(box.slice(i * 6, i * 6 + 6).map(([s, f]) => `String ${s} fret ${f}`));
+        expect(pairClaims(plainText(alt.explain)), id).toEqual(byString(box.slice(i * 6, i * 6 + 6)));
+      });
     }
+  });
+
+  it('no play-phrase holds more than six notes (what a phone shows without scrolling sideways)', () => {
+    const phrases = everyExercise().filter((e): e is PlayPhraseExercise => e.type === 'play-phrase');
+    expect(phrases.length).toBe(7);
+    for (const p of phrases) expect(played(p.notes).length, plainText(p.prompt)).toBeLessThanOrEqual(6);
   });
 });
 

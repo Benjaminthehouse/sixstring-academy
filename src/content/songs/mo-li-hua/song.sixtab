@@ -1,0 +1,55 @@
+# Mo Li Hua (Jasmine Flower) (repertoire plan: mo-li-hua). The Jiangsu folk tune as it is
+# commonly sung or played today (older printings vary), from the folk song only: Puccini quotes it
+# in Turandot (1926), but nothing here comes from Puccini. This is the first half of the verse,
+# the 16 bars that independent recollections agreed on note for note: four four-bar phrases, the
+# first three resting on D, the fourth coming home to G. The second half of the verse, with its
+# closing cadence, was not agreed and is left out rather than guessed. No words: played as an
+# instrumental.
+# Every note is one of the five notes of G major pentatonic: G A B D E.
+# Played an octave below the sung pitch (so it reads like the song in the treble clef), in seventh
+# position on strings 4, 3 and 2: finger 1 on fret 7, finger 2 on fret 8, finger 3 on fret 9.
+# A = string 4 fret 7, B = string 4 fret 9, D = string 3 fret 7, E = string 3 fret 9,
+# G = string 2 fret 8. In bar 15 finger 1 slides down string 4 to fret 5 for the low G, and the
+# hand stays there (A = string 4 fret 7 with finger 3).
+# Played twice, the same notes and rhythm both times: first plain, then with ornaments. The second
+# time the D-E and B-A-B turns are slurred (hammer-ons and pull-offs, pick only the first note),
+# each long D is a light slide up from two frets below, picked on the beat like a grace note, and
+# the last G is a slide down from A.
+# The teacher strums G, C, D and Em, two strums a bar and one under each long note.
+title: Mo Li Hua (Jasmine Flower)
+id: mo-li-hua
+composer: Traditional Chinese (Jiangsu)
+source: Jiangsu folk tune of the 18th century, printed in Europe by 1804; melody as commonly sung today, first half of the verse; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 4
+tags: melody, chinese, major pentatonic, slides, hammer-on, pull-off, position shift
+tempo: 66
+time: 2/4
+key: G
+
+track: Melody
+role: lead
+[Tune]
+| ^"Seventh position: finger 1 on fret 7" q 4:9{3} e 4:9 3:7{1} | e 3:9{3} 2:8{2} 2:8 3:9{3} | q 3:7{1} e 3:7 3:9{3} | h 3:7{1} |
+| q 4:9 e 4:9 3:7 | e 3:9 2:8 2:8 3:9 | q 3:7 e 3:7 3:9 | h 3:7 |
+| q 3:7 3:7 | q 3:7 e 4:9 3:7 | q 3:9 3:9 | h 3:7 |
+| q 4:9{3} e 4:7{1} 4:9{3} | q 3:7{1} e 4:9{3} 4:7{1} | ^"Shift: finger 1 down to fret 5" q 4:5{1} e 4:5 4:7{3} | h 4:5{1} ||
+[Tune with slides]
+| ^"Second time: slurs and slides" q 4:9 e 4:9 3:7 | e 3:9 2:8 2:8 3:9 | q 3:7 e 3:7 ^"hammer-on" 3:9h{3} | ^"slide up into D" h /3:7{1} |
+| q 4:9 e 4:9 3:7 | e 3:9 2:8 2:8 3:9 | q 3:7 e 3:7 3:9h | h /3:7 |
+| q 3:7 3:7 | q 3:7 e 4:9 3:7 | q 3:9 3:9 | h /3:7 |
+| q 4:9{3} e ^"pull-off, hammer-on" 4:7p{1} 4:9h{3} | q 3:7 e 4:9 4:7p{1} | q 4:5{1} e 4:5 4:7h{3} | ^"slide down into G" h 4:5s{3} ||
+
+track: Teacher
+role: rhythm
+[Tune]
+| "G=320003" q / / | "C=x32010" / / | "G=320003" / / | "D=xx0232" h / |
+| "G=320003" q / / | "C=x32010" / / | "G=320003" / / | h / |
+| "D=xx0232" q / / | "G=320003" / / | "C=x32010" / / | "G=320003" h / |
+| "Em=022000" q / "D=xx0232" / | "G=320003" / / | "C=x32010" / / | "G=320003" h / ||
+[Tune with slides]
+| "G=320003" q / / | "C=x32010" / / | "G=320003" / / | "D=xx0232" h / |
+| "G=320003" q / / | "C=x32010" / / | "G=320003" / / | h / |
+| "D=xx0232" q / / | "G=320003" / / | "C=x32010" / / | "G=320003" h / |
+| "Em=022000" q / "D=xx0232" / | "G=320003" / / | "C=x32010" / / | "G=320003" h / ||

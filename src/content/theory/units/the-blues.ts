@@ -59,10 +59,10 @@ export const QUICK_CHANGE_E = ['E7', 'A7', 'E7', 'E7', 'A7', 'A7', 'E7', 'E7', '
 export const QUICK_CHANGE_NUMERALS = ['I', 'IV', 'I', 'I', 'IV', 'IV', 'I', 'I', 'V', 'IV', 'I', 'V'];
 export const MINOR_BLUES_A = ['Am7', 'Am7', 'Am7', 'Am7', 'Dm7', 'Dm7', 'Am7', 'Am7', 'E7', 'Dm7', 'Am7', 'Am7'];
 
-/** A7 picked string by string (x02020), then a phrase from box 1: the gritty one ends on C, the sweet one on C#. */
+/** A7 picked string by string (x02020), then three notes from box 1: the gritty phrase ends on C, the sweet one on C#. */
 const A7_PICKED: TabNote[] = [note(5, 0, 'e'), note(4, 2, 'e'), note(3, 0, 'e'), note(2, 2, 'e'), note(1, 0, 'e'), rest('q.')];
-export const GRITTY_PHRASE: TabNote[] = [note(2, 5, 'e'), note(2, 8, 'e'), note(2, 5, 'e'), note(3, 7, 'e'), note(3, 5, 'h')];
-export const SWEET_PHRASE: TabNote[] = [note(2, 5, 'e'), note(2, 7, 'e'), note(2, 5, 'e'), note(3, 4, 'e'), note(3, 6, 'h')];
+export const GRITTY_PHRASE: TabNote[] = [note(2, 5), note(3, 7), note(3, 5, 'h')];
+export const SWEET_PHRASE: TabNote[] = [note(2, 5), note(3, 4), note(3, 6, 'h')];
 const OVER_A7 = (phrase: TabNote[]): Sound => ({ kind: 'tab', tempo: 90, notes: [...A7_PICKED, ...phrase] });
 
 const theBluesScale: Lesson = {
@@ -200,7 +200,7 @@ const theMajorBluesScale: Lesson = {
     {
       type: 'card',
       title: 'From flat 3 to 3',
-      body: 'The {d:b3} is there to lead into the {d:3}. Play {n:C} on string 3 at fret 5 and {t:hammer-on|hammer on} to fret 6, {n:C#}: minor slides into major. Then land on {n:E} at string 2, fret 5. That little rise is a classic blues and country sound.',
+      body: 'The {d:b3} is there to lead into the {d:3}. Play {n:C} on string 3 at fret 5 and {t:hammer-on|hammer on} to fret 6, {n:C#}: minor turns into major. Then land on {n:E} at string 2, fret 5. That little rise is a classic blues and country sound.',
       figure: { kind: 'tab', tempo: 80, notes: B3_TO_3, caption: 'String 3: 5 then hammer on to 6 ({n:C} to {n:C#}), then {n:E} on string 2.' },
     },
     {
@@ -659,7 +659,7 @@ const whichPentatonicOverABlues: Lesson = {
       sound: OVER_A7(GRITTY_PHRASE),
       options: [{ text: 'Minor pentatonic', correct: true }, { text: 'Major pentatonic' }],
       shuffle: false,
-      explain: 'It ended on {n:C}, the {d:b3}, right after the chord\'s {n:C#}: the gritty minor pentatonic sound.',
+      explain: '{n:E}, {n:D}, then down to {n:C}, the {d:b3}, right after the chord\'s {n:C#}: the gritty minor pentatonic sound.',
     },
     {
       type: 'listen-choice',
@@ -667,7 +667,7 @@ const whichPentatonicOverABlues: Lesson = {
       sound: OVER_A7(SWEET_PHRASE),
       options: [{ text: 'Minor pentatonic' }, { text: 'Major pentatonic', correct: true }],
       shuffle: false,
-      explain: 'It used {n:F#} and {n:B} and ended on {n:C#}, the chord\'s own 3rd: the sweet major pentatonic sound.',
+      explain: '{n:E}, {n:B}, then up to {n:C#}, the chord\'s own 3rd: the sweet major pentatonic sound.',
     },
     {
       type: 'play-phrase',
@@ -675,7 +675,7 @@ const whichPentatonicOverABlues: Lesson = {
       notes: [...GRITTY_PHRASE, ...SWEET_PHRASE],
       octave: 'exact',
       tempo: 70,
-      explain: 'First {n:E} {n:G} {n:E} {n:D} {n:C} from the minor box, then {n:E} {n:F#} {n:E} {n:B} {n:C#} from the major box. Once the {n:C} has rung, try curling it a {t:quarter-tone|quarter tone} sharp: the classic blues in-between.',
+      explain: 'First {n:E} {n:D} {n:C} from the minor box, then {n:E} {n:B} {n:C#} from the major box. Once the {n:C} has rung, try curling it a {t:quarter-tone|quarter tone} sharp: the classic blues in-between.',
       alternative: {
         type: 'choice',
         prompt: 'Your gritty phrase ends on {n:C}. Which note would end it sweet instead, on the 3rd of {c:A7}?',
@@ -766,7 +766,7 @@ const theMinorBlues: Lesson = {
     {
       type: 'card',
       title: 'The other two shapes',
-      body: '{c:Dm7} is xx0211 and {c:E7} is 020100. Keep {c:E7} a dominant seventh: its {n:G#} leads up to {n:A} and pulls the form home. For a darker, softer turn, play {c:Em7} (020000) instead.',
+      body: '{c:Dm7} is xx0211 and {c:E7} is 020100. {c:E7} is the usual choice: its {n:G#} leads up to {n:A} and pulls the form home. For a darker, softer turn, some players use {c:Em7} (020000).',
       figure: { kind: 'chord', symbol: 'Dm7', frets: 'xx0211', caption: 'Open {c:Dm7}, the {r:iv} chord: xx0211.' },
     },
     {

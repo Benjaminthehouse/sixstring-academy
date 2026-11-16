@@ -375,6 +375,14 @@ describe('the-blues: the minor blues', () => {
   });
 });
 
+describe('the-blues: phrases fit a phone', () => {
+  it('no play-phrase holds more than six notes', () => {
+    const phrases = everyExercise().filter((e): e is PlayPhraseExercise => e.type === 'play-phrase');
+    expect(phrases.length).toBe(2);
+    for (const p of phrases) expect(played(p.notes).length, plainText(p.prompt)).toBeLessThanOrEqual(6);
+  });
+});
+
 describe('the-blues: on the go (Sound off, Guitar off)', () => {
   const EAR_DRILLS = new Set(['higher-lower', 'interval-ear', 'chord-quality-ear', 'scale-ear', 'cadence-ear', 'rhythm-ear', 'rhythm-tap']);
   const listening = (s: Step): boolean =>

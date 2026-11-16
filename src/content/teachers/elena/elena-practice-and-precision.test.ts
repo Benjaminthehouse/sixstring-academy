@@ -19,6 +19,7 @@ import { viewFromParams } from '@/features/chords/model/symbols';
 import { parseAddress } from '@/features/progressions/model/address';
 import { parseScaleParams } from '@/features/scales/model/address';
 import { DRILLS } from '@/features/rhythm/core/ladder';
+import { afterPass } from '@/features/technique/model/ladder';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherLesson, TeacherUnit } from '../types';
 import unit, { G_3NPS_1 } from './elena-practice-and-precision';
@@ -129,7 +130,18 @@ describe('Elena unit 1: Practice and precision', () => {
     // The two play-chord steps are shapes from the card.
     const plays = lesson('elena-audition').steps.filter((s) => (s as { type?: string }).type === 'play-chord') as Array<{ chord: string; frets: string | (number | null)[] }>;
     const asText = (f: string | (number | null)[]) => (typeof f === 'string' ? f : f.map((x) => (x === null ? 'x' : String(x))).join('-'));
-    expect(plays.map((p) => [p.chord, asText(p.frets)])).toEqual([['C', 'x35553'], ['E7', 'x-7-9-7-9-7']]);
+    expect(plays.map((p) => [p.chord, asText(p.frets)])).toEqual([['C', 'x35553'], ['E7', 'x79797']]);
+    for (const p of plays) expect(identifyFretted(asText(p.frets)).symbol, p.chord).toBe(p.chord);
+  });
+
+  it('measures what the audition card names: five items, with the F to Bb changes under the chords', () => {
+    const match = step<{ pairs: Array<{ left: string; right: string }> }>('elena-audition', (x) => x.type === 'match-pairs');
+    expect(match.pairs.map((p) => p.left)).toEqual(['Five C major positions', 'Six chords, two places', '{c:F} to {c:Bb} changes', 'Travis pattern', 'Eight bars at sight', 'A chorus of improvising']);
+    // The improvising item is counted in boxes, and the jam task asks for that number.
+    expect(match.pairs[5].right).toBe('Boxes reached, out of 5');
+    expect(plain(task('audition-jam').body)).toMatch(/how many you reached/);
+    // The Travis task measures the top tempo: up as well as down.
+    expect(plain(task('audition-travis').body)).toMatch(/raise it if it holds/);
   });
 
   it('sends the chord trainer F to Bb, the shapes the words name', () => {
@@ -167,12 +179,25 @@ describe('Elena unit 1: Practice and precision', () => {
     expect(new Set(progressionInKey(a.progression, a.tonic ?? undefined).bars.flat().map((c) => c.symbol))).toEqual(new Set(['A7', 'D7', 'E7']));
   });
 
-  it('does the ladder arithmetic of the deliberate-practice lesson on the real ladder', () => {
+  it('does the ladder arithmetic of the deliberate-practice lesson on the Technique screen\'s own ladder', () => {
     const e = getExercise('tech-string-crossing')!;
     expect(e.tempo).toEqual({ start: 60, step: 4, goal: 120 });
     const q = step<{ answer: { value: number }; prompt: string }>('deliberate-practice', (x) => x.type === 'type-answer');
-    expect(q.answer.value).toBe(96 - 2 * e.tempo.step);
     expect(q.prompt).toContain('96 BPM');
+    // The screen's rule (features/technique/model/ladder.ts): one pass that is not clean stays, the second steps back one rung.
+    const once = afterPass({ tempo: 96, missesHere: 0 }, 'not-yet', e.tempo);
+    expect(once.state.tempo).toBe(96);
+    const twice = afterPass(once.state, 'not-yet', e.tempo);
+    expect(twice.move).toBe('down');
+    expect(q.answer.value).toBe(twice.state.tempo);
+    expect(q.answer.value).toBe(92);
+    // A clean pass climbs one rung.
+    expect(afterPass({ tempo: 96, missesHere: 0 }, 'clean', e.tempo).state.tempo).toBe(100);
+    // The card and the task describe that rule, not "two rungs back after one failure".
+    const card = step<{ body: string }>('deliberate-practice', (x) => x.title === 'The ladder');
+    expect(card.body).toMatch(/two passes in a row that are not clean send you back one/);
+    expect(plain(task('climb-ladder').body)).not.toMatch(/two rungs/);
+    expect(card.body).not.toMatch(/two rungs/);
   });
 
   it('teaches the string-crossing and chromatic notes the neck really has', () => {
@@ -224,6 +249,12 @@ describe('Elena unit 1: Practice and precision', () => {
     };
     expect(shape('caged-d')).toEqual([4, 8]);
     expect(shape('caged-c')).toEqual([7, 10]);
+    expect(shape('caged-a')).toEqual([9, 13]);
+    expect(plain(task('g-patterns-2-3').body)).toContain('A-shape (9 to 13)');
+    // Pattern 1's lowest strings span frets 3 to 7: the stretch the task warns about.
+    const low = G_3NPS_1.notes.filter((n) => n.string >= 5).map((n) => n.fret);
+    expect([Math.min(...low), Math.max(...low)]).toEqual([3, 7]);
+    expect(plain(task('g-pattern-1').body)).toMatch(/aches, stop/);
     expect(parseScaleParams(task('g-pattern-1').params ?? [])).toEqual({ tonic: 'G', scale: 'major', shape: '3nps-1' });
     expect(parseScaleParams(task('g-patterns-2-3').params ?? [])).toEqual({ tonic: 'G', scale: 'major', shape: '3nps-2' });
   });
@@ -237,6 +268,9 @@ describe('Elena unit 1: Practice and precision', () => {
     expect(DRILLS.some((d) => d.id === task('offbeat-drill').params?.[1] && d.kind === 'offbeat')).toBe(true);
     const parts = getExercise('tech-metronome-2-4')!.parts.map((p) => p.click);
     expect(parts).toEqual(['backbeat', 'offbeat']);
+    // The plan's "click on the offbeats only" is that exercise's second part, and the task sends the learner to it.
+    expect(plain(task('click-two-four').body)).toMatch(/second part, the click only on the and/);
+    expect(plain(task('offbeat-drill').body)).toMatch(/three stars/);
     expect(midiAt({ string: 4, fret: 4 })).toBe(54);
   });
 

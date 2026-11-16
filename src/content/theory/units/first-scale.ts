@@ -165,7 +165,7 @@ const aMinorPentatonic: Lesson = {
     {
       type: 'card',
       title: 'Five notes',
-      body: 'Your first real scale is the **{n:A} minor {t:pentatonic|pentatonic}**. It has just **five notes**: {n:A} {n:C} {n:D} {n:E} {n:G}. Then {n:A} comes round again, an octave higher. On string 5 they sit at frets 0, 3, 5, 7, 10 and 12.',
+      body: 'The scale from the last lesson has a name: the **{n:A} minor {t:pentatonic|pentatonic}**. It has just **five notes**: {n:A} {n:C} {n:D} {n:E} {n:G}. Then {n:A} comes round again, an octave higher. On string 5 they sit at frets 0, 3, 5, 7, 10 and 12.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -247,7 +247,7 @@ const theBoxAtFret5: Lesson = {
     {
       type: 'card',
       title: 'A shape for the hand',
-      body: 'Guitarists rarely play a scale along one string. They use a **shape** that covers a few frets on all six strings. The most used shape of {n:A} minor pentatonic sits at **frets 5 to 8**, with two notes on every string.',
+      body: 'Guitarists usually play a scale across the strings, not along one. They use a **shape** that covers a few frets on all six strings. The most used shape of {n:A} minor pentatonic sits at **frets 5 to 8**, with two notes on every string.',
       figure: { kind: 'fretboard', frets: [4, 9], labels: 'finger', dots: BOX_DOTS, caption: 'Box 1 at fret 5. Numbers are fingers: 1 index, 3 ring, 4 little.' },
     },
     {
@@ -262,7 +262,7 @@ const theBoxAtFret5: Lesson = {
       options: [
         { text: 'Strings 6, 2 and 1', correct: true },
         { text: 'Strings 5, 4 and 3', why: 'Those use frets 5 and 7.' },
-        { text: 'All six strings', why: 'Only the outer strings reach fret 8: strings 5, 4 and 3 stop at fret 7.' },
+        { text: 'All six strings', why: 'Only strings 6, 2 and 1 reach fret 8: strings 5, 4 and 3 stop at fret 7.' },
         { text: 'Strings 6 and 5 only', why: 'String 5 uses frets 5 and 7. Strings 2 and 1 use 5 and 8, like string 6.' },
       ],
       explain: 'Frets 5 and 8 on strings 6, 2 and 1; frets 5 and 7 on strings 5, 4 and 3.',
@@ -373,7 +373,7 @@ const rootsInTheBox: Lesson = {
     {
       type: 'card',
       title: 'Ending at home',
-      body: 'A phrase that ends on a root sounds **settled**, like a sentence that ends with a full stop. End it anywhere else and it sounds more like a question, waiting for more.',
+      body: 'A phrase that ends on a root sounds **settled**, like a sentence that ends with a full stop. End it on another note and it often sounds more like a question, waiting for more.',
       figure: { kind: 'tab', tempo: 80, notes: PHRASE_ON_ROOT, caption: 'A short phrase in box 1 that ends on the root at string 4, fret 7.' },
     },
     {
@@ -531,7 +531,8 @@ const movingTheBox: Lesson = {
       explain: 'Same shape, new place: every note moves down two frets, so the tonic moves from {n:A} to {n:G}.',
       fact: 'first-scale-move-box',
     },
-    { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'find' } },
+    // The tap drill spans the box's tonics G to D (frets 3 to 10), all on a phone screen at once.
+    { generate: 'note-on-string', params: { strings: [6], frets: [3, 10], naturals: true, ask: 'find' } },
     { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'name' } },
   ],
   facts: [
@@ -566,7 +567,7 @@ const makingMusicWithFiveNotes: Lesson = {
       type: 'card',
       title: 'Say it twice',
       body: 'A scale is not music yet. Three habits make it so. First: play a **short idea**, then **repeat** it with a new ending. A listener hears the repeat and knows you meant it. Here is an idea in box 1, played twice: only the last note changes.',
-      figure: { kind: 'tab', tempo: 80, notes: [...IDEA_ON_D, { rest: true, duration: 'h' }, ...IDEA_ON_A], caption: 'An original two-bar idea, twice: it ends on {n:D}, then on {n:A}.' },
+      figure: { kind: 'tab', tempo: 80, notes: [...IDEA_ON_D, { rest: true, duration: 'h' }, ...IDEA_ON_A], caption: 'An original two-bar idea, twice: it ends on {n:D}, then on {n:A}. Slide to see both.' },
     },
     {
       type: 'choice',

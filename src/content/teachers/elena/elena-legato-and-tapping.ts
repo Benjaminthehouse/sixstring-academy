@@ -74,7 +74,7 @@ const threeNpsLegato: TeacherLesson = {
     {
       type: 'card',
       title: 'One stroke per string',
-      body: '{k:G major}, {t:three-nps|three notes per string}, from string 6 fret 3 ({n:G}). Going up, pick the first note on each string and {t:hammer-on|hammer} the other two. Going down, pick the first and {t:pull-off|pull off} the rest. The fretting hand does the pick\'s work.',
+      body: '{k:G major}, {t:three-notes-per-string|three notes per string}, pattern 1 from our first unit: string 6 fret 3 ({n:G}) upward. Going up, pick the first note on each string and {t:hammer-on|hammer} the other two. Going down, pick the first and {t:pull-off|pull off} the rest. The fretting hand does the pick\'s work.',
       figure: { kind: 'tab', tempo: 60, notes: LEGATO_BAR.slice(0, 6), caption: 'Strings 6 and 5: pick each first note, hammer the next two.' },
     },
     {
@@ -849,7 +849,7 @@ const unit: TeacherUnit = {
   checkpoint: { sample: 8, maxMistakes: 2 },
   glossary: [
     { id: 'legato', term: 'legato', definition: 'Notes joined smoothly, sounded by the fretting hand (hammer-ons, pull-offs) rather than by a new pick stroke for each.' },
-    { id: 'three-nps', term: 'three notes per string', definition: 'A scale fingering with exactly three notes on every string, so each string needs one pick stroke at most.' },
+    { id: 'three-notes-per-string', term: 'three notes per string', definition: 'A scale fingering with three notes on every string, so every string takes the same picking: built for fast, even runs.' },
     { id: 'hammer-on', term: 'hammer-on', definition: 'Sounding a note by bringing a fretting finger down fast on the string, without picking it.' },
     { id: 'pull-off', term: 'pull-off', definition: 'Sounding a lower note by pulling a fretting finger slightly sideways off the string, so it plucks as it leaves.' },
     { id: 'tapping', term: 'tapping', definition: 'Fretting a note with a finger of the picking hand, usually followed by a pull-off to a fretting finger.' },

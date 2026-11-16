@@ -40,17 +40,21 @@ export const FIFTH_HIGH: Note[] = [
   [1, 5, 'A4', 'q'], [1, 7, 'B4', 'q'], [1, 8, 'C5', 'q'],
 ];
 
-/** An original eight-bar melody in A minor, all in fifth position, in two four-bar halves. */
+/**
+ * An original eight-bar melody in A minor, all in fifth position, in two four-bar halves of six
+ * notes. A play step draws its tab at full width, so a played phrase keeps to six notes to fit a
+ * 360 px phone.
+ */
 export const FIFTH_MELODY_A: Note[] = [
   [4, 7, 'A3', 'h'], [3, 5, 'C4', 'h'],
-  [2, 5, 'E4', 'q'], [1, 5, 'A4', 'q'], [2, 8, 'G4', 'h'],
-  [2, 6, 'F4', 'q'], [2, 5, 'E4', 'q'], [3, 7, 'D4', 'h'],
+  [2, 5, 'E4', 'w'],
+  [1, 5, 'A4', 'h'], [2, 8, 'G4', 'h'],
   [2, 5, 'E4', 'w'],
 ];
 export const FIFTH_MELODY_B: Note[] = [
   [1, 8, 'C5', 'h'], [1, 7, 'B4', 'h'],
-  [1, 5, 'A4', 'q'], [2, 8, 'G4', 'q'], [2, 6, 'F4', 'h'],
-  [2, 5, 'E4', 'q'], [3, 7, 'D4', 'q'], [3, 5, 'C4', 'q'], [3, 4, 'B3', 'q'],
+  [1, 5, 'A4', 'w'],
+  [3, 7, 'D4', 'h'], [3, 4, 'B3', 'h'],
   [4, 7, 'A3', 'w'],
 ];
 
@@ -107,28 +111,30 @@ export const ABOVE_STAFF: Note[] = [
 
 /**
  * An original sixteen-bar piece in G major, 3/4 time, all in second position (frets 2 to 5).
- * Range: F sharp at string 4, fret 4 up to A at string 1, fret 5. The first eight bars are read.
+ * Range: F sharp at string 4, fret 4 up to A at string 1, fret 5. Every four bars hold six notes,
+ * so the first eight bars are read as two played phrases that fit a phone.
  */
 export const SIGHT_PIECE: Note[] = [
   [4, 5, 'G3', 'h'], [3, 4, 'B3', 'q'],
   [2, 3, 'D4', 'h.'],
-  [3, 5, 'C4', 'q'], [3, 4, 'B3', 'q'], [3, 2, 'A3', 'q'],
+  [3, 5, 'C4', 'h'], [3, 2, 'A3', 'q'],
   [3, 4, 'B3', 'h.'],
   [4, 5, 'G3', 'h'], [3, 2, 'A3', 'q'],
-  [3, 4, 'B3', 'q'], [3, 5, 'C4', 'q'], [2, 3, 'D4', 'q'],
+  [3, 5, 'C4', 'h.'],
   [2, 5, 'E4', 'h'], [1, 2, 'F#4', 'q'],
   [2, 3, 'D4', 'h.'],
   [1, 3, 'G4', 'h'], [1, 2, 'F#4', 'q'],
-  [2, 5, 'E4', 'h'], [2, 3, 'D4', 'q'],
-  [3, 5, 'C4', 'q'], [2, 3, 'D4', 'q'], [2, 5, 'E4', 'q'],
+  [2, 5, 'E4', 'h.'],
+  [3, 5, 'C4', 'h'], [2, 5, 'E4', 'q'],
   [1, 5, 'A4', 'h.'],
-  [1, 3, 'G4', 'q'], [1, 2, 'F#4', 'q'], [2, 5, 'E4', 'q'],
-  [2, 3, 'D4', 'h'], [3, 4, 'B3', 'q'],
-  [3, 2, 'A3', 'q'], [4, 4, 'F#3', 'q'], [3, 2, 'A3', 'q'],
+  [1, 3, 'G4', 'h'], [2, 5, 'E4', 'q'],
+  [2, 3, 'D4', 'h.'],
+  [3, 2, 'A3', 'h'], [4, 4, 'F#3', 'q'],
   [4, 5, 'G3', 'h.'],
 ];
-/** Bars 1 to 8 of the piece: the eight bars the learner sight-reads. */
-export const SIGHT_FIRST_EIGHT: Note[] = SIGHT_PIECE.slice(0, 15);
+/** Bars 1 to 4 and 5 to 8 of the piece: what the learner sight-reads. */
+export const SIGHT_BARS_1_4: Note[] = SIGHT_PIECE.slice(0, 6);
+export const SIGHT_BARS_5_8: Note[] = SIGHT_PIECE.slice(6, 12);
 
 const whatAPositionIs: Lesson = {
   id: 'what-a-position-is',
@@ -255,7 +261,6 @@ const whatAPositionIs: Lesson = {
       explain: 'String 2 is tuned to {n:B}; five frets up is {n:E}, the same pitch as the open string 1. That is why you tune string 1 to string 2 at fret 5.',
       fact: 'reading-up-many-places',
     },
-    { generate: 'note-on-string', params: { strings: [2], frets: [5, 8], naturals: true, ask: 'name' } },
     {
       type: 'play-note',
       prompt: 'Now play the same {n:E} in ninth position: string 3, fret 9, with your first finger.',
@@ -392,7 +397,7 @@ const fifthPosition: Lesson = {
     {
       type: 'card',
       title: 'Read a melody in fifth position',
-      body: 'An original eight-bar melody in {k:A minor}. Every note lies under the hand in fifth position, and bar 7 uses the stretch for {n:B}. Name the notes first, then find each one before you play.',
+      body: 'An original eight-bar melody in {k:A minor}. Every note lies under the hand in fifth position, and bar 7 uses the stretch for {n:B}. Name the notes first, then find each one on the neck before you play.',
       figure: { kind: 'staff', time: '4/4', notes: staff([...FIFTH_MELODY_A, ...FIFTH_MELODY_B]), caption: 'Eight bars in {k:A minor}, all in fifth position.' },
     },
     {
@@ -402,15 +407,15 @@ const fifthPosition: Lesson = {
       notes: tab(FIFTH_MELODY_A),
       octave: 'exact',
       tempo: 66,
-      explain: '{n:A} at string 4, fret 7, {n:C} at string 3, fret 5, then up to string 1 for {n:A} and back down string 2: {n:G}, {n:F}, {n:E}. The phrase rests on {n:E}.',
+      explain: '{n:A} at string 4, fret 7, {n:C} at string 3, fret 5, {n:E} at string 2, fret 5. Then up to {n:A} at string 1, fret 5, and {n:G} at string 2, fret 8, before the phrase rests on {n:E}.',
       alternative: {
         type: 'fill-blanks',
         prompt: 'Read bars 1 to 4 and fill in the missing notes.',
         figure: { kind: 'staff', time: '4/4', notes: staff(FIFTH_MELODY_A) },
-        text: '{n:A} {n:C} | {n:E} {n:A} ___ | {n:F} ___ {n:D} | {n:E}',
-        blanks: ['{n:G}', '{n:E}'],
-        bank: ['{n:B}', '{n:C}'],
-        explain: 'Bar 2 ends on {n:G}, in the space above the staff; bar 3 steps down {n:F} {n:E} {n:D}, and bar 4 holds {n:E}.',
+        text: '{n:A} ___ | {n:E} | {n:A} ___ | {n:E}',
+        blanks: ['{n:C}', '{n:G}'],
+        bank: ['{n:B}', '{n:F}'],
+        explain: 'Bar 1 is {n:A} then {n:C}, in the second and third spaces. Bar 3 is {n:A} on the first ledger line above, then {n:G} in the space below it.',
       },
     },
     {
@@ -420,15 +425,15 @@ const fifthPosition: Lesson = {
       notes: tab(FIFTH_MELODY_B),
       octave: 'exact',
       tempo: 66,
-      explain: 'Down from {n:C} at string 1, fret 8 all the way to {n:A}: string 1, then string 2, then string 3 with the stretch to fret 4 for {n:B}, and home to string 4, fret 7.',
+      explain: 'Down string 1 from {n:C} at fret 8 to {n:A} at fret 5, then {n:D} at string 3, fret 7 and {n:B} with the stretch to fret 4, home to {n:A} at string 4, fret 7.',
       alternative: {
         type: 'fill-blanks',
         prompt: 'Read bars 5 to 8 and fill in the missing notes.',
         figure: { kind: 'staff', time: '4/4', notes: staff(FIFTH_MELODY_B) },
-        text: '{n:C} {n:B} | {n:A} {n:G} {n:F} | {n:E} ___ {n:C} ___ | {n:A}',
+        text: '{n:C} {n:B} | {n:A} | ___ ___ | {n:A}',
         blanks: ['{n:D}', '{n:B}'],
-        bank: ['{n:G}', '{n:F}'],
-        explain: 'Bar 7 walks down by step: {n:E} {n:D} {n:C} {n:B}, the {n:B} at string 3, fret 4. Then the melody lands on {n:A}.',
+        bank: ['{n:E}', '{n:G}'],
+        explain: 'Bar 7 is {n:D} on the fourth line, then {n:B} on the middle line: the {n:B} at string 3, fret 4, with the stretch.',
       },
     },
     { generate: 'staff-note', params: { ask: 'read', low: 'A2', high: 'C5' } },
@@ -471,13 +476,13 @@ const choosingAPosition: Lesson = {
     {
       type: 'card',
       title: 'Where should your hand sit?',
-      body: 'Most notes can be played in several places, so every piece leaves you a choice. Pick the {t:position} that keeps the most notes under your hand, so that you {t:shift} as little as possible. Here is an original melody in {k:G major} to try it on.',
+      body: 'Most notes can be played in several places, so every piece leaves you a choice. Pick the {t:position} that keeps the most notes under your hand, so you {t:shift} as little as possible. Try it on this original melody.',
       figure: { kind: 'staff', key: 'G major', time: '4/4', notes: G_MELODY_STAFF, caption: 'Eight bars in {k:G major}: from {n:G} up to the high {n:A}.' },
     },
     {
       type: 'card',
       title: 'First position: three shifts',
-      body: 'Read in first position, the melody runs into trouble. The high {n:A} at string 1, fret 5 is above the hand, so it shifts up for bar 3, back down for the {n:C} at fret 1 in bar 5, and up again in bar 7. Three moves in eight bars.',
+      body: 'In first position the high {n:A} at string 1, fret 5 is above the hand. The hand shifts up for it in bar 3, back down for the {n:C} at fret 1 in bar 5, and up again in bar 7: three shifts in eight bars.',
       figure: { kind: 'tab', tempo: 92, notes: tabOf(G_FIRST_POSITION), caption: 'First position with open strings: the hand shifts three times.' },
     },
     {
@@ -493,19 +498,8 @@ const choosingAPosition: Lesson = {
     {
       type: 'card',
       title: 'Second position: no shifts',
-      body: 'With finger 1 at fret 2 the whole melody lies between frets 2 and 5. The high {n:A} is finger 4 at string 1, fret 5, the {n:C} is finger 4 at string 3, fret 5, and the hand never moves.',
+      body: 'With finger 1 at fret 2, the whole melody lies between frets 2 and 5. The high {n:A} and the {n:C} are both under finger 4, and the hand never moves.',
       figure: { kind: 'tab', tempo: 92, notes: tabOf(G_SECOND_POSITION), caption: 'Second position: frets 2 to 5, no shifts at all.' },
-    },
-    {
-      type: 'choice',
-      prompt: 'Why is second position the better choice for this melody?',
-      options: [
-        { text: 'Every note lies under the hand: no shifts', correct: true },
-        { text: 'It uses more open strings', why: 'It uses none: every note is fretted between frets 2 and 5.' },
-        { text: 'It sounds an octave higher', why: 'The notes are the same pitches; only the places on the neck change.' },
-      ],
-      explain: 'The best position keeps the most notes under the hand with the fewest shifts. Here second position holds all of them.',
-      fact: 'reading-up-fewest-shifts',
     },
     {
       type: 'true-false',
@@ -525,7 +519,7 @@ const choosingAPosition: Lesson = {
       options: [
         { text: 'Fifth position', correct: true },
         { text: 'First position', why: 'The high {n:C} is at string 1, fret 8: far above first position.' },
-        { text: 'Second position', why: 'The high {n:B} and {n:C} at frets 7 and 8 are still out of reach.' },
+        { text: 'Second position', why: 'The high {n:B} and {n:C} at string 1, frets 7 and 8, lie above the hand.' },
       ],
       explain: 'Fifth position holds every note from {n:A3} at string 4, fret 7 up to {n:C5} at string 1, fret 8, so the melody needs no shift.',
       fact: 'reading-up-key-positions',
@@ -544,7 +538,7 @@ const choosingAPosition: Lesson = {
     {
       type: 'card',
       title: 'Hide the shift',
-      body: 'When you must move, move where nobody hears it: during a rest, a repeated note, or an **open string**. Here an open {n:B} rings while the hand travels from second position to seventh. The beat never stumbles.',
+      body: 'When you must move, do it where nobody hears it: during a rest, a repeated note or an **open string**. Here an open {n:B} rings while the hand moves from second position to seventh. The beat never stumbles.',
       figure: { kind: 'audio', sound: { kind: 'tab', notes: SHIFT_HIDDEN, tempo: 84 }, label: 'Hear a hidden shift' },
     },
     {
@@ -582,13 +576,13 @@ const choosingAPosition: Lesson = {
       back: '{k:G major}: second position (frets 2 to 5). {k:A minor}: fifth position. {k:A major}: fourth position (frets 4 to 7).',
       ask: {
         type: 'choice',
-        prompt: 'Which position suits a melody in {k:G major} that stays between {n:G3} and {n:A4}?',
+        prompt: 'Which position does {k:G major} lie well in?',
         options: [
           { text: 'Second position', correct: true },
-          { text: 'Fifth position', why: 'Possible, but the {n:B} at string 3, fret 4 needs a stretch. Second position needs none.' },
-          { text: 'First position', why: 'The high {n:A} at string 1, fret 5 is above first position.' },
+          { text: 'Fifth position', why: 'Fifth position is the home of {k:A minor}.' },
+          { text: 'Fourth position', why: 'Fourth position is the home of {k:A major}.' },
         ],
-        explain: '{k:G major} lies well in second position, frets 2 to 5: from {n:G3} at string 4, fret 5 to {n:A4} at string 1, fret 5.',
+        explain: '{k:G major} lies well in second position, frets 2 to 5: from {n:F#2} at string 6 up to {n:A4} at string 1, all under the hand.',
       },
     },
     {
@@ -647,7 +641,7 @@ const ledgerLinesAbove: Lesson = {
     {
       type: 'card',
       title: '8va: an octave higher',
-      body: { text: 'Notes higher still would need a ladder of ledger lines. So music writes them an octave lower and marks them **8va** with a dashed line. It means: play an octave higher than written, until the line ends or the word *loco* says back to normal. On one string that is 12 frets higher.', say: 'Notes higher still would need a ladder of ledger lines. So music writes them an octave lower and marks them ottava, eight v a, with a dashed line. It means: play an octave higher than written, until the line ends or the word loco says back to normal. On one string that is 12 frets higher.' },
+      body: { text: 'Notes higher still would need a ladder of ledger lines. So music writes them an octave lower and marks them **{t:ottava|8va}** with a dashed line. It means: play an octave higher than written, until the line ends or the word *loco* says back to normal. On one string that is 12 frets higher.', say: 'Notes higher still would need a ladder of ledger lines. So music writes them an octave lower and marks them ottava, eight v a, with a dashed line. It means: play an octave higher than written, until the line ends or the word loco says back to normal. On one string that is 12 frets higher.' },
       figure: { kind: 'staff', notes: LOCO_PASSAGE.map(([, , note], i) => ({ note, duration: 'q', label: String(OTTAVA_PASSAGE[i][1]) })), caption: 'Marked 8va: string 1 at frets 12, 13, 15 and 17, not 0, 1, 3 and 5.' },
     },
     {
@@ -761,13 +755,13 @@ const sightReadingRoutine: Lesson = {
     {
       type: 'choice',
       prompt: 'The key signature of this piece has one sharp, on the {n:F} line. What does it tell you?',
-      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_PIECE.slice(12, 17)) },
+      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_PIECE.slice(9, 14)) },
       options: [
         { text: 'Every {n:F} is played as {n:F#}', correct: true },
         { text: 'Only the first {n:F} is sharp', why: 'A key signature lasts the whole piece, in every bar and every octave.' },
         { text: 'Play the whole piece a half step higher', why: 'Only the {n:F} notes change. Every other note stays as written.' },
       ],
-      explain: 'One sharp means {k:G major}: every {n:F} is {n:F#}, here at string 1, fret 2 in bars 7 and 9.',
+      explain: 'One sharp means {k:G major}: every {n:F} is {n:F#}, such as the ones at string 1, fret 2 in bars 7 and 9.',
       fact: 'reading-up-scan-first',
     },
     {
@@ -776,7 +770,7 @@ const sightReadingRoutine: Lesson = {
       options: [
         { text: 'Second position', correct: true },
         { text: 'First position', why: 'The high {n:A} at fret 5 lies above first position.' },
-        { text: 'Fifth position', why: 'Possible, but the {n:F#} at string 4 and the {n:B} at string 3 would both need a stretch back to fret 4.' },
+        { text: 'Fifth position', why: 'The low {n:F#} at string 4, fret 4 lies below the hand, so it would need a stretch.' },
       ],
       explain: 'Everything lies between frets 2 and 5: second position, the home of {k:G major}. So this piece needs no shifts.',
       fact: 'reading-up-scan-first',
@@ -807,20 +801,38 @@ const sightReadingRoutine: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Sight-read bars 1 to 8 at 60 beats per minute, in second position. Do not stop, whatever happens.',
-      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_FIRST_EIGHT) },
-      notes: tab(SIGHT_FIRST_EIGHT),
+      prompt: 'Sight-read bars 1 to 4 at 60 beats per minute, in second position. Do not stop, whatever happens.',
+      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_BARS_1_4) },
+      notes: tab(SIGHT_BARS_1_4),
       octave: 'exact',
       tempo: 60,
-      explain: 'Bars 1 to 4 climb {n:G} {n:B} {n:D} and step back down to {n:B}; bars 5 to 8 climb again to {n:E} and {n:F#} and rest on {n:D}.',
+      explain: 'The line climbs {n:G} {n:B} {n:D}, steps down {n:C} {n:A}, and rests on {n:B}: all between frets 2 and 5.',
       alternative: {
         type: 'fill-blanks',
-        prompt: 'Read bars 1 to 8 and fill in the missing notes. Mind the key signature.',
-        figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_FIRST_EIGHT) },
-        text: '{n:G} {n:B} | {n:D} | {n:C} {n:B} {n:A} | {n:B} | {n:G} {n:A} | ___ {n:C} {n:D} | {n:E} ___ | {n:D}',
-        blanks: ['{n:B}', '{n:F#}'],
-        bank: ['{n:F}', '{n:A}'],
-        explain: 'Bar 6 starts on {n:B}, on the middle line. The note on the top line in bar 7 is an {n:F}, and the key signature makes it {n:F#}.',
+        prompt: 'Read bars 1 to 4 and fill in the missing notes.',
+        figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_BARS_1_4) },
+        text: '{n:G} {n:B} | ___ | {n:C} ___ | {n:B}',
+        blanks: ['{n:D}', '{n:A}'],
+        bank: ['{n:E}', '{n:F#}'],
+        explain: 'Bar 2 is {n:D} on the fourth line; bar 3 goes from {n:C} in the third space down to {n:A} in the second.',
+      },
+    },
+    {
+      type: 'play-phrase',
+      prompt: 'Keep going: bars 5 to 8, same tempo, eyes one bar ahead.',
+      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_BARS_5_8) },
+      notes: tab(SIGHT_BARS_5_8),
+      octave: 'exact',
+      tempo: 60,
+      explain: '{n:G} {n:A} {n:C}, then up to {n:E} and the {n:F#} of the key signature at string 1, fret 2, resting on {n:D}.',
+      alternative: {
+        type: 'fill-blanks',
+        prompt: 'Read bars 5 to 8 and fill in the missing notes. Mind the key signature.',
+        figure: { kind: 'staff', key: 'G major', time: '3/4', notes: staff(SIGHT_BARS_5_8) },
+        text: '{n:G} {n:A} | {n:C} | {n:E} ___ | {n:D}',
+        blanks: ['{n:F#}'],
+        bank: ['{n:F}', '{n:G}'],
+        explain: 'The note on the top line is an {n:F}, and the one sharp of the key signature makes it {n:F#}.',
       },
     },
     { generate: 'staff-note', params: { ask: 'read', low: 'G3', high: 'A4' } },
@@ -903,9 +915,9 @@ const unit: Unit = {
         prompt: 'A melody in {k:A major} runs from {n:A} at string 6, fret 5 up to {n:B} at string 1, fret 7. Which position holds it all?',
         options: [
           { text: 'Fourth position', correct: true },
-          { text: 'First position', why: 'The high {n:B} at string 1, fret 7 is far above first position.' },
-          { text: 'Fifth position', why: 'The {n:C#} on string 5 and the {n:G#} on string 1 sit at fret 4, below the hand.' },
-          { text: 'Ninth position', why: 'The low {n:A} at string 6, fret 5 is below the hand.' },
+          { text: 'First position', why: 'The high {n:A} and {n:B} on string 1, at frets 5 and 7, are above first position.' },
+          { text: 'Fifth position', why: '{n:C#} on string 5, {n:F#} on string 4 and {n:G#} on string 1 all sit at fret 4, below the hand.' },
+          { text: 'Ninth position', why: 'The low {n:B} at string 6, fret 7 is below the hand, and it has no other place.' },
         ],
         explain: '{k:A major} lies well in fourth position: every note from string 6, fret 5 to string 1, fret 7 is between frets 4 and 7.',
       },
@@ -972,15 +984,15 @@ const unit: Unit = {
         notes: tab(FIFTH_MELODY_A),
         octave: 'exact',
         tempo: 66,
-        explain: '{n:A} {n:C}, {n:E} {n:A} {n:G}, {n:F} {n:E} {n:D}, {n:E}: all between frets 5 and 8.',
+        explain: '{n:A} {n:C}, {n:E}, {n:A} {n:G}, {n:E}: all between frets 5 and 8.',
         alternative: {
           type: 'fill-blanks',
           prompt: 'Read bars 1 to 4 and fill in the missing notes.',
           figure: { kind: 'staff', time: '4/4', notes: staff(FIFTH_MELODY_A) },
-          text: '{n:A} ___ | {n:E} {n:A} {n:G} | {n:F} {n:E} ___ | {n:E}',
-          blanks: ['{n:C}', '{n:D}'],
-          bank: ['{n:B}', '{n:F}'],
-          explain: 'Bar 1 is {n:A} and {n:C}, in the second and third spaces; bar 3 steps down {n:F} {n:E} and ends on {n:D}, on the fourth line.',
+          text: '{n:A} {n:C} | ___ | ___ {n:G} | {n:E}',
+          blanks: ['{n:E}', '{n:A}'],
+          bank: ['{n:D}', '{n:F}'],
+          explain: 'Bar 2 holds {n:E} in the top space (string 2, fret 5); bar 3 starts on {n:A}, on the first ledger line above (string 1, fret 5).',
         },
       },
       { generate: 'staff-note', params: { ask: 'read', low: 'A2', high: 'C5' } },

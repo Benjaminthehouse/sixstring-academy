@@ -13,7 +13,10 @@
  * and the drop-3 lesson comps with the root-on-5 Cmaj7 (x3x453), which stays under the hand after
  * G7 (3x343x), while the plan's root-on-6 Cmaj7 (8x998x) is taught as the grip five frets away.
  * The guide-tone lesson's no-microphone way is an in-lesson exercise, not the Player's wait mode
- * (which listens too).
+ * (which listens too). Voicings that leave a tone of their symbol out (the shells, {c:Dm9}, {c:G13},
+ * the bossa {c:D7}) are checked by the microphone picked string by string (`picked`), not strummed:
+ * the strum check scores a strum against every tone of the symbol, so it cannot pass them reliably
+ * (the test simulates it). Full four-note grips are strummed.
  *
  * Music from the library: Jazz Comping: Shell Voicings (`st-jazz-shells`, 120 BPM), Jazz Comping:
  * Drop-2 Voicings (`st-jazz-drop2`, 120 BPM), Jazz Comping: Minor ii-V-i (`st-jazz-minor-ii-v`,
@@ -23,8 +26,20 @@
  * a jam on the swung minor ii-V-i. `elena-jazz-harmony.test.ts` cross-checks every shape, tone, voice
  * motion, tempo and chart against the engines and the library.
  */
+import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerTask, toolTask } from '../tasks';
+
+/**
+ * A shape picked one string at a time, low to high, in quarter notes. The microphone's chord check
+ * compares a strum with every tone of the chord symbol, so a voicing that leaves tones out (a
+ * shell without its fifth, a {c:G13} without its fifth and ninth) can sound perfect and still fail
+ * it; picked string by string, every note of the grip is checked exactly.
+ */
+export function picked(shape: string): TabNote[] {
+  const frets = shape.includes('-') ? shape.split('-') : shape.split('');
+  return frets.flatMap((f, i) => (f === 'x' ? [] : [{ string: 6 - i, fret: Number(f), duration: 'q' as const }]));
+}
 
 /** The shapes the unit teaches, low string first (two-digit frets hyphenated). */
 export const SHAPES = {
@@ -108,26 +123,29 @@ const shellsIiVI: TeacherLesson = {
       tip: 'Strum only the three strings of the shell; the fretting fingers rest lightly on the others to mute them.',
     },
     {
-      type: 'play-chord',
-      prompt: 'Play the {c:Dm7} shell, x535xx: strings 5, 4 and 3 only.',
-      chord: 'Dm7',
-      frets: SHAPES.shells.Dm7,
-      explain: 'String 5 fret 5 ({n:D}), string 4 fret 3 ({n:F}), string 3 fret 5 ({n:C}): root, third, seventh.',
+      type: 'play-phrase',
+      prompt: 'Fret the {c:Dm7} shell, x535xx, and pick strings 5, 4 and 3 in turn. Every finger must ring. Then strum the three.',
+      notes: picked(SHAPES.shells.Dm7),
+      octave: 'exact',
+      tempo: 60,
+      explain: 'String 5 fret 5 ({n:D}), string 4 fret 3 ({n:F}), string 3 fret 5 ({n:C}): root, third, seventh. One string at a time, a muffled finger cannot hide.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'Dm7', frets: SHAPES.shells.Dm7, accept: 'this-shape', prompt: 'Build the {c:Dm7} shell: root on string 5, strings 2 and 1 muted.', explain: 'x535xx: {n:D} on string 5 fret 5, {n:F} on string 4 fret 3, {n:C} on string 3 fret 5.' },
     },
     {
-      type: 'play-chord',
-      prompt: 'Now the {c:G7} shell, 3x34xx: root on string 6, string 5 muted.',
-      chord: 'G7',
-      frets: SHAPES.shells.G7,
+      type: 'play-phrase',
+      prompt: 'Now the {c:G7} shell, 3x34xx: root on string 6, string 5 muted. Pick strings 6, 4 and 3 in turn.',
+      notes: picked(SHAPES.shells.G7),
+      octave: 'exact',
+      tempo: 60,
       explain: 'String 6 fret 3 ({n:G}), string 4 fret 3 ({n:F}), string 3 fret 4 ({n:B}). {n:F} did not move from {c:Dm7}; {n:C} fell to {n:B}.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'G7', frets: SHAPES.shells.G7, accept: 'this-shape', prompt: 'Build the {c:G7} shell: root on string 6, string 5 muted.', explain: '3x34xx: {n:G} on string 6, {n:F} on string 4 fret 3, {n:B} on string 3 fret 4.' },
     },
     {
-      type: 'play-chord',
-      prompt: 'And the {c:Cmaj7} shell, x324xx.',
-      chord: 'Cmaj7',
-      frets: SHAPES.shells.Cmaj7,
+      type: 'play-phrase',
+      prompt: 'And the {c:Cmaj7} shell, x324xx: strings 5, 4 and 3 in turn.',
+      notes: picked(SHAPES.shells.Cmaj7),
+      octave: 'exact',
+      tempo: 60,
       explain: 'String 5 fret 3 ({n:C}), string 4 fret 2 ({n:E}), string 3 fret 4 ({n:B}). {n:B} stayed; {n:F} fell to {n:E}.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'Cmaj7', frets: SHAPES.shells.Cmaj7, accept: 'this-shape', prompt: 'Build the {c:Cmaj7} shell: root on string 5.', explain: 'x324xx: {n:C} on string 5 fret 3, {n:E} on string 4 fret 2, {n:B} on string 3 fret 4.' },
     },
@@ -173,7 +191,7 @@ const shellsIiVI: TeacherLesson = {
       bars: [9, 16],
       tempo: 83,
       minutes: 4,
-      body: 'Bars 9 to 16 at 83 % (100 {t:bpm|BPM}), the Charleston: beat 1, then the and of 2, swung. Count "1 trip-let 2 trip-LET" and play on that last syllable.',
+      body: 'Bars 9 to 16 at 83 % (100 {t:bpm|BPM}), the Charleston: beat 1, then the and of 2, swung. Count "1 trip-let 2 trip-LET" and play on the 1 and on that last syllable.',
     }),
     toolTask({
       id: 'jam-shells',
@@ -197,14 +215,14 @@ const shellsIiVI: TeacherLesson = {
 const guideTones: TeacherLesson = {
   id: 'guide-tones',
   title: 'Guide tones',
-  teaches: 'Through a two-five-one each seventh falls a half step or stays to become the next chord\'s third.',
+  teaches: 'Through a two-five-one each seventh falls a half step to the next third, and each third stays as the next seventh.',
   minutes: 5,
   skill: 'teacher:elena:guide-tones',
   steps: [
     {
       type: 'card',
       title: 'Two voices carry the harmony',
-      body: 'A chord\'s third and seventh are its {t:guide-tone|guide tones}. Through {c:Dm7}, {c:G7} and {c:Cmaj7}, each seventh falls a half step or stays to become the next chord\'s third. {n:C}, the seventh of {c:Dm7}, falls to {n:B}, the third of {c:G7}, which stays as the seventh of {c:Cmaj7}.',
+      body: 'A chord\'s third and seventh are its {t:guide-tone|guide tones}. Through {c:Dm7}, {c:G7} and {c:Cmaj7}, each seventh falls a half step to become the next chord\'s third, and each third stays to become the next seventh. {n:C}, the seventh of {c:Dm7}, falls to {n:B}, the third of {c:G7}, which stays as the seventh of {c:Cmaj7}.',
       figure: {
         kind: 'staff',
         time: '4/4',
@@ -255,8 +273,8 @@ const guideTones: TeacherLesson = {
       prompt: 'Which guide-tone line do you hear?',
       sound: { kind: 'notes', notes: ['C4', 'B3', 'B3'], tempo: 60 },
       options: [
-        { text: '{n:C} {n:B} {n:B}: the sevenths line', correct: true },
-        { text: '{n:F} {n:F} {n:E}: the thirds line' },
+        { text: '{n:C} {n:B} {n:B}: line one', correct: true },
+        { text: '{n:F} {n:F} {n:E}: line two' },
         { text: '{n:C} {n:D} {n:E}: a scale' },
       ],
       explain: 'A half step down and then held: {n:C} to {n:B}, the seventh of {c:Dm7} becoming the third of {c:G7}.',
@@ -337,7 +355,7 @@ const guideTones: TeacherLesson = {
   ],
   facts: [
     { id: 'jazz-guide-tones', front: 'What are a chord\'s guide tones?', back: 'Its third and its seventh: the two notes that define its quality.' },
-    { id: 'jazz-guide-lines', front: 'The two guide-tone lines of {c:Dm7} {c:G7} {c:Cmaj7}?', back: '{n:C} {n:B} {n:B} and {n:F} {n:F} {n:E}: each seventh falls a half step or stays to become the next third.' },
+    { id: 'jazz-guide-lines', front: 'The two guide-tone lines of {c:Dm7} {c:G7} {c:Cmaj7}?', back: '{n:C} {n:B} {n:B} and {n:F} {n:F} {n:E}: each seventh falls a half step to the next third; each third stays as the next seventh.' },
   ],
 };
 
@@ -503,7 +521,7 @@ const drop3: TeacherLesson = {
     {
       type: 'card',
       title: 'Root on 6, root on 5',
-      body: 'With the root on string 6: {c:G7}, 3x343x, and {c:Cmaj7}, 8x998x. But 8x998x is five frets from {c:G7}. To comp the progression without travelling, take the root-on-5 {c:Cmaj7}, x3x453: {n:B} stays under the same finger on string 3 fret 4.',
+      body: 'With the root on string 6: {c:G7}, 3x343x, and {c:Cmaj7}, 8x998x. But 8x998x is five frets from {c:G7}. To comp the progression without travelling, take the root-on-5 {c:Cmaj7}, x3x453: {n:B} stays where it was, on string 3 fret 4.',
       figure: { kind: 'chord', symbol: 'G7', frets: SHAPES.drop3.G7, fingers: '2x341x', caption: 'Drop-3 {c:G7}: root on string 6, string 5 muted.' },
       tip: 'The finger on the bass note leans lightly against the skipped string to keep it silent.',
     },
@@ -515,7 +533,7 @@ const drop3: TeacherLesson = {
         { text: '8x998x, root on string 6', why: 'A correct drop-3 {c:Cmaj7}, but five frets away. Use it when you are already up there.' },
         { text: 'x324xx, the shell', why: 'A good chord, but a three-note shell, not a drop-3 grip.' },
       ],
-      explain: 'x3x453 stays within frets 3 to 5, and {n:B} on string 3 fret 4 does not move at all. The bass goes from string 6 to string 5, as it did with the shells.',
+      explain: 'x3x453 stays within frets 3 to 5, and {n:B} on string 3 fret 4 does not move at all (the finger on it changes: 4 in {c:G7}, 3 in {c:Cmaj7}). The bass goes from string 6 to string 5, as with the shells.',
       fact: 'jazz-drop-3-c',
     },
     {
@@ -648,18 +666,20 @@ const extendedVoicings: TeacherLesson = {
       fact: 'jazz-extended-c',
     },
     {
-      type: 'play-chord',
-      prompt: '{c:Dm9}: x5355x. The {c:Dm7} shell with {n:E} on string 2.',
-      chord: 'Dm9',
-      frets: SHAPES.extended.Dm9,
+      type: 'play-phrase',
+      prompt: '{c:Dm9}: x5355x, the {c:Dm7} shell with {n:E} on string 2. Pick strings 5 to 2 in turn, then strum.',
+      notes: picked(SHAPES.extended.Dm9),
+      octave: 'exact',
+      tempo: 60,
       explain: '{n:D} {n:F} {n:C} {n:E}: root, third, seventh, ninth.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'Dm9', frets: SHAPES.extended.Dm9, accept: 'this-shape', prompt: 'Build {c:Dm9}: the {c:Dm7} shell plus string 2 fret 5.', explain: 'x5355x: {n:D} {n:F} {n:C} and {n:E} on string 2 fret 5.' },
     },
     {
-      type: 'play-chord',
-      prompt: '{c:G13}: 3x345x. The {c:G7} shell with {n:E} on top.',
-      chord: 'G13',
-      frets: SHAPES.extended.G13,
+      type: 'play-phrase',
+      prompt: '{c:G13}: 3x345x, the {c:G7} shell with {n:E} on top. Pick strings 6, 4, 3 and 2 in turn, then strum.',
+      notes: picked(SHAPES.extended.G13),
+      octave: 'exact',
+      tempo: 60,
       explain: '{n:G} {n:F} {n:B} {n:E}: root, seventh, third, thirteenth. No fifth, no ninth: nobody misses them.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'G13', frets: SHAPES.extended.G13, accept: 'this-shape', prompt: 'Build {c:G13}: the {c:G7} shell plus string 2 fret 5.', explain: '3x345x: {n:G} {n:F} {n:B} and {n:E} on string 2 fret 5.' },
     },
@@ -772,7 +792,7 @@ const minorIiVI: TeacherLesson = {
       song: 'st-jazz-minor-ii-v',
       bars: [1, 8],
       tempo: 86,
-      minutes: 4,
+      minutes: 3,
       body: 'Bars 1 to 8 of the minor study at 86 % (100 {t:bpm|BPM}), as a bossa: thumb on the bass, fingers on the rest of the grip. In the study the open {n:A} string sounds under {c:Am7}. Lean a little on {c:E7}.',
     }),
     {
@@ -796,8 +816,8 @@ const minorIiVI: TeacherLesson = {
       title: 'Jam: the minor two-five-one, swung',
       tool: 'progressions',
       params: ['jazz-minor-ii-v-i', 'a', 'jam'],
-      minutes: 4,
-      body: 'Now swung, with the band at 100 {t:bpm|BPM}: {c:Bm7b5}, {c:E7}, then two bars of {c:Am6}. For {c:Am6}, lower the top note of the {c:Am7} grip a fret: xx2212. Short chords, four to the bar, then the Charleston.',
+      minutes: 3,
+      body: 'Now swung, with the band at 100 {t:bpm|BPM}: {c:Bm7b5}, {c:E7b9}, then two bars of {c:Am6}. Your {c:E7} grip fits under the band\'s {c:E7b9}. For {c:Am6}, lower the top note of the {c:Am7} grip a fret: xx2212. Short chords, four to the bar, then the Charleston.',
     }),
     {
       type: 'true-false',
@@ -820,7 +840,7 @@ const minorIiVI: TeacherLesson = {
       title: 'Jam: the minor bossa loop',
       tool: 'progressions',
       params: ['latin-bossa-minor-loop', 'a', 'jam'],
-      minutes: 5,
+      minutes: 4,
       body: 'The minor bossa loop in {k:A minor} at 120 {t:bpm|BPM}: {c:Am7}, {c:Dm7}, {c:Bm7b5}, {c:E7b9}. Comp with your new voicings (your {c:E7} grip fits under the band\'s {c:E7b9}); over {c:E7b9}, lines in {n:A} harmonic minor.',
     }),
     {
@@ -891,10 +911,11 @@ const compingAndBossa: TeacherLesson = {
       alternative: { type: 'chord-build', task: 'fingers', chord: 'Am7', frets: SHAPES.bossa.Am7, accept: 'this-shape', prompt: 'Build the bossa {c:Am7}: root on string 6, string 5 silent.', explain: '5x555x: fret 5 on strings 6, 4, 3 and 2; strings 5 and 1 not played.' },
     },
     {
-      type: 'play-chord',
-      prompt: '{c:D7}: x5453x.',
-      chord: 'D7',
-      frets: SHAPES.bossa.D7,
+      type: 'play-phrase',
+      prompt: '{c:D7}: x5453x. Pluck it string by string, the thumb\'s {n:D} first, then strings 4, 3 and 2.',
+      notes: picked(SHAPES.bossa.D7),
+      octave: 'exact',
+      tempo: 60,
       explain: '{n:D} {n:F#} {n:C} {n:D}. In the fingers {n:C} stays on string 3 while {n:G} falls to {n:F#} and {n:E} to {n:D}.',
       alternative: { type: 'chord-build', task: 'fingers', chord: 'D7', frets: SHAPES.bossa.D7, accept: 'this-shape', prompt: 'Build the bossa {c:D7}: root on string 5.', explain: 'x5453x: string 5 fret 5, string 4 fret 4, string 3 fret 5, string 2 fret 3.' },
     },
@@ -915,13 +936,19 @@ const compingAndBossa: TeacherLesson = {
       show: 'both',
       explain: 'Bar one: 1, the and of 2, 4. Bar two: the and of 1, 3, the and of 3. Half of it lands between the beats: that is the syncopation.',
     },
+    {
+      type: 'card',
+      title: 'The turnaround in shells',
+      body: 'The {r:I}–{r:vi}–{r:ii}–{r:V} turnaround in {k:C major}, two chords a bar: {c:Cmaj7} x324xx, {c:Am7} 5x55xx, {c:Dm7} x535xx, {c:G7} 3x34xx. Only {c:Am7} is new: the {c:G7} shell two frets higher, with its third a fret lower. The bass still alternates between strings 5 and 6.',
+      figure: { kind: 'chord', symbol: 'Am7', frets: SHAPES.shells.Am7, caption: '{c:Am7} shell, root on string 6: root, seventh, minor third.' },
+    },
     toolTask({
       id: 'jam-turnaround',
       title: 'Jam: the turnaround in shells',
       tool: 'progressions',
       params: ['jazz-i-vi-ii-v', 'c', 'jam'],
       minutes: 5,
-      body: 'The {r:I}–{r:vi}–{r:ii}–{r:V} turnaround in {k:C major} at 120 {t:bpm|BPM}, as shells: {c:Cmaj7} x324xx, {c:Am7} 5x55xx, {c:Dm7} x535xx, {c:G7} 3x34xx. Change the comping rhythm every four bars.',
+      body: 'The turnaround with the band in {k:C major} at 120 {t:bpm|BPM}, two chords a bar, in shells only. Change the comping rhythm every four bars: four to the bar, the Charleston, anticipations, and round again.',
     }),
     {
       type: 'true-false',

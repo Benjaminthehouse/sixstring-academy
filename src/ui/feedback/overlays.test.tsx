@@ -6,9 +6,9 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetBackClose } from './dialogHistory';
+import { resetBackClose, watchDialogHistory } from './dialogHistory';
 import { Modal, Sheet } from './Dialog';
-import { openDialogCount } from './overlays';
+import { openDialogCount, toastTopOverDialog } from './overlays';
 import { toast } from './Toast';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -158,6 +158,38 @@ describe('Back with a dialog open', () => {
     expect(window.location.hash).toBe('#start');
   });
 
+  it('a screen that replaces its address while the sheet stays open (the camera picking a song) keeps the sheet, and Back still closes it', async () => {
+    await go('#camera');
+    await mount(<Harness />);
+    await act(async () => {
+      window.history.replaceState(null, '', '#camera--song--greensleeves');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    await settle(300);
+    expect(dialogOpen()).toBe(true);
+    expect(window.location.hash).toBe('#camera--song--greensleeves');
+    await back();
+    expect(closes).toHaveBeenCalledTimes(1);
+    expect(dialogOpen()).toBe(false);
+    expect(window.location.hash).toBe('#camera--song--greensleeves');
+    await back();
+    expect(window.location.hash).toBe('#start');
+  });
+
+  it('after a reload, still skips an entry a dialog of the earlier load left behind under another screen', async () => {
+    // A link inside a sheet on #learn led to #lesson; then the page was reloaded on #lesson.
+    await go('#learn');
+    window.history.pushState({ ssaDialog: 1 }, '');
+    await go('#lesson');
+    resetBackClose();
+    watchDialogHistory(); // what loading the kit does, before any dialog of this load has opened
+    await back();
+    expect(window.location.hash).toBe('#learn');
+    expect(marker()).toBeUndefined();
+    await back();
+    expect(window.location.hash).toBe('#start');
+  });
+
   it('keeps a dialog that cannot be dismissed right now, and the screen with it', async () => {
     await go('#scan');
     await mount(<Harness dismissable={false} kind="modal" />);
@@ -200,6 +232,26 @@ describe('Back with a dialog open', () => {
     await back();
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
     expect(window.location.hash).toBe('#profile');
+  });
+});
+
+describe('toastTopOverDialog: where replies go while a dialog is open', () => {
+  const phoneStack = { left: 0, right: 390, height: 74 };
+  it('keeps the top edge when the stack fits above a short bottom sheet', () => {
+    expect(toastTopOverDialog(phoneStack, { top: 214, bottom: 844, left: 0, right: 390 }, 290, 12, 8)).toBeNull();
+  });
+  it("goes under the header of a sheet that reaches the top, clear of its title and Close button", () => {
+    // The tuner's Tuning sheet on a 390 x 844 phone: the panel starts 32 px down, its header ends at 98.
+    expect(toastTopOverDialog(phoneStack, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBe(106);
+  });
+  it('keeps the top edge beside a centred modal, and goes under the header of a right-hand drawer', () => {
+    const column = { left: 906, right: 1256, height: 74 };
+    expect(toastTopOverDialog(column, { top: 111, bottom: 689, left: 448, right: 832 }, 180, 24, 8)).toBeNull();
+    expect(toastTopOverDialog(column, { top: 0, bottom: 800, left: 864, right: 1280 }, 76, 24, 8)).toBe(84);
+  });
+  it('does nothing without a stack or with nonsense measurements', () => {
+    expect(toastTopOverDialog({ left: 0, right: 390, height: 0 }, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBeNull();
+    expect(toastTopOverDialog(phoneStack, { top: Number.NaN, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBeNull();
   });
 });
 

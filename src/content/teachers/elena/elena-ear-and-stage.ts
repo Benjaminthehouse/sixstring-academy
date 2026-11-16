@@ -173,7 +173,7 @@ const transcribingMelodies: TeacherLesson = {
       type: 'card',
       title: 'Pass three: the pitches',
       body: 'Write the key and time signatures first, then fill the bars. Find the first note, then hear each next note as an interval from the last. Mine starts on the open string 4, {n:D}. Write it in notation: the act of writing forces you to decide.',
-      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: [], caption: 'Your page: {k:G major} and 3/4. The notes are yours to write.' },
+      figure: { kind: 'staff', key: 'G major', time: '3/4', notes: [{ note: 'D3', duration: 'q' }], caption: 'Your page: {k:G major}, 3/4 and the first note. The rest is yours.' },
     },
     {
       type: 'order',
@@ -343,7 +343,7 @@ const transcribingHarmony: TeacherLesson = {
         { text: '{c:G7} goes home to {c:C}', why: 'That is bar 8. In bar 4 the bass rises a step instead, from {n:G} to {n:A}.' },
         { text: 'The phrase stops on {c:G7}', why: 'A half close would stop on {r:V}. Here {r:V7} moves on, to {r:vi}.' },
       ],
-      explain: 'A deceptive cadence: {r:V7} to {r:vi}. The bass rises from {n:G} to {n:A} instead of falling to {n:C}, and the phrase has to try again.',
+      explain: 'A deceptive cadence: {r:V7} to {r:vi}. The bass steps up from {n:G} to {n:A} where the ear expected {n:C}, and the phrase has to try again.',
       fact: 'es-deceptive-bass',
     },
     { generate: 'cadence-ear', params: { types: ['authentic', 'deceptive', 'half', 'plagal'] } },
@@ -366,7 +366,7 @@ const transcribingHarmony: TeacherLesson = {
   facts: [
     { id: 'es-harmony-bottom-up', front: 'In which order do you transcribe a progression?', back: 'From the bottom up: the bass line first (sing it: it usually gives the roots), then each chord\'s quality, then sevenths and extensions.' },
     { id: 'es-a7-in-c', front: 'In {k:C major} you hear {c:A7} where {c:Am7} belongs. What gives it away?', back: 'Its third, {n:C#}, outside the key: {c:A7} is the secondary dominant of {c:Dm7}, {r:V7/ii}.' },
-    { id: 'es-deceptive-bass', front: 'How does a deceptive cadence sound in the bass?', back: '{r:V7} should fall to {r:I}; instead the bass rises a step to {r:vi}: {c:G7} to {c:Am} in {k:C major}.' },
+    { id: 'es-deceptive-bass', front: 'How does a deceptive cadence sound in the bass?', back: '{r:V7} should resolve to {r:I}; instead the bass steps up to {r:vi}: {c:G7} to {c:Am} in {k:C major}.' },
   ],
 };
 
@@ -403,7 +403,7 @@ const transcribingASolo: TeacherLesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Bars 1 to 4 from your transcription, at 100 BPM if you can, with the space where it belongs.',
+      prompt: 'Bars 1 to 4 from your transcription, at 100 BPM, with the space where it belongs.',
       notes: SOLO_BARS.slice(0, 4).flat(),
       octave: 'exact',
       tempo: SOLO_TEMPO,
@@ -419,7 +419,7 @@ const transcribingASolo: TeacherLesson = {
     {
       type: 'card',
       title: 'Then analyse it',
-      body: 'Annotate four things: the chord tones on the strong beats, the motif and what becomes of it, the space, and the techniques. The audio plays plain notes, so the techniques are yours to choose: a slide into the first {n:E}, say. Bar 5 is the place to start.',
+      body: 'Annotate four things: chord tones on the strong beats, the motif and what becomes of it, the space, and the techniques. My audio plays plain notes, so the techniques are yours: a slide into the first {n:E}, say. Start with bar 5.',
       figure: { kind: 'tab', tempo: SOLO_TEMPO, notes: [...SOLO_BARS[0], ...SOLO_BARS[4]], caption: 'Bar 1 over {c:A7}, then bar 5 over {c:D7}.' },
     },
     {
@@ -430,7 +430,7 @@ const transcribingASolo: TeacherLesson = {
         { text: 'A new idea', why: 'The same rhythm and the same shape: fifth, third, root, falling. Only the chord has changed.' },
         { text: 'A scale run', why: 'A run moves by step. This falls in thirds, exactly like bar 1.' },
       ],
-      explain: 'Bar 1 falls through the fifth, third and root of {c:A7}; bar 5 does the same on {c:D7}. One idea, made to fit each chord.',
+      explain: 'Bar 1 falls through the fifth, third and root of {c:A7}; bar 5 does the same on {c:D7}. One idea, made to fit the new chord.',
       fact: 'es-motif-moves',
     },
     {
@@ -440,10 +440,9 @@ const transcribingASolo: TeacherLesson = {
         { left: 'Bar 2, beat 1', right: 'The blue third, resolved' },
         { left: 'Bar 8', right: 'Two beats of space' },
         { left: 'Bars 13 and 15', right: 'The motif backwards' },
-        { left: 'Bars 16 and 18', right: 'The high point, {n:C}' },
         { left: 'Bar 23', right: 'The motif closes it' },
       ],
-      explain: 'A note outside the chord that resolves at once; silence to let the phrase breathe; the motif turned round; the climb to its top note; the first idea to end.',
+      explain: 'A note outside the chord that resolves at once; silence to let the phrase breathe; the motif turned round; and the first idea again, to end.',
       fact: 'es-solo-analysis',
     },
     {
@@ -451,7 +450,7 @@ const transcribingASolo: TeacherLesson = {
       prompt: 'What does the solo play on beats 1 and 3?',
       options: [
         { text: 'Chord tones, with one exception', correct: true },
-        { text: 'Any note of the pentatonic', why: 'Over {c:A7} that would include {n:D} and {n:C} on strong beats. Look again: they are chord tones.' },
+        { text: 'Any note of the pentatonic', why: 'The pentatonic would put {n:D} and {n:C} on strong beats over {c:A7}. Here the strong beats are chord tones, bar 2 aside.' },
         { text: 'Mostly rests', why: 'There is space, but most strong beats carry a note.' },
       ],
       explain: 'Every note struck on beat 1 or 3 is a tone of the chord of the moment, except the blue {n:C} in bar 2, which moves at once to {n:C#}. That is why the solo sounds like the changes.',
@@ -468,13 +467,13 @@ const transcribingASolo: TeacherLesson = {
       song: 'st-minor-blues-a',
       bars: [1, 2],
       minutes: 12,
-      body: 'Minor Blues in A at 80 BPM, bars 1 and 2 on loop, the screen turned away: rhythm, then pitches, on paper. Then bars 3 and 4, and on. Then look, count your errors, play it along with the Player, then in Wait mode, where the music waits for you.',
+      body: 'Minor Blues in A at 80 BPM, bars 1 and 2 on loop, the screen turned away: rhythm, then pitches, on paper. Then bars 3 and 4, and on. Then look, count your errors, and play it with the Player, then in Wait mode.',
     }),
     {
       type: 'true-false',
       statement: 'A solo in this style needs a new idea in every bar.',
       answer: false,
-      explain: 'One motif, moved to fit each chord, turned round and answered with space, carries two whole choruses. New ideas in every bar is not a style; it is a list.',
+      explain: 'One motif, moved to fit the chords, turned round and answered with space, carries two whole choruses. New ideas in every bar is not a style; it is a list.',
       fact: 'es-motif-moves',
     },
     toolTask({
@@ -483,13 +482,13 @@ const transcribingASolo: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-12-bar', 'a', 'jam'],
       minutes: 8,
-      body: 'Now two choruses of your own over the 12-bar in {k:A major}, in the same style: one motif fitted to each chord, chord tones on beats 1 and 3, room to breathe. The band shuffles, so swing your eighths. Play with it at 100 BPM, and record it.',
+      body: 'Now two choruses of your own over the 12-bar in {k:A major}, in the same style: one motif fitted to the chords, chord tones on beats 1 and 3, room to breathe. The band shuffles, so swing your eighths. Play with it at 100 BPM, and record it.',
     }),
     {
       type: 'choice',
       prompt: 'Which of these is a solo "in the same style"?',
       options: [
-        { text: 'One motif of your own, fitted to each chord', correct: true },
+        { text: 'One motif of your own, fitted to the chords', correct: true },
         { text: 'Mine, note for note, a fret higher', why: 'That is my solo, transposed. The style is the method, not the notes.' },
         { text: 'Every note of the scale, fast', why: 'Fast is not a style. Chord tones, a motif and space are.' },
       ],
@@ -498,7 +497,7 @@ const transcribingASolo: TeacherLesson = {
   ],
   facts: [
     { id: 'es-solo-analysis', front: 'Four things to annotate in a transcribed solo?', back: 'The chord tones on the strong beats, the motif and how it develops, the space, and the techniques.' },
-    { id: 'es-motif-moves', front: 'How does a blues solo fit one motif to three chords?', back: 'It moves the motif onto each chord\'s tones: fifth, third, root of {c:A7} ({n:E} {n:C#} {n:A}) becomes that of {c:D7} ({n:A} {n:F#} {n:D}).' },
+    { id: 'es-motif-moves', front: 'How does a blues solo fit one motif to changing chords?', back: 'It moves the motif onto each chord\'s tones: fifth, third, root of {c:A7} ({n:E} {n:C#} {n:A}) becomes that of {c:D7} ({n:A} {n:F#} {n:D}).' },
   ],
 };
 
@@ -572,7 +571,7 @@ const memorising: TeacherLesson = {
       tool: 'player',
       params: ['st-pimami-3-4', 'm7'],
       minutes: 6,
-      body: 'The study opens at bar 7. Start there and play on to the next cadence. Then tap bars 12, 3, 14 and 10 on the score, one at a time, and start from each. A bar you cannot start from is a gap in the map: mark it.',
+      body: 'The study opens at bar 7. Start there and play on to the end. Then tap bars 12, 3, 14 and 10 on the score, one at a time, and start from each. A bar you cannot start from is a gap in the map: mark it.',
     }),
     {
       type: 'play-phrase',
@@ -773,11 +772,10 @@ const recital: TeacherLesson = {
       pairs: [
         { left: 'Opener', right: 'Gran Vals' },
         { left: 'Centrepiece', right: 'Asturias' },
-        { left: 'Your own', right: 'Your composition' },
         { left: 'Jazz', right: 'The jazz ballad' },
         { left: 'Closer', right: 'The Irish Washerwoman' },
       ],
-      explain: 'A secure waltz to open, the most demanding piece in the middle, your own and a jazz ballad between, and a jig to send them home smiling.',
+      explain: 'A secure waltz to open, the most demanding piece in the middle, the jazz ballad and your own piece between, and a jig to send them home smiling.',
       fact: 'es-programme-contents',
     },
     {

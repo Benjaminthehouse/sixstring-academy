@@ -11,6 +11,7 @@ import {
   findTargets, plainText, soundPlan, solve, grade,
   type Exercise, type ExerciseStep, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type Step,
 } from '@/lessons';
+import { adaptLesson, adaptUnit } from '@/features/learn/model/conditions';
 import unit from './the-six-strings';
 
 const STANDARD = tuning('standard');
@@ -200,5 +201,21 @@ describe('the-six-strings: what the cards say', () => {
   it('does not claim that every fretboard picture puts string 1 on top', () => {
     // Chord boxes and some books draw the neck another way; only tab and this app's pictures are promised.
     for (const e of everything()) expect(plainText(e.type === 'flashcard' ? e.back : e.explain)).not.toMatch(/fretboard pictures always/i);
+  });
+});
+
+describe('the-six-strings: on the go', () => {
+  it('still teaches with Sound and Guitar off: at least four quiet questions a lesson, and a full checkpoint', () => {
+    const quiet = { guitar: false, sound: false };
+    for (const l of unit.lessons) {
+      const adapted = adaptLesson(l, quiet);
+      expect(adapted.needsSound, l.id).toBe(false);
+      const left = adapted.lesson.steps.filter((s) => 'generate' in s || s.type !== 'card');
+      expect(left.length, l.id).toBeGreaterThanOrEqual(4);
+      // Every play step that is left is its tapping version.
+      for (const s of left) if (!('generate' in s)) expect(['play-note', 'play-chord', 'play-phrase'], l.id).not.toContain(s.type);
+    }
+    const checkpointSteps = adaptUnit(unit, quiet).checkpoint?.steps ?? [];
+    expect(checkpointSteps.length).toBeGreaterThanOrEqual(6);
   });
 });

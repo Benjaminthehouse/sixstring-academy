@@ -223,8 +223,17 @@ function onHashChange(): void {
   }
 }
 
+/**
+ * Start watching history (done once when the kit loads; safe to call again). From the first load,
+ * not from the first dialog: after a reload, Back must still skip an entry a dialog of the earlier
+ * load left behind under another screen, even before any dialog of this load has opened.
+ */
+export function watchDialogHistory(): void {
+  listen();
+}
+
 function listen(): void {
-  if (listening || typeof window === 'undefined') return;
+  if (listening || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
   listening = true;
   // A reload while a dialog was open leaves this entry marked: no dialog of this page owns it.
   if (currentId() > 0) {
@@ -258,6 +267,8 @@ export function registerBackClose(onBack: () => boolean): () => void {
     schedule();
   };
 }
+
+watchDialogHistory();
 
 /** For tests: forget everything, as a fresh page load would (history itself is left alone). */
 export function resetBackClose(): void {

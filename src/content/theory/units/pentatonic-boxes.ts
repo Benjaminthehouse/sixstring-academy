@@ -19,7 +19,7 @@
  *   the fret below the target); the drones are struck before every note of the line, the way a
  *   guitarist practises over a drone alone.
  */
-import type { FretDot, Lesson, TabNote, Unit } from '@/lessons';
+import type { FretDot, Lesson, PlayPhraseExercise, TabNote, Unit } from '@/lessons';
 
 const U = 'pentatonic-boxes';
 
@@ -77,6 +77,30 @@ const boxDots = (box: readonly Spot[], opts: { fingers?: readonly number[]; degr
 const upTheBox = (box: readonly Spot[]): TabNote[] => box.map(([s, f], i) => note(s, f, i === box.length - 1 ? 'h' : 'q'));
 /** An order tile naming a position. At most 16 characters: "String 6 fret 10". */
 const tile = ([s, f]: Spot): string => `String ${s} fret ${f}`;
+/**
+ * Half a box (three strings, six notes) as a play step with its tapping version. A play step draws
+ * its phrase as tab that does not scroll on its own, and six notes is what fits a 360 px phone.
+ */
+const playHalf = (box: readonly Spot[], name: string, half: 0 | 1, prompt: string): PlayPhraseExercise => {
+  const part = box.slice(half * 6, half * 6 + 6);
+  const strings = half === 0 ? '6, 5 and 4' : '3, 2 and 1';
+  const names = part.map(([, , n]) => `{n:${n}}`).join(' ');
+  const where = [0, 2, 4].map((i) => `string ${part[i][0]} at ${i === 0 ? 'frets ' : ''}${part[i][1]} and ${part[i + 1][1]}`).join(', ');
+  return {
+    type: 'play-phrase',
+    prompt,
+    notes: upTheBox(part),
+    octave: 'exact',
+    tempo: 70,
+    explain: `Strings ${strings}, two notes each, low to high: ${names}.${half === 1 ? ' Then come back down the whole box, from the top.' : ''}`,
+    alternative: {
+      type: 'order',
+      prompt: `Put the ${name} notes of strings ${strings} in playing order, lowest first.`,
+      tiles: part.map(tile),
+      explain: `${where.charAt(0).toUpperCase()}${where.slice(1)}: ${names}.`,
+    },
+  };
+};
 
 /** Box 1 and box 2 together: box 1 dimmed, the shared notes ringed, box 2's roots marked. */
 const BOXES_1_AND_2: FretDot[] = [...BOX_1, ...BOX_2.filter(([s, f]) => !has(BOX_1, s, f))].map(([s, f, n]) =>
@@ -84,10 +108,7 @@ const BOXES_1_AND_2: FretDot[] = [...BOX_1, ...BOX_2.filter(([s, f]) => !has(BOX
 );
 
 /** An original phrase that travels up string 3 from box 1 into box 2 and on into box 3, ending on the root. */
-export const TRAVEL_PHRASE: TabNote[] = [
-  note(3, 5, 'e'), note(3, 7, 'e'), note(3, 9), note(2, 8, 'e'), note(2, 10, 'e'), note(3, 9),
-  note(3, 12), note(2, 10, 'e'), note(2, 13, 'e'), note(2, 10, 'h'),
-];
+export const TRAVEL_PHRASE: TabNote[] = [note(3, 5, 'e'), note(3, 7, 'e'), note(3, 9), note(3, 12), note(2, 10)];
 
 /** The same box (box 2 of A minor, box 1 of C major) over two drones, the drone struck before every note. */
 const overDrone = (drone: readonly [number, number], line: ReadonlyArray<readonly [number, number]>): TabNote[] =>
@@ -105,7 +126,7 @@ const pentatonicFormulas: Lesson = {
     {
       type: 'card',
       title: 'The minor pentatonic formula',
-      body: 'You know box 1 of {n:A} minor {t:pentatonic}. As {t:degree|degrees} of {n:A}, its five notes are {d:1} {d:b3} {d:4} {d:5} {d:b7}: the natural minor scale without its {d:2} and {d:b6}. That formula builds a minor pentatonic in any key.',
+      body: 'You know box 1 of the {n:A} minor {t:pentatonic|pentatonic} scale. As {t:degree|degrees} of {n:A}, its five notes are {d:1} {d:b3} {d:4} {d:5} {d:b7}: the natural minor scale without its {d:2} and {d:b6}. That formula builds a minor pentatonic in any key.',
       figure: {
         kind: 'fretboard',
         frets: [4, 8],
@@ -179,7 +200,7 @@ const pentatonicFormulas: Lesson = {
         dots: [dot(6, 0, 'E', { role: 'root' }), dot(6, 3, 'G', { role: 'target' }), dot(6, 5, 'A', { role: 'root' }), dot(6, 8, 'C', { role: 'target' })],
         caption: 'String 6: two minor roots ({n:E}, {n:A}) and, three frets up, their major twins.',
       },
-      tip: 'Musicians call the twins relative keys: {k:C major} and {k:A minor} share their notes. Going the other way, count three frets down.',
+      tip: 'Twins like these are relative keys: {k:A minor} and {k:C major} share all their notes.',
     },
     {
       type: 'choice',
@@ -260,7 +281,7 @@ const box2: Lesson = {
     {
       type: 'card',
       title: 'The next box up',
-      body: 'Box 1 is one of **five** {t:pentatonic-box|boxes} that together cover the neck. **Box 2** starts where box 1 ends: its lowest note on string 6 is {n:C} at fret 8, the scale\'s second note, and its lower notes are the upper notes of box 1.',
+      body: 'Box 1 is one of **five** {t:pentatonic-box|boxes} that cover the neck. **Box 2** starts where box 1 ends: on string 6 at fret 8, {n:C}, the scale\'s second note. Its lower notes are box 1\'s upper notes.',
       figure: { kind: 'fretboard', frets: [4, 11], dots: BOXES_1_AND_2, caption: 'Box 1 dimmed, box 2 bright. Ringed notes are in both; the roots are marked.' },
     },
     {
@@ -298,47 +319,11 @@ const box2: Lesson = {
       explain: 'Box 1 tops out at fret 8 on strings 6, 2 and 1 and at fret 7 on strings 5, 4 and 3. Box 2 starts on exactly those notes, so you can cross from one box to the other with no gap.',
       fact: 'boxes-box-2-overlap',
     },
-    {
-      type: 'fretboard-find',
-      prompt: 'Tap the two roots, the {n:A}s, in box 2 (frets 7 to 10).',
-      find: { note: 'A' },
-      mode: 'all',
-      octave: 'any',
-      frets: [7, 10],
-      explain: 'String 4 at fret 7 and string 2 at fret 10: two {n:A}s, an octave apart. String 4, fret 7 is a root of box 1 too.',
-      fact: 'boxes-box-2-frets',
-    },
-    {
-      type: 'play-phrase',
-      prompt: 'Play box 2 up, from its lowest note to its highest, one finger per fret.',
-      notes: upTheBox(BOX_2),
-      octave: 'exact',
-      tempo: 70,
-      explain: 'Two notes per string, string 6 up to string 1: C D E G A C D E G A C D. Then come back down the same way, from string 1 at fret 10.',
-      alternative: {
-        type: 'order',
-        prompt: 'Put the box 2 notes of strings 6, 5 and 4 in playing order, lowest first.',
-        tiles: BOX_2.slice(0, 6).map(tile),
-        explain: 'String 6 at frets 8 and 10, string 5 at 7 and 10, string 4 at 7 and 10: {n:C} {n:D} {n:E} {n:G} {n:A} {n:C}.',
-      },
-    },
-    {
-      type: 'card',
-      title: 'Five boxes, five first notes',
-      body: 'The pattern carries on up the neck. Each box starts on string 6 on the **next note** of the scale: box 1 on {n:A}, box 2 on {n:C}, box 3 on {n:D}, box 4 on {n:E}, box 5 on {n:G}. After that, box 1 again on the {n:A} at fret 17.',
-      figure: {
-        kind: 'fretboard',
-        frets: [5, 17],
-        dots: [
-          dot(6, 5, 'A', { label: '1', role: 'root' }), dot(6, 8, 'C', { label: '2' }), dot(6, 10, 'D', { label: '3' }),
-          dot(6, 12, 'E', { label: '4' }), dot(6, 15, 'G', { label: '5' }), dot(6, 17, 'A', { label: '1', role: 'root' }),
-        ],
-        caption: 'String 6: where each box of {n:A} minor pentatonic starts. Labels are box numbers.',
-      },
-    },
+    playHalf(BOX_2, 'box 2', 0, 'Play the lower half of box 2 up: strings 6, 5 and 4, one finger per fret.'),
+    playHalf(BOX_2, 'box 2', 1, 'Now the upper half of box 2: strings 3, 2 and 1, up to the top of the box.'),
     {
       type: 'match-pairs',
-      prompt: 'Match each box of {n:A} minor pentatonic with its first note on string 6.',
+      prompt: 'Each box starts on string 6 on the next note of the scale, A C D E G. Match each box with its first note.',
       pairs: [
         { left: 'Box 1', right: '{n:A}, fret 5' },
         { left: 'Box 2', right: '{n:C}, fret 8' },
@@ -346,7 +331,7 @@ const box2: Lesson = {
         { left: 'Box 4', right: '{n:E}, fret 12' },
         { left: 'Box 5', right: '{n:G}, fret 15' },
       ],
-      explain: 'The boxes start on the scale\'s notes in order, A C D E G, climbing string 6: frets 5, 8, 10, 12 and 15.',
+      explain: 'The boxes climb string 6 on the scale\'s notes in order: {n:A} at fret 5, {n:C} at 8, {n:D} at 10, {n:E} at 12, {n:G} at 15. Then box 1 again on the {n:A} at fret 17.',
       fact: 'boxes-box-starts',
     },
     { generate: 'neck-tones', params: { what: 'scale', scales: ['minor-pentatonic'], tonics: ['A', 'E', 'G', 'D', 'C'], span: 4, strings: [6, 5, 4] } },
@@ -417,7 +402,7 @@ const box3: Lesson = {
       mode: 'all',
       octave: 'any',
       frets: [9, 13],
-      explain: 'String 5 at fret 12 and string 2 at fret 10. They are an octave apart: two strings across, two frets back.',
+      explain: 'String 5 at fret 12 and string 2 at fret 10, an octave apart: three strings higher and two frets back, because the {n:B} string shifts the shape by a fret.',
       fact: 'boxes-box-3-roots',
     },
     {
@@ -448,20 +433,8 @@ const box3: Lesson = {
       explain: 'String 3 starts at fret 9 and string 2 ends at fret 13, so box 3 spans five frets. The other boxes fit in four.',
       fact: 'boxes-box-3-widest',
     },
-    {
-      type: 'play-phrase',
-      prompt: 'Play box 3 up, from string 6 at fret 10 to string 1 at fret 12.',
-      notes: upTheBox(BOX_3),
-      octave: 'exact',
-      tempo: 70,
-      explain: 'D E G A C D E G A C D E. Watch the shift on string 3, then come back down the same way.',
-      alternative: {
-        type: 'order',
-        prompt: 'Put the box 3 notes of strings 3, 2 and 1 in playing order, lowest first.',
-        tiles: BOX_3.slice(6).map(tile),
-        explain: 'String 3 at frets 9 and 12, string 2 at 10 and 13, string 1 at 10 and 12: {n:E} {n:G} {n:A} {n:C} {n:D} {n:E}.',
-      },
-    },
+    playHalf(BOX_3, 'box 3', 0, 'Play the lower half of box 3 up: strings 6, 5 and 4, frets 10 and 12.'),
+    playHalf(BOX_3, 'box 3', 1, 'Now the upper half: strings 3, 2 and 1. Slide your first finger back to fret 9 for string 3.'),
     {
       type: 'true-false',
       statement: 'Box 3 starts on string 6 on {n:D}, the third note of {n:A} minor pentatonic.',
@@ -582,20 +555,8 @@ const boxes4And5: Lesson = {
       explain: 'Frets 0 and 3 on strings 6, 5 and 1; 0 and 2 on strings 4 and 3; 1 and 3 on string 2, whose open {n:B} is not in the scale. Twelve notes.',
       fact: 'boxes-low-boxes',
     },
-    {
-      type: 'play-phrase',
-      prompt: 'Play box 5 low on the neck, around frets 2 to 5, from its lowest note up.',
-      notes: upTheBox(BOX_5_LOW),
-      octave: 'exact',
-      tempo: 70,
-      explain: 'G A C D E G A C D E G A, string 6 to string 1. Then come back down. Fret 5 at the top is where box 1 begins.',
-      alternative: {
-        type: 'order',
-        prompt: 'Put the low box 5 notes of strings 6, 5 and 4 in playing order, lowest first.',
-        tiles: BOX_5_LOW.slice(0, 6).map(tile),
-        explain: 'String 6 at frets 3 and 5, string 5 at 3 and 5, string 4 at 2 and 5: {n:G} {n:A} {n:C} {n:D} {n:E} {n:G}.',
-      },
-    },
+    playHalf(BOX_5_LOW, 'low box 5', 0, 'Play the lower half of box 5, low on the neck: strings 6, 5 and 4, around frets 2 to 5.'),
+    playHalf(BOX_5_LOW, 'low box 5', 1, 'Now the upper half: strings 3, 2 and 1. Fret 5 at the top is where box 1 begins.'),
     {
       type: 'true-false',
       statement: 'Low on the neck, the top notes of box 5 are the bottom notes of box 1 at fret 5.',
@@ -701,7 +662,7 @@ const connectingTheBoxes: Lesson = {
       type: 'card',
       title: 'Slide to change box',
       body: 'To travel, {t:slide} along one string from one box into the next. In this original phrase, string 3 carries you from box 1 (fret 7) into box 2 (fret 9), then on into box 3 (fret 12). Keep the finger pressed so the note rings as it moves.',
-      figure: { kind: 'tab', tempo: 80, notes: TRAVEL_PHRASE, caption: 'Slide 7 to 9, later 9 to 12, on string 3. It ends on the root, string 2 fret 10.' },
+      figure: { kind: 'tab', tempo: 80, notes: TRAVEL_PHRASE, caption: 'Slide 7 to 9, then 9 to 12, on string 3. It ends on the root, string 2 fret 10.' },
     },
     {
       type: 'play-phrase',
@@ -709,7 +670,7 @@ const connectingTheBoxes: Lesson = {
       notes: TRAVEL_PHRASE,
       octave: 'exact',
       tempo: 70,
-      explain: 'C, D, slide to E (box 2), G, A, E, slide to G (box 3), A, C and home to {n:A}. Two slides, three boxes, one phrase.',
+      explain: '{n:C}, {n:D}, slide to {n:E} (box 2), slide on to {n:G} (box 3), then home to the root, {n:A}. Two slides, three boxes, one bar.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'The phrase leaves box 1 at string 3, fret 7 and slides up into box 2. Tap the fret it lands on.',
@@ -919,7 +880,7 @@ const bendsThatLand: Lesson = {
     {
       type: 'card',
       title: 'Check it against the target',
-      body: 'To know where to stop, **play the target first**: string 3, fret 9. Then pick fret 7 and bend until it matches. Bend with your third finger, and put your first and second fingers on the string behind it to push too: three fingers are stronger than one.',
+      body: 'To know where to stop, **play the target first**: string 3, fret 9. Play it now and keep its sound in your ear. Then pick fret 7 and bend until it matches. Bend with your third finger, and put your first and second fingers on the string behind it to push too: three fingers are stronger than one.',
       tip: 'On strings 1 to 3, push the string up toward the thicker strings. If the two pitches wobble against each other, you are not there yet.',
     },
     {
@@ -932,7 +893,7 @@ const bendsThatLand: Lesson = {
     },
     {
       type: 'play-note',
-      prompt: 'Play string 3, fret 9 as your target. Then pick fret 7 and bend it up a whole step until it sounds the same, and hold it there.',
+      prompt: 'You have heard the target, fret 9. Now pick string 3 at fret 7 and bend it up a whole step until it sounds like fret 9. Hold it there.',
       note: 'E4',
       octave: 'exact',
       figure: { kind: 'fretboard', frets: [4, 10], strings: [3], dots: [dot(3, 7, 'D', { label: 'D' }), dot(3, 9, 'E', { role: 'target' })], caption: 'Bend fret 7 up to the pitch of fret 9: {n:E}.' },

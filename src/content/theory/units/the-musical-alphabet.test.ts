@@ -10,6 +10,7 @@ import {
   answerText, findTargets, generateExercise, grade, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type Step,
 } from '@/lessons';
+import { adaptLesson, adaptUnit } from '@/features/learn/model/conditions';
 import unit from './the-musical-alphabet';
 
 const lesson = (id: string): Lesson => {
@@ -265,5 +266,21 @@ describe('the-musical-alphabet: every exercise', () => {
       const p = plainText(e.prompt);
       expect(p, p).not.toMatch(/^(And|So|Now)\b|\bthat note\b|\bthis one\b/);
     }
+  });
+});
+
+describe('the-musical-alphabet: on the go', () => {
+  it('still teaches with Sound and Guitar off: at least four quiet questions a lesson, and a full checkpoint', () => {
+    const quiet = { guitar: false, sound: false };
+    for (const l of unit.lessons) {
+      const adapted = adaptLesson(l, quiet);
+      expect(adapted.needsSound, l.id).toBe(false);
+      const left = adapted.lesson.steps.filter((s) => 'generate' in s || s.type !== 'card');
+      expect(left.length, l.id).toBeGreaterThanOrEqual(4);
+      // Every play step that is left is its tapping version.
+      for (const s of left) if (!('generate' in s)) expect(['play-note', 'play-chord', 'play-phrase'], l.id).not.toContain(s.type);
+    }
+    const checkpointSteps = adaptUnit(unit, quiet).checkpoint?.steps ?? [];
+    expect(checkpointSteps.length).toBeGreaterThanOrEqual(6);
   });
 });

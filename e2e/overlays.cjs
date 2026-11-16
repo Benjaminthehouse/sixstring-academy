@@ -111,6 +111,24 @@ async function toasts(browser, url) {
   const after = await toastsOnScreen(page);
   check(group, 'once the sheet closes, the rewards show (they are still felt)', after.some((t) => /XP/.test(t.text)), JSON.stringify(after.map((t) => t.text)));
   await ctx.shot('rewards-after-sheet-phone');
+
+  // A sheet that reaches the top of the screen (the tuner's Tuning sheet): a reply goes under its
+  // header, so the title and the Close button stay clear.
+  await page.locator('main').getByRole('button', { name: /tuning|standard/i }).first().click();
+  await page.waitForSelector('[role="dialog"] [data-ui-dialog-header]');
+  await page.waitForTimeout(600);
+  await reply(page, 'Copied');
+  await page.waitForTimeout(500);
+  const tall = await page.evaluate(() => {
+    const t = document.querySelector('[data-toast]')?.getBoundingClientRect();
+    const d = document.querySelector('[role="dialog"]');
+    const head = d.querySelector('[data-ui-dialog-header]').getBoundingClientRect();
+    const close = d.querySelector('button[aria-label="Close"]').getBoundingClientRect();
+    return { toast: t && [Math.round(t.top), Math.round(t.bottom)], panelTop: Math.round(d.getBoundingClientRect().top), head: [Math.round(head.top), Math.round(head.bottom)], close: Math.round(close.bottom) };
+  });
+  check(group, 'a tall sheet: a reply sits under its header, clear of the title and Close', tall.toast && tall.panelTop < 100 && tall.toast[0] >= tall.head[1] && tall.toast[0] >= tall.close, JSON.stringify(tall));
+  await ctx.shot('reply-over-tall-sheet-phone');
+  await closeDialogs(page);
   await ctx.close();
 
   // A finished lesson: XP, a first achievement or three, a crown, maybe a level, plus replies.
@@ -293,6 +311,18 @@ async function immersive(browser, url) {
   await ctx.goto('play--hot-cross-buns', 'main[data-route="play"]', 1200);
   const play = await ctx.page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom));
   check('immersive', 'scroll padding follows the tab bar: kept on Today, gone on the player', home >= 60 && play <= 20, JSON.stringify({ home, play }));
+  // Screens that put data-layout="phone" on their own elements (scales, reference) are not
+  // immersive: the tab bar stays its full height and everything keeps clear of it.
+  for (const route of ['scales--c--major', 'reference']) {
+    await ctx.goto(route, 'main[data-route] [data-layout="phone"]', 800);
+    const bar = await ctx.page.evaluate(() => ({
+      immersive: document.querySelector('[data-immersive]').dataset.immersive,
+      tabbar: Math.round(document.querySelector('nav[aria-label="Main"]')?.getBoundingClientRect().height ?? 0),
+      padding: parseFloat(getComputedStyle(document.querySelector('main')).paddingBottom),
+      scroll: parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom),
+    }));
+    check('immersive', `#${route}: a screen's own data-layout="phone" does not hide the tab bar`, bar.immersive === 'none' && bar.tabbar >= 60 && bar.padding >= 60 && bar.scroll >= 60, JSON.stringify(bar));
+  }
   await ctx.close();
 }
 

@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { DOUBLE_INLAY_FRETS, INLAY_FRETS, midiAt, noteAt, tuningIntervals } from '@/core/guitar';
 import { pcName } from '@/core/theory';
 import {
-  findTargets, formatProblems, plainText, soundPlan, validateCourse,
+  findTargets, formatProblems, generateExercise, plainText, soundPlan, validateCourse,
   type CardStep, type ChoiceExercise, type Exercise, type FretboardFigure, type FretboardFindExercise, type FretboardNameExercise,
-  type Lesson, type ListenChoiceExercise, type Step,
+  type GeneratedStep, type Lesson, type ListenChoiceExercise, type Step,
 } from '@/lessons';
 import { assembleTheory } from '../index';
 import unit from './notes-on-the-neck';
@@ -246,6 +246,44 @@ describe('notes-on-the-neck: octave shapes', () => {
     const q = exercises(lesson('octave-shapes-6-and-5')).find((e): e is ChoiceExercise => e.type === 'choice')!;
     const s = shape(5, 7);
     expect(correctText(q)).toBe(`String ${s.string}, fret ${s.fret}`);
+  });
+
+  /** The same pitch one string thinner: five frets lower, four from string 3 to string 2. */
+  const nextThinner = (p: { string: number; fret: number }) => ({ string: p.string - 1, fret: p.fret - (p.string === 3 ? 4 : 5) });
+  const same = (a: { string: number; fret: number }, b: { string: number; fret: number }) => a.string === b.string && a.fret === b.fret;
+
+  it('the "off the edge" card is right: C at 6:8, its shape at 4:10, the same C at 3:5', () => {
+    const card = cards(lesson('octave-shapes-6-and-5')).find((c) => /off the edge/.test(c.title ?? ''))!;
+    const dots = (card.figure as FretboardFigure).dots!;
+    expect(dots.map((d) => midiAt(d))).toEqual([48, 60, 60]);
+    expect(shape(6, 8)).toEqual({ string: 4, fret: 10 });
+    expect(nextThinner(shape(6, 8))).toEqual({ string: 3, fret: 5 });
+    expect(midiAt(nextThinner({ string: 3, fret: 9 }))).toBe(midiAt({ string: 3, fret: 9 })); // four frets across the B string
+    // The 4-and-3 lesson reminds the learner of the same rule.
+    expect(JSON.stringify(lesson('octave-shapes-4-and-3').steps)).toMatch(/off the edge/);
+  });
+
+  it('every octave drill draw can be answered with what the lessons teach, on a neck a phone shows whole', () => {
+    const drills = unit.lessons.flatMap((l) => l.steps.filter((s): s is GeneratedStep => 'generate' in s && s.generate === 'interval-on-neck'));
+    expect(drills.length).toBe(3);
+    let offShape = 0;
+    for (const step of drills) {
+      const [lo, hi] = step.params!.frets as [number, number];
+      expect(hi - lo, 'frets a phone shows at once').toBeLessThanOrEqual(8);
+      for (let seed = 1; seed <= 300; seed++) {
+        const ex = generateExercise(step, { seed, difficulty: (seed % 11) / 10, level: 'beginner' }) as FretboardFindExercise;
+        if (!('interval' in ex.find)) throw new Error('not an interval find');
+        const from = ex.find.from;
+        const targets = findTargets(ex);
+        const s = shape(from.string, from.fret);
+        // Either the shape itself, or (when it runs off the picture) its note one string thinner.
+        const reachable = targets.some((t) => same(t, s)) || targets.some((t) => same(t, nextThinner(s)));
+        expect(reachable, `${JSON.stringify(step.params)} seed ${seed}: R at ${from.string}:${from.fret}`).toBe(true);
+        if (!targets.some((t) => same(t, s))) offShape++;
+      }
+    }
+    // The off-edge case is the exception, not the rule.
+    expect(offShape / 900).toBeLessThan(0.3);
   });
 
   it('strings 6 and 1 at one fret are two octaves apart', () => {

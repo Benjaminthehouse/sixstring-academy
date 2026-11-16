@@ -201,8 +201,8 @@ const keyByEar: TeacherLesson = {
         { text: '{k:E minor}', why: 'Same notes as {k:G major}, but the tune rests on {n:G} and its chord is major.' },
         { text: '{k:C major}' },
       ],
-      hint: 'The last note is on string 6 this time.',
-      explain: 'Home moved to {n:G}: string 6, fret 3. Same tune, new home. That is all a change of key is.',
+      hint: 'Hum the last note, then look for that letter low on string 6.',
+      explain: 'Home moved to {n:G}: the open string 3, or string 6, fret 3 an octave lower. Same tune, new home. That is all a change of key is.',
     },
     toolTask({
       id: 'home-note-drill',
@@ -235,9 +235,9 @@ const keyByEar: TeacherLesson = {
       body: 'Play Swing Low, Sweet Chariot at 72 BPM in listen mode, and do not look at the screen. Hum along, find home on string 6 or 5, then strum the major and the minor chord on it. Say the key out loud, then check the song in the Songs library.',
       fallback: {
         tool: 'player',
-        params: ['down-in-the-valley'],
-        title: 'Find the key: Down in the Valley',
-        body: 'Swing Low is not in the Songs library yet, so take Down in the Valley at 108 BPM: listen without looking, find home on string 6 or 5, try the major and the minor chord on it. Say the key out loud, then check the song in the Songs library.',
+        params: ['joy-to-the-world'],
+        title: 'Find the key: Joy to the World',
+        body: 'Swing Low is not in the Songs library yet, so take Joy to the World, slow and broad at 72 BPM, in listen mode. Do not look at the screen: hum along, find home on string 6 or 5, then strum the major and the minor chord on it. Say the key out loud, then check the song in the Songs library.',
       },
     }),
     {
@@ -337,7 +337,7 @@ const chordsByEar: TeacherLesson = {
       text: '___  ___  {c:A}  {c:A}',
       blanks: ['{c:F#m}', '{c:E}'],
       bank: ['{c:D}'],
-      explain: 'Bar 1 is {c:F#m}, the {r:vi}: a minor colour on "was blind". Bar 2 is {c:E}, the {r:V}, leading home to {c:A}.',
+      explain: 'Bar 1 is {c:F#m}, the {r:vi}: a minor colour on "blind". Bar 2 is {c:E}, the {r:V}, leading home to {c:A}.',
     },
     {
       type: 'card',
@@ -360,7 +360,7 @@ const chordsByEar: TeacherLesson = {
       song: 'amazing-grace',
       minutes: 6,
       body: 'The Player\'s Amazing Grace is in {k:G major}, at 84 BPM. Do not look at the chord names: follow the bass and write the chords bar by bar from the short list in G, {c:G} {c:C} {c:D} {c:Em}. Then compare.',
-      tip: 'Two bars add a 7, {c:D7} and {c:G7}: same chords, one extra colour note.',
+      tip: 'Two chords add a 7, {c:D7} and {c:G7}: same chord, one extra colour note.',
     }),
     {
       type: 'true-false',
@@ -395,7 +395,7 @@ const melodyByEar: TeacherLesson = {
       type: 'card',
       title: 'The first note, and only that',
       body: 'Here is the first note, and nothing else: the open string 4, {n:D}. Most melodies move by step or by a small leap, so the next note is usually close by: a fret or two away, or on the next string.',
-      figure: { kind: 'fretboard', frets: [0, 4], dots: [{ string: 4, fret: 0, note: 'D3', role: 'root' }], caption: 'Phrase 1 starts here: the open string 4.' },
+      figure: { kind: 'fretboard', frets: [0, 4], dots: [{ string: 4, fret: 0, note: 'D3', role: 'target' }], caption: 'Phrase 1 starts here: the open string 4.' },
     },
     {
       type: 'listen-choice',
@@ -415,7 +415,7 @@ const melodyByEar: TeacherLesson = {
       octave: 'exact',
       frets: [0, 4],
       strings: [6, 5, 4],
-      shown: [{ string: 4, fret: 0, note: 'D3', role: 'root' }],
+      shown: [{ string: 4, fret: 0, note: 'D3', role: 'target', label: 'D' }],
       explain: 'It drops a small leap to {n:B}, string 5, fret 2: {n:D} {n:E} {n:D} {n:B}, sung twice.',
     },
     {
@@ -430,7 +430,7 @@ const melodyByEar: TeacherLesson = {
     {
       type: 'card',
       title: 'Now check it against the tab',
-      body: 'When you have it, check it against the tab. Phrase 1 is {n:D} {n:E} {n:D} {n:B}, twice; phrase 2 leaps up to {n:A}, the one big jump, and comes home to {n:D}. If yours is different, find the first note that is off and fix only that one.',
+      body: 'When you have it, check it against the tab. Phrase 1 is {n:D} {n:E} {n:D} {n:B}, twice; phrase 2 leaps up to {n:A}, the one big jump, and comes back down to {n:D}. If yours is different, find the first note that is off and fix only that one.',
       figure: { kind: 'tab', time: '6/8', tempo: 66, notes: [...SILENT_1, ...SILENT_2], caption: 'Silent Night, phrases 1 and 2.' },
     },
     {
@@ -439,7 +439,7 @@ const melodyByEar: TeacherLesson = {
       notes: [...SILENT_1, ...SILENT_2],
       octave: 'exact',
       tempo: 66,
-      explain: 'String 4 open and fret 2, string 5, fret 2 for {n:B}; then string 3, fret 2 ({n:A}), string 4, fret 4 ({n:F#}), the open string 3 ({n:G}) and home to the open string 4.',
+      explain: 'String 4 open and fret 2, string 5, fret 2 for {n:B}; then string 3, fret 2 ({n:A}), string 4, fret 4 ({n:F#}), the open string 3 ({n:G}) and back to the open string 4.',
       alternative: {
         type: 'order',
         prompt: 'Put phrase 1 in order.',
@@ -477,7 +477,7 @@ const melodyByEar: TeacherLesson = {
         tool: 'player',
         params: ['silent-night', 'm9-12', 't80'],
         title: 'The rest of Silent Night, by ear',
-        body: 'Shenandoah is not in the Songs library yet, so finish Silent Night by ear. Pick the Tune track, loop bars 9 to 12 at 80 % (60 BPM), then bars 17 to 20, with the screen turned away: sing each phrase, find its first note, then the rest.',
+        body: 'Shenandoah is not in the Songs library yet, so finish Silent Night by ear. Pick the Tune track, loop bars 9 to 12 at 80 % (60 BPM), then bars 17 to 20 and 21 to 24, with the screen turned away: sing each phrase, find its first note, then the rest.',
       },
     }),
     playerTask({
@@ -649,7 +649,7 @@ const lockingWithTheBand: TeacherLesson = {
       title: 'The click on 2 and 4',
       exercise: 'tech-metronome-2-4',
       minutes: 4,
-      body: 'Set the ladder to 80 BPM: the click is your snare. Strum the folk pattern on {c:G}, down, down-up, up-down-up, and count "one, TWO, three, FOUR" out loud. When the clicks feel like the snare and not like beat 1, you have it.',
+      body: 'Set the ladder to 80 BPM: the click is your snare. Strum the folk pattern on {c:G} (the screen shows it on {c:Em}; either works) and count "one, TWO, three, FOUR" aloud. When the clicks feel like the snare, not beat 1, you have it.',
     }),
     {
       type: 'card',
@@ -750,7 +750,7 @@ const toneAndDynamics: TeacherLesson = {
       title: 'Your tone is in your hands',
       art: 'guitar-parts',
       body: 'Most of your tone is in your hands. Pick near the bridge for a bright, tight sound; over the middle of the strings for the everyday one; near the neck for a warm, round one. Dig in hard for an edge, or brush lightly for a whisper. Same guitar, three guitars.',
-      tip: 'Near the bridge means a hand\'s width from it, not on it.',
+      tip: 'Near the bridge means a finger or two from it; a hand\'s width away is already the everyday spot.',
     },
     {
       type: 'match-pairs',
@@ -783,13 +783,13 @@ const toneAndDynamics: TeacherLesson = {
     {
       type: 'card',
       title: 'Soft and loud, on purpose',
-      body: '{t:dynamics|Dynamics}, playing soft and loud on purpose, are the cheapest way to make anything sound more musical. The marks, softest to loudest: pp, p, mf, f, ff. A {t:crescendo} grows from soft to loud. The tempo never changes with the volume.',
+      body: '{t:dynamics|Dynamics}, playing soft and loud on purpose, are the cheapest way to make anything sound more musical. The marks, softest to loudest: pp, p, mp, mf, f, ff. A {t:crescendo} grows from soft to loud. The tempo never changes with the volume.',
     },
     {
       type: 'order',
       prompt: 'Put the dynamic marks in order, softest first.',
-      tiles: ['pp: very soft', 'p: soft', 'mf: medium loud', 'f: loud', 'ff: very loud'],
-      explain: 'p is piano (soft), f is forte (loud); double them for very, and mf, mezzo forte, sits in the middle.',
+      tiles: ['pp: very soft', 'p: soft', 'mp: medium soft', 'mf: medium loud', 'f: loud', 'ff: very loud'],
+      explain: 'p is piano (soft), f is forte (loud); double them for very. mp and mf, mezzo piano and mezzo forte, are the two middle steps.',
       fact: 'be-dynamic-marks',
     },
     techniqueTask({
@@ -836,7 +836,7 @@ const toneAndDynamics: TeacherLesson = {
   ],
   facts: [
     { id: 'be-pick-zones', front: 'Where do you pick for a bright sound, and for a warm one?', back: 'Near the bridge for bright and tight; near the neck for warm and round. Dig in for an edge, brush lightly for a whisper.' },
-    { id: 'be-dynamic-marks', front: 'The dynamic marks from softest to loudest?', back: 'pp, p, mf, f, ff. Playing louder never means playing faster.' },
+    { id: 'be-dynamic-marks', front: 'The dynamic marks from softest to loudest?', back: 'pp, p, mp, mf, f, ff. Playing louder never means playing faster.' },
   ],
 };
 
@@ -921,7 +921,7 @@ const devGraduation: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-turnaround', 'a', 'jam'],
       minutes: 15,
-      body: 'Set the band to 96 BPM: the 12-bar in A, {c:A7} {c:D7} {c:E7}. Come in with the turnaround on bars 11 and 12, then the chart: 2 choruses shuffle, 2 solo, 1 comping, end on {c:A7}. Three takes, recorded on your phone.',
+      body: 'Set the band to 96 BPM: {c:A7} {c:D7} {c:E7}. Come in at bar 11 with the turnaround line, and hit {c:E7} with the band on beat 3 of bar 12. Then 2 choruses shuffle, 2 solo, 1 comping, end on {c:A7}. Three takes, on your phone.',
       tip: 'Comping: short chords on 2 and 4, with space.',
     }),
     {

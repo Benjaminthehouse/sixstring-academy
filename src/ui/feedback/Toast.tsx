@@ -1,9 +1,9 @@
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, IconButton } from '../actions/Button';
 import { renderIcon, type IconSource } from '../icon/Icon';
 import { cx } from '../util/cx';
-import { openDialogCount, subscribeDialogs, useDialogOpen } from './overlays';
+import { openDialogCount, subscribeDialogs, toastTopOverDialog, useDialogOpen } from './overlays';
 import { Portal } from './Portal';
 import { createToastStore, type ToastItem, type ToastOptions, type ToastStore, type ToastTone } from './toastStore';
 import styles from './Toast.module.css';
@@ -113,6 +113,41 @@ export function ToastViewport() {
   const listRef = useRef<HTMLOListElement | null>(null);
   /** Where focus was before the keyboard shortcut moved it into a toast. */
   const returnTo = useRef<HTMLElement | null>(null);
+  // A dialog that reaches the top of the screen (a tall sheet, a drawer): the stack goes under its
+  // header rather than over its title and Close button.
+  const [topOverDialog, setTopOverDialog] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!overDialog) {
+      setTopOverDialog(null);
+      return undefined;
+    }
+    const place = () => {
+      const list = listRef.current;
+      const panels = document.querySelectorAll<HTMLElement>('[data-ui-dialog]');
+      const panel = panels[panels.length - 1];
+      if (!list || !panel) {
+        setTopOverDialog(null);
+        return;
+      }
+      // Layout positions: the panel's opening animation moves it with a transform, which offsetTop ignores.
+      const origin = panel.offsetParent?.getBoundingClientRect() ?? { top: 0, left: 0 };
+      const top = origin.top + panel.offsetTop;
+      const left = origin.left + panel.offsetLeft;
+      const header = panel.querySelector<HTMLElement>('[data-ui-dialog-header]');
+      const headerBottom = header ? top + header.offsetTop + header.offsetHeight : top;
+      const column = list.getBoundingClientRect();
+      const edge = parseFloat(getComputedStyle(document.documentElement).fontSize) * (window.innerWidth >= 720 ? 1.5 : 0.75) || 12;
+      const next = toastTopOverDialog({ left: column.left, right: column.right, height: list.offsetHeight }, { top, left, right: left + panel.offsetWidth, bottom: top + panel.offsetHeight }, headerBottom, edge, 8);
+      setTopOverDialog((previous) => (previous === next ? previous : next));
+    };
+    place();
+    window.addEventListener('resize', place);
+    const off = subscribeDialogs(place);
+    return () => {
+      window.removeEventListener('resize', place);
+      off();
+    };
+  }, [overDialog, items]);
 
   // A toast leaves after a few seconds and sits at the very end of the tab order, so its action
   // ("Undo") would be out of reach of the keyboard. Alt+T moves focus to the newest toast, which
@@ -172,6 +207,7 @@ export function ToastViewport() {
         ref={listRef}
         className={cx(styles.viewport, overDialog && styles.overDialog)}
         data-over-dialog={overDialog ? '' : undefined}
+        style={overDialog && topOverDialog !== null ? { top: topOverDialog } : undefined}
         aria-label="Notifications"
         aria-keyshortcuts="Alt+T"
         aria-live="polite"

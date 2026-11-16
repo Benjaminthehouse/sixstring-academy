@@ -192,6 +192,7 @@ const fivePositions: TeacherLesson = {
       title: 'Five positions, five shapes',
       body: 'Each CAGED chord shape has a scale position around it. {k:C major}: the C shape at frets 0 to 3, the A shape at frets 2 to 6, the G shape at frets 4 to 8, the E shape at frets 7 to 10 and the D shape at frets 9 to 13. Learn each one root to root, then join them.',
       figure: { kind: 'fretboard', frets: [0, 3], root: 'C', labels: 'degree', derive: { scale: 'major', tonic: 'C' }, caption: 'Position 1, the C shape: every note of {k:C major} in frets 0 to 3.' },
+      tip: 'The A and D shapes span five frets. Shift a finger by a fret rather than forcing the stretch, and stop if your hand aches.',
     },
     {
       type: 'match-pairs',
@@ -259,7 +260,7 @@ const fivePositions: TeacherLesson = {
       tool: 'scales',
       params: ['c', 'major', 'caged-a'],
       minutes: 4,
-      body: 'Open {k:C major} in the A shape with the labels set to degrees. Play it slowly and say the degree of each note. Then switch to the G, E and D shapes: the 1s are always where the chord\'s roots are.',
+      body: 'Open {k:C major} in the A shape with the labels set to degrees. Play it slowly and say the degree of each note. Then switch to the G, E and D shapes: the R dots, the roots, are always where the chord\'s roots are.',
     }),
     {
       type: 'fretboard-name',
@@ -347,12 +348,12 @@ const oneMelody: TeacherLesson = {
       bars: [1, 8],
       tempo: 75,
       minutes: 3,
-      body: 'Same 8 bars, now in time at 75 % (72 BPM), while the teacher strums the open {c:C} shape under you.',
+      body: 'Same 8 bars, now in time at 75 % (72 BPM), while the Teacher track strums the open {c:C} shape under you.',
     }),
     {
       type: 'card',
       title: 'The same bar in the E shape',
-      body: 'Now bar 1 again in the E shape, 7th position: {n:E} at string 3, fret 9, {n:G} at string 2, fret 8, {n:E} again, {n:D} at string 3, fret 7 and {n:C} at string 4, fret 10. The same five notes, a whole new place. The teacher plays the E-shape {c:C} (8-10-10-9-8-8) under it.',
+      body: 'Now bar 1 again in the E shape, 7th position: {n:E} at string 3, fret 9, {n:G} at string 2, fret 8, {n:E} again, {n:D} at string 3, fret 7 and {n:C} at string 4, fret 10. The same five notes, a whole new place. The Teacher track plays the E-shape {c:C} (8-10-10-9-8-8) under it.',
       figure: { kind: 'tab', tempo: 72, notes: MELODY_E_SHAPE, caption: 'Bar 1 in the E shape: the same {n:E} {n:G} {n:E} {n:D} {n:C}.' },
     },
     {
@@ -393,7 +394,7 @@ const oneMelody: TeacherLesson = {
     }),
     {
       type: 'fretboard-name',
-      prompt: 'In the G shape, 5th position, the tune\'s {n:D} is on string 3. Which note is string 3, fret 7?',
+      prompt: 'In the G shape, 5th position, the tune\'s fourth note is string 3, fret 7. Which note is it?',
       position: { string: 3, fret: 7 },
       ask: 'note',
       spelling: 'any',
@@ -596,7 +597,7 @@ const fiddleTunes: TeacherLesson = {
       notes: CROSSING_A,
       octave: 'exact',
       tempo: 60,
-      explain: '{n:C} on the beat with a downstroke, {n:E} on the "and" with an upstroke: the pick escapes upward between the strings.',
+      explain: '{n:C} on the beat with a downstroke, {n:E} on the "and" with an upstroke. After the down, the pick ends between the two strings, so it has to hop out over string 2 to catch it from below.',
       alternative: {
         type: 'tap-rhythm',
         prompt: 'Tap the pattern: eight even notes, two for every click.',
@@ -647,9 +648,9 @@ const fiddleTunes: TeacherLesson = {
       pairs: [
         { left: 'Soldier\'s Joy', right: '{k:D major}' },
         { left: 'Turkey in the Straw', right: '{k:G major}' },
-        { left: 'Every fiddle tune', right: 'AABB, eight bars a part' },
+        { left: 'Most fiddle tunes', right: 'AABB, eight bars a part' },
       ],
-      explain: 'Soldier\'s Joy sits in {k:D major} with {c:D}, {c:A} and {c:G}; Turkey in the Straw in {k:G major} with {c:G}, {c:C} and {c:D}. Both are AABB.',
+      explain: 'Soldier\'s Joy sits in {k:D major} with {c:D}, {c:A} and {c:G}; Turkey in the Straw in {k:G major} with {c:G}, {c:C} and {c:D}. Both are AABB, like most fiddle tunes, though not every one.',
     },
     playerTask({
       id: 'turkey-in-the-straw',
@@ -765,13 +766,13 @@ const jigs: TeacherLesson = {
       bars: [1, 10],
       tempo: 65,
       minutes: 5,
-      body: 'Loop the A part, bars 1 to 10 with the pickup and both endings, at 65 % (60 BPM, counting dotted quarters). Choose your picking, option one or two, and keep it the whole way.',
+      body: 'Loop the A part, bars 1 to 10 with the pickup and both endings, at 65 % (60 BPM, counting dotted quarters; the tempo button shows 90 bpm, in quarter notes). Choose your picking, option one or two, and keep it the whole way.',
     }),
     {
       type: 'true-false',
       statement: 'With strict alternation, the second group of three in a bar starts with an upstroke.',
       answer: true,
-      explain: 'Down-up-down uses three strokes, so the next stroke is up: up-down-up. Two bars later you are back where you started.',
+      explain: 'Down-up-down uses three strokes, so the next stroke is up: up-down-up. Six strokes fill the bar, so the next bar starts on a down again.',
       fact: 'ms-jig-picking',
     },
     playerTask({

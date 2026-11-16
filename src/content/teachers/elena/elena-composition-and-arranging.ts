@@ -980,7 +980,6 @@ const alternateTunings: TeacherLesson = {
     {
       type: 'choice',
       prompt: 'In bar 1 of the Air, which open strings ring under the tune?',
-      figure: { kind: 'tab', notes: DADGAD_TUNE, tuning: 'dadgad', time: '3/4', tempo: 60, caption: 'The tune of bars 1 and 2, frets in DADGAD.' },
       options: [
         { text: 'String 6 and string 2', correct: true },
         { text: 'String 5 and string 4', why: 'Those come later; bar 1 rings on strings 6 and 2.' },
@@ -992,7 +991,8 @@ const alternateTunings: TeacherLesson = {
     {
       type: 'card',
       title: 'Your own air',
-      body: 'Now compose: an 8-bar air in DADGAD with at least two open strings ringing as drones. Write the tab with the tuning above it, and bring it in with Scan & Import (Paste tab or chords) to hear it back. Then tune back to standard: the rest of the course is in it.',
+      body: 'Now compose: an 8-bar air in DADGAD with at least two open strings ringing as drones. Write the tab with the tuning above it, as below, and bring it in with Scan & Import (Paste tab or chords) to hear it back. Then tune back to standard: the rest of the course is in it.',
+      figure: { kind: 'tab', notes: DADGAD_TUNE, tuning: 'dadgad', time: '3/4', tempo: 60, caption: 'The Air\'s tune, bars 1 and 2: every fret a DADGAD fret.' },
     },
     toolTask({
       id: 'tune-standard',

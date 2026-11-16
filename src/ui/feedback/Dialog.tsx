@@ -151,9 +151,9 @@ function Dialog({ open, onClose, title, hideTitle, description, footer, size = '
           pressedBackdrop.current = false;
         }}
       >
-        <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description != null ? descId : undefined} tabIndex={-1} className={cx(styles.panel, styles[`size-${size}`], className)}>
+        <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description != null ? descId : undefined} tabIndex={-1} className={cx(styles.panel, styles[`size-${size}`], className)} data-ui-dialog="">
           <div className={styles.grip} aria-hidden="true" {...dragHandlers} />
-          <div className={cx(styles.header, !dismissable && styles.noClose, hideTitle && description == null && !dismissable && 'sr-only')} {...dragHandlers}>
+          <div className={cx(styles.header, !dismissable && styles.noClose, hideTitle && description == null && !dismissable && 'sr-only')} data-ui-dialog-header="" {...dragHandlers}>
             <div className={styles.titles}>
               <h2 id={titleId} className={cx(styles.title, hideTitle && 'sr-only')}>
                 {title}

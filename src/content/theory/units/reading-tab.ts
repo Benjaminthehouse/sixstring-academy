@@ -491,7 +491,7 @@ const techniqueSymbols: Lesson = {
     {
       type: 'card',
       title: 'Slides: / and \\',
-      body: '**/** means **slide up**. In 5/7, pick fret 5 and keep pressing as you glide the same finger up to fret 7: the pitch rises smoothly. **\\\\** means **slide down**: 7\\\\5 glides from fret 7 back to fret 5.',
+      body: '**/** means {t:slide} **up**. In 5/7, pick fret 5 and keep pressing as you glide the same finger up to fret 7: the pitch rises smoothly. **\\\\** means **slide down**: 7\\\\5 glides from fret 7 back to fret 5.',
       figure: {
         kind: 'fretboard',
         frets: [4, 9],
@@ -522,7 +522,7 @@ const techniqueSymbols: Lesson = {
         kind: 'fretboard',
         frets: [4, 9],
         dots: [
-          { string: 3, fret: 7, note: 'D4', role: 'root' },
+          { string: 3, fret: 7, note: 'D4', role: 'target' },
           { string: 3, fret: 9, note: 'E4', role: 'ghost' },
         ],
         caption: '7b9: press fret 7 ({n:D}) and bend until it sounds like fret 9 ({n:E}).',
@@ -650,7 +650,7 @@ const tabAndRhythm: Lesson = {
       type: 'true-false',
       statement: 'Plain tab always shows the exact rhythm.',
       answer: false,
-      explain: 'Plain tab shows the string and fret. How long each note lasts usually comes from stems under the tab, from notation, or from listening.',
+      explain: 'Plain tab shows the string and fret. How long each note lasts usually comes from stems under the tab, from {t:standard-notation} printed above it, or from listening.',
       fact: 'tab-no-rhythm',
     },
     {
@@ -753,7 +753,7 @@ const firstTabTune: Lesson = {
       type: 'card',
       title: 'A melody in tab',
       body: 'A {t:melody} is a line of **single notes** heard as a tune: the part you could sing. Here is the start of *Ode to Joy* by Beethoven, on strings 1 and 2. Read it one number at a time: the line gives the string, the number gives the fret.',
-      figure: { kind: 'tab', tempo: 70, notes: ODE, caption: 'Ode to Joy, first phrase, at 70 beats per minute.' },
+      figure: { kind: 'tab', tempo: 70, notes: ODE, caption: 'Ode to Joy, first phrase. If it does not fit your screen, slide it sideways.' },
     },
     {
       type: 'choice',
@@ -788,6 +788,7 @@ const firstTabTune: Lesson = {
     {
       type: 'fretboard-find',
       prompt: 'Tap the highest note of the phrase.',
+      hint: 'In this tune the highest note is on the top line, the highest string: find its biggest number.',
       figure: { kind: 'tab', tempo: 70, notes: ODE },
       find: { note: 'G4' },
       mode: 'one',
@@ -953,8 +954,9 @@ const unit: Unit = {
       },
       {
         type: 'fretboard-find',
-        prompt: 'Tap the last note of this phrase.',
-        figure: { kind: 'tab', tempo: 70, notes: ODE },
+        // Bars 3 and 4 only: the whole phrase is wider than a phone, and its last note would be off-screen.
+        prompt: 'Here are bars 3 and 4, the end of the phrase. Tap the note it ends on.',
+        figure: { kind: 'tab', tempo: 70, notes: [...ODE_BAR_3, ...ODE_BAR_4] },
         find: { note: 'D4' },
         mode: 'one',
         octave: 'exact',

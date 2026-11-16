@@ -165,10 +165,10 @@ describe('Dev unit 12: by ear, in time, in a band', () => {
   });
 
   it('keeps every engine lesson inside the 2 to 5 minute window', () => {
-    for (const l of unit.lessons) {
-      const s = estimateLessonSeconds(compileLesson(l));
-      expect(s, `${l.id}: ${s} s`).toBeGreaterThanOrEqual(120);
-      expect(s, `${l.id}: ${s} s`).toBeLessThanOrEqual(300);
+    const seconds = unit.lessons.map((l) => [l.id, estimateLessonSeconds(compileLesson(l))] as const);
+    for (const [id, s] of seconds) {
+      expect(s, `${id}: ${s} s`).toBeGreaterThanOrEqual(120);
+      expect(s, `${id}: ${s} s`).toBeLessThanOrEqual(300);
     }
   });
 
@@ -398,6 +398,107 @@ describe('Dev unit 12: by ear, in time, in a band', () => {
         expect(songEntry(taskSong(s.fallback!) ?? ''), s.id).toBeTruthy();
       }
     }
-    expect(task('swing-low-key').fallback!.params).toEqual(['down-in-the-valley']);
+    expect(task('swing-low-key').fallback!.params).toEqual(['joy-to-the-world']);
+  });
+});
+
+// ── Checks added by the independent review (each guards a fix) ────────────────────────────────────
+
+describe('Dev unit 12: review fixes', () => {
+  const textOf = (lessonId: string) => JSON.stringify(lesson(lessonId));
+
+  it('says where the G version really ends: the open string 3, with string 6, fret 3 an octave lower', () => {
+    const last = played(LINE_2_G).at(-1)!;
+    expect(at(last)).toBe('3:0');
+    expect(midiAt(last)).toBe(55); // G3
+    expect(midiAt({ string: 6, fret: 3 })).toBe(43); // G2, an octave below
+    const gStep = step<{ hint: string; explain: string }>('key-by-ear', (s) => s.type === 'listen-choice' && JSON.stringify(s.sound).includes('"fret":3,"duration":"q."'));
+    expect(gStep.hint).not.toMatch(/last note is on string 6/);
+    expect(gStep.explain).toContain('the open string 3');
+    expect(gStep.explain).toContain('octave lower');
+  });
+
+  it('finds the key of a library tune with a melody to hum, nearest to Swing Low (D major, 72 BPM, level 3)', async () => {
+    const fb = task('swing-low-key').fallback!;
+    const id = taskSong(fb)!;
+    const s = await song(id);
+    expect(s.tracks.some((t) => t.role === 'lead'), `${id} has a tune to hum`).toBe(true);
+    expect(s.tempo[0].bpm).toBe(72);
+    expect(songEntry(id)!.key).toBe('D major');
+    expect(songEntry(id)!.level).toBe(3);
+    // Its melody comes to rest on D, the root the learner finds on string 5, fret 5 or string 6, fret 10.
+    const lead = s.tracks.find((t) => t.role === 'lead')!;
+    const notes = lead.measures.flatMap((m) => m.beats.flatMap((b) => b.notes));
+    expect(nameAt(notes.at(-1)!)).toBe('D');
+    expect(plain(fb.body)).toContain('72 BPM');
+  });
+
+  it('only sends the learner to hum or learn by ear from songs that have a tune', async () => {
+    for (const t of tasks) {
+      for (const target of [t, ...(t.fallback ? [t.fallback] : [])]) {
+        const id = taskSong(target);
+        if (!id || !songEntry(id)) continue;
+        if (!/hum|by ear|sing|ears only|find home/i.test(plain(target.body) + ('title' in target ? String(target.title) : ''))) continue;
+        const s = await song(id);
+        expect(s.tracks.some((tr) => tr.role === 'lead'), `${t.id}: ${id} has a melody track`).toBe(true);
+      }
+    }
+  });
+
+  it('counts the sevenths of Amazing Grace right: two chords, in four bars of each verse', async () => {
+    const verse1 = (await chordPerBar('amazing-grace')).slice(1, 17);
+    expect(verse1.filter((c) => c.endsWith('7')).length).toBe(4);
+    expect(new Set(verse1.filter((c) => c.endsWith('7'))).size).toBe(2);
+    expect(plain(task('grace-by-ear').tip!)).toMatch(/^Two chords add a 7/);
+  });
+
+  it('never calls D home in Silent Night, which is in G', async () => {
+    const s = await song('silent-night');
+    expect(songEntry('silent-night')!.key).toBe('G major');
+    expect(nameAt(played(SILENT_2).at(-1)!)).toBe('D');
+    expect(textOf('melody-by-ear')).not.toMatch(/home to (the open string 4|\{n:D\})/);
+    // The first-note dot is not marked as a root (the fretboard-find shows "R" for a root).
+    expect(textOf('melody-by-ear')).not.toContain('"role":"root"');
+    expect(s.key).toMatch(/^G/);
+  });
+
+  it('loops the new phrases of Silent Night by ear: 9 to 12, 17 to 20 and 21 to 24 (13 to 16 repeats 9 to 12)', async () => {
+    const tune = await trackNotes('silent-night', (t) => t.role === 'lead');
+    const bars = (from: number, to: number) => JSON.stringify(tune.slice(from - 1, to));
+    expect(bars(13, 16)).toBe(bars(9, 12));
+    for (const [a, b] of [[9, 12], [17, 20], [21, 24]] as const) {
+      for (const [c, d] of [[1, 4], [5, 8]] as const) expect(bars(a, b), `bars ${a}-${b} vs ${c}-${d}`).not.toBe(bars(c, d));
+    }
+    expect(bars(17, 20)).not.toBe(bars(21, 24));
+    const fb = task('shenandoah-ears').fallback!;
+    expect(fb.params).toEqual(['silent-night', 'm9-12', 't80']);
+    expect(plain(fb.body)).toContain('bars 17 to 20 and 21 to 24');
+  });
+
+  it('lists all six dynamic marks in order, mp included', () => {
+    const marks = ['pp', 'p', 'mp', 'mf', 'f', 'ff'];
+    const order = step<{ tiles: string[] }>('tone-and-dynamics', (s) => s.type === 'order');
+    expect(order.tiles.map((x) => x.split(':')[0])).toEqual(marks);
+    expect(textOf('tone-and-dynamics')).toContain(marks.join(', '));
+    // Dynamic Control itself uses five of them, as the task says: no mp bar.
+    const dyn = getExercise('tech-dynamics')!;
+    expect(dyn.parts[0].note).toBe('pp, p, mf, f, ff: one bar each.');
+    expect(plain(task('dynamic-control').body)).toContain('pp, p, mf, f and ff');
+  });
+
+  it('says the click exercise is written on Em while Dev asks for G, so the screen does not surprise', () => {
+    const backbeat = getExercise('tech-metronome-2-4')!;
+    const s = partSong(backbeat, backbeat.parts[0], 80);
+    expect(s.chords[0].symbol).toBe('Em');
+    const body = plain(task('click-on-2-and-4').body);
+    expect(body).toContain('{c:G}');
+    expect(body).toContain('{c:Em}');
+  });
+
+  it('brings the gig in on the band\'s turnaround, with E7 where the band plays it (beat 3 of bar 12)', () => {
+    const bars = progressionInKey(getProgression('blues-turnaround')!, 'A').bars.map((b) => b.map((c) => c.symbol));
+    expect(bars[10]).toEqual(['A7', 'D7']);
+    expect(bars[11]).toEqual(['A7', 'E7']);
+    expect(plain(task('gig-jam').body)).toContain('beat 3 of bar 12');
   });
 });

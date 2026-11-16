@@ -91,6 +91,16 @@ describe('song-form-and-arranging: the unit on its own', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^form-/);
   });
 
+  it('keeps every play step short and evenly spaced, so its tab fits a phone screen', () => {
+    for (const e of allExercises().filter((x): x is PlayPhraseExercise => x.type === 'play-phrase')) {
+      expect(e.notes.length, plain(e.prompt)).toBeLessThanOrEqual(6);
+      const total = e.notes.reduce((t, x) => t + BEATS[x.duration], 0);
+      const shortest = Math.min(...e.notes.map((x) => BEATS[x.duration]));
+      // The tab spreads notes by time over about 34 px a note: keep every gap at 18 px or more.
+      expect((shortest / total) * (Math.max(4, e.notes.length) * 34 - 18), plain(e.prompt)).toBeGreaterThanOrEqual(18);
+    }
+  });
+
   it('sounds exactly the chord written beside each shape, and builds every play and build shape', () => {
     const pairs: Array<[string, string]> = [];
     for (const text of texts(unit)) for (const m of text.matchAll(/\{c:([^}]+)\}\s*\(([x0-9]{6})\)/g)) pairs.push([m[1], m[2]]);
@@ -112,7 +122,7 @@ describe('song-form-and-arranging: the song map', () => {
   const [map, roles] = lesson('song-sections').steps;
 
   it('uses only chords of G major, as written on the cards', () => {
-    expect(tagged(roles.type === 'card' ? roles.body : '', 'chord')).toEqual(['G', 'Em', 'C', 'D', 'G', 'D', 'Em', 'C', 'Em', 'D', 'C', 'D']);
+    expect(tagged(!isGenerated(roles) && roles.type === 'card' ? roles.body : '', 'chord')).toEqual(['G', 'Em', 'C', 'D', 'G', 'D', 'Em', 'C', 'Em', 'D', 'C', 'D']);
     for (const c of [...audioOf(map).chords, ...audioOf(roles).chords, ...audioOf(lesson('song-sections').steps[6]).chords]) expect(G_CHORDS, c).toContain(c);
     expect(audioOf(map).chords).toEqual(['G', 'D', 'Em', 'C']); // the chorus
     expect(audioOf(roles).chords).toEqual(['G', 'Em', 'C', 'D']); // the verse
@@ -165,8 +175,9 @@ describe('song-form-and-arranging: phrases and periods', () => {
   });
 
   it('ends the antecedent on A over D, and the consequent on G after D7', () => {
-    const ante = notesOf(play.notes);
-    expect(ante).toEqual(notesOf(period).slice(0, ante.length));
+    const ante = notesOf(period).slice(0, 11);
+    expect(notesOf(play.notes)).toEqual(ante.slice(6)); // bars 3 and 4
+    expect(play.notes.length).toBeLessThanOrEqual(6);
     expect(ante.at(-1)).toBe(57); // A3
     expect(intervalBetween('D', 'A')).toBe('P5');
     expect(notesOf(period).at(-1)).toBe(55); // G3
@@ -236,13 +247,19 @@ describe('song-form-and-arranging: the guitar in a band', () => {
 });
 
 describe('song-form-and-arranging: chord melody', () => {
-  const ode = findIn<PlayPhraseExercise>(inLesson('chord-melody'), 'play-phrase', /Ode to Joy/).notes;
+  const tabCard = lesson('chord-melody').steps[0];
+  if (isGenerated(tabCard) || tabCard.type !== 'card' || tabCard.figure?.kind !== 'tab') throw new Error('expected the tune');
+  const ode = tabCard.figure.notes;
 
   it('plays the first phrase of "Ode to Joy" in C on strings 1 and 2', () => {
     const names = ['E4', 'E4', 'F4', 'G4', 'G4', 'F4', 'E4', 'D4', 'C4', 'C4', 'D4', 'E4', 'E4', 'D4', 'D4'];
     expect(notesOf(ode)).toEqual(names.map(noteMidi));
     expect(ode.every((x) => 'rest' in x || x.string <= 2)).toBe(true);
     expect(bars(ode)).toHaveLength(4);
+    // The play step: the opening, E E F G, landing on the G of bar 2 (short enough for a phone).
+    const opening = findIn<PlayPhraseExercise>(inLesson('chord-melody'), 'play-phrase', /opening of the tune/).notes;
+    expect(notesOf(opening)).toEqual(notesOf(ode).slice(0, 5));
+    expect(opening.every((x) => 'rest' in x || x.string === 1)).toBe(true);
   });
 
   it('builds each beat-1 chord with the melody note on top', () => {
@@ -270,7 +287,7 @@ describe('song-form-and-arranging: chord melody', () => {
     const [top, inside] = listens(lesson('chord-melody').steps);
     for (const [q, shape, answer] of [[top, 'x32010', /^On top/], [inside, 'x35553', /^Hidden/]] as const) {
       expect(q.sound).toMatchObject({ kind: 'chord', chord: 'C', frets: shape, style: 'arpeggio' });
-      expect(q.figure).toMatchObject({ kind: 'audio', sound: { kind: 'notes', notes: ['E4'] } });
+      expect(q.figure).toMatchObject({ kind: 'audio', sound: { kind: 'notes', notes: ['E4', 'E4'] } });
       expect(correct(q)).toMatch(answer);
     }
   });
@@ -279,7 +296,8 @@ describe('song-form-and-arranging: chord melody', () => {
 describe('song-form-and-arranging: bass lines', () => {
   const card = lesson('bass-lines').steps[0];
   if (isGenerated(card) || card.type !== 'card' || card.figure?.kind !== 'tab') throw new Error('expected the tab');
-  const rootFifth = card.figure.notes;
+  const figure = card.figure;
+  const rootFifth = figure.notes;
   const walking = audioOf(lesson('bass-lines').steps[3]).tab;
   const roots = ['G', 'C', 'D', 'G'];
 
@@ -291,7 +309,7 @@ describe('song-form-and-arranging: bass lines', () => {
       if (bar[1]) expect(bar[1].midi % 12, `bar ${i + 1} 5th`).toBe(pc(transpose(roots[i], 'P5')));
     });
     expect(rootFifth.every((x) => 'rest' in x || x.string >= 4)).toBe(true);
-    const caption = tagged(card.figure.caption!, 'note');
+    const caption = tagged(figure.caption!, 'note');
     expect(caption.map(pc)).toEqual(notesOf(rootFifth).map((m) => m % 12));
     const play = findIn<PlayPhraseExercise>(inLesson('bass-lines'), 'play-phrase', /root-fifth bass line under G and C/);
     expect(play.notes.every((x) => 'rest' in x || x.string >= 5)).toBe(true);

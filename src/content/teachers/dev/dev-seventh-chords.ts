@@ -97,7 +97,7 @@ const fourSevenths: TeacherLesson = {
       tool: 'ear',
       params: ['chords', '7'],
       minutes: 4,
-      body: 'In Ear Training, Chord quality, level 7: ten rounds of major seventh, dominant seventh, minor seventh and half-diminished. It adds a fifth, the diminished seventh, for later. Name the colour first, then the chord: dreamy, restless, smooth, dark.',
+      body: 'In Ear Training, Chord quality, level 7: one round of ten chords, major seventh, dominant seventh, minor seventh and half-diminished, plus a fifth colour for later, the diminished seventh. Name the colour first, then the chord: dreamy, restless, smooth, dark.',
     }),
     {
       type: 'choice',
@@ -170,6 +170,7 @@ const movableSevenths: TeacherLesson = {
       title: 'Root on string 6',
       body: 'Same rule as barre chords: the root on string 6 or 5 names the chord. Root on string 6, here at fret 5: {c:A7} (575655), {c:Am7} (575555) and {c:Amaj7} (5x665x). Slide a shape up or down and its name follows the root.',
       figure: { kind: 'chord', symbol: 'Am7', frets: '575555', caption: '{c:Am7}, root on string 6 at fret 5.' },
+      tip: 'A barre needs just enough pressure to stop the buzz, with the thumb behind the neck. If your hand aches, stop, shake it out and come back to it later.',
     },
     {
       type: 'fretboard-find',
@@ -701,7 +702,7 @@ const songbook: TeacherLesson = {
       tool: 'ear',
       params: ['chords', '7'],
       minutes: 4,
-      body: 'Chord quality, level 7, ten rounds: the four seventh colours plus the diminished seventh. Aim for 8. Below that, play each colour on the guitar and say its word out loud: dreamy, restless, smooth, dark.',
+      body: 'Chord quality, level 7, one round of ten chords: the four seventh colours plus the diminished seventh. Aim for 8 out of 10. Below that, play each colour on the guitar and say its word out loud: dreamy, restless, smooth, dark.',
     }),
     {
       type: 'play-chord',

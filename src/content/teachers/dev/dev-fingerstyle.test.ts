@@ -342,3 +342,71 @@ describe('Dev unit 7: fingerstyle', () => {
     expect(await playerBpmProblems(unit)).toEqual([]);
   });
 });
+
+// ── checks added by the independent review ──────────────────────────────────────────────────────
+
+/** Every fretboard-name note question: its prompt must not already name the answer. */
+function giveawayProblems(u: TeacherUnit): string[] {
+  const out: string[] = [];
+  for (const l of u.lessons) {
+    for (const s of l.steps) {
+      const step = s as { type?: string; ask?: string; prompt?: RichText; position?: { string: number; fret: number } };
+      if (step.type !== 'fretboard-name' || step.ask !== 'note' || !step.position) continue;
+      const answer = pitchClassAt(step.position);
+      for (const m of plain(step.prompt!).matchAll(/\{n:([A-G][#b]*)\d?\}/g)) if (chroma(m[1]) === answer) out.push(`${l.id}: "${plain(step.prompt!)}" names its own answer`);
+    }
+  }
+  return out;
+}
+
+describe('Dev unit 7: review fixes', () => {
+  it('swings the blue-note slide exactly as the study writes it (long-short in each beat)', async () => {
+    const TRIPLET: Record<string, number> = { qt: 640, et: 320 };
+    const s3 = (await bar('st-delta-blues-e', 2)).flatMap((b) => b.notes.filter((x) => x.string === 3).map((x) => ({ at: b.start, pos: posOf(x), dur: b.duration })));
+    let at = 0;
+    const expected = DELTA_SLIDE.map((n) => {
+      const out = { at, pos: pos(n)!, dur: TRIPLET[n.duration] };
+      at += TRIPLET[n.duration];
+      return out;
+    });
+    expect(s3).toEqual(expected);
+  });
+
+  it('never claims the steady thumb sits on an open string under every chord (under B7 it is fretted)', async () => {
+    expect(JSON.stringify(unit)).not.toMatch(/one open (low |bass )?string per chord|[Rr]epeats one open string/);
+    const b7 = (await chordsByBar('st-delta-blues-e', 1, 12)).indexOf('B7') + 1;
+    const thumb = (await bar('st-delta-blues-e', b7)).filter((b) => b.start % 960 === 0).map((b) => posOf(b.notes.reduce((lo, x) => (x.string > lo.string ? x : lo))));
+    expect(new Set(thumb)).toEqual(new Set(['5:2']));
+  });
+
+  it('places the 3/4 study\'s pinched melody in the bars the text names', async () => {
+    const explain = JSON.stringify(unit).match(/The melody of bars (\d+) to (\d+) runs ((?:\{n:[^}]+\}(?:, )?)+)/)!;
+    const [from, to] = [Number(explain[1]), Number(explain[2])];
+    const named = [...explain[3].matchAll(/\{n:([^}]+)\}/g)].map((m) => chroma(m[1]));
+    const top: number[] = [];
+    for (let n = from; n <= to; n++) top.push(Math.max(...(await bar('st-pimami-3-4', n))[0].notes.map((x) => x.midi)) % 12);
+    expect(top).toEqual(named);
+  });
+
+  it('gives the quarter-note bpm the Player shows wherever a 6/8 task names it', async () => {
+    let checked = 0;
+    for (const t of tasks) {
+      if (!taskSong(t)) continue;
+      for (const m of plain(t.body).matchAll(/(\d+) % \([^)]*shows (\d+) bpm/g)) {
+        const quarters = (await song(taskSong(t)!)).tempo[0].bpm;
+        expect(Math.round((quarters * Number(m[1])) / 100), `${t.id}: ${m[0]}`).toBe(Number(m[2]));
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(2);
+  });
+
+  it('asks no note question whose prompt already names the answer', () => {
+    expect(giveawayProblems(unit)).toEqual([]);
+  });
+
+  it('celebrates what the show heard: the A section of Greensleeves, start to finish', () => {
+    expect(unit.milestone!.celebrate).toMatch(/A section/);
+    expect(GREENSLEEVES_SHOW.length).toBe(15);
+  });
+});

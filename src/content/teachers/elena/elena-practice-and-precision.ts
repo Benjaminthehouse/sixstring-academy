@@ -55,15 +55,16 @@ const audition: TeacherLesson = {
     },
     {
       type: 'match-pairs',
-      prompt: 'Match each audition item with the number I want for it.',
+      prompt: 'Match each thing I measure with the number I write down for it.',
       pairs: [
         { left: 'Five C major positions', right: 'Top clean tempo' },
-        { left: '{c:F} to {c:Bb} changes', right: 'Clean changes a minute' },
         { left: 'Six chords, two places', right: 'Clean shapes out of 12' },
+        { left: '{c:F} to {c:Bb} changes', right: 'Clean changes a minute' },
         { left: 'Travis pattern', right: 'Tempo with a steady thumb' },
         { left: 'Eight bars at sight', right: 'Clean bars out of 8' },
+        { left: 'A chorus of improvising', right: 'Boxes reached, out of 5' },
       ],
-      explain: 'Every item ends in a number: a tempo, a count of clean changes, clean shapes or clean bars. "Quite good" cannot be improved on; 96 BPM can.',
+      explain: 'Every measure ends in a number: a tempo, clean shapes, clean changes, clean bars, boxes reached. "Quite good" cannot be improved on; 96 BPM can.',
       fact: 'audition-numbers',
     },
     toolTask({
@@ -76,7 +77,7 @@ const audition: TeacherLesson = {
     {
       type: 'card',
       title: 'Item 2: six chords, two places',
-      body: '{c:G}: 320003 and 355433. {c:C}: x32010 and x35553. {c:Am}: x02210 and 577555. {c:Bm}: x24432 and 799777. {c:D7}: xx0212 and x57575. {c:E7}: 020100 and x-7-9-7-9-7. Strum each, then pick it string by string. A shape counts when every string rings: the score is out of 12.',
+      body: '{c:G}: 320003 and 355433. {c:C}: x32010 and x35553. {c:Am}: x02210 and 577555. {c:Bm}: x24432 and 799777. {c:D7}: xx0212 and x57575. {c:E7}: 020100 and x79797. Strum each, then pick it string by string. A shape counts when every string rings: the score is out of 12.',
     },
     {
       type: 'play-chord',
@@ -104,15 +105,15 @@ const audition: TeacherLesson = {
     }),
     {
       type: 'play-chord',
-      prompt: 'And {c:E7}, away from the open strings: x-7-9-7-9-7.',
+      prompt: 'And {c:E7}, away from the open strings: x79797.',
       chord: 'E7',
-      frets: [null, 7, 9, 7, 9, 7],
+      frets: 'x79797',
       explain: '{c:E7} is {n:E}, {n:G#}, {n:B} and {n:D}: the A-shape seventh at fret 7. The seventh, {n:D}, is string 3 under the barre.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
         chord: 'E7',
-        frets: [null, 7, 9, 7, 9, 7],
+        frets: 'x79797',
         accept: 'this-shape',
         prompt: 'Build {c:E7} as the A-shape seventh at fret 7.',
         explain: 'Barre fret 7 from string 5 ({n:E}); fret 9 on strings 4 ({n:B}) and 2 ({n:G#}); strings 3 and 1 under the barre give {n:D} and {n:B}.',
@@ -124,7 +125,7 @@ const audition: TeacherLesson = {
       song: 'st-travis-picking',
       bars: [1, 8],
       minutes: 4,
-      body: 'Eight bars of Travis Picking over {c:C}, {c:Am} and {c:G7}. Start at 80 BPM; if the thumb wavers, lower the speed until it holds for all eight bars, and write that tempo down. Record it on your phone if you can.',
+      body: 'Eight bars of Travis Picking over {c:C}, {c:Am} and {c:G7}, from 80 BPM. Find the fastest tempo at which the thumb stays steady for all eight bars: lower the speed if it wavers, raise it if it holds. Write it down, and record it on your phone if you can.',
       tip: 'The thumb is the clock. If it hesitates for a melody note, the tempo is too high.',
     }),
     playerTask({
@@ -151,7 +152,7 @@ const audition: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-12-bar', 'a', 'jam'],
       minutes: 4,
-      body: 'The 12-bar blues in {k:A major}, the band set to 92 BPM. One chorus, twelve bars, through at least three of the five pentatonic boxes, sliding from one to the next. Record it: I want to hear where you go, and where you hesitate.',
+      body: 'The 12-bar blues in A, the band set to 92 BPM. One chorus through at least three of the five pentatonic boxes, sliding between them; write down how many you reached. Record it: I want to hear where you go, and where you hesitate.',
     }),
     toolTask({
       id: 'audition-goals',
@@ -210,14 +211,14 @@ const deliberatePractice: TeacherLesson = {
     {
       type: 'card',
       title: 'The ladder',
-      body: 'On the Technique screen a passage climbs from 60 toward 120 BPM in 4 BPM steps. A clean pass earns the next rung; after a failure you step back two rungs. It looks slow on paper. It is the fastest route I know.',
+      body: 'On the Technique screen a passage climbs from 60 toward 120 BPM in 4 BPM steps. A clean pass earns the next rung; two passes in a row that are not clean send you back one. The screen is generous: I would stay on a rung until it is clean nine times in ten. It looks slow on paper. It is the fastest route I know.',
     },
     {
       type: 'type-answer',
-      prompt: 'You climb a 4 BPM ladder and fail at 96 BPM. At what tempo do you start again?',
-      answer: { kind: 'number', value: 88 },
+      prompt: 'On a 4 BPM ladder, two passes in a row at 96 BPM are not clean. At what tempo does the ladder put you?',
+      answer: { kind: 'number', value: 92 },
       input: 'keypad',
-      explain: 'Two rungs back: 96 minus 8 is 88 BPM. From there you climb again, one clean pass per rung.',
+      explain: 'One rung back: 96 minus 4 is 92 BPM. A single untidy pass keeps you where you are; the second sends you down. From 92 you climb again, one clean pass per rung.',
       fact: 'ladder-step-back',
     },
     techniqueTask({
@@ -225,7 +226,7 @@ const deliberatePractice: TeacherLesson = {
       title: 'Ten minutes on one ladder',
       exercise: 'tech-string-crossing',
       minutes: 10,
-      body: 'String Crossing Both Ways, and nothing else, for ten minutes. Find the tempo where it is clean nine times in ten, climb 4 BPM per clean pass, step back two rungs after a miss. Log your top clean tempo.',
+      body: 'String Crossing Both Ways, and nothing else, for ten minutes. Start at the tempo where it is clean nine times in ten and let the ladder move you: up a rung after a clean pass, back one after two that are not. Log your top clean tempo.',
       tip: 'Ten minutes on one thing feels long. That feeling is called attention.',
     }),
     {
@@ -286,7 +287,7 @@ const deliberatePractice: TeacherLesson = {
   ],
   facts: [
     { id: 'nine-in-ten', front: 'At what tempo do you practise a new passage?', back: 'The tempo at which it is correct nine times out of ten. Raise it in small steps only while it stays correct.' },
-    { id: 'ladder-step-back', front: 'On a 4 BPM tempo ladder, what happens after a failed pass?', back: 'Step back two rungs (8 BPM) and climb again, one clean pass per rung.' },
+    { id: 'ladder-step-back', front: 'On the Technique screen\'s 4 BPM tempo ladder, what moves you up a rung, and what moves you down?', back: 'A clean pass moves you up a rung; two passes in a row that are not clean step you back one (4 BPM). Then climb again.' },
     { id: 'spaced-mixed-practice', front: 'Long blocks of one thing, or spaced and mixed practice?', back: 'Spaced across days and mixed within a session generally wins, even though blocks feel more productive at the time.' },
   ],
 };
@@ -310,11 +311,11 @@ const time: TeacherLesson = {
       type: 'choice',
       prompt: 'The click sounds only on 2 and 4. Where is beat 1?',
       options: [
-        { text: 'In the silence just before a click', correct: true },
+        { text: 'In the silent beat before the click on 2', correct: true },
         { text: 'On the first click you hear', why: 'Then every beat you play is one late: the first click is beat 2.' },
         { text: 'Wherever you start playing', why: 'The bar does not wait for you; that is rather the point.' },
       ],
-      explain: 'The clicks are 2 and 4, the backbeat a drummer plays on the snare. Beat 1 sits in the silence before the first of them, and you must feel it there.',
+      explain: 'The clicks are 2 and 4, the backbeat a drummer plays on the snare. Beat 1 is the silent beat before the click on 2, beat 3 the one before the click on 4, and you must feel both there.',
       fact: 'click-on-two-and-four',
     },
     {
@@ -330,7 +331,7 @@ const time: TeacherLesson = {
       title: 'The click on 2 and 4',
       exercise: 'tech-metronome-2-4',
       minutes: 4,
-      body: 'Metronome on 2 and 4 (the exercise sets the click for you) at 80 BPM. Play its strumming groove for a minute, then a two-octave major scale in eighth notes against the same click.',
+      body: 'Metronome on 2 and 4 (the exercise sets the click for you) at 80 BPM: its strumming groove for a minute, then a two-octave major scale in eighth notes against the same click. Then its second part, the click only on the and of each beat, the same way.',
       tip: 'Tap your foot on all four beats. The silent beats must be as present as the loud ones.',
     }),
     {
@@ -353,7 +354,7 @@ const time: TeacherLesson = {
       tool: 'rhythm',
       params: ['drill', 'offbeat-2'],
       minutes: 3,
-      body: 'Off-beats, faster: the click keeps the beat and you tap only the and, the same skill seen from the other side. Stay until you earn the trainer\'s tightest rating.',
+      body: 'Off-beats, faster: the click keeps the beat and you tap only the and, the same skill seen from the other side. Stay until you earn three stars.',
     }),
     {
       type: 'true-false',
@@ -565,7 +566,7 @@ const threeNotesPerString: TeacherLesson = {
       tool: 'scales',
       params: ['g', 'major', '3nps-1'],
       minutes: 4,
-      body: '{k:G major}, three notes per string, pattern 1, alternate picked in eighth notes at 60 BPM, up and down. Three clean passes in a row, then you may leave.',
+      body: '{k:G major}, three notes per string, pattern 1, alternate picked in eighth notes at 60 BPM, up and down. Three clean passes in a row, then you may leave. Frets 3 to 7 on the low strings is a wide stretch: if the hand aches, stop and shake it out.',
     }),
     {
       type: 'choice',
@@ -584,7 +585,7 @@ const threeNotesPerString: TeacherLesson = {
       tool: 'scales',
       params: ['g', 'major', '3nps-2'],
       minutes: 5,
-      body: 'Patterns 2 (frets 5 to 10) and 3 (frets 7 to 12). For each, switch the screen to CAGED and say where it overlaps: pattern 2 crosses the D-shape (frets 4 to 8) and C-shape (frets 7 to 10) positions.',
+      body: 'Patterns 2 (frets 5 to 10) and 3 (frets 7 to 12). For each, switch the screen to CAGED and find the overlap: pattern 2 crosses the D-shape (frets 4 to 8) and C-shape (7 to 10) positions, pattern 3 the C-shape and the A-shape (9 to 13).',
     }),
     {
       type: 'true-false',

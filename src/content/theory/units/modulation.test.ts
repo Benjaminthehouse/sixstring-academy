@@ -14,8 +14,8 @@ import {
 import { buildVoicing, chordVoicings, midiAt, tryBuildVoicing } from '@/core/guitar';
 import {
   formatProblems, isGenerated, plainText, soundPlan, tokenize, validateCourse,
-  type ChoiceExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
-  type RichText, type Step, type TypeAnswerExercise,
+  type ChoiceExercise, type ChordBuildExercise, type Exercise, type FillBlanksExercise, type Lesson, type ListenChoiceExercise, type MatchPairsExercise,
+  type PlayChordExercise, type RichText, type Step, type TypeAnswerExercise,
 } from '@/lessons';
 import { adaptUnit, isListeningStep, MIN_QUIET_EXERCISES } from '@/features/learn/model/conditions';
 import { THEORY_GLOSSARY } from '../glossary';
@@ -58,6 +58,16 @@ function texts(value: unknown, out: string[] = []): string[] {
 function tagged(text: RichText, type: 'chord' | 'roman' | 'note' | 'key' | 'degree' | 'interval'): string[] {
   return tokenize(text).flatMap((t) => (t.type === type && 'value' in t ? [String(t.value)] : []));
 }
+/** Every chord figure in the unit that names both a symbol and a shape. */
+function chordFigures(value: unknown, out: Array<{ symbol: string; frets: string }> = []): Array<{ symbol: string; frets: string }> {
+  if (Array.isArray(value)) for (const v of value) chordFigures(v, out);
+  else if (value && typeof value === 'object') {
+    const o = value as Record<string, unknown>;
+    if (o.kind === 'chord' && typeof o.symbol === 'string' && typeof o.frets === 'string') out.push({ symbol: o.symbol, frets: o.frets });
+    for (const v of Object.values(o)) chordFigures(v, out);
+  }
+  return out;
+}
 const chordsOf = (e: ListenChoiceExercise): string[] => (e.sound.kind === 'progression' ? e.sound.chords : []);
 const keyChords = (k: string): string[] => diatonicChords(k).map((c) => c.symbol);
 const inKeyChords = (chord: string, k: string): boolean => keyChords(k).includes(chord) || chordToRoman(chord, k).relation === 'diatonic';
@@ -95,15 +105,18 @@ describe('modulation: every shape written in the text', () => {
   });
 
   it('builds every chord figure, play-chord and chord-build shape as its chord', () => {
-    const figures = texts(unit).length; // walk once so a broken figure throws below
-    expect(figures).toBeGreaterThan(0);
-    for (const [symbol, shape] of [['F', 'xx3211'], ['Am', 'x02210'], ['D7', 'xx0212'], ['F#m', '244222'], ['A', 'x02220'], ['Ab', '466544']]) {
-      expect(buildVoicing(symbol, shape).chord, `${symbol} ${shape}`).toBe(symbol);
-    }
-    for (const e of [...ofType('play-chord'), ...ofType('chord-build')]) {
-      if (e.type === 'chord-build' && e.task !== 'fingers') continue;
+    const figures = chordFigures(unit);
+    expect(figures.length).toBeGreaterThanOrEqual(5);
+    for (const f of figures) expect(buildVoicing(f.symbol, f.frets).chord, `${f.symbol} ${f.frets}`).toBe(f.symbol);
+    const shaped: Array<ChordBuildExercise | PlayChordExercise> = [
+      ...ofType<PlayChordExercise>('play-chord'),
+      ...ofType<ChordBuildExercise>('chord-build').filter((e) => e.task === 'fingers'),
+    ];
+    expect(shaped.length).toBe(8); // four play-chord steps and their four alternatives
+    for (const e of shaped) {
+      if (e.type === 'chord-build' && e.task === 'missing-note') continue;
       const v = buildVoicing(e.chord, e.frets!);
-      expect(chordPcs(v.chord).sort(), `${e.chord} ${String(e.frets)}`).toEqual(chordPcs(e.chord).sort());
+      expect([...chordPcs(v.chord)].sort(), `${e.chord} ${String(e.frets)}`).toEqual([...chordPcs(e.chord)].sort());
     }
   });
 });
@@ -162,7 +175,7 @@ describe('modulation: visiting or moving', () => {
     const q = findIn<ChoiceExercise>(inLesson('tonicization-or-modulation'), 'choice', /visit to G is over/);
     expect(correct(q)).toBe('F');
     expect(chordNotes('F')).toContain('F');
-    expect(chordNotes('Am').every((n) => keyChords('G major').length > 0 && chordPcs('Am').length === 3 && !!n)).toBe(true);
+    expect(keyChords('G major')).not.toContain('F');
     expect(keyChords('C major')).toContain('Am');
     expect(keyChords('G major')).toContain('Am');
   });

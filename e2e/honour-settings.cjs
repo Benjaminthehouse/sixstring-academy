@@ -10,6 +10,8 @@
  *            tuner opens that very input (getUserMedia asks for its deviceId) and its pitch tracker
  *            is built with the learner's A4, onset level and note gate (read from the options the
  *            tracker posts to its worker).
+ *   restart  on a slowed-down page, sensitivity restarts and input changes of the level test
+ *            overlap: only the newest keeps a microphone, and leaving Settings closes it.
  *   sound    the shared guitar and a new metronome follow Settings > Sound (guitar tone, click),
  *            live, and a screen's own choice still wins.
  *   ai       with the AI helper off, `ask` refuses with "disabled" and nothing is fetched; switched
@@ -47,6 +49,7 @@ function instrument() {
     /* storage off: the check that needs it will say so */
   }
   window.__gum = [];
+  window.__streams = [];
   window.__workerInit = [];
   window.__fetches = [];
   const md = navigator.mediaDevices;
@@ -58,7 +61,10 @@ function instrument() {
       } catch {
         window.__gum.push({ unreadable: true });
       }
-      return real(constraints);
+      return real(constraints).then((stream) => {
+        window.__streams.push(stream);
+        return stream;
+      });
     };
   }
   const post = Worker.prototype.postMessage;
@@ -142,6 +148,42 @@ async function micGroup() {
       init && init.a4 === 442 && init.onset?.minLevelDb === -62 && init.tracker?.minGateDb === -73 && init.tracker?.maxGateDb === -41,
       init && { a4: init.a4, onset: init.onset, tracker: init.tracker },
     );
+    const real = errors.filter((e) => !BENIGN.some((b) => b.test(e)));
+    check(g, 'no console errors', real.length === 0, real.slice(0, 3));
+  });
+}
+
+/** Microphone tracks still open in the page. */
+const liveMics = (page) => page.evaluate(() => window.__streams.flatMap((s) => s.getTracks()).filter((t) => t.readyState === 'live').length);
+
+async function restartGroup() {
+  const g = 'restart';
+  await withApp({ fakeDevices: true }, async ({ page, context, goto, errors }) => {
+    await context.addInitScript(instrument);
+    await goto('profile', 'settings', 'microphone');
+    await page.waitForSelector('[data-settings-mic]', { timeout: 30000 });
+    await page.click('[data-mic-test]');
+    await page.waitForSelector('[data-mic-status]:not([data-mic-status="off"])', { timeout: 30000 });
+    const inputs = await page.evaluate(() => [...document.querySelectorAll('[data-settings-mic] select option')].map((o) => o.value).filter((v) => v !== '__default__'));
+    // A slow phone: a sensitivity restart (after the slider rests) and an input change overlap,
+    // so a second test starts before the first has opened its microphone.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+    const slider = page.getByRole('slider', { name: /Sensitivity/ });
+    for (const [i, v] of ['20', '40', '60', '80'].entries()) {
+      await slider.fill(v);
+      await sleep(310);
+      if (inputs.length) await page.locator('[data-settings-mic] select').selectOption(inputs[i % inputs.length]);
+    }
+    await sleep(6000);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    const opened = await page.evaluate(() => window.__streams.length);
+    const during = await liveMics(page);
+    check(g, 'overlapping restarts of the level test keep one microphone open, not one per restart', opened >= 3 && during === 1, { opened, during });
+    await goto('home');
+    await sleep(1500);
+    const after = await liveMics(page);
+    check(g, 'leaving Settings closes the microphone', after === 0, { after });
     const real = errors.filter((e) => !BENIGN.some((b) => b.test(e)));
     check(g, 'no console errors', real.length === 0, real.slice(0, 3));
   });
@@ -302,7 +344,7 @@ async function playerGroup() {
 }
 
 (async () => {
-  const groups = { mic: micGroup, sound: soundGroup, ai: aiGroup, neck: neckGroup, player: playerGroup };
+  const groups = { mic: micGroup, restart: restartGroup, sound: soundGroup, ai: aiGroup, neck: neckGroup, player: playerGroup };
   for (const [name, run] of Object.entries(groups)) {
     if (!want(name)) continue;
     try {

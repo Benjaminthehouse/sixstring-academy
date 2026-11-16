@@ -45,8 +45,8 @@ export const TRAVIS_TUNE_1_2: TabNote[] = [t(1, 0, 'q.'), t(1, 3, 'q.'), t(1, 0,
 /** The thumb's tune in bar 1 of Thumb-Lead Melody with Brush Strums (a brush after each). */
 export const CARTER_THUMB_1: TabNote[] = [t(5, 3, 'q'), t(4, 0, 'q'), t(4, 2, 'q'), t(5, 3, 'q')];
 
-/** The blue-note slide of the fingerstyle blues: string 3, fret 3 (Bb) to fret 4 (B), then A and G. */
-export const DELTA_SLIDE: TabNote[] = [t(3, 3, 'q'), t(3, 4, 'e'), t(3, 2, 'q'), t(3, 0, 'e')];
+/** The blue-note slide of the fingerstyle blues, swung as the study writes it (long-short in each beat): string 3, fret 3 (Bb) to fret 4 (B), then A and G. */
+export const DELTA_SLIDE: TabNote[] = [t(3, 3, 'qt'), t(3, 4, 'et'), t(3, 2, 'qt'), t(3, 0, 'et')];
 
 /** The tune of Greensleeves, bars 1 and 2 after the pickup (the top line of the arrangement). */
 export const GREENSLEEVES_TUNE_1_2: TabNote[] = [
@@ -292,7 +292,7 @@ const threeFour: TeacherLesson = {
       ask: 'note',
       spelling: 'any',
       options: ['G#', 'G', 'A', 'F#'],
-      explain: 'String 1, fret 4 is {n:G#}, the third of {c:E}. The melody over the first four bars runs {n:E}, {n:F}, {n:G#}, {n:E}.',
+      explain: 'String 1, fret 4 is {n:G#}, the third of {c:E}. The melody of bars 9 to 12 runs {n:E}, {n:F}, {n:G#}, {n:E}.',
       fact: 'fs-pimami-melody',
     },
     playerTask({
@@ -421,7 +421,7 @@ const travis: TeacherLesson = {
       rhythm: { pattern: 'er e er e er e er e' },
       tempo: 60,
       show: 'both',
-      explain: 'The finger notes all fall on the "and": off the beat, between the thumb notes. Tap it on a table while your foot keeps the beat.',
+      explain: 'The finger notes all fall on the "and", between the thumb notes. Then, away from the guitar, try both at once: the thumb on your knee on the beats, the fingers on a table on the "ands".',
     },
     {
       type: 'play-phrase',
@@ -709,7 +709,7 @@ const thumbLead: TeacherLesson = {
       type: 'true-false',
       statement: 'In the fingerstyle blues, the thumb follows the tune into its syncopations.',
       answer: false,
-      explain: 'The thumb never follows: steady quarters on one open string per chord, lightly muted, while the tune pushes and pulls on top.',
+      explain: 'The thumb never follows: steady quarters on one bass note per chord, lightly muted, while the tune pushes and pulls on top.',
       fact: 'fs-steady-thumb',
     },
     playerTask({
@@ -726,7 +726,7 @@ const thumbLead: TeacherLesson = {
       pairs: [
         { left: 'Travis picking', right: 'Alternates two strings' },
         { left: 'Thumb-lead', right: 'Plays the tune' },
-        { left: 'Steady-thumb blues', right: 'Repeats one open string' },
+        { left: 'Steady-thumb blues', right: 'Repeats one bass note' },
       ],
       explain: 'Three engines, three thumbs: alternating for Travis, singing for thumb-lead, thumping one string for the blues. The fingers fit around whichever you choose.',
       fact: 'fs-three-engines',
@@ -745,9 +745,9 @@ const thumbLead: TeacherLesson = {
   ],
   facts: [
     { id: 'fs-thumb-lead', front: 'What is thumb-lead fingerstyle?', back: 'The thumb plays the melody on strings 6 to 4, on the beat, and the index brushes the top strings on every "and".' },
-    { id: 'fs-steady-thumb', front: 'What does the thumb do in a fingerstyle blues?', back: 'Steady quarter notes on one open low string per chord, never changing, while the fingers play the tune.' },
+    { id: 'fs-steady-thumb', front: 'What does the thumb do in a fingerstyle blues?', back: 'Steady quarter notes on one bass note per chord (the open string 6 under {c:E7}, the open string 5 under {c:A7}), never changing, while the fingers play the tune.' },
     { id: 'fs-blues-blue-note', front: 'The blue note of a blues in E, on string 3?', back: 'Fret 3, {n:Bb}: the flat fifth. It slides up a fret to {n:B}.' },
-    { id: 'fs-three-engines', front: 'The thumb in Travis, thumb-lead and the steady-thumb blues?', back: 'Travis: alternates two bass strings. Thumb-lead: plays the tune. Blues: repeats one open string.' },
+    { id: 'fs-three-engines', front: 'The thumb in Travis, thumb-lead and the steady-thumb blues?', back: 'Travis: alternates two bass strings. Thumb-lead: plays the tune. Blues: repeats one bass note per chord.' },
   ],
 };
 
@@ -829,7 +829,7 @@ const greensleeves: TeacherLesson = {
       bars: [2, 3],
       tempo: 74,
       minutes: 5,
-      body: 'Loop bars 2 and 3 at 74 % (40 BPM, counting dotted quarters), until they are easy. Then move the loop: bars 4 and 5, 6 and 7, 8 and 9. Then join them up two loops at a time.',
+      body: 'Loop bars 2 and 3 at 74 % (40 BPM, counting dotted quarters; the tempo button shows 60 bpm, in quarter notes), until they are easy. Then move the loop: bars 4 and 5, 6 and 7, 8 and 9. Then join them up two loops at a time.',
       tip: 'Play the tune alone first, then add the bass under it.',
     }),
     {
@@ -848,7 +848,7 @@ const greensleeves: TeacherLesson = {
       song: 'greensleeves-fingerstyle',
       tempo: 85,
       minutes: 5,
-      body: 'The whole piece, A and B, at 85 % (46 BPM, counting dotted quarters), then 100 % (54 BPM). Two slow, swaying beats in every bar. Record a complete take on your phone: does the tune sit on top of the bass?',
+      body: 'The whole piece, A and B, at 85 % (46 BPM, counting dotted quarters; the tempo button shows 69 bpm, in quarter notes), then 100 % (54 BPM). Two slow, swaying beats in every bar. Record a complete take on your phone: does the tune sit on top of the bass?',
     }),
     {
       type: 'card',
@@ -873,7 +873,7 @@ const greensleeves: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'fs-greensleeves-bass', front: 'In a 6/8 fingerstyle setting, where does the thumb play?', back: 'On each dotted-quarter beat: two bass notes a bar, with the tune and chord notes above.' },
+    { id: 'fs-greensleeves-bass', front: 'In our 6/8 setting of Greensleeves, where does the thumb play?', back: 'On each dotted-quarter beat: two bass notes a bar, with the tune and chord notes above.' },
     { id: 'fs-greensleeves-sixth', front: 'Greensleeves: {n:F} or {n:F#} for the sixth note of its scale?', back: 'Both are traditional. Choose one and keep it all the way through.' },
     { id: 'fs-greensleeves-chords', front: 'The chords of Greensleeves\' first four bars?', back: '{c:Am}, {c:G}, {c:Am}, {c:E}.' },
   ],
@@ -892,7 +892,7 @@ const unit: TeacherUnit = {
     step: 'show',
     piece: 'Greensleeves',
     song: 'greensleeves-fingerstyle',
-    celebrate: 'That was a whole fingerstyle solo: bass, tune and harmony from one right hand, in 6/8, and you kept it moving. Next we make your chords richer: seventh chords, four colours at a time.',
+    celebrate: 'That was Greensleeves, the A section start to finish: bass, tune and harmony from one right hand, in 6/8, and you kept it moving. Next we make your chords richer: seventh chords, four colours at a time.',
   },
   glossary: [
     { id: 'pima', term: 'p i m a', definition: 'The picking-hand fingers: p the thumb, i the index, m the middle, a the ring finger (from their Spanish names).' },

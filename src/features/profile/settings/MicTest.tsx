@@ -54,6 +54,14 @@ export function MicSettings() {
   const verdictRef = useRef<Verdict>('silent');
   const peak = useRef({ value: 0, at: 0 });
   const mounted = useRef(true);
+  /**
+   * Counts starts and stops. Only the newest start may keep its microphone: a restart (new input,
+   * new sensitivity) can begin before the previous one has opened, and the older one, opening
+   * late, must close again instead of staying on after the learner has left.
+   */
+  const generation = useRef(0);
+  /** The start whose end clears the button's busy state (0: none in flight). */
+  const startingGen = useRef(0);
 
   /** Put the gate line where notes start to count (its level is also kept in the meter's `data-gate-db`). */
   const showGate = useCallback((gateDb: number) => {
@@ -69,8 +77,13 @@ export function MicSettings() {
   }, []);
 
   const stop = useCallback(() => {
+    generation.current++;
     trackerRef.current?.stop();
     trackerRef.current = null;
+    if (startingGen.current) {
+      startingGen.current = 0;
+      if (mounted.current) setStarting(false);
+    }
     if (barRef.current) barRef.current.style.transform = 'scaleX(0)';
     if (peakRef.current) peakRef.current.style.left = '0%';
     if (mounted.current) {
@@ -86,16 +99,21 @@ export function MicSettings() {
     void refreshDevices();
     return () => {
       mounted.current = false;
+      generation.current++;
       trackerRef.current?.stop();
       trackerRef.current = null;
     };
   }, [refreshDevices]);
 
   const start = async (deviceId: string | null = prefs.mic.deviceId): Promise<void> => {
+    const mine = ++generation.current;
+    const current = (): boolean => mounted.current && generation.current === mine;
+    startingGen.current = mine;
     setStarting(true);
     setFailure(null);
     try {
       const [{ PitchTracker }, theory] = await Promise.all([import('@/core/pitch'), import('@/core/theory')]);
+      if (!current()) return;
       // Let go of the old test first, so its "stopped" does not end the new one.
       const previous = trackerRef.current;
       trackerRef.current = null;
@@ -106,7 +124,8 @@ export function MicSettings() {
       else delete options.deviceId;
       const tracker = new PitchTracker(options);
       const result = await tracker.start();
-      if (!mounted.current) {
+      if (!current()) {
+        // Overtaken by a newer start, a stop or leaving the screen: this microphone must close.
         tracker.stop();
         return;
       }
@@ -142,9 +161,13 @@ export function MicSettings() {
       // Device names are only given out once the microphone has been allowed.
       void refreshDevices();
     } catch {
-      if (mounted.current) setFailure('unknown');
+      if (current()) setFailure('unknown');
     } finally {
-      if (mounted.current) setStarting(false);
+      // A newer start keeps the button busy until it is done itself.
+      if (mounted.current && startingGen.current === mine) {
+        startingGen.current = 0;
+        setStarting(false);
+      }
     }
   };
 

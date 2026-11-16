@@ -49,13 +49,13 @@ const tonicizationOrModulation: Lesson = {
     {
       type: 'card',
       title: 'A visit to G',
-      body: 'In {k:C major}, {c:D7} (xx0212) pulls to {c:G} (320003) and makes it sound like home for a moment: a brief {t:tonicization}. Then {c:F} brings back {n:F} natural, and the music goes home to {c:C}.\nChart 1: {c:C} {c:Am} {c:D7} {c:G} | {c:F} {c:C} {c:G} {c:C}',
+      body: 'In {k:C major}, {c:D7} (xx0212) pulls to {c:G} (320003) and makes it sound like home for a moment: a brief {t:tonicization}. Then {c:F} brings back {n:F} natural, and the music goes home to {c:C}.\n\nChart 1: {c:C} {c:Am} {c:D7} {c:G} | {c:F} {c:C} {c:G} {c:C}',
       figure: { kind: 'audio', sound: chart(VISIT_1), label: 'Hear chart 1: a visit' },
     },
     {
       type: 'card',
       title: 'A move to G',
-      body: 'A {t:modulation} is a change of key that lasts. In chart 2 the cadence {c:D7} {c:G} comes twice, {n:F} natural never returns, and the music ends on {c:G}: {k:G major} is the new home.\nChart 2: {c:C} {c:F} {c:Am} {c:D7} | {c:G} {c:D7} {c:G} {c:G}',
+      body: 'A {t:modulation} is a change of key that lasts. In chart 2 the cadence {c:D7} {c:G} comes twice, {n:F} natural never returns, and the music ends on {c:G}: {k:G major} is the new home.\n\nChart 2: {c:C} {c:F} {c:Am} {c:D7} | {c:G} {c:D7} {c:G} {c:G}',
       figure: { kind: 'audio', sound: chart(MOVE_1), label: 'Hear chart 2: a move' },
       tip: 'Watch the note that changes. Moving from C to G, {n:F#} comes in; when {n:F} natural comes back, so does {k:C major}.',
     },
@@ -712,7 +712,7 @@ const augmentedSixthChords: Lesson = {
     {
       type: 'card',
       title: 'Three flavours',
-      body: 'Add {n:C}, the tonic, and you have the three augmented sixth chords of {k:C major}:\nItalian: {n:Ab} {n:C} {n:F#}\nFrench: {n:Ab} {n:C} {n:D} {n:F#}\nGerman: {n:Ab} {n:C} {n:Eb} {n:F#}\nOn strings 4 to 1 they are xx657x, xx6532 and xx6542, with {n:Ab} always lowest.',
+      body: 'Add {n:C}, the tonic, and you have the three augmented sixth chords of {k:C major}:\nItalian: {n:Ab} {n:C} {n:F#}\nFrench: {n:Ab} {n:C} {n:D} {n:F#}\nGerman: {n:Ab} {n:C} {n:Eb} {n:F#}\nOn the top four strings: xx657x (string 1 silent), xx6532 and xx6542, with {n:Ab} always lowest.',
       figure: { kind: 'fretboard', frets: [1, 7], dots: GERMAN_DOTS, caption: 'The German sixth on strings 4 to 1: {n:Ab} {n:C} {n:Eb} {n:F#}.' },
     },
     {
@@ -801,7 +801,7 @@ const augmentedSixthChords: Lesson = {
     },
     {
       type: 'play-chord',
-      prompt: 'Play the German sixth on strings 4 to 1, xx6542. Then move every finger a half step to {c:G}, xx5433.',
+      prompt: 'Play the German sixth on strings 4 to 1, xx6542; the box names it by its sound, {c:Ab7}. Then move every finger a half step to {c:G}, xx5433.',
       chord: 'Ab7',
       frets: 'xx6542',
       explain: 'xx6542 sounds {n:Ab} {n:C} {n:Eb} {n:F#}, the pitches of {c:Ab7}. Each note then moves a half step: down to {n:G}, {n:B} and {n:D}, and up to {n:G}.',

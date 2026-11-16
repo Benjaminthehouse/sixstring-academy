@@ -211,6 +211,15 @@ describe('Elena unit 3: Advanced picking', () => {
     expect(songEntry('irish-washerwoman')).toBeTruthy();
   });
 
+  it('presents the blurred sweep as a student\'s take, since the learner has recorded nothing in the lesson', () => {
+    const listen = lesson('sweep-picking-three').steps.find((s) => (s as { type?: string }).type === 'listen-choice') as { prompt: string; sound: { notes: string[]; together?: boolean } };
+    expect(listen.prompt).toMatch(/^A student's recording/);
+    // The sound is the three sweep notes struck together: the fault the answer names.
+    expect(listen.sound.together).toBe(true);
+    expect(listen.sound.notes).toEqual(['A4', 'C5', 'E5']);
+    expect(midis(SWEEP_AM).slice(0, 3)).toEqual([69, 72, 76]);
+  });
+
   it('warns about strain wherever the exercise does', () => {
     const strained = ['tech-sweep-five-string', 'tech-speed-bursts', 'tech-tremolo-picking'];
     for (const id of strained) expect(getExercise(id)!.strain, id).toBeTruthy();

@@ -110,13 +110,14 @@ const string6Naturals: Lesson = {
     },
     {
       type: 'true-false',
-      statement: 'Many movable chord shapes take their name from their lowest note on string 6 or string 5.',
+      statement: 'Many {t:movable-shape|movable} chord shapes take their name from their lowest note on string 6 or string 5.',
       answer: true,
       explain: 'That is why these two strings come first: find the lowest note of a movable shape on string 6 or 5 and you know the name of the chord.',
       fact: 'neck-shapes-named-by-root',
     },
     { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'name' } },
-    { generate: 'note-on-string', params: { strings: [6], frets: [0, 12], naturals: true, ask: 'find' } },
+    // Tap drills stay within the frets a phone shows at once (a "name" drill centres on its fret).
+    { generate: 'note-on-string', params: { strings: [6], frets: [0, 8], naturals: true, ask: 'find' } },
   ],
   facts: [
     {
@@ -244,7 +245,7 @@ const string5Naturals: Lesson = {
       fact: 'neck-sharp-up-flat-down',
     },
     { generate: 'note-on-string', params: { strings: [5], frets: [0, 12], naturals: true, ask: 'name' } },
-    { generate: 'play-note', params: { strings: [5], frets: [0, 12], naturals: true } },
+    { generate: 'play-note', params: { strings: [5], frets: [0, 8], naturals: true } },
   ],
   facts: [
     {
@@ -464,7 +465,7 @@ const sameNoteManyPlaces: Lesson = {
     {
       type: 'card',
       title: 'One pitch, several places',
-      body: 'The same pitch often lives in **more than one place**. This {n:D} can be played at string 6, fret 10, at string 5, fret 5, or on the open string 4. All three sound exactly alike.',
+      body: 'The same pitch often lives in **more than one place**. This {n:D} can be played at string 6, fret 10, at string 5, fret 5, or on the open string 4. All three are exactly the same pitch; only the tone colour changes a little.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -475,7 +476,7 @@ const sameNoteManyPlaces: Lesson = {
     {
       type: 'card',
       title: 'Five frets back',
-      body: 'Most strings are tuned **five frets** above the one below them: the fifth-fret rule you tune with. So to play a pitch on the next **thinner** string, go **five frets lower**. The one exception: from string 3 to string 2, go **four** frets lower.',
+      body: 'Almost every string is tuned **five frets** above the next thicker one: the fifth-fret rule you tune with. So to play a pitch on the next **thinner** string, go **five frets lower**. The one exception: from string 3 to string 2, go **four** frets lower.',
       figure: {
         kind: 'fretboard',
         frets: [0, 7],
@@ -511,7 +512,7 @@ const sameNoteManyPlaces: Lesson = {
       mode: 'all',
       octave: 'exact',
       frets: [0, 12],
-      explain: 'Three places: the open string 4, string 5 at fret 5 and string 6 at fret 10. Each is five frets lower than the one on the string below.',
+      explain: 'Three places: the open string 4, string 5 at fret 5 and string 6 at fret 10. Each is five frets lower than the one on the next thicker string.',
       fact: 'neck-same-pitch-places',
     },
     {
@@ -560,7 +561,7 @@ const sameNoteManyPlaces: Lesson = {
       shuffle: false,
       explain: 'Fret 12 of string 5 is an octave above the open string 5, so it is an octave above string 6, fret 5 as well: the same name, {n:A}, but higher.',
     },
-    { generate: 'play-note', params: { strings: [6, 5], frets: [0, 12], naturals: true } },
+    { generate: 'play-note', params: { strings: [6, 5], frets: [0, 8], naturals: true } },
   ],
   facts: [
     {
@@ -570,6 +571,7 @@ const sameNoteManyPlaces: Lesson = {
       ask: {
         type: 'fretboard-find',
         prompt: 'Tap every place you can play the same {n:G} as the open string 3, up to fret 12.',
+        hint: 'There are three. On a small screen, slide the neck sideways to reach fret 12.',
         find: { note: 'G3' },
         mode: 'all',
         octave: 'exact',
@@ -683,8 +685,21 @@ const octaveShapes6And5: Lesson = {
         explain: 'Two strings across and two frets up: string 3, fret 5, the {n:C} an octave higher.',
       },
     },
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 12] } },
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 12] } },
+    {
+      type: 'card',
+      title: 'When the shape runs off the edge',
+      body: 'Near the edge of a neck picture, the shape can run off it. Then use the same-pitch rule: one string thinner, **five frets lower** (four from string 3 to 2). From {n:C} at string 6, fret 8, the shape lands on string 4, fret 10, and the same {n:C} is at string 3, fret 5.',
+      figure: {
+        kind: 'fretboard',
+        frets: [3, 10],
+        dots: [dot(6, 8, 'C3', { role: 'root' }), dot(4, 10, 'C4', { role: 'ghost' }), dot(3, 5, 'C4', { role: 'target' })],
+        caption: '{n:C} at string 6, fret 8. Its octave: string 4, fret 10, or string 3, fret 5.',
+      },
+    },
+    // The drill draws its root anywhere in its range, and the range is the picture: kept to the
+    // frets a phone shows at once. A root near the top has its octave by the card above.
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 8] } },
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [6, 5], frets: [0, 8] } },
   ],
   facts: [
     {
@@ -728,7 +743,7 @@ const octaveShapes6And5: Lesson = {
 const octaveShapes4And3: Lesson = {
   id: 'octave-shapes-4-and-3',
   title: 'Octave shapes across the B string',
-  teaches: 'From string 4 or 3 the octave is two strings thinner and three frets up, because the B string is tuned lower.',
+  teaches: 'From string 4 or 3 the octave is two strings thinner and three frets up: strings 3 and 2 are tuned closer.',
   minutes: 3,
   skill: `theory:${U}:octave-shapes-4-and-3`,
   steps: [
@@ -742,6 +757,7 @@ const octaveShapes4And3: Lesson = {
         dots: [dot(4, 2, 'E3', { role: 'root' }), dot(2, 5, 'E4', { role: 'root' }), dot(3, 2, 'A3', { role: 'target' }), dot(1, 5, 'A4', { role: 'target' })],
         caption: 'Two octave pairs: {n:E} on strings 4 and 2, {n:A} on strings 3 and 1.',
       },
+      tip: 'Shape off the edge of the picture? As before, play the same pitch one string thinner: five frets lower.',
     },
     {
       type: 'fretboard-find',
@@ -788,7 +804,7 @@ const octaveShapes4And3: Lesson = {
       prompt: 'Why do the octave shapes from strings 4 and 3 need three frets instead of two?',
       options: [
         { text: 'Strings 3 and 2 are only four frets apart', correct: true },
-        { text: 'String 2 is thinner than string 3', why: 'Every string is thinner than the one below it; only this pair is tuned closer.' },
+        { text: 'String 2 is thinner than string 3', why: 'Every string is thinner than its thicker neighbour. What sets this pair apart is the tuning: four frets apart, not five.' },
         { text: 'The frets get closer together higher up', why: 'They do, but that changes how far apart the frets are, not how many you need.' },
       ],
       explain: 'Neighbouring strings are five frets apart except strings 3 and 2, which are four. A shape that crosses that pair needs one fret more.',
@@ -817,7 +833,7 @@ const octaveShapes4And3: Lesson = {
       explain: 'Strings 6 and 1 are both {n:E} strings, two octaves apart, so fret 5 is {n:A} on both, two octaves apart.',
       fact: 'neck-6-and-1-two-octaves',
     },
-    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [4, 3], frets: [0, 12] } },
+    { generate: 'interval-on-neck', params: { intervals: ['P8'], ask: 'find', strings: [4, 3], frets: [0, 8] } },
   ],
   facts: [
     {

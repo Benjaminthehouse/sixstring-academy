@@ -276,3 +276,56 @@ describe('Dev unit 9: the major scale, everywhere', () => {
     for (const t of tasks) if (taskSong(t) && !songEntry(taskSong(t)!)) expect(t.fallback, t.id).toBeTruthy();
   });
 });
+
+// ── checks added by the independent review ──────────────────────────────────────────────────────
+
+/** Every fretboard-name note question: its prompt must not already name the answer. */
+function giveawayProblems(u: TeacherUnit): string[] {
+  const out: string[] = [];
+  for (const l of u.lessons) {
+    for (const s of l.steps) {
+      const step = s as { type?: string; ask?: string; prompt?: RichText; position?: { string: number; fret: number } };
+      if (step.type !== 'fretboard-name' || step.ask !== 'note' || !step.position) continue;
+      const answer = pitchClassAt(step.position);
+      for (const m of plain(step.prompt!).matchAll(/\{n:([A-G][#b]*)\d?\}/g)) if (chroma(m[1]) === answer) out.push(`${l.id}: "${plain(step.prompt!)}" names its own answer`);
+    }
+  }
+  return out;
+}
+
+describe('Dev unit 9: review fixes', () => {
+  it('counts strict alternation in 6/8 right: the second group starts up, the next bar down again', () => {
+    const strokes = Array.from({ length: 12 }, (_, i) => (i % 2 === 0 ? 'D' : 'U'));
+    expect(strokes.slice(0, 3).join('')).toBe('DUD');
+    expect(strokes.slice(3, 6).join('')).toBe('UDU');
+    expect(strokes[6]).toBe('D');
+    const tf = unit.lessons.find((l) => l.id === 'jig-time')!.steps.find((s) => (s as { type?: string }).type === 'true-false') as { explain: RichText };
+    expect(plain(tf.explain)).toMatch(/next bar starts on a down/);
+    expect(plain(tf.explain)).not.toMatch(/[Tt]wo bars later/);
+  });
+
+  it('asks no note question whose prompt already names the answer, and the G-shape note is the tune\'s fourth', async () => {
+    expect(giveawayProblems(unit)).toEqual([]);
+    expect((await barNotes('st-caged-melody', 17))[3]).toBe('3:7');
+    expect(nameAt({ string: 3, fret: 7 })).toBe('D');
+  });
+
+  it('says what the screens show: R for the root in Scales, quarter-note bpm in the Player', async () => {
+    const text = JSON.stringify(unit);
+    expect(text).not.toMatch(/the 1s/);
+    let checked = 0;
+    for (const t of tasks) {
+      if (!taskSong(t)) continue;
+      for (const m of plain(t.body).matchAll(/(\d+) % \([^)]*shows (\d+) bpm/g)) {
+        const quarters = (await song(taskSong(t)!)).tempo[0].bpm;
+        expect(Math.round((quarters * Number(m[1])) / 100), `${t.id}: ${m[0]}`).toBe(Number(m[2]));
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not claim every fiddle tune is AABB', () => {
+    expect(JSON.stringify(unit)).not.toMatch(/[Ee]very fiddle tune/);
+  });
+});

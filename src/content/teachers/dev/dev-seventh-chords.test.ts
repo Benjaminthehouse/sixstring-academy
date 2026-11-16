@@ -332,3 +332,23 @@ describe('Dev unit 8: seventh chords', () => {
     for (const t of tasks) if (taskSong(t) && !songEntry(taskSong(t)!)) expect(t.fallback, t.id).toBeTruthy();
   });
 });
+
+// ── checks added by the independent review ──────────────────────────────────────────────────────
+
+describe('Dev unit 8: review fixes', () => {
+  it('describes an Ear Training round as the app runs it: one round of ten chords, five colours', () => {
+    const level = levelOf(drillById('chords')!, '7')!;
+    expect(level.questions).toBe(10);
+    expect(level.pool.length).toBe(5);
+    for (const id of ['sevenths-ear', 'quiz-ear']) {
+      const body = plain(task(id).body);
+      expect(body, id).toMatch(/one round of ten/);
+      expect(body, id).not.toMatch(/ten rounds/);
+    }
+  });
+
+  it('gives health advice where the barre grips start', () => {
+    const card = unit.lessons.find((l) => l.id === 'movable-sevenths')!.steps[0] as { tip?: RichText };
+    expect(plain(card.tip!)).toMatch(/aches/);
+  });
+});

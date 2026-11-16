@@ -32,7 +32,7 @@ const VERTICAL_LINE = [
   n(5, 8, 'q'), n(4, 7, 'q'), n(3, 7, 'h'),
 ];
 /** Over A7: its arpeggio, C# E A G, then the G falls to F, the 3rd of Dm. */
-const A7_TO_DM = [n(6, 9, 'q'), n(5, 7, 'q'), n(4, 7, 'q'), n(5, 10, 'q'), n(5, 8, 'w')];
+const A7_TO_DM = [n(6, 9, 'q'), n(5, 7, 'q'), n(4, 7, 'q'), n(5, 10, 'q'), n(5, 8, 'h')];
 /** The guide-tone line through Dm7 G7 Cmaj7 on string 2: F, F, E. */
 const GUIDE_LINE = [n(2, 6, 'w'), n(2, 6, 'w'), n(2, 5, 'w')];
 /** The guide-tone line decorated with eighth notes in fifth position: F, F and E start the bars. */
@@ -45,29 +45,29 @@ const GUIDE_DECORATED = [
 const GUIDE_SOLO = [n(2, 6, 'q'), n(1, 5, 'q'), n(2, 8, 'q'), n(2, 5, 'q'), n(2, 6, 'q'), n(3, 7, 'q'), n(2, 8, 'q'), n(2, 6, 'q'), n(2, 5, 'w')];
 /** The same rhythm landing on the roots D, G, C instead. */
 const ROOT_SOLO = [n(3, 7, 'q'), n(2, 6, 'q'), n(2, 5, 'q'), n(3, 5, 'q'), n(2, 8, 'q'), n(2, 6, 'q'), n(3, 7, 'q'), n(2, 5, 'q'), n(3, 5, 'w')];
-/** Over C: C G C, then D# on the "&" of 4 into E on beat 1. */
-const APPROACH_PHRASE = [n(3, 5, 'q'), n(4, 5, 'q'), n(3, 5, 'q'), rest('e'), n(2, 4, 'e'), n(2, 5, 'w')];
+/** Over C, from beat 3: C held into beat 4, D# on its "&", then E on beat 1. */
+const APPROACH_PHRASE = [n(3, 5, 'q.'), n(2, 4, 'e'), n(2, 5, 'q')];
 /** C picked, then F stepping down into E on beat 1: an approach from above. */
 const FROM_ABOVE = [...C_CHORD, rest('q'), rest('e'), n(2, 6, 'e'), n(2, 5, 'w')];
 /** C picked, then D# stepping up into E on beat 1: an approach from below. */
 const FROM_BELOW = [...C_CHORD, rest('q'), rest('e'), n(2, 4, 'e'), n(2, 5, 'w')];
-/** The enclosure F, D#, E landing on beat 1. */
-const ENCLOSURE_E = [rest('h.'), n(2, 6, 'e'), n(2, 4, 'e'), n(2, 5, 'w')];
+/** The enclosure F, D# on beat 4, then E on beat 1. */
+const ENCLOSURE_E = [n(2, 6, 'e'), n(2, 4, 'e'), n(2, 5, 'q')];
 /** Over G7 into Cmaj7: G B D climb the chord, F and D# enclose E on beat 1. */
 const G7_ENCLOSURE = [n(4, 5, 'q'), n(3, 4, 'q'), n(3, 7, 'q'), n(2, 6, 'e'), n(2, 4, 'e'), n(2, 5, 'w')];
-/** Enclosing B, the 3rd of G7, on string 3: C, A#, then B on beat 1. */
-const ENCLOSURE_B = [rest('h.'), n(3, 5, 'e'), n(3, 3, 'e'), n(3, 4, 'w')];
+/** Enclosing B, the 3rd of G7, on string 3: C and A# on beat 4, then B on beat 1. */
+const ENCLOSURE_B = [n(3, 5, 'e'), n(3, 3, 'e'), n(3, 4, 'q')];
 /** C picked, then an enclosure of E. */
 const ENCLOSED = [...C_CHORD, rest('q'), n(2, 6, 'e'), n(2, 4, 'e'), n(2, 5, 'w')];
 /** Cmaj7 (x3545x) picked, then the Em7 arpeggio from string 5, fret 7. */
 const CMAJ7_CHORD = [n(5, 3, 'e'), n(4, 5, 'e'), n(3, 4, 'e'), n(2, 5, 'e'), rest('h')];
 const EM7_ARPEGGIO = [n(5, 7, 'q'), n(4, 5, 'q'), n(4, 9, 'q'), n(3, 7, 'q'), n(3, 9, 'q'), n(2, 8, 'q'), n(1, 7, 'q'), n(1, 10, 'q')];
-/** Over Dm7: D minor pentatonic at fret 10, the same shape a fret up, then home. */
-const PHRASE_IN = [n(2, 10, 'e'), n(2, 13, 'e'), n(1, 10, 'q'), n(2, 10, 'h')];
-const PHRASE_OUT = [n(2, 11, 'e'), n(2, 14, 'e'), n(1, 11, 'q'), n(2, 11, 'h')];
-const PHRASE_HOME = [n(2, 10, 'e'), n(2, 13, 'e'), n(1, 10, 'h.')];
-/** A second phrase that stays in D minor pentatonic. */
-const PHRASE_STAY = [n(3, 12, 'e'), n(3, 10, 'e'), n(2, 10, 'q'), n(3, 10, 'h')];
+/** Over Dm7: a two-note idea from D minor pentatonic at fret 10 (A, D), the same shape a fret up, then home. */
+const PHRASE_IN = [n(2, 10, 'h'), n(1, 10, 'h')];
+const PHRASE_OUT = [n(2, 11, 'h'), n(1, 11, 'h')];
+const PHRASE_HOME = [n(2, 10, 'h'), n(1, 10, 'h')];
+/** A second idea that stays in D minor pentatonic (F, G). */
+const PHRASE_STAY = [n(3, 10, 'h'), n(3, 12, 'h')];
 
 /** The guide-tone line as a fill-in, for the play step's tapping version and the review card. */
 const GUIDE_FILL: FillBlanksExercise = {
@@ -352,15 +352,15 @@ const approachNotes: Lesson = {
       type: 'card',
       title: 'Off the beat, onto the beat',
       body: 'Put the approach note on the {t:offbeat|off-beat}, the "&", so the target lands on the beat. The tension falls on a weak moment and the release on a strong one. Here {n:D#} on the "&" of 4 slides into {n:E} on beat 1.',
-      figure: { kind: 'tab', tempo: 80, notes: APPROACH_PHRASE, caption: '{n:C} {n:G} {n:C}, then {n:D#} on the "&" of 4 and {n:E} on beat 1.' },
+      figure: { kind: 'tab', tempo: 80, notes: APPROACH_PHRASE, caption: '{n:C} on beat 3, held; {n:D#} on the "&" of 4; {n:E} on beat 1.' },
     },
     {
       type: 'play-phrase',
-      prompt: 'Over {c:C}, play {n:C} {n:G} {n:C}, then approach {n:E} from {n:D#} on the "&" of 4 and land on beat 1.',
+      prompt: 'Over {c:C}, play {n:C} on beat 3 and hold it. Then approach {n:E} from {n:D#} on the "&" of 4 and land on beat 1.',
       notes: APPROACH_PHRASE,
       octave: 'exact',
       tempo: 80,
-      explain: '{n:D#} at string 2, fret 4 lasts only half a beat; {n:E} at fret 5 lands on beat 1 and rings. Slide or re-pick, as long as {n:E} arrives on time.',
+      explain: '{n:C} at string 3, fret 5; then {n:D#} at string 2, fret 4 for only half a beat, and {n:E} at fret 5 on beat 1. Slide or re-pick, as long as {n:E} arrives on time.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'Tap the approach note a half step below {n:E} on string 2.',
@@ -629,11 +629,11 @@ const arpeggioSubstitution: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Over {c:Cmaj7}, play the {c:Em7} arpeggio from string 5, fret 7, up to string 1, fret 10.',
-      notes: EM7_ARPEGGIO,
+      prompt: 'Over {c:Cmaj7}, play the {c:Em7} arpeggio from string 5, fret 7, up to string 2, fret 8.',
+      notes: EM7_ARPEGGIO.slice(0, 6),
       octave: 'exact',
       tempo: 80,
-      explain: '{n:E} {n:G} {n:B} {n:D}, twice over: string 5 fret 7, string 4 frets 5 and 9, string 3 frets 7 and 9, string 2 fret 8, string 1 frets 7 and 10.',
+      explain: '{n:E} {n:G} {n:B} {n:D}, then {n:E} {n:G} again: string 5 fret 7, string 4 frets 5 and 9, string 3 frets 7 and 9, string 2 fret 8. The top of the shape, frets 7 and 10 of string 1, adds {n:B} and {n:D}.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'Tap every note of {c:Em7} on strings 5 to 3, frets 5 to 9.',
@@ -699,7 +699,7 @@ const playingOutside: Lesson = {
     {
       type: 'card',
       title: 'Out on purpose',
-      body: '{t:outside-playing|Outside playing} leaves the key on purpose for a moment. The simplest way is {t:side-slipping}: play a phrase, move it a half step, then bring it back. Over a {c:Dm7} {t:vamp}: a {n:D} minor pentatonic phrase at fret 10, the same shape at fret 11, then home again.',
+      body: '{t:outside-playing|Outside playing} leaves the key on purpose for a moment. The simplest way is {t:side-slipping}: play a phrase, move it a half step, then bring it back. Over a {c:Dm7} {t:vamp}: {n:A} and {n:D} from {n:D} minor pentatonic at fret 10, the same shape at fret 11, then home again.',
       figure: { kind: 'tab', tempo: 84, notes: [...PHRASE_IN, ...PHRASE_OUT, ...PHRASE_HOME], caption: 'In at fret 10, out at fret 11, back at fret 10.' },
     },
     {
@@ -708,7 +708,7 @@ const playingOutside: Lesson = {
       sound: { kind: 'tab', tempo: 84, notes: [...PHRASE_IN, ...PHRASE_OUT, ...PHRASE_HOME] },
       options: [{ text: 'Yes: out a half step, then back', correct: true }, { text: 'No: it stayed inside' }],
       shuffle: false,
-      explain: 'The second phrase was the first one moved up a fret, to {n:Bb} {n:Db} {n:Eb}: outside {n:D} minor pentatonic. The third came home and settled on {n:D}.',
+      explain: 'The second phrase was the first one moved up a fret, to {n:Bb} and {n:Eb}: both outside {n:D} minor pentatonic. The third came home and settled on {n:D}.',
     },
     {
       type: 'true-false',
@@ -731,11 +731,11 @@ const playingOutside: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Over {c:Dm7}, play the phrase at fret 10, slide it up a fret, then bring it home to fret 10.',
+      prompt: 'Over {c:Dm7}, play {n:A} and {n:D} at fret 10, slide the shape up a fret, then bring it home to fret 10.',
       notes: [...PHRASE_IN, ...PHRASE_OUT, ...PHRASE_HOME],
       octave: 'exact',
       tempo: 84,
-      explain: 'Frets 10, 13 and 10 on strings 2 and 1, then the same shape at 11, 14 and 11, then home, holding the {n:D} at string 1, fret 10.',
+      explain: 'Strings 2 and 1 at fret 10, then both at fret 11 ({n:Bb} and {n:Eb}), then home, holding the {n:D} at string 1, fret 10. One finger can barre each pair.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'The phrase starts at string 2, fret 10. Slip it up a half step: tap where it starts now.',
@@ -773,7 +773,7 @@ const playingOutside: Lesson = {
       prompt: 'Over {c:G7}, ideas from which chord give the standard tritone outside sound?',
       options: [
         { text: '{c:Db7}', correct: true },
-        { text: '{c:D7}', why: '{c:D7} is a fifth above {c:G7}: a familiar, inside sound.' },
+        { text: '{c:D7}', why: '{c:D7} is a fifth above {c:G7}, not a tritone, and its {n:F#} just clashes with the {n:F} of {c:G7}.' },
         { text: '{c:Ab7}', why: '{c:Ab7} is a half step above: that side-slips the chord; it is not the tritone sound.' },
         { text: '{c:C7}', why: '{c:C7} is a fourth above {c:G7}, not a tritone away.' },
       ],
@@ -802,7 +802,7 @@ const playingOutside: Lesson = {
       sound: { kind: 'tab', tempo: 84, notes: [...PHRASE_IN, ...PHRASE_STAY, ...PHRASE_HOME] },
       options: [{ text: 'Yes: out a half step, then back' }, { text: 'No: it stayed inside', correct: true }],
       shuffle: false,
-      explain: 'Every note came from {n:D} minor pentatonic: {n:A} {n:C} {n:D}, then {n:G} {n:F} {n:A} {n:F}, then home. A new shape, but no notes outside.',
+      explain: 'Every note came from {n:D} minor pentatonic: {n:A} {n:D}, then {n:F} {n:G}, then {n:A} {n:D} again. A new idea, but no notes outside.',
     },
   ],
   facts: [

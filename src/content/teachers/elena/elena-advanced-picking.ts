@@ -215,7 +215,7 @@ const sweepThree: TeacherLesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Your recording of the {c:Am} sweep. Clean, or blurred?',
+      prompt: 'A student\'s recording of the {c:Am} sweep. Clean, or blurred?',
       sound: { kind: 'notes', notes: ['A4', 'C5', 'E5'], together: true },
       options: [{ text: 'Clean: separate notes' }, { text: 'Blurred: they rang together', correct: true }],
       shuffle: false,

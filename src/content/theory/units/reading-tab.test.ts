@@ -260,8 +260,13 @@ describe('reading-tab: Ode to Joy', () => {
     expect(top).toBe(67);
     const find = exercises(l).find((e): e is FretboardFindExercise => e.type === 'fretboard-find')!;
     expect(pos(findTargets(find))).toEqual([{ string: 1, fret: 3 }]);
-    const last = unit.checkpoint!.steps!.find((s): s is FretboardFindExercise => !('generate' in s) && s.type === 'fretboard-find' && (s.figure as TabFigure | undefined)?.notes.length === ode.length)!;
+    // The checkpoint asks for the last note over bars 3 and 4 only: the end of the phrase, as it ends.
+    const last = unit.checkpoint!.steps!.find((s): s is FretboardFindExercise => !('generate' in s) && s.type === 'fretboard-find' && /ends on/.test(plainText(s.prompt)))!;
+    const end = (last.figure as TabFigure).notes;
+    expect(end).toEqual(ode.slice(ode.length - end.length));
+    expect(end.length).toBe(7);
     expect(pos(findTargets(last))).toEqual([{ string: 2, fret: 3 }]);
+    expect(midiOf(end[end.length - 1])).toBe(62);
     expect(midiOf(ode[ode.length - 1])).toBe(62);
   });
 
@@ -275,6 +280,52 @@ describe('reading-tab: Ode to Joy', () => {
     const play = exercises(l).find((e): e is PlayPhraseExercise => e.type === 'play-phrase')!;
     const named = [...String(play.explain).matchAll(/\{n:([A-G]#?)\}/g)].map((m) => m[1]);
     expect(named.join(' ')).toBe(ode.map(nameOf).join(' '));
+  });
+});
+
+describe('reading-tab: what a phone shows', () => {
+  /**
+   * Notes of a tab figure that fit a 390 px phone: the figure is (28 + 12 + 34 n) x 1.25 px wide
+   * (TabFigureView) and scrolls inside its card past about 358 px, with no cue that there is more.
+   */
+  const PHONE_TAB_NOTES = 7;
+  const asked = allExercises().filter((e) => e.figure?.kind === 'tab');
+
+  it('every question over a tab shows what it asks about without scrolling', () => {
+    expect(asked.length).toBeGreaterThanOrEqual(10);
+    for (const e of asked) {
+      const notes = (e.figure as TabFigure).notes;
+      if (e.type === 'fretboard-find') {
+        // A long tab is fine to read from, as long as the note asked for is in its first screenful.
+        const [t] = findTargets(e);
+        const at = notes.findIndex((n) => !('rest' in n) && n.string === t.string && n.fret === t.fret);
+        expect(at, plainText(e.prompt)).toBeGreaterThanOrEqual(0);
+        expect(at, plainText(e.prompt)).toBeLessThan(PHONE_TAB_NOTES);
+      } else {
+        expect(notes.length, plainText(e.type === 'true-false' ? e.statement : e.prompt)).toBeLessThanOrEqual(PHONE_TAB_NOTES);
+      }
+    }
+  });
+
+  it('a card tab too long for a phone says it slides', () => {
+    for (const l of unit.lessons) {
+      for (const c of cards(l)) {
+        if (c.figure?.kind !== 'tab' || c.figure.notes.length <= PHONE_TAB_NOTES) continue;
+        expect(plainText(c.figure.caption ?? ''), `${l.id}: ${c.title}`).toMatch(/slide it sideways/);
+      }
+    }
+  });
+});
+
+describe('reading-tab: words and colours', () => {
+  it('links every glossary term the unit adds', () => {
+    const text = JSON.stringify(unit);
+    for (const id of ['hammer-on', 'pull-off', 'slide', 'bend', 'vibrato', 'phrase']) expect(text, id).toMatch(new RegExp(`\\{t:${id}[|}]`));
+  });
+
+  it('uses no root colour: roots are taught later (first-scale), and a bend start is not one', () => {
+    const roles = unit.lessons.flatMap((l) => cards(l)).flatMap((c) => (c.figure?.kind === 'fretboard' ? (c.figure.dots ?? []).map((d) => d.role) : []));
+    expect(roles).not.toContain('root');
   });
 });
 

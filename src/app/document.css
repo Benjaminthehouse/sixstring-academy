@@ -11,12 +11,16 @@
  * While an immersive screen hides the tab bar, there is no bar: --nav-h is 0 for everything that
  * keeps clear of it (toasts, scroll padding, the practice session bar), so nothing is lifted for a
  * bar that is not there.
+ *
+ * Only the shell's root carries data-immersive. Screens put data-layout="phone" on their own
+ * elements too (scales, reference, the player), so the rule must name both attributes: matching
+ * data-layout alone collapsed the visible tab bar to 1 px on those screens.
  */
 @media (max-width: 899.98px) {
   :root {
     --nav-h: max(60px, calc(44px + 0.9rem));
   }
-  :root:has([data-layout='phone']:not([data-immersive='none'])) {
+  :root:has([data-layout='phone'][data-immersive='focus'], [data-layout='phone'][data-immersive='bare']) {
     --nav-h: 0px;
   }
 }

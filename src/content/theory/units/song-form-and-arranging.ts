@@ -41,6 +41,8 @@ const ANTECEDENT = [
   n(2, 3, 'q'), n(2, 0, 'q'), n(3, 0, 'q'), n(2, 0, 'q'),
   n(3, 2, 'w'),
 ];
+/** Bars 3 and 4 alone, the last note shortened: what the play step asks for. */
+const ANTECEDENT_END = [n(2, 3, 'q'), n(2, 0, 'q'), n(3, 0, 'q'), n(2, 0, 'q'), n(3, 2, 'h')];
 /** Bars 5 to 8: the same start, then D7 to G. */
 const CONSEQUENT = [
   n(2, 0, 'q'), n(2, 3, 'q'), n(1, 3, 'h'),
@@ -65,6 +67,9 @@ const ODE = [
   n(1, 0, 'q.'), n(2, 3, 'e'), n(2, 3, 'h'),
 ];
 
+/** The opening of the tune, landing on the G that carries the G chord in bar 2. */
+const ODE_OPENING = [n(1, 0, 'q'), n(1, 0, 'q'), n(1, 1, 'q'), n(1, 3, 'q'), n(1, 3, 'h')];
+
 /** Root and 5th under G C D G, strings 6 to 4. */
 const ROOT_FIFTH = [n(6, 3, 'h'), n(5, 5, 'h'), n(5, 3, 'h'), n(6, 3, 'h'), n(4, 0, 'h'), n(5, 0, 'h'), n(6, 3, 'w')];
 /** A walking line under G C D G: a note a beat, a half-step approach on each beat 4. */
@@ -85,7 +90,7 @@ const songSections: Lesson = {
     {
       type: 'card',
       title: 'A map of a song',
-      body: 'Songs are built from sections with different jobs. Here is the map of an original song in G:\nIntro, Verse, Pre-chorus, Chorus, Verse, Pre-chorus, Chorus, Bridge, Chorus, Outro.\nEvery section uses four open chords: {c:G} (320003), {c:C} (x32010), {c:D} (xx0232) and {c:Em} (022000).',
+      body: 'Songs are built from sections with different jobs. The map of an original song in G:\nIntro, Verse, Pre-chorus, Chorus,\nVerse, Pre-chorus, Chorus,\nBridge, Chorus, Outro.\nIt uses four open chords: {c:G} (320003), {c:C} (x32010), {c:D} (xx0232) and {c:Em} (022000).',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: CHORUS, beats: 4, tempo: 96 }, label: 'Hear the chorus' },
     },
     {
@@ -376,11 +381,11 @@ const phrasesAndPeriods: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Play the antecedent on strings 1 to 3, first position. It ends on {n:A}, over {c:D}.',
-      notes: ANTECEDENT,
+      prompt: 'Play the end of the antecedent, bars 3 and 4, on strings 3 and 2. It stops on {n:A}, over {c:D}.',
+      notes: ANTECEDENT_END,
       octave: 'exact',
       tempo: 90,
-      explain: 'Bars 1 to 3 sit on chord tones of {c:G}, {c:C} and {c:G}; bar 4 holds {n:A}, the 5th of {c:D}, at string 3, fret 2: a half cadence.',
+      explain: '{n:D} {n:B} {n:G} {n:B} spell {c:G} in bar 3; then {n:A}, the 5th of {c:D}, at string 3, fret 2: a half cadence. Let it ring, like a question.',
       alternative: {
         type: 'staff-read',
         prompt: 'The antecedent ends on this note, over {c:D}. Which note is it?',
@@ -477,7 +482,7 @@ const theGuitarInABand: Lesson = {
       prompt: 'Play guitar 2\'s {c:G}: strings 3-2-1 at frets 12-12-10.',
       chord: 'G',
       frets: [null, null, null, 12, 12, 10],
-      explain: '{n:G} at string 3, fret 12; {n:B} at string 2, fret 12; {n:D} at string 1, fret 10. Mute the other strings with the side of your hand.',
+      explain: '{n:G} at string 3, fret 12; {n:B} at string 2, fret 12; {n:D} at string 1, fret 10. Pick only strings 3 to 1.',
       alternative: {
         type: 'chord-build',
         task: 'fingers',
@@ -576,7 +581,7 @@ const chordMelody: Lesson = {
     {
       type: 'listen-choice',
       prompt: 'The melody note is {n:E}. This {c:C} shape is rolled from low to high: is {n:E} on top, or hidden inside?',
-      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E4'], tempo: 60 }, label: 'Hear the melody note' },
+      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E4', 'E4'], tempo: 60 }, label: 'Hear the melody note' },
       sound: { kind: 'chord', chord: 'C', frets: 'x32010', style: 'arpeggio' },
       options: [{ text: 'On top: it is the highest note', correct: true }, { text: 'Hidden inside the chord' }],
       shuffle: false,
@@ -584,11 +589,11 @@ const chordMelody: Lesson = {
     },
     {
       type: 'play-phrase',
-      prompt: 'Play the "Ode to Joy" tune on strings 1 and 2, one note at a time. Then try it with the beat-1 chords under it.',
-      notes: ODE,
+      prompt: 'Play the opening of the tune on string 1: {n:E} {n:E} {n:F} {n:G}, then {n:G} on beat 1 of bar 2, where {c:G} goes under it.',
+      notes: ODE_OPENING,
       octave: 'exact',
       tempo: 90,
-      explain: 'String 1: open, 1 and 3 for {n:E}, {n:F} and {n:G}; string 2: frets 3 and 1 for {n:D} and {n:C}. With the chords, keep the tune the loudest note.',
+      explain: 'String 1: open for {n:E}, fret 1 for {n:F}, fret 3 for {n:G}. Then try the whole phrase with the beat-1 chords under it, keeping the tune the loudest note.',
       alternative: {
         type: 'choice',
         prompt: 'Which string-1 frets play the first bar of the tune, {n:E} {n:E} {n:F} {n:G}?',
@@ -644,7 +649,7 @@ const chordMelody: Lesson = {
     {
       type: 'listen-choice',
       prompt: 'The melody note is {n:E} again. Is it on top of this {c:C} shape, or hidden inside?',
-      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E4'], tempo: 60 }, label: 'Hear the melody note' },
+      figure: { kind: 'audio', sound: { kind: 'notes', notes: ['E4', 'E4'], tempo: 60 }, label: 'Hear the melody note' },
       sound: { kind: 'chord', chord: 'C', frets: 'x35553', style: 'arpeggio' },
       options: [{ text: 'On top: it is the highest note' }, { text: 'Hidden inside the chord', correct: true }],
       shuffle: false,
