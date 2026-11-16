@@ -265,6 +265,8 @@ export interface BackupPreview {
   progressOnly: boolean;
   /** Keys of learner data the import would write or remove. */
   dataChanges: number;
+  /** Parts of the file that are damaged and left out (`damagedLabels`): this device keeps its own copy of them. */
+  damaged: string[];
 }
 
 /**
@@ -313,6 +315,7 @@ export function previewBackup(read: ReadBackupOk, local: { state: ProgressState;
     songs,
     progressOnly: read.format === 'progress-only',
     dataChanges: plan ? plan.write.length + plan.remove.length : 0,
+    damaged: damagedLabels(read),
   };
 }
 
@@ -469,10 +472,8 @@ export async function applyBackup(read: ReadBackupOk, strategy: MergeStrategy, d
   };
   // The copy for Undo goes first, so even an import that fails half-way can be taken back.
   let undo = writeStash(r, before);
-  if (!undo && strategy === 'replace') {
-    r.data.remove(UNDO_KEY); // a half-written copy, or an older one that no longer matches
-    return { ok: false, reason: 'no-room', detail: 'the copy for Undo could not be stored' };
-  }
+  // Nothing has changed yet, so an Undo kept from an earlier import or reset still holds.
+  if (!undo && strategy === 'replace') return { ok: false, reason: 'no-room', detail: 'the copy for Undo could not be stored' };
   const progress = r.store.importData(read.progress, strategy);
   if (!progress.ok) {
     if (undo) r.data.remove(UNDO_KEY);
