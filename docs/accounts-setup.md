@@ -65,6 +65,28 @@ Supabase's standard emails contain a link. The app uses a typed code instead, be
 would open the phone's web browser instead of the app installed on the home screen. So the emails
 must show the code.
 
+**First, connect an email service.** New Supabase projects only let you edit the emails once they
+send through your own email service (the Emails page then says "Set up custom SMTP to edit
+templates"). Resend is free and quick:
+
+1. Go to **https://resend.com** and sign up **with the email address you will sign in to the app
+   with**. Until you add a web domain of your own to Resend, it only delivers to that one address:
+   enough for one learner on several devices. For more learners, add and verify a domain in Resend
+   (**Domains**) and use an address at that domain as the sender below.
+2. In Resend, open **API Keys**, click **Create API Key**, give it any name, choose **Sending
+   access**, click **Add**, and copy the key (it starts `re_` and is shown only once).
+3. In Supabase, on **Authentication > Emails**, click **Set up SMTP** (or open the **SMTP Settings**
+   tab), switch on **Enable custom SMTP** and fill in:
+   - **Sender email address**: `onboarding@resend.dev` (or an address at your verified domain)
+   - **Sender name**: `Sixstring Academy`
+   - **Host**: `smtp.resend.com`
+   - **Port number**: `465`
+   - **Username**: `resend`
+   - **Password**: the Resend key you copied
+4. Click **Save changes**. The email templates can now be edited.
+
+Then change the two emails:
+
 1. In Supabase, click **Authentication** in the left sidebar, then **Emails** (in some versions of
    the dashboard this is called **Email Templates**).
 2. Edit **two** templates the same way: **Confirm signup** (sent the first time an email address
@@ -181,14 +203,16 @@ The app reads these values when it is built, so it needs one new build.
 
 ## How many sign-in emails can be sent
 
-Supabase's built-in email service is meant for trying things out and sends **only a few emails
-an hour for the whole project** (2 an hour at the time of writing; **Authentication > Rate
-Limits** shows the current number). Each learner needs an email only when they sign in on a new
-device, so a handful of learners is fine. If learners see "Too many sign-in emails were sent in
-the last hour", that limit was reached; it resets within the hour.
+Each learner needs an email only when they sign in on a new device. With the email service from
+step 3 connected, Supabase allows about 30 sign-in emails an hour for the whole project at first
+(**Authentication > Rate Limits** shows and changes the number). If learners see "Too many sign-in
+emails were sent in the last hour", that limit was reached; it resets within the hour.
 
-For more learners, connect your own email service (many have a free tier: for example Resend,
-Brevo, Postmark or Amazon SES):
+Without a domain of your own, Resend only delivers to the address you signed up with. To let other
+learners sign in, add a domain in Resend (**Domains**), follow its steps to verify it, and change the
+**Sender email address** in Supabase's SMTP settings to an address at that domain.
+
+Any other email service with SMTP works the same way (for example Brevo, Postmark or Amazon SES):
 
 1. Create an account with the email service and follow its steps to verify your sending domain or
    address. It gives you an SMTP **host**, **port**, **username** and **password**.
