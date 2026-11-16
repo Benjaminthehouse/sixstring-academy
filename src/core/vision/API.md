@@ -249,6 +249,9 @@ trusted pose from before the jump voting too). Before this, a cut kept the old n
 confidence 1.0 and locked a fret off until the learner fixed it (`jump.test.ts`; alt bench 'typical',
 30 seeds x 2 cut points: locked frames with wrong cells after the cut 70 of 1077 -> 10, cuts locked a
 fret off to the end 3 -> 0; the 10 left are one second guitar placed half a string off, as without a cut).
+The camera knocked along the same neck (the picture moved +1, +2 or -2 frets between two frames, seeds
+100-109, review): 117 locked frames wrong and 7 scenes ending a fret off without the check, 1 frame
+(half a string) and none off with it (`jump.test.ts`, 'knocked').
 A swaying neck moves 0.05-0.2 cells a frame at 30 fps; the cut measured 0.9. The usual motion is a speed, so a busy
 machine that skips frames (gaps of 6-8 frames move a swaying neck most of a cell) sees no jumps.
 When the fresh search finds the board where the track put it, with the same numbers, the move was

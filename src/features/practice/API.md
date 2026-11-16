@@ -40,8 +40,9 @@ suggestPracticePlan(state, now, 10, { journal, goals }, library);
   finished lesson (`PlannerInput.studiedUnits`, read by `plannerInputFrom`). Items suit a level by
   the plan's 1-10 difficulty (`LEVEL_BANDS`: beginner 1-3, intermediate 3-6, expert 6-10, as the
   Technique screen's); a beginner waits 7 practice days for level 2 and 14 for level 3. The practice
-  screen imports the library; Today loads it lazily (`usePracticeLibrary`); the session bar never
-  does (`weight.test.ts` checks the import graph).
+  screen imports the library; Today loads it lazily (`usePracticeLibrary`) and holds its drill and
+  music steps as skeletons until it is in (1.5 s at most), then keeps that one plan for the day; the
+  session bar never loads it (`weight.test.ts` checks the import graph).
 
 ## Start a session from elsewhere
 

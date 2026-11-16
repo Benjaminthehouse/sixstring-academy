@@ -218,7 +218,16 @@ export interface LevelDef {
    * A round that is not one of the drill's own levels (a progression from the catalog, opened by its
    * link): where it is saved and reported, and the address that opens it again.
    */
-  special?: { key: string; skillId: string; params: string[] };
+  special?: {
+    key: string;
+    skillId: string;
+    params: string[];
+    /**
+     * Skill id of the confusion record these rounds read and add to (their answers are not the
+     * drill's answers, so they must not land in the drill's record: `ear:progression` for the catalog).
+     */
+    recordId: string;
+  };
 }
 
 /** One drill: a rung of the ladder. */

@@ -20,6 +20,11 @@ export const MAX_BARS = 12;
 const LONG_FORM_BARS = 8;
 /** Options in a round, the progression itself included. */
 const MAX_OPTIONS = 4;
+/**
+ * Where catalog rounds keep their confusion record (catalog ids, "heard the axis as the doo-wop"):
+ * apart from the progressions drill's own record, whose answers are a different set.
+ */
+export const CATALOG_RECORD_ID = 'ear:progression';
 
 /** Bars played of a progression. */
 function barsPlayed(p: Progression): number {
@@ -137,7 +142,7 @@ export function catalogRound(id: string): { drill: DrillDef; level: LevelDef; pr
     blurb: `${pool.length} progressions in ${p.tonality === 'major' || p.tonality === 'minor' ? `a ${p.tonality}` : `the ${p.tonality}`} key`,
     pool,
     questions: 6,
-    special: { key: `progression:${p.id}`, skillId: `ear:progression:${p.id}`, params: ['progression', p.id] },
+    special: { key: `progression:${p.id}`, skillId: `ear:progression:${p.id}`, params: ['progression', p.id], recordId: CATALOG_RECORD_ID },
     make(ctx) {
       const pc = pcOf(placeNote(ctx.rng, ctx.settings, 40, 51));
       const plan = (option: string): SoundPlan => {

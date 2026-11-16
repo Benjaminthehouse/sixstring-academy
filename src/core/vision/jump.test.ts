@@ -16,10 +16,12 @@ import { altCondition, createAltCache, renderAlt } from './testing/alt-scenes';
 import { FretboardTracker } from './tracker';
 import type { DetectionResult, Detector } from './types';
 
-function runCut(seed: number, cut: number, after: number) {
+function runCut(seed: number, cut: number, after: number, knockFrets = 0) {
   const cond = altCondition('typical');
   const a = cond.build(seed);
-  const b = cond.build(seed + 1000);
+  // A cut to another guitar, or (knockFrets) the same guitar with the camera knocked along the neck:
+  // the same picture moved by whole frets, so every wire lands where another wire was.
+  const b = knockFrets ? { ...a, view: { ...a.view, anchorFret: a.view.anchorFret + knockFrets } } : cond.build(seed + 1000);
   const ca = createAltCache();
   const cb = createAltCache();
   const inner = createFretboardDetector();
@@ -126,5 +128,27 @@ describe('a jump to another guitar while locked', () => {
     expect(misnumbered.map((f) => f.index)).toEqual([]);
     const tail = after.slice(-6);
     expect(tail.every((f) => f.state === 'locked' && f.right === true)).toBe(true);
+  }, 120_000);
+});
+
+describe('the camera knocked along the same neck while locked', () => {
+  // Review: the same guitar, the picture moved two frets along the neck between two frames. Every
+  // wire lands where another wire was, so the trackers hold on and only the numbers are wrong.
+  // Without the jump check every locked frame after the knock was a fret off to the end (seeds
+  // 102 +2 and 100 -2 here); knocked +1, +2 and -2 frets on seeds 100-109: 117 locked frames wrong
+  // and 7 scenes ending a fret off without it, 1 frame wrong (half a string) and none off with it.
+  it.each([
+    [102, 2],
+    [100, -2],
+  ])('alt scene typical %i, knocked %i frets: the numbers are read again', (seed, frets) => {
+    const cut = 14;
+    const frames = runCut(seed, cut, 14, frets);
+    const before = frames.slice(0, cut);
+    const after = frames.slice(cut);
+    expect(before.filter((f) => f.state === 'locked').length).toBeGreaterThan(cut / 2);
+    expect(before.some((f) => f.jump)).toBe(false);
+    expect(after.some((f) => f.jump)).toBe(true);
+    expect(after.filter((f) => f.state === 'locked' && f.offset !== 0).map((f) => f.index)).toEqual([]);
+    expect(after.slice(-4).every((f) => f.state === 'locked' && f.right === true)).toBe(true);
   }, 120_000);
 });

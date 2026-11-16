@@ -127,6 +127,16 @@ describe('API.md', () => {
     expect(doc.split('\n').length).toBeLessThanOrEqual(215);
   });
 
+  it('documents the skill ids the screens really record (an ear round is `ear:<drill>:<level>`)', async () => {
+    const { levelSkillId, drillSkillId } = await import('@/features/ear/core/progress');
+    const { progressionSkillId } = await import('@/content/progressions');
+    expect(doc).toContain('`ear:<drill>:<level>`');
+    expect(levelSkillId('intervals-up', 2)).toBe('ear:intervals-up:2');
+    expect(drillSkillId('intervals-up')).toBe('ear:intervals-up');
+    expect(doc).toContain('`progression:<id>`');
+    expect(progressionSkillId('i-v-vi-iv')).toBe('progression:i-v-vi-iv');
+  });
+
   it('names only hooks, selectors and actions that exist', async () => {
     const api = (await import('./index')) as unknown as Record<string, unknown>;
     const names = new Set<string>();

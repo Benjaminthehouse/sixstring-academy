@@ -91,12 +91,11 @@ recordActivity({ kind: 'tuner', durationSec, route: 'tuner' });
 ```
 
 **Skill ids** (lower-case; achievements, quests and the planner read the prefixes): `scale:<scale>:<position>` (boxes
-`box-1` … `box-5`), `chord:<symbol>` (first completion = a new chord), `chord-change:<a>-<b>`, `progression:<id>` (kind
-`progression`, id from `progressionSkillId` in `@/content/progressions`; the builder: `progression:builder`), `song:<id>`,
-`technique:<id>`, `theory:<unit>:<lesson>`, `teacher:<mia|dev|elena>:<lesson>`, `ear:<drill>:<level>` (a round; `ear:<drill>`
-holds the drill's answer history), `rhythm:<activity>:<level>`.
-`markSkill` sets flags: `fretboard:string-6` (a string learned), `teacher:mia:course` (a course finished). **Bests**: only
-finished attempts set `bestScore`/`bestAccuracy`, so read them via `skillBest(record)` or `skillView(...).best` (null until set): never "Best 0%".
+`box-1` … `box-5`), `chord:<symbol>` (first completion = a new chord), `chord-change:<a>-<b>`, `progression:<id>`
+(`progressionSkillId` in `@/content/progressions`; the builder's: `progression:builder`), `song:<id>`, `technique:<id>`,
+`theory:<unit>:<lesson>`, `teacher:<mia|dev|elena>:<lesson>`, `ear:<drill>:<level>` (`ear:<drill>`: its answers),
+`rhythm:<activity>:<level>`; `markSkill` flags: `fretboard:string-6`, `teacher:mia:course`. **Bests**: only finished
+attempts set `bestScore`/`bestAccuracy`: read them via `skillBest(record)` or `skillView(...).best` (null until then).
 
 ### XP guideline (`xpFor(kind, factors)`; `XP_RULES`) — daily goals 10 / 20 / 30 / 50 XP = `DAILY_GOALS[].minutes` 5 / 10 / 15 / 25 of planned practice
 

@@ -100,8 +100,9 @@ export function arcadeParams(game: ArcadeGameId, tonic: string, scale: string, s
 /**
  * Params for the Live Fretboard showing this scale and shape on the learner's own guitar,
  * `['scale', 'a', 'minor-pentatonic', 'box-1']` (`#camera--scale--a--minor-pentatonic--box-1`);
- * every note of the scale (`all`) without a shape. The camera numbers shapes in their first octave:
- * an `-8va` shape goes as the same fingering an octave down.
+ * every note of the scale (`all`) without a shape. The camera builds the shape's own system, laid
+ * out up the neck as this screen lays it out, so the same notes sit on the same frets (up to its
+ * 15th fret); an `-8va` shape goes as the same fingering an octave down.
  */
 export function cameraParams(tonic: string, scale: string, shape: string | null): string[] {
   return ['scale', noteSlug(tonic), scale, shape ? shape.replace(/-8va$/, '') : 'all'];
