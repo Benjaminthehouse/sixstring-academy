@@ -174,8 +174,20 @@ export function PathScreen({ focus }: { focus: string | null }) {
 
   // On opening: bring the unit asked for, or the next lesson, into view when it is below the fold.
   // A brand-new learner sees the top of the page first (the switches and "Find my level").
+  // A brand-new learner on a short phone: the page stays at its top unless the first lesson would sit
+  // under the Continue bar, and then it moves only as far as needed to show it.
   useEffect(() => {
-    if (!focus && !view.started) return;
+    if (!focus && !view.started) {
+      if (wide) return undefined;
+      const t = window.setTimeout(() => {
+        const node = selectedId ? nodeRefs.current.get(selectedId) : null;
+        const bar = document.querySelector('[data-continue-bar]');
+        if (!node || !bar) return;
+        const over = node.getBoundingClientRect().bottom + 12 - bar.getBoundingClientRect().top;
+        if (over > 0) window.scrollBy({ top: over, behavior: 'auto' });
+      }, 80);
+      return () => window.clearTimeout(t);
+    }
     const t = window.setTimeout(() => scrollToTarget(focus, selectedId), 80);
     return () => window.clearTimeout(t);
     // Once.

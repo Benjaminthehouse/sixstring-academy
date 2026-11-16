@@ -5,7 +5,7 @@
  * `fretDistance`), never read back from the generator's own helpers.
  */
 import { describe, expect, it } from 'vitest';
-import { chordVoicings, fretDistance, identifyFretted, midiAt } from '@/core/guitar';
+import { chordVoicings, fretAtDistance, fretDistance, identifyFretted, midiAt } from '@/core/guitar';
 import { chordPcs, getKey, keyFromSignature, parseChord, parseNote, parseTimeSignature, romanToChord, scalePcs } from '@/core/theory';
 import { exerciseProblems } from '../check';
 import { grade, solve } from '../grade';
@@ -50,7 +50,7 @@ describe('tab-read and tab-play: the notes are the pitches of the tab', () => {
         const ask = (step.params as { ask?: string } | undefined)?.ask ?? 'notes';
         if (ask === 'notes') expect(pcs(tags(String(right(e).text), 'n'))).toEqual(midis.map((m) => m % 12));
         if (ask === 'note') {
-          const n = Number(/the (\d)\w\w note/.exec(String(e.prompt))![1]);
+          const n = Number(/the (\d)\w\w note/.exec(String((e as ChoiceExercise).prompt))![1]);
           expect(pcs(tags(String(right(e).text), 'n'))).toEqual([midis[n - 1] % 12]);
         }
         if (ask === 'find') {
@@ -87,7 +87,7 @@ describe('caged-shape: the picture is the shape it is named for, and plays the c
         const frets: Array<number | null> = [6, 5, 4, 3, 2, 1].map((s) => figure.dots!.find((d) => d.string === s)?.fret ?? null);
         const named = identifyFretted(frets).symbol!;
         const minor = parseChord(named)!.type.id === 'minor';
-        const shape = /(\w) shape/.exec(plainText(String(e.explain)))![1];
+        const shape = /(\w) shape/.exec(plainText(String((e as ChoiceExercise).explain)))![1];
         const open = OPEN[`${shape}${minor ? 'm' : ''}`];
         const offset = Math.min(...frets.filter((f): f is number => f !== null)) - Math.min(...open.filter((f): f is number => f !== null));
         frets.forEach((f, i) => {
@@ -174,7 +174,7 @@ describe('staff-key: the staff shows the key named', () => {
       for (const e of runs({ generate: 'staff-key', params: { ask, modes: ['major', 'minor'], maxAccidentals: 7 } })) {
         valid(e, ask);
         if (ask === 'name') {
-          const shown = getKey((e as ChoiceExercise).figure && ((e as ChoiceExercise).figure as StaffFigure).key!)!;
+          const shown = getKey(((e as ChoiceExercise).figure as StaffFigure).key!)!;
           const answer = getKey(tags(String(right(e).text), 'k')[0])!;
           expect(answer.name).toBe(keyFromSignature(shown.fifths, answer.mode).name);
           expect(/major|minor/.exec(String((e as ChoiceExercise).prompt))![0]).toBe(answer.mode);
@@ -208,9 +208,11 @@ describe('natural-harmonic: the note is the overtone of the node over that fret'
         // Within a sixth of a half step of a whole-number multiple (the fifth harmonic is 14 cents flat of a tempered note).
         expect(Math.abs(1200 * Math.log2(ratio / parts))).toBeLessThan(16);
         const frets = ask === 'fret' && e.type === 'type-answer' && e.answer.kind === 'number' ? [e.answer.value, ...(e.answer.accept ?? [])] : [Number(/over fret (\d+)/.exec(String((e as ChoiceExercise).prompt))![1])];
+        // A node sits at k/parts of the string; the fret named is the one nearest it (the 4th-fret node is at 3.86).
         for (const fret of frets) {
-          const at = fretDistance(fret) * parts;
-          expect(Math.abs(at - Math.round(at)), `fret ${fret} is a node of ${parts} parts`).toBeLessThan(0.02);
+          const nodes = Array.from({ length: parts - 1 }, (_u, k) => fretAtDistance((k + 1) / parts));
+          expect(Math.min(...nodes.map((n) => Math.abs(n - fret))), `fret ${fret} is a node of ${parts} parts (${nodes.map((n) => n.toFixed(2)).join(', ')})`).toBeLessThan(0.2);
+          expect(fretDistance(fret)).toBeGreaterThan(0);
         }
       }
     }
@@ -256,6 +258,24 @@ describe('sight-reading: a passage in one key, in reach of one hand position', (
           expect(pcs(names)).toEqual(midis.map((m) => m % 12));
         }
       }
+    }
+  });
+
+  it('sight-play shows only the staff, spells in the key, and asks for the very pitches of the passage', () => {
+    for (const e of runs({ generate: 'sight-play', params: { positions: [1, 5, 7], keys: ['G major', 'F major', 'E minor'], bars: 2 } })) {
+      valid(e, 'sight-play');
+      if (e.type !== 'play-phrase') throw new Error(e.type);
+      expect(e.staffOnly).toBe(true);
+      const key = getKey(e.key!)!;
+      const midis = sound({ kind: 'tab', notes: e.notes });
+      expect(midis.every((m) => scalePcs(key.tonic, key.mode === 'minor' ? 'minor' : 'major').includes(m % 12))).toBe(true);
+      const position = Number(/in (\d+)\w\w position/.exec(String(e.prompt))?.[1] ?? 1);
+      const [lo, hi] = window(position);
+      expect(e.notes.every((n) => 'rest' in n || (n.fret >= lo && n.fret <= hi))).toBe(true);
+      // The fallback is the same passage, named.
+      const alt = e.alternative as ChoiceExercise;
+      expect(pcs(tags(String(right(alt).text), 'n'))).toEqual(midis.map((m) => m % 12));
+      expect(((alt.figure as StaffFigure).notes).map((n) => parseNote(typeof n === 'string' ? n : n.note)!.midi)).toEqual(midis);
     }
   });
 

@@ -203,6 +203,10 @@
 .actions > .compact {
   flex: none;
 }
+/* Guided: Stop, Skip and Hear, each as wide as its label needs, so all three read in full at 360 px. */
+.actions.guideActions > * {
+  flex: 1 1 auto;
+}
 
 /* Wide-screen cards */
 .tuningCard,

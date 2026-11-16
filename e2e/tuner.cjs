@@ -82,8 +82,8 @@ const state = (page, value, timeout = 30000) => page.waitForSelector(`${lib.READ
 const attr = (page, name, value, timeout = 15000) => page.waitForSelector(`${lib.READOUT}[data-${name}="${value}"]`, { timeout });
 
 /** Open the tuner with a recording as the microphone. The screen starts listening by itself (permission is granted). */
-async function open({ recording, mobile = false, seed = {}, init, fakeDevices = false }, fn) {
-  const opts = { mobile };
+async function open({ recording, mobile = false, seed = {}, init, fakeDevices = false, viewport }, fn) {
+  const opts = { mobile, ...(viewport ? { viewport } : {}) };
   if (recording) opts.fakeAudio = recording.fakeAudio;
   if (fakeDevices) opts.fakeDevices = true;
   return withApp(opts, async (ctx) => {
@@ -427,22 +427,33 @@ async function address() {
   // Partial credit: a guided run with three strings tuned and three skipped counts for something.
   const three = STRINGS.slice(0, 3).map((s) => ({ pluck: { midi: s.midi, cents: 0.5, dur: 1.5, damp: false }, gap: 0.5 }));
   const recording = await lib.makeRecording('guide-partial', three, { lead: 3.5, tail: 4 });
-  await open({ recording, mobile: true, seed: { guideSeen: false } }, async ({ page, errors }) => {
+  // The narrowest phone the app supports: three labelled buttons must still fit on one row.
+  await open({ recording, mobile: true, viewport: { width: 360, height: 740 }, seed: { guideSeen: false } }, async ({ page, errors }) => {
     await restart(page);
     await attr(page, 'mode', 'guide');
     await page.waitForSelector(`${lib.READOUT}[data-tuned="6,5,4"]`, { timeout: recording.seconds * 1000 + 8000 });
-    // The guided Stop says what it does on a phone, and the three buttons fit.
-    const bar = await page.evaluate(() => {
-      const stop = document.querySelector('[data-tuner-stop]');
-      const buttons = [...document.querySelectorAll('[data-tuner-stop], [data-tuner-skip], [data-tuner-reference]')].filter((b) => b.offsetParent);
-      return {
-        stop: stop.textContent.trim(),
-        cut: buttons.filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent.trim()),
-        outside: buttons.filter((b) => b.getBoundingClientRect().right > document.documentElement.clientWidth + 1).map((b) => b.textContent.trim()),
-      };
-    });
+    // The guided Stop says what it does on a phone, and the three buttons fit, also while the note plays.
+    const measureBar = () =>
+      page.evaluate(() => {
+        const stop = document.querySelector('[data-tuner-stop]');
+        const buttons = [...document.querySelectorAll('[data-tuner-stop], [data-tuner-skip], [data-tuner-reference]')].filter((b) => b.offsetParent);
+        return {
+          stop: stop.textContent.trim(),
+          names: buttons.map((b) => b.getAttribute('aria-label') || b.textContent.trim()),
+          cut: buttons.filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent.trim()),
+          outside: buttons.filter((b) => b.getBoundingClientRect().right > document.documentElement.clientWidth + 1).map((b) => b.textContent.trim()),
+          rows: new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size,
+        };
+      });
+    const bar = await measureBar();
     check('guided: Stop is labelled on a phone', bar.stop === 'Stop', JSON.stringify(bar));
-    check('guided: Stop, Skip and Hear fit at 390 px', bar.cut.length === 0 && bar.outside.length === 0, JSON.stringify(bar));
+    check('guided: Stop, Skip and Hear fit one row at 360 px', bar.cut.length === 0 && bar.outside.length === 0 && bar.rows === 1, JSON.stringify(bar));
+    await page.click('[data-tuner-reference]');
+    await sleep(400);
+    const playing = await measureBar();
+    check('guided: still one row at 360 px while the note plays', playing.cut.length === 0 && playing.outside.length === 0 && playing.rows === 1 && playing.names.includes('Stop the note'), JSON.stringify(playing));
+    await page.click('[data-tuner-reference]');
+    await sleep(300);
     check('nothing recorded while the run is going', (await tunerLog(page)).length === 0);
     for (let i = 0; i < 3; i++) {
       await page.click('[data-tuner-skip]');

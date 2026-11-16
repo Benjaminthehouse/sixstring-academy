@@ -177,7 +177,7 @@ describe('6. interval-on-neck keeps every answer near the root on the picture', 
   it('every place the note sounds within four frets of the root is inside the region (so its shape is tappable)', () => {
     let wider = 0;
     for (const step of steps) {
-      const [lo, hi] = (step.params as { frets?: [number, number] }).frets ?? [0, 7];
+      const [lo, hi] = (step.params as { frets?: [number, number] } | undefined)?.frets ?? [0, 7];
       for (const e of runs(step, 300)) {
         if (e.type !== 'fretboard-find' || !('interval' in e.find)) throw new Error(e.type);
         const from = e.find.from;
@@ -249,7 +249,7 @@ describe('8. cadences in minor, whole-tone and diminished scales, roman numerals
     const step: GeneratedStep = { generate: 'roman-chord', params: { numerals: ['I', 'iv', 'bVII', 'bVI', 'V7/V', 'vii°/V', 'V/vi', 'VI7'], maxAccidentals: 4 } };
     expect(generatorProblems(step)).toEqual([]);
     for (const e of runs(step, 300)) {
-      const t = plainText(String(e.explain)).replace(/♯/g, '#').replace(/♭/g, 'b');
+      const t = plainText(String((e as ChoiceExercise).explain)).replace(/♯/g, '#').replace(/♭/g, 'b');
       const key = getKey(tags(String((e as ChoiceExercise).prompt), 'k')[0])!;
       const own = /the (\d)\w\w note of the scale\. In .* that note is ([A-G][#b]?)/.exec(t);
       if (own) expect(key.scale[Number(own[1]) - 1], t).toBe(own[2]);
@@ -258,8 +258,12 @@ describe('8. cadences in minor, whole-tone and diminished scales, roman numerals
         expect(key.scale[Number(moved[1]) - 1], t).toBe(moved[2]);
         expect(transpose(moved[2], moved[3] === 'lowered' ? '-A1' : 'A1'), t).toBe(moved[4]);
       }
-      const secondary = /In .*, (\S+) is ([A-G][#b]?\S*); the .* above its root ([A-G][#b]?) is (\S+)\.$/.exec(t);
-      if (secondary) expect(romanToChord(secondary[1], key)).toBe(secondary[2]);
+      const secondary = /In .*, (\S+) is ([A-G][#b]?\S*); the .* (?:above|below) its root ([A-G][#b]?) is (\S+)\.$/.exec(t);
+      if (secondary) {
+        expect(romanToChord(secondary[1], key)).toBe(secondary[2]);
+        expect(parseChord(secondary[2])!.root).toBe(secondary[3]);
+        expect(romanToChord(/^(\S+) is/.exec(t)![1], key), t).toBe(secondary[4]);
+      }
       expect(own || moved || secondary, t).toBeTruthy();
     }
   });

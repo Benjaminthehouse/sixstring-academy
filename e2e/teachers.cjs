@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Browser check of the Teachers screen. Run: node e2e/teachers.cjs [--only pick,lesson,show,looks] [--verbose]
+ * Browser check of the Teachers screen. Run: node e2e/teachers.cjs [--only pick,lesson,show,looks,breaks,between] [--verbose]
  *
  *  pick    phone (390 x 844, touch, dark): #teachers shows the three teachers as people with
  *          portraits, recommends Mia to a new learner, reads a line aloud on request; Dev's page
- *          says his lessons are being written and lists his units; the switcher leads back to Mia,
- *          whose page shows her course map and the rest of the plan; "Start with Mia" opens her
+ *          shows his whole course (12 units, nothing "later") and his first lesson; the switcher's
+ *          three teachers all fit the screen at 390 and 360 px (it used to scroll, Elena cut off)
+ *          and it leads back to Mia, whose page shows her course map; "Start with Mia" opens her
  *          first lesson full screen.
  *  lesson  phone, a fake microphone that plays the open strings 6, 3 and 1 (plucked-string
  *          signals from the pitch module): the whole of "Meet your guitar" by taps. The teacher
@@ -23,13 +24,19 @@
  *          exercise on phone and desktop in both themes, and a phone held sideways; no page is
  *          wider than the screen.
  *  breaks  phone, NO microphone (as in the Claude artifact host), cases a review caught: a learner
- *          who skipped the first-run questions is not told "you told us"; Dev's tile says his
- *          lessons are being written; text at 200 % never widens the page; turning the phone
- *          sideways and back in the middle of a lesson does not crash it; the unit's show, played
- *          without a microphone, stays inside the screen with its button in reach, the teacher's
- *          reaction never repeats the panel's verdict, and the unit ends without claiming the
- *          piece was played; an intermediate learner is offered somewhere to play today instead
- *          of "Start with Dev" (whose lessons are not written yet).
+ *          who skipped the first-run questions is not told "you told us"; Dev's tile counts his
+ *          lessons; an intermediate learner is offered "Start with Dev", which opens his first
+ *          lesson; text at 200 % never widens the page; turning the phone sideways and back in the
+ *          middle of a lesson does not crash it; the unit's show, played without a microphone,
+ *          stays inside the screen with its button in reach, the teacher's reaction never repeats
+ *          the panel's verdict, and the unit ends without claiming the piece was played, saying
+ *          "you know it" once (it said it twice).
+ *  between phone, NO microphone: the first lesson to its summary and straight on to the next. The
+ *          play-along task (listen mode, logged by nothing) is logged as practice on Continue; the
+ *          summary shows the rewards (card or level dialog) and the lesson's Theory Path links;
+ *          after "Next lesson" no reward toast or dialog covers the new lesson for 4 s (they used
+ *          to sit over its first card); a theory link to a lesson ahead of the learner opens it with
+ *          a note and a way back to where they are.
  *
  * Prints PASSED or FAILED and exits non-zero on failure. Screenshots go to e2e/out/teachers-*.png.
  */
@@ -203,17 +210,29 @@ async function runPick() {
     check(group, 'no sideways scroll on the overview', (await overflow(page)) <= 1, await overflow(page));
     await shot(page, 'overview-phone-dark', true);
 
-    // Dev: nothing written yet; says so, shows the plan, offers a way forward.
+    // Dev: his whole course is written: the map of all 12 units, nothing "later in the course".
     await press(page, 'touch', '[data-open-teacher="dev"]');
-    await page.waitForSelector('[data-preparing="dev"]', { timeout: 30000 });
-    check(group, "Dev's page says his lessons are being written", true);
-    check(group, "and lists his course's units from the plan", (await page.locator('[data-upcoming] li').count()) === 12, await page.locator('[data-upcoming] li').count());
+    await page.waitForSelector('[data-course-map="dev"]', { timeout: 60000 });
+    check(group, "Dev's page shows his course map, all 12 units", (await page.locator('[data-course-map="dev"] [data-unit]').count()) === 12, await page.locator('[data-course-map="dev"] [data-unit]').count());
+    check(group, 'with nothing left "later in the course"', (await page.locator('[data-upcoming]').count()) === 0);
+    check(group, 'and offers his first lesson', (await page.getAttribute('[data-action="next-lesson"]', 'data-lesson')) === 'dev-welcome', await page.getAttribute('[data-action="next-lesson"]', 'data-lesson'));
     await shot(page, 'dev-phone-dark', true);
+    // The switcher: three teachers, all on screen (it used to scroll sideways with Elena cut off).
+    const switcherFits = async () => page.evaluate(() => [...document.querySelectorAll('[data-switch]')].map((a) => { const r = a.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth + 0.5; }));
+    const fit390 = await switcherFits();
+    check(group, 'all three teachers of the switcher fit a 390 px phone', fit390.length === 3 && fit390.every(Boolean), JSON.stringify(fit390));
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.waitForTimeout(400);
+    const fit360 = await switcherFits();
+    check(group, 'and a 360 px phone', fit360.length === 3 && fit360.every(Boolean), JSON.stringify(fit360));
+    await shot(page, 'dev-switcher-360');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(300);
     await press(page, 'touch', '[data-switch="mia"]');
-    await page.waitForSelector('[data-course-map]', { timeout: 60000 });
+    await page.waitForSelector('[data-course-map="mia"]', { timeout: 60000 });
     check(group, 'the switcher leads to Mia, whose course map is there', (await page.evaluate(() => location.hash)) === '#teachers--mia');
     check(group, "her map's first lesson is the current one", (await page.locator('[data-node][data-state="current"]').count()) === 1);
-    check(group, 'the rest of her plan is listed (11 units still being written)', (await page.locator('[data-upcoming] li').count()) === 11);
+    check(group, 'her whole course is written: nothing "later in the course"', (await page.locator('[data-upcoming]').count()) === 0);
     check(group, 'her first lesson is offered in the thumb zone without scrolling', await page.locator('[data-action="next-lesson"]').isVisible());
     const box = await page.locator('[data-action="next-lesson"]').boundingBox();
     check(group, 'and it sits inside the first screen', box && box.y + box.height <= 844 - 70, box && Math.round(box.y));
@@ -382,7 +401,7 @@ async function runLooks() {
       const views = [
         ['overview', 'teachers', '[data-teacher="elena"]'],
         ['mia', 'teachers--mia', '[data-course-map]'],
-        ['dev', 'teachers--dev', '[data-preparing="dev"]'],
+        ['dev', 'teachers--dev', '[data-course-map="dev"]'],
         ['card', 'teachers--mia--meet-your-guitar', '[data-teacher-player="mia"]'],
         ['art', 'teachers--mia--hot-cross-buns', '[data-teacher-player="mia"]'],
       ];
@@ -456,9 +475,9 @@ async function runBreaks(L) {
     const because = await page.locator('[data-recommended]').innerText();
     check(group, 'a learner who skipped the first-run questions is not told "you told us"', !/told us/i.test(because), because.slice(0, 160));
     const devTile = await page.locator('[data-teacher="dev"] [data-ready]').innerText().catch(() => '');
-    check(group, "Dev's tile says his lessons are being written (not just a lesson count)", /being written/i.test(devTile), devTile);
+    check(group, "Dev's tile counts his lessons (all written now)", /^\d+ lessons$/.test(devTile.trim()) && !/being written/i.test(devTile), devTile);
 
-    // An intermediate learner (before any lesson): Dev is their teacher, but his lessons are not written yet.
+    // An intermediate learner (before any lesson): Dev is their teacher, and "Start" opens his first lesson.
     await page.evaluate(async () => {
       const p = await import('/src/core/progress/index.ts');
       p.setProfile({ experience: 'intermediate', onboarded: true });
@@ -467,17 +486,17 @@ async function runBreaks(L) {
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('[data-recommended]', { timeout: 60000 });
     const hero = await page.locator('[data-recommended]').innerText();
-    check(group, "an intermediate learner is told plainly that Dev's lessons are being written", (await page.getAttribute('[data-recommended]', 'data-recommended')) === 'dev' && /being written/i.test(hero), hero.slice(0, 200));
+    check(group, 'an intermediate learner is recommended Dev', (await page.getAttribute('[data-recommended]', 'data-recommended')) === 'dev' && !/being written/i.test(hero), hero.slice(0, 200));
     await press(page, 'touch', '[data-action="start"]');
-    await page.waitForFunction(() => location.hash.startsWith('#learn'), null, { timeout: 30000 });
-    check(group, 'and the one big button leads somewhere to learn today (the Theory Path)', true);
+    await page.waitForFunction(() => location.hash.startsWith('#teachers--dev--'), null, { timeout: 30000 });
+    check(group, "and the one big button opens Dev's first lesson", (await page.evaluate(() => location.hash)) === '#teachers--dev--dev-welcome', await page.evaluate(() => location.hash));
 
     // A review with nothing due (a bookmarked address): the teacher does not say "well done" for nothing.
     await open(page, url, 'teachers--mia--review', '[data-summary]');
     check(group, 'an empty review ends without a "well done" from the teacher', (await page.locator('[data-teacher-says]').count()) === 0, await page.locator('main').innerText().catch(() => ''));
 
     // Text at 200 %.
-    for (const [hash, sel] of [['teachers', '[data-teacher="elena"]'], ['teachers--mia', '[data-course-map]'], ['teachers--dev', '[data-preparing="dev"]']]) {
+    for (const [hash, sel] of [['teachers', '[data-teacher="elena"]'], ['teachers--mia', '[data-course-map]'], ['teachers--dev', '[data-course-map="dev"]']]) {
       await open(page, url, hash, sel);
       await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
       await page.waitForTimeout(500);
@@ -552,6 +571,8 @@ async function runBreaks(L) {
     const words = await page.locator('[data-unit-complete]').innerText();
     check(group, 'the unit still ends with the celebration', /Unit 1 complete/i.test(words), words.slice(0, 120));
     check(group, 'which does not claim the piece was played', (await page.locator('[data-played="tapped"]').count()) === 1 && !/you performed|you played a whole tune/i.test(words), words.slice(0, 300));
+    // Review bug: "You know Hot Cross Buns from start to finish." sat over Mia's "You know how Hot Cross Buns goes, start to finish ...".
+    check(group, 'and says "you know it" once, in her words', (words.match(/you know/gi) || []).length === 1 && (words.match(/start to finish/gi) || []).length === 1, words.slice(0, 300));
     await shot(page, 'unit-complete-nomic-phone-light', true);
     check(group, 'the end of the unit is no wider than the screen', (await overflow(page)) <= 1, await overflow(page));
 
@@ -559,8 +580,114 @@ async function runBreaks(L) {
   });
 }
 
+/**
+ * Straight from one lesson to the next, with no microphone: the play-along is logged, the summary
+ * shows the rewards and the theory links, and nothing of the last lesson covers the next one.
+ */
+async function runBetween(L) {
+  const group = 'between';
+  await withApp({ mobile: true, theme: 'dark' }, async ({ page, url, errors }) => {
+    await seed(page);
+    await open(page, url, 'teachers--mia--meet-your-guitar', '[data-teacher-player="mia"]');
+    let credit = null;
+    for (let guard = 0; guard < 80; guard++) {
+      const kind = await stepKind(page);
+      if (kind === 'summary') break;
+      const id = await lib.stepId(page);
+      if (kind === 'task') {
+        await press(page, 'touch', '[data-player-bar] [data-action="open-task"]');
+        await page.waitForSelector('main[data-route="play"], main[data-route="metronome"]', { timeout: 60000 });
+        await page.waitForTimeout(1200);
+        // Three minutes playing along, without waiting for them: the trip started three minutes ago.
+        await page.evaluate(() => {
+          const key = 'ssa:teachers.task';
+          const t = JSON.parse(localStorage.getItem(key));
+          t.openedAt = Date.now() - 3 * 60_000;
+          localStorage.setItem(key, JSON.stringify(t));
+        });
+        await goBack(page, 'touch');
+        await page.waitForSelector('[data-task][data-task-phase="back"]', { timeout: 60000 });
+        credit = await page.locator('[data-task-credit]').innerText().catch(() => '');
+        await shot(page, 'task-back-credit-phone-dark');
+        await press(page, 'touch', '[data-player-bar] [data-action="continue"]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      if (kind === 'card' || kind === null) {
+        await press(page, 'touch', '[data-player-bar] [data-action="continue"]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      const state = await lib.savedSession(page, L);
+      const step = state && L.currentStep(state);
+      if (!step || step.kind !== 'exercise') throw new Error(`No saved exercise for the step on screen (${id})`);
+      if (PLAY_TYPES.has(step.exercise.type) && !step.alternative) {
+        await press(page, 'touch', '[data-player-bar] [data-cant-play]');
+        await lib.waitForNewStep(page, id);
+        continue;
+      }
+      if (step.exercise.type === 'tap-rhythm') await press(page, 'touch', '[data-action="skip"]');
+      else {
+        const ok = await lib.giveAnswer(page, L, step, L.solve(step.exercise), 'touch');
+        if (!ok) throw new Error(`Could not give a ${step.exercise.type} answer by touch`);
+        await press(page, 'touch', '[data-player-bar] [data-action="check"]');
+      }
+      await page.waitForSelector('[data-feedback]', { timeout: 15000 });
+      await press(page, 'touch', '[data-player-bar] [data-action="continue"]');
+      await lib.waitForNewStep(page, id);
+    }
+    check(group, 'back from playing along, the card says the time will count as practice', /count as practice/.test(credit || ''), credit);
+    await page.waitForSelector('[data-summary]', { timeout: 30000 });
+    // The rewards are felt on the summary: the shell's card, or the new level's dialog first.
+    let felt = false;
+    for (let i = 0; i < 20 && !felt; i++) {
+      felt = await page.evaluate(() => !!document.querySelector('[role="dialog"]') || [...document.querySelectorAll('[data-toast]')].some((t) => (t.getAttribute('data-toast') || '').startsWith('shell-')));
+      if (!felt) await page.waitForTimeout(150);
+    }
+    check(group, 'the summary shows the rewards (the reward card or the level-up dialog)', felt);
+    await shot(page, 'summary-rewards-phone-dark');
+    const links = await page.locator('[data-theory-links="meet-your-guitar"] [data-theory-link]').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+    check(group, "the summary lists the lesson's Theory Path links", links.length === 3 && links[0] === '#learn--the-six-strings--string-numbers', JSON.stringify(links));
+    await page.waitForTimeout(900);
+    const progress = await lib.storedProgress(page);
+    const logged = (progress?.log ?? []).filter((e) => e.skillId === 'song:st-open-string-duet');
+    check(group, 'the play-along was logged as practice of the song', logged.length === 1 && logged[0].durationSec >= 170, JSON.stringify(logged));
+
+    // Straight on: the learner answers the level-up dialog and goes to the next lesson at once.
+    for (let i = 0; i < 3 && (await page.locator('[role="dialog"]').count()) > 0; i++) {
+      await page.getByRole('button', { name: /Keep going|Next/ }).first().tap();
+      await page.waitForTimeout(80);
+    }
+    await press(page, 'touch', '[data-action="next"]');
+    await page.waitForSelector('[data-teacher-player="mia"][data-phase="step"]', { timeout: 60000 });
+    check(group, 'Next lesson opens the next one', (await page.evaluate(() => location.hash)) === '#teachers--mia--sit-and-hold');
+    const covered = [];
+    for (let i = 0; i < 16; i++) {
+      const now = await page.evaluate(() => [
+        ...[...document.querySelectorAll('[data-toast]')].filter((t) => (t.getAttribute('data-toast') || '').startsWith('shell-') && getComputedStyle(t).opacity !== '0').map((t) => t.getAttribute('data-toast')),
+        ...(document.querySelector('[role="dialog"]') ? ['dialog'] : []),
+      ]);
+      covered.push(...now);
+      if (i === 3) await shot(page, 'next-lesson-first-card-phone-dark');
+      await page.waitForTimeout(250);
+    }
+    check(group, "for 4 s nothing of the last lesson's rewards covers the next lesson", covered.length === 0, [...new Set(covered)].join(' '));
+
+    // A theory link to a lesson the learner has not reached yet: it opens, says so, and offers the way back.
+    await open(page, url, links[0].slice(1), '[data-lesson-player]');
+    await page.waitForSelector('[data-ahead]', { timeout: 30000 });
+    const note = await page.locator('[data-ahead]').innerText();
+    check(group, 'a theory lesson ahead of the learner opens with a note saying so', /ahead of where you are/.test(note), note.replace(/\n/g, ' '));
+    await shot(page, 'theory-ahead-phone-dark');
+    await press(page, 'touch', '[data-ahead-back]');
+    await page.waitForSelector('[data-learn-map]', { timeout: 60000 });
+    check(group, 'and its way back leads to where the learner is on the path', (await page.evaluate(() => location.hash)) === '#learn--sound-and-pitch', await page.evaluate(() => location.hash));
+    check(group, 'no console errors', realErrors(errors).length === 0, realErrors(errors).join(' | ').slice(0, 300));
+  });
+}
+
 (async () => {
-  const L = want('lesson') || want('show') || want('breaks') ? await loadTs('/src/lessons/index.ts') : null;
+  const L = want('lesson') || want('show') || want('breaks') || want('between') ? await loadTs('/src/lessons/index.ts') : null;
   const strings = path.join(OUT, 'teachers-open-strings.wav');
   const buns = path.join(OUT, 'teachers-hot-cross-buns.wav');
   if (want('lesson')) await makeWav(strings, [[40, 2], [55, 2], [64, 2]], { gap: 0.4, tail: 0.4 });
@@ -576,6 +703,7 @@ async function runBreaks(L) {
     ['show', () => runShow(L, buns)],
     ['looks', () => runLooks()],
     ['breaks', () => runBreaks(L)],
+    ['between', () => runBetween(L)],
   ];
   for (const [name, run] of runs) {
     if (!want(name)) continue;

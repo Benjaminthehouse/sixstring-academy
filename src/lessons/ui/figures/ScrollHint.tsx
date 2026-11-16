@@ -40,6 +40,9 @@ export function ScrollHint({ children, className }: { children: ReactNode; class
       const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
       setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
     };
+    // The board measures itself after mount and on resize, so the content can grow or shrink
+    // while the box keeps its size: watch the box, the scroller and what it holds.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => attach());
     const attach = (): void => {
       const found = findScroller(root);
       if (found !== scroller.current) {
@@ -51,17 +54,20 @@ export function ScrollHint({ children, className }: { children: ReactNode; class
             frame = requestAnimationFrame(measure);
           };
           found.addEventListener('scroll', onScroll, { passive: true });
-          detach = () => found.removeEventListener('scroll', onScroll);
+          for (const el of [found, ...Array.from(found.children)]) observer?.observe(el);
+          detach = () => {
+            found.removeEventListener('scroll', onScroll);
+            for (const el of [found, ...Array.from(found.children)]) observer?.unobserve(el);
+          };
         } else {
           detach = null;
         }
       }
       measure();
     };
-    attach();
-    // The board measures itself after mount and on resize: look again whenever the size changes.
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => attach());
     observer?.observe(root);
+    for (const el of Array.from(root.querySelectorAll('svg'))) observer?.observe(el);
+    attach();
     const late = window.setTimeout(attach, 400);
     return () => {
       observer?.disconnect();

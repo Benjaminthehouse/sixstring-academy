@@ -232,7 +232,10 @@ function inPage() {
         players.forEach((p, i) => engine.bus(p).connect(merger, 0, 2 + i));
         merger.connect(ctx.destination);
         const band = new audio.BackingBand({ engine, timer: 'manual' });
-        band.load(bars, { style: id, choruses: 2, countInBars: 0, ending: false });
+        const arrangement = band.load(bars, { style: id, choruses: 2, countInBars: 0, ending: false });
+        // A band without a drummer (classical, tango) or without keys (rumba) has nothing on that bus.
+        const kinds = new Set(arrangement.events.map((e) => (e.type === 'drum' ? 'drums' : e.type)));
+        const present = players.filter((p) => kinds.has(p));
         band.setMuted('guitar', false);
         band.start();
         band.transport.advanceTo(seconds + 0.4);
@@ -240,7 +243,7 @@ function inPage() {
         engine.dispose();
         const from = Math.round(0.1 * fs), to = Math.round(seconds * fs);
         const level = {};
-        players.forEach((p, i) => { level[p] = db(audio.rmsOf(kWeighted(out.getChannelData(2 + i)), from, to)); });
+        players.forEach((p, i) => { level[p] = present.includes(p) ? db(audio.rmsOf(kWeighted(out.getChannelData(2 + i)), from, to)) : null; });
         const mix = new Float32Array(out.length);
         const l = out.getChannelData(0), r = out.getChannelData(1);
         for (let i = 0; i < mix.length; i++) mix[i] = 0.5 * (l[i] + r[i]);
@@ -248,11 +251,11 @@ function inPage() {
         const peak = Math.max(audio.peakOf(l), audio.peakOf(r));
         mixLevels.push(total);
         report.table.push({ style: id, drums: level.drums, bass: level.bass, keys: level.keys, guitar: level.guitar, mix: total, peak });
-        // Without the rhythm guitar (as the band plays by default): drums, bass and keys.
-        const trio = [level.drums, level.bass, level.keys];
+        // Without the rhythm guitar (as the band plays by default): drums, bass and keys (those it has).
+        const trio = [level.drums, level.bass, level.keys].filter((v) => v !== null);
         const spread = Math.max(...trio) - Math.min(...trio);
         if (spread > worstSpread) { worstSpread = spread; spreadStyle = id; }
-        for (const p of players) {
+        for (const p of present) {
           if (level[p] < quietest) { quietest = level[p]; quietName = `${p} in ${id}`; }
           if (level[p] > loudest) { loudest = level[p]; loudName = `${p} in ${id}`; }
         }
@@ -264,8 +267,10 @@ function inPage() {
       check('band mix: the styles are about equally loud', mixSpread < 7, `${fmt(mixSpread, 1)} dB between the quietest and the loudest style`);
       for (const row of report.table) {
         const g = [row.drums, row.bass, row.keys, row.guitar];
-        check(`band mix ${row.style}: the rhythm guitar sits with the band, the bass carries, nothing clips`, row.guitar > Math.max(row.drums, row.bass) - 14 && row.guitar < Math.max(row.drums, row.bass) + 4 && row.bass > row.drums - 9 && row.peak <= 0.98,
-          `drums ${fmt(g[0], 1)}, bass ${fmt(g[1], 1)}, keys ${fmt(g[2], 1)}, guitar ${fmt(g[3], 1)} dB; mix ${fmt(row.mix, 1)} dB, peak ${fmt(row.peak)}`);
+        const drums = row.drums ?? -Infinity;
+        const show = (v) => (v === null ? 'none' : fmt(v, 1));
+        check(`band mix ${row.style}: the rhythm guitar sits with the band, the bass carries, nothing clips`, row.guitar > Math.max(drums, row.bass) - 14 && row.guitar < Math.max(drums, row.bass) + 4 && row.bass > drums - 9 && row.peak <= 0.98,
+          `drums ${show(g[0])}, bass ${show(g[1])}, keys ${show(g[2])}, guitar ${show(g[3])} dB; mix ${fmt(row.mix, 1)} dB, peak ${fmt(row.peak)}`);
       }
     }
     return report;
@@ -279,7 +284,7 @@ withApp({}, async ({ page, goto, errors }) => {
   const failed = printChecks(report.checks);
   console.log('\nband mix (K-weighted rms of each bus, dBFS before the master; mix after it):');
   console.log('  style           drums    bass    keys  guitar     mix   peak');
-  for (const r of report.table) console.log(`  ${r.style.padEnd(14)} ${[r.drums, r.bass, r.keys, r.guitar, r.mix].map((v) => v.toFixed(1).padStart(7)).join(' ')}  ${r.peak.toFixed(3)}`);
+  for (const r of report.table) console.log(`  ${r.style.padEnd(14)} ${[r.drums, r.bass, r.keys, r.guitar, r.mix].map((v) => (v === null ? '-' : v.toFixed(1)).padStart(7)).join(' ')}  ${r.peak.toFixed(3)}`);
   console.log('\ninfo:', JSON.stringify(report.info, null, 1));
   const audioErrors = errors.filter((e) => /audio|AudioContext|worklet/i.test(e));
   if (audioErrors.length) console.log(`page errors mentioning audio:\n  ${audioErrors.join('\n  ')}`);

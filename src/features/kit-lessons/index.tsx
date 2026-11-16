@@ -24,11 +24,13 @@ import {
   type PrimaryAction,
 } from '@/lessons/ui';
 import { isCheckable } from '@/lessons/ui/logic/drafts';
+import { OPTION_CARD, OPTION_EXERCISES, OPTION_FIGURES } from './options';
 import { rightAnswer, wrongAnswer } from './samples';
 import styles from './Gallery.module.css';
 
 const SECTIONS = [
   { id: 'exercises', label: 'Exercises' },
+  { id: 'options', label: 'Options' },
   { id: 'cards', label: 'Teaching cards' },
   { id: 'figures', label: 'Figures' },
   { id: 'feedback', label: 'Feedback' },
@@ -140,6 +142,42 @@ function ExercisesSection({ only }: { only?: ExerciseType }) {
   );
 }
 
+/**
+ * The options of the second integration pass, each answered wrong (so the feedback shows) and
+ * fresh, plus the figures and the card that had trouble on phones.
+ */
+function OptionsSection() {
+  return (
+    <Section title="Options" description="Play steps by place, from a staff or with the box hidden; chord boxes and rhythms as options; strings in fretboard-find; long match words; spelled phrases; figures sized for phones." divided>
+      <Stack gap={8}>
+        <div className={styles.frame} data-option-card="">
+          <TeachingCard card={OPTION_CARD} />
+        </div>
+        <Grid min="18rem" gap={6}>
+          {Object.entries(OPTION_FIGURES).map(([id, figure]) => (
+            <div key={id} className={styles.frame} data-option-figure={id}>
+              <Text variant="eyebrow">{id}</Text>
+              <FigureView figure={figure} />
+            </div>
+          ))}
+        </Grid>
+        {Object.entries(OPTION_EXERCISES).map(([id, exercise]) => (
+          <Section key={id} title={id} description={exerciseKindLabel(exercise)} level={3} data-option-block={id} actions={<LinkButton size="sm" variant="ghost" to="kit-lessons" params={['try', `opt-${id}`]} iconRight="ArrowRight">Try in the player</LinkButton>}>
+            <Grid min="20rem" gap={4}>
+              {(['fresh', 'wrong'] as const).map((state) => (
+                <Stack key={state} gap={2}>
+                  <Text variant="eyebrow">{state === 'fresh' ? 'Fresh' : 'Answered wrong'}</Text>
+                  <StepPreview exercise={exercise} state={state} />
+                </Stack>
+              ))}
+            </Grid>
+          </Section>
+        ))}
+      </Stack>
+    </Section>
+  );
+}
+
 function CardsSection() {
   const lesson = findLesson(DEMO_COURSE, 'open-strings')!.lesson;
   const cards = lesson.steps.filter((s): s is Extract<typeof s, { type: 'card' }> => 'type' in s && s.type === 'card');
@@ -247,8 +285,15 @@ function LessonsSection() {
 
 // ── Sessions ───────────────────────────────────────────────────────────────────────────────────
 
-function tryCourse(type: ExerciseType): Course {
-  const exercise = EXERCISE_EXAMPLES[type];
+/** The exercise a `try` link names: an exercise type's example, or an option sample (`opt-<id>`). */
+function tryExercise(id: string): Exercise | null {
+  if ((TYPES as string[]).includes(id)) return EXERCISE_EXAMPLES[id as ExerciseType];
+  return id.startsWith('opt-') ? (OPTION_EXERCISES[id.slice(4)] ?? null) : null;
+}
+
+function tryCourse(id: string): Course {
+  const exercise = tryExercise(id)!;
+  const type = id;
   return {
     id: `try-${type}`,
     title: 'Try an exercise',
@@ -267,8 +312,8 @@ function SessionScreen({ kind, id }: { kind: string; id: string }) {
     if (kind === 'checkpoint') return unit ? { mode: 'checkpoint', course: DEMO_COURSE, unitId: id } : null;
     if (kind === 'practice') return unit ? { mode: 'practice', course: DEMO_COURSE, unitId: id } : null;
     if (kind === 'review-session') return reviewSource([DEMO_COURSE], getProgress(), Date.now());
-    if (kind === 'try' && (TYPES as string[]).includes(id)) {
-      const course = tryCourse(id as ExerciseType);
+    if (kind === 'try' && tryExercise(id)) {
+      const course = tryCourse(id);
       return { mode: 'lesson', course, lessonId: course.units[0].lessons[0].id };
     }
     return null;
@@ -342,6 +387,7 @@ export default function KitLessons({ params }: RouteProps) {
         {show('lessons') && <LessonsSection />}
         {show('map') && <MapSection />}
         {show('exercises') && <ExercisesSection only={onlyType} />}
+        {show('options') && <OptionsSection />}
         {show('cards') && <CardsSection />}
         {show('feedback') && <FeedbackSection />}
         {show('figures') && <FiguresSection />}

@@ -85,8 +85,9 @@ export function FretboardFigureView({ figure, size = 'md' }: FigureProps<Fretboa
             markers={markers}
             size={size === 'sm' ? 'sm' : 'md'}
             onCellClick={playable ? playCell : undefined}
-            // Tappable, but no wider than the picture it was: it must still fit a phone.
-            minFretWidth={playable ? 24 : undefined}
+            // Tappable, but no wider than the picture it was (the kit's own narrowest fret for a
+            // picture): frets 0–12 must still fit a 390 px phone.
+            minFretWidth={playable ? 22 : undefined}
             maxFretWidth={playable ? 28 * 3.9 : undefined}
             cellLabels="note"
           />

@@ -71,6 +71,8 @@ import styles from './Tuner.module.css';
 const TWO_PANE_QUERY = '(min-width: 1160px)';
 /** A phone held sideways. */
 const SIDEWAYS_QUERY = '(orientation: landscape) and (max-height: 520px)';
+/** A narrow phone: three labelled buttons share the bottom bar during the guided flow. */
+const NARROW_QUERY = '(max-width: 419.98px)';
 /** A laptop too short for a page heading above the meter (in one column the heading is always left out: the shell names the screen). */
 const SHORT_QUERY = '(max-height: 759.98px)';
 /** A phone too short to show the strings between the readout and the action bar while the tab bar is up. */
@@ -108,6 +110,7 @@ export default function TunerScreen({ params }: RouteProps) {
   }, [addressKey]);
 
   const twoPane = useMediaQuery(TWO_PANE_QUERY);
+  const narrow = useMediaQuery(NARROW_QUERY);
   const sideways = useMediaQuery(SIDEWAYS_QUERY);
   const shortScreen = useMediaQuery(SHORT_QUERY);
   const shortPhone = useMediaQuery(SHORT_PHONE_QUERY);
@@ -512,6 +515,8 @@ export default function TunerScreen({ params }: RouteProps) {
   const stripTarget = ear !== null ? ear : view.target;
   const stripKind: TargetKind | null = ear !== null ? 'ear' : view.mode === 'guide' ? 'guide' : view.mode === 'locked' ? 'locked' : null;
   const referenceNote = listening ? (view.shownNote ? noteParts(view.shownNote, naming).short : '') : ear !== null ? noteParts(targets[ear].note, naming).short : '';
+  /** The guided bar on a narrow phone: Stop and Skip keep their words, the note button shows icon and note. */
+  const compactHear = narrow && !twoPane && listening && view.mode === 'guide';
   const guideNumber = view.guide && !view.guide.finished ? view.confirmed.filter(Boolean).length + view.guide.skipped.filter(Boolean).length + 1 : 0;
 
   // On a first visit Start leads into the guided flow (see `startMic`): show that choice before it begins.
@@ -633,7 +638,7 @@ export default function TunerScreen({ params }: RouteProps) {
             />
           </div>
           {/* The kit's bar, so toasts and other bottom layers know its height and sit above it. */}
-          <ActionBar className={styles.actions} stretchOnMobile={false}>
+          <ActionBar className={cx(styles.actions, listening && view.mode === 'guide' && styles.guideActions)} stretchOnMobile={false}>
             {ear !== null ? (
               <>
                 {!hostBlocked &&
@@ -679,8 +684,17 @@ export default function TunerScreen({ params }: RouteProps) {
                   </Tooltip>
                 )}
                 <Tooltip content="R">
-                  <Button size="lg" iconLeft={tone.playing !== null ? 'Square' : 'Volume2'} disabled={!referenceNote && tone.playing === null} pressed={tone.playing !== null} onClick={toggleReference} data-tuner-reference="">
-                    {tone.playing !== null ? 'Stop note' : referenceNote ? `Hear ${referenceNote}` : 'Hear it'}
+                  <Button
+                    size="lg"
+                    iconLeft={tone.playing !== null ? 'Square' : 'Volume2'}
+                    disabled={!referenceNote && tone.playing === null}
+                    pressed={tone.playing !== null}
+                    onClick={toggleReference}
+                    // Beside a labelled Stop and Skip on a narrow phone, the speaker (or square) and the note say it.
+                    aria-label={compactHear ? (tone.playing !== null ? 'Stop the note' : referenceNote ? `Hear ${referenceNote}` : 'Hear the note') : undefined}
+                    data-tuner-reference=""
+                  >
+                    {compactHear ? referenceNote || 'Note' : tone.playing !== null ? 'Stop note' : referenceNote ? `Hear ${referenceNote}` : 'Hear it'}
                   </Button>
                 </Tooltip>
               </>

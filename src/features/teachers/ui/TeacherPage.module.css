@@ -63,6 +63,9 @@
   font-size: var(--text-xs);
   color: var(--fg-muted);
 }
+.forYou {
+  white-space: nowrap;
+}
 @container (max-width: 34rem) {
   .switchRow {
     display: grid;

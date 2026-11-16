@@ -197,8 +197,8 @@ target (`3:5b2`, and back with `r`; `{pre}` is struck bent), `h`/`p` carry the r
 `s` glides between frets, `~` vibrato, `/3:7` `\3:7` slide in, `3:7\` `3:7/` slide out, `{lr}` let ring. Strokes have
 per-stroke strength: a down-strum on the beat 0.8, between beats 0.72, an up-strum 0.62; `beat.accent` (the whole beat) and
 `note.accent` play it ×1.25–1.3 harder and brighter. `buildPlayEvents(timeline)` is the pure schedule (`PlayNote` carries
-`legato`, `bend`, `vibrato`, `slideIn`, `slideOut`, `accent`; `PlayStrum` `accent`, `letRing`); `strumVelocity(direction,
-tickInBar, accent)`. `liveOutput({ engine })` plays into a given (offline) engine with the player's own synths.
+`legato`, `bend`, `vibrato`, `slideIn`, `slideOut`, `accent`; `PlayStrum` `accent`, `letRing`). `liveOutput({ engine })`
+plays into a given (offline) engine with the player's own synths.
 
 ## Practice — `WaitMode`, `FlowMode` (pure; feed pitch events)
 ```ts

@@ -901,8 +901,9 @@ describe('timeline and player edge cases', () => {
   it('starts a pre-bend at the bent pitch once (not twice) and releases it', () => {
     const events = buildPlayEvents(flattenSong(sixTab('title: B\ntempo: 60\n| h 3:7b2{pre} 3:7b2r{pre} ||\n')));
     const notes = events.filter((e): e is PlayNote => e.kind === 'note');
-    expect(notes[0]).toMatchObject({ midi: 62, cents: 200 });
-    expect(notes.filter((n) => n.tick >= 1920).map((n) => [n.midi, n.cents ?? 0])).toEqual([[62, 200], [62, 0]]);
+    // (The guitar voice plays the bend itself: one event per note, struck bent, the release a pitch curve.)
+    expect(notes[0]).toMatchObject({ midi: 62, bend: { amount: 2, pre: true } });
+    expect(notes.filter((n) => n.tick >= 1920).map((n) => [n.midi, n.bend])).toEqual([[62, { amount: 2, pre: true, release: true }]]);
     expect(soundingPitch(sixTab('title: B\ntempo: 60\n| w 3:7b2r{pre} ||\n').tracks[0].measures[0].beats[0].notes[0])).toBe(64);
   });
 });

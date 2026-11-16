@@ -74,6 +74,7 @@ const VARIANTS: { [K in GeneratorKind]: Array<GeneratorParamsMap[K]> } = {
   'rhythm-read': [{}, { ask: 'count' }, { ask: 'ear' }, { feels: ['triplets'], rests: true }, { feels: ['9/8', '12/8'], ask: 'count', tempo: 90 }, { feels: ['6/8', 'triplets', '9/8', '12/8'], ask: 'ear', rests: true, tempo: 40 }],
   'staff-key': [{}, { ask: 'pick' }, { ask: 'read' }, { modes: ['minor'], maxAccidentals: 7 }, { ask: 'read', keys: ['F major', 'Bb major', 'Eb major', 'A major'] }, { ask: 'pick', modes: ['major', 'minor'], maxAccidentals: 6 }],
   'natural-harmonic': [{}, { ask: 'fret' }, { frets: [12, 7, 5, 19, 4, 9, 16] }, { ask: 'fret', frets: [4, 9, 16, 7], strings: [6, 1] }],
+  'sight-play': [{}, { positions: [1, 2, 5], keys: ['G major', 'E minor', 'F major'], bars: 2, values: ['quarter', 'eighth', 'half'], tempo: 80 }],
   'sight-reading': [{}, { ask: 'tab' }, { positions: [1, 2, 5, 7], keys: ['C major', 'G major', 'D major', 'F major', 'Bb major', 'A minor', 'E minor'], values: ['quarter', 'eighth', 'half'] }, { ask: 'tab', positions: [5, 7, 9], bars: 1, values: ['quarter', 'eighth'] }, { positions: [12], keys: ['E minor', 'G major'] }],
 };
 

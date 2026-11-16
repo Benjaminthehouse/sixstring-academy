@@ -82,16 +82,17 @@ export function neckCrop(pose: FretboardPose, notes: readonly FretPosition[], vi
   const by0 = Math.max(0, Math.min(...pts.map((p) => p.y)));
   const by1 = Math.min(fh, Math.max(...pts.map((p) => p.y)));
   if (!(bx1 > bx0 && by1 > by0)) return FULL_CROP;
-  // A crop with the view's shape fills the view exactly. Magnify only as much as needed, as much as
-  // the notes allow, and not past `maxZoom`.
-  const aspect = view.width / view.height;
-  const maxW = Math.min(fw, fh * aspect);
-  const wanted = Math.min(maxZoom, readable / shown);
-  let w = view.width / (whole * wanted);
-  w = Math.max(w, bx1 - bx0, (by1 - by0) * aspect, view.width / (whole * maxZoom));
-  w = Math.min(w, maxW);
-  const h = w / aspect;
-  if (view.width / w / whole < (options.minZoom ?? 1.25)) return FULL_CROP;
+  // Magnify only as much as the dots need, as much as the notes' part of the board allows, and not
+  // past `maxZoom`.
+  const fits = Math.min(view.width / ((bx1 - bx0) * whole), view.height / ((by1 - by0) * whole));
+  const zoom = Math.min(maxZoom, readable / shown, fits);
+  if (!(zoom >= (options.minZoom ?? 1.25))) return FULL_CROP;
+  // The part of the frame the view shows at that magnification: the view's shape where the frame
+  // has room (it fills the view exactly), the frame's full height or width where it has not (a
+  // full-screen phone held upright: bands above and below, as without the zoom).
+  const s = whole * zoom;
+  const w = Math.min(fw, view.width / s);
+  const h = Math.min(fh, view.height / s);
   const cx = Math.min(fw - w / 2, Math.max(w / 2, (bx0 + bx1) / 2));
   const cy = Math.min(fh - h / 2, Math.max(h / 2, (by0 + by1) / 2));
   return { x: (cx - w / 2) / fw, y: (cy - h / 2) / fh, width: w / fw, height: h / fh };

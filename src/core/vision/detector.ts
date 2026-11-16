@@ -214,15 +214,15 @@ const COAST_CONFIDENCE = 0.3;
 /** How long a trusted pose keeps lending its fret numbers after the board was lost, in milliseconds. */
 const ANCHOR_LIFE_MS = 3000;
 /**
- * A tracked pose that moved more than this many fret cells in one frame, and more than
- * `JUMP_RATIO` times the track's usual motion, jumped (a cut, the camera knocked, the trackers
- * latching onto wires of another board): its numbers were carried by nearness over more than half a
- * fret, so they are a guess and are read off the image again. A swaying neck moves 0.05-0.2 cells a
- * frame; a cut on the alt bench measured 0.9.
+ * A tracked pose that moved more than this many fret cells since the last frame, and more than
+ * `JUMP_RATIO` times what the track's usual speed covers in that time, jumped (a cut, the camera
+ * knocked, the trackers latching onto wires of another board): its numbers were carried by
+ * nearness over more than half a fret, so they are a guess and are read off the image again. A
+ * swaying neck moves 0.05-0.2 cells a frame at 30 fps; a cut on the alt bench measured 0.9.
  */
 const JUMP_CELLS = 0.5;
 const JUMP_RATIO = 4;
-/** Smoothing of the track's usual motion per frame (fret cells). */
+/** Smoothing of the track's usual speed (fret cells per ms), per frame. */
 const MOTION_RATE = 0.2;
 /** Confidence of numbers carried across a jump until the image confirms them (below 0.5: a guess). */
 const JUMP_GUESS = 0.45;
@@ -331,7 +331,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
   let flowFrom: { profiles: BoardProfiles; H: Mat3; width: number } | null = null;
   /** Consecutive frames the pose has been carried by the flow alone. */
   let coasting = 0;
-  /** Usual motion of the tracked board per frame, in fret cells (what a jump is measured against). */
+  /** Usual speed of the tracked board, fret cells per ms (what a jump is measured against). */
   let motion = 0;
 
   /** Polished line pose (working pixels of the line view) -> candidate with the evidence of both approaches. */
@@ -466,14 +466,19 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     return true;
   };
 
-  /** The board jumped between the pose handed out last and this one (see `JUMP_CELLS`); otherwise the move counts toward the usual motion. */
-  const jumpOf = (before: FretboardPose, after: FretboardPose): boolean => {
+  /**
+   * The board jumped between the pose handed out last and this one, `dtMs` earlier (see
+   * `JUMP_CELLS`); otherwise the move counts toward the usual motion. The usual motion is a speed,
+   * so a busy machine that skips frames (longer gaps, longer moves) does not see jumps in a sway.
+   */
+  const jumpOf = (before: FretboardPose, after: FretboardPose, dtMs: number): boolean => {
     const vis = after.visibleFrets;
     const mid = vis.max >= vis.min ? Math.max(1, Math.round((vis.min + vis.max) / 2)) : 6;
     const moved = poseDistancePx(before, after) / Math.max(1e-6, fretSpacingPx(after, mid));
     if (!Number.isFinite(moved)) return false;
-    if (moved > Math.max(JUMP_CELLS, JUMP_RATIO * motion)) return true;
-    motion += MOTION_RATE * (moved - motion);
+    const dt = Math.max(1, Math.min(500, Number.isFinite(dtMs) ? dtMs : 33));
+    if (moved > Math.max(JUMP_CELLS, JUMP_RATIO * motion * dt)) return true;
+    motion += MOTION_RATE * (moved / dt - motion);
     return false;
   };
 
@@ -711,7 +716,7 @@ export function createFretboardDetector(options: FretboardDetectorOptions = {}):
     // every comparison with the last trusted pose, is a vote for a whole-fret shift (or for none).
     tracked++;
     settled++;
-    const jumped = continues && !coasted ? jumpOf(previousPose, pose) : false;
+    const jumped = continues && !coasted ? jumpOf(previousPose, pose, now - clock) : false;
     if (jumped) {
       stats.jump = 1;
       // A cut or a knock: the trackers followed the last pose onto whatever wires are near it now,

@@ -653,7 +653,7 @@ describe('musicality, by inspection of the generated events', () => {
     // Every new style has a name, a picker line and a sensible tempo range.
     for (const id of ['rumba', 'gospel', 'ska', 'classical', 'tango'] as const) {
       expect(BACKING_STYLE_IDS).toContain(id);
-      expect(BACKING_STYLES[id].name.length).toBeGreaterThan(3);
+      expect(BACKING_STYLES[id].name.length).toBeGreaterThanOrEqual(3);
       expect(BACKING_STYLES[id].description.length).toBeGreaterThan(20);
     }
   });

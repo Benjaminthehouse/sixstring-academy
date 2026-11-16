@@ -156,7 +156,11 @@ export default function RecorderScreen({ params }: RouteProps) {
   useImmersive(busy, 'focus');
   const readLevel = useCallback(() => sessionRef.current?.level() ?? { db: -Infinity, peak: 0 }, []);
 
-  useInterval(() => setElapsed(sessionRef.current?.elapsedMs() ?? 0), phase === 'recording' ? 250 : null);
+  // The clock shows whole seconds: re-render only when the second changes.
+  useInterval(() => {
+    const ms = sessionRef.current?.elapsedMs() ?? 0;
+    setElapsed((prev) => (Math.floor(prev / 1000) === Math.floor(ms / 1000) ? prev : ms));
+  }, phase === 'recording' ? 250 : null);
 
   const finished = useCallback(async (rec: FinishedRecording | null) => {
     sessionRef.current = null;

@@ -385,8 +385,12 @@ async function tools(page, truth, geo, ov) {
       const nearCode = Math.abs(p.x - (truth.code.x + 96)) < 160 && Math.abs(p.y - truth.code.y) < 80;
       return !nearCode && (!loc || !loc.onBoard) && (!pose || ![-40, 0, 40].some((dx) => [-40, 0, 40].some((dy) => geo.locatePixel(pose, { x: p.x + dx, y: p.y + dy })?.onBoard)));
     };
-    const off = [{ x: 640, y: 40 }, { x: 80, y: 680 }, { x: 1200, y: 680 }, { x: 640, y: 690 }, { x: 80, y: 40 }, { x: 1200, y: 40 }].find(clear);
+    // Only the part of the picture on screen can be tapped (zoomed in on the notes, that is less than all of it).
     const sv = await stageView(page);
+    const c = sv.view.crop ?? { x: 0, y: 0, width: 1, height: 1 };
+    const grid = [];
+    for (const fy of [0.06, 0.94, 0.15, 0.85, 0.5]) for (const fx of [0.5, 0.06, 0.94, 0.25, 0.75]) grid.push({ x: Math.round((c.x + fx * c.width) * sv.vw), y: Math.round((c.y + fy * c.height) * sv.vh) });
+    const off = grid.find(clear);
     if (off) await tapStage(page, ov.frameToDisplay(off, sv.view, sv.vw, sv.vh));
     const said = await page.locator('[data-camera-banner]').filter({ hasText: /not on the neck/i }).waitFor({ timeout: 4000 }).then(() => true).catch(() => false);
     const chips = await page.getByRole('group', { name: 'This fret is number' }).isVisible().catch(() => false);

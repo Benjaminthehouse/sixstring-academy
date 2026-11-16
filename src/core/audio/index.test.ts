@@ -99,10 +99,16 @@ describe('audio barrel', () => {
       'TapTempo', 'BackingBand', 'arrangeBacking', 'BACKING_STYLES', 'BACKING_STYLE_IDS', 'PPQ', 'estimatePitch', 'measureFundamental',
       'audioState', 'audioRunning', 'audioSupported', 'hasEngine', 'onAudioUnlocked', 'onAudioClosed', 'normalizeTone', 'normalizeClickSet', 'isDrumName', 'TONE_NAMES',
       'finiteOr', 'AudioEngine', 'BufferCache', 'engineClock', 'closeAudio', 'renderRawPluck', 'renderDrum', 'renderClick', 'renderTone', 'renderDrone', 'renderUiSound',
+      'pitchCurve', 'parseTabTechnique', 'playPhrase', 'tabPhrase', 'playLineOverChord', 'METRONOME_START_DELAY',
     ];
     for (const n of names) expect(audio, n).toHaveProperty(n);
     expect(audio.PPQ).toBe(960);
-    expect(audio.BACKING_STYLE_IDS.length).toBe(14);
+    expect(audio.BACKING_STYLE_IDS.length).toBe(19);
+    // Phrases without Web Audio: silent, harmless handles.
+    const phrase = audio.playPhrase(audio.tabPhrase('5h7', 3)!);
+    expect(phrase.queued).toBe(false);
+    expect(() => phrase.stop()).not.toThrow();
+    expect(() => audio.playLineOverChord([48, 52, 55], [{ midi: 60, at: 0 }]).stop()).not.toThrow();
     expect(audio.DRUM_NAMES.length).toBeGreaterThanOrEqual(13);
     expect(audio.CLICK_SETS.length).toBeGreaterThanOrEqual(4);
   });

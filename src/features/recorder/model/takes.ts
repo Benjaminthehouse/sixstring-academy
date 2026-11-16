@@ -31,8 +31,6 @@ export const MAX_NAME_LENGTH = 60;
 export const MAX_TAKE_MS = 10 * 60_000;
 /** Shorter takes are kept but not reported as practice time, seconds. */
 export const MIN_PRACTICE_SEC = 3;
-/** Most takes kept: past this the oldest are offered for deletion, never removed silently. */
-export const MANY_TAKES = 60;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

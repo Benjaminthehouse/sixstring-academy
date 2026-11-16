@@ -71,6 +71,13 @@ function givenKind(exercise: Exercise): AnswerSpec['kind'] {
   return 'note';
 }
 
+/** True for a choice whose right options are pictures without words: the answer is shown by the tick on them. */
+function picturesOnly(exercise: Exercise): boolean {
+  if (exercise.type !== 'choice' && exercise.type !== 'listen-choice') return false;
+  const right = exercise.options.filter((o) => o.correct);
+  return right.length > 0 && right.every((o) => o.text === undefined && o.figure !== undefined);
+}
+
 /**
  * One kind, specific line about a wrong answer, from the grader's detail. The grader's own `note`
  * (enharmonic spellings, octaves, the chord a shape really makes) always wins.
@@ -84,6 +91,8 @@ export function wrongLine(exercise: Exercise, result: GradeResult): RichText | n
       if (d.why.length > 0) return d.why[0].text;
       if (result.near === 'incomplete') return `You found ${d.selected.length} of the ${d.correct.length}: there are more.`;
       if (result.near === 'extra') return 'You have them all, plus one that does not belong.';
+      // Pictures have no words to quote, and "Option 2" would not match where they are on screen.
+      if (picturesOnly(exercise)) return d.selected.length > 0 ? 'Not that one: the right one has the tick.' : null;
       if ((exercise.type === 'choice' || exercise.type === 'listen-choice') && d.selected.length > 0) {
         const picked = d.selected.map((i) => optionLabel(exercise.options[i], i)).join(', ');
         return exercise.type === 'listen-choice' ? `You picked ${picked}. Listen again and compare.` : `You picked ${picked}.`;
@@ -168,8 +177,10 @@ export function wrongLine(exercise: Exercise, result: GradeResult): RichText | n
 export function feedbackCopy(exercise: Exercise, feedback: SessionFeedback, seed = 0, heartsLeft: number | null = null): FeedbackCopy {
   const { result } = feedback;
   const explain = result.feedback.explain;
+  // A picture answer is shown on the picture (its tick), not as "Option 1".
+  const answer = picturesOnly(exercise) ? null : result.feedback.answer || null;
   if (feedback.skipped) {
-    return { tone: 'info', title: 'Here is the answer.', note: null, answer: result.feedback.answer || null, explain, heartLost: false, willRetry: feedback.willRetry, lastHeart: false };
+    return { tone: 'info', title: 'Here is the answer.', note: picturesOnly(exercise) ? 'The right one has the tick.' : null, answer, explain, heartLost: false, willRetry: feedback.willRetry, lastHeart: false };
   }
   if (result.correct) {
     return { tone: 'ok', title: rightWord(seed), note: null, answer: null, explain, heartLost: false, willRetry: false, lastHeart: false };
@@ -179,7 +190,7 @@ export function feedbackCopy(exercise: Exercise, feedback: SessionFeedback, seed
     tone: 'bad',
     title: 'Not quite.',
     note: wrongLine(exercise, result),
-    answer: result.feedback.answer || null,
+    answer,
     explain,
     heartLost: feedback.heartLost,
     // With no heart left the lesson ends at Continue: do not promise a come-back.

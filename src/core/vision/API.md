@@ -187,7 +187,8 @@ drawVisionOverlay(ctx, { view, pose, notes, ... });          // taps: displayToF
 ```
 `neckCrop(pose, notes, view, { readableRadius 11, maxZoom 3, marginFrets 1, minZoom 1.25 })`
 magnifies just enough for dots of `readableRadius` CSS px, never past the notes' frets (plus a fret
-either side, board edge to edge) nor `maxZoom`, keeping the view's shape. `cropZoom(view, w, h)`
+either side, board edge to edge) nor `maxZoom`; the crop has the view's shape where the frame has
+room (a view taller than the picture keeps its bands). `cropZoom(view, w, h)`
 says how much a view magnifies. The camera screen zooms by default (Z toggles it) and shows the
 whole picture again for the marking tools.
 

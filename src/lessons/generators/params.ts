@@ -419,6 +419,17 @@ export interface SightReadingParams {
   values?: Array<'half' | 'quarter' | 'eighth'>;
 }
 
+/** `sight-play`: play a passage from the staff alone (no tab, no names) into the microphone. */
+export interface SightPlayParams {
+  positions?: number[];
+  keys?: string[];
+  /** Bars of 4/4, 1 or 2. Default 1. */
+  bars?: number;
+  values?: Array<'half' | 'quarter' | 'eighth'>;
+  /** Beats per minute, 40 to 120. Default 60. */
+  tempo?: number;
+}
+
 /** Every generator and its params. The keys are the generator names. */
 export interface GeneratorParamsMap {
   'interval-name': IntervalNameParams;
@@ -460,4 +471,5 @@ export interface GeneratorParamsMap {
   'staff-key': StaffKeyParams;
   'natural-harmonic': NaturalHarmonicParams;
   'sight-reading': SightReadingParams;
+  'sight-play': SightPlayParams;
 }

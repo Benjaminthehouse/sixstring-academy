@@ -85,6 +85,20 @@ describe('neckCrop', () => {
     expect(isFullCrop(neckCrop(pose(), [], PHONE))).toBe(true);
   });
 
+  it('in a view much taller than the picture (full screen, phone upright) keeps to the zoom limit and the notes', () => {
+    const p = pose();
+    const tall: DisplayView = { width: 390, height: 844, mirrored: true, fit: 'contain' };
+    const crop = neckCrop(p, BOX1, tall);
+    const view = { ...tall, crop };
+    expect(isFullCrop(crop)).toBe(false);
+    expect(cropZoom(view, W, H)).toBeLessThanOrEqual(3 + 1e-9);
+    for (const m of placeMarkers(p, BOX1)) {
+      const d = frameToDisplay(m, view, W, H);
+      expect(d.x).toBeGreaterThan(0);
+      expect(d.x).toBeLessThan(tall.width);
+    }
+  });
+
   it('never zooms past the notes: a chord spread from the nut to the 12th fret keeps them all in view', () => {
     const p = pose();
     const wide: FretPosition[] = [{ string: 6, fret: 0 }, { string: 1, fret: 12 }, { string: 3, fret: 7 }];

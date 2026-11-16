@@ -363,12 +363,9 @@ export const sightReading = defineGenerator({
     const names = passageNames(passage);
     const [lo, hi] = positionFrets(position);
     const where = `${positionWords(position)} (frets ${lo === 0 ? `${lo} to ${hi}, open strings too` : `${lo} to ${hi}`})`;
-    const notesIndex = positionNotes(key, position);
-    const indexOf = (midi: number): number => notesIndex.findIndex((n) => n.midi === midi);
-    const shifted = (i: number, by: number): number[] => passage.midis.map((m, j) => (j === i ? (notesIndex[indexOf(m) + by]?.midi ?? m) : m));
-    const spots = rng.shuffle(passage.midis.map((_m, i) => i));
 
     if ((p.ask ?? 'notes') === 'tab') {
+      const spots = rng.shuffle(passage.midis.map((_m, i) => i));
       const right = tabOf(passage.places, durations);
       const altered = passage.midis.map((m, i) => ({ i, alt: parseNote(names[i])!.alt })).filter((x) => x.alt !== 0);
       const candidates: TabFigure[] = [];
@@ -395,25 +392,65 @@ export const sightReading = defineGenerator({
       return out;
     }
 
-    const lists: string[][] = [];
-    // The key signature forgotten: its sharps or flats played natural.
-    if (names.some((n) => parseNote(n)!.alt !== 0)) lists.push(names.map((n) => parseNote(n)!.letter));
-    // One note read a step off (a line for the space beside it), or a third off (the next line).
-    for (const i of spots) {
-      lists.push(passageNames(passage, shifted(i, rng.chance() ? 1 : -1)));
-      lists.push(passageNames(passage, shifted(i, rng.chance() ? 2 : -2)));
-    }
-    const wrong = distinct(lists, pcKey, 3, [pcKey(names)]);
-    return choiceOf(
-      rng,
-      {
-        prompt: 'Which notes does this passage play?',
-        explain: `${signatureWords(key)} So the passage reads ${noteList(names)}. Play it in ${where}.`,
-        figure: staffOf(passage),
-      },
-      noteList(names),
-      wrong.map((list) => noteList(list)),
-    );
+    return passageQuestion(rng, passage, ` Play it in ${where}.`);
+  },
+});
+
+/** "Which notes does this passage play?", with the classic misreadings as the wrong answers. */
+function passageQuestion(rng: Rng, passage: Passage, tail = ''): ChoiceExercise {
+  const names = passageNames(passage);
+  const notesIndex = positionNotes(passage.key, passage.position);
+  const indexOf = (midi: number): number => notesIndex.findIndex((n) => n.midi === midi);
+  const shifted = (i: number, by: number): number[] => passage.midis.map((m, j) => (j === i ? (notesIndex[indexOf(m) + by]?.midi ?? m) : m));
+  const lists: string[][] = [];
+  // The key signature forgotten: its sharps or flats played natural.
+  if (names.some((n) => parseNote(n)!.alt !== 0)) lists.push(names.map((n) => parseNote(n)!.letter));
+  // One note read a step off (a line for the space beside it), or a third off (the next line).
+  for (const i of rng.shuffle(passage.midis.map((_m, index) => index))) {
+    lists.push(passageNames(passage, shifted(i, rng.chance() ? 1 : -1)));
+    lists.push(passageNames(passage, shifted(i, rng.chance() ? 2 : -2)));
+  }
+  const wrong = distinct(lists, pcKey, 3, [pcKey(names)]);
+  return choiceOf(
+    rng,
+    { prompt: 'Which notes does this passage play?', explain: `${signatureWords(passage.key)} So the passage reads ${noteList(names)}.${tail}`, figure: staffOf(passage) },
+    noteList(names),
+    wrong.map((list) => noteList(list)),
+  );
+}
+
+export const sightPlay = defineGenerator({
+  kind: 'sight-play',
+  summary: 'Play a short passage from the staff alone (no tab, no names) into the microphone, in one key and one hand position. Falls back to naming its notes.',
+  produces: ['play-phrase'],
+  mic: true,
+  params: [
+    { name: 'positions', type: 'number[]', default: '[1]', description: 'Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings.' },
+    { name: 'keys', type: 'string[]', default: 'C major, A minor, G major, E minor, F major, D major', description: 'Keys, easiest first.' },
+    { name: 'bars', type: 'number', default: '1', description: 'Bars of 4/4, 1 or 2.' },
+    { name: 'values', type: "('half' | 'quarter' | 'eighth')[]", default: "['quarter']", description: 'Note values the rhythm may use (quarter among them).' },
+    { name: 'tempo', type: 'number', default: '60', description: 'Beats per minute, 40 to 120.' },
+  ],
+  check: (p) => [...(sightReading.check({ positions: p.positions, keys: p.keys, bars: p.bars, values: p.values })), ...checkParams().int('tempo', p.tempo, 40, 120).problems],
+  make(p, { rng, difficulty }) {
+    const key = rng.pick(pool(keysFromList(p.keys ?? SIGHT_KEYS), difficulty, 2));
+    const position = rng.pick(pool(p.positions ?? [1], difficulty, 1));
+    const durations = sightRhythm(rng, p.bars ?? 1, p.values ?? ['quarter']);
+    const passage = makePassage(rng, key, position, durations);
+    const names = passageNames(passage);
+    const [lo, hi] = positionFrets(position);
+    const out: PlayPhraseExercise = {
+      type: 'play-phrase',
+      notes: passage.places.map((q, i): TabNote => ({ string: q.string, fret: q.fret, duration: durations[i] })),
+      octave: 'exact',
+      tempo: p.tempo ?? 60,
+      key: key.name,
+      staffOnly: true,
+      prompt: `Read it and play it in ${positionWords(position)} (frets ${lo} to ${hi}). Take your time.`,
+      explain: `${signatureWords(key)} The passage is ${noteList(names)}.`,
+      alternative: passageQuestion(rng, passage),
+    };
+    return out;
   },
 });
 
@@ -517,4 +554,4 @@ export const staffKey = defineGenerator({
 });
 
 /** The reading generators. */
-export const READING_GENERATORS = [tabRead, tabPlay, sightReading, staffKey] as const;
+export const READING_GENERATORS = [tabRead, tabPlay, sightReading, sightPlay, staffKey] as const;
