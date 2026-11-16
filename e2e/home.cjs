@@ -16,6 +16,9 @@
  * goal (its minutes are about the goal's ten, the steps' XP covers the goal's 20); Today fetches
  * the practice library (exercises, songs, unit drills) as a lazy chunk of its own; no sideways
  * scroll; no console errors.
+ * Steady plan: on a day where the lazy practice library changes a new beginner's music step, the
+ * plan the learner first reads is the plan that stays (Today holds that step's place until the
+ * library is in, or a short wait runs out).
  * Screenshots go to e2e/out/home-*.png.
  *
  * Prints PASSED or FAILED and exits non-zero on failure.
@@ -182,12 +185,64 @@ async function checkLearner(browser, url, seeds, who, mobile) {
   }
 }
 
+/**
+ * The plan never changes under the learner. The practice library is a lazy chunk; on 17 November
+ * 2026 a new beginner's Regular plan draws its music step from it ("First Notes on String 3"), and
+ * without it the planner picks another ("Strum a two-chord song"). Today must hold that step's
+ * place until the library is in (or a short wait runs out), then show one plan and keep it.
+ */
+async function steadyPlan(browser, url) {
+  const group = 'steady plan';
+  const day = Date.parse('2026-11-17T10:00:00Z');
+  const seeds = await buildSeeds(day);
+  let libraryAt = 0;
+  const context = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 1, colorScheme: 'dark', hasTouch: true, isMobile: true, timezoneId: 'UTC' });
+  await context.addInitScript((progress) => {
+    try {
+      if (localStorage.getItem('e2e:seeded') != null) return;
+      localStorage.setItem('ssa:shell.onboarding', '{"skipped":true}');
+      localStorage.setItem('ssa:progress', progress);
+      localStorage.setItem('e2e:seeded', '1');
+    } catch {
+      /* storage blocked */
+    }
+  }, seeds.new);
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  page.on('response', (r) => {
+    if (!libraryAt && /practice\/model\/library\.ts/.test(r.url())) libraryAt = Date.now();
+  });
+  try {
+    await page.clock.install({ time: day });
+    await page.goto(`${url}#home`, { waitUntil: 'load' });
+    const titles = () => page.evaluate(() => [...document.querySelector('[data-home-plan]').children].map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
+    // The first plan the learner can read: every step named (no place still held).
+    await page.waitForSelector('[data-home-plan]:not([data-ready="false"])', { timeout: 30000 });
+    const first = await titles();
+    for (let i = 0; i < 60 && !libraryAt; i++) await page.waitForTimeout(250);
+    await page.waitForTimeout(1500);
+    const later = await titles();
+    check(group, 'the steps shown first are the steps that stay (the library arriving changes nothing)', first.join(' | ') === later.join(' | '), `${first.join(' | ')}  ==>  ${later.join(' | ')}`);
+    check(group, 'three named steps, the plan ready', later.length === 3 && (await page.getAttribute('[data-home-plan]', 'data-ready')) === 'true', later.join(' | '));
+    check(group, 'the hero names a step once the plan is ready', (await page.locator('[data-home-next]').count()) === 1);
+    check(group, 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await context.close();
+  }
+}
+
 (async () => {
   const now = Date.now();
   const seeds = await buildSeeds(now);
   const server = await startServer();
   const browser = await chromium.launch();
   try {
+    try {
+      await steadyPlan(browser, server.url);
+    } catch (e) {
+      check('steady plan', 'ran without throwing', false, e && e.stack);
+    }
     for (const who of ['new', 'week']) {
       for (const mobile of [true, false]) {
         try {
