@@ -205,6 +205,46 @@ describe('functional-harmony: finding the key', () => {
   });
 });
 
+describe('functional-harmony: questions that teach, not give away', () => {
+  /** Every choice of the unit, wherever it sits (lessons, alternatives, facts, checkpoint). */
+  const choices = (): Array<Extract<Exercise, { type: 'choice' }>> => {
+    const out: Array<Extract<Exercise, { type: 'choice' }>> = [];
+    const walk = (v: unknown): void => {
+      if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') {
+        if ((v as { type?: unknown }).type === 'choice') out.push(v as Extract<Exercise, { type: 'choice' }>);
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(unit);
+    return out;
+  };
+
+  it('never lists the right answer first in a question that keeps its order', () => {
+    // Unshuffled options show in the authored order: with the answer always first, a learner
+    // could pass by position alone. Fixed orders (tonic, subdominant, dominant; the four cadences)
+    // are fine, as long as the answer moves around.
+    const fixed = choices().filter((c) => c.shuffle === false);
+    expect(fixed.length).toBeGreaterThan(3);
+    for (const c of fixed) expect(c.options.findIndex((o) => o.correct), plainText(c.prompt)).toBeGreaterThan(0);
+  });
+
+  it('asks every cadence of hearing-cadences without sound too', () => {
+    const quiet = exercises(lesson('hearing-cadences')).filter((e) => e.type !== 'listen-choice');
+    const text = JSON.stringify(quiet).toLowerCase();
+    for (const name of ['authentic', 'half', 'deceptive', 'plagal']) expect(text, name).toContain(name);
+  });
+
+  it('names the A7 to D ending authentic, and its wrong options truly wrong', () => {
+    const q = choices().find((c) => plainText(c.prompt).includes('ends A7 to D'))!;
+    expect(classifyCadence(['A7', 'D'], 'D major')?.type).toBe('authentic');
+    expect(plainText(q.options.find((o) => o.correct)!.text!)).toMatch(/authentic$/);
+    expect(progressionToChords('IV', 'D')).toEqual(['G']); // the plagal option's why
+    expect(progressionToChords('vi', 'D')).toEqual(['Bm']); // the deceptive option's why
+    expect(progressionToChords('V7', 'D')).toEqual(['A7']);
+  });
+});
+
 describe('functional-harmony: the shapes it writes', () => {
   it('draws every chord box as the chord it names', () => {
     const boxes = allFigures().filter((f): f is Extract<Figure, { kind: 'chord' }> => f.kind === 'chord');

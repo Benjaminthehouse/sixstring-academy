@@ -216,8 +216,8 @@ At most three toasts show at once (`MAX_TOASTS`): a new one pushes the oldest of
 never pushes another off but waits its turn, and **while a Modal or Sheet is open it waits** and
 shows when the last one closes (news already on screen steps aside and comes back with at least 3 s
 left). Toasts that are replies to a tap still show while a dialog is open, at the top edge, clear of
-a bottom sheet's buttons; over a dialog that reaches the top (a tall sheet, a drawer) they go just
-under its header instead, so its title and Close stay clear. `useDialogOpen()` tells you whether
+a bottom sheet's buttons; a dialog that reaches the top keeps its title and Close clear too: the
+toasts move left of a right-hand drawer, or (a tall phone sheet) go just under its header. `useDialogOpen()` tells you whether
 any kit dialog is open.
 
 Toasts are announced (a polite live region; `warn` / `error` as alerts). From the keyboard, **Alt+T**

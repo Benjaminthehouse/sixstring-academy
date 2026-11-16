@@ -87,7 +87,6 @@ const naturalMinorChords: Lesson = {
         { text: '{r:vii°}', why: '{r:vii°} is the diminished chord on a raised 7th: {c:G#dim} in {k:A minor}.' },
         { text: '{r:VII}', why: 'Here {r:VII} would be built a major 7th above {n:A}, on {n:G#}.' },
       ],
-      shuffle: false,
       explain: '{n:G} is a flat 7th above {n:A}, measured against the major scale, so this app writes {c:G} as {r:bVII}.',
       fact: 'minor-key-numerals',
     },
@@ -130,7 +129,7 @@ const theMajorV: Lesson = {
     {
       type: 'card',
       title: 'One raised note',
-      body: 'In natural minor the chord on degree 5 is minor: {c:Em} in {k:A minor}. Raise the 7th note, {n:G}, to {n:G#}, as harmonic minor does, and it becomes {c:E}: a major {r:V}. On the guitar it is one finger: {c:E} (022100) has {n:G#} at string 3, fret 1, where {c:Em} has the open {n:G}.',
+      body: 'In natural minor the chord on degree 5 is minor: {c:Em} in {k:A minor}. Borrow the raised 7th of {t:harmonic-minor|harmonic minor}, {n:G#} in place of {n:G}, and it becomes {c:E}: a major {r:V}. On the guitar it is one finger: {c:E} (022100) has {n:G#} at string 3, fret 1, where {c:Em} has the open {n:G}.',
       figure: { kind: 'chord', symbol: 'E', frets: '022100', caption: '{c:E}: {n:G#} at string 3, fret 1. {c:Em} (022000) has the open {n:G}.' },
     },
     {
@@ -279,7 +278,6 @@ const minorProgressions: Lesson = {
         { text: '{c:G} is a minor chord', why: '{c:G} is major: {n:G} {n:B} {n:D}.' },
         { text: '{c:G} is not in {k:A minor}', why: '{c:G} is {r:bVII}, one of the natural-minor chords of {k:A minor}.' },
       ],
-      shuffle: false,
       explain: '{c:G} is built on the subtonic {n:G}, a whole step below {n:A}. {c:E} holds {n:G#}, a half step below, which pulls up to {n:A}.',
       fact: 'minor-key-subtonic-ending',
     },
@@ -373,7 +371,6 @@ const theAndalusianCadence: Lesson = {
         { text: 'Climbs up: {n:A} {n:B} {n:C} {n:D}', why: 'It falls, from the tonic down to the 5th.' },
         { text: 'Stays on {n:A} throughout', why: 'Each chord has its own root: {n:A}, {n:G}, {n:F}, {n:E}.' },
       ],
-      shuffle: false,
       explain: 'The roots of {c:Am} {c:G} {c:F} {c:E} fall a step at a time from the tonic {n:A} to the 5th, {n:E}.',
       fact: 'minor-key-andalusian-bass',
     },
@@ -408,7 +405,6 @@ const theAndalusianCadence: Lesson = {
         { text: 'The 12-bar blues', why: 'The blues is built on {r:I}, {r:IV} and {r:V} dominant sevenths.' },
         { text: 'Hymns, as the "Amen"', why: 'The "Amen" is the plagal cadence, {r:IV} to {r:I}.' },
       ],
-      shuffle: false,
       explain: 'It is central to flamenco, and it also turns up in many rock and pop songs.',
       fact: 'minor-key-andalusian-flamenco',
     },
@@ -482,8 +478,7 @@ const relativeKeysInSongs: Lesson = {
         { text: 'The key signature', why: '{k:C major} and {k:A minor} share their signature: no sharps or flats.' },
         { text: 'All the chords', why: 'Relative keys share all seven chords: none has to change.' },
       ],
-      shuffle: false,
-      explain: 'The verse feels at home on {c:Am} ({r:vi} of C) and the chorus on {c:C} ({r:I}), with the same chords and the same signature.',
+      explain: 'The verse feels at home on {c:Am} ({r:vi} in {k:C major}) and the chorus on {c:C} ({r:I}), with the same chords and the same signature.',
       fact: 'minor-key-verse-chorus',
     },
     {
@@ -533,7 +528,7 @@ const relativeKeysInSongs: Lesson = {
     {
       id: 'minor-key-verse-chorus',
       front: 'How can a verse and a chorus feel at home in different keys with the same chords?',
-      back: 'The verse rests on {r:vi} ({c:Am} in C) and the chorus on {r:I} ({c:C}): the home feeling changes, the key signature does not.',
+      back: 'The verse rests on {r:vi} ({c:Am} in {k:C major}) and the chorus on {r:I} ({c:C}): the home feeling changes, the key signature does not.',
     },
     {
       id: 'minor-key-relative-pull',
@@ -584,7 +579,7 @@ const minorKeyColours: Lesson = {
     {
       type: 'card',
       title: 'A brighter four',
-      body: 'In {k:A minor} the chord on degree 4 is {c:Dm}. Melodic minor raises the 6th note, {n:F}, to {n:F#}, which turns it into {c:D}: a major {r:IV}. Try {c:Am} {c:D} {c:Am} {c:D}: still minor, but brighter.',
+      body: 'In {k:A minor} the chord on degree 4 is {c:Dm}. {t:melodic-minor|Melodic minor} raises the 6th note, {n:F}, to {n:F#}, which turns it into {c:D}: a major {r:IV}. Try {c:Am} {c:D} {c:Am} {c:D}: still minor, but brighter.',
       figure: { kind: 'chord', symbol: 'D', frets: 'xx0232', caption: '{c:D}: {n:F#} at string 1, fret 2. {c:Dm} (xx0231) has {n:F} at fret 1.' },
     },
     {
@@ -630,7 +625,6 @@ const minorKeyColours: Lesson = {
         { text: '{c:Dm} {c:E} {c:Am}', why: 'Ending on {c:Am} is the plain minor ending.' },
         { text: '{c:F} {c:G} {c:Am}', why: 'This also ends on minor {c:Am}.' },
       ],
-      shuffle: false,
       explain: 'The Picardy third is the major tonic chord at the end: {c:A}, with {n:C#}, instead of {c:Am}.',
       fact: 'minor-key-picardy',
     },
@@ -687,7 +681,6 @@ const unit: Unit = {
           { text: '{r:iii}, {r:vi}, {r:vii°}', why: 'Those are the minor and diminished chords of a major key.' },
           { text: '{r:III}, {r:VI}, {r:VII}', why: 'In this app those would sit a major 3rd, 6th and 7th above the tonic.' },
         ],
-        shuffle: false,
         explain: 'This app measures every root against the major scale, so the 3rd, 6th and 7th of natural minor carry a flat.',
       },
       {
@@ -733,7 +726,6 @@ const unit: Unit = {
           { text: '{c:G} is a diminished chord', why: '{c:G} is major.' },
           { text: '{c:Am} is not the tonic', why: '{c:Am} is the tonic chord of {k:A minor}.' },
         ],
-        shuffle: false,
         explain: '{n:G} is a whole step below {n:A}. Only a raised {n:G#} would pull up by a half step.',
       },
       {
@@ -756,8 +748,8 @@ const unit: Unit = {
         type: 'choice',
         prompt: 'A verse rests on {c:Am} and the chorus on {c:C}. Does the key signature change?',
         options: [
-          { text: 'No: relative keys share it', correct: true },
           { text: 'Yes: one sharp is added', why: 'No sharp is needed: the chords are the same.' },
+          { text: 'No: relative keys share it', correct: true },
         ],
         shuffle: false,
         explain: '{k:C major} and {k:A minor} share their key signature and all seven chords.',

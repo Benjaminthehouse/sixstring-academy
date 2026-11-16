@@ -52,8 +52,8 @@ export const DUO_UPPER: TabNote[] = [t(2, 3, 'e'), t(1, 0, 'e'), t(1, 1, 'q'), t
 /** The Baroque-style duo, bars 1 and 2: the bass line. */
 export const DUO_BASS: TabNote[] = [t(4, 0, 'h'), t(5, 0, 'q'), t(5, 4, 'h'), t(5, 0, 'q')];
 
-/** Hammer and Pull Chains on string 1: pick A, hammer B and C; pick C, pull off to B and A. */
-export const SLURS_S1: TabNote[] = [t(1, 5, 'e'), t(1, 7, 'e'), t(1, 8, 'e'), t(1, 8, 'e'), t(1, 7, 'e'), t(1, 5, 'e'), { rest: true, duration: 'q' }];
+/** Hammer and Pull Chains on string 1, in the exercise's triplets: pick A, hammer B and C; pick C, pull off to B and A. */
+export const SLURS_S1: TabNote[] = [t(1, 5, 'et'), t(1, 7, 'et'), t(1, 8, 'et'), t(1, 8, 'et'), t(1, 7, 'et'), t(1, 5, 'et'), { rest: true, duration: 'h' }];
 
 /** Clean Position Shifts, quarters: finger 1 at frets 2, 5 and 9 of string 3, finger 3 at 4 and 7. */
 export const SHIFTS: TabNote[] = [
@@ -126,7 +126,7 @@ const classicalPosition: TeacherLesson = {
     {
       type: 'play-note',
       id: 'free-stroke',
-      prompt: 'Play {n:C}, string 2 fret 1, with i and a free stroke: the finger clears string 3. Note the level on the meter.',
+      prompt: 'Play {n:C}, string 2 fret 1: a free stroke with {t:pima|i}, the index finger, which clears string 3. Note the level on the meter.',
       note: 'C4',
       octave: 'exact',
       where: { string: 2, fret: 1 },
@@ -289,12 +289,12 @@ const rightHandArpeggios: TeacherLesson = {
       song: 'st-pima-arpeggios',
       tempo: 91,
       minutes: 5,
-      body: 'Giuliani\'s Op. 1 is not in the library; this study is its nearest relation: {c:C}, {c:Am}, {c:Dm} and {c:G7}, one pattern per chord, with pinches in bars 15 and 16. At about 60 BPM today, one chord\'s pattern a day if you like; then 100 % (66 BPM).',
+      body: 'Giuliani\'s Op. 1 is not in the library; this study is its nearest relation: {c:C}, {c:Am}, {c:Dm} and {c:G7} in three patterns (p-i-m-a, p-a-m-i, p-i-m-a-m-i-m-i), with pinches in bars 15 and 16. At about 60 BPM today, one pattern a day if you like; then 100 % (66 BPM).',
       tip: 'Watch the thumb: its string follows the chord, 5 for {c:C} and {c:Am}, 4 for {c:Dm}, 6 for {c:G7}.',
     }),
     {
       type: 'listen-choice',
-      prompt: 'A recording of p-i-m-a, twice. Even, or is a finger late?',
+      prompt: 'A recording of p-i-m-a, twice. Even, or is one finger late?',
       sound: { kind: 'tab', notes: LATE_A, tempo: 60 },
       options: [{ text: 'Even' }, { text: 'The a finger is late', correct: true }, { text: 'The thumb is late' }],
       shuffle: false,
@@ -705,7 +705,7 @@ const vibratoAndToneColour: TeacherLesson = {
       song: 'greensleeves-fingerstyle',
       tempo: 74,
       minutes: 5,
-      body: 'Then the whole piece, at about 60 BPM, then 100 % (81 BPM): vibrato on the long tune notes, never on the quick ones, and a colour chosen for each half. Adelita\'s slides must wait for your edition; plain notes are what make the vibrato mean something.',
+      body: 'Then the whole piece, at about 60 BPM, then 100 % (81 BPM): vibrato on the long tune notes, never on the quick ones, and a colour chosen for each half. Plain notes are what make the vibrato mean something. Adelita, with Tarrega\'s slides, waits for your edition: 60, then 72 BPM.',
     }),
     {
       type: 'choice',
@@ -798,6 +798,7 @@ const tremolo: TeacherLesson = {
       bars: [1, 4],
       minutes: 5,
       body: 'Tarrega\'s Recuerdos de la Alhambra is not in the library; if you own it, scan it in and loop its first 4 bars at 40 BPM. The library\'s preparation for it is the Concert Tremolo Etude: its first 4 bars in wait mode, every group even before the next.',
+      tip: 'The etude is written in thirty-seconds, two p-a-m-i groups to each beat: twice the notes per beat of the exercise. In wait mode the speed is yours.',
       fallback: {
         tool: 'technique',
         params: ['tech-tremolo-pami'],

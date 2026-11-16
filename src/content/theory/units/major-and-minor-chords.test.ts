@@ -385,6 +385,11 @@ describe('major-and-minor-chords: every exercise', () => {
     for (const t of texts()) expect(t, t).not.toMatch(/[♭♯𝄪𝄫]/);
   });
 
+  it('writes card titles without markup: the player shows a title as plain text', () => {
+    // StepViews renders card.title as a string, so "{c:Am}" would show its braces on screen.
+    for (const l of unit.lessons) for (const s of l.steps) if (!isGenerated(s) && s.type === 'card' && s.title) expect(s.title, l.id).not.toMatch(/[{}*]/);
+  });
+
   it('never calls a triad the simplest chord (a power chord has two notes)', () => {
     for (const t of texts()) expect(t, t).not.toMatch(/simplest chord/i);
     expect(chordNotes('G5').length).toBe(2);

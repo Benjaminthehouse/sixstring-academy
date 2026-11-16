@@ -10,7 +10,11 @@ import {
   romanToClassicalMinor, scaleNotes, semitones,
 } from '@/core/theory';
 import { identifyFretted } from '@/core/guitar';
-import { findTargets, plainText, type Exercise, type FillBlanksExercise, type Figure, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type RichText, type Step } from '@/lessons';
+import {
+  GLOSSARY, findTargets, plainText, type Exercise, type FillBlanksExercise, type Figure, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type RichText,
+  type Step,
+} from '@/lessons';
+import { THEORY_GLOSSARY } from '../glossary';
 import unit from './minor-key-harmony';
 
 const lesson = (id: string): Lesson => {
@@ -207,6 +211,33 @@ describe('minor-key-harmony: relative keys and bright colours', () => {
     const [q] = listens(lesson('minor-key-colours'));
     expect(chordsHeard(q).at(-1)).toBe('A');
     expect(answer(q)).toBe('On a major chord');
+  });
+});
+
+describe('minor-key-harmony: questions that teach, not give away', () => {
+  it('never lists the right answer first in a question that keeps its order', () => {
+    // Unshuffled options show as written; an answer that is always first could be picked by
+    // position alone. Yes before No is a natural order, with the answer second.
+    const fixed = collect<Extract<Exercise, { type: 'choice' }>>((v) => v.type === 'choice' && v.shuffle === false);
+    for (const c of fixed) expect(c.options.findIndex((o) => o.correct), plainText(c.prompt)).toBeGreaterThan(0);
+  });
+
+  it('links harmonic and melodic minor to terms the glossary defines, as the raised notes say', () => {
+    const known = new Set([...GLOSSARY, ...THEORY_GLOSSARY].map((t) => t.id));
+    const ids: string[] = [];
+    const walk = (v: unknown): void => {
+      if (typeof v === 'string') for (const m of v.matchAll(/\{t:([a-z0-9-]+)/g)) ids.push(m[1]);
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    walk(unit);
+    expect(ids).toEqual(expect.arrayContaining(['harmonic-minor', 'melodic-minor', 'leading-tone', 'subtonic']));
+    for (const id of ids) expect(known.has(id), id).toBe(true);
+    // The borrowed note of each lesson is the one that scale raises.
+    expect(scaleNotes('A', 'harmonic-minor')[6]).toBe('G#');
+    expect(scaleNotes('A', 'minor')[6]).toBe('G');
+    expect(scaleNotes('A', 'melodic-minor')[5]).toBe('F#');
+    expect(scaleNotes('A', 'minor')[5]).toBe('F');
   });
 });
 

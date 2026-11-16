@@ -49,7 +49,14 @@ const TWO_BARS: Note[] = [
 ];
 const TWO_BARS_RHYTHM = 'q. e h | e e h.';
 
-/** An original four-bar phrase on strings 1 and 2 (frets 0 to 3), for dynamics. */
+/** The two sections of the road-map example in G major, played A, A again, B (the opening card). */
+const SECTION_A = ['G', 'C', 'D', 'G'];
+const SECTION_B = ['C', 'G', 'D', 'G'];
+
+/**
+ * A four-bar phrase on strings 1 and 2 (frets 0 to 3), for dynamics. Its first two bars are the
+ * opening of the traditional "Mary Had a Little Lamb" (public domain); bars 3 and 4 are new.
+ */
 const PHRASE: Note[] = [
   [1, 0, 'E4', 'q'], [2, 3, 'D4', 'q'], [2, 1, 'C4', 'q'], [2, 3, 'D4', 'q'],
   [1, 0, 'E4', 'q'], [1, 0, 'E4', 'q'], [1, 0, 'E4', 'h'],
@@ -105,15 +112,16 @@ const strings4To6: Lesson = {
       mode: 'one',
       octave: 'exact',
       frets: [0, 4],
-      explain: 'String 5, fret 3. Guitar music is written an octave up, so this {n:C} sounds one octave below the {n:C} in the third space.',
+      explain: 'String 5, fret 3. The {n:C} in the third space of the staff is an octave higher: string 2, fret 1.',
       fact: 'first-position-low-naturals',
     },
     {
       type: 'staff-place',
-      prompt: 'Put the note for string 6, fret 3 on the staff, at the pitch it is written.',
+      prompt: 'Put the note for string 6, fret 3 on the staff. It sounds low, so it goes below the staff.',
       note: 'G2',
       octave: 'exact',
-      explain: 'String 6, fret 3 is {n:G}. It hangs from the second ledger line below the staff, one space above the {n:F} on the third ledger line.',
+      hint: 'String 6, fret 3 is {n:G}. Count down from the {n:C} on the first ledger line: {n:B}, {n:A}, {n:G}.',
+      explain: 'String 6, fret 3 is {n:G}. It hangs from the second ledger line below the staff, just above the {n:F} on the third ledger line.',
       fact: 'first-position-low-ledger',
     },
     {
@@ -136,7 +144,7 @@ const strings4To6: Lesson = {
       options: [
         { text: 'String 6, fret 1', correct: true },
         { text: 'String 4, fret 3', why: 'That {n:F} is an octave higher, in the bottom space of the staff.' },
-        { text: 'String 6, fret 3', why: 'That is {n:G}, one space higher, hanging from the second ledger line.' },
+        { text: 'String 6, fret 3', why: 'That is {n:G}, one step higher, hanging from the second ledger line.' },
         { text: 'String 1, fret 1', why: 'That {n:F} is two octaves higher, on the top line.' },
       ],
       explain: 'The {n:F} on the third ledger line is string 6, fret 1: one fret above the open low {n:E}, which hangs just below that line.',
@@ -209,8 +217,8 @@ const strings4To6: Lesson = {
     },
     {
       id: 'first-position-low-ledger',
-      front: 'Where are the written {n:F} on the third ledger line below the staff and the {n:G} one space above it played?',
-      back: 'The {n:F} on the third ledger line is string 6, fret 1; the {n:G} one space above it, hanging from the second ledger line, is string 6, fret 3.',
+      front: 'Where are the written {n:F} on the third ledger line below the staff and the {n:G} just above it played?',
+      back: 'The {n:F} on the third ledger line is string 6, fret 1; the {n:G} just above it, hanging from the second ledger line, is string 6, fret 3.',
     },
   ],
 };
@@ -274,14 +282,13 @@ const accidentalsInABar: Lesson = {
         { text: '{n:F#}', why: 'The sharp belongs to the bottom space only, not to the {n:F} an octave higher.' },
         { text: '{n:G}', why: '{n:G} would sit in the space above the top line.' },
       ],
-      shuffle: false,
       explain: 'An accidental applies to its own line or space only. The top-line note has no sign, so it is plain {n:F}: string 1, fret 1.',
       fact: 'first-position-accidental-same-line',
     },
     {
       type: 'card',
       title: 'Cancel it',
-      body: 'A {t:natural-sign|natural sign} cancels a sharp or flat: from there to the bar line the note is plain. The bar line cancels accidentals too, with one exception: a note tied across the bar line keeps its accidental for as long as the tie lasts.',
+      body: 'A {t:natural-sign|natural sign} cancels a sharp or flat: from there to the bar line the note is plain. The bar line cancels accidentals too, with one exception: a note {t:tie|tied} across the bar line keeps its accidental for as long as the tie lasts.',
       figure: {
         kind: 'staff',
         time: '4/4',
@@ -297,7 +304,6 @@ const accidentalsInABar: Lesson = {
         { text: 'A flat sign', why: 'A flat would lower the plain note: {n:Fb}, not {n:F}.' },
         { text: 'A second sharp', why: 'A second sharp sign changes nothing: the note stays sharp.' },
       ],
-      shuffle: false,
       explain: 'A natural sign cancels a sharp or a flat: the note is played plain until the bar line.',
       fact: 'first-position-natural-sign',
     },
@@ -327,7 +333,6 @@ const accidentalsInABar: Lesson = {
         { text: 'Plain {n:F}', why: 'A tied note keeps its accidental: the tie only holds the same note longer.' },
         { text: 'A new {n:F#}, picked again', why: 'A tie joins two notes into one: you do not pick again.' },
       ],
-      shuffle: false,
       explain: 'A tie holds one note across the bar line, accidental and all. Only the next new note on that space goes back to plain {n:F}.',
       fact: 'first-position-natural-sign',
     },
@@ -493,7 +498,7 @@ const rhythmOnTheStaff: Lesson = {
     {
       type: 'card',
       title: 'Rhythm on the staff',
-      body: 'On the staff the note heads give the pitch; stems, flags, beams and dots give the rhythm. Two eighth notes joined by a beam share one beat. A dot adds half the note\'s value: a dotted quarter lasts a beat and a half. Count along with the numbers under the staff.',
+      body: 'Note heads give the pitch; stems, flags, beams and dots give the rhythm. Two eighth notes joined by a beam share one beat. A dot adds half the note\'s value: a dotted quarter lasts a beat and a half. Count along with the counts under the staff: a beat in brackets is held, not played.',
       figure: { kind: 'staff', time: '4/4', notes: staff(TWO_BARS), caption: 'Count: 1 (2) &, 3 (4) | 1 &, 2 (3 4). Strings 1 to 3, frets 0 to 3.' },
     },
     {
@@ -519,7 +524,7 @@ const rhythmOnTheStaff: Lesson = {
       type: 'choice',
       prompt: 'This note sits above the middle line. If it had a stem, which way would it usually go?',
       figure: { kind: 'staff', notes: [{ note: 'D4', duration: 'w' }] },
-      options: [{ text: 'Down, on the left', correct: true }, { text: 'Up, on the right', why: 'Stems go up for notes below the middle line, like {n:G} and {n:A}.' }],
+      options: [{ text: 'Up, on the right', why: 'Stems go up for notes below the middle line, like {n:G} and {n:A}.' }, { text: 'Down, on the left', correct: true }],
       shuffle: false,
       explain: 'Above the middle line, stems usually go down on the left of the note head. This {n:D} is on the 4th line: string 2, fret 3.',
       fact: 'first-position-stems',
@@ -532,7 +537,6 @@ const rhythmOnTheStaff: Lesson = {
         { text: 'To show they are louder', why: 'Loudness is shown by dynamics such as *p* and *f*, not by beams.' },
         { text: 'To show they are played on one string', why: 'Standard notation shows pitch and rhythm; the string is your choice (or the tab\'s).' },
       ],
-      shuffle: false,
       explain: 'Beams group eighth and sixteenth notes by the beat. Each beamed group starts a beat, so you can count at a glance.',
       fact: 'first-position-beams',
     },
@@ -540,7 +544,7 @@ const rhythmOnTheStaff: Lesson = {
       type: 'true-false',
       statement: 'A beam joins eighth notes that fall in the same beat.',
       answer: true,
-      explain: 'In 4/4 two eighths make one beat, and the beam shows that pair. A new beat starts a new group.',
+      explain: 'In 4/4 two eighths make one beat, and the beam shows that pair, so you can see where each beat starts.',
       fact: 'first-position-beams',
     },
     {
@@ -598,8 +602,13 @@ const theRoadMap: Lesson = {
     {
       type: 'card',
       title: 'Signs that steer you',
-      body: 'Music often repeats. Rather than write a section out twice, the page uses signs that tell you where to go next: repeat signs, first and second endings, D.C., D.S., Fine and Coda. Follow them like road signs and you play every bar in the right order.',
-      figure: { kind: 'chord', symbol: 'G', frets: '320003', caption: 'Our example piece is in {k:G major}, with {c:G}, {c:C} and {c:D}.' },
+      body: 'Music often repeats. Rather than write a section out twice, the page uses signs that tell you where to go next: repeat signs, first and second endings, D.C., D.S., Fine and Coda. Follow them like road signs. In the example, section A is written once but played twice, then B follows.',
+      figure: {
+        kind: 'audio',
+        sound: { kind: 'progression', chords: [...SECTION_A, ...SECTION_A, ...SECTION_B], tempo: 100, beats: 2 },
+        label: 'Hear A, A again, then B',
+        caption: 'A ({c:G} {c:C} {c:D} {c:G}) twice, then B ({c:C} {c:G} {c:D} {c:G}).',
+      },
     },
     {
       type: 'card',
@@ -614,7 +623,6 @@ const theRoadMap: Lesson = {
         { text: 'Stop here: the piece ends', why: 'The end is marked by the word Fine or a final double bar without dots.' },
         { text: 'Play the passage louder', why: 'Loudness is written with dynamics such as *f*, not with bar lines.' },
       ],
-      shuffle: false,
       explain: 'Thick and thin bar lines with two dots are repeat signs: play the passage between them again.',
       fact: 'first-position-repeat-signs',
     },
@@ -635,7 +643,7 @@ const theRoadMap: Lesson = {
     {
       type: 'card',
       title: 'Back to the start, or to the sign',
-      body: '{t:da-capo|D.C.} (da capo) sends you back to the beginning. {t:dal-segno|D.S.} (dal segno) sends you back to the sign, a slanted S with two dots. "al Fine" means stop at the word Fine. "al Coda" means play until "To Coda", then jump to the {t:coda}: a circle with a cross.',
+      body: '{t:da-capo|D.C.} (da capo) sends you back to the beginning. {t:dal-segno|D.S.} (dal segno) sends you back to the sign, a slanted S with two dots. "al Fine" means stop at the word Fine (say "fee-nay": Italian for end). "al Coda" means play until "To Coda", then jump to the {t:coda}: a circle with a cross.',
     },
     {
       type: 'choice',
@@ -676,7 +684,6 @@ const theRoadMap: Lesson = {
         { text: 'Go back to the very beginning', why: 'That is D.C.: D.S. means from the sign.' },
         { text: 'Stop at once', why: 'You stop at Fine, or at the end of the coda.' },
       ],
-      shuffle: false,
       explain: 'D.S. sends you back to the sign. Play on until "To Coda", then jump to the coda, marked with a circle and a cross.',
       fact: 'first-position-fine-coda',
     },
@@ -688,7 +695,6 @@ const theRoadMap: Lesson = {
         { text: 'A circle with a cross', why: 'That marks the coda.' },
         { text: 'Two dots by a thick bar line', why: 'That is a repeat sign.' },
       ],
-      shuffle: false,
       explain: 'The segno ("sign") is a slanted S with two dots. D.S., dal segno, means go back to it.',
       fact: 'first-position-dc-ds',
     },
@@ -734,7 +740,7 @@ const dynamicsAndArticulation: Lesson = {
       type: 'card',
       title: 'How loud',
       body: '{t:dynamics|Dynamics} are Italian words, shortened to letters under the staff. *p* (piano) means soft and *f* (forte) loud. *m* (mezzo) means "fairly": *mp* is fairly soft, *mf* fairly loud. Doubled letters go further: *pp* very soft, *ff* very loud.',
-      figure: { kind: 'staff', time: '4/4', notes: staff(PHRASE), caption: 'Our phrase starts *p*, grows louder in bar 3 and ends *f*.' },
+      figure: { kind: 'staff', time: '4/4', notes: staff(PHRASE), caption: 'Try it: bar 1 *p*, grow louder through bar 3, and play bar 4 *f*.' },
     },
     {
       type: 'order',
@@ -754,10 +760,10 @@ const dynamicsAndArticulation: Lesson = {
       type: 'choice',
       prompt: 'What does *mf* (mezzo-forte) mean?',
       options: [
+        { text: 'Very soft', why: 'Very soft is *pp*, pianissimo.' },
+        { text: 'Fairly soft', why: 'Fairly soft is *mp*, mezzo-piano.' },
         { text: 'Fairly loud', correct: true },
         { text: 'Very loud', why: 'Very loud is *ff*, fortissimo.' },
-        { text: 'Fairly soft', why: 'Fairly soft is *mp*, mezzo-piano.' },
-        { text: 'Very soft', why: 'Very soft is *pp*, pianissimo.' },
       ],
       shuffle: false,
       explain: '*f* is forte, loud, and mezzo means fairly: *mf* is fairly loud, one step softer than *f*.',
@@ -827,7 +833,6 @@ const dynamicsAndArticulation: Lesson = {
         { text: 'Short and detached', why: 'That is staccato, shown by a dot.' },
         { text: 'Gradually louder', why: 'That is a crescendo, shown by cresc. or an opening wedge.' },
       ],
-      shuffle: false,
       explain: 'A short line is a tenuto mark: hold the note for its full value, right up to the next one.',
       fact: 'first-position-staccato-tenuto',
     },
@@ -839,7 +844,6 @@ const dynamicsAndArticulation: Lesson = {
         { text: 'Loud, growing softer, ending soft', why: 'That would be *f*, a diminuendo, then *p*.' },
         { text: 'Soft all the way, then a sudden loud bar', why: 'A crescendo grows louder gradually, not all at once.' },
       ],
-      shuffle: false,
       explain: '*p* is soft; the crescendo grows louder little by little; *f* is loud.',
       fact: 'first-position-crescendo',
     },
@@ -921,7 +925,6 @@ const unit: Unit = {
           { text: '{n:C}', why: 'The sharp lasts until the bar line.' },
           { text: '{n:D}', why: '{n:D} is on the 4th line, one step higher.' },
         ],
-        shuffle: false,
         explain: 'The sharp lasts to the bar line, so the unsigned note in the same space is {n:C#}: string 2, fret 2.',
       },
       {
@@ -968,7 +971,6 @@ const unit: Unit = {
           { text: 'Which notes are louder', why: 'Dynamics show loudness.' },
           { text: 'Which string to play', why: 'Notation shows pitch and rhythm, not strings.' },
         ],
-        shuffle: false,
         explain: 'Beams group eighth and sixteenth notes by the beat.',
       },
       {
@@ -996,7 +998,6 @@ const unit: Unit = {
           { text: 'Go back to the beginning and stop at Fine', why: 'That is D.C. al Fine.' },
           { text: 'Repeat the last section', why: 'Repeat signs do that.' },
         ],
-        shuffle: false,
         explain: 'D.S. means from the sign; al Coda means jump to the coda at "To Coda".',
       },
       {

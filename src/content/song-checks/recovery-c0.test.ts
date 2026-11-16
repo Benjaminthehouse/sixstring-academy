@@ -34,10 +34,7 @@ import { arrangeLine, flattenSong, parseSixTab, validateSong, type Song, type Tr
 import { chordPcs, midiToNote, noteToMidi, scalePcs } from '@/core/theory';
 import { songEntry } from '@/content/songs';
 import plan from '@/content/plan/repertoire.json';
-import { isTaskStep, taskSong, type TaskStep, type TeacherUnit } from '@/content/teachers';
-import miaMinorChords from '@/content/teachers/mia/mia-minor-chords';
-import devCaged from '@/content/teachers/dev/dev-caged';
-import devSevenths from '@/content/teachers/dev/dev-seventh-chords';
+import { TEACHER_KEYS, isTaskStep, loadTeacherCourse, taskSong, type TaskStep } from '@/content/teachers';
 
 const PPQ = 960;
 const BAR = 3 * PPQ;
@@ -281,11 +278,17 @@ interface PlanPiece {
 }
 const planned = (id: string) => (plan as { pieces: PlanPiece[] }).pieces.find((p) => p.id === id)!;
 
-const UNITS: TeacherUnit[] = [miaMinorChords, devCaged, devSevenths];
-/** Every teacher task, in these three units, that opens the given song. */
-function tasksFor(id: string): Array<{ unit: string; task: TaskStep }> {
-  return UNITS.flatMap((u) =>
-    u.lessons.flatMap((l) => l.steps.filter((s): s is TaskStep => isTaskStep(s) && taskSong(s) === id).map((task) => ({ unit: u.id, task }))),
+/**
+ * Every teacher task, in every written unit of every teacher, that opens the given song. Taken
+ * from the registry rather than from named unit files, so a teacher moving or rewording a task
+ * does not break this file: only what the songs depend on is checked.
+ */
+async function tasksFor(id: string): Promise<Array<{ unit: string; task: TaskStep }>> {
+  const courses = await Promise.all(TEACHER_KEYS.map((t) => loadTeacherCourse(t)));
+  return courses.flatMap((c) =>
+    c.units.flatMap((u) =>
+      u.lessons.flatMap((l) => l.steps.filter((s): s is TaskStep => isTaskStep(s) && taskSong(s) === id).map((task) => ({ unit: u.id, task }))),
+    ),
   );
 }
 const plain = (t: TaskStep['body']) => (typeof t === 'string' ? t : t.text);
@@ -366,12 +369,15 @@ describe('recovery c0: why we-three-kings is not written', () => {
     expect(p).toMatchObject({ key: 'E minor', meter: '3/4', tempo: 96 });
   });
 
-  it("Mia's lesson asks the learner to hear the major refrain, so a verse-only song would contradict it", () => {
-    const tasks = tasksFor('we-three-kings');
-    expect(tasks.map((t) => `${t.unit} > ${t.task.id}`)).toEqual(['mia-minor-chords > we-three-kings']);
-    const body = plain(tasks[0].task.body);
-    expect(body).toContain('then a major refrain on {c:G}, {c:C} and {c:D}');
-    expect(body).toContain('Hear the mood change as the refrain begins');
+  it('the teacher task that opens it (Mia) plays the refrain chords G and C, so a verse-only song would contradict it', async () => {
+    // Checked on the chord tags, not the wording: the verse's chords are Em, B7, Am and D, so G
+    // and C in the task are the refrain's. If no task opens the song any more, there is nothing
+    // to contradict.
+    for (const { unit, task } of await tasksFor('we-three-kings')) {
+      const body = plain(task.body);
+      expect(body, `${unit} > ${task.id}`).toContain('{c:G}');
+      expect(body, `${unit} > ${task.id}`).toContain('{c:C}');
+    }
   });
 });
 
@@ -453,13 +459,10 @@ describe('recovery c0: why home-on-the-range is not written', () => {
 });
 
 describe.each(SPANS.map((s) => [s.id] as [string]))('recovery c0: %s while it is not in the library', (id) => {
-  it('every teacher task that opens it keeps a fallback', () => {
-    const tasks = tasksFor(id);
-    expect(tasks.length, `${id}: a teacher lesson points to it`).toBeGreaterThan(0);
+  it('every teacher task that opens it keeps a fallback', async () => {
+    // The same rule as src/content/teachers/registry.test.ts, kept here so this batch's decision
+    // carries its consequence with it.
     if (songEntry(id)) return;
-    for (const { unit, task } of tasks) {
-      expect(task.fallback, `${unit} > ${task.id}`).toBeTruthy();
-      expect(plain(task.fallback!.body), `${unit} > ${task.id}`).toMatch(/not in the Songs library yet/);
-    }
+    for (const { unit, task } of await tasksFor(id)) expect(task.fallback, `${unit} > ${task.id}`).toBeTruthy();
   });
 });

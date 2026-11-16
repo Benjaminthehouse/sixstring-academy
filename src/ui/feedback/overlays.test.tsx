@@ -8,7 +8,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetBackClose, watchDialogHistory } from './dialogHistory';
 import { Modal, Sheet } from './Dialog';
-import { openDialogCount, toastTopOverDialog } from './overlays';
+import { openDialogCount, toastSpotOverDialog } from './overlays';
 import { toast } from './Toast';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -235,23 +235,28 @@ describe('Back with a dialog open', () => {
   });
 });
 
-describe('toastTopOverDialog: where replies go while a dialog is open', () => {
+describe('toastSpotOverDialog: where replies go while a dialog is open', () => {
   const phoneStack = { left: 0, right: 390, height: 74 };
   it('keeps the top edge when the stack fits above a short bottom sheet', () => {
-    expect(toastTopOverDialog(phoneStack, { top: 214, bottom: 844, left: 0, right: 390 }, 290, 12, 8)).toBeNull();
+    expect(toastSpotOverDialog(phoneStack, { top: 214, bottom: 844, left: 0, right: 390 }, 290, 12, 8, 390)).toBeNull();
   });
-  it("goes under the header of a sheet that reaches the top, clear of its title and Close button", () => {
+  it('goes under the header of a phone sheet that reaches the top, clear of its title and Close button', () => {
     // The tuner's Tuning sheet on a 390 x 844 phone: the panel starts 32 px down, its header ends at 98.
-    expect(toastTopOverDialog(phoneStack, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBe(106);
+    expect(toastSpotOverDialog(phoneStack, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8, 390)).toEqual({ top: 106 });
   });
-  it('keeps the top edge beside a centred modal, and goes under the header of a right-hand drawer', () => {
+  it('keeps the top edge beside a centred modal, and moves left of a right-hand drawer', () => {
     const column = { left: 906, right: 1256, height: 74 };
-    expect(toastTopOverDialog(column, { top: 111, bottom: 689, left: 448, right: 832 }, 180, 24, 8)).toBeNull();
-    expect(toastTopOverDialog(column, { top: 0, bottom: 800, left: 864, right: 1280 }, 76, 24, 8)).toBe(84);
+    expect(toastSpotOverDialog(column, { top: 111, bottom: 689, left: 448, right: 832 }, 180, 24, 8, 1280)).toBeNull();
+    // The tuner's Tuning drawer on a 1280 px desktop: 26rem at the right edge, from the top.
+    expect(toastSpotOverDialog(column, { top: 0, bottom: 800, left: 864, right: 1280 }, 76, 24, 8, 1280)).toEqual({ right: 424 });
+  });
+  it('goes under the header of a wide dialog that leaves no room beside it', () => {
+    const column = { left: 906, right: 1256, height: 74 };
+    expect(toastSpotOverDialog(column, { top: 24, bottom: 776, left: 256, right: 1024 }, 110, 24, 8, 1280)).toEqual({ top: 118 });
   });
   it('does nothing without a stack or with nonsense measurements', () => {
-    expect(toastTopOverDialog({ left: 0, right: 390, height: 0 }, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBeNull();
-    expect(toastTopOverDialog(phoneStack, { top: Number.NaN, bottom: 844, left: 0, right: 390 }, 98, 12, 8)).toBeNull();
+    expect(toastSpotOverDialog({ left: 0, right: 390, height: 0 }, { top: 32, bottom: 844, left: 0, right: 390 }, 98, 12, 8, 390)).toBeNull();
+    expect(toastSpotOverDialog(phoneStack, { top: Number.NaN, bottom: 844, left: 0, right: 390 }, 98, 12, 8, 390)).toBeNull();
   });
 });
 

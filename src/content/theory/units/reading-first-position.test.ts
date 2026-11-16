@@ -5,13 +5,14 @@
  * syllabus says), the accidentals the bar figures print, and what the listening question plays.
  */
 import { describe, expect, it } from 'vitest';
-import { midiToNote, noteToMidi, staffPosition } from '@/core/theory';
+import { diatonicChords, midiToNote, noteToMidi, staffPosition } from '@/core/theory';
 import { midiAt, positionsForNote } from '@/core/guitar';
 import { measureAccidentals } from '@/ui/music/notation/model';
 import {
-  findTargets, parseDuration, plainText, soundPlan, type CardStep, type Exercise, type FretboardFindExercise, type Lesson, type ListenChoiceExercise,
+  GLOSSARY, findTargets, parseDuration, plainText, soundPlan, type CardStep, type Exercise, type FretboardFindExercise, type Lesson, type ListenChoiceExercise,
   type PlayPhraseExercise, type StaffFigure, type StaffNote, type Step, type TabNote,
 } from '@/lessons';
+import { THEORY_GLOSSARY } from '../glossary';
 import unit from './reading-first-position';
 
 const lesson = (id: string): Lesson => {
@@ -239,6 +240,61 @@ describe('reading-first-position: accidentals in a bar', () => {
     if (!q || 'generate' in q || q.figure?.kind !== 'staff') throw new Error('no bar question');
     expect(printed(q.figure)).toEqual(['#', null, null, null]);
     expect(firstPosition('C#4')).toEqual(['2:2']);
+  });
+});
+
+describe('reading-first-position: the fixes of the review', () => {
+  it('never lists the right answer first in a question that keeps its order, except up/down', () => {
+    // Unshuffled options show as written. Up before down is a natural order; anywhere else an
+    // answer that is always first could be picked by position alone.
+    const natural = new Set(['Up, on the right|Down, on the left']);
+    const fixed = collect<Extract<Exercise, { type: 'choice' }>>((v) => v.type === 'choice' && v.shuffle === false);
+    expect(fixed.length).toBeGreaterThan(2);
+    for (const c of fixed) {
+      const order = c.options.map((o) => plainText(o.text ?? '')).join('|');
+      if (natural.has(order)) continue;
+      expect(c.options.findIndex((o) => o.correct), plainText(c.prompt)).toBeGreaterThan(0);
+    }
+    // Both stem questions keep up before down, so the answer moves with the question.
+    const stems = fixed.filter((c) => natural.has(c.options.map((o) => plainText(o.text ?? '')).join('|')));
+    expect(new Set(stems.map((c) => c.options.findIndex((o) => o.correct)))).toEqual(new Set([0, 1]));
+  });
+
+  it('plays the road-map example as its card says: A, A again, then B, all in G major', () => {
+    const [card] = cards(lesson('the-road-map'));
+    if (card?.figure?.kind !== 'audio' || card.figure.sound.kind !== 'progression') throw new Error('no example to hear');
+    const tags = [...plainText(card.figure.caption ?? '').matchAll(/\(([^)]+)\)/g)].map((m) => m[1].split(' '));
+    expect(tags).toHaveLength(2);
+    const [a, b] = tags;
+    expect(card.figure.sound.chords).toEqual([...a, ...a, ...b]);
+    const inG = diatonicChords('G major').map((c) => c.symbol);
+    for (const c of [...a, ...b]) expect(inG, c).toContain(c);
+    expect(a.at(-1)).toBe('G');
+    expect(b.at(-1)).toBe('G');
+  });
+
+  it('counts down from the first ledger line to the low G, as the staff-place hint says', () => {
+    const place = exercises(lesson('strings-4-to-6')).find((e) => e.type === 'staff-place');
+    if (place?.type !== 'staff-place') throw new Error('no staff-place');
+    const named = [...(place.hint ? plainText(place.hint) : '').matchAll(/\b([A-G])\b/g)].map((m) => m[1]);
+    expect(named).toEqual(['G', 'C', 'B', 'A', 'G']);
+    // C3 on the first ledger line, then one step down each time to G2.
+    expect(['C3', 'B2', 'A2', 'G2'].map((n) => staffPosition(n).position)).toEqual([-2, -3, -4, -5]);
+    expect(midiAt({ string: 6, fret: 3 })).toBe(noteToMidi('G2'));
+  });
+
+  it('puts the C in the third space an octave above the ledger-line C, at string 2, fret 1', () => {
+    expect(staffPosition('C4').position).toBe(5); // the third space
+    expect(noteToMidi('C4') - noteToMidi('C3')).toBe(12);
+    expect(midiAt({ string: 2, fret: 1 })).toBe(noteToMidi('C4'));
+  });
+
+  it('links only glossary terms that exist', () => {
+    const known = new Set([...GLOSSARY, ...THEORY_GLOSSARY].map((t) => t.id));
+    const ids = collect<Record<string, unknown>>(() => true).flatMap((v) => Object.values(v).filter((x): x is string => typeof x === 'string'))
+      .flatMap((s) => [...s.matchAll(/\{t:([a-z0-9-]+)/g)].map((m) => m[1]));
+    expect(ids).toContain('tie');
+    for (const id of ids) expect(known.has(id), id).toBe(true);
   });
 });
 

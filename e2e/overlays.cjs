@@ -131,6 +131,23 @@ async function toasts(browser, url) {
   await closeDialogs(page);
   await ctx.close();
 
+  // The same sheet is a right-hand drawer on a desktop: a reply moves left of it.
+  const desk = await open(browser, url, { viewport: DESKTOP });
+  await desk.goto('tuner', '[data-ui-action-bar]');
+  await desk.page.locator('main').getByRole('button', { name: /^change/i }).first().click();
+  await desk.page.waitForSelector('[role="dialog"] [data-ui-dialog-header]');
+  await desk.page.waitForTimeout(600);
+  await reply(desk.page, 'Copied');
+  await desk.page.waitForTimeout(500);
+  const drawer = await desk.page.evaluate(() => {
+    const t = document.querySelector('[data-toast]')?.getBoundingClientRect();
+    const d = document.querySelector('[role="dialog"]').getBoundingClientRect();
+    return { toast: t && [Math.round(t.left), Math.round(t.right), Math.round(t.top)], panel: [Math.round(d.left), Math.round(d.top)] };
+  });
+  check(group, 'a desktop drawer: a reply sits left of it, clear of its title and Close', drawer.toast && drawer.panel[1] < 40 && drawer.toast[1] <= drawer.panel[0] && drawer.toast[0] >= 0, JSON.stringify(drawer));
+  await desk.shot('reply-beside-drawer-desktop');
+  await desk.close();
+
   // A finished lesson: XP, a first achievement or three, a crown, maybe a level, plus replies.
   const big = await open(browser, url);
   await big.goto('home');

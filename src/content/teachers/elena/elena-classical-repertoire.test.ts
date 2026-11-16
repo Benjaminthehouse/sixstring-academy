@@ -15,7 +15,9 @@ import { chordNotes, noteToMidi, scaleNotes } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, parseRhythm, validateCourse, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherLesson, TeacherUnit } from '../types';
-import unit, { BOURREE, HEMIOLA, PEDAL, RONDO_OPEN, SARABANDE, TRIPLETS } from './elena-classical-repertoire';
+import { AREA_INFO } from '@/features/practice/model/areas';
+import minorHarmony from './elena-minor-harmony';
+import unit, { BOURREE, HEMIOLA, INVENTION_SUBJECT, PEDAL, SARABANDE, TRIPLETS } from './elena-classical-repertoire';
 
 // ── helpers (kept in this file: the unit folder holds only unit files and their tests) ──────────
 
@@ -173,9 +175,11 @@ describe('Elena unit 10: Classical repertoire', () => {
     expect(chord(15)).toEqual(chord(7));
     expect(chord(15).map((m) => m % 12).sort((x, y) => x - y)).toEqual([2, 2, 6, 9]);
     expect(Math.min(...s.tracks[0].measures[8].beats[0].notes.map((n) => n.fret))).toBe(9);
-    // The harmonic in bar 10 and the roll in bar 11, inside the loop of bars 9 to 12.
+    // The harmonic in bar 10 and the hammer-and-pull triplet in bar 11, inside the loop of bars 9 to 12.
     expect(s.tracks[0].measures[9].beats.some((b) => b.notes.some((n) => n.harmonic))).toBe(true);
-    expect(s.tracks[0].measures[10].beats.some((b) => b.notes.some((n) => n.legato === 'hammer'))).toBe(true);
+    const bar11 = s.tracks[0].measures[10].beats.flatMap((b) => b.notes);
+    expect(bar11.some((n) => n.legato === 'hammer') && bar11.some((n) => n.legato === 'pull')).toBe(true);
+    expect(plain(task('hardest-bars').body)).not.toMatch(/\broll\b/);
     expect(task('hardest-bars').params).toEqual(['st-dadgad-air', 'm9-12', 't79']);
     expect(task('the-join').params).toEqual(['st-dadgad-air', 'm7-10', 't79']);
     expect(s.tempo[0].bpm).toBe(76);
@@ -224,17 +228,60 @@ describe('Elena unit 10: Classical repertoire', () => {
     expect(midiAt({ string: 2, fret: 0 })).toBe(noteToMidi('B3'));
   });
 
-  it('performs the opening of Rondo alla Turca exactly as the library has it', async () => {
-    const s = await song('rondo-alla-turca');
-    const lib = s.tracks[0].measures.slice(0, 3).flatMap((m) => m.beats.map((b) => (b.notes.length ? `${b.notes[0].string}:${b.notes[0].fret}/${b.duration}` : `r/${b.duration}`)));
-    const mine = RONDO_OPEN.map((n) => ('string' in n ? `${n.string}:${n.fret}/${TICKS[n.duration]}` : `r/${TICKS[n.duration]}`));
+  it('performs the subject of the Two-Voice Invention exactly as the library has it', async () => {
+    const s = await song('st-two-voice-invention');
+    // Bar 1: the treble alone, one note at a time; the show is that bar, note for note and value for value.
+    const lib = s.tracks[0].measures[0].beats.map((b) => (b.notes.length ? `${b.notes[0].string}:${b.notes[0].fret}/${b.duration}` : `r/${b.duration}`));
+    expect(s.tracks[0].measures[0].beats.every((b) => b.notes.length === 1)).toBe(true);
+    const mine = INVENTION_SUBJECT.map((n) => ('string' in n ? `${n.string}:${n.fret}/${TICKS[n.duration]}` : `r/${TICKS[n.duration]}`));
     expect(mine).toEqual(lib);
-    expect(s.bars[0].length).toBe(960); // the pickup is the Player's bar 1
-    expect(midis(RONDO_OPEN)).toEqual(['B3', 'A3', 'G#3', 'A3', 'C4', 'D4', 'C4', 'B3', 'C4', 'E4', 'F4', 'E4', 'D#4', 'E4'].map((n) => noteToMidi(n)));
-    expect(s.tempo[0].bpm).toBe(108);
-    expect(task('show-band').params).toEqual(['rondo-alla-turca', 'm1-3', 'flow']);
-    expect(unit.milestone).toMatchObject({ lesson: 'summit-pieces', step: 'show', song: 'rondo-alla-turca' });
-    expect(pos(RONDO_OPEN).slice(0, 5)).toEqual(['2:0', '3:2', '3:1', '3:2', '2:1']);
+    expect(INVENTION_SUBJECT.reduce((n, x) => n + TICKS[x.duration], 0)).toBe(3840);
+    expect(midis(INVENTION_SUBJECT)).toEqual(['E4', 'B4', 'A4', 'G4', 'F#4', 'E4', 'D#4', 'B3', 'E4'].map((n) => noteToMidi(n)));
+    // Seventh position: finger 1 on fret 7, nothing below it or above fret 10.
+    expect(struck(INVENTION_SUBJECT).every((n) => n.fret >= 7 && n.fret <= 10)).toBe(true);
+    // One line implying Em, B7, Em: every note is a tone of the chord the library names over it.
+    const em = chordNotes('Em');
+    const b7 = chordNotes('B7');
+    const names = struck(INVENTION_SUBJECT).map((n) => noteAt(n, { octave: false, context: { key: 'E minor' } }));
+    expect([names[0], names[1], names[5], names[8]].every((n) => em.includes(n))).toBe(true);
+    expect([names[6], names[7]].every((n) => b7.includes(n))).toBe(true);
+    expect(s.chords.filter((c) => c.bar === 0).map((c) => c.symbol)).toEqual(['Em', 'B7', 'Em']);
+    expect(s.tempo[0].bpm).toBe(56);
+    const show = lesson('summit-pieces').steps.find((x) => (x as { id?: string }).id === 'show') as { tempo: number; alternative: { tiles: string[] } };
+    expect(show.tempo).toBe(56);
+    expect(show.alternative.tiles.map((x) => x.replace(/[{}n:]/g, ''))).toEqual(names.slice(0, 6));
+    expect(task('show-band').params).toEqual(['st-two-voice-invention', 'm1-1', 'flow']);
+    expect(unit.milestone).toMatchObject({ lesson: 'summit-pieces', step: 'show', song: 'st-two-voice-invention' });
+    // The learner took this bar in wait mode twice before the show: the Bourree and Jesu, Joy tasks.
+    expect(task('two-lines').params).toEqual(['st-two-voice-invention', 'm1-4', 'wait']);
+    expect(task('clear-voices').params).toEqual(['st-two-voice-invention', 'm1-2', 'wait']);
+  });
+
+  it('defines the Asturias pedal in a term no earlier unit shadows, and tests the facts it names', () => {
+    // The course keeps the first definition of a term id; unit 8 defines `pedal-point` as a bass note.
+    const full = compileCourse(courseMeta('elena'), [minorHarmony, unit]);
+    const pedal = full.glossary?.find((g) => g.id === 'pedal');
+    expect(pedal?.definition).toMatch(/above or inside/);
+    const asturias = lesson('spanish-masterpiece');
+    expect(JSON.stringify(asturias.steps)).toContain('{t:pedal}');
+    expect(JSON.stringify(asturias.steps)).not.toContain('{t:pedal-point');
+    // Every fact of the lesson is asked by at least one exercise, and the origin by an origin question.
+    for (const f of asturias.facts ?? []) expect(asturias.steps.some((x) => (x as { fact?: string }).fact === f.id), f.id).toBe(true);
+    const origin = asturias.steps.find((x) => (x as { fact?: string }).fact === 'asturias-origin') as { statement?: string };
+    expect(origin.statement).toMatch(/Albeniz/);
+  });
+
+  it('names the Practice Plan as the app shows it, and opens the etude at its first section', async () => {
+    expect(AREA_INFO.repertoire.label).toBe('Songs');
+    const goal = task('summit-goal');
+    expect(goal.params).toEqual(['goals']);
+    expect(plain(goal.body)).toMatch(/area Songs/);
+    const etude = task('tremolo-etude', 'summit-pieces');
+    expect(etude.params).toEqual(['st-concert-tremolo-etude', 'm1-16', 'wait']);
+    if (songEntry('st-concert-tremolo-etude')) {
+      const s = await song('st-concert-tremolo-etude');
+      expect(s.sections[0]).toMatchObject({ start: 0, end: 16 });
+    }
   });
 
   it('keeps the invention and the tremolo etude behind fallbacks until they are in the library', async () => {
@@ -257,6 +304,21 @@ describe('Elena unit 10: Classical repertoire', () => {
     const etude = task('tremolo-etude', 'summit-pieces');
     if (!songEntry('st-concert-tremolo-etude')) expect(etude.fallback).toMatchObject({ tool: 'technique', params: ['tech-tremolo-pami'] });
     expect(getExercise('tech-tremolo-pami')).toBeTruthy();
+  });
+
+  it('says no more than it can stand behind', () => {
+    // Pachelbel's ground is older than Sor's Folies, not the oldest form of variation (the Folia itself is older).
+    expect(plain(task('ground-variations').body)).not.toMatch(/oldest/);
+    // The Gavotte is not in the library, so the card cannot say "here it is".
+    const gavotte = lesson('bach-on-guitar').steps.find((x) => (x as { title?: string }).title === 'The Gavotte en Rondeau') as { body: RichText };
+    expect(plain(gavotte.body)).not.toMatch(/Here it is/);
+    expect(plain(gavotte.body)).toMatch(/Guitarists play it in \{k:E major\}/);
+    // The only rondo in the library was played to tempo in unit 8: the task says so and asks for something new.
+    expect(plain(task('rondo-refrain').body)).toMatch(/minor-key unit/);
+    expect(minorHarmony.lessons.flatMap((l) => l.steps.filter(isTaskStep)).some((x) => taskSong(x) === 'rondo-alla-turca')).toBe(true);
+    // The library holds classical arrangements (Mozart, Beethoven, Pachelbel), only not this unit's solos.
+    const scan = lesson('studies-of-the-masters').steps.find((x) => (x as { id?: string }).id === 'scan-import') as { body: RichText };
+    expect(plain(scan.body)).toMatch(/^None of this unit's solos is in the library/);
   });
 
   it('swaps only pieces the library does not hold', () => {

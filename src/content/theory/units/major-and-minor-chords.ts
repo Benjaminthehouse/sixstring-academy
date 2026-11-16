@@ -760,7 +760,7 @@ const aAmDDm: Lesson = {
     },
     {
       type: 'card',
-      title: '{c:Am}: the third drops',
+      title: 'A minor: the third drops',
       body: 'Move the string 2 note down one fret, to fret 1, and you have {c:Am}, A minor: **x02210**. {n:C#} became {n:C}, a minor third above {n:A}. The small **m** after the letter means minor.',
       figure: { kind: 'chord', symbol: 'Am', frets: 'x02210', caption: '{c:Am}: {n:A} {n:C} {n:E}. The third is on string 2, fret 1.' },
       tip: 'Your fingers rearrange for {c:Am}: index on string 2, middle on string 4, ring on string 3.',
@@ -800,7 +800,7 @@ const aAmDDm: Lesson = {
     },
     {
       type: 'card',
-      title: '{c:D} and {c:Dm}',
+      title: 'D and D minor',
       body: 'Open {c:D} is **xx0232**, strings 4 to 1 only. Its third, {n:F#}, is on string 1 at fret 2. Lower it to fret 1, {n:F}, and you get {c:Dm}: **xx0231**. Same change, new chord.',
       figure: { kind: 'chord', symbol: 'D', frets: 'xx0232', caption: '{c:D}: {n:D} {n:F#} {n:A}. The third is on string 1, fret 2.' },
       tip: 'For {c:Dm} the fingers swap round: index on string 1, middle on string 3, ring stays on string 2.',

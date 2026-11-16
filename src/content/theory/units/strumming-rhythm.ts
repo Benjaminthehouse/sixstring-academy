@@ -624,7 +624,7 @@ const changingChordsInTime: Lesson = {
     },
     {
       type: 'card',
-      title: 'From {c:Em} to {c:Am}',
+      title: 'From E minor to A minor',
       body: 'Fingers 2 and 3 move over one string, from strings 5 and 4 to strings 4 and 3, and finger 1 joins on string 2 at fret 1. Practise the move slowly until your fingers land together.',
       figure: { kind: 'chord', symbol: 'Am', frets: 'x02210', fingers: 'x02310', caption: '{c:Am}: fingers 2 and 3 one string over from {c:Em}, plus finger 1.' },
     },

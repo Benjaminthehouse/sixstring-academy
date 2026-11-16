@@ -27,7 +27,9 @@
  *   Asturias (pedal, Phrygian colour)         -> the pedal exercise on the card; the solea falseta
  *   The four summit pieces                    -> the Concert Tremolo Etude for Recuerdos (fallback:
  *                                                Classical Tremolo), the learner's own scans for the rest
- * The unit's performance is the opening of the Rondo alla Turca refrain, learned in lesson 5.
+ * The unit's performance is the subject of the Two-Voice Invention (bar 1), the line the learner
+ * took in wait mode in lessons 2 and 5: one line implying its harmony, as the Cello Suite Prelude
+ * does. (The Rondo alla Turca theme was already played to tempo in unit 8, so it is not the show.)
  */
 import type { TabNote } from '@/lessons';
 import type { TeacherLesson, TeacherUnit } from '../types';
@@ -36,11 +38,6 @@ import { playerTask, toolTask } from '../tasks';
 /** One tab note. */
 function t(string: number, fret: number, duration: string): TabNote {
   return { string, fret, duration };
-}
-
-/** A rest. */
-function r(duration: string): TabNote {
-  return { rest: true, duration };
 }
 
 /** The sarabande rhythm, two bars of 3/4: the long note on beat 2. */
@@ -58,11 +55,13 @@ export const TRIPLETS = 'et et et et et et et et et';
 /** An original pedal exercise in the manner of Asturias: a line on strings 4 and 3, the open B between. */
 export const PEDAL: TabNote[] = [4, 4, 3, 4].flatMap((s, i) => [t(s, [2, 3, 1, 3][i], 'et'), t(2, 0, 'et'), t(2, 0, 'et')]);
 
-/** Rondo alla Turca: the pickup and the first two bars of the refrain, as the library has them. */
-export const RONDO_OPEN: TabNote[] = [
-  t(2, 0, 's'), t(3, 2, 's'), t(3, 1, 's'), t(3, 2, 's'),
-  t(2, 1, 'e'), r('e'), t(2, 3, 's'), t(2, 1, 's'), t(2, 0, 's'), t(2, 1, 's'),
-  t(1, 0, 'e'), r('e'), t(1, 1, 's'), t(1, 0, 's'), t(2, 4, 's'), t(1, 0, 's'),
+/**
+ * The Two-Voice Invention's subject, bar 1, the treble alone, as the library has it (seventh
+ * position): E up to B, A G F# E running down, D# and the low B, home to E. One line that implies
+ * Em, B7, Em: the unit's performance.
+ */
+export const INVENTION_SUBJECT: TabNote[] = [
+  t(3, 9, 'e'), t(1, 7, 'e'), t(2, 10, 's'), t(2, 8, 's'), t(2, 7, 's'), t(3, 9, 's'), t(3, 8, 'e'), t(4, 9, 'e'), t(3, 9, 'q'),
 ];
 
 // ── 1. Studies of the masters ───────────────────────────────────────────────────────────────────
@@ -94,7 +93,7 @@ const studiesOfTheMasters: TeacherLesson = {
       type: 'card',
       id: 'scan-import',
       title: 'Bring in your edition',
-      body: 'The library holds no classical solos: each must be read from a printed edition. So bring yours in. In Tools, open Scan & Import: photograph each page flat and in good light, or drop in a PDF. Read the music, then proofread the reading against your page, bar by bar. Save and play: it opens in the Player.',
+      body: 'None of this unit\'s solos is in the library: each must be read from a printed edition. So bring yours in. In Tools, open Scan & Import: photograph each page flat and in good light, or drop in a PDF. Read the music, then proofread the reading against your page, bar by bar. Save and play: it opens in the Player.',
       tip: 'The reader makes mistakes. Check every bar before you trust it: a wrong note learned is slow to unlearn.',
     },
     {
@@ -241,7 +240,7 @@ const baroqueDances: TeacherLesson = {
       song: 'st-duet-baroque',
       tempo: 74,
       minutes: 4,
-      body: 'Then the Baroque-style duo complete, at about 80 BPM, then 100 % (108 BPM), both halves and their repeats. The plan for your Bourree is the same: 80, then 112 BPM.',
+      body: 'Then the Baroque-style duo complete, at about 80 BPM, then 100 % (108 BPM), both halves and their repeats. For your Bourree: 80, then 112 BPM.',
     }),
     {
       type: 'true-false',
@@ -459,7 +458,7 @@ const longerForms: TeacherLesson = {
       bars: [9, 12],
       tempo: 79,
       minutes: 5,
-      body: 'Retune strings 6, 2 and 1 down a whole step, to D A D G A D. Then loop bars 9 to 12 at about 60 BPM: seventh position, the harmonic in bar 10, the roll in bar 11. With your Gran Vals: its hardest 4 bars on loop at 60 BPM, then its joins.',
+      body: 'Retune strings 6, 2 and 1 down a whole step, to D A D G A D. Then loop bars 9 to 12 at about 60 BPM: seventh position, the harmonic in bar 10, the hammer-and-pull triplet in bar 11. With your Gran Vals: its hardest 4 bars on loop at 60 BPM, then its joins.',
     }),
     playerTask({
       id: 'the-join',
@@ -511,7 +510,7 @@ const longerForms: TeacherLesson = {
       title: 'Variations over a ground',
       song: 'canon-in-d',
       minutes: 4,
-      body: 'Sor\'s Folies are not in the library; scan your edition and take the theme and first variation. Meanwhile, the oldest form of the idea: Pachelbel\'s Canon, your bass repeating its two bars while the lines above it change. Play it through, and listen to the variety above a ground that never moves.',
+      body: 'Sor\'s Folies are not in the library; scan your edition and take the theme and first variation. Meanwhile, an older form of the idea, a ground bass: Pachelbel\'s Canon, your bass repeating its two bars while the lines above it change. Play it through, and listen to the variety above a ground that never moves.',
     }),
     {
       type: 'choice',
@@ -570,7 +569,7 @@ const bachOnGuitar: TeacherLesson = {
     {
       type: 'card',
       title: 'The Gavotte en Rondeau',
-      body: 'The Gavotte en Rondeau comes from Bach\'s third partita for solo violin: a {t:rondo} whose refrain returns between episodes. Here it is in {k:E major}, the violin\'s key, with a light bass added. The refrain must be recognisable every time it returns: the same shape, the same voicing.',
+      body: 'The Gavotte en Rondeau comes from Bach\'s third partita for solo violin: a {t:rondo} whose refrain returns between episodes. Guitarists play it in {k:E major}, the violin\'s key, with a light bass added. The refrain must be recognisable every time it returns: the same shape, the same voicing.',
       tip: 'Rondo is one of the forms by letter: A B A C A. The Theory Path\'s "Forms by letter" maps it.',
     },
     {
@@ -586,7 +585,7 @@ const bachOnGuitar: TeacherLesson = {
       song: 'rondo-alla-turca',
       tempo: 74,
       minutes: 5,
-      body: 'The Gavotte is not in the library; scan your edition and take its refrain at 50, then 66 BPM, counting half-note beats. Here, the refrain of another rondo: Mozart\'s Alla Turca theme, at about 80 BPM, then 100 % (108 BPM). Each turn the same shape every time.',
+      body: 'The Gavotte is not in the library; scan your edition and take its refrain at 50, then 66 BPM, counting half-note beats. Here, the refrain of another rondo, Mozart\'s Alla Turca theme, which you know from the minor-key unit: now give it the same shape on every return, at about 80 BPM, then 100 % (108 BPM).',
     }),
     {
       type: 'true-false',
@@ -602,7 +601,7 @@ const bachOnGuitar: TeacherLesson = {
       mode: 'wait',
       bars: [1, 2],
       minutes: 5,
-      body: 'Scan your Jesu, Joy and play its first 8 bars in wait mode, then at 60 and 72 BPM, the chorale above the triplets. Here, an invention in the manner of Bach: the subject alone in bar 1, imitated in the bass in bar 2. Wait mode, every voice clear.',
+      body: 'Scan your Jesu, Joy and play its first 8 bars in wait mode, then at 60 and 72 BPM, the chorale above the triplets. Here, an invention in the manner of Bach: the subject alone in bar 1, imitated in the bass in bar 2. Wait mode, every voice clear; then record one section and listen.',
       fallback: {
         tool: 'player',
         params: ['st-duet-baroque', 'm17-24', 'wait'],
@@ -641,7 +640,14 @@ const spanishMasterpiece: TeacherLesson = {
     {
       type: 'card',
       title: 'From piano to guitar',
-      body: 'Asturias began as a piano piece by Albeniz, in 1892, and became a guitar piece through transcription; guitarists play it in {k:E minor}. Its opening alternates a moving line with the open B string as a {t:pedal-point|pedal}, fast and even; the middle section slows down and sings.',
+      body: 'Asturias began as a piano piece by Albeniz, in 1892, and became a guitar piece through transcription; guitarists play it in {k:E minor}. Its opening alternates a moving line with the open B string as a {t:pedal}, fast and even; the middle section slows down and sings.',
+    },
+    {
+      type: 'true-false',
+      statement: 'Albeniz wrote Asturias for the guitar.',
+      answer: false,
+      explain: 'He wrote it for the piano, in 1892. It became a guitar piece through transcription, and guitarists play it in {k:E minor}, where the open B can be its pedal.',
+      fact: 'asturias-origin',
     },
     {
       type: 'choice',
@@ -710,7 +716,6 @@ const spanishMasterpiece: TeacherLesson = {
         { text: '{d:4}', why: 'That is {n:A}.' },
       ],
       explain: '{n:B} is the fifth of {k:E minor}: a pedal on the fifth, the classic way to hold tension for a long time. The Theory Path\'s "Pedal points" says why it works.',
-      fact: 'asturias-origin',
     },
     {
       type: 'fretboard-find',
@@ -778,15 +783,16 @@ const summitPieces: TeacherLesson = {
       tool: 'practice',
       params: ['goals'],
       minutes: 5,
-      body: 'In the Practice Plan, add a focus goal: your summit piece, under repertoire, with a target date twelve weeks from today. Write each week\'s target in the journal, section by section, and mark the goal\'s progress as the weeks pass.',
+      body: 'In the Practice Plan\'s Goals, add a goal: your summit piece, area Songs, with a target date twelve weeks from today. Each week, write that week\'s target, section by section, in the note of a session in the journal, and mark the goal\'s progress as the weeks pass.',
     }),
     playerTask({
       id: 'tremolo-etude',
       title: 'For Recuerdos: the tremolo etude',
       song: 'st-concert-tremolo-etude',
       mode: 'wait',
+      bars: [1, 16],
       minutes: 5,
-      body: 'If your summit is Recuerdos, prepare with the Concert Tremolo Etude: its first section in wait mode this week, every group even. The other three summits begin with your own scan, its first section in wait mode.',
+      body: 'If your summit is Recuerdos, prepare with the Concert Tremolo Etude: its first section, bars 1 to 16, in wait mode this week, every group even. The other three summits begin with your own scan, its first section in wait mode.',
       fallback: {
         tool: 'technique',
         params: ['tech-tremolo-pami'],
@@ -808,27 +814,27 @@ const summitPieces: TeacherLesson = {
     playerTask({
       id: 'show-band',
       title: 'Rehearse your recital opener',
-      song: 'rondo-alla-turca',
+      song: 'st-two-voice-invention',
       mode: 'flow',
-      bars: [1, 3],
+      bars: [1, 1],
       minutes: 4,
-      body: 'Before the summit, a performance from this unit: the opening of the Alla Turca refrain, the pickup and two bars, in Flow mode, start to finish. The microphone listens and scores each note. Then come back for the show.',
+      body: 'Before the summit, a performance from this unit: the invention\'s subject, bar 1, the treble alone, in Flow mode at the piece\'s own 56 BPM, start to finish. Seventh position, finger 1 on fret 7. The microphone listens and scores each note. Then come back for the show.',
     }),
     {
       type: 'play-phrase',
       id: 'show',
-      prompt: 'Your recital opener: the Alla Turca refrain, its pickup and two bars, without stopping.',
-      notes: RONDO_OPEN,
+      prompt: 'Your recital opener: the invention\'s subject, bar 1, one line, without stopping.',
+      notes: INVENTION_SUBJECT,
       octave: 'exact',
-      tempo: 80,
+      tempo: 56,
       pass: 0.8,
-      explain: 'The turn {n:B} {n:A} {n:G#} {n:A}, the leap to {n:C}, the turn around {n:C}, then the same around {n:E}: {n:F} {n:E} {n:D#} {n:E}. Eight notes in ten is a pass; a stop is not.',
+      explain: '{n:E} leaps to {n:B}, runs down {n:A} {n:G} {n:F#} {n:E}, then {n:D#} and the low {n:B} lead home to {n:E}: one line implying {c:Em}, {c:B7}, {c:Em}. Eight notes in ten is a pass; a stop is not.',
       alternative: {
         type: 'order',
-        prompt: 'Put the refrain\'s first notes in order: the turn, then the leap.',
-        tiles: ['{n:B}', '{n:A}', '{n:G#}', '{n:A}', '{n:C}'],
-        distractors: ['{n:G}'],
-        explain: 'The turn {n:B} {n:A} {n:G#} {n:A} spins around {n:A} and leaps to {n:C}: string 2 open, string 3 frets 2, 1 and 2, then string 2 fret 1.',
+        prompt: 'Put the subject\'s first six notes in order: the leap, then the run down.',
+        tiles: ['{n:E}', '{n:B}', '{n:A}', '{n:G}', '{n:F#}', '{n:E}'],
+        distractors: ['{n:F}'],
+        explain: '{n:E} up to {n:B}, then down the scale of {k:E minor}: {n:A} {n:G} {n:F#} {n:E}. String 3 fret 9, string 1 fret 7, then string 2 frets 10, 8 and 7, and string 3 fret 9 again.',
       },
     },
   ],
@@ -849,16 +855,18 @@ const unit: TeacherUnit = {
   milestone: {
     lesson: 'summit-pieces',
     step: 'show',
-    piece: 'Rondo alla Turca (opening)',
-    song: 'rondo-alla-turca',
-    celebrate: 'Mozart\'s turns, cleanly and without stopping: that is a performance. Now you have a summit and twelve weeks to climb it. Record week 1; in week 12 you will hear what deliberate work does.',
+    piece: 'Two-Voice Invention (subject)',
+    song: 'st-two-voice-invention',
+    celebrate: 'One line that implies its own harmony, cleanly and without stopping: that is a performance, and the first thing every summit asks of you. Record week 1; in week 12 you will hear what deliberate work does.',
   },
   glossary: [
     { id: 'study', term: 'study', definition: 'A piece with a technical purpose and real music in it; also called an etude.' },
     { id: 'hemiola', term: 'hemiola', definition: 'Six beats regrouped: two groups of three heard as three groups of two, as when 6/8 alternates with 3/4.' },
     { id: 'rubato', term: 'rubato', definition: 'Time borrowed and paid back within a phrase, so the phrase still ends on the beat.' },
     { id: 'rondo', term: 'rondo', definition: 'A form in which a refrain returns between contrasting episodes: A B A C A.' },
-    { id: 'pedal-point', term: 'pedal', definition: 'A note held or repeated while the harmony or a line moves against it.' },
+    // Not `pedal-point`: unit 8 defines that one first, as a bass note, and the course keeps the
+    // first definition; the Asturias pedal is the open B above or inside the moving line.
+    { id: 'pedal', term: 'pedal', definition: 'A note held or repeated while the harmony or a line moves against it: in the bass, or, as in Asturias, above or inside the texture.' },
   ],
 };
 

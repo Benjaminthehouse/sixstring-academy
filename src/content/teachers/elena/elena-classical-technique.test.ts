@@ -142,6 +142,21 @@ describe('Elena unit 9: Classical technique', () => {
     expect(onsets.slice(4)).toEqual([1920, 2400, 2880, 3600]);
   });
 
+  it('names the three patterns the p-i-m-a study really uses, and never reads "i and a" as two fingers', async () => {
+    const study = await songBars('st-pima-arpeggios');
+    // The finger for each string in these patterns: p the bass, i string 3, m string 2, a string 1.
+    const finger = (p: string) => ({ '3': 'i', '2': 'm', '1': 'a' } as Record<string, string>)[p.split('+').pop()!.split(':')[0]] ?? 'p';
+    const pattern = (bar: string[]) => bar.map((b) => (b.includes('+') ? 'p' : finger(b))).join('-');
+    expect([...new Set(study.map(pattern))]).toEqual(['p-i-m-a-p-i-m-a', 'p-a-m-i-p-a-m-i', 'p-i-m-a-m-i-m-i']);
+    const body = plain(task('pima-study').body);
+    expect(body).toMatch(/three patterns \(p-i-m-a, p-a-m-i, p-i-m-a-m-i-m-i\)/);
+    expect(body).not.toMatch(/one pattern per chord/);
+    const free = lesson('the-classical-position').steps.find((x) => (x as { id?: string }).id === 'free-stroke') as { prompt: RichText };
+    expect(plain(free.prompt)).not.toMatch(/\bi and a\b/);
+    const late = lesson('right-hand-arpeggios').steps.find((x) => (x as { type?: string }).type === 'listen-choice') as { prompt: RichText };
+    expect(plain(late.prompt)).not.toMatch(/is a finger/);
+  });
+
   it('sends the Giuliani and Aguado work to studies that really hold it', async () => {
     const study = await songBars('st-pima-arpeggios');
     expect(study.length).toBe(16);
@@ -203,6 +218,12 @@ describe('Elena unit 9: Classical technique', () => {
     const s1 = pos(SLURS_S1);
     const at = chains.findIndex((p, i) => chains.slice(i, i + 6).join() === s1.join());
     expect(at).toBeGreaterThan(0);
+    // In the exercise's own rhythm: triplet eighths, three to a beat, as the task says.
+    const e = getExercise('tech-legato-chains')!;
+    const chainBeats = partSong(e, e.parts[0], e.tempo.start).tracks[0].measures.flatMap((m) => m.beats).filter((b) => b.notes.length > 0);
+    expect(chainBeats.slice(at, at + 6).every((b) => b.duration === 320)).toBe(true);
+    expect(durations(SLURS_S1)).toEqual(['et', 'et', 'et', 'et', 'et', 'et', 'h']);
+    expect(plain(task('slur-chains').body)).toMatch(/triplets/);
     expect(names(SLURS_S1)).toEqual(['A', 'B', 'C', 'C', 'B', 'A']);
     expect(pos(SHIFTS)).toEqual(material('tech-position-shifts', 'quarters'));
     expect(pos(SHIFTS_UP)).toEqual(material('tech-position-shifts', 'quarters').slice(0, 5));
@@ -256,6 +277,9 @@ describe('Elena unit 9: Classical technique', () => {
     expect(bar1[0].notes[0].pluck).toBe('p');
     expect(bar1.slice(1, 4).map((b) => b.notes[0].pluck)).toEqual(['a', 'm', 'i']);
     expect(s.bars.length).toBeGreaterThanOrEqual(4);
+    // Written in thirty-seconds, two groups to each quarter beat: what the task's tip warns of.
+    expect(bar1.every((b) => b.duration === 120)).toBe(true);
+    expect(plain(task('tremolo-etude').tip)).toMatch(/thirty-seconds/);
   });
 
   it('swaps only pieces the library does not hold', () => {

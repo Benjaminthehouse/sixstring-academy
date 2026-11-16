@@ -358,6 +358,10 @@ describe('strumming-rhythm: every exercise', () => {
     for (const t of all) expect(t, t).not.toMatch(/downbeats/i);
   });
 
+  it('writes card titles without markup: the player shows a title as plain text', () => {
+    for (const l of unit.lessons) for (const s of l.steps) if (!isGenerated(s) && s.type === 'card' && s.title) expect(s.title, l.id).not.toMatch(/[{}*]/);
+  });
+
   it('asks about accents in the checkpoint, as the syllabus lists them', () => {
     const accent = choiceIn(checkpoint(), /accent mark/);
     expect(correct(accent)).toMatch(/^Louder/);
