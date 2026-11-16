@@ -1,0 +1,22 @@
+import { it } from 'vitest';
+import * as T from '@/core/theory';
+import * as G from '@/core/guitar';
+it('probe', () => {
+  const log = (...a: unknown[]) => process.stdout.write(a.map((x) => JSON.stringify(x)).join(" ") + "\n");
+  log(T.intervalName('M9'), T.intervalName('A11'), T.intervalName('m13'), T.intervalName('P15'), T.intervalName('M10'), T.intervalName('P12'));
+  log(T.interval('M9'), T.transpose('E', 'M9'), T.transpose('E2', 'M9'));
+  log(T.intervalToDegree('M9'), T.intervalToDegree('A9'), T.intervalToDegree('M10'), T.intervalToDegree('P11'), T.intervalToDegree('m13'), T.intervalToDegree('P12'));
+  log(T.distractorIntervals('M9', { count: 6 }), T.distractorIntervals('A2', { count: 6 }), T.distractorIntervals('m3', { count: 6 }));
+  log(T.enharmonicIntervals('A2','m3'), T.semitonesToInterval(15), T.semitonesToDegree(3));
+  log(T.diatonicChords('A major').map(c=>c.roman+' '+c.symbol));
+  log(T.romanToChord('V7/V','A'), T.parseRoman('V7/V'), T.parseRoman('bVII'), T.parseRoman('iv'), T.parseRoman('bVI'));
+  log(T.chordToRoman('B7','A'), T.chordToRoman('Dm','A'), T.chordToRoman('G','A'));
+  log(T.getScale('whole-tone')?.size, T.getScale('diminished-half-whole')?.size, T.getScale('diminished')?.id, T.getScale('diminished-whole-half')?.id);
+  log(T.scaleNotes('C','whole-tone'), T.scaleNotes('C','diminished-half-whole'), T.scaleNotes('C', 'diminished-whole-half'));
+  log(T.progressionToChords(['i','iv','V','i'],'A minor'), T.classifyCadence(T.progressionToChords(['i','iv','V','i'],'A minor'),'A minor'));
+  log(T.classifyCadence(T.progressionToChords(['i','iv','V','bVI'],'A minor'),'A minor'), T.classifyCadence(T.progressionToChords(['i','bVI','iv','V'],'A minor'),'A minor'), T.classifyCadence(T.progressionToChords(['i','V','iv','i'],'A minor'),'A minor'));
+  log(G.positionsForMidi(54, { minFret: 0, maxFret: 22 }));
+  log(T.midiToNote(58), T.midiToNote(58, {prefer:'sharps'}));
+  log(G.scalePatterns('C','major').map(p=>[p.shape,p.minFret,p.maxFret]));
+  log(G.chordVoicings('C', { capo: 3 }).slice(0,2).map(v=>[v.chord,v.frets,v.label]));
+});

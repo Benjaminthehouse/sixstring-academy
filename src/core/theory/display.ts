@@ -5,7 +5,7 @@
  * tones, a key name, a row of chord symbols.
  */
 import { chord, chordNotes, formatChord, isNoChord, NO_CHORD, type Chord, type FormatChordOptions } from './chord';
-import { key, type KeyInput } from './key';
+import { isModalKey, key, type KeyInput, type KeyMode } from './key';
 import { formatDegree, formatNote, formatNotes, note, prettyAccidentals, type FormatNoteOptions } from './note';
 import { getScale, scaleNotes, type ScaleType } from './scale';
 
@@ -48,15 +48,20 @@ export interface FormatKeyOptions extends FormatNoteOptions {
   short?: boolean;
 }
 
+const MODE_TITLE: Readonly<Record<KeyMode, string>> = {
+  major: 'major', minor: 'minor', dorian: 'Dorian', phrygian: 'Phrygian', lydian: 'Lydian', mixolydian: 'Mixolydian', locrian: 'Locrian',
+};
+
 /**
- * Display name of a key: `Bb minor` -> `B♭ minor`, short `B♭m`. Follows the naming system:
- * solfège `Si♭ minor`; German writes B flat as `B` and B natural as `H` (`H minor`).
+ * Display name of a key: `Bb minor` -> `B♭ minor`, short `B♭m`; a mode keeps its capitalised name
+ * in both forms (`A Dorian`). Follows the naming system: solfège `Si♭ minor`; German writes B flat
+ * as `B` and B natural as `H` (`H minor`).
  */
 export function formatKey(input: KeyInput, opts: FormatKeyOptions = {}): string {
   const k = key(input);
   const tonic = formatNote(k.tonic, { ...opts, natural: false, octave: false });
-  if (opts.short) return k.mode === 'minor' ? `${tonic}m` : tonic;
-  return `${tonic} ${k.mode}`;
+  if (opts.short && !isModalKey(k)) return k.mode === 'minor' ? `${tonic}m` : tonic;
+  return `${tonic} ${MODE_TITLE[k.mode]}`;
 }
 
 /** The accidentals of a key signature as display text: A major -> `F♯ C♯ G♯`. */
