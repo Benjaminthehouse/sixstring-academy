@@ -9,8 +9,11 @@ import {
 } from '@/core/theory';
 import { DRILLS, LADDER, PATH } from './drills';
 import { heardAs, heardTypes, relativePcs } from './drills/chords';
+import { BASS_HIGH, BASS_LOW } from './drills/bass';
 import { degreeSemitones } from './drills/degrees';
+import { degreeId, idSemitones, neckPitches } from './drills/dictation';
 import { MEMORY_TUNES } from './drills/intervals';
+import { DRONE_LEAD, differingDegrees, modeSteps } from './drills/modes';
 import { PROGRESSIONS, progressionShape } from './drills/progressions';
 import { scaleSteps } from './drills/scales';
 import { makeRng, mixSeed } from './rng';
@@ -110,6 +113,14 @@ function heardAnswer(q: ChoiceQuestion, plan: SoundPlan): string | null {
       const tonic = Number(q.truth.tonic);
       return fits((id) => (((target - tonic) % 12) + 12) % 12 === degreeSemitones(id));
     }
+    case 'modes': {
+      // Over the drone: the pitch classes of the phrase against the drone's note are the mode's, all seven.
+      if (!plan.drone) return null;
+      const drone = plan.drone.midi;
+      const pcs = new Set(flat(plan).map((m) => (((m - drone) % 12) + 12) % 12));
+      if (ev.some((e) => e.at < DRONE_LEAD - 1e-9)) return null;
+      return fits((id) => samePcs([...pcs], modeSteps(id)) && pcs.size === 7);
+    }
     case 'progressions': {
       const key = String(q.truth.key);
       // Group the strums into bars (two strums per chord) and read each chord's pitch classes.
@@ -164,8 +175,11 @@ describe('every drill, every level, many seeds', () => {
         const where = `${q.id} answer=${q.kind === 'choice' ? q.answer : q.target.join(' ')}`;
         // Range: every note of the question and of every option, context included.
         const plans = q.kind === 'choice' ? [q.plan, ...q.options.map((o) => o.plan)] : [q.plan];
+        // The bass-line drill is played on a bass: E1 and up.
+        const [low, high] = drill.id === 'bass' ? [BASS_LOW, BASS_HIGH] : [GUITAR_LOW, GUITAR_HIGH];
         for (const p of plans) {
-          for (const m of planNotes(p)) expect(m >= GUITAR_LOW && m <= GUITAR_HIGH, `${where}: ${m} out of range`).toBe(true);
+          for (const m of planNotes(p)) expect(m >= low && m <= high, `${where}: ${m} out of range`).toBe(true);
+          if (drill.id === 'bass') expect(p.events.every((e) => e.tone === 'bass-finger'), `${where}: on the bass`).toBe(true);
           if (p.drone) expect(p.drone.midi >= GUITAR_LOW - 12 && p.drone.midi <= GUITAR_HIGH, `${where}: drone`).toBe(true);
         }
         expect(q.subject).toEqual(flat(q.plan));
@@ -185,6 +199,18 @@ describe('every drill, every level, many seeds', () => {
           expect(q.subject, where).toEqual(q.target.map((id) => keys.get(id)));
           expect(q.target[0]).toBe('1');
           expect(q.subject[0]).toBe(q.firstNote);
+          if (q.input === 'neck') {
+            // Every pitch of the neck area is a key, named by its distance from the tonic.
+            expect(q.keys.map((k) => k.midi)).toEqual(neckPitches(q.neck!));
+            const tonic = Number(q.truth.tonic);
+            for (const k of q.keys) {
+              expect(k.id).toBe(degreeId(k.midi - tonic));
+              expect(idSemitones(k.id)).toBe(k.midi - tonic);
+            }
+            // The phrase is in the key: each note's distance from the tonic is a degree of the level's row.
+            const row = new Set([...level.pool, '1'].map((d) => idSemitones(d)));
+            for (const m of q.subject) expect(row.has(m - tonic), `${where}: ${m} not in the row`).toBe(true);
+          }
         }
       }
       expect(count).toBe(drill.levels.length * SEEDS);
@@ -363,5 +389,49 @@ describe('sound choices', () => {
     const ev = subjectEvents(q.plan);
     expect(ev.length).toBeGreaterThan(2);
     expect(ev.every((e) => e.midis.length === 1)).toBe(true);
+  });
+});
+
+describe('the drills added in pass 2', () => {
+  it('modes: each pairing level differs by the one note it is named after, and feedback names it', () => {
+    expect(differingDegrees('dorian', 'minor')).toEqual([['6', 'b6']]);
+    expect(differingDegrees('mixolydian', 'major')).toEqual([['b7', '7']]);
+    expect(differingDegrees('lydian', 'major')).toEqual([['#4', '4']]);
+    expect(differingDegrees('phrygian', 'minor')).toEqual([['b2', '2']]);
+    for (const level of DRILLS.modes.levels.slice(1, 5)) {
+      const [a, b] = level.pool;
+      expect(differingDegrees(a, b), `level ${level.n}`).toHaveLength(1);
+    }
+    const info = DRILLS.modes.info;
+    expect(DRILLS.modes.mixSentence(info('dorian'), info('minor'))).toMatch(/Listen for the 6 against the drone \(Aeolian has ♭6\)/);
+    expect(DRILLS.modes.levels.at(-1)!.pool).toHaveLength(7);
+  });
+
+  it('modes: the drone holds the tonic an octave down from before the phrase to its end', () => {
+    for (const { q } of sweep(DRILLS.modes)) {
+      const d = q.plan.drone!;
+      expect(d.midi).toBe(Number(q.truth.tonic) - 12);
+      expect(d.from).toBe(0);
+      expect(d.to).toBeCloseTo(q.plan.length, 6);
+      expect(Math.min(...q.plan.events.map((e) => e.at))).toBeCloseTo(DRONE_LEAD, 6);
+    }
+  });
+
+  it('bass lines sit in the bass register, at least an octave under the melody drills', () => {
+    for (const { q } of sweep(DRILLS.bass)) {
+      expect(Number(q.truth.tonic)).toBeLessThanOrEqual(44);
+      expect(Math.max(...q.subject)).toBeLessThan(GUITAR_LOW + 17);
+    }
+  });
+
+  it('dictation: one right sequence of taps, an octave off is wrong', () => {
+    const level = DRILLS.dictation.levels[3];
+    const q = make(level, '5', 3, DEFAULT_SETTINGS, 0.5);
+    if (q.kind !== 'sequence') throw new Error('sequence expected');
+    const tonic = Number(q.truth.tonic);
+    expect(q.keys.filter((k) => (k.midi - tonic) % 12 === 0).map((k) => k.id)).toEqual(expect.arrayContaining(['1', "1'"]));
+    expect(degreeId(-5)).toBe('5,');
+    expect(degreeId(24)).toBe("1''");
+    expect(idSemitones("b3'")).toBe(15);
   });
 });

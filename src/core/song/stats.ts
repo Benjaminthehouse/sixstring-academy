@@ -277,7 +277,9 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
         const nextBeat = bar.start + (Math.floor(inBar / beatTicks) + 1) * beatTicks;
         const accented = !!src.accent || struck.some((n) => n.accent);
         const heldOver = (ends.get(b) ?? 0) > nextBeat;
-        offBeatSyncopated = accented || heldOver || !onsetTicks.has(nextBeat);
+        // Past the last bar nothing is struck, but the piece has ended: that is no syncopation.
+        const silentNext = nextBeat < tl.totalTicks && !onsetTicks.has(nextBeat);
+        offBeatSyncopated = accented || heldOver || silentNext;
         if (offBeatSyncopated) syncopated++;
       }
       // Bass pulse and treble moving around it.

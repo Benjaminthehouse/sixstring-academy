@@ -52,6 +52,7 @@ const EMAIL = 'robin@example.com';
 const SECRET = 'sk-ant-api03-ACCOUNT-check-key-never-synced-0123456789abcdef';
 const BENIGN = [/favicon\.ico/i, /Download the React DevTools/i];
 const T = 45_000; // generous waits: the machine is shared
+const LEAVE_MS = 1500; // how long the stand-in takes to confirm a Realtime channel was left
 
 const results = [];
 function check(group, name, pass, detail = '') {
@@ -64,7 +65,12 @@ async function open(browser, url, backend, { name, mobile = false, theme = 'dark
   const viewport = VIEWPORTS[mobile ? 'mobile' : 'desktop'];
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: theme, hasTouch: mobile, isMobile: mobile });
   // The stand-in backend: one JSON request in, one JSON answer out (see fake.ts, bindingTransport).
-  await context.exposeBinding('__ssaCloudFake', (_source, json) => backend.handleJson(json));
+  // Leaving a Realtime channel is answered after a real network's delay, not at once: realtime-js
+  // keeps a leaving channel under its name until then (see the restart group).
+  await context.exposeBinding('__ssaCloudFake', async (_source, json) => {
+    if (json.includes('"op":"rt.leave"')) await new Promise((resolve) => setTimeout(resolve, LEAVE_MS));
+    return backend.handleJson(json);
+  });
   await context.addInitScript(() => {
     try {
       if (localStorage.getItem('e2e:seeded') != null) return;

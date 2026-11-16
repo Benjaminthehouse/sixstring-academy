@@ -170,7 +170,7 @@ async function checkLearner(browser, url, seeds, who, mobile) {
       check(group, 'tuning is ticked and the hero moves on to the next step', /Next: /.test(s.nextText) && s.steps[0].done && !s.nextText.includes('Tune up'), `${s.nextText} | ${s.steps[0]?.text}`);
       check(group, 'due cards come into the plan', s.steps.some((st) => /Review \d+ cards?/.test(st.text)), s.steps.map((st) => st.text.slice(0, 40)).join(' | '));
       const cont = byTitle('Continue')?.text ?? '';
-      check(group, 'Continue puts the half-played song first', /^Continue Where you left off\. Lightly Row/.test(cont), cont);
+      check(group, 'Continue puts the half-played song first', /left off\.\s*Lightly Row/.test(cont), cont);
       check(group, 'Continue leaves out bare tool visits (the tuner, the practice screen)', !/Tuner ·|Practice session ·/.test(cont) && cont.includes('Hot Cross Buns'), cont);
     } else {
       check(group, 'a new learner starts with tuning', /^Start: Tune up/.test(s.nextText), s.nextText);

@@ -184,7 +184,8 @@ export function PlayView({ exercise, review, onSubmit, setPrimary, onCantPlay, o
             setMessage(null);
           } else if (!right) {
             const where = exercise.type === 'play-note' && exercise.where && !exercise.staffOnly ? ` Aim for ${placeWords(exercise.where)}.` : '';
-            setMessage(`That was ${heardName(midi)}.${where}`);
+            // Markup, so the name reads C♯3 (or Do♯3) like every other note on screen, never "C#3".
+            setMessage(`That was {n:${heardName(midi)}}.${where}`);
           }
         },
         onAttempt: (attempt) => {
@@ -304,7 +305,7 @@ export function PlayView({ exercise, review, onSubmit, setPrimary, onCantPlay, o
           </div>
           {message && (
             <Text variant="caption" className={styles.micMessage}>
-              {message}
+              <RichText text={message} terms={false} />
             </Text>
           )}
           {exercise.type === 'play-phrase' && mic.kind === 'listening' && (

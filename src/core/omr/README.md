@@ -560,6 +560,32 @@ rest's knob placed tight after a note is read as an augmentation dot (confident,
 dotted zeros and Unifont digits are confused more often (mostly below 0.5); at photo-good the
 alphaTab stems still produce extra 1s (28 on one page, all near 0.5 confidence).
 
+### 12.1 Second integration pass (scanner lane)
+
+Fixes from the reviews, each measured on both corpora at every tier (`cli.cjs [--corpus unseen]
+--no-strips`, seed 1). Unchanged unless said: the original corpus is identical number for number.
+
+- Tab tuning per staff: `staff.tuning` follows the line count (4 = bass E A D G, 5 = B E A D G,
+  7 = low B) from the skeleton on, the tab reader reports the tuning it used, `omrToSong` takes it.
+- No fret past the neck (`frets.ts`): readings of the digits instead, as guesses with the other
+  readings offered and a `past-the-neck` issue; in the tab reader and, for any recognizer, in the
+  assembler. Unseen photo-bad fret 74.5 -> 74.8 %.
+- The metre sanity pass: lengths for tab columns a bad photo left without a stem (they were dropped
+  from the song: 138 of 1257 events at unseen photo-bad, 0 left on unlinked staves after), a
+  `measure-does-not-fit` issue on every measure that still does not fit, and the one length that would
+  make it fit offered first as a fix. Changing that length automatically was tried and measured worse
+  (unseen photo-good dur 94.3 -> 93.9 %, measures exact 70.1 -> 68.3 %; original photo-bad 83.5 ->
+  82.9 %, 50.1 -> 48.7 %): a measure that does not fit is more often missing a note. Not kept.
+- Words over tab-only staves are located (`textOverTabStaff`): 16 of 16 chord names of the tab pages
+  at every tier, one stray box per tier over the 25 tab pages without chords.
+- Cue-size staves: at least 6 small solid heads and 1.5 times the normal ones -> read with the small
+  heads accepted, with a `small-notes` warning. The two cue pages 18.3 -> 57.3 % recall at clean
+  (unseen clean notes R 91.0 -> 94.6 %); no normal staff of either corpus triggers it. Their small
+  flags, beams, rests and accidentals are still often missed.
+- The worker answers a quick look (`lookAtPage`: kind, paper, layout, cleaned page), so the scanner
+  no longer bundles a second copy of the reader for it; `e2e/omr-build.cjs` reads the sample in the
+  production build.
+
 ## 13. AI-assisted reading (`ai-assist.ts`, `ai-platform.ts`)
 
 Optional: the app works without it. `createPlatformAiClient()` wraps `@/core/platform` `askJson` (tier
