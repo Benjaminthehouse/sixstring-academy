@@ -1,0 +1,46 @@
+# O Come, All Ye Faithful, strum and sing (repertoire plan: o-come-all-ye-faithful). The hymn tune
+# Adeste Fideles in G major with verse 1 of Frederick Oakeley's English words. Your part: five
+# chords from the key of G, G (320003), C (x32010), D (xx0232), Em (022000) and Am (x02210),
+# strummed four to the bar through the verse. The refrain line "O come, let us adore him" comes
+# three times and the strumming builds: half notes, softly, the first time; quarters the second
+# time; down, down-up on every beat the third time. The tune (second track) carries the words.
+# A new arrangement for this app: the chords and strumming are not taken from any hymnal.
+title: O Come, All Ye Faithful
+id: o-come-all-ye-faithful
+composer: John Francis Wade; English words by Frederick Oakeley
+source: Hymn tune Adeste Fideles (John Francis Wade, c. 1751); English words by Frederick Oakeley (1841), verse 1; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Wade died in 1786, Oakeley in 1880); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: christmas, carol, strumming, lyrics
+tempo: 88
+time: 4/4
+key: G
+pickup: q
+
+track: Your strum
+role: rhythm
+[Verse]
+strum: DDDD
+| q r | "G=320003" D D D D | "D=xx0232" D D D D | "G=320003" D D D D | D D "D=xx0232" D D |
+| "Em=022000" D D "D=xx0232" D D | D D D D | D D D D | D D D D |
+| "G=320003" D D D D | "C=x32010" D D "G=320003" D D | "Am=x02210" D D "Em=022000" D D | "D=xx0232" D D D D |
+[Refrain]
+strum: D-DUD-DU
+| ^"softly" "G=320003" h D D | D D | ^"a little stronger" "Em=022000" q D D D D | "G=320003" D D "D=xx0232" D D |
+| ^"full" "C=x32010" q D e D U "Am=x02210" q D e D U | "D=xx0232" q D e D U "C=x32010" q D e D U | "G=320003" q D e D U "D=xx0232" q D e D U | "G=320003" w D ||
+
+track: Tune
+role: lead
+[Verse]
+| q 3:0 | h 3:0 q 4:0 3:0 | h 3:2 4:0 | q 2:0 3:2 2:0 2:1 | h 2:0 q 3:2 3:0 |
+lyrics: O come, all ye faith- ful, joy- ful and tri- um- phant, O
+| h 3:0 q 4:4 4:2 | q 4:4 3:0 3:2 2:0 | h 4:4 q. 4:2 e 4:0 | h. 4:- q r |
+lyrics: come ye, O come ye to Beth- le- hem; _
+| h 2:3 q 2:1 2:0 | h 2:1 2:0 | q 3:2 2:0 3:0 3:2 | q. 4:4 e 4:2 q 4:0 3:0 |
+lyrics: Come and be- hold him, born the King of an- gels: _ O
+[Refrain]
+| q 3:0 4:4 3:0 3:2 | h 3:0 q 4:0 2:0 | q 2:0 3:2 2:0 2:1 | h 2:0 q 3:2 2:0 |
+lyrics: come, let us a- dore him, O come, let us a- dore him, O
+| q 2:1 2:0 3:2 3:0 | h 4:4 q 3:0 2:1 | h 2:0 q. 3:2 e 3:0 | h. 3:- q r ||
+lyrics: come, let us a- dore him, Christ the Lord. _

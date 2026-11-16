@@ -687,6 +687,19 @@
 .actions:empty {
   display: none;
 }
+/*
+ * A phone held upright centres the neck in the free space: the feedback keeps room for a whole
+ * explanation (title and three lines) and the button row stays, so the neck does not jump when
+ * an answer is marked.
+ */
+@media (max-width: 899px) and (orientation: portrait) {
+  .feedback {
+    min-height: 7rem;
+  }
+  .actions:empty {
+    display: flex;
+  }
+}
 .btnKbd {
   margin-left: var(--sp-2);
 }

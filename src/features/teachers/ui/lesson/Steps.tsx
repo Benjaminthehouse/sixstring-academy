@@ -6,7 +6,7 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent, type React
 import { teacherById } from '@/app/teachers';
 import { getLibrary } from '@/core/library';
 import type { PracticeSession } from '@/core/progress';
-import { speakable, type CardStep, type GlossaryTerm } from '@/lessons';
+import { speakable, type CardStep, type GlossaryLookup } from '@/lessons';
 import { FigureView, RichText, useLessonContext } from '@/lessons/ui';
 import { Callout, Heading, Icon, Tag, Text, cx } from '@/ui';
 import { TASK_TOOLS, taskSong, type CardArt, type TaskStep, type TaskTarget, type TeacherKey } from '@/content/teachers';
@@ -30,7 +30,7 @@ export function TeacherLine({ teacher, children, size = 2.5 }: { teacher: Teache
   );
 }
 
-function spokenOf(card: { title?: string; body: CardStep['body']; tip?: CardStep['tip'] }, glossary: (id: string) => GlossaryTerm | undefined): string {
+function spokenOf(card: { title?: string; body: CardStep['body']; tip?: CardStep['tip'] }, glossary: GlossaryLookup): string {
   return [card.title ?? '', speakable(card.body, { glossary }), card.tip ? speakable(card.tip, { glossary }) : ''].filter(Boolean).join('. ');
 }
 
@@ -128,12 +128,13 @@ export function TaskCard({ teacher, task, state, backLine }: { teacher: TeacherK
   const { glossary } = useLessonContext();
   const tool = TASK_TOOLS[state.target.tool];
   const body = state.fallback && task.fallback ? task.fallback.body : task.body;
+  const title = state.fallback && task.fallback?.title ? task.fallback.title : task.title;
   const done = state.done ? describeActivity(state.done) : null;
   return (
     <article className={cx(styles.card, styles.task)} data-step-kind="card" data-task={task.id} data-task-phase={state.phase} data-task-tool={state.target.tool}>
       <div className={styles.cardHead}>
         <TeacherLine teacher={teacher} />
-        <SpeakButton teacher={teacher} text={state.phase === 'back' ? backLine : spokenOf({ title: task.title, body, tip: task.tip }, glossary)} />
+        <SpeakButton teacher={teacher} text={state.phase === 'back' ? backLine : spokenOf({ title, body, tip: task.tip }, glossary)} />
       </div>
       {state.phase === 'back' ? (
         <div className={styles.back} role="status" aria-live="polite">
@@ -160,7 +161,7 @@ export function TaskCard({ teacher, task, state, backLine }: { teacher: TeacherK
           <Tag icon="Clock">{`About ${task.minutes} min`}</Tag>
         </div>
         <Heading level={state.phase === 'back' ? 3 : 2} size={state.phase === 'back' ? 'lg' : '2xl'} display className={styles.cardTitle}>
-          {task.title}
+          {title}
         </Heading>
         <div className={cx(styles.cardBody, state.phase === 'back' && styles.bodyQuiet)}>
           <RichText text={body} as="p" />

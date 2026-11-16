@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Browser check of Progressions (#progressions). Run: node e2e/progressions.cjs [--quick] [--only desktop|phone|themes]
+ * Browser check of Progressions (#progressions). Run: node e2e/progressions.cjs [--quick] [--only desktop|phone|sync|themes]
  *
  * Everything is driven through the screen (clicks, taps, keys), the way a learner would.
  *
@@ -20,8 +20,15 @@
  *           a reload and appears under "Yours"; the jam is immersive with a chord name at least
  *           64 px tall, Play in the thumb zone, and a phone held sideways puts chord and neck side
  *           by side
+ *  sync     independent of the band's reports: the app's real audio output is recorded, each bass
+ *           root found by onset and pitch, and the big chord name must change 0–60 ms after it
  *  themes   screenshots of browse, a page, the jam (playing) and the builder, phone and desktop,
  *           light and dark (e2e/out/progressions-*.png)
+ *
+ * Added in review, for bugs it found: shelves fill their rows; no chart chord name is cut short
+ * (desktop and 360 px); a three-letter chord shows whole in the jam at 390 px; Space pauses with
+ * focus on the scale chip just chosen; saving is not logged as a jam; time played in the builder
+ * is, and survives a reload.
  *
  * Prints one line per check, PASSED or FAILED at the end, and exits non-zero on failure. Timing
  * limits are generous: the machine is shared and busy.
@@ -69,6 +76,10 @@ async function until(page, fn, arg, timeout = 10000) {
 }
 
 const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+/** Chart chord names or numerals cut short (an ellipsis): found in review as "Edi…" for Edim7. */
+const cutChartNames = (page) => page.evaluate(() => [...document.querySelectorAll('[data-chart] [data-slot] span')]
+  .filter((s) => s.scrollWidth > s.clientWidth + 1)
+  .map((s) => `${s.closest('[data-slot]').getAttribute('data-slot')} ${s.textContent}`));
 const attr = (page, sel, name) => page.evaluate(([s, n]) => document.querySelector(s)?.getAttribute(n) ?? null, [sel, name]);
 
 // ── Desktop ──────────────────────────────────────────────────────────────────────────────────
@@ -81,6 +92,14 @@ async function desktop() {
     await open(page, url, 'progressions', '[data-progressions="browse"]');
     const cards = await page.locator('[data-progression-card]').count();
     check('browse opens with style shelves of cards', cards >= 30, `${cards} cards`);
+    // Found in review: 4 cards on a 3-column shelf left one card alone on every shelf at 1280 px.
+    const rows = await page.evaluate(() => [...document.querySelectorAll('[data-shelf]')].map((s) => {
+      const grid = s.firstElementChild;
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+      const shown = [...grid.children].filter((c) => getComputedStyle(c).display !== 'none').length;
+      return { id: s.getAttribute('data-shelf'), cols, shown };
+    }));
+    check('every shelf fills its rows (no card left alone)', rows.length >= 10 && rows.every((r) => r.shown % r.cols === 0 && r.shown >= 4), rows.map((r) => `${r.id} ${r.shown}/${r.cols}`).join(' '));
     await page.getByRole('radio', { name: 'Blues' }).first().click();
     await page.waitForTimeout(400);
     const blues = await page.evaluate(async () => {
@@ -127,6 +146,8 @@ async function desktop() {
       }));
       check(`${id}: chart, one diagram per distinct chord, why it works`, info.bars > 0 && info.slots >= info.bars && info.shapes.length === info.chordsInChart && info.why, `${info.title} · ${info.bars} bars, ${info.slots} chords, ${info.shapes.length} shapes`);
       check(`${id}: no sideways scroll`, (await overflow(page)) <= 1);
+      const cut = await cutChartNames(page);
+      check(`${id}: every chord name in the chart is whole`, cut.length === 0, cut.join(', '));
     }
 
     // Keys
@@ -227,11 +248,12 @@ async function desktop() {
     }, null, 6000);
     check('"Follow the chords" puts each chord’s own scale on the neck', !!follow, follow ?? await attr(page, '[data-jam]', 'data-scale'));
     await shot(page, 'jam-playing-desktop-dark');
-    // Focus leaves the scale chips (Space there belongs to the chip), as a click on the stage does.
-    await page.locator('[data-now-chord]').click();
+    // Found in review: focus stays on the scale chip just clicked, and Space there re-selected
+    // the chip instead of pausing. Space on the chip already chosen is play / pause again.
+    const onChip = await page.evaluate(() => document.activeElement?.getAttribute('role') === 'radio' && document.activeElement?.getAttribute('aria-checked') === 'true');
     await page.keyboard.press(' ');
     const paused = await until(page, () => document.querySelector('[data-jam]')?.getAttribute('data-status') === 'paused');
-    check('Space pauses the band', !!paused);
+    check('Space pauses the band, even with focus on the scale chip just chosen', !!paused && onChip, `focus on chip: ${onChip}`);
     await page.keyboard.press(' ');
     const resumed = await until(page, () => document.querySelector('[data-jam]')?.getAttribute('data-status') === 'playing', null, 8000);
     check('Space plays on', !!resumed);
@@ -283,6 +305,14 @@ async function phone() {
       await open(page, url, hash, '[data-progressions]');
       check(`phone ${hash}: no sideways scroll`, (await overflow(page)) <= 1, await overflow(page));
     }
+    // Found in review: on a phone, two chords in a bar were cut to "B…", "E…" (rhythm changes, Bird blues).
+    await page.setViewportSize({ width: 360, height: 740 });
+    for (const hash of ['progressions--jazz-rhythm-changes--bb', 'progressions--blues-bird--f', 'progressions--blues-bird--f--jam']) {
+      await open(page, url, hash, '[data-chart]');
+      const cut = await cutChartNames(page);
+      check(`360 px ${hash}: every chord name in the chart is whole`, cut.length === 0, cut.join(', '));
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
 
     // Builder
     await open(page, url, 'progressions--builder', '[data-progressions="builder"]');
@@ -312,7 +342,15 @@ async function phone() {
     await page.locator('[data-play]').tap();
     const playingSlot = await until(page, () => Number(document.querySelector('[data-progressions="builder"]')?.getAttribute('data-playing-slot')) >= 0, null, 15000);
     check('Play: the band plays the draft and the sounding chord lights up', !!playingSlot);
+    // Play along for a while: time played in the builder is a jam too (found in review: it was never logged).
+    await page.waitForTimeout(21000);
     await page.locator('[data-play]').tap();
+    const progressNow = () => page.evaluate(async () => {
+      const progress = await import('/src/core/progress/index.ts');
+      const s = progress.getProgress();
+      return { xp: s.xp.total, jams: s.log.filter((e) => e.kind === 'progression').map((e) => `${e.title} ${e.durationSec ?? e.sec ?? ''}`) };
+    });
+    const before = await progressNow();
     await page.locator('[data-save]').tap();
     await page.getByRole('textbox', { name: 'Name' }).fill('Campfire cadence');
     await page.getByRole('dialog').getByRole('button', { name: 'Save' }).tap();
@@ -320,9 +358,15 @@ async function phone() {
     check('saving with a name gives it an id', !!savedId, savedId);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:progressions.saved') || '[]'));
     check('it is stored under its own key (progressions.saved)', stored.length === 1 && stored[0].name === 'Campfire cadence' && stored[0].tonic === 'Ab', JSON.stringify(stored[0] ?? {}).slice(0, 160));
+    // Found in review: saving was logged as a jam (the "Jam Session" achievement and the daily
+    // jam quest without a note played). Saving now earns a small bonus and is no jam.
+    const after = await progressNow();
+    check('saving earns a few XP but is not logged as a jam', after.xp - before.xp >= 5 && after.jams.length === before.jams.length, `xp ${before.xp} → ${after.xp}, jams ${after.jams.length}`);
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('[data-progressions="builder"]', { timeout: 20000 });
     check('the draft survives a reload', (await slots()) === 'I IV V I' && (await attr(page, '[data-progressions="builder"]', 'data-saved-id')) === savedId);
+    const jams = (await progressNow()).jams;
+    check('the 20 s played along in the builder were logged as a jam, and kept through the reload', jams.length === 1 && /^Jam: /.test(jams[0]), jams.join(' | '));
     await open(page, url, 'progressions', '[data-progressions="browse"]');
     const yours = await page.evaluate(() => document.body.textContent.includes('Campfire cadence'));
     check('the saved progression shows under "Yours" in the browser', yours);
@@ -349,6 +393,16 @@ async function phone() {
     await until(page, () => Number(document.querySelector('[data-jam]')?.getAttribute('data-serial')) >= 2, null, 15000);
     await shot(page, 'jam-playing-phone-dark');
     await page.locator('[data-play]').tap();
+    // Found in review: at 390 px "Dm7" showed as "D…" (the size only followed the screen width).
+    await open(page, url, 'progressions--jazz-ii-v-i--c--jam', '[data-jam]');
+    await page.locator('[data-play]').tap();
+    await until(page, () => Number(document.querySelector('[data-jam]')?.getAttribute('data-serial')) >= 1, null, 15000);
+    const fit = await page.evaluate(() => ['[data-now-chord]', '[data-next-chord]'].map((s) => {
+      const e = document.querySelector(s);
+      return e ? { text: e.textContent, fits: e.scrollWidth <= e.clientWidth + 1, px: parseFloat(getComputedStyle(e).fontSize) } : null;
+    }));
+    check('a three-letter chord (Dm7) and the next one show whole, and still big', fit.every((f) => f && f.fits) && fit[0].px >= 56, JSON.stringify(fit));
+    await page.locator('[data-play]').tap();
     await page.setViewportSize({ width: 844, height: 390 });
     await page.waitForTimeout(800);
     const side = await page.evaluate(() => {
@@ -362,6 +416,113 @@ async function phone() {
     await shot(page, 'jam-sideways-phone-dark');
     void context;
     check('no console errors on the phone', errors.length === 0, errors.join(' | '));
+  });
+}
+
+// ── The display against the real output ──────────────────────────────────────────────────────
+
+/**
+ * Independent of the band's own reports: record what the app actually sends to the speakers (an
+ * AudioWorklet on the engine's final node), find each bass note's onset and pitch by
+ * autocorrelation, and compare the moment each new root is heard with the moment the big chord
+ * name changes on screen (on the audio clock, latency included). Only the bass plays, so its root
+ * on the downbeat marks the change.
+ */
+async function sync() {
+  await withApp({ size: 'desktop', theme: 'dark' }, async ({ page, url, errors }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('ssa:shell.onboarding', '{"skipped":true}');
+      localStorage.setItem('ssa:progressions.jam', JSON.stringify({ countIn: 1, loop: true, choruses: 2, muted: { drums: true, bass: false, keys: true, guitar: true }, scale: 'tip-0' }));
+    });
+    await open(page, url, 'progressions--pop-axis--g--jam', '[data-jam]');
+    await page.locator('[data-play]').click();
+    await page.evaluate(async () => {
+      const audio = await import('/src/core/audio/index.ts');
+      for (let i = 0; i < 100 && !audio.hasEngine(); i++) await new Promise((r) => setTimeout(r, 20));
+      const ctx = audio.getAudioContext();
+      const src = `class Rec extends AudioWorkletProcessor {
+        constructor() { super(); this.buf = new Float32Array(2048); this.n = 0; this.f0 = 0; }
+        process(inputs) {
+          const ch = (inputs[0] && inputs[0][0]) || new Float32Array(128);
+          if (this.n === 0) this.f0 = currentFrame;
+          this.buf.set(ch, this.n); this.n += ch.length;
+          if (this.n >= 2048) { this.port.postMessage({ frame: this.f0, data: this.buf.slice(0) }); this.n = 0; }
+          return true;
+        }
+      }
+      registerProcessor('progressions-rec', Rec);`;
+      await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+      const node = new AudioWorkletNode(ctx, 'progressions-rec', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
+      const sink = ctx.createGain();
+      sink.gain.value = 0;
+      audio.getEngine().output.connect(node);
+      node.connect(sink).connect(ctx.destination);
+      const R = { chunks: [], shown: [], sr: ctx.sampleRate };
+      node.port.onmessage = (e) => R.chunks.push(e.data);
+      const jam = document.querySelector('[data-jam]');
+      let last = '';
+      new MutationObserver(() => {
+        const text = jam.querySelector('[data-now-chord]')?.textContent ?? '';
+        if (text === last) return;
+        last = text;
+        R.shown.push({ chord: jam.getAttribute('data-chord'), status: jam.getAttribute('data-status'), t: audio.audioSoundingNow() });
+      }).observe(jam, { subtree: true, childList: true, characterData: true });
+      window.__sync = R;
+    });
+    await page.waitForTimeout(quick ? 10000 : 14000);
+    const r = await page.evaluate(() => {
+      const R = window.__sync;
+      if (!R.chunks.length) return { notes: [], shown: R.shown };
+      const f0 = R.chunks[0].frame;
+      const end = R.chunks[R.chunks.length - 1];
+      const x = new Float32Array(end.frame + end.data.length - f0);
+      for (const c of R.chunks) x.set(c.data, c.frame - f0);
+      const sr = R.sr, hop = 256, env = [];
+      for (let i = 0; i + hop <= x.length; i += hop) {
+        let s = 0;
+        for (let j = 0; j < hop; j++) s += x[i + j] * x[i + j];
+        env.push(Math.sqrt(s / hop));
+      }
+      const peak = Math.max(...env);
+      const notes = [];
+      let lastOnset = -99;
+      for (let i = 8; i < env.length; i++) {
+        let prev = 0;
+        for (let k = 1; k <= 6; k++) prev += env[i - k];
+        prev /= 6;
+        if (!(env[i] > peak * 0.06 && env[i] > prev * 1.8 && i - lastOnset > 12)) continue;
+        lastOnset = i;
+        // Autocorrelation 30 ms after the onset, 60 ms long, 35–400 Hz.
+        const start = i * hop + Math.floor(sr * 0.03), n = Math.floor(sr * 0.06);
+        if (start + n + Math.ceil(sr / 35) >= x.length) continue;
+        let best = 0, lagBest = 0;
+        for (let lag = Math.floor(sr / 400); lag <= Math.ceil(sr / 35); lag++) {
+          let s = 0, e1 = 0, e2 = 0;
+          for (let j = 0; j < n; j++) { const a = x[start + j], b = x[start + j + lag]; s += a * b; e1 += a * a; e2 += b * b; }
+          const c = s / Math.sqrt(e1 * e2 + 1e-12);
+          if (c > best) { best = c; lagBest = lag; }
+        }
+        if (best >= 0.6) notes.push({ t: (f0 + i * hop) / sr, pc: (((Math.round(12 * Math.log2(sr / lagBest / 440) + 69)) % 12) + 12) % 12 });
+      }
+      return { notes, shown: R.shown };
+    });
+    const ROOT = { G: 7, D: 2, Em: 4, C: 0 };
+    const lags = [];
+    const missing = [];
+    for (const s of r.shown) {
+      if (s.status === 'count-in' || ROOT[s.chord] === undefined) continue;
+      // The nearest note of the new root, then back to the first of its run: the arrival.
+      let k = -1;
+      r.notes.forEach((n, i) => {
+        if (n.pc === ROOT[s.chord] && Math.abs(n.t - s.t) < 0.6 && (k < 0 || Math.abs(n.t - s.t) < Math.abs(r.notes[k].t - s.t))) k = i;
+      });
+      if (k < 0) { missing.push(s.chord); continue; }
+      while (k > 0 && r.notes[k - 1].pc === r.notes[k].pc && r.notes[k].t - r.notes[k - 1].t < 0.6) k--;
+      lags.push({ chord: s.chord, ms: Math.round((s.t - r.notes[k].t) * 1000) });
+    }
+    check('the recorded output has a bass note on each new root the screen shows', lags.length >= 4 && missing.length === 0, `${r.notes.length} bass notes; missing: ${missing.join(' ') || 'none'}`);
+    check('each chord name changes within 60 ms after its root is heard, never before it', lags.length >= 4 && lags.every((l) => l.ms >= -10 && l.ms <= 60), lags.map((l) => `${l.chord} ${l.ms}ms`).join(', '));
+    check('no console errors while recording', errors.length === 0, errors.join(' | '));
   });
 }
 
@@ -394,6 +555,7 @@ async function themes() {
   try {
     if (!only || only === 'desktop') await desktop();
     if (!only || only === 'phone') await phone();
+    if (!only || only === 'sync') await sync();
     if (!only || only === 'themes') await themes();
   } catch (e) {
     check('the run finished', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' ') : String(e));

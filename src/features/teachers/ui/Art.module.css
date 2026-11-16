@@ -76,6 +76,15 @@
 .trousers {
   fill: color-mix(in oklab, var(--deg-5) 45%, var(--fb-wood-2));
 }
+.face {
+  fill: var(--fb-dot-edge);
+}
+.smile {
+  fill: none;
+  stroke: var(--fb-dot-edge);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
 .chair {
   fill: color-mix(in oklab, var(--fg-faint) 45%, var(--surface));
 }

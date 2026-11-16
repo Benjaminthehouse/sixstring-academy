@@ -42,6 +42,11 @@ export function pcAt(ctx: Pick<NeckContext, 'tuning'>, p: Pos): number {
   return pcOf(midiAtPos(ctx, p));
 }
 
+/** The fret range a board draws for a scope: its frets, at least four of them (the nut shows from fret 0). */
+export function boardRange(scope: Scope): [number, number] {
+  return [scope.frets[0], Math.max(scope.frets[1], scope.frets[0] + 3)];
+}
+
 /** Frets of a scope, low to high. */
 export function scopeFrets(scope: Scope): number[] {
   const [a, b] = scope.frets;
@@ -88,6 +93,14 @@ export function placesInScope(scope: Scope, ctx: Pick<NeckContext, 'tuning'>, pc
 export function scopePcs(scope: Scope, ctx: Pick<NeckContext, 'tuning'>): number[] {
   const set = new Set(scopePositions(scope, ctx).map((p) => pcAt(ctx, p)));
   return [...set].sort((a, b) => a - b);
+}
+
+/**
+ * True when a scope holds any sharp or flat, so the answer pad needs its upper row. The first
+ * step (open strings and fret 12) has none in standard tuning: a beginner sees seven letters.
+ */
+export function scopeHasAccidentals(scope: Scope, ctx: Pick<NeckContext, 'tuning'>): boolean {
+  return scopePcs(scope, ctx).some((pc) => !isNatural(pc));
 }
 
 // ── octave shapes ────────────────────────────────────────────────────────────────────────────────
@@ -151,13 +164,14 @@ export interface Anchor {
 
 /**
  * The best landmark to reason from: the closest one (open string and fret 12 preferred on a tie),
- * favouring a natural note so the explanation does not lean on another sharp or flat.
+ * favouring a natural note so the explanation does not lean on another sharp or flat. Only
+ * landmarks inside `range` count: the learner has to be able to see the one they are told about.
  */
-export function anchorFor(ctx: Pick<NeckContext, 'tuning'>, p: Pos, maxFret = 24): Anchor | null {
+export function anchorFor(ctx: Pick<NeckContext, 'tuning'>, p: Pos, range: readonly [number, number] = [0, 24]): Anchor | null {
   let best: Anchor | null = null;
   let bestCost = Infinity;
   for (const fret of LANDMARK_FRETS) {
-    if (fret > maxFret || fret === p.fret) continue;
+    if (fret < range[0] || fret > range[1] || fret === p.fret) continue;
     const pc = pcAt(ctx, { string: p.string, fret });
     const distance = p.fret - fret;
     const cost = Math.abs(distance) + (isNatural(pc) ? 0 : 1.5) + (fret === 0 || fret === 12 ? -0.25 : 0);

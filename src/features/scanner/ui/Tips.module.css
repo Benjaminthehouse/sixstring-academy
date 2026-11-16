@@ -1,0 +1,108 @@
+.pictures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+@media (max-width: 30rem) {
+  .pictures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.frame {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.desk {
+  fill: var(--surface-3);
+}
+.paper {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 0.6;
+}
+/* A sheet of paper stays light in the dark theme; its ink stays dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .paper {
+    fill: var(--fg);
+  }
+  :root:not([data-theme='light']) .staff,
+  :root:not([data-theme='light']) .head {
+    stroke: var(--surface-3);
+    fill: var(--bg);
+  }
+  :root:not([data-theme='light']) .staff {
+    fill: none;
+  }
+}
+:root[data-theme='dark'] .paper {
+  fill: var(--fg);
+}
+:root[data-theme='dark'] .staff {
+  stroke: var(--surface-3);
+}
+:root[data-theme='dark'] .head {
+  fill: var(--bg);
+}
+.staff {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: 0.45;
+}
+.head {
+  fill: var(--fg);
+}
+.shadow {
+  fill: var(--overlay);
+}
+.blurred {
+  filter: blur(0.9px);
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+.good {
+  color: var(--ok-text);
+}
+.bad {
+  color: var(--bad-text);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.item {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+.icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+}

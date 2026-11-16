@@ -1,0 +1,75 @@
+/* The way on sits at the bottom of the screen, however short the page. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-8));
+}
+.screen > [data-ui-action-bar] {
+  margin-top: auto;
+}
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: 34rem;
+  margin: var(--sp-10) auto var(--sp-8);
+  text-align: center;
+}
+.trophy {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: var(--sp-2);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: inset 0 -6px 0 color-mix(in srgb, var(--accent-fg) 22%, transparent), var(--shadow-2);
+  animation: rise var(--dur-3) var(--ease) both;
+}
+@keyframes rise {
+  from {
+    transform: translateY(12px) scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.lead {
+  max-width: 30rem;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+  width: 100%;
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+.next {
+  max-width: 30rem;
+}
+:global(html[data-motion='reduce']) .trophy {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :global(html:not([data-motion='full'])) .trophy {
+    animation: none;
+  }
+}

@@ -4,16 +4,20 @@
  * double dot at 12), and where the note they named actually lives.
  */
 import { spell } from './notes';
-import { anchorFor, describeShape, landmarkName, numberWord, pcAt } from './neck';
+import { anchorFor, describeShape, landmarkName, numberWord, pcAt, type Anchor } from './neck';
 import type { NeckContext, Pos, Question } from './types';
+
+/** Frets the learner can see (the board's range): explanations only lean on landmarks inside it. */
+export type FretRange = readonly [number, number];
+const WHOLE_NECK: FretRange = [0, 24];
 
 /** Turns an ASCII note name into display text in the reader's naming (`C#` → `C♯`, `Do♯`). */
 export type NoteFormatter = (ascii: string) => string;
 
 /** How to reach a position from its nearest landmark: "The dot at fret 5 is A; two frets up is B." */
-export function anchorSentence(ctx: NeckContext, p: Pos, name: string, fmt: NoteFormatter, maxFret = 24): string | null {
+export function anchorSentence(ctx: NeckContext, p: Pos, name: string, fmt: NoteFormatter, range: FretRange = WHOLE_NECK): string | null {
   if (p.fret === 0) return `The open string is ${fmt(name)}.`;
-  const a = anchorFor(ctx, p, maxFret);
+  const a = anchorFor(ctx, p, range);
   if (!a) return null;
   const anchorName = fmt(spell(a.pc, ctx.spelling === 'flats' ? 'flats' : 'sharps'));
   const n = Math.abs(a.distance);
@@ -30,15 +34,29 @@ export function onLandmarkSentence(p: Pos): string | null {
   return null;
 }
 
+/**
+ * The landmark an explanation of `p` leans on, for drawing it on the board: none when `p` sits on
+ * a landmark itself (the explanation then names that one), so the picture never shows a landmark
+ * the words do not mention.
+ */
+export function explanationAnchor(ctx: NeckContext, p: Pos, range: FretRange = WHOLE_NECK): Anchor | null {
+  return onLandmarkSentence(p) ? null : anchorFor(ctx, p, range);
+}
+
+/** How to work out where `p` is: on a landmark, or from the nearest one. Null when none is near. */
+export function howToFind(ctx: NeckContext, p: Pos, name: string, fmt: NoteFormatter, range: FretRange = WHOLE_NECK): string | null {
+  return onLandmarkSentence(p) ?? anchorSentence(ctx, p, name, fmt, range);
+}
+
 /** "fret 7" or "the open string". */
 export function fretWords(fret: number): string {
   return fret === 0 ? 'open' : `fret ${fret}`;
 }
 
 /** The lines shown after a wrong "name it" answer. */
-export function explainNameMiss(q: Extract<Question, { kind: 'name' }>, givenPc: number, givenAt: Pos | null, ctx: NeckContext, fmt: NoteFormatter): string[] {
+export function explainNameMiss(q: Extract<Question, { kind: 'name' }>, givenPc: number, givenAt: Pos | null, ctx: NeckContext, fmt: NoteFormatter, range: FretRange = WHOLE_NECK): string[] {
   const lines = [`This is ${fmt(q.name)}.`];
-  const how = onLandmarkSentence(q.pos) ?? anchorSentence(ctx, q.pos, q.name, fmt);
+  const how = howToFind(ctx, q.pos, q.name, fmt, range);
   if (how) lines.push(how);
   const given = fmt(spell(givenPc, ctx.spelling === 'flats' ? 'flats' : 'sharps'));
   if (givenAt) lines.push(givenAt.fret === 0 ? `${given} is the open string here.` : `${given} is at fret ${givenAt.fret} on this string.`);
@@ -46,7 +64,7 @@ export function explainNameMiss(q: Extract<Question, { kind: 'name' }>, givenPc:
 }
 
 /** The lines shown after a wrong tap in a find, octave or play question. */
-export function explainFindMiss(q: Question, tapped: Pos | null, ctx: NeckContext, fmt: NoteFormatter): string[] {
+export function explainFindMiss(q: Question, tapped: Pos | null, ctx: NeckContext, fmt: NoteFormatter, range: FretRange = WHOLE_NECK): string[] {
   const lines: string[] = [];
   if (tapped) {
     const was = fmt(spell(pcAt(ctx, tapped), ctx.spelling === 'flats' ? 'flats' : 'sharps'));
@@ -57,7 +75,7 @@ export function explainFindMiss(q: Question, tapped: Pos | null, ctx: NeckContex
     const t = places[0];
     const list = places.map((p) => fretWords(p.fret));
     lines.push(`${fmt(q.name)} on this string: ${list.join(' and ')}.`);
-    const how = onLandmarkSentence(t) ?? anchorSentence(ctx, t, q.name, fmt);
+    const how = howToFind(ctx, t, q.name, fmt, range);
     if (how) lines.push(how);
   } else if (q.kind === 'octave') {
     lines.push(`The shape is ${describeShape({ from: q.from.string, to: q.string, shift: q.shift, octaves: q.octaves })}: ${fretWords(q.from.fret)} on string ${q.from.string} goes to ${fretWords(q.pos.fret)} on string ${q.string}.`);

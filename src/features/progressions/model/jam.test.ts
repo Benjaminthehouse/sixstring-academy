@@ -4,7 +4,7 @@ import { arrangeBacking } from '@/core/audio';
 import { chordPcs } from '@/core/theory';
 import { midiAt } from '@/core/guitar';
 import {
-  DEFAULT_JAM, chordAt, chordScale, clampTempo, distanceText, endingChord, feelsFor, jamMarkers, positionOf,
+  DEFAULT_JAM, LOG_AFTER_SEC, chordAt, finishedText, chordScale, clampTempo, distanceText, endingChord, feelsFor, glyphCount, jamActivity, jamMarkers, positionOf,
   sanitizeJam, scaleChoices, scaleFor, upcoming,
 } from './jam';
 
@@ -116,6 +116,27 @@ describe('scales to solo with', () => {
     expect(scaleFor({ id: 'tip-0', scale: { tonic: 'A', scale: 'minor-pentatonic' } }, 'C', c)).toEqual({ tonic: 'A', scale: 'minor-pentatonic' });
   });
 
+  // Bug: an eight- or nine-note scale (bebop, combined blues) always "shared more notes with the
+  // key" than the mode it extends, and an exotic scale could beat the plain one, so a jazz blues
+  // in F offered C Bebop Dorian over Cm7 and the Coltrane cycle E Double harmonic over Emaj7.
+  it('never hands out a bebop, blues or exotic scale when a taught mode fits', () => {
+    expect(chordScale('Cm7', { tonic: 'F', scale: 'major' })).toEqual({ tonic: 'C', scale: 'dorian' });
+    expect(chordScale('Emaj7', { tonic: 'C', scale: 'major' })).toEqual({ tonic: 'E', scale: 'major' });
+    expect(chordScale('Abmaj7', { tonic: 'C', scale: 'major' })).toEqual({ tonic: 'Ab', scale: 'lydian' });
+    expect(chordScale('F7', { tonic: 'F', scale: 'major' })).toEqual({ tonic: 'F', scale: 'mixolydian' });
+    const blues = progressionInKey(progression('blues-jazz'), 'F');
+    const coltrane = progressionInKey(progression('jazz-coltrane-cycle'), 'C');
+    for (const r of [blues, coltrane]) {
+      for (const ch of r.bars.flat()) {
+        const s = chordScale(ch.symbol, r.key);
+        expect(s, ch.symbol).not.toBeNull();
+        expect(s!.scale, `${ch.symbol}: ${s!.tonic} ${s!.scale}`).not.toMatch(/bebop|blues|double-harmonic|hungarian|harmonic-major|neapolitan|sharp-4/);
+      }
+    }
+    // A diminished seventh lives in no seven-note mode the list holds: it gets a diminished scale.
+    expect(chordScale('F#dim7', { tonic: 'C', scale: 'major' })?.scale).toMatch(/^diminished-/);
+  });
+
   it('lights the chord tones (labelled by degree) over the scale’s other notes', () => {
     const markers = jamMarkers('Am7', { tonic: 'A', scale: 'minor-pentatonic' }, { maxFret: 12 });
     const want = chordPcs('Am7');
@@ -126,5 +147,46 @@ describe('scales to solo with', () => {
     for (const m of rest) expect(want).not.toContain(midiAt(m) % 12);
     expect(new Set(tones.map((m) => m.label))).toEqual(new Set(['R', '♭3', '5', '♭7']));
     expect(jamMarkers('Am7', null).every((m) => m.state !== 'ghost')).toBe(true);
+  });
+});
+
+describe('logging a jam', () => {
+  const info = { skillId: 'progression:pop-axis', title: 'Jam: I–V–vi–IV', params: ['pop-axis', 'g', 'jam'], data: { tonic: 'G', tempo: 108 } };
+
+  it('logs played time of 20 s or more as one progression activity', () => {
+    expect(jamActivity({ seconds: LOG_AFTER_SEC - 0.5, changes: 9 }, info)).toBeNull();
+    expect(jamActivity({ seconds: Number.NaN, changes: 9 }, info)).toBeNull();
+    expect(jamActivity({ seconds: 61.4, changes: 34 }, info)).toEqual({
+      kind: 'progression', id: 'progression:pop-axis', title: 'Jam: I–V–vi–IV', durationSec: 61, count: 34,
+      route: 'progressions', params: ['pop-axis', 'g', 'jam'], data: { tonic: 'G', tempo: 108 },
+    });
+  });
+
+  // Bug: saving a progression in the builder was logged as a 'progression' activity, so the
+  // "Jam Session" achievement and the daily jam quest were earned without a note being played,
+  // with the minutes the builder had been open counted as practice. Only played time is a jam now.
+  it('is the only way a progression activity is made: from seconds the band actually played', () => {
+    expect(jamActivity({ seconds: 0, changes: 0 }, { ...info, skillId: 'progression:builder' })).toBeNull();
+    expect(jamActivity({ seconds: 25, changes: 12 }, { ...info, skillId: 'progression:builder' })?.durationSec).toBe(25);
+  });
+});
+
+describe('sizing the big chord', () => {
+  it('counts the characters a chord name shows, 1 to 8', () => {
+    expect(glyphCount('G')).toBe(1);
+    expect(glyphCount('Dm7')).toBe(3);
+    expect(glyphCount('F♯m7♭5')).toBe(6);
+    expect(glyphCount('B♭maj7♯11/D')).toBe(8);
+    expect(glyphCount('')).toBe(1);
+  });
+});
+
+describe('when the band has finished', () => {
+  // Review: after its passes the band stopped and the screen went back to "Press play", with
+  // nothing to say what was done or what to try next.
+  it('says what was played and offers the next step', () => {
+    expect(finishedText(1, 120)).toBe('That was once through at 120 BPM. Go again, or try it a little faster.');
+    expect(finishedText(2, 96.4)).toBe('That was twice through at 96 BPM. Go again, or try it a little faster.');
+    expect(finishedText(5, 170)).toMatch(/^That was 5 times through at 170 BPM\./);
   });
 });

@@ -15,12 +15,16 @@ export function useMic() {
   const [status, setStatus] = useState<MicStatus>('off');
   const [failure, setFailure] = useState<MediaFailure | null>(null);
   const tracker = useRef<PitchTracker | null>(null);
+  // The tracker being opened: leaving the screen while the permission prompt is up must still close it.
+  const pending = useRef<PitchTracker | null>(null);
   const levelEl = useRef<HTMLElement | null>(null);
   const offLevel = useRef<(() => void) | null>(null);
 
   const stop = useCallback(() => {
     offLevel.current?.();
     offLevel.current = null;
+    pending.current?.stop();
+    pending.current = null;
     tracker.current?.stop();
     tracker.current = null;
     setStatus('off');
@@ -32,7 +36,14 @@ export function useMic() {
     setStatus('starting');
     setFailure(null);
     const t = new PitchTracker({ ...micOptions() });
+    pending.current = t;
     const res = await t.start();
+    // stop() (the screen went away) while the microphone was opening: it stays closed.
+    if (pending.current !== t) {
+      t.stop();
+      return false;
+    }
+    pending.current = null;
     if (!res.ok) {
       t.stop();
       if (res.detail === 'superseded') return false;
@@ -59,8 +70,11 @@ export function useMic() {
     return true;
   }, []);
 
-  /** Wait for one of `midis` (exact octave or any). Null when the microphone is not on. */
-  const listen = useCallback((midis: readonly number[], octaves: 'exact' | 'any', onWrong: (midi: number) => void): Cancelable<NoteWaitResult> | null => {
+  /**
+   * Wait for one of `midis` (exact octave or any). Null when the microphone is not on. Wrong notes
+   * below `lowest` (the guitar's lowest open string) are knocks and bumps, not notes, and are ignored.
+   */
+  const listen = useCallback((midis: readonly number[], octaves: 'exact' | 'any', onWrong: (midi: number) => void, lowest = 40): Cancelable<NoteWaitResult> | null => {
     const t = tracker.current;
     if (!t) return null;
     return waitForNote(t, midis, {
@@ -69,9 +83,8 @@ export function useMic() {
       minHoldMs: 80,
       a4: learnerA4(),
       timeoutMs: 30000,
-      // Below E2 is no guitar note: a knock or a bump on the desk.
       onWrongNote: (n) => {
-        if (n.midi >= 40) onWrong(n.midi);
+        if (n.midi >= lowest) onWrong(n.midi);
       },
     });
   }, []);

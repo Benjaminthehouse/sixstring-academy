@@ -270,6 +270,8 @@ export interface PaletteChord {
   role: 'home' | 'away' | 'tension' | null;
   /** One sentence from the engine on what the chord is. */
   explanation: string;
+  /** For a secondary dominant: the chord it leads to, in this key (`'Am'` for V7/ii in G). */
+  leadsTo: string | null;
 }
 
 const MAJOR_BORROWED = ['iv', 'bVII', 'bVI', 'bIII', 'i', 'v', 'ii°', 'bII'];
@@ -297,7 +299,17 @@ export function palette(d: Pick<BuilderDraft, 'tonic' | 'mode' | 'sevenths' | 'a
   const make = (token: string, group: PaletteGroup, degree: number | null, role: PaletteChord['role']): PaletteChord | null => {
     try {
       const symbol = resolveSlot(token, home).symbol;
-      return { token, symbol, group, degree, role, explanation: explain(symbol, d) };
+      return { token, symbol, group, degree, role, explanation: explain(symbol, d), leadsTo: group === 'secondary' ? leadsTo(token) : null };
+    } catch {
+      return null;
+    }
+  };
+  // V7/ii leads to ii; a tritone substitute (subV7) leads home, as the V7 it replaces does.
+  const leadsTo = (token: string): string | null => {
+    const target = token.includes('/') ? token.slice(token.indexOf('/') + 1) : token.startsWith('sub') ? (d.mode === 'major' ? 'I' : 'i') : null;
+    if (!target) return null;
+    try {
+      return resolveSlot(target, home).symbol;
     } catch {
       return null;
     }

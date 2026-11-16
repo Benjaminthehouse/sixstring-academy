@@ -1,0 +1,33 @@
+# Strumming: The Folk Pattern (repertoire plan: st-strum-folk). An original strumming study.
+# Your part: G (320003), C (x32010), D (xx0232), G, four bars each, with the same pattern in
+# every bar: down on 1, down on 2, up on the and of 2, nothing on 3 (the hand still moves down,
+# just above the strings), up on the and of 3, down on 4, up on the and of 4. The up on the and
+# of 2 is written as a quarter so the chord rings across the missed beat 3, as it does on a guitar.
+# The teacher's bass plays the root on 1 and the fifth on 3, so you hear beat 3 while you miss it.
+title: Strumming: The Folk Pattern
+composer: Sixstring Academy
+source: Original strumming study
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: strumming, folk pattern, missed strokes, I-IV-V
+tempo: 80
+time: 4/4
+key: G
+
+track: Your strum
+role: rhythm
+[G C D G]
+strum: D-DU-UDU
+| ^"Miss on 3: the hand still moves down" "G=320003" q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U |
+| "C=x32010" q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U |
+| "D=xx0232" q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U |
+| "G=320003" q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U | q D e D q U e U D U ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[G C D G]
+| h 4:3 2:0 | 4:3 2:0 | 4:3 2:0 | 4:3 2:0 |
+| 3:3 4:3 | 3:3 4:3 | 3:3 4:3 | 3:3 4:3 |
+| 2:0 3:0 | 2:0 3:0 | 2:0 3:0 | 2:0 3:0 |
+| 4:3 2:0 | 4:3 2:0 | 4:3 2:0 | w 4:3 ||

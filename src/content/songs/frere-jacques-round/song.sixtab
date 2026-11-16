@@ -1,0 +1,38 @@
+# Frere Jacques as a round, for two guitars (repertoire plan: frere-jacques-round). Your part
+# is the first voice: the tune twice through, then a long G while the teacher finishes. The
+# teacher's voice starts the same tune two bars after you. Played without words.
+# Notes: G = open string 3, A = string 3 fret 2 (finger 2), B = open string 2, C = string 2
+# fret 1 (finger 1), D = string 2 fret 3 (finger 3), E = open string 1, and the low D of
+# "ding, dang, dong" is the open string 4. Every beat 1 and 3 of the tune is G, B or D, the notes
+# of a G chord, which is why the two voices fit together.
+title: Frère Jacques (round)
+id: frere-jacques-round
+composer: Traditional French
+source: French round of the 18th century; arranged for two guitars for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: round, duet, eighth notes, french
+tempo: 96
+time: 4/4
+key: G
+
+track: You (first voice)
+role: lead
+[Round]
+| q 3:0 3:2{2} 2:0 3:0 | 3:0 3:2 2:0 3:0 | 2:0 2:1{1} h 2:3{3} | q 2:0 2:1 h 2:3 |
+| e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 |
+| q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 | 2:0 2:1 h 2:3 | q 2:0 2:1 h 2:3 |
+| e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 |
+[Ending]
+| w 3:0 | 3:- ||
+
+track: Teacher (second voice)
+role: lead
+[Round]
+| w r | r | q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 |
+| 2:0 2:1 h 2:3 | q 2:0 2:1 h 2:3 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 |
+| q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 | q 3:0 3:2 2:0 3:0 | 3:0 3:2 2:0 3:0 |
+| 2:0 2:1 h 2:3 | q 2:0 2:1 h 2:3 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 | e 2:3 1:0 2:3 2:1 q 2:0 3:0 |
+[Ending]
+| q 3:0 4:0 h 3:0 | q 3:0 4:0 h 3:0 ||

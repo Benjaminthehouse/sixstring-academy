@@ -8,7 +8,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BackingSetup } from '@/content/progressions';
 import { BACKING_INSTRUMENTS, BackingBand, unlockAudio, type BackingInstrument, type ChordSegment } from '@/core/audio';
+import { getProgressStore, recordActivity } from '@/core/progress';
+import { useEventListener } from '@/ui';
 import { stopPreview } from '../audio/preview';
+import { jamActivity, type JamLogInfo } from '../model/jam';
 
 /** What the band is doing. */
 export type BandStatus = 'idle' | 'loading' | 'count-in' | 'playing' | 'paused';
@@ -107,7 +110,9 @@ export function useBand(setup: BackingSetup | null, opts: BandOptions): Band {
         optsRef.current.onBeat?.(e.beat, e.beatsInBar, e.countIn);
       }),
       band.transport.onVisual('stop', () => {
-        if (statusRef.current === 'playing' || statusRef.current === 'count-in') {
+        // Reloading while playing stops and restarts the band, and that stop is heard (and
+        // reported) after the restart: only a band that is really silent has ended.
+        if ((statusRef.current === 'playing' || statusRef.current === 'count-in') && !band.playing) {
           clock(false);
           setStatus('idle');
           setCountBeat(null);
@@ -174,6 +179,8 @@ export function useBand(setup: BackingSetup | null, opts: BandOptions): Band {
 
   const stop = useCallback(() => {
     runId.current++;
+    // Said before the band stops, so its 'stop' event is not taken for the end of the passes.
+    statusRef.current = 'idle';
     bandRef.current?.stop();
     clock(false);
     setCountBeat(null);
@@ -245,4 +252,33 @@ export function useBand(setup: BackingSetup | null, opts: BandOptions): Band {
   );
 
   return { status, heard, countBeat, play, pause, stop, toggle, takeStats, started };
+}
+
+/**
+ * Log what was played with the band as one jam (see `jamActivity`: 20 s or more of actual
+ * playing): when the band stops or ends, when the screen goes away, and when the page is hidden.
+ * `info` is read when the log is written, so it may change while the band plays.
+ */
+export function useBandLog(band: Pick<Band, 'status' | 'started' | 'takeStats'>, info: JamLogInfo): void {
+  const infoRef = useRef(info);
+  infoRef.current = info;
+  const take = band.takeStats;
+  const flush = useCallback((hiding: boolean) => {
+    const input = jamActivity(take(), infoRef.current);
+    if (!input) return;
+    recordActivity(input);
+    // The store writes a moment later; a page being hidden or closed may not get that moment.
+    if (hiding) getProgressStore().flush();
+  }, [take]);
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => flushRef.current(false), []);
+  // A phone that switches apps only hides the page (and may close it later without a word).
+  useEventListener(document, 'visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushRef.current(true);
+  });
+  useEventListener(window, 'pagehide', () => flushRef.current(true));
+  useEffect(() => {
+    if (band.status === 'idle' && band.started) flushRef.current(false);
+  }, [band.status, band.started]);
 }

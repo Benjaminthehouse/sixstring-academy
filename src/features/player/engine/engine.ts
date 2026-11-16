@@ -445,7 +445,7 @@ export class PlayerEngine {
         this.run.pausedFor += performance.now() - this.run.pausedAt;
         this.run.pausedAt = null;
       }
-      this.set({ phase: p.countIn ? 'countin' : this.waitRun ? 'playing' : 'playing' });
+      this.set({ phase: p.countIn ? 'countin' : 'playing' });
     } else if (state === 'paused') {
       this.syncPosition();
       if (this.run) this.run.pausedAt = performance.now();
@@ -465,7 +465,7 @@ export class PlayerEngine {
   /** Light what is played at a tick (the beat sounding there) and dim what comes next. */
   private neckAtTick(tick: number): void {
     const list = this.allTargets;
-    let i = this.targetIndexByTick.get(tick);
+    const i = this.targetIndexByTick.get(tick);
     let now: NeckSpot[] = [];
     let nextIndex: number;
     if (i !== undefined) {
@@ -480,7 +480,6 @@ export class PlayerEngine {
       if (exact && this.player.state !== 'playing' && exact.tick <= tick && tick < exact.tick + exact.beat.duration) {
         now = targetSpots(exact);
       }
-      i = nextIndex - 1;
     }
     const next = targetSpots(list[nextIndex] ?? null);
     this.neck({ now, next, hint: false });
@@ -545,10 +544,14 @@ export class PlayerEngine {
     return !!this.waitRun;
   }
 
-  /** Stop: end the run (with results when something was played) and go back to the start of the loop or song. */
-  stop(): void {
-    if (this.waitRun) this.finishWait(false);
-    else if (this.run) this.finishRun(false);
+  /**
+   * Stop: end the run (with results when something was played) and go back to the start of the
+   * loop or song. `quiet` ends it without the results panel (a mode or part switched mid-run): it
+   * is still logged when it counted.
+   */
+  stop(quiet = false): void {
+    if (this.waitRun) this.finishWait(false, quiet);
+    else if (this.run) this.finishRun(false, quiet);
     this.player.stop();
     this.syncPosition();
     this.set({ phase: 'idle', wait: null, pick: IDLE_PICK, trainerNote: null });
@@ -655,7 +658,7 @@ export class PlayerEngine {
   /** The part the learner plays (its tab, fretboard and targets). */
   setTrack(id: string): void {
     if (!this.song.tracks.some((t) => t.id === id) || id === this.stateNow.track) return;
-    this.stop();
+    this.stop(true);
     this.set({ track: id, results: null });
     this.indexTargets();
     this.applyMutes();
@@ -724,7 +727,7 @@ export class PlayerEngine {
       if (!res.ok) return res;
       playerDebug.latency = this.mic.latency;
     }
-    this.stop();
+    this.stop(true);
     if (!needsMic(mode) && this.mic.status !== 'off') {
       this.mic.stop();
       this.set({ mic: { status: 'off', failure: this.stateNow.mic.failure } });
@@ -991,7 +994,7 @@ export class PlayerEngine {
     this.set({ phase: 'idle' });
   }
 
-  private finishRun(reachedEnd: boolean): void {
+  private finishRun(reachedEnd: boolean, quiet = false): void {
     const run = this.run;
     this.run = null;
     if (!run) return;
@@ -1013,10 +1016,15 @@ export class PlayerEngine {
     }
     this.flushStates(false);
     const pos = this.player.position();
-    this.showResults(summary, reachedEnd, (pos.tick - run.fromTick) / Math.max(1, this.timeline.totalTicks - run.fromTick));
+    const progress = (pos.tick - run.fromTick) / Math.max(1, this.timeline.totalTicks - run.fromTick);
+    if (quiet) {
+      if (summary.total > 0) this.record(summary, reachedEnd, progress);
+      return;
+    }
+    this.showResults(summary, reachedEnd, progress);
   }
 
-  private finishWait(reachedEnd: boolean): void {
+  private finishWait(reachedEnd: boolean, quiet = false): void {
     const w = this.waitRun;
     this.waitRun = null;
     if (!w) return;
@@ -1026,6 +1034,10 @@ export class PlayerEngine {
     this.set({ wait: null, phase: 'idle', noteStates: w.states.size ? new Map(w.states) : null });
     if (reached === 0) return;
     const summary = summarizeWait(records, { tempo: w.tempo, fullSong: w.fullSong && reachedEnd, durationSec, barCount: this.song.bars.length });
+    if (quiet) {
+      this.record(summary, reachedEnd, reached / Math.max(1, records.length));
+      return;
+    }
     this.showResults(summary, reachedEnd, reached / Math.max(1, records.length));
   }
 
@@ -1094,8 +1106,9 @@ export class PlayerEngine {
   /** Stop everything and release the audio and the microphone. Records a run left part-way. */
   dispose(): void {
     if (this.disposed) return;
-    if (this.waitRun) this.finishWait(false);
-    else if (this.run) this.finishRun(false);
+    // Leaving part-way: the run is logged (as not completed), with no panel to show.
+    if (this.waitRun) this.finishWait(false, true);
+    else if (this.run) this.finishRun(false, true);
     this.saveNow();
     this.disposed = true;
     if (this.statesTimer) clearTimeout(this.statesTimer);

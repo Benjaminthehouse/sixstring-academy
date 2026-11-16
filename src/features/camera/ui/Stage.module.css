@@ -1,0 +1,615 @@
+/*
+ * The stage: the camera picture with the overlay canvas over it, and what floats on top. It is a
+ * dark box in both themes (the frame around a camera feed, in the fretboard's own rosewood), so
+ * everything on it uses the fretboard label colour on dark scrims, never the theme's text colours.
+ */
+.stage {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: clamp(15rem, 54dvh, 34rem);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--fb-wood-2);
+  color: var(--fb-label);
+  box-shadow: var(--shadow-2);
+  touch-action: manipulation;
+}
+
+@media (min-width: 1080px) {
+  .stage {
+    height: auto;
+    aspect-ratio: 16 / 9;
+    max-height: calc(100dvh - var(--sticky-top, 0px) - 7.5rem);
+  }
+}
+
+/* Phone held sideways: the picture takes the whole height. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .stage {
+    height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-6));
+    aspect-ratio: auto;
+    max-height: none;
+    border-radius: var(--r-md);
+  }
+}
+
+.drawn {
+  background: var(--surface-2);
+  color: var(--fg);
+  box-shadow: none;
+  border: 1px solid var(--line);
+}
+
+/* Full screen: the stage covers the window, controls float on it. */
+.focus {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  width: auto;
+  height: auto;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.video,
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.video {
+  object-fit: contain;
+  transition: opacity var(--dur-2) var(--ease);
+}
+.mirrored {
+  transform: scaleX(-1);
+}
+.canvas {
+  pointer-events: none;
+}
+.off {
+  opacity: 0;
+}
+
+/* ── Centred states (starting, hidden, blocked) ───────────────────────────────────────────── */
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  text-align: center;
+}
+.centerText {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 650;
+}
+.centerHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fb-label);
+  opacity: 0.85;
+}
+.blockedCard {
+  max-width: 30rem;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  text-align: left;
+  box-shadow: var(--shadow-3);
+}
+
+/* ── The drawn neck (no camera) ───────────────────────────────────────────────────────────── */
+.drawnNeck {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--sp-4);
+  overflow: auto;
+}
+.drawnNeck > * {
+  width: 100%;
+}
+
+/* ── The setup guide ──────────────────────────────────────────────────────────────────────── */
+.guide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  text-align: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--fb-wood) 70%, transparent), transparent 70%),
+    var(--fb-wood-2);
+}
+.picture {
+  width: min(100%, 26rem);
+  height: 100%;
+  min-height: 0;
+  max-height: 13rem;
+}
+.finder path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sun circle,
+.sun line {
+  fill: none;
+  stroke: var(--fb-label);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.neckWood {
+  fill: var(--fb-wood);
+  stroke: var(--fb-fret-shade);
+  stroke-width: 1;
+}
+.headstock {
+  fill: var(--fb-wood);
+  stroke: var(--fb-fret-shade);
+  stroke-width: 1;
+}
+.nut {
+  fill: var(--fb-nut);
+}
+.fret {
+  stroke: var(--fb-fret);
+  stroke-width: 1.6;
+}
+.inlay {
+  fill: var(--fb-inlay);
+  opacity: 0.8;
+}
+.string {
+  stroke: var(--fb-string);
+  stroke-width: 0.9;
+}
+.dot1,
+.dot3,
+.dot5 {
+  stroke: var(--fb-dot-edge);
+  stroke-width: 1;
+}
+.dot1 {
+  fill: var(--deg-1);
+}
+.dot3 {
+  fill: var(--deg-3);
+}
+.dot5 {
+  fill: var(--deg-5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot1,
+  .dot3,
+  .dot5 {
+    animation: appear 2.4s var(--ease) infinite;
+  }
+  .dot3 {
+    animation-delay: 0.25s;
+  }
+  .dot5 {
+    animation-delay: 0.5s;
+  }
+}
+@keyframes appear {
+  0%,
+  12% {
+    opacity: 0;
+  }
+  30%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.guideText {
+  max-width: 34rem;
+}
+.guideTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+.guideLead {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--text-sm);
+  opacity: 0.88;
+}
+.guideActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.quiet {
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--fb-label);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.quiet:hover {
+  background: color-mix(in srgb, var(--fb-label) 10%, transparent);
+}
+.quiet:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.privacyOnStage {
+  display: none;
+}
+@media (max-height: 600px) {
+  .guideLead {
+    display: none;
+  }
+}
+
+/* ── The heads-up display over the live picture ───────────────────────────────────────────── */
+.hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  pointer-events: none;
+}
+.hud > * {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+.hud > .tapLayer {
+  position: absolute;
+  z-index: 0;
+}
+.focus .hud {
+  padding: max(var(--sp-3), env(safe-area-inset-top, 0px)) max(var(--sp-3), env(safe-area-inset-right, 0px)) max(var(--sp-3), env(safe-area-inset-bottom, 0px)) max(var(--sp-3), env(safe-area-inset-left, 0px));
+}
+.hudTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+.hudTop > * {
+  pointer-events: auto;
+}
+.hudTools {
+  display: flex;
+  gap: var(--sp-1);
+}
+.hudBottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: auto;
+  pointer-events: none;
+}
+.hudBottom > * {
+  pointer-events: auto;
+}
+
+/* Scrims: dark glass whatever the theme. */
+.pill,
+.coach,
+.toolBanner,
+.handLine,
+.hudIcon {
+  background: color-mix(in srgb, var(--fb-wood-2) 82%, transparent);
+  color: var(--fb-label);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.hudIcon {
+  border: 1px solid color-mix(in srgb, var(--fb-label) 18%, transparent);
+  border-radius: var(--r-pill);
+}
+.hudIcon:hover {
+  background: color-mix(in srgb, var(--fb-wood) 92%, transparent);
+}
+.hudIcon[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.25rem;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+.bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 13px;
+}
+.bar {
+  width: 4px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fb-label) 30%, transparent);
+  transition: background var(--dur-2) var(--ease);
+}
+.statusPill[data-tone='ok'] .barOn {
+  background: var(--ok);
+}
+.statusPill[data-tone='warn'] .barOn {
+  background: var(--warn);
+}
+.statusPill[data-tone='info'] .barOn {
+  background: var(--info);
+}
+.statusPill[data-tone='ok'] {
+  box-shadow: inset 0 0 0 1.5px var(--ok);
+}
+.statusWord {
+  white-space: nowrap;
+}
+
+.coach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-3);
+  max-width: min(100%, 44rem);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+}
+.coach[data-tone='warn'] {
+  box-shadow: inset 0 0 0 1.5px var(--warn), var(--shadow-2);
+}
+.coach[data-tone='ok'] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 70%, transparent), var(--shadow-2);
+}
+.coachText {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  min-width: 0;
+}
+.coachIcon {
+  flex: none;
+  margin-top: 1px;
+}
+.coachActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+.hudButton {
+  white-space: nowrap;
+}
+
+.handLine {
+  margin: 0;
+  max-width: min(100%, 40rem);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+}
+.handLine[data-tone='warn'] {
+  box-shadow: inset 0 0 0 1.5px var(--warn);
+}
+.beta {
+  margin-right: var(--sp-1);
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.6875rem;
+}
+
+/* ── Marking tools ────────────────────────────────────────────────────────────────────────── */
+.toolBanner {
+  align-self: center;
+  max-width: min(100%, 36rem);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-2);
+  text-align: center;
+}
+.toolTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-md);
+}
+.toolText {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--text-sm);
+}
+.toolError {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--warn);
+  font-weight: 600;
+}
+.dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fb-label) 30%, transparent);
+}
+.dotDone {
+  background: var(--ok);
+}
+.dotNow {
+  background: var(--accent);
+}
+
+.tapLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+.tapLayer:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.tapMark {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.875rem 0 0 -0.875rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  box-shadow: 0 0 0 2px var(--fb-wood-2), var(--shadow-2);
+  pointer-events: none;
+}
+.crosshair {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: -1.25rem 0 0 -1.25rem;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+}
+.crosshair::before {
+  left: 50%;
+  top: -8px;
+  bottom: -8px;
+  width: 2px;
+  margin-left: -1px;
+}
+.crosshair::after {
+  top: 50%;
+  left: -8px;
+  right: -8px;
+  height: 2px;
+  margin-top: -1px;
+}
+
+.fretChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-1);
+}
+.fretChip {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--sp-2);
+  border: 1px solid color-mix(in srgb, var(--fb-label) 30%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--fb-wood) 80%, transparent);
+  color: var(--fb-label);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.fretChip:hover {
+  background: var(--fb-wood);
+}
+.fretChip:active {
+  transform: scale(0.96);
+}
+.fretChip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.fretChipNow {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.wirePick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+@media (max-width: 480px) {
+  .coach {
+    padding: var(--sp-2);
+  }
+  .coachText {
+    font-size: var(--text-xs);
+  }
+  .pill {
+    min-height: 2rem;
+    font-size: var(--text-xs);
+  }
+}

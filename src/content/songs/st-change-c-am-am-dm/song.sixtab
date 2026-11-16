@@ -1,0 +1,27 @@
+# Change: C-Am and Am-Dm (repertoire plan: st-change-c-am-am-dm). An original chord-change study.
+# Each half is a ladder that changes faster and faster: the home chord held for two bars (one
+# strum a bar), then a change every bar with two strums, every bar with four strums, and every
+# two beats. First half (home C): C (x32010) with Am (x02210); fingers 1 and 2 stay down, only
+# finger 3 moves (string 5 fret 3 to string 3 fret 2). Second half (home Am): Am with Dm (xx0231);
+# the A on string 3, fret 2 stays but changes finger (3 in Am, 2 in Dm). Strum Dm on strings 4
+# to 1. Keep the metronome on: the new chord lands on the beat even if the strum before it
+# catches open strings.
+title: Change: C-Am and Am-Dm
+composer: Sixstring Academy
+source: Original chord-change study
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: chord changes, strumming, metronome, anchor fingers
+tempo: 72
+time: 4/4
+key: C
+
+track: Your strum
+role: rhythm
+[C and Am]
+| ^"One strum a bar" "C=x32010" w D | D | ^"Two strums a bar" "Am=x02210" h D D | "C=x32010" D D |
+| ^"Four strums a bar" "Am=x02210" q D D D D | "C=x32010" D D D D | ^"Change every two beats" "Am=x02210" D D "C=x32010" D D | "Am=x02210" D D "C=x32010" D D ||
+key: Am
+[Am and Dm]
+| ^"Am to Dm: the A stays, the finger changes" "Am=x02210" w D | D | "Dm=xx0231" h D D | "Am=x02210" D D |
+| "Dm=xx0231" q D D D D | "Am=x02210" D D D D | "Dm=xx0231" D D "Am=x02210" D D | "Dm=xx0231" D D "Am=x02210" D D ||

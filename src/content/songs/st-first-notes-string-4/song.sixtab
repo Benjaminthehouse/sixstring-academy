@@ -1,0 +1,25 @@
+# First Notes on String 4 (repertoire plan: st-first-notes-string-4). An original study with a
+# D minor colour: the open string 4 (D), fret 2 (E) with finger 2, fret 3 (F) with finger 3.
+# D to E is a whole step (two frets), E to F a half step (one fret); bar 2 turns around the half
+# step (E F E), bar 4 around the whole step (E D E). The teacher strums Dm and A7. It ends on D.
+title: First Notes on String 4
+id: st-first-notes-string-4
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: one string, string 4, reading, half step, whole step, d minor, beginner
+tempo: 72
+time: 4/4
+key: D minor
+
+track: Your part
+role: lead
+[Tune]
+| "Dm" q 4:0 ^"whole step" 4:2{2} ^"half step" h 4:3{3} | "A7" q 4:2 4:3 h 4:2 | "Dm" h 4:3 q 4:2 4:0 | "A7" 4:2 4:0 h 4:2 |
+| "Dm" h 4:3 4:0 | q 4:0 4:2 4:3 4:2 | "A7" 4:2 4:3 h 4:2 | "Dm" q 4:3 4:2 h 4:0 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | w / ||

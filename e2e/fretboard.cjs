@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the fretboard trainer (src/features/fretboard). Run:
- *   node e2e/fretboard.cjs [--verbose] [--shots] [--only screens,phone,desktop,every,sprint,learned,layout,mic,nomic]
+ *   node e2e/fretboard.cjs [--verbose] [--shots] [--only screens,phone,desktop,every,sprint,learned,layout,mic,nomic,review,micrelease]
  *
  * Real Chromium, real Web Audio.
  *
@@ -26,7 +26,14 @@
  *           wrong note, then the right one, again and again): the wrong note is named, the right one
  *           is heard, the rounds count it (octave policy "exact pitch")
  *  nomic    without a microphone, "Play it" explains what is missing and offers the tap version,
- *           which works
+ *           which starts at once and works
+ *  review   cases that caught real bugs in the review: step 1's pad has no sharps; a miss draws the
+ *           landmark its explanation names (and none when the note sits on one); a reload in the
+ *           middle of a round keeps the neck map, and the hub heat map shows each place's answers;
+ *           a round left part-way shows no "Best 0%"; a phone held sideways shows the whole
+ *           explanation and "Next" after a miss
+ *  micrelease  the microphone is released after "Play it", also when the learner leaves while it
+ *           is still opening (fake devices, a slowed permission prompt)
  *
  * Prints one line per failed check (all with --verbose) and PASSED or FAILED; exits non-zero on failure.
  */
@@ -502,10 +509,10 @@ async function nomic(browser, url) {
     const text = await page.locator('main').innerText();
     check('nomic', 'explains what is missing and offers the tap version', blocked && /No microphone found|microphone/i.test(text), text.slice(0, 300));
     await s.shot('nomic-phone');
+    // "Tap the notes instead" starts the tap round at once: no second "Start" to find.
     await page.getByText('Tap the notes instead').first().click();
-    await page.locator('[data-fb-start]').click();
     const q = await waitQuestion(page, 0);
-    check('nomic', 'the tap version asks to find the note on its string', q.kind === 'find');
+    check('nomic', 'the tap version starts at once and asks to find the note on its string', q.kind === 'find');
     await answerByTap(page, q, true);
     await page.waitForSelector('[data-fb-feedback="ok"]', { timeout: 5000 });
     check('nomic', 'and a tap answers it', true);
@@ -514,6 +521,224 @@ async function nomic(browser, url) {
   } finally {
     await s.close();
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// review: the cases that caught real bugs in the independent review
+// ---------------------------------------------------------------------------------------------
+const LANDMARKS = new Set([0, 3, 5, 7, 9, 12, 15]);
+const boardDesc = (page) => page.evaluate(() => document.querySelector('[data-fb-board] svg desc')?.textContent || '');
+const feedbackText = async (page) => (await page.locator('[data-fb-feedback]').innerText()).replace(/\s+/g, ' ');
+
+async function review(browser, url) {
+  // Step 1 on a phone: seven letters, and a miss on the open string draws no other landmark.
+  {
+    const s = await open(browser, url, { mobile: true });
+    const { page } = s;
+    try {
+      await s.goto('fretboard--stage--open-strings');
+      await page.locator('[data-fb-start]').click();
+      await waitQuestion(page, 0);
+      check('review', 'step 1: the pad has the seven letters only (no sharp or flat can come up)', (await page.locator('[data-fb-key]').count()) === 7, String(await page.locator('[data-fb-key]').count()));
+      let seen = false;
+      for (let i = 0; i < 10 && !seen; i++) {
+        const q = await waitQuestion(page, i);
+        const open = q.pos.fret === 0;
+        // Wrong on purpose with the next letter up: it sits a fret or two up, never on the dot at 3.
+        if (open) await page.locator(`[data-fb-key="${NATURALS.find((n) => n > q.pc) ?? 0}"]`).click();
+        else await answerByTap(page, q, true);
+        await page.waitForSelector(`[data-fb-feedback="${open ? 'bad' : 'ok'}"]`, { timeout: 5000 });
+        if (!open) continue;
+        seen = true;
+        const fb = await feedbackText(page);
+        const desc = await boardDesc(page);
+        check('review', 'a miss on an open string says so, and the board rings no other landmark', /It is the open string/.test(fb) && !/landmark/.test(desc), `${fb} | ${desc}`);
+      }
+      if (!seen) check('review', 'a miss on an open string says so, and the board rings no other landmark', false, 'no open string came up in ten questions');
+    } finally {
+      await s.close();
+    }
+  }
+  // Step 2: a miss rings the landmark its explanation names.
+  {
+    const s = await open(browser, url, { mobile: true });
+    const { page } = s;
+    try {
+      await s.goto('fretboard--stage--string-6-naturals');
+      await page.locator('[data-fb-start]').click();
+      let done = false;
+      for (let i = 0; i < 12 && !done; i++) {
+        const q = await waitQuestion(page, i);
+        const target = q.kind === 'find' ? q.targets[0] : q.pos;
+        const off = !LANDMARKS.has(target.fret);
+        await answerByTap(page, q, !off);
+        await page.waitForSelector(`[data-fb-feedback="${off ? 'bad' : 'ok'}"]`, { timeout: 5000 });
+        if (!off) continue;
+        done = true;
+        const fb = await feedbackText(page);
+        const m = /(?:The (?:double )?dot at fret (\d+)|The open string) is ([A-G])/.exec(fb);
+        const desc = await boardDesc(page);
+        const fret = m ? (m[1] ? Number(m[1]) : 0) : -1;
+        const where = fret === 0 ? 'string 6 open' : `string 6 fret ${fret}`;
+        // A wrong tap on the landmark itself stays drawn as the wrong tap.
+        const tappedThere = new RegExp(`on ${where} \\([^)]*\\), miss`).test(desc);
+        check('review', `the landmark in the explanation is the one ringed on the board (${q.kind})`, !!m && (desc.includes(`${m[2]} on ${where} (landmark)`) || tappedThere), `${fb} | ${desc}`);
+      }
+      if (!done) check('review', 'the landmark in the explanation is the one ringed on the board', false, 'no question off a landmark came up');
+    } finally {
+      await s.close();
+    }
+  }
+  // A reload in the middle of a round keeps the answers; the hub heat map shows each place's answers.
+  {
+    const s = await open(browser, url, { mobile: true });
+    const { page } = s;
+    try {
+      await s.goto('fretboard--stage--string-5-naturals');
+      await page.locator('[data-fb-start]').click();
+      const tally = new Map();
+      for (let i = 0; i < 5; i++) {
+        const q = await waitQuestion(page, i);
+        const right = i !== 1 && i !== 3;
+        await answerByTap(page, q, right);
+        await page.waitForSelector(`[data-fb-feedback="${right ? 'ok' : 'bad'}"]`, { timeout: 5000 });
+        // A right "find" is credited to the place tapped (the first target here), anything else to the place asked.
+        const at = right && q.kind === 'find' && q.targets.length ? q.targets[0] : q.pos;
+        const k = `${at.string}:${at.fret}`;
+        const e = tally.get(k) || { n: 0, ok: 0, fret: at.fret };
+        e.n++;
+        if (right) e.ok++;
+        tally.set(k, e);
+        if (!right && i < 4) await page.locator('[data-fb-continue]').click();
+      }
+      const open = await page.evaluate(() => document.querySelector('[data-fb-round]') !== null && !document.querySelector('[data-fb-summary]'));
+      await page.waitForTimeout(900);
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForSelector('main[data-route]', { timeout: 30000 });
+      await page.evaluate(async () => {
+        window.__progress = await import('/src/core/progress/index.ts');
+      });
+      const stored = await page.evaluate(() => window.__progress.getProgress().skills['fretboard:map']?.data?.s?.['5'] || '');
+      const kept = [...tally.entries()].every(([k, e]) => new RegExp(`(^|,)${k.split(':')[1]}:${e.n}\\.${e.ok}\\.`).test(stored));
+      check('review', 'a reload in the middle of a round keeps every answer on the neck map', open && kept, `round open: ${open}; ${stored} vs ${JSON.stringify([...tally])}`);
+      await s.goto('fretboard');
+      const mapDesc = await page.evaluate(() => document.querySelector('[data-fb-map] svg desc')?.textContent || '');
+      const wrongPlaces = [];
+      for (const [k, e] of tally) {
+        const where = e.fret === 0 ? 'string 5 open' : `string 5 fret ${e.fret}`;
+        if (!mapDesc.includes(`on ${where} (${e.ok} of ${e.n} right`)) wrongPlaces.push(`${k} ${e.ok}/${e.n}`);
+      }
+      check('review', 'the hub heat map shows each place with exactly its answers', wrongPlaces.length === 0, `${wrongPlaces.join(', ')} | ${mapDesc.slice(0, 400)}`);
+      const errs = s.takeErrors();
+      check('review', 'no console errors (reload)', errs.length === 0, errs.join(' | '));
+    } finally {
+      await s.close();
+    }
+  }
+  // A round left part-way is an attempt, not a best: no "Best 0%" anywhere.
+  {
+    const s = await open(browser, url);
+    const { page } = s;
+    try {
+      await s.goto('fretboard--drill--name-the-note');
+      await page.keyboard.press('Enter');
+      for (let i = 0; i < 3; i++) {
+        const q = await waitQuestion(page, i);
+        await page.keyboard.press(LETTER[q.pc] ?? `Shift+${LETTER[(q.pc + 11) % 12]}`);
+        await page.waitForSelector('[data-fb-feedback="ok"]', { timeout: 5000 });
+      }
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => location.hash === '#fretboard', null, { timeout: 10000 });
+      await page.waitForTimeout(300);
+      const card = await page.locator('[data-fb-drill="name-the-note"]').innerText();
+      check('review', 'hub: a round left part-way shows no "Best 0%"', !/Best/.test(card), card);
+      await s.goto('fretboard--drill--name-the-note');
+      const intro = await page.locator('main').innerText();
+      check('review', 'intro: no "Best 0%" either', !/Best: 0%/.test(intro), intro.slice(0, 200));
+    } finally {
+      await s.close();
+    }
+  }
+  // A phone held sideways: after a miss the whole explanation and "Next" are on screen.
+  {
+    const s = await open(browser, url, { mobile: true, viewport: { width: 844, height: 390 } });
+    const { page } = s;
+    try {
+      await s.goto('fretboard--stage--string-6-naturals');
+      await page.locator('[data-fb-start]').click();
+      let checked = false;
+      for (let i = 0; i < 6 && !checked; i++) {
+        const q = await waitQuestion(page, i);
+        if (q.kind !== 'find') {
+          await answerByTap(page, q, true);
+          await page.waitForSelector('[data-fb-feedback="ok"]', { timeout: 5000 });
+          continue;
+        }
+        await answerByTap(page, q, false);
+        await page.waitForSelector('[data-fb-continue]', { timeout: 5000 });
+        await page.waitForTimeout(900);
+        const fit = await page.evaluate(() => {
+          const lines = [...document.querySelectorAll('[data-fb-feedback] > *')].map((e) => e.getBoundingClientRect().bottom);
+          return { last: Math.max(...lines), next: document.querySelector('[data-fb-continue]').getBoundingClientRect().bottom, vh: innerHeight };
+        });
+        check('review', 'sideways: the whole explanation and "Next" are on screen after a miss', fit.last <= fit.vh + 1 && fit.next <= fit.vh + 1, JSON.stringify(fit));
+        await s.shot('sideways-miss');
+        checked = true;
+      }
+      if (!checked) check('review', 'sideways: the whole explanation and "Next" are on screen after a miss', false, 'no find question came up');
+    } finally {
+      await s.close();
+    }
+  }
+}
+
+/**
+ * The microphone is released when "Play it" is left: after a round, and also when the learner
+ * leaves while the microphone is still opening (the permission prompt is up).
+ */
+async function micRelease() {
+  await withApp({ fakeDevices: true, mobile: true }, async ({ page, context, url }) => {
+    await context.addInitScript((entries) => {
+      for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) == null) localStorage.setItem(k, v);
+      // Every stream handed out, and a slow "permission prompt" when the test asks for one.
+      window.__streams = [];
+      const md = navigator.mediaDevices;
+      const orig = md.getUserMedia.bind(md);
+      md.getUserMedia = async (c) => {
+        const delay = Number(sessionStorage.getItem('micDelay') || 0);
+        if (delay) await new Promise((r) => setTimeout(r, delay));
+        const st = await orig(c);
+        window.__streams.push(st);
+        return st;
+      };
+    }, ONBOARDED);
+    const s = wrap(page, url, context, VIEWPORTS.mobile);
+    const live = () => page.evaluate(() => window.__streams.flatMap((st) => st.getTracks()).filter((t) => t.readyState === 'live').length);
+    const opened = () => page.evaluate(() => window.__streams.length);
+    // Normal: listening, then the round's X.
+    await s.goto('fretboard--drill--play-the-note');
+    await page.locator('[data-fb-start]').click();
+    await page.waitForSelector('[data-fb-listening]', { timeout: 20000 });
+    check('micrelease', 'the microphone is open while listening', (await live()) >= 1, String(await live()));
+    await page.locator('[data-fb-end]').click();
+    await page.waitForFunction(() => location.hash === '#fretboard', null, { timeout: 10000 });
+    await page.waitForTimeout(800);
+    check('micrelease', 'ending the round releases the microphone', (await live()) === 0, `${await live()} live tracks`);
+    // Leaving while the microphone is still opening.
+    await page.evaluate(() => sessionStorage.setItem('micDelay', '1500'));
+    await s.goto('fretboard--drill--play-the-note');
+    const before = await opened();
+    await page.locator('[data-fb-start]').click();
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      location.hash = '#fretboard';
+    });
+    await page.waitForTimeout(3500);
+    const after = await opened();
+    check('micrelease', 'leaving while the microphone opens leaves it closed', after > before && (await live()) === 0, `opened ${after - before}, live ${await live()}`);
+    const errs = s.takeErrors();
+    check('micrelease', 'no console errors', errs.length === 0, errs.join(' | '));
+  });
 }
 
 /** Light-theme screenshots of the main screens (only with --shots). */
@@ -548,6 +773,7 @@ withApp({}, async ({ browser, url }) => {
     ['learned', learned],
     ['layout', layout],
     ['nomic', nomic],
+    ['review', review],
     ['shots', lightShots],
   ];
   for (const [name, fn] of groups) {
@@ -572,6 +798,16 @@ withApp({}, async ({ browser, url }) => {
       }
       const mine = results.filter((r) => r.group === 'mic');
       console.log(`${mine.every((r) => r.pass) ? 'ok  ' : 'FAIL'}  mic: ${mine.filter((r) => r.pass).length}/${mine.length} checks (${Math.round((Date.now() - t) / 1000)} s)`);
+    }
+    if (wants('micrelease')) {
+      const t = Date.now();
+      try {
+        await micRelease();
+      } catch (e) {
+        check('micrelease', 'ran to the end', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' ') : e);
+      }
+      const mine = results.filter((r) => r.group === 'micrelease');
+      console.log(`${mine.every((r) => r.pass) ? 'ok  ' : 'FAIL'}  micrelease: ${mine.filter((r) => r.pass).length}/${mine.length} checks (${Math.round((Date.now() - t) / 1000)} s)`);
     }
     const failed = results.filter((r) => !r.pass);
     console.log(failed.length ? `FAILED (${failed.length} of ${results.length} checks)` : `PASSED (${results.length} checks)`);

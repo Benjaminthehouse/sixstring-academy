@@ -39,7 +39,7 @@ function textProblems(text: RichText, limit: number, glossary: ReturnType<typeof
   const parsed = parseRichText(text, { glossary });
   out.push(...parsed.problems);
   if (textLength(text, { glossary }) > limit) out.push(`longer than ${limit} characters`);
-  for (const s of looseSymbols(text, { glossary })) out.push(`untagged music symbol "${s.text}"`);
+  for (const s of looseSymbols(text, { glossary })) out.push(`untagged music symbol "${s.symbol}" (write ${s.tag})`);
   return out;
 }
 
@@ -161,6 +161,9 @@ describe.each(TEACHER_KEYS)('the written units of %s', (teacher) => {
           const song = taskSong(step);
           if (song && !songEntry(song)) expect(step.fallback, `${where}: "${song}" is not in the song library, so the task needs a fallback`).toBeTruthy();
           if (step.fallback) expect(textProblems(step.fallback.body, TEXT_LIMITS.cardBody, glossary), `${where}: fallback`).toEqual([]);
+          if (step.fallback?.title) expect(textProblems(step.fallback.title, TEXT_LIMITS.cardTitle, glossary), `${where}: fallback title`).toEqual([]);
+          // A lesson saved before anything was done is not kept, so a task never opens a lesson.
+          expect(lesson.steps.indexOf(step), `${where}: a task is not the first step`).toBeGreaterThan(0);
         }
       }
     }
@@ -203,6 +206,23 @@ describe('Mia', () => {
     const squash = (xs: number[]) => xs.filter((x, i) => i === 0 || x !== xs[i - 1]);
     expect(squash(phraseMidi(show))).toEqual(squash(library));
     expect(phraseMidi(show)).toEqual([59, 57, 55, 59, 57, 55, 55, 55, 57, 57, 59, 57, 55]);
+  });
+
+  it("describes the Open-String Duet as the library's student part has it", async () => {
+    const tc = await course('mia');
+    const { song, errors } = parseSixTab(await loadSongText('st-open-string-duet'));
+    expect(errors).toEqual([]);
+    const part = song!.tracks[0];
+    const bars = part.measures.map((m) => m.beats.filter((b) => b.notes.length > 0));
+    // Bars 1-4 string 6, 5-8 string 5, 9-12 string 4, then E A D E: what the lesson's card says.
+    const strings = bars.map((b) => [...new Set(b.map((x) => x.notes[0].string))].join(','));
+    expect(strings).toEqual(['6', '6', '6', '6', '5', '5', '5', '5', '4', '4', '4', '4', '6', '5', '4', '6']);
+    expect(bars.flat().every((b) => b.notes[0].fret === 0)).toBe(true);
+    // The card's tab is bars 1 and 3 of the part, note for note.
+    const card = tc.lesson('sit-and-hold')!.steps.find((s) => (s as { title?: string }).title === 'The Open-String Duet') as { figure: { notes: Array<{ string: number; duration: string }> } };
+    const durations = (bar: typeof bars[number]) => bar.map((b) => (b.duration === 1920 ? 'h' : b.duration === 960 ? 'q' : String(b.duration)));
+    expect(card.figure.notes.map((n) => n.duration)).toEqual([...durations(bars[0]), ...durations(bars[2])]);
+    expect(card.figure.notes.every((n) => n.string === 6)).toBe(true);
   });
 
   it('teaches the open strings as standard tuning sounds them', async () => {

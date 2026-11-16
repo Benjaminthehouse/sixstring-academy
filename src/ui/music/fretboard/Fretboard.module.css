@@ -244,8 +244,8 @@
     opacity: 0;
     transform: scale(0.55);
   }
+  /* No opacity here: the end state is the marker's own opacity, so a ghost stays dim after the pop. */
   to {
-    opacity: 1;
     transform: scale(1);
   }
 }

@@ -22,7 +22,7 @@
 
 .slots {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(8.5rem, 100%), 1fr));
   gap: var(--sp-3);
 }
 @media (max-width: 719.98px) {
@@ -421,7 +421,10 @@
   .countIn {
     font-size: var(--text-4xl);
   }
+  /* Stop and the tap button share one row, so the chords keep the height. */
   .tapButton {
+    width: auto;
+    flex: 1 1 16rem;
     min-height: 3.25rem;
   }
   .bigCard svg {

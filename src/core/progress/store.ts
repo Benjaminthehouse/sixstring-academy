@@ -162,9 +162,23 @@ export function createProgressStore(options: ProgressStoreOptions = {}): Progres
     }
   }
 
+  /** True between pagehide and pageshow: the page may be gone before a timer fires. */
+  let hiding = false;
+
+  function pageIsHidden(): boolean {
+    return hiding || (typeof document !== 'undefined' && document.visibilityState === 'hidden');
+  }
+
   function scheduleSave(): void {
     pending = true;
-    if (saveHandle !== null || destroyed) return;
+    if (destroyed) return;
+    // A change made while the page is hidden or closing (a screen logging practice on pagehide or
+    // visibilitychange, after this store already flushed) is written at once: a timer might never run.
+    if (pageIsHidden()) {
+      flush();
+      return;
+    }
+    if (saveHandle !== null) return;
     saveHandle = timers.set(save, saveDelay);
   }
 
@@ -232,7 +246,13 @@ export function createProgressStore(options: ProgressStoreOptions = {}): Progres
       if (event.key === null || event.key.endsWith(key)) syncFromStorage();
     }) as EventListener);
 
-    listen(window, 'pagehide', () => flush());
+    listen(window, 'pagehide', () => {
+      hiding = true;
+      flush();
+    });
+    listen(window, 'pageshow', () => {
+      hiding = false;
+    });
     if (typeof document !== 'undefined') {
       listen(document, 'visibilitychange', () => {
         if (document.visibilityState === 'hidden') {

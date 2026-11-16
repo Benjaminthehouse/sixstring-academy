@@ -1,0 +1,56 @@
+# Row, Row, Row Your Boat (repertoire plan: row-row-row-your-boat). Lyte's 1881 tune with the
+# anonymous verse, in G in first position, 8 bars of 6/8: two beats in each bar, each beat split
+# in three. Tempo 84 quarters a minute is a dotted quarter (one beat) at 56.
+# Notes: G = open string 3, A = string 3 fret 2 (finger 2), B = open string 2, C = string 2
+# fret 1 (finger 1), D = string 2 fret 3 (finger 3), high G = string 1 fret 3 (finger 3).
+# The "merrily" bars step down through the notes of the G chord (G, D, B, G), three eighths on
+# each. The tune sits over one G chord, so it works as a round: the second time through, the
+# teacher's second voice starts two bars after you, and you hold a G while it finishes.
+title: Row, Row, Row Your Boat
+id: row-row-row-your-boat
+composer: Eliphalet Oram Lyte
+source: Tune published by E. O. Lyte in 1881; anonymous words printed in 1852; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Lyte died in 1913; anonymous words of 1852); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: melody, lyrics, round, 6/8, beginner
+tempo: 84
+time: 6/8
+key: G
+
+track: Melody
+role: lead
+[Tune]
+| "G" q. 3:0 3:0 | q 3:0 e 3:2{2} q. 2:0 | q 2:0 e 3:2 q 2:0 e 2:1{1} | h. 2:3{3} |
+lyrics: Row, row, row your boat, gent- ly down the stream.
+| e 1:3{3} 1:3 1:3 2:3{3} 2:3 2:3 | e 2:0 2:0 2:0 3:0 3:0 3:0 | q 2:3 e 2:1 q 2:0 e 3:2 | h. 3:0 |
+lyrics: Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, life is but a dream.
+[Round]
+| q. 3:0 3:0 | q 3:0 e 3:2 q. 2:0 | q 2:0 e 3:2 q 2:0 e 2:1 | h. 2:3 |
+lyrics: Row, row, row your boat, gent- ly down the stream.
+| e 1:3 1:3 1:3 2:3 2:3 2:3 | e 2:0 2:0 2:0 3:0 3:0 3:0 | q 2:3 e 2:1 q 2:0 e 3:2 | h. 3:0 |
+lyrics: Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, life is but a dream.
+[Ending]
+| h. 3:0 | 3:- ||
+
+track: Teacher (chords)
+role: rhythm
+[Tune]
+| q. / / | / / | / / | / / | / / | / / | / / | / / |
+[Round]
+| / / | / / | / / | / / | / / | / / | / / | / / |
+[Ending]
+| / / | h. / ||
+
+track: Second voice
+role: lead
+[Tune]
+| h. r | r | r | r | r | r | r | r |
+[Round]
+| r | r | q. 3:0 3:0 | q 3:0 e 3:2 q. 2:0 | q 2:0 e 3:2 q 2:0 e 2:1 | h. 2:3 |
+lyrics: Row, row, row your boat, gent- ly down the stream.
+| e 1:3 1:3 1:3 2:3 2:3 2:3 | e 2:0 2:0 2:0 3:0 3:0 3:0 |
+lyrics: Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly,
+[Ending]
+| q 2:3 e 2:1 q 2:0 e 3:2 | h. 3:0 ||
+lyrics: life is but a dream.

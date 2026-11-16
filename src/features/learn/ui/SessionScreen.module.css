@@ -1,0 +1,20 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  max-width: 44rem;
+  margin: var(--sp-6) auto;
+}
+.message {
+  max-width: 34rem;
+  margin: var(--sp-12) auto var(--sp-8);
+}
+/* The way back sits at the bottom of the screen, however short the page. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-8));
+}
+.screen > [data-ui-action-bar] {
+  margin-top: auto;
+}

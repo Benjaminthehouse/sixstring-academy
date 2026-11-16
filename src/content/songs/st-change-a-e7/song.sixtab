@@ -1,0 +1,34 @@
+# Change: A and E7 (repertoire plan: st-change-a-e7). Clean changes between A (x02220) and
+# E7 (020100), the two chords of Skip to My Lou. An 8-bar ladder, played twice: 2 bars with one
+# strum per bar and the chord held for both, 2 bars changing every bar with two strums, 2 bars
+# changing every bar with four strums, then 2 bars changing every 2 beats. No finger stays put
+# between the two shapes: lift them all together, land them all together, on the beat.
+# The teacher plays an original tune whose notes on beats 1 and 3 belong to the chord in force.
+title: Change: A and E7
+id: st-change-a-e7
+composer: Sixstring Academy
+source: Original chord-change study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: chord change, a, e7, strumming, beginner
+tempo: 60
+time: 4/4
+key: A
+
+track: Your strum
+role: rhythm
+[First time]
+| ^"1 strum a bar" "A=x02220" w D | D | ^"2 strums a bar" "E7=020100" h D D | "A=x02220" D D |
+| ^"4 strums a bar" "E7=020100" q D D D D | "A=x02220" D D D D | ^"change every 2 beats" "E7=020100" D D "A=x02220" D D | "E7=020100" D D "A=x02220" D D |
+[Second time]
+| ^"1 strum a bar" "A=x02220" w D | D | ^"2 strums a bar" "E7=020100" h D D | "A=x02220" D D |
+| ^"4 strums a bar" "E7=020100" q D D D D | "A=x02220" D D D D | ^"change every 2 beats" "E7=020100" D D "A=x02220" D D | "E7=020100" D D "A=x02220" h D ||
+
+track: Teacher
+role: lead
+[First time]
+| h 1:0 q 2:2 3:2 | h 3:2 2:2 | h 2:0 2:3 | h 2:2 3:2 |
+| q 3:1 2:0 2:3 2:0 | q 3:2 2:2 1:0 2:2 | h 2:0 2:2 | h 2:3 2:2 |
+[Second time]
+| h 1:0 q 2:2 3:2 | h 2:2 1:0 | h 2:3 2:0 | h 2:2 3:2 |
+| q 2:0 2:3 3:1 2:0 | q 2:2 1:0 3:2 2:2 | h 2:0 2:2 | q 2:3 2:0 h 3:2 ||

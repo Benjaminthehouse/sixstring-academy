@@ -7,8 +7,9 @@
  * Player, Tuner, Metronome or Technique and back. Mia's voice: patient, concrete, one idea at a
  * time, no word before it is explained.
  *
- * Music: Hot Cross Buns is in the song library. The Open-String Duet (`st-open-string-duet`) is not
- * yet, so its tasks carry a Metronome fallback that does the same job: a steady beat on open strings.
+ * Music from the song library: the Open-String Duet (`st-open-string-duet`, 80 BPM, the Player
+ * starts it at 75 %: 60 BPM), Hot Cross Buns and First Notes on String 3. The tests check the tune
+ * the lessons teach against the library's.
  */
 import type { TeacherLesson, TeacherUnit } from '../types';
 import { playerTask, techniqueTask, toolTask } from '../tasks';
@@ -21,12 +22,6 @@ const OPEN_STRINGS = [
   { string: 2, fret: 0, note: 'B3' },
   { string: 1, fret: 0, note: 'E4' },
 ] as const;
-
-/** The Metronome version of the Open-String Duet's student part, until the duet is in the library. */
-const DUET_FALLBACK = {
-  tool: 'metronome' as const,
-  body: 'The duet is not in your song library yet, so we use the Metronome. Set it to 60 {t:bpm|BPM}, one click a second. Play the open string 6 with your thumb on every click for 8 clicks, then string 5, then string 4.',
-};
 
 // ── 1. Meet your guitar ─────────────────────────────────────────────────────────────────────────
 
@@ -144,10 +139,10 @@ const meetYourGuitar: TeacherLesson = {
       title: 'Your first music: the Open-String Duet',
       song: 'st-open-string-duet',
       bars: [1, 4],
+      tempo: 75,
       minutes: 3,
-      body: 'Play along with bars 1 to 4: only the open string 6, one thumb stroke on every beat, while the app plays the tune above you. A {t:bar} is a group of four beats, the steady pulse you could tap your foot to.',
+      body: 'Play along with bars 1 to 4: only the open string 6, plucked with your thumb, while the app plays the tune above you. A {t:bar} is a group of four beats, the steady pulse you could tap your foot to. Long notes last two beats, short ones one.',
       tip: 'Do not chase the tune. Your job is the steady beat underneath it.',
-      fallback: DUET_FALLBACK,
     }),
     {
       type: 'choice',
@@ -232,21 +227,19 @@ const sitAndHold: TeacherLesson = {
     {
       type: 'card',
       title: 'The Open-String Duet',
-      body: 'Your part uses only open strings, one stroke per beat: string 6 for bars 1 to 4, string 5 for bars 5 to 8, string 4 for bars 9 to 12, then one bar each of {n:E}, {n:A}, {n:D}, {n:E}. The app plays the tune above you.',
+      body: 'Your part uses only open strings: string 6 for bars 1 to 4, string 5 for bars 5 to 8, string 4 for bars 9 to 12, then {n:E}, {n:A}, {n:D}, {n:E} to finish. Long notes last two beats, short ones one. The app plays the tune above you.',
       figure: {
         kind: 'tab',
         tempo: 60,
         notes: [
+          { string: 6, fret: 0, duration: 'h' },
+          { string: 6, fret: 0, duration: 'h' },
           { string: 6, fret: 0, duration: 'q' },
           { string: 6, fret: 0, duration: 'q' },
           { string: 6, fret: 0, duration: 'q' },
           { string: 6, fret: 0, duration: 'q' },
-          { string: 5, fret: 0, duration: 'q' },
-          { string: 5, fret: 0, duration: 'q' },
-          { string: 5, fret: 0, duration: 'q' },
-          { string: 5, fret: 0, duration: 'q' },
         ],
-        caption: 'Bar 1 on string 6, then bar 5 on string 5: one thumb stroke per beat.',
+        caption: 'Bars 1 and 3 of your part: two long notes, then four short ones.',
       },
     },
     {
@@ -278,10 +271,10 @@ const sitAndHold: TeacherLesson = {
       id: 'duet-whole',
       title: 'Play the whole Open-String Duet',
       song: 'st-open-string-duet',
+      tempo: 75,
       minutes: 4,
       body: 'Sit as you learned, then play the whole duet at 60 {t:bpm|BPM} (60 beats per minute, one a second) while the app plays the tune and chords. If you lose your place, keep counting and come back in on the next bar.',
       tip: 'Every minute or so, freeze for a second and check your shoulders and thumb.',
-      fallback: DUET_FALLBACK,
     }),
     {
       type: 'true-false',
@@ -579,7 +572,7 @@ const hotCrossBuns: TeacherLesson = {
       id: 'press',
       title: 'Press just behind the fret',
       art: 'fretting',
-      body: 'Press with the very tip of your finger just behind the fret wire, on the side nearer the body: not on top of the wire, not in the middle of the space. Use just enough pressure for a clear note.',
+      body: 'Press with the very tip of your finger in the space just behind the fret wire, right up against it: not on top of the wire, and not back in the middle of the space. Use just enough pressure for a clear note.',
       tip: 'Buzzing? Move closer to the wire or press a little harder. Muffled? Curve the finger so it stands on its tip.',
     },
     {
@@ -693,6 +686,15 @@ const hotCrossBuns: TeacherLesson = {
       show: 'both',
       explain: 'Eight eighth notes: two for every beat. Counting "1 and 2 and" keeps them even.',
     },
+    playerTask({
+      id: 'string-3-study',
+      title: 'First Notes on String 3',
+      song: 'st-first-notes-string-3',
+      mode: 'wait',
+      bars: [1, 4],
+      minutes: 3,
+      body: 'Bars 1 to 4 of a new study, in wait mode: the open {n:G} and {n:A} at fret 2 of string 3. Here your hand sits in first position, so fret 2 is finger 2, as the Player shows. The second half crosses to strings 2 and 1: leave it for now.',
+    }),
     {
       type: 'fretboard-name',
       prompt: 'Which note is string 3, fret 2?',
@@ -705,7 +707,7 @@ const hotCrossBuns: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'where-to-press', front: 'Where do you press a string for a clean note?', back: 'With the fingertip, just behind the fret wire, on the side nearer the body.' },
+    { id: 'where-to-press', front: 'Where do you press a string for a clean note?', back: 'With the fingertip, in the space right up against the fret wire: not on it, not in the middle.' },
     { id: 'tab-zero', front: 'In tab, what does 0 mean?', back: 'Play that string open, with no finger on it.' },
     { id: 'buns-notes', front: 'The three notes of Hot Cross Buns on string 3?', back: '{n:B} at fret 4, {n:A} at fret 2, and the open {n:G}.' },
   ],

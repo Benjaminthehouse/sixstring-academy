@@ -7,12 +7,12 @@
  * Keyboard: 1–7 add the key's chords, Backspace removes the selected (or last) chord, Space plays
  * and pauses, ←/→ move the key a half step.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { useScreenTitle } from '@/app/shell';
 import { backingFor, formatSlot, resolveSlot } from '@/content/progressions';
 import { BACKING_STYLES, BACKING_STYLE_IDS, type BackingStyleId } from '@/core/audio';
-import { recordActivity } from '@/core/progress';
+import { awardXp, touchRecent } from '@/core/progress';
 import {
   ActionBar, Badge, Button, Icon, EmptyState, IconButton, Kbd, LinkButton, List, ListItem, Menu, Modal, Page, PlayButton,
   Section, SegmentedControl, Select, Stepper, Switch, Text, TextField, confirmDialog, cx, toast, useEventListener, useIsMobile,
@@ -20,14 +20,14 @@ import {
 import { useMusicSettings } from '@/ui/music';
 import { strumChord } from '../audio/preview';
 import {
-  SLOT_LENGTHS, STARTER_DRAFT, addSlot, degreeChord, draftBars, draftCadences, draftHome, draftLayout, draftProgression, draftTitle,
+  MAX_SLOTS, SLOT_LENGTHS, STARTER_DRAFT, addSlot, degreeChord, draftBars, draftCadences, draftHome, draftLayout, draftProgression, draftTitle,
   latestCadence, moveSlot, palette, removeSlot, setKey, setLength, spellKey, suggestNext, transposeDraft,
   type BuilderDraft, type BuilderMode, type PaletteChord, type SlotLength,
 } from '../model/builder';
 import { clampTempo, feelFor, positionOf } from '../model/jam';
-import { deleteSaved, draftFromSaved, restoreSaved, saveDraft, renameSaved, useSavedProgressions, type SavedProgression } from '../model/saved';
+import { BUILT_XP, deleteSaved, draftFromSaved, restoreSaved, saveDraft, renameSaved, useSavedProgressions, type SavedProgression } from '../model/saved';
 import { chordName, dialogOpen, keyName, noteName, ownsKey, useJamSettings } from './shared';
-import { useBand } from './useBand';
+import { useBand, useBandLog } from './useBand';
 import styles from './Builder.module.css';
 
 const LENGTH_LABEL: Record<SlotLength, string> = { 0.5: '½ bar', 1: '1 bar', 2: '2 bars', 4: '4 bars' };
@@ -48,7 +48,6 @@ export function Builder({ draft, setDraft }: BuilderProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [nameDialog, setNaming] = useState<{ open: boolean; value: string; then?: 'save' | 'copy' }>({ open: false, value: '' });
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
-  const opened = useRef(Date.now());
   useScreenTitle(draft.name.trim() || 'Build a progression');
 
   const home = draftHome(draft);
@@ -73,6 +72,13 @@ export function Builder({ draft, setDraft }: BuilderProps) {
   }, [progression, draft.tonic, draft.style, draft.tempo, settings.countIn]);
   const band = useBand(setup, { muted: settings.muted });
   const playing = band.status === 'playing' || band.status === 'count-in';
+  // Playing along with the band here is a jam like any other.
+  useBandLog(band, {
+    skillId: 'progression:builder',
+    title: `Jam: ${draft.name.trim() || draftTitle(draft)}`,
+    params: draft.savedId ? ['builder', draft.savedId] : ['builder'],
+    data: { tonic: draft.tonic, tempo: draft.tempo, style: draft.style },
+  });
   const playingSlot = useMemo(() => {
     if (!band.heard || !setup || band.status === 'idle') return null;
     const pos = positionOf(setup.resolved, band.heard.segment);
@@ -81,6 +87,10 @@ export function Builder({ draft, setDraft }: BuilderProps) {
 
   // ── Editing ─────────────────────────────────────────────────────────────────────────────
   const add = useCallback((token: string) => {
+    if (draft.slots.length >= MAX_SLOTS) {
+      toast.info(`A progression holds up to ${MAX_SLOTS} chords`, { id: 'progressions-full', description: 'Remove one to make room, or save this one and start another.' });
+      return;
+    }
     setDraft((d) => {
       const at = selected !== null && selected < d.slots.length ? selected + 1 : undefined;
       const next = addSlot(d, token, 1, at);
@@ -94,7 +104,7 @@ export function Builder({ draft, setDraft }: BuilderProps) {
       /* keep the token */
     }
     if (!playing) void strumChord(symbol);
-  }, [setDraft, selected, home, playing]);
+  }, [setDraft, selected, home, playing, draft.slots.length]);
 
   const remove = useCallback((index: number) => {
     setDraft((d) => removeSlot(d, index));
@@ -116,16 +126,10 @@ export function Builder({ draft, setDraft }: BuilderProps) {
     if (!r) return;
     setDraft(draftFromSaved(r.saved));
     if (r.created) {
-      recordActivity({
-        kind: 'progression',
-        id: 'progression:builder',
-        title: `Built: ${r.saved.name}`,
-        durationSec: Math.min(1800, Math.round((Date.now() - opened.current) / 1000)),
-        route: 'progressions',
-        params: ['builder', r.saved.id],
-        data: { chords: r.saved.slots.length },
-      });
-      opened.current = Date.now();
+      // A new progression is a small win: a few XP and a place in "Continue". It is not a jam:
+      // the jam (kind 'progression') is logged from the time the band actually plays.
+      awardXp(BUILT_XP, `Built: ${r.saved.name}`, 'theory');
+      touchRecent({ route: 'progressions', params: ['builder', r.saved.id], title: r.saved.name, kind: 'progression' });
     }
     if (r.persisted) toast.ok(r.created ? `Saved “${r.saved.name}”` : `Updated “${r.saved.name}”`, { description: 'Find it under Yours in Progressions.' });
     else toast.warn('Saved for now', { description: 'This browser will not keep it after you close the app.' });
@@ -202,13 +206,17 @@ export function Builder({ draft, setDraft }: BuilderProps) {
       type="button"
       className={cx(styles.tile, c.group !== 'diatonic' && styles.tileColour)}
       onClick={() => add(c.token)}
-      aria-label={`Add ${chordName(c.symbol, naming)}, ${formatSlot(c.token)}${c.role ? `, ${ROLE_LABEL[c.role]}` : ''}`}
+      aria-label={`Add ${chordName(c.symbol, naming)}, ${formatSlot(c.token)}${c.role ? `, ${ROLE_LABEL[c.role]}` : c.leadsTo ? `, leads to ${chordName(c.leadsTo, naming)}` : ''}`}
       data-add={c.token}
     >
       <span className={styles.tileNumeral}>{formatSlot(c.token)}</span>
       <span className={styles.tileChord}>{chordName(c.symbol, naming)}</span>
       <span className={styles.tileFoot}>
-        {c.role ? <span className={styles.role} data-role={c.role}>{ROLE_LABEL[c.role]}</span> : <span className={styles.role}>{c.group === 'borrowed' ? 'Borrowed' : 'Applied'}</span>}
+        {c.role ? (
+          <span className={styles.role} data-role={c.role}>{ROLE_LABEL[c.role]}</span>
+        ) : (
+          <span className={styles.role}>{c.leadsTo ? `Leads to ${chordName(c.leadsTo, naming)}` : 'Borrowed'}</span>
+        )}
         {c.degree !== null && !isPhone && <Kbd>{c.degree}</Kbd>}
       </span>
     </button>

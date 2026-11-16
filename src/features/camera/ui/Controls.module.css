@@ -1,0 +1,161 @@
+/* The controls beside the picture. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  gap: var(--sp-2);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.stepperText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.stepperLabel {
+  font-weight: 650;
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.stepperDetail {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
+.nowNext {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.nowNext p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.nextLine {
+  color: var(--fg-muted);
+}
+.nowTag,
+.nextTag {
+  display: inline-block;
+  min-width: 2.75rem;
+  margin-right: var(--sp-1);
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+}
+.nowTag {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.nextTag {
+  border: 1px solid var(--line-strong);
+  color: var(--fg-muted);
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  position: relative;
+}
+.stepCount {
+  position: absolute;
+  right: 0;
+}
+
+.target {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+}
+.targetLabel {
+  grid-row: 1;
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.targetNote {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  justify-self: start;
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  line-height: 1;
+}
+.targetWhere {
+  grid-row: 2;
+  grid-column: 1;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.drillRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.drillRow > :first-child {
+  flex: 1;
+}
+
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.sub + .sub {
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.subTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.helpButton {
+  justify-content: flex-start;
+}
+
+.compact {
+  gap: var(--sp-2);
+}

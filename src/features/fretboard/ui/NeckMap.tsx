@@ -55,7 +55,10 @@ export function NeckMap({ trainer, stats, frets }: NeckMapProps) {
   const flats = trainer.ctx.spelling === 'flats';
   const markers = useMemo<FretMarker[]>(() => {
     const out: FretMarker[] = [];
-    for (const c of cells) {
+    // Places tried come first: the board's spoken description lists the first few dozen markers,
+    // and what the learner has answered matters more than the faint "not tried yet" rings.
+    const ordered = [...cells.filter((c) => c.level !== 'new'), ...cells.filter((c) => c.level === 'new')];
+    for (const c of ordered) {
       const note = spell(c.pc, flats ? 'flats' : 'sharps');
       if (view === 'speed') {
         if (!c.ms) continue;

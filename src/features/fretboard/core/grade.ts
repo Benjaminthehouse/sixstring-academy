@@ -16,17 +16,24 @@ export interface NameGrade {
   givenAt: Pos | null;
 }
 
-/** Judge a named note against a "name it" question. */
-export function gradeName(q: NameQuestion, pc: number, ctx: NeckContext, maxFret = 24): NameGrade {
+/**
+ * Judge a named note against a "name it" question. Where the named note sits is looked for on the
+ * frets the board shows (`range`) first, so "B is at fret 7" points at something the learner can
+ * see; only when it is not there does the rest of the neck (up to `maxFret`) count.
+ */
+export function gradeName(q: NameQuestion, pc: number, ctx: NeckContext, range: readonly [number, number] = [0, 24], maxFret = 24): NameGrade {
   const right = pcOf(pc) === q.pc;
   if (right) return { right, givenAt: null };
-  let best: Pos | null = null;
-  for (let fret = 0; fret <= maxFret; fret++) {
-    const p = { string: q.pos.string, fret };
-    if (pcAt(ctx, p) !== pcOf(pc)) continue;
-    if (!best || Math.abs(fret - q.pos.fret) < Math.abs(best.fret - q.pos.fret)) best = p;
-  }
-  return { right, givenAt: best };
+  const nearest = (lo: number, hi: number): Pos | null => {
+    let best: Pos | null = null;
+    for (let fret = Math.max(0, lo); fret <= hi; fret++) {
+      const p = { string: q.pos.string, fret };
+      if (pcAt(ctx, p) !== pcOf(pc)) continue;
+      if (!best || Math.abs(fret - q.pos.fret) < Math.abs(best.fret - q.pos.fret)) best = p;
+    }
+    return best;
+  };
+  return { right, givenAt: nearest(range[0], range[1]) ?? nearest(0, Math.max(maxFret, range[1])) };
 }
 
 /** What a tap on the neck means for a tap question. */

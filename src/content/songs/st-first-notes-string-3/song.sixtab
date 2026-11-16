@@ -1,0 +1,26 @@
+# First Notes on String 3 (repertoire plan: st-first-notes-string-3). An original study in G
+# major. Bars 1-4: the open string 3 (G) and fret 2 (A) with finger 2, a call and answer over the
+# teacher's G and D7 (A sits in D7). Bars 5-8 use strings 3, 2 and 1 together: G, A, B, C, D and
+# the open string 1 (E), up the G chord and back down to G.
+title: First Notes on String 3
+id: st-first-notes-string-3
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: string 3, three strings, reading, g major, beginner
+tempo: 72
+time: 4/4
+key: G
+
+track: Your part
+role: lead
+[String 3]
+| "G" q 3:0 3:2{2} h 3:0 | "D7" q 3:2 3:0 h 3:2 | "G" q 3:0 3:0 3:2 3:0 | "D7" 3:2 3:2 h 3:2 |
+[Strings 3, 2 and 1]
+| "G" q 3:0 2:0 h 2:3{3} | q 2:3 1:0 2:3 2:0 | "D7" 2:1{1} 2:0 3:2{2} 2:1 | "G" 2:3 2:0 h 3:0 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | w / ||

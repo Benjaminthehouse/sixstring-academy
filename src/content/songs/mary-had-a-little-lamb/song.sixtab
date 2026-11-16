@@ -1,0 +1,28 @@
+# Mary Had a Little Lamb (repertoire plan: mary-had-a-little-lamb). The familiar tune on strings
+# 3 and 2 in first position: the open string 3 (G), string 3 fret 2 (A) with finger 2, the open
+# string 2 (B) and string 2 fret 3 (D) with finger 3. The teacher strums G throughout, with D7
+# under bars 3 and 7.
+title: Mary Had a Little Lamb
+id: mary-had-a-little-lamb
+composer: Lowell Mason (tune, adapted); words by Sarah Josepha Hale
+source: Poem published in 1830, sung to Lowell Mason's tune from the 1830s; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (tune and words); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: melody, two strings, lyrics, beginner
+tempo: 96
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[Verse]
+| "G" q 2:0 3:2{2} 3:0 3:2 | 2:0 2:0 h 2:0 | "D7" q 3:2 3:2 h 3:2 | "G" q 2:0 2:3{3} h 2:3 |
+lyrics: Ma- ry had a lit- tle lamb, lit- tle lamb, lit- tle lamb,
+| q 2:0 3:2 3:0 3:2 | 2:0 2:0 2:0 2:0 | "D7" 3:2 3:2 2:0 3:2 | "G" w 3:0 ||
+lyrics: Ma- ry had a lit- tle lamb, its fleece was white as snow.
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | w / ||

@@ -6,6 +6,7 @@ import { BLIND_SPOTS, DRILLS, drillSkillId } from '../core/drills';
 import { fretWords } from '../core/explain';
 import { STAGES, stageSkillId, stageTitle, stringName } from '../core/path';
 import { pcAt } from '../core/neck';
+import { bestResult } from '../core/round';
 import { spell } from '../core/notes';
 import { blindSpots, notesLearnedOn, stringLearned, totals } from '../core/stats';
 import { NeckMap } from './NeckMap';
@@ -23,7 +24,7 @@ export function Hub() {
   const steps = STAGES.map((st) => {
     const sk = skills[stageSkillId(st)];
     const passed = !!sk && sk.bestAccuracy >= 0.8 && sk.completions > 0;
-    return { stage: st, title: stageTitle(st, ctx, fmt), passed, tried: !!sk && sk.attempts > 0, best: sk && sk.attempts > 0 ? Math.round(sk.bestAccuracy * 100) : null, stars: sk?.stars ?? 0 };
+    return { stage: st, title: stageTitle(st, ctx, fmt), passed, tried: !!sk && sk.attempts > 0, best: bestResult(sk)?.percent ?? null, stars: sk?.stars ?? 0 };
   });
   const passedCount = steps.filter((s) => s.passed).length;
   const current = steps.find((s) => !s.passed) ?? null;
@@ -131,7 +132,7 @@ export function Hub() {
           <Section className={styles.hubDrills} title="Drills" description="Short rounds over the part of the neck you choose in Practice settings.">
             <div className={styles.drills}>
               {DRILLS.map((d) => {
-                const sk = skills[drillSkillId(d.id)];
+                const best = bestResult(skills[drillSkillId(d.id)]);
                 return (
                   <Card key={d.id} to="fretboard" params={['drill', d.id]} padding="md" className={styles.drill} data-fb-drill={d.id}>
                     <span className={styles.drillIcon} aria-hidden="true">
@@ -142,7 +143,7 @@ export function Hub() {
                       <span className={styles.drillBlurb}>{d.blurb}</span>
                     </span>
                     <span className={styles.drillMeta}>
-                      {sk && sk.attempts > 0 ? (d.id === 'sprint' ? `Best ${sk.bestScore}` : `Best ${Math.round(sk.bestAccuracy * 100)}%`) : d.mic ? <Icon name="Mic" size={16} label="Uses the microphone" /> : null}
+                      {best ? (d.id === 'sprint' ? `Best ${best.score}` : `Best ${best.percent}%`) : d.mic ? <Icon name="Mic" size={16} label="Uses the microphone" /> : null}
                     </span>
                   </Card>
                 );

@@ -1,0 +1,41 @@
+# Open-String Duet (repertoire plan: st-open-string-duet). An original study in E minor.
+# Your part: only the open strings 6, 5 and 4, in half and quarter notes. Bars 1-4 open E, bars
+# 5-8 open A, bars 9-12 open D, bars 13-16 E, A, D, E. Each open string is the root of the
+# teacher's chord (Em, Am, D), so your note is always the bottom of the harmony.
+# The teacher's tune has the same shape over each chord: up the chord, down by step, a turn, a
+# landing. The last four bars bring the three chords together and come home to E.
+title: Open-String Duet
+id: st-open-string-duet
+composer: Sixstring Academy
+source: Original duet study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: duet, open strings, steady beat, e minor, beginner
+tempo: 80
+time: 4/4
+key: E minor
+
+track: Your part
+role: lead
+[Open E]
+| "Em" h 6:0 6:0 | 6:0 6:0 | q 6:0 6:0 6:0 6:0 | 6:0 6:0 h 6:0 |
+[Open A]
+| "Am" h 5:0 5:0 | 5:0 5:0 | q 5:0 5:0 5:0 5:0 | 5:0 5:0 h 5:0 |
+[Open D]
+| "D" h 4:0 4:0 | 4:0 4:0 | q 4:0 4:0 4:0 4:0 | 4:0 4:0 h 4:0 |
+[All three]
+| "Em" q 6:0 6:0 h 6:0 | "Am" q 5:0 5:0 h 5:0 | "D" q 4:0 4:0 h 4:0 | "Em" h 6:0 6:0 ||
+
+track: Teacher: tune
+role: lead
+| q 2:0 1:0 h 1:3 | q 1:3 1:2 h 1:0 | q 1:0 1:2 1:3 1:2 | h 1:0 2:0 |
+| q 3:2 2:1 h 1:0 | q 1:0 2:3 h 2:1 | q 2:1 2:3 1:0 2:3 | h 2:1 3:2 |
+| q 3:2 2:3 h 1:2 | q 1:2 1:0 h 2:3 | q 2:3 1:0 1:2 1:0 | h 2:3 1:2 |
+| q 1:3 1:2 h 1:0 | q 1:0 2:3 h 2:1 | q 2:3 1:0 h 1:2 | w 1:0 ||
+
+track: Teacher: chords
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

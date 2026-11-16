@@ -441,7 +441,7 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
               </Callout>
             )}
             {hostRefusesMic && <Text variant="caption" tone="muted">The microphone is switched off where this copy of the app is running, so changes are counted with taps.</Text>}
-            <div ref={micNoteRef} className={styles.micNote} aria-live="polite" data-mic-status={micFailed ? 'failed' : mic.status}>
+            <div ref={micNoteRef} className={styles.micNote} aria-live="polite" data-mic-status={micFailed ? 'failed' : needsMic ? mic.status : 'off'}>
               {micFailed && (
                 <MediaBlocked
                   reason={mic.failure!}

@@ -1,0 +1,25 @@
+# Lick: Pull-Offs (repertoire plan: st-lick-pull-off). An original lick in E minor pentatonic,
+# open position (E G A B D). Three pull-offs to open strings: string 1 fret 3 to open (G to E),
+# string 2 fret 3 to open (D to B), string 3 fret 2 to open (A to G). Pick only the fretted note;
+# the finger plucks the open note as it leaves (fret 3 is finger 3, fret 2 is finger 2).
+# Bars 1-4 come down the strings in pull-off pairs; bars 5-7 join a hammer-on and a pull-off
+# into slow trills on strings 3, 2 and 1 (one pick for the whole bar); bar 8 walks down to an
+# E minor chord. Notes on beats 1 and 3 are notes of Em7 (E G B D), or an A that pulls off to G.
+title: Lick: Pull-Offs
+composer: Sixstring Academy
+source: Original lick
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: pull-off, hammer-on, trill, legato, minor pentatonic, lick
+tempo: 80
+time: 4/4
+key: Em
+
+track: Your lick
+role: lead
+[Pull-offs]
+| "Em7" e 1:3{3} 1:0p 1:3 1:0p 2:3{3} 2:0p q 3:2{2} | q 3:0p e 3:2 3:0p h 4:2 |
+| e 2:3 2:0p 2:3 2:0p 3:2 3:0p q 4:2 | e 3:2 3:0p 4:2 4:0 h 4:2h |
+[Trills]
+| e 3:0 3:2h 3:0p 3:2h 3:0p 3:2h q 3:0p | e 2:0 2:3h 2:0p 2:3h 2:0p 2:3h q 2:0p |
+| e 1:0 1:3h 1:0p 1:3h 1:0p 1:3h 1:0p 2:3 | 2:0p 3:2 3:0p 4:2 "Em" h (6:0 5:2 4:2 3:0 2:0 1:0){dn} ||

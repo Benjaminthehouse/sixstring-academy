@@ -311,7 +311,7 @@ function NotesAndFormula({ chord }: { chord: Chord }) {
         ))}
       </ul>
       <Text>
-        Formula <span className={styles.formula}>{type.degrees.map(displayDegree).join(' – ')}</span>
+        Formula <span className={styles.formula} data-formula>{type.degrees.map(displayDegree).join(' – ')}</span>
         {chord.bass ? <> with {displaySymbol(chord.bass, { system: naming })} in the bass</> : null}
       </Text>
       {aliases.length > 0 && (

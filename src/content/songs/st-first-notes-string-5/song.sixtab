@@ -1,0 +1,25 @@
+# First Notes on String 5 (repertoire plan: st-first-notes-string-5). An original study in A
+# minor, low and march-like: the open string 5 (A), fret 2 (B) with finger 2, fret 3 (C) with
+# finger 3. The teacher strums Am and E7: B sits in E7, A and C in Am. The last bar turns from E7
+# back to Am halfway through and ends on A.
+title: First Notes on String 5
+id: st-first-notes-string-5
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: one string, string 5, reading, a minor, beginner
+tempo: 72
+time: 4/4
+key: A minor
+
+track: Your part
+role: lead
+[Tune]
+| "Am" q 5:0 5:0 h 5:3{3} | "E7" q 5:2{2} 5:2 h 5:2 | "Am" q 5:3 5:2 5:0 5:3 | "E7" 5:2 5:3 h 5:2 |
+| "Am" q 5:0 5:0 h 5:3 | "E7" q 5:2 5:0 h 5:2 | "Am" q 5:3 5:2 5:0 5:3 | "E7" h 5:2 "Am" 5:0 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / ||

@@ -1,0 +1,36 @@
+# Jingle Bells, the chorus only (repertoire plan: jingle-bells). James Lord Pierpont's song of
+# 1857, the chorus as it is commonly sung and printed, in G on strings 3 and 2 in first position.
+# Notes: G = open string 3, A = string 3 fret 2 (finger 2), B = open string 2, C = string 2
+# fret 1 (finger 1), D = string 2 fret 3 (finger 3). The teacher strums G, C, A7 and D7: G for
+# bars 1-4, then C, G, A7, D7; G for bars 9-12, then C, G, D7, G.
+title: Jingle Bells (chorus)
+id: jingle-bells
+composer: James Lord Pierpont
+source: Song published in 1857 (first titled One Horse Open Sleigh); chorus arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Pierpont died in 1893); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: melody, lyrics, christmas, dotted rhythm
+tempo: 100
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[Chorus]
+| "G" q 2:0 2:0 h 2:0 | q 2:0 2:0 h 2:0 | q 2:0 2:3{3} q. 3:0 e 3:2{2} | w 2:0 |
+lyrics: Jin- gle bells, jin- gle bells, jin- gle all the way;
+| "C" q 2:1{1} 2:1 q. 2:1 e 2:1 | "G" q 2:1 2:0 2:0 e 2:0 2:0 | "A7" q 2:0 3:2 3:2 2:0 | "D7" h 3:2 2:3 |
+lyrics: Oh what fun it is to ride in a one- horse o- pen sleigh. _
+| "G" q 2:0 2:0 h 2:0 | q 2:0 2:0 h 2:0 | q 2:0 2:3 q. 3:0 e 3:2 | w 2:0 |
+lyrics: Jin- gle bells, jin- gle bells, jin- gle all the way;
+| "C" q 2:1 2:1 2:1 2:1 | "G" q 2:1 2:0 2:0 e 2:0 2:0 | "D7" q 2:3 2:3 2:1 3:2 | "G" w 3:0 ||
+lyrics: Oh what fun it is to ride in a one- horse o- pen sleigh.
+
+track: Teacher
+role: rhythm
+[Chorus]
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

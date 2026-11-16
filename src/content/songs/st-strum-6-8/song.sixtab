@@ -1,0 +1,33 @@
+# Strumming: 6/8 (repertoire plan: st-strum-6-8). An original strumming study.
+# Your part: Em (022000), C (x32010), D (xx0232), Em, four bars each. Count six quick eighths in
+# two groups of three: down on 1, down on 2, up on 3, down on 4, down on 5, up on 6, and strum
+# beats 1 and 4 a little harder. SixTab cannot mark an accent on a slash, so the accents are in
+# the words above the first bar, and the teacher's bass plays on 1 and 4 (root, then fifth) to
+# make the two-beat sway audible. Tempo 84 quarters is a dotted quarter of 56.
+title: Strumming: 6/8
+composer: Sixstring Academy
+source: Original strumming study
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: strumming, 6/8, compound time, accents
+tempo: 84
+time: 6/8
+key: Em
+
+track: Your strum
+role: rhythm
+[Em C D Em]
+strum: DDUDDU
+| ^"Accent 1 and 4" "Em=022000" e D D U D D U | D D U D D U | D D U D D U | D D U D D U |
+| "C=x32010" D D U D D U | D D U D D U | D D U D D U | D D U D D U |
+| "D=xx0232" D D U D D U | D D U D D U | D D U D D U | D D U D D U |
+| "Em=022000" D D U D D U | D D U D D U | D D U D D U | D D U D D U ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[Em C D Em]
+| q. 4:0 3:2 | 4:0 3:2 | 4:0 3:2 | 4:0 3:2 |
+| 3:3 4:3 | 3:3 4:3 | 3:3 4:3 | 3:3 4:3 |
+| 2:0 3:0 | 2:0 3:0 | 2:0 3:0 | 2:0 3:0 |
+| 4:0 3:2 | 4:0 3:2 | 4:0 3:2 | h. 4:0 ||

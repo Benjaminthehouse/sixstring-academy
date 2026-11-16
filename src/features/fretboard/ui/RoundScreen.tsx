@@ -4,18 +4,18 @@ import { useImmersive, useScreenTitle } from '@/app/shell';
 import { pluck, normalizeTone, unlockAudio } from '@/core/audio';
 import { useProgress } from '@/core/progress';
 import { soundPrefs } from '@/core/settings';
-import { ActionBar, Button, CountdownRing, Heading, Icon, IconButton, Kbd, MediaBlocked, Page, ProgressBar, StarRating, Text, cx, useEventListener, useIsMobile, useMediaQuery, useWakeLock } from '@/ui';
+import { ActionBar, Button, CountdownRing, Heading, Icon, IconButton, Kbd, MediaBlocked, Page, ProgressBar, StarRating, Text, cx, useEventListener, useIsMobile, useMediaQuery, usePrefersReducedMotion, useWakeLock } from '@/ui';
 import { Fretboard, type FretBox, type FretMarker } from '@/ui/music';
 import { drillPlan, type Drill } from '../core/drills';
-import { midiAtPos, posKey } from '../core/neck';
+import { boardRange, midiAtPos, posKey, scopeHasAccidentals } from '../core/neck';
 import { pcForKey, spell } from '../core/notes';
 import { stageLesson, stageSkillId, stageTitle, STAGES, stringName, type Stage } from '../core/path';
-import { nextQuestion, startRound, type RoundPlan } from '../core/round';
+import { bestResult, nextQuestion, startRound, type RoundPlan } from '../core/round';
 import { describeSettings } from '../core/settings';
 import { blindSpots } from '../core/stats';
 import type { Question } from '../core/types';
 import { NotePad } from './NotePad';
-import { boardFrets, QuestionBoard } from './QuestionBoard';
+import { QuestionBoard } from './QuestionBoard';
 import { SettingsSheet } from './SettingsSheet';
 import { Summary } from './Summary';
 import { useMic } from './useMic';
@@ -42,6 +42,8 @@ export function RoundScreen(props: RoundScreenProps) {
   const trainer = useTrainer();
   const { stage, drill } = props;
   const [tapInstead, setTapInstead] = useState(false);
+  // "Tap the notes instead" is an action: the tap round starts as soon as its plan is ready.
+  const [startTapping, setStartTapping] = useState(false);
   const [sheet, setSheet] = useState(false);
   const mic = useMic();
   const blind = useMemo(() => (drill?.id === 'blind-spots' ? blindSpots(trainer.stats, trainer.ctx, [0, trainer.maxFret], 8).map(posKey) : undefined), [drill?.id, trainer.stats, trainer.ctx, trainer.maxFret]);
@@ -74,6 +76,17 @@ export function RoundScreen(props: RoundScreenProps) {
     }
     api.start();
   }, [usesMic, mic, api]);
+
+  useEffect(() => {
+    if (!startTapping || !tapInstead) return;
+    setStartTapping(false);
+    void begin();
+  }, [startTapping, tapInstead, begin]);
+  const tapNow = useCallback(() => {
+    mic.stop();
+    setTapInstead(true);
+    setStartTapping(true);
+  }, [mic]);
 
   const endRound = useCallback(() => {
     api.end();
@@ -128,7 +141,7 @@ export function RoundScreen(props: RoundScreenProps) {
         <Summary
           outcome={api.outcome}
           trainer={trainer}
-          scope={plan.scope}
+          scope={api.plan.scope}
           stage={stage}
           nextStage={next}
           nextTitle={next ? stageTitle(next, trainer.ctx, trainer.fmt) : undefined}
@@ -143,7 +156,7 @@ export function RoundScreen(props: RoundScreenProps) {
   if (!playing || !api.question) {
     return (
       <>
-        <Intro trainer={trainer} stage={stage} drill={drill} title={title} plan={plan} mic={mic} usesMic={usesMic} onStart={begin} onSettings={() => setSheet(true)} onTapInstead={() => setTapInstead(true)} />
+        <Intro trainer={trainer} stage={stage} drill={drill} title={title} plan={plan} mic={mic} usesMic={usesMic} onStart={begin} onSettings={() => setSheet(true)} onTapInstead={tapNow} />
         {sheetEl}
       </>
     );
@@ -151,7 +164,7 @@ export function RoundScreen(props: RoundScreenProps) {
 
   return (
     <Page title={title} hideHeader width="full" className={styles.roundPage}>
-      <Playing api={api} question={api.question} plan={plan} trainer={trainer} mic={mic} onEnd={endRound} sprint={plan.seconds} />
+      <Playing api={api} question={api.question} plan={api.plan} trainer={trainer} mic={mic} onEnd={endRound} sprint={api.plan.seconds} />
     </Page>
   );
 }
@@ -173,7 +186,7 @@ interface IntroProps {
 
 function Intro({ trainer, stage, drill, title, plan, mic, usesMic, onStart, onSettings, onTapInstead }: IntroProps) {
   const skill = useProgress((s) => s.skills[plan.skillId]);
-  const best = skill && skill.attempts > 0 ? Math.round(skill.bestAccuracy * 100) : null;
+  const best = bestResult(skill);
   const lesson = useMemo(() => (stage ? stageLesson(stage, trainer.ctx, trainer.fmt, trainer.maxFret) : null), [stage, trainer.ctx, trainer.fmt, trainer.maxFret]);
   const markers = useMemo<FretMarker[]>(
     () =>
@@ -258,11 +271,11 @@ function Intro({ trainer, stage, drill, title, plan, mic, usesMic, onStart, onSe
               No microphone here? Tap the notes instead
             </Button>
           )}
-          {best !== null && (
+          {best && skill && (
             <div className={styles.best}>
-              <StarRating value={skill!.stars} size={16} label={`${skill!.stars} of 3 stars`} />
+              <StarRating value={skill.stars} size={16} label={`${skill.stars} of 3 stars`} />
               <Text size="sm" tone="muted">
-                {plan.seconds ? `Best: ${skill!.bestScore} notes` : `Best: ${best}%`} · {skill!.attempts} {skill!.attempts === 1 ? 'round' : 'rounds'}
+                {plan.seconds ? `Best: ${best.score} notes` : `Best: ${best.percent}%`} · {skill.completions} {skill.completions === 1 ? 'round' : 'rounds'}
               </Text>
             </div>
           )}
@@ -316,7 +329,7 @@ function DrillExample({ trainer, drill, plan }: { trainer: Trainer; drill: Drill
   return (
     <figure className={styles.example}>
       <div className={styles.mapBoard}>
-        <Fretboard tuning={trainer.tuning} frets={boardFrets(plan.scope)} markers={example.markers} box={example.box} size="md" aria-label={`Example: ${example.caption}`} />
+        <Fretboard tuning={trainer.tuning} frets={boardRange(plan.scope)} markers={example.markers} box={example.box} size="md" aria-label={`Example: ${example.caption}`} />
       </div>
       <figcaption>
         <Text size="sm" tone="muted">
@@ -373,14 +386,17 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
   const short = useMediaQuery('(orientation: landscape) and (max-height: 540px)');
   const answered = api.phase === 'answered';
   const { fmt, ctx } = trainer;
-  const accidentals = plan.scope.notes !== 'naturals';
+  const reduceMotion = usePrefersReducedMotion();
+  // Sharps and flats on the pad only when the round can ask one (step 1 has seven letters).
+  const accidentals = useMemo(() => scopeHasAccidentals(plan.scope, ctx), [plan.scope, ctx]);
+  const lowest = Math.min(...ctx.tuning);
 
   // "Play it": listen while the question is open; "Hear it" pauses the listening while it sounds.
   const [listenKey, setListenKey] = useState(0);
   const [hearing, setHearing] = useState(false);
   useEffect(() => {
     if (q.kind !== 'play' || api.phase !== 'asking' || mic.status !== 'on' || hearing) return;
-    const wait = mic.listen(q.midis.length ? q.midis : [midiAtPos(ctx, q.pos)], trainer.settings.playOctaves, (m) => api.heardWrong(m));
+    const wait = mic.listen(q.midis.length ? q.midis : [midiAtPos(ctx, q.pos)], trainer.settings.playOctaves, (m) => api.heardWrong(m), lowest);
     if (!wait) return;
     // A note still ringing from before the question does not answer it: it has to be played again.
     const t0 = mic.clock();
@@ -396,15 +412,31 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
       wait.cancel();
     };
   }, [q, api.phase, mic.status, listenKey, hearing]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hearTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (hearTimer.current !== null) window.clearTimeout(hearTimer.current);
+  }, []);
   const hearIt = () => {
     if (api.questionMidi === null) return;
     setHearing(true);
     pluck(api.questionMidi, undefined, { tone: normalizeTone(soundPrefs().guitarTone), duration: 1.2, velocity: 0.7 });
-    window.setTimeout(() => {
+    hearTimer.current = window.setTimeout(() => {
+      hearTimer.current = null;
       setHearing(false);
       setListenKey((k) => k + 1);
     }, 1700);
   };
+
+  // After a miss the explanation and "Next" must be on screen, even on a phone held sideways or with large text.
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const missed = answered && api.attempt.right === false;
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!missed || !el) return;
+    // Only as far as needed: the explanation's bottom edge onto the screen, the neck kept in view.
+    const over = el.getBoundingClientRect().bottom - window.innerHeight;
+    if (over > 0) window.scrollBy({ top: over + 8, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [missed, q, reduceMotion]);
 
   const prompt = promptFor(q, trainer, plan);
   const progress = sprint ? null : (
@@ -459,7 +491,7 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
       )}
       </div>
 
-      <div className={styles.bottom}>
+      <div className={styles.bottom} ref={bottomRef}>
         <div className={cx(styles.feedback, api.feedback && styles[`fb-${api.feedback.tone}`])} aria-live="polite" data-fb-feedback={api.feedback?.tone ?? ''}>
           {api.feedback ? (
             <>
@@ -527,7 +559,7 @@ function Playing({ api, question: q, plan, trainer, mic, onEnd, sprint }: Playin
 function idleHint(q: Question, fine: boolean, flats: boolean): string {
   switch (q.kind) {
     case 'name':
-      return fine ? `Tap the name, or type its letter (Shift for a ${flats ? 'flat' : 'sharp'}).` : 'Tap its name below.';
+      return fine ? `Click its name or type its letter (Shift for a ${flats ? 'flat' : 'sharp'}).` : 'Tap its name below.';
     case 'every':
       return 'Tap each one you find.';
     case 'play':

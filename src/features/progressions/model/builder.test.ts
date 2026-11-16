@@ -110,6 +110,17 @@ describe('the palette', () => {
     for (const c of [...p.borrowed, ...p.secondary]) expect(c.explanation.length).toBeGreaterThan(0);
   });
 
+  // Review: the secondary tiles were labelled "Applied", a word the builder never teaches. Each
+  // one now says, in this key, the chord it leads to.
+  it('says which chord each secondary dominant leads to, in plain words', () => {
+    const p = palette({ tonic: 'G', mode: 'major', sevenths: false, advanced: true });
+    const leads = Object.fromEntries(p.secondary.map((c) => [c.token, c.leadsTo]));
+    expect(leads).toMatchObject({ 'V7/ii': 'Am', 'V7/iii': 'Bm', 'V7/IV': 'C', 'V7/V': 'D', 'V7/vi': 'Em', subV7: 'G' });
+    expect(p.diatonic.every((c) => c.leadsTo === null) && p.borrowed.every((c) => c.leadsTo === null)).toBe(true);
+    const minor = palette({ tonic: 'A', mode: 'minor', sevenths: false, advanced: true });
+    expect(minor.secondary.every((c) => typeof c.leadsTo === 'string' && c.leadsTo.length > 0)).toBe(true);
+  });
+
   it('maps the number keys to the key’s own degrees', () => {
     const d = { tonic: 'E', mode: 'minor' as const, sevenths: false, advanced: true };
     expect(degreeChord(d, 1)?.symbol).toBe('Em');

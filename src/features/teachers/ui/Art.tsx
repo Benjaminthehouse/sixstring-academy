@@ -98,43 +98,51 @@ function GuitarParts() {
 
 function Posture() {
   return (
-    <svg viewBox="0 0 280 230" aria-hidden="true" focusable="false">
-      {/* Chair. */}
-      <rect className={styles.chair} x="72" y="150" width="116" height="10" rx="4" />
-      <rect className={styles.chair} x="80" y="160" width="6" height="62" />
-      <rect className={styles.chair} x="174" y="160" width="6" height="62" />
-      {/* Legs. */}
-      <path className={styles.trousers} d="M98 146 L124 146 L120 222 L100 222 Z" />
-      <path className={styles.trousers} d="M136 146 L162 146 L160 222 L140 222 Z" />
-      {/* Torso, upright. */}
-      <path className={styles.shirt} d="M100 62 Q130 52 160 62 L166 150 L94 150 Z" />
-      <rect className={styles.skin} x="123" y="44" width="14" height="16" rx="5" />
-      <circle className={styles.skin} cx="130" cy="32" r="17" />
-      <path className={styles.hair} d="M113 30 Q114 12 130 13 Q147 12 147 30 Q140 22 130 22 Q119 22 113 30 Z" />
-      {/* Guitar: body on the right thigh (the viewer's left), neck rising to the viewer's right. */}
-      <g transform="rotate(-14 130 132)">
-        <circle className={styles.woodDark} cx="96" cy="134" r="35" />
-        <circle className={styles.woodDark} cx="140" cy="134" r="27" />
-        <circle className={styles.top} cx="96" cy="134" r="33" />
-        <circle className={styles.top} cx="140" cy="134" r="25" />
-        <circle className={styles.hole} cx="136" cy="134" r="10" />
-        <rect className={styles.wood} x="162" y="129" width="92" height="10" />
-        <path className={styles.wood} d="M254 128 L274 125 L274 143 L254 140 Z" />
-        <rect className={styles.woodDeep} x="80" y="124" width="7" height="20" rx="2" />
+    <svg viewBox="0 0 340 252" aria-hidden="true" focusable="false">
+      <g transform="translate(40 0)">
+        {/* Chair. */}
+        <rect className={styles.chair} x="72" y="150" width="116" height="10" rx="4" />
+        <rect className={styles.chair} x="80" y="160" width="6" height="62" />
+        <rect className={styles.chair} x="174" y="160" width="6" height="62" />
+        {/* Legs. */}
+        <path className={styles.trousers} d="M98 146 L124 146 L120 222 L100 222 Z" />
+        <path className={styles.trousers} d="M136 146 L162 146 L160 222 L140 222 Z" />
+        {/* Torso, upright, and the head. */}
+        <path className={styles.shirt} d="M100 62 Q130 52 160 62 L166 150 L94 150 Z" />
+        <rect className={styles.skin} x="123" y="44" width="14" height="16" rx="5" />
+        <circle className={styles.skin} cx="130" cy="32" r="17" />
+        <path className={styles.hair} d="M113 30 Q114 12 130 13 Q147 12 147 30 Q140 22 130 22 Q119 22 113 30 Z" />
+        <circle className={styles.face} cx="124" cy="33" r="1.8" />
+        <circle className={styles.face} cx="136" cy="33" r="1.8" />
+        <path className={styles.smile} d="M125 40 Q130 44 135 40" />
+        {/* Guitar: body on the right thigh (the viewer's left), neck rising to the viewer's right. */}
+        <g transform="rotate(-14 130 132)">
+          <circle className={styles.woodDark} cx="96" cy="134" r="35" />
+          <circle className={styles.woodDark} cx="140" cy="134" r="27" />
+          <circle className={styles.top} cx="96" cy="134" r="33" />
+          <circle className={styles.top} cx="140" cy="134" r="25" />
+          <circle className={styles.hole} cx="136" cy="134" r="10" />
+          <rect className={styles.wood} x="162" y="129" width="92" height="10" />
+          <path className={styles.wood} d="M254 128 L274 125 L274 143 L254 140 Z" />
+          <rect className={styles.woodDeep} x="80" y="124" width="7" height="20" rx="2" />
+        </g>
+        {/* Picking forearm over the top edge; fretting hand on the neck. */}
+        <path className={styles.shirt} d="M102 64 Q82 80 80 104 L90 108 Q96 86 112 74 Z" />
+        <path className={styles.skin} d="M82 102 Q96 116 120 122 L118 130 Q92 126 78 110 Z" />
+        <path className={styles.shirt} d="M158 64 Q186 82 206 92 L200 102 Q178 92 156 80 Z" />
+        <path className={styles.skin} d="M200 92 Q214 90 226 92 L224 102 Q212 104 200 102 Z" />
       </g>
-      {/* Picking arm over the top edge; fretting hand on the neck. */}
-      <path className={styles.shirt} d="M102 64 Q82 80 80 104 L90 108 Q96 86 112 74 Z" />
-      <path className={styles.skin} d="M82 102 Q96 116 120 122 L118 130 Q92 126 78 110 Z" />
-      <path className={styles.shirt} d="M158 64 Q186 82 206 92 L200 102 Q178 92 156 80 Z" />
-      <path className={styles.skin} d="M200 92 Q214 90 226 92 L224 102 Q212 104 200 102 Z" />
-      {/* Checks. */}
-      <Check x={198} y={44} text="Neck slightly up" />
-      <Check x={6} y={52} text="Shoulders down" />
-      <Check x={6} y={84} text="Back upright" />
-      <Check x={176} y={196} text="Waist on your thigh" />
-      <line className={styles.leader} x1="96" y1="60" x2="104" y2="64" />
-      <line className={styles.leader} x1="242" y1="56" x2="248" y2="84" />
-      <line className={styles.leader} x1="174" y1="192" x2="150" y2="160" />
+      {/* What to check, with leaders to where it is. */}
+      <Check x={4} y={46} text="Shoulders down" />
+      <Check x={4} y={78} text="Back upright" />
+      <Check x={4} y={110} text="Forearm on top" />
+      <Check x={196} y={26} text="Neck slightly up" />
+      <Check x={4} y={246} text="Waist on your thigh" />
+      <line className={styles.leader} x1="112" y1="42" x2="142" y2="62" />
+      <line className={styles.leader} x1="94" y1="74" x2="138" y2="96" />
+      <line className={styles.leader} x1="106" y1="108" x2="128" y2="114" />
+      <line className={styles.leader} x1="276" y1="32" x2="290" y2="100" />
+      <line className={styles.leader} x1="142" y1="240" x2="156" y2="160" />
     </svg>
   );
 }
@@ -172,57 +180,57 @@ function PickGrip() {
 }
 
 function Fretting() {
-  const strings = [52, 64, 76, 88, 100, 112];
-  const wires = [48, 150, 238];
+  const strings = [80, 92, 104, 116, 128, 140];
+  const wires = [40, 196, 300];
   return (
-    <svg viewBox="0 0 320 196" aria-hidden="true" focusable="false">
-      <text className={styles.dir} x="6" y="24">
-        Headstock
-      </text>
-      <text className={styles.dir} x="314" y="24" textAnchor="end">
-        Body
-      </text>
-      <rect className={styles.wood} x="0" y="40" width="320" height="84" />
+    <svg viewBox="0 0 320 214" aria-hidden="true" focusable="false">
+      <rect className={styles.wood} x="0" y="70" width="320" height="80" />
       {wires.map((x) => (
-        <rect key={x} className={styles.fretWire} x={x - 2.5} y="40" width="5" height="84" rx="1.5" />
+        <rect key={x} className={styles.fretWire} x={x - 2.5} y="70" width="5" height="80" rx="1.5" />
       ))}
       {strings.map((y, i) => (
         <line key={y} className={i > 2 ? styles.stringWound : styles.string} x1="0" y1={y} x2="320" y2={y} />
       ))}
-      {/* A fingertip pressing string 3 just behind the wire (the headstock side of it). */}
-      <path className={styles.skin} d="M126 196 L126 98 Q126 70 139 70 Q152 70 152 98 L152 196 Z" />
-      <path className={styles.nail} d="M131 84 Q139 74 147 84 L147 96 Q139 92 131 96 Z" />
-      <circle className={styles.press} cx="139" cy="76" r="4" />
-      {/* Where to press, and where not to. */}
-      <Mark x={139} ok />
-      <Mark x={99} />
-      <Mark x={150} far />
-      <text className={styles.labelOk} x="139" y="150" textAnchor="middle">
-        Just behind: clear
-      </text>
-      <text className={styles.labelBad} x="70" y="174" textAnchor="middle">
+      {/* A fingertip pressing string 3 in the space, right up against the wire (its headstock side). */}
+      <path className={styles.skin} d="M168 214 L168 116 Q168 94 181 94 Q194 94 194 116 L194 214 Z" />
+      <path className={styles.nail} d="M173 108 Q181 98 189 108 L189 120 Q181 116 173 120 Z" />
+      <circle className={styles.press} cx="181" cy="104" r="4" />
+      {/* Where to press, and where not to: marks on the edge of the neck, labels above. */}
+      <Mark x={118} y={60} />
+      <Mark x={181} y={60} ok />
+      <Mark x={198} y={60} />
+      <line className={styles.leader} x1="70" y1="40" x2="112" y2="55" />
+      <line className={styles.leader} x1="181" y1="26" x2="181" y2="53" />
+      <line className={styles.leader} x1="262" y1="40" x2="204" y2="56" />
+      <text className={styles.labelBad} x="8" y="36" textAnchor="start">
         Middle: buzzes
       </text>
-      <text className={styles.labelBad} x="240" y="174" textAnchor="middle">
+      <text className={styles.labelOk} x="181" y="20" textAnchor="middle">
+        Just behind: clear
+      </text>
+      <text className={styles.labelBad} x="314" y="36" textAnchor="end">
         On the wire: muffled
       </text>
-      <line className={styles.leader} x1="99" y1="136" x2="80" y2="162" />
-      <line className={styles.leader} x1="154" y1="136" x2="226" y2="162" />
+      <text className={styles.dir} x="6" y="166">
+        Headstock
+      </text>
+      <text className={styles.dir} x="314" y="166" textAnchor="end">
+        Body
+      </text>
     </svg>
   );
 }
 
-function Mark({ x, ok = false, far = false }: { x: number; ok?: boolean; far?: boolean }) {
-  const y = 132;
+function Mark({ x, y, ok = false }: { x: number; y: number; ok?: boolean }) {
   return ok ? (
-    <g transform={`translate(${x - 7} ${y - 7})`} data-far={far || undefined}>
-      <circle className={styles.okDot} cx="7" cy="7" r="7" />
-      <path className={styles.okMark} d="M3.5 7 L6 9.5 L10.5 4" />
+    <g transform={`translate(${x - 6} ${y - 6})`}>
+      <circle className={styles.okDot} cx="6" cy="6" r="6" />
+      <path className={styles.okMark} d="M3 6 L5.2 8.2 L9 3.8" />
     </g>
   ) : (
-    <g transform={`translate(${x - 7} ${y - 7})`}>
-      <circle className={styles.badDot} cx="7" cy="7" r="7" />
-      <path className={styles.badMark} d="M4.5 4.5 L9.5 9.5 M9.5 4.5 L4.5 9.5" />
+    <g transform={`translate(${x - 6} ${y - 6})`}>
+      <circle className={styles.badDot} cx="6" cy="6" r="6" />
+      <path className={styles.badMark} d="M3.8 3.8 L8.2 8.2 M8.2 3.8 L3.8 8.2" />
     </g>
   );
 }

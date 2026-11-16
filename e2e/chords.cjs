@@ -23,6 +23,13 @@
  *              missing note, a clean strum passes and counts as chord practice (`chord:g`)
  *   timed      changes in time with the metronome, tapped on the change beats: most changes on time,
  *              the tempo for the next round goes up
+ *   nomic      no microphone at all (as in the Claude viewer): choosing the microphone and pressing
+ *              Start shows why it failed right where the learner is looking, and "Count with taps
+ *              instead" switches to taps and starts cleanly (review: the reason used to render at the
+ *              foot of the page, out of sight, so Start looked dead)
+ *   layout     a phone held sideways keeps both chords and the tap button on screen during a round;
+ *              text at 200 % causes no sideways scroll on a chord page; a dim7 formula reads 𝄫7; the
+ *              "leaves out the fifth" line belongs to the shape that leaves it out (review findings)
  *   shots      screenshots in both themes on phone and desktop, written to e2e/out/chords-*.png
  *
  * A group that fails is run once more (the machine is shared; audio timing can slip under load).
@@ -359,6 +366,12 @@ async function micCheck() {
   const rec = await makeRecording('g-check', [{ silence: 2.5 }, { strum: gDead, dur: 2 }, { strum: g, dur: 2 }, { silence: 2 }], 12);
   await open({ mobile: true, fakeAudio: rec.fakeAudio }, async ({ page, goto, errors }) => {
     await go(page, goto, 'chords', 'g');
+    // Mark G known and take the mark back: a chord played cleanly for the microphone must rejoin.
+    await page.click('[data-known-toggle]');
+    await page.waitForTimeout(250);
+    await page.click('[data-known-toggle]');
+    await page.waitForTimeout(250);
+    check('taking the mark back stores known: false', (await progress(page)).skills['chord:g']?.data?.known === false);
     await page.click('[data-mic-check]');
     await page.getByRole('button', { name: 'Start listening' }).click();
     let hint = '';
@@ -373,6 +386,7 @@ async function micCheck() {
     check('the clean strum passes the check', (await page.getAttribute('[data-mic-sheet]', 'data-phase')) === 'ok');
     const p = await progress(page);
     check('a passed check is chord practice on chord:g', p.skills['chord:g']?.attempts === 1 && p.skills['chord:g']?.completed === true, JSON.stringify(p.skills['chord:g'] ?? null).slice(0, 160));
+    check('a passed check puts G back in My chords', p.skills['chord:g']?.data?.known === true, JSON.stringify(p.skills['chord:g']?.data ?? null));
     noErrors(errors);
   });
 }
@@ -406,6 +420,79 @@ async function timed() {
   });
 }
 
+async function noMic() {
+  // No fake devices: getUserMedia fails, as it does wherever the host gives the page no microphone.
+  await open({ mobile: true }, async ({ page, goto, errors }) => {
+    await go(page, goto, 'chords', 'trainer', 'em', 'am');
+    await page.getByRole('radio', { name: /Microphone/ }).click();
+    await page.click('[data-start]');
+    await page.waitForSelector('[data-mic-status="failed"]', { timeout: 20000 });
+    await page.waitForTimeout(800);
+    const box = await page.locator('[data-mic-status="failed"]').boundingBox();
+    const vh = page.viewportSize().height;
+    check('the reason the microphone failed is on screen after Start', !!box && box.y >= 0 && box.y + box.height <= vh, box ? `${Math.round(box.y)}..${Math.round(box.y + box.height)} of ${vh}` : 'no box');
+    check('it says what to do', /Count with taps instead/.test(await page.locator('[data-mic-status="failed"]').innerText()));
+    await page.getByRole('button', { name: 'Count with taps instead' }).click();
+    await page.waitForTimeout(300);
+    const input = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:chords.trainer') || '{}').input);
+    check('"Count with taps instead" switches to taps', input === 'tap', input);
+    check('and the failure goes away', (await page.locator('[data-mic-status="failed"]').count()) === 0);
+    await startRound(page);
+    await page.waitForSelector('[data-trainer-run="minute"] [data-tap]', { timeout: 15000 });
+    check('a tap round starts', true);
+    noErrors(errors);
+  });
+}
+
+async function layout() {
+  await open({ mobile: true, viewport: { width: 844, height: 390 } }, async ({ page, goto, errors }) => {
+    await go(page, goto, 'chords', 'trainer', 'g', 'c');
+    await startRound(page);
+    await page.waitForSelector('[data-trainer-run="minute"][data-phase="go"]', { timeout: 15000 });
+    const over = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    check('sideways phone: the round fits the screen', over <= 1, `${over}px`);
+    const cards = await page.locator('[data-trainer-run] [data-role]').evaluateAll((els) => Math.max(...els.map((e) => e.getBoundingClientRect().bottom)));
+    const bar = await page.locator('[data-tap]').boundingBox();
+    check('sideways phone: the chords end above the tap button', cards <= bar.y + 1, `cards end ${Math.round(cards)}, button at ${Math.round(bar.y)}`);
+    await page.screenshot({ path: path.join(OUT, 'chords-run-sideways.png') });
+    noErrors(errors, 'sideways: no console errors');
+  });
+  await open({ mobile: true }, async ({ page, goto, errors }) => {
+    await go(page, goto, 'chords', 'f-major');
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await page.waitForTimeout(500);
+    // Only the screen's own content: the shell's tab bar is not this screen's to fix.
+    const spill = await page.evaluate(() => {
+      const W = document.documentElement.clientWidth;
+      const main = document.querySelector('main');
+      const out = [];
+      for (const el of main.querySelectorAll('*')) {
+        const rc = el.getBoundingClientRect();
+        if (rc.width === 0 || rc.right <= W + 1) continue;
+        let contained = false;
+        for (let p = el.parentElement; p && p !== main; p = p.parentElement) if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(p).overflowX)) contained = true;
+        if (!contained) out.push(`${el.tagName}.${String(el.className).slice(0, 30)} ${Math.round(rc.right)}px`);
+      }
+      return out;
+    });
+    check('text at 200 %: nothing on the F page spills sideways', spill.length === 0, spill.slice(0, 4).join(' | '));
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '';
+    });
+    await go(page, goto, 'chords', 'cdim7');
+    const formula = await page.locator('[data-formula]').innerText();
+    check('Cdim7 formula reads 1 – ♭3 – ♭5 – 𝄫7', /𝄫7/.test(formula) && !/♭b/.test(formula), formula);
+    await go(page, goto, 'chords', 'c7');
+    check('the open C7 says it leaves out the fifth', /leaves out the fifth/.test((await page.locator('[data-shape-note]').allTextContents()).join(' ')));
+    await page.locator('[data-index][aria-label^="A-shape barre"]').first().click();
+    await page.waitForTimeout(300);
+    check('the A-shape barre C7 (with its fifth) says nothing of the kind', (await page.locator('[data-shape-note]').count()) === 0, await page.getAttribute('[data-voicing]', 'data-voicing'));
+    noErrors(errors, 'phone: no console errors');
+  });
+}
+
 async function shots() {
   const list = [
     ['chords', [], 'library'],
@@ -431,7 +518,7 @@ async function shots() {
   }
 }
 
-const GROUPS = { pages, library, identify, taps, mic, check: checkMode, miccheck: micCheck, timed, shots };
+const GROUPS = { pages, library, identify, taps, mic, check: checkMode, miccheck: micCheck, timed, nomic: noMic, layout, shots };
 
 (async () => {
   let failed = 0;

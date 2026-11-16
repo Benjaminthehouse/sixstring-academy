@@ -1,0 +1,177 @@
+.page {
+  --player-max: 58rem;
+}
+/* The way on sits at the bottom of the screen, however short the page. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-12) - var(--sp-12));
+}
+.screen > [data-ui-action-bar] {
+  margin-top: auto;
+}
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: 34rem;
+  margin: var(--sp-10) auto;
+}
+
+/* Intro */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  max-width: var(--prose-max);
+}
+.introIcon,
+.resultIcon {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.resultIcon {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: inset 0 -5px 0 color-mix(in srgb, var(--accent-fg) 22%, transparent);
+}
+.points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-muted);
+}
+.points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.points li > :first-child {
+  flex: none;
+  margin-top: 2px;
+  color: var(--fg);
+}
+
+/* Quiz */
+.quiz {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-5));
+}
+.top {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  padding: var(--sp-2) 0;
+  background: var(--bg);
+}
+.progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.level {
+  flex: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ok-text);
+}
+.checking {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: var(--sp-2) auto 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.stage {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  padding: var(--sp-4) 0 var(--sp-8);
+}
+.bar {
+  margin-top: auto;
+}
+.barInner {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  min-width: 0;
+}
+.barButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+}
+.primaryButton {
+  min-width: 11rem;
+}
+@media (max-width: 719.98px) {
+  .primaryButton {
+    flex: 1 1 auto;
+    min-width: min(100%, 9rem);
+  }
+}
+
+/* Result */
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  max-width: var(--prose-max);
+  margin: var(--sp-8) auto var(--sp-6);
+}
+.knownList {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  list-style: none;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.knownList li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 2.75rem;
+  border-top: 1px solid var(--line);
+}
+.knownList li:first-child {
+  border-top: 0;
+}
+.knownIcon {
+  color: var(--ok);
+}
+.knownNumber {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}

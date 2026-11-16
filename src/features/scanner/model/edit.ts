@@ -6,7 +6,7 @@
  *   const r = setFret(draft, { bar: 2, beat: 1, note: 0 }, 7);
  *   if (r.ok) history = commit(history, r.draft); else toast(r.message);
  */
-import { type Beat, type Note, type NoteValue, type Song, arrangeTrack, barLength, midiOf, valueFromTicks, valueTicks } from '@/core/song';
+import { type Beat, type Note, type NoteValue, type Song, arrangeTrack, barCapacity, barLength, midiOf, valueFromTicks, valueTicks } from '@/core/song';
 import { type BeatMark, type Draft, type NoteMark, userBeatMark, userNoteMark } from './draft';
 
 /** A note of the draft: bar, beat index in the bar, note index in the beat. */
@@ -285,6 +285,74 @@ export function fitBar(draft: Draft, bar: number): EditResult {
       else delete last.value;
     }
   }
+  return ok(d);
+}
+
+/**
+ * Split a bar that holds more than one bar of music (the reader missed a bar line) into bars of
+ * its time signature, cutting before any note that would cross a bar line. Chords, tempo changes
+ * and sections after it move along.
+ */
+export function splitBar(draft: Draft, bar: number): EditResult {
+  const info = draft.song.bars[bar];
+  const beats = beatsOf(draft.song, bar);
+  if (!info || !beats) return no('That bar is no longer there.');
+  const need = barCapacity(info.time);
+  const total = beats.reduce((s, b) => s + b.duration, 0);
+  if (total <= need) return no('This bar is not longer than one bar.');
+  const d = clone(draft);
+  const src = beatsOf(d.song, bar)!;
+  const srcMarks = d.marks[bar];
+  const pieces: Beat[][] = [[]];
+  const pieceMarks: BeatMark[][] = [[]];
+  const starts: number[] = [0];
+  let at = 0;
+  let abs = 0;
+  src.forEach((b, i) => {
+    const cur = pieces[pieces.length - 1];
+    if (cur.length && (at >= need || at + b.duration > need)) {
+      pieces.push([]);
+      pieceMarks.push([]);
+      starts.push(abs);
+      at = 0;
+    }
+    pieces[pieces.length - 1].push(b);
+    pieceMarks[pieceMarks.length - 1].push(srcMarks?.beats[i] ?? userBeatMark());
+    at += b.duration;
+    abs += b.duration;
+  });
+  for (const p of pieces) restart(p);
+  const k = pieces.length - 1;
+  d.song.bars.splice(bar, 1, ...pieces.map(() => ({ time: { ...info.time } })));
+  d.song.tracks[0].measures.splice(bar, 1, ...pieces.map((p) => ({ beats: p })));
+  if (srcMarks) {
+    const box = srcMarks.box;
+    const xs = pieceMarks.map((pm) => Math.min(...pm.flatMap((m) => m.boxes.map((b) => b.x)), Infinity));
+    d.marks.splice(
+      bar,
+      1,
+      ...pieceMarks.map((pm, i) => {
+        let pieceBox = box;
+        if (box) {
+          const x0 = i === 0 ? box.x : Number.isFinite(xs[i]) ? xs[i] - 4 : box.x;
+          const x1 = i < k && Number.isFinite(xs[i + 1]) ? xs[i + 1] - 4 : box.x + box.w;
+          pieceBox = { x: x0, y: box.y, w: Math.max(4, x1 - x0), h: box.h };
+        }
+        return { ...srcMarks, box: pieceBox, beats: pm };
+      }),
+    );
+  }
+  const move = (b: number, tick: number): { bar: number; tick: number } => {
+    if (b < bar) return { bar: b, tick };
+    if (b > bar) return { bar: b + k, tick };
+    let i = starts.length - 1;
+    while (i > 0 && starts[i] > tick) i--;
+    return { bar: bar + i, tick: tick - starts[i] };
+  };
+  d.song.chords = d.song.chords.map((c) => ({ ...c, ...move(c.bar, c.tick) }));
+  d.song.annotations = d.song.annotations.map((a) => ({ ...a, ...move(a.bar, a.tick) }));
+  d.song.tempo = d.song.tempo.map((t) => (t.bar > bar ? { ...t, bar: t.bar + k } : t));
+  d.song.sections = d.song.sections.map((s) => ({ ...s, start: s.start > bar ? s.start + k : s.start, end: s.end > bar ? s.end + k : s.end }));
   return ok(d);
 }
 

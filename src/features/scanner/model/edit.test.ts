@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { sixTab, validateSong } from '@/core/song';
 import { type Draft, type NoteMark, checkBar, viewSong } from './draft';
-import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, transposeSymbol } from './edit';
+import { addNote, confirm, deleteBeat, deleteNote, evenBar, fitBar, insertBeat, rearrange, setDetails, setFret, setPitch, setString, setTuning, setValue, splitBar, transposeSymbol } from './edit';
 import { commit, firstSelection, itemsToCheck, moveSelection, nextToCheck, redo, startHistory, undo } from './select';
 
 /** A draft over a SixTab song, every note read with confidence 0.9 except the ones listed (0.3). */
@@ -81,6 +81,31 @@ describe('edits', () => {
     expect(checkBar(filled.song, 1).ok).toBe(true);
     const even = must(evenBar(long, 0));
     expect(even.song.tracks[0].measures[0].beats.every((b) => b.duration === 960)).toBe(true);
+  });
+
+  it('splits a bar that holds two (a missed bar line) and moves what comes after it', () => {
+    const d = draftOf(`title: Missed
+time: 3/4
+| q 2:0 2:1 2:3 | 2:5 h 2:3 | q 2:1 2:0 2:1 |`);
+    d.song.chords = [{ bar: 1, tick: 0, symbol: 'G' }, { bar: 2, tick: 960, symbol: 'D' }];
+    // Glue bars 1 and 2 together the way a reader that missed the bar line would.
+    const m = d.song.tracks[0].measures;
+    let at = 0;
+    m[0].beats = [...m[0].beats, ...m[1].beats].map((b) => ({ ...b, start: (at += b.duration) - b.duration }));
+    m.splice(1, 1);
+    d.song.bars.splice(1, 1);
+    d.marks[0].beats = [...d.marks[0].beats, ...d.marks[1].beats];
+    d.marks.splice(1, 1);
+    d.song.chords = [{ bar: 0, tick: 2880, symbol: 'G' }, { bar: 1, tick: 960, symbol: 'D' }];
+    expect(checkBar(d.song, 0).text).toBe('Holds about 2 bars: a bar line was probably missed');
+    const s = must(splitBar(d, 0));
+    expect(s.song.bars).toHaveLength(3);
+    expect(s.song.tracks[0].measures.map((x) => x.beats.length)).toEqual([3, 2, 3]);
+    expect(s.marks.map((x) => x.beats.length)).toEqual([3, 2, 3]);
+    expect(s.song.chords).toEqual([{ bar: 1, tick: 0, symbol: 'G' }, { bar: 2, tick: 960, symbol: 'D' }]);
+    expect(s.song.bars.every((_, i) => checkBar(s.song, i).ok)).toBe(true);
+    expect(valid(s)).toEqual([]);
+    expect(splitBar(s, 0).ok).toBe(false);
   });
 
   it('deletes notes and beats, adds notes and beats, keeping the marks in step', () => {

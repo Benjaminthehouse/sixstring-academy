@@ -1,0 +1,104 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  min-height: 0;
+}
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 14rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+.paper {
+  fill: var(--surface-3);
+}
+
+.selBar {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.badBar {
+  fill: color-mix(in srgb, var(--warn) 12%, transparent);
+  stroke: var(--warn);
+  stroke-width: 1.5px;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+.doubt {
+  fill: color-mix(in srgb, var(--bad) 14%, transparent);
+  stroke: var(--bad);
+  stroke-width: 2px;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.fixed {
+  fill: color-mix(in srgb, var(--ok) 14%, transparent);
+  stroke: var(--ok);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.selNote {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.key {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  margin-left: var(--sp-2);
+}
+.key:first-child {
+  margin-left: 0;
+}
+.keyDoubt {
+  border: 2px dashed var(--bad);
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+}
+.keyFixed {
+  border: 2px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+}
+.keySel {
+  border: 3px solid var(--accent);
+}

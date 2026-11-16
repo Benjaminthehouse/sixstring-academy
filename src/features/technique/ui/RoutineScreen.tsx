@@ -193,7 +193,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
         <TextArea label="One thing that felt tense today" value={noteText} onChange={setNoteText} maxLength={200} rows={2} hint="Saved with this cool-down, so you can watch for it next time." />
       )}
       {step.reflect && record.notes?.length ? (
-        <Text size="sm" tone="muted">
+        <Text size="sm" tone="muted" className={styles.learnerText}>
           Last time: “{record.notes[record.notes.length - 1].text}”
         </Text>
       ) : null}

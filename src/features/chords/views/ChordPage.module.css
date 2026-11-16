@@ -208,7 +208,7 @@
 }
 .tones {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
   gap: var(--sp-2);
   margin: 0;
   padding: 0;
@@ -254,7 +254,7 @@
 
 .alts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
   gap: var(--sp-3);
 }
 .alt {

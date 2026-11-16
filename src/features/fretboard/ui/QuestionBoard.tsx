@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Fretboard, useMusicSettings, type FretboardSize, type FretCell, type FretMarker, type FretBox } from '@/ui/music';
-import { cx, useElementSize } from '@/ui';
-import { anchorFor, pcAt, posKey } from '../core/neck';
+import { cx, useElementSize, usePrefersReducedMotion } from '@/ui';
+import { explanationAnchor } from '../core/explain';
+import { boardRange, pcAt, posKey } from '../core/neck';
 import { remaining } from '../core/grade';
 import { spell } from '../core/notes';
 import type { Pos, Question, Scope } from '../core/types';
@@ -21,11 +22,6 @@ export interface QuestionBoardProps {
   size?: FretboardSize;
 }
 
-/** The fret range a board shows for a scope: its frets, with the nut when it starts at the open strings. */
-export function boardFrets(scope: Scope): [number, number] {
-  return [scope.frets[0], Math.max(scope.frets[1], scope.frets[0] + 3)];
-}
-
 /**
  * The neck for one question: what is asked (a lit dot, a highlighted string, the note to carry an
  * octave), what the learner did (found, missed), and after the answer, the explanation drawn in.
@@ -33,13 +29,21 @@ export function boardFrets(scope: Scope): [number, number] {
 export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, onTap, size }: QuestionBoardProps) {
   const { ctx } = trainer;
   const { leftHanded } = useMusicSettings();
+  const reduceMotion = usePrefersReducedMotion();
   const done = phase === 'answered' || phase === 'summary';
   const nameOf = useCallback((p: Pos) => spell(pcAt(ctx, p), ctx.spelling === 'flats' ? 'flats' : 'sharps'), [ctx]);
+  const frets = boardRange(scope);
+  const [lo, hi] = frets;
 
   const markers = useMemo<FretMarker[]>(() => {
     const out = new Map<string, FretMarker>();
     const put = (m: FretMarker) => out.set(posKey(m), m);
     const named = (p: Pos, m: Partial<FretMarker>): FretMarker => ({ ...p, note: pcAt(ctx, p) === q.pc ? q.name : nameOf(p), noteLabel: true, ...m });
+    // The landmark the explanation names, ringed on the board (none when the note sits on one).
+    const landmark = (p: Pos) => {
+      const anchor = explanationAnchor(ctx, p, [lo, hi]);
+      if (anchor) put({ string: p.string, fret: anchor.fret, note: nameOf({ string: p.string, fret: anchor.fret }), noteLabel: true, color: 'neutral', shape: 'ring', description: 'landmark' });
+    };
     switch (q.kind) {
       case 'name': {
         if (!done) {
@@ -47,8 +51,7 @@ export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, 
           break;
         }
         if (a.revealed) {
-          const anchor = anchorFor(ctx, q.pos, trainer.maxFret);
-          if (anchor) put({ string: q.pos.string, fret: anchor.fret, note: nameOf({ string: q.pos.string, fret: anchor.fret }), noteLabel: true, color: 'neutral', shape: 'ring', description: 'landmark' });
+          landmark(q.pos);
           if (a.givenAt) put({ ...a.givenAt, note: nameOf(a.givenAt), noteLabel: true, color: 'bad', state: 'miss', description: 'your answer is here' });
           put({ ...q.pos, note: q.name, noteLabel: true, color: 'info', root: true, description: 'the note asked' });
         } else put({ ...q.pos, note: q.name, noteLabel: true, color: 'ok', state: 'hit' });
@@ -71,8 +74,10 @@ export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, 
         if (!done) break;
         if (a.tapped && a.right) put(named(a.tapped, { color: 'ok', state: 'hit' }));
         else {
-          if (a.tapped && q.kind !== 'play') put(named(a.tapped, { color: 'bad', state: 'miss' }));
           const targets = q.kind === 'play' ? [q.pos] : q.targets;
+          // The landmark goes in first: where the learner tapped (often that very dot) stays on top.
+          if (q.kind !== 'find-any' && targets[0]) landmark(targets[0]);
+          if (a.tapped && q.kind !== 'play') put(named(a.tapped, { color: 'bad', state: 'miss' }));
           for (const t of targets) put({ ...t, note: q.name, noteLabel: true, color: 'info', state: 'target' });
           if (q.kind === 'play' && a.right !== false) put({ ...q.pos, note: q.name, noteLabel: true, color: 'ok', state: 'hit' });
         }
@@ -86,13 +91,12 @@ export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, 
       }
     }
     return [...out.values()];
-  }, [q, a, done, ctx, nameOf, trainer.maxFret]);
+  }, [q, a, done, ctx, nameOf, lo, hi]);
 
-  const frets = boardFrets(scope);
   const box = useMemo<FretBox | null>(() => {
-    if (q.kind === 'find' || q.kind === 'play' || q.kind === 'octave') return { from: Math.max(1, frets[0]), to: frets[1], strings: [q.string, q.string] };
+    if (q.kind === 'find' || q.kind === 'play' || q.kind === 'octave') return { from: Math.max(1, lo), to: hi, strings: [q.string, q.string] };
     return null;
-  }, [q, frets]);
+  }, [q, lo, hi]);
 
   const path = useMemo(() => (q.kind === 'octave' && done ? [q.from, a.right && a.tapped ? a.tapped : q.pos] : null), [q, a, done]);
 
@@ -123,10 +127,9 @@ export function QuestionBoard({ question: q, attempt: a, phase, scope, trainer, 
     const label = focusPos.fret === 0 ? `string ${focusPos.string}, open` : `string ${focusPos.string}, fret ${focusPos.fret}`;
     const cell = wrap.current.querySelector<HTMLElement>(`button[aria-label="${label}"]`);
     // A tappable board has a button per cell to aim at; a picture is placed by its share of the neck.
-    const [lo, hi] = boardFrets(scope);
     const share = (focusPos.fret - lo + 0.5) / (hi - lo + 1);
     const centre = cell ? cell.offsetLeft + cell.offsetWidth / 2 : (leftHanded ? 1 - share : share) * scroller.scrollWidth;
-    scroller.scrollTo({ left: Math.max(0, centre - scroller.clientWidth / 2), behavior: 'smooth' });
+    scroller.scrollTo({ left: Math.max(0, centre - scroller.clientWidth / 2), behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [focusPos?.string, focusPos?.fret, onTap, width, leftHanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onCell = useCallback((c: FretCell) => onTap?.({ string: c.string, fret: c.fret }), [onTap]);

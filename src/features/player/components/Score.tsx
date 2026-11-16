@@ -61,14 +61,16 @@ export function Score(props: ScoreProps) {
     const mark = () => {
       lastScroll.current = performance.now();
     };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'PageDown' || e.key === 'PageUp' || e.key === 'ArrowDown' || e.key === 'ArrowUp') mark();
+    };
     el.addEventListener('wheel', mark, { passive: true });
     el.addEventListener('touchmove', mark, { passive: true });
-    el.addEventListener('keydown', (e) => {
-      if (e.key === 'PageDown' || e.key === 'PageUp' || e.key === 'ArrowDown' || e.key === 'ArrowUp') mark();
-    });
+    el.addEventListener('keydown', key);
     return () => {
       el.removeEventListener('wheel', mark);
       el.removeEventListener('touchmove', mark);
+      el.removeEventListener('keydown', key);
     };
   }, []);
 

@@ -27,7 +27,8 @@
  *             is recorded once, even after "Save and finish" and leaving
  *  changes    one-minute changes: pick a pair, the minute starts with a count-in and stops; the
  *             plan's pairs are all there and two pairs with the same chords have different names
- *  large      text at 200 percent on a 360 px phone: no sideways scroll on the exercise screens
+ *  large      text at 200 percent on a 360 px phone: no sideways scroll on the exercise screens; a
+ *             200-character unbroken cool-down note is shown back the next time without pushing the page
  *  shots      phone and desktop, dark and light, phone sideways: e2e/out/technique-*.png; no
  *             sideways scrolling and no console errors anywhere
  *
@@ -231,6 +232,9 @@ async function ladderGroup() {
     check('ladder', 'the fretboard lights the note being played, and it moves on', l1.length > 0 && l2.length > 0 && l1 !== l2, `${l1} -> ${l2}`);
     await p.locator('body').click({ position: { x: 5, y: 5 } }).catch(() => undefined);
     await p.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+    await p.keyboard.press('h');
+    await p.waitForTimeout(400);
+    check('ladder', 'H does nothing while practising, like the disabled Hear it button (it stopped practice for a demo)', (await attr(p, root, 'data-mode')) === 'practice', await attr(p, root, 'data-mode'));
     await p.keyboard.press('Enter');
     await p.waitForTimeout(300);
     check('ladder', 'Enter (clean) goes up a rung: 55 BPM', (await attr(p, root, 'data-tempo')) === '55', await attr(p, root, 'data-tempo'));
@@ -354,6 +358,25 @@ async function largeTextGroup() {
         await p.screenshot({ path: path.join(OUT, 'technique-large-text-phone.png') });
       }
     }
+    // A 200-character unbroken note in the cool-down is shown back next time: it pushed the page 1168 px sideways.
+    await p.evaluate(() => { document.documentElement.style.fontSize = ''; });
+    await p.clock.install();
+    await s.goto('technique', 'tech-cool-down');
+    await p.waitForSelector('[data-technique-screen="routine"]', { timeout: 30000 });
+    for (let i = 0; i < 2; i++) await p.getByRole('button', { name: 'Skip this step' }).first().click();
+    await p.getByLabel('One thing that felt tense today').fill('a'.repeat(200));
+    await p.locator('[data-technique-primary]').first().click();
+    await p.clock.runFor(31_000);
+    await p.waitForSelector('[data-technique-finish]', { timeout: 10000 });
+    await p.locator('[data-technique-finish]').first().click();
+    await p.waitForSelector('[data-technique-summary]', { timeout: 10000 });
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(300);
+    for (let i = 0; i < 2; i++) await p.getByRole('button', { name: 'Skip this step' }).first().click();
+    await p.waitForTimeout(400);
+    const shown = (await p.getByText(/Last time:/).first().textContent().catch(() => '')) || '';
+    const over = await overflow(p);
+    check('large', 'a 200-character unbroken cool-down note is shown back and wraps (it pushed the page 1168 px)', shown.includes('a'.repeat(50)) && over <= 1, `${over}px`);
     check('large', 'no console errors', s.errors.length === 0, s.errors.join(' | '));
   } finally {
     await s.close();

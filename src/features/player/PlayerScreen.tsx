@@ -13,18 +13,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useImmersive } from '@/app/shell';
 import type { SongListing } from '@/core/library';
-import { setPrefs, usePrefs } from '@/core/progress';
+import { setPrefs, touchRecent, usePrefs, useSkill } from '@/core/progress';
 import { readJSON, writeJSON, type MediaFailure } from '@/core/platform';
 import { fretCount, showNotation } from '@/core/settings';
 import type { Song } from '@/core/song';
-import { Button, ChipGroup, Icon, IconButton, MediaBlocked, Page, PlayButton, Sheet, Skeleton, Text, Tooltip, cx, toast, useMediaQuery, useWakeLock } from '@/ui';
+import { Button, ChipGroup, Icon, IconButton, MediaBlocked, Page, PlayButton, Sheet, Skeleton, StarRating, Text, Tooltip, cx, toast, useMediaQuery, useWakeLock } from '@/ui';
 import { TuningLabel, type TabRange, type TabSeek } from '@/ui/music';
 import { PlayerEngine, readSavedSession, type EngineState } from './engine/engine';
 import { MicInput } from './engine/mic';
 import { commandFor } from './model/keys';
 import { loopLabel, sectionAtBar, sectionChips } from './model/loop';
 import { requestKey, resolveRequest, parsePlayerParams } from './model/params';
-import type { Suggestion } from './model/results';
+import { readSongData, type Suggestion } from './model/results';
 import { openingState, sanitizeSession, type OpeningState } from './model/session';
 import { MODE_HINTS, MODE_NAMES, needsMic, type PracticeMode } from './model/types';
 import { CountIn, Judgement, MicLevel, WaitPrompt } from './components/Hud';
@@ -71,6 +71,11 @@ export function PlayerScreen({ song, songId, listing, params }: PlayerScreenProp
   useEffect(() => {
     for (const p of opening.problems) toast.info(p);
   }, [opening.problems]);
+  // Opening a song puts it in "Continue where you left off" (a finished run updates it again).
+  useEffect(() => {
+    touchRecent({ route: 'play', params: [songId], title: song.meta.title || listing?.title || 'Song', kind: 'song', skillId: `song:${songId}` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songId]);
 
   if (!engine) {
     return (
@@ -90,6 +95,12 @@ type Layout = 'bar' | 'rail' | 'wide';
 function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Song; resumed: boolean }) {
   const s = useSyncExternalStore(engine.subscribe, engine.getState);
   const prefs = usePrefs();
+  const skill = useSkill(`song:${engine.songId}`);
+  const best = useMemo(() => {
+    const data = readSongData(skill.record?.data);
+    const b = data.best.flow ?? data.best.tap ?? data.best.wait;
+    return b ? `Best ${Math.round(b.accuracy)} % at ${b.tempo} % speed` : null;
+  }, [skill.record?.data]);
   const rail = useMediaQuery('(orientation: landscape) and (max-height: 540px)');
   const wideQuery = useMediaQuery('(min-width: 1080px)');
   const layout: Layout = rail ? 'rail' : wideQuery ? 'wide' : 'bar';
@@ -415,6 +426,12 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
           </>
         )}
       </p>
+      {(skill.stars > 0 || best) && (
+        <p className={styles.best}>
+          {skill.stars > 0 && <StarRating value={skill.stars} max={3} size={16} label={`${skill.stars} of 3 stars`} />}
+          {best && <span>{best}</span>}
+        </p>
+      )}
     </div>
   );
 
@@ -432,11 +449,13 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
     />
   ) : null;
 
-  const hostPanel = hostNotice ? (
-    <MediaBlocked reason="blocked-by-host" device="microphone" framed align="start" level={2} onContinueWithout={() => dismissMicNotice('tap')} continueLabel="Tap along instead" className={styles.hostNotice}>
-      Here you can listen and tap along. Wait and Flow mode listen to your guitar, so they need the app opened from its own address.
+  const hostBlocked = (
+    <MediaBlocked reason="blocked-by-host" device="microphone" framed={layout === 'wide'} align="start" level={2} onContinueWithout={() => dismissMicNotice('tap')} continueLabel="Tap along instead" className={styles.hostNotice}>
+      Wait and Flow listen to your guitar, so they need the app opened from its own address. Listen and Tap along work here.
     </MediaBlocked>
-  ) : null;
+  );
+  // Shown once: in the side panel on a desktop, as a sheet on phones (so the score stays in view).
+  const hostPanel = hostNotice && layout === 'wide' ? hostBlocked : null;
 
   return (
     <Page title={song.meta.title} hideHeader width="full" className={styles.page}>
@@ -455,13 +474,13 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
             </header>
             {chips && <div className={styles.chipRow}>{chips}</div>}
             <div className={styles.main}>
-              {hostPanel}
               {bannerRow}
               {score}
               {waitPrompt}
               {neck}
             </div>
             <aside className={styles.side} aria-label="Player controls">
+              {hostPanel}
               <div className={styles.transport}>
                 {play}
                 {tapPad}
@@ -488,7 +507,6 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
               </div>
             ) : null}
             <div className={styles.main}>
-              {hostPanel}
               {bannerRow}
               {score}
               {waitPrompt}
@@ -498,9 +516,9 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
               <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" icons={!phone} />
               <div className={styles.dockRow}>
                 {loopBtn}
-                {tempo}
-                {tapPad ?? play}
-                {tapPad && play}
+                {/* While tapping along, the Tap pad takes the tempo's place (it can be changed when paused). */}
+                {tapPad ?? tempo}
+                {play}
                 <IconButton icon="SlidersHorizontal" label="More: count-in, click, parts, sound" onClick={() => setMoreOpen(true)} data-player-more="" />
               </div>
             </div>
@@ -517,6 +535,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
             </div>
             <div className={styles.railControls}>
               <IconButton icon="SlidersHorizontal" label="Mode and options" onClick={() => setMoreOpen(true)} data-player-more="" />
+              {needsMic(s.mode) && s.mic.status === 'on' && <MicLevel engine={engine} label="Listening" compact />}
               {loopBtn}
               {tempo}
               {tapPad}
@@ -526,7 +545,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         )}
       </div>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title={layout === 'rail' ? 'Mode and options' : 'Options'} desktop="drawer">
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title={layout === 'rail' ? 'Mode and options' : 'Options'} description={best ?? undefined} desktop="drawer">
         <div className={styles.sheetBody}>
           {layout === 'rail' && (
             <>
@@ -541,7 +560,6 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
                   {chips}
                 </div>
               )}
-              {hostPanel}
             </>
           )}
           {moreOptions}
@@ -552,6 +570,10 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         {loopOptions}
       </Sheet>
 
+      <Sheet open={hostNotice && layout !== 'wide'} onClose={() => dismissMicNotice(s.mode === 'listen' ? 'listen' : 'tap')} title="Microphone">
+        {hostBlocked}
+      </Sheet>
+
       <Sheet open={!!blocked} onClose={() => setBlocked(null)} title="Microphone">
         {blocked && (
           <MediaBlocked reason={blocked} device="microphone" align="start" onRetry={() => { setBlocked(null); void chooseMode(s.mode === 'listen' || s.mode === 'tap' ? 'wait' : s.mode); }} onContinueWithout={() => dismissMicNotice('tap')} continueLabel="Tap along instead">
@@ -560,12 +582,20 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         )}
       </Sheet>
 
-      <Results results={s.results} barCount={song.bars.length} onClose={() => engine.closeResults()} onAgain={again} onSuggestion={onSuggestion} />
+      <Results results={micAvailable ? s.results : withoutMic(s.results)} barCount={song.bars.length} onClose={() => engine.closeResults()} onAgain={again} onSuggestion={onSuggestion} />
       <span className="sr-only" aria-live="polite">
         {modeAnnouncement(s)}
       </span>
     </Page>
   );
+}
+
+/** Where no microphone can be had, a suggestion of wait or flow mode becomes tap-along. */
+function withoutMic(r: EngineState['results']): EngineState['results'] {
+  const sg = r?.summary.suggestion;
+  if (!r || !sg || !needsMic(sg.mode)) return r;
+  const text = sg.loop ? sg.text : 'Now tap along in time with the notes';
+  return { ...r, summary: { ...r.summary, suggestion: { ...sg, mode: 'tap', text } } };
 }
 
 function modeAnnouncement(s: EngineState): string {

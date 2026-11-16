@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react';
 import { href } from '@/app/router';
 import { PROGRESSIONS, getProgression, type Progression } from '@/content/progressions';
-import { Button, ChipGroup, EmptyState, Icon, LinkButton, Page, SearchField, Section, Text, useDebounced, useLocalState } from '@/ui';
+import { Button, ChipGroup, EmptyState, Icon, LinkButton, Page, SearchField, Section, Text, cx, useDebounced, useLocalState } from '@/ui';
 import { LEVEL_BANDS, STYLE_GROUPS, bandOf, filterProgressions, inGroup, primaryGroup, shelf, styleGroup } from '../model/browse';
 import { draftProgression } from '../model/builder';
 import { draftFromSaved, useSavedProgressions } from '../model/saved';
@@ -16,7 +16,9 @@ import { homeKey } from '@/content/progressions';
 import styles from './Progressions.module.css';
 
 const START_HERE = ['pop-axis', 'rock-i-iv-v', 'blues-12-bar-triads', 'flamenco-andalusian'];
-const SHELF = 4;
+/** Cards handed to a shelf (it shows 4 or 6, whichever fills its rows) and the fewest it shows. */
+const SHELF = 6;
+const SHELF_MIN = 4;
 
 type Band = 'all' | 'beginner' | 'intermediate' | 'advanced';
 
@@ -119,10 +121,12 @@ export function Browse() {
           )}
 
           <Section title="Start here" description="Four progressions that open every door. Press play, then open one and jam.">
-            <div className={styles.cards}>
-              {START_HERE.map((id) => getProgression(id)).filter((p): p is Progression => !!p).map((p) => (
-                <ProgressionCard key={p.id} progression={p} href={href('progressions', p.id)} meta={<Meta p={p} />} />
-              ))}
+            <div className={cx(styles.shelf, styles.featured)}>
+              <div className={styles.cards}>
+                {START_HERE.map((id) => getProgression(id)).filter((p): p is Progression => !!p).map((p) => (
+                  <ProgressionCard key={p.id} progression={p} href={href('progressions', p.id)} meta={<Meta p={p} />} />
+                ))}
+              </div>
             </div>
           </Section>
 
@@ -139,17 +143,19 @@ export function Browse() {
                 }
                 description={g.blurb}
                 actions={
-                  all.length > SHELF ? (
+                  all.length > SHELF_MIN ? (
                     <Button variant="ghost" size="sm" iconRight="ArrowRight" onClick={() => { setGroup(g.id); window.scrollTo({ top: 0 }); }} aria-label={`See all ${all.length} ${g.name} progressions`}>
                       See all {all.length}
                     </Button>
                   ) : undefined
                 }
               >
-                <div className={styles.cards}>
-                  {shelf(g, SHELF).map((p) => (
-                    <ProgressionCard key={p.id} progression={p} href={href('progressions', p.id)} meta={`Level ${p.level} · ${bandOf(p.level).name} · ${noteName(p.keys[0], naming)}`} />
-                  ))}
+                <div className={styles.shelf} data-shelf={g.id}>
+                  <div className={styles.cards}>
+                    {shelf(g, SHELF).map((p) => (
+                      <ProgressionCard key={p.id} progression={p} href={href('progressions', p.id)} meta={`Level ${p.level} · ${bandOf(p.level).name} · ${noteName(p.keys[0], naming)}`} />
+                    ))}
+                  </div>
                 </div>
               </Section>
             );

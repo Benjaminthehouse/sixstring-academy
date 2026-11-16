@@ -75,7 +75,7 @@ export function Judgement({ engine }: { engine: PlayerEngine }) {
 }
 
 /** The microphone's input level, as a thin bar (written per event, no render). */
-export function MicLevel({ engine, label }: { engine: PlayerEngine; label: string }) {
+export function MicLevel({ engine, label, compact }: { engine: PlayerEngine; label: string; compact?: boolean }) {
   const bar = useRef<HTMLSpanElement>(null);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(
@@ -88,9 +88,9 @@ export function MicLevel({ engine, label }: { engine: PlayerEngine; label: strin
     [engine],
   );
   return (
-    <span ref={box} className={styles.level}>
+    <span ref={box} className={cx(styles.level, compact && styles.levelCompact)} role="status" aria-label={label}>
       <Icon name="Mic" size="xs" />
-      <span className={styles.levelText}>{label}</span>
+      {!compact && <span className={styles.levelText}>{label}</span>}
       <span className={styles.levelTrack} aria-hidden="true">
         <span ref={bar} className={styles.levelBar} />
       </span>

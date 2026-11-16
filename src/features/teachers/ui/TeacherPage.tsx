@@ -115,12 +115,19 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
                   data-action="next-lesson"
                   data-lesson={upNext.id}
                 >
-                  {upNext.resume ? 'Continue lesson' : standing.done === 0 ? 'Start the first lesson' : 'Start the lesson'}
+                  {upNext.resume ? 'Continue lesson' : 'Start lesson'}
                 </LinkButton>
               </>
             ) : written ? (
               <Text tone="muted">You have done every lesson written so far. New units are on their way.</Text>
-            ) : null}
+            ) : (
+              <>
+                <Text weight="semibold">Lessons in preparation</Text>
+                <Text variant="caption" tone="muted">
+                  {`The whole course is planned below; ${card.first}'s first unit is being written.`}
+                </Text>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -137,6 +144,7 @@ export function TeacherPage({ teacher }: { teacher: TeacherKey }) {
             <div data-course-map-wrap="">
               <CourseMap
                 course={tc.course}
+                autoScroll={false}
                 onStartLesson={(_u, lessonId) => start(lessonId)}
                 onStartCheckpoint={(unitId) => navigate('teachers', teacher, 'checkpoint', unitId)}
                 onPractice={(unitId) => navigate('teachers', teacher, 'practice', unitId)}

@@ -582,6 +582,10 @@
   flex: 1 1 12rem;
   min-width: 0;
 }
+/* What the learner typed: a long unbroken word must wrap, not push the page sideways. */
+.learnerText {
+  overflow-wrap: anywhere;
+}
 .routineStepTitle {
   flex: 1 1 auto;
   min-width: 0;

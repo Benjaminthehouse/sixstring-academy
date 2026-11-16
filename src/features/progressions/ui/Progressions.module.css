@@ -129,6 +129,48 @@
   }
 }
 
+/*
+ * A shelf on the front page always shows full rows: 4 cards in one or two columns, 6 in three,
+ * 4 in four (it is handed 6). "Start here" has 4 and goes two by two where a shelf has three.
+ */
+.shelf {
+  container-type: inline-size;
+}
+.shelf .cards {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shelf .cards > :nth-child(n + 5) {
+  display: none;
+}
+@container (min-width: 34rem) {
+  .shelf .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 52rem) {
+  .shelf .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .shelf .cards > :nth-child(n + 5) {
+    display: flex;
+  }
+  .shelf .cards > :nth-child(n + 7) {
+    display: none;
+  }
+  .featured .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 70rem) {
+  .shelf .cards,
+  .featured .cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .shelf .cards > :nth-child(n + 5) {
+    display: none;
+  }
+}
+
 /* ── Browser ──────────────────────────────────────────────────────────── */
 
 .filters {
@@ -274,6 +316,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  container-type: inline-size;
 }
 .chartLine {
   display: flex;
@@ -377,6 +420,25 @@
   }
   .split .numeral {
     font-size: var(--text-xs);
+  }
+}
+/*
+ * Two chords side by side in a quarter of a narrow chart get about 70 px each, which cuts
+ * "Edim7" to "Edi…". Below the width where both fit, a shared bar stacks its chords (first on
+ * top), so every name stays whole and the four-bar lines stay four bars.
+ */
+@container (max-width: 44rem) {
+  .split {
+    flex-direction: column;
+  }
+  .split .slot {
+    min-height: 2.75rem;
+    padding-top: var(--sp-1);
+    padding-bottom: var(--sp-1);
+  }
+  .split .slot + .slot {
+    border-left: 0;
+    border-top: 1px dashed var(--line);
   }
 }
 

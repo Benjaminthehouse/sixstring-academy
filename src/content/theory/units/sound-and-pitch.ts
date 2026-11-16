@@ -80,7 +80,7 @@ const aSoundIsAVibration: Lesson = {
       type: 'true-false',
       statement: 'An electric guitar uses a pickup and an amplifier to be heard.',
       answer: true,
-      explain: 'An electric guitar has a solid body that adds little volume. Its pickup turns the string\'s vibration into a signal, and the amplifier makes it loud.',
+      explain: 'An electric guitar usually has a solid body that adds little volume. Its pickup turns the string\'s vibration into a signal, and the amplifier makes it loud.',
     },
     {
       type: 'play-note',
@@ -164,7 +164,7 @@ const pitchHighAndLow: Lesson = {
       type: 'card',
       title: 'Faster means higher',
       body: 'A plucked string vibrates many times every second. The **faster** it vibrates, the **higher** the pitch. Thin, light string 1 vibrates about four times as fast as thick, heavy string 6.',
-      tip: 'Heavier strings move more slowly. That is why the thick strings are the low ones.',
+      tip: 'At the same length, a heavier string vibrates more slowly. That is why the thick strings are the low ones.',
     },
     {
       type: 'choice',
@@ -500,7 +500,7 @@ const theOctave: Lesson = {
     {
       type: 'card',
       title: 'The same note, higher',
-      body: 'Play open string 6, then string 6 at fret 12, marked by the double dot. The two sound like **the same note** at two heights. That distance is an {t:octave}, and both notes are called {n:E}.',
+      body: 'Play open string 6, then string 6 at fret 12, usually marked by a double dot. The two sound like **the same note** at two heights. That distance is an {t:octave}, and both notes are called {n:E}.',
       figure: {
         kind: 'fretboard',
         frets: [0, 12],
@@ -555,7 +555,7 @@ const theOctave: Lesson = {
     {
       type: 'card',
       title: 'Fret 12',
-      body: 'On every string, **fret 12** sounds one octave above the open string. It sits exactly halfway between the nut and the bridge: half the length, twice the speed.',
+      body: 'On every string, **fret 12** sounds one octave above the open string. It sits halfway between the nut and the bridge: half the length, twice the speed.',
       figure: {
         kind: 'fretboard',
         frets: [9, 12],
@@ -585,9 +585,9 @@ const theOctave: Lesson = {
       type: 'choice',
       prompt: 'Where is fret 12 on the string?',
       options: [
-        { text: 'Exactly halfway between nut and bridge', correct: true },
+        { text: 'Halfway between the nut and the bridge', correct: true },
         { text: 'A quarter of the way from the nut', why: 'Half the length gives twice the speed: fret 12 is at the halfway point.' },
-        { text: 'Right next to the bridge', why: 'Fret 12 is halfway along the string, usually where the neck meets the body.' },
+        { text: 'Right next to the bridge', why: 'Fret 12 is halfway along the string, often near where the neck joins the body.' },
       ],
       shuffle: false,
       explain: 'Fret 12 halves the vibrating string, so the note vibrates twice as fast: one octave up.',
@@ -616,7 +616,7 @@ const theOctave: Lesson = {
         explain: 'Fret 12 of string 6: the {n:E} one octave above the open low {n:E}.',
       },
     },
-    { id: 'fret-12-halfway', front: 'Where does fret 12 sit on the string?', back: 'Exactly halfway between the nut and the bridge.' },
+    { id: 'fret-12-halfway', front: 'Where does fret 12 sit on the string?', back: 'Halfway between the nut and the bridge: half the length, so twice the speed.' },
   ],
 };
 

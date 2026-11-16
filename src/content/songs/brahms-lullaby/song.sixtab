@@ -1,0 +1,35 @@
+# Brahms' Lullaby, melody with chords (repertoire plan: brahms-lullaby). Brahms' Wiegenlied,
+# Op. 49 No. 4, moved from E-flat major to G major, so the tune runs from the open string 3 (G)
+# up to string 1 fret 3 (G), all in first position, with the octave leap from one G to the other
+# in the second half. Played without words. You play the tune; the teacher plays the rocking
+# accompaniment (bass note on beat 1, chord on beats 2 and 3) on G (320003), D7 (xx0212) and
+# C (x32010). Then swap parts.
+title: Brahms' Lullaby
+id: brahms-lullaby
+composer: Johannes Brahms
+source: Wiegenlied (Cradle Song), Op. 49 No. 4 (1868), moved to G major; melody and accompaniment arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Brahms died in 1897); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: lullaby, waltz time, melody, octave leap
+tempo: 72
+time: 3/4
+key: G
+pickup: q
+
+track: Melody
+role: lead
+[First half]
+| "G=320003" e 2:0 2:0 | h 2:3{3} e 2:0 2:0 | h 2:3 e 2:0 2:3 | "D7=xx0212" q 1:3{3} q. 1:2{2} e 1:0 | "G=320003" q 1:0 2:3 e 3:2{2} 2:0 |
+| "D7=xx0212" q 2:1{1} 3:2 e 3:2 2:0 | h 2:1 e 3:2 2:1 | e 1:2 1:0 q 2:3 1:2 | "G=320003" h 1:3 e 3:0 3:0 |
+[Second half]
+| ^"the octave leap: open G up to fret 3 on string 1" "C=x32010" h 1:3{3} e 1:0 2:1{1} | "G=320003" h 2:3 e 2:0 3:0 | "D7=xx0212" q 2:1 2:3 1:0 | "G=320003" h 2:3 e 3:0 3:0 |
+| "C=x32010" h 1:3 e 1:0 2:1 | "G=320003" h 2:3 e 2:0 3:0 | "D7=xx0212" q 2:1 2:0 3:2 | "G=320003" h. 3:0 ||
+
+track: Teacher
+role: rhythm
+| q r |
+| q 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) | % | 4:0 (3:2 2:1 1:2) (3:2 2:1 1:2) | 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) |
+| 4:0 (3:2 2:1 1:2) (3:2 2:1 1:2) | % | % | 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) |
+| 5:3 (4:2 3:0 2:1) (4:2 3:0 2:1) | 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) | 4:0 (3:2 2:1 1:2) (3:2 2:1 1:2) | 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) |
+| 5:3 (4:2 3:0 2:1) (4:2 3:0 2:1) | 6:3 (4:0 3:0 2:0) (4:0 3:0 2:0) | 4:0 (3:2 2:1 1:2) (3:2 2:1 1:2) | 6:3 h (4:0 3:0 2:0) ||

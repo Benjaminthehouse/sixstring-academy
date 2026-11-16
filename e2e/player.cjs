@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the Player (src/features/player). Run:
- *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,flow,reload,nomic,layouts]
+ *   node e2e/player.cjs [--verbose] [--shots] [--only listen,loop,keys,wait,flow,reload,nomic,address,artifact,long,layouts]
  *
  * Real Chromium, real Web Audio, Chromium's fake microphone playing WAV files rendered by the
  * audio module (the app's own guitar synth).
@@ -23,10 +23,15 @@
  *           with bar 2 played 130 ms early on purpose: those notes are judged "early", the others
  *           perfect or good; the results panel shows accuracy, stars, the heat strip and a
  *           suggestion; recordActivity stored song:hot-cross-buns with the accuracy
- *  reload   phone: play, pause at bar 2 with a loop and 80 % tempo set, reload: the player says
- *           where it picked up, and the bar, the loop and the tempo are back
+ *  reload   phone: set 75 % and a loop of bars 2–3, play, pause, reload: the player says it picked
+ *           up in the bar where it was paused, and the loop and the tempo are back
  *  nomic    a browser with no microphone: choosing Wait shows the microphone panel once with
  *           "Tap along instead", tap-along plays and taps are timed
+ *  address  #play with no song offers the library; an unknown song says so and offers another; a
+ *           bar the song does not have starts at the top and says why
+ *  artifact the app inside the Claude viewer (simulated: `window.claude` present), where the
+ *           microphone is refused: the mode picker offers Listen and Tap along, the reason is
+ *           shown once with "Tap along instead", and not again after a reload
  *  long     phone, a 200-bar study saved to the library: only the lines near the view are drawn,
  *           playing from bar 40 at 150 % the score scrolls by itself so the line being played and
  *           the next one stay in view, frames keep coming (the rate on this shared machine is
@@ -186,7 +191,8 @@ async function listen(browser, url, facts) {
     check('listen', 'every bar is heard at its time on the audio clock (within 2 ms)', barErr.length === facts.bars.length && Math.max(...barErr) < 0.002, barErr.map((e) => (e * 1000).toFixed(2)).join(' '));
     // ...and the screen hears about each bar when it sounds (the visual queue runs per frame).
     const late = d.bars.map((b) => b.heardAt - b.time);
-    check('listen', 'each bar event reaches the screen when the bar is heard (within 50 ms, never early)', late.every((x) => x >= -0.002 && x < 0.05), late.map((x) => (x * 1000).toFixed(1)).join(' '));
+    // The visual queue runs once per frame, on the frame nearest the sound: up to half a frame early.
+    check('listen', 'each bar event reaches the screen when the bar is heard (from half a frame early to 50 ms late)', late.every((x) => x >= -0.009 && x < 0.05), late.map((x) => (x * 1000).toFixed(1)).join(' '));
     check('listen', 'the frame loop ran while playing', d.frames > 200, d.frames);
     const results = await page.locator('[data-player-results]').count();
     check('listen', 'listening to the end opens a short summary that suggests wait mode', results === 1 && /waiting for you/i.test(await page.locator('[data-player-suggestion]').innerText()), results);
@@ -205,6 +211,8 @@ async function loop(browser, url, facts) {
   const s = await open(browser, url);
   const { page } = s;
   try {
+    await s.goto('play--greensleeves-fingerstyle--b');
+    check('loop', 'an address naming a section loops it (#play--greensleeves-fingerstyle--b: bars 10 to 17)', (await page.locator('[data-player-loop]').first().getAttribute('data-player-loop')) === '9-16');
     await s.goto(`play--${SONG}--t150`);
     check('loop', 'the address sets the tempo (t150)', (await page.locator('[data-player-tempo]').first().getAttribute('data-player-tempo')) === '150');
     await page.getByRole('button', { name: /Choose bars/ }).click();
@@ -391,6 +399,19 @@ async function wait() {
       } finally {
         await s.close();
       }
+      // With --shots: the main practice layout, a phone held sideways, in wait mode.
+      if (shots) {
+        const l = await open(browser, url, { mobile: true, viewport: { width: 844, height: 390 }, permissions: ['microphone'] });
+        try {
+          await l.goto(`play--${SONG}--wait`);
+          await l.page.locator('[data-player-play]').click();
+          await l.page.waitForFunction(() => window.__pl.waitIndex >= 1, null, { timeout: 20000 }).catch(() => {});
+          await l.page.waitForTimeout(400);
+          await l.shot('wait-sideways');
+        } finally {
+          await l.close();
+        }
+      }
     });
   } finally {
     fs.rmSync(file, { force: true });
@@ -548,6 +569,7 @@ async function nomic(browser, url) {
     await page.locator('[data-player-modes]').getByRole('radio', { name: /^Wait/ }).click();
     const panel = await page.getByText('Tap along instead').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
     check('nomic', 'choosing Wait without a microphone explains what is missing and offers tap-along', panel && /No microphone found/i.test(await page.locator('[role="dialog"]').innerText()));
+    await page.waitForTimeout(400);
     await s.shot('nomic');
     await page.getByText('Tap along instead').first().click();
     await page.waitForFunction(() => window.__pl.mode === 'tap', null, { timeout: 10000 });
@@ -576,6 +598,67 @@ async function nomic(browser, url) {
     await page.waitForTimeout(300);
     const errors = s.takeErrors().filter((e) => !/NotFoundError|device not found/i.test(e));
     check('nomic', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// address: no song, an unknown song
+// ---------------------------------------------------------------------------------------------
+async function address(browser, url) {
+  const s = await open(browser, url, { mobile: true });
+  const { page } = s;
+  try {
+    const visit = async (hash) => {
+      await page.goto(`${url}#${hash}`, { waitUntil: 'load' });
+      await page.waitForSelector('main[data-route="play"] h1', { timeout: 60000 });
+      await page.waitForTimeout(1500);
+      return page.locator('main').innerText();
+    };
+    const none = await visit('play');
+    check('address', '#play without a song offers the song library', /Pick a song to play/.test(none) && (await page.getByRole('link', { name: /Open the song library/ }).count()) === 1, none.slice(0, 120));
+    const missing = await visit('play--no-such-song');
+    check('address', 'an unknown song says so and offers another', /not in your library/.test(missing) && (await page.getByRole('link', { name: /Choose another song/ }).count()) === 1, missing.slice(0, 160));
+    const far = await page.goto(`${url}#play--hot-cross-buns--m40`, { waitUntil: 'load' }).then(() => page.waitForSelector('[data-player]', { timeout: 60000 })).then(() => page.waitForTimeout(800)).then(() => page.locator('body').innerText());
+    check('address', 'a bar the song does not have: it starts at the top and says why', /has 4 bars/.test(far), far.slice(0, 200));
+    const errors = s.takeErrors();
+    check('address', 'no console errors', errors.length === 0, errors.join(' | '));
+  } finally {
+    await s.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// artifact: the Claude viewer refuses the microphone
+// ---------------------------------------------------------------------------------------------
+async function artifact(browser, url) {
+  const s = await open(browser, url, {
+    mobile: true,
+    init: () => {
+      // What the Claude viewer puts on the page; no capability is granted here.
+      window.claude = { use: () => Promise.reject(new Error('not granted')) };
+    },
+  });
+  const { page } = s;
+  try {
+    await s.goto(`play--${SONG}--wait`);
+    const modes = await page.locator('[data-player-modes] [role="radio"]').allInnerTexts();
+    check('artifact', 'the mode picker offers Listen and Tap along only', modes.join('|') === 'Listen|Tap along', modes.join('|'));
+    const mode = await page.evaluate(() => window.__pl.mode);
+    check('artifact', 'an address asking for wait mode opens in tap-along', mode === 'tap', mode);
+    const panel = await page.getByText('switched off in this viewer').count();
+    check('artifact', 'the reason is shown (the viewer switches the microphone off)', panel >= 1);
+    await s.shot('artifact');
+    await page.getByRole('button', { name: 'Tap along instead' }).click();
+    await page.waitForTimeout(300);
+    check('artifact', '"Tap along instead" puts it away', (await page.getByText('switched off in this viewer').count()) === 0);
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('[data-player]', { timeout: 60000 });
+    await page.waitForTimeout(1200);
+    check('artifact', 'it is not shown again after a reload', (await page.getByText('switched off in this viewer').count()) === 0);
+    const errors = s.takeErrors();
+    check('artifact', 'no console errors', errors.length === 0, errors.join(' | '));
   } finally {
     await s.close();
   }
@@ -638,6 +721,30 @@ async function long(browser, url) {
     const both = settled.filter((f) => f.current && f.next).length;
     check('long', 'the view moves on by itself: several lines played', lines.length >= 3 && run.follow[run.follow.length - 1].scrollTop > run.follow[0].scrollTop, `lines ${lines.join(',')}`);
     check('long', 'the line being played and the next one stay in view', settled.length > 50 && both / settled.length > 0.95, `${both}/${settled.length}`);
+    // The same with the CPU slowed 4× (Chromium's throttling, roughly a mid-range phone): reported,
+    // and checked only loosely, because this machine is shared.
+    const cdp = await s.context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const slow = await page.evaluate(async () => {
+      const gaps = [];
+      let last = performance.now();
+      const t0 = last;
+      await new Promise((resolve) => {
+        const step = (t) => {
+          gaps.push(t - last);
+          last = t;
+          if (t - t0 < 5000) requestAnimationFrame(step);
+          else resolve();
+        };
+        requestAnimationFrame(step);
+      });
+      return gaps.sort((a, b) => a - b);
+    });
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    const s50 = slow[Math.floor(slow.length * 0.5)];
+    const s95 = slow[Math.floor(slow.length * 0.95)];
+    console.log(`  (long, CPU 4× slower: ${slow.length} frames in 5 s; median ${s50.toFixed(1)} ms, p95 ${s95.toFixed(1)} ms)`);
+    check('long', 'with the CPU 4× slower the cursor still moves every frame or two (median under 34 ms)', s50 < 34, `median ${s50.toFixed(1)} ms, p95 ${s95.toFixed(1)} ms`);
     // A scroll by the learner is respected for a moment.
     await page.locator('[data-player-score]').evaluate((el) => {
       el.dispatchEvent(new WheelEvent('wheel', { deltaY: -400, bubbles: true }));
@@ -668,6 +775,7 @@ async function layouts(browser, url) {
   const cases = [
     { name: 'phone-dark', mobile: true, theme: 'dark', want: 'bar' },
     { name: 'phone-light', mobile: true, theme: 'light', want: 'bar' },
+    { name: 'phone-360', mobile: true, viewport: { width: 360, height: 740 }, theme: 'dark', want: 'bar' },
     { name: 'phone-sideways', mobile: true, viewport: { width: 844, height: 390 }, theme: 'dark', want: 'rail' },
     { name: 'phone-sideways-light', mobile: true, viewport: { width: 844, height: 390 }, theme: 'light', want: 'rail' },
     { name: 'tablet', mobile: true, viewport: VIEWPORTS.tablet, theme: 'light', want: 'bar' },
@@ -728,6 +836,8 @@ async function layouts(browser, url) {
     ['keys', keys],
     ['reload', reload],
     ['nomic', nomic],
+    ['address', address],
+    ['artifact', artifact],
     ['long', long],
     ['layouts', layouts],
   ].filter(([g]) => wants(g));

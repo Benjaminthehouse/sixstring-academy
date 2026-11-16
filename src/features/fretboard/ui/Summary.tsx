@@ -2,11 +2,11 @@ import { useMemo } from 'react';
 import { ActionBar, Banner, Button, Celebration, useIsMobile, Heading, LinkButton, ProgressRing, Section, StarRating, Stat, Text, XpChip, cx } from '@/ui';
 import { Fretboard, type FretMarker } from '@/ui/music';
 import { fretWords } from '../core/explain';
-import { pcAt, posKey } from '../core/neck';
+import { boardRange, pcAt, posKey } from '../core/neck';
 import { spell } from '../core/notes';
 import { stringName, type Stage } from '../core/path';
 import type { Scope } from '../core/types';
-import { boardFrets } from './QuestionBoard';
+
 import type { RoundOutcome } from './useRound';
 import type { Trainer } from './useTrainer';
 import styles from './Trainer.module.css';
@@ -120,13 +120,13 @@ export function Summary({ outcome, trainer, scope, stage, nextStage, nextTitle, 
           </LinkButton>
         )}
         <LinkButton variant="ghost" size="sm" to="fretboard" iconLeft="Rows4">
-          All of the fretboard
+          All steps and drills
         </LinkButton>
       </div>
 
       <Section title="This round on the neck" description={s.missed.length ? 'Green: right. Red squares: missed. They come back in your next rounds.' : 'Every place you were asked, all of them right.'} level={3}>
         <div className={cx(styles.mapBoard)}>
-          <Fretboard tuning={trainer.tuning} frets={boardFrets(scope)} markers={markers} size="md" aria-label="This round on the neck" />
+          <Fretboard tuning={trainer.tuning} frets={boardRange(scope)} markers={markers} size="md" aria-label="This round on the neck" />
         </div>
         {s.missed.length > 0 && (
           <ul className={styles.tricky}>

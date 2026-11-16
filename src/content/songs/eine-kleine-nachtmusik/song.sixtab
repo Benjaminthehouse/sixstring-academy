@@ -1,0 +1,21 @@
+# Eine kleine Nachtmusik, the opening (repertoire plan: eine-kleine-nachtmusik). The first four
+# bars of the Serenade in G, K. 525, first movement, where the whole orchestra plays the same notes:
+# the call G D G D, the rising G major arpeggio G D G B D, then the answer C A C A and C A F# A D,
+# which outlines D7. All first position: open strings 3, 4 and 2, string 2 fret 3 (D) and fret 1
+# (C), string 3 fret 2 (A), string 4 fret 4 (F#). Every rest is part of the music.
+title: Eine kleine Nachtmusik (opening)
+id: eine-kleine-nachtmusik
+composer: Wolfgang Amadeus Mozart
+source: Serenade No. 13 in G, K. 525 (1787), first movement, bars 1-4; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Mozart died in 1791); this arrangement is original to Sixstring Academy
+difficulty: 3
+tags: mozart, classical, arpeggio, rests
+tempo: 96
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[Opening]
+| "G" q 3:0 e r 4:0 q 3:0 e r 4:0 | e 3:0 4:0 3:0 2:0 q 2:3{3} r | "D7" q 2:1{1} e r 3:2{2} q 2:1 e r 3:2 | e 2:1 3:2 4:4{4} 3:2 q 4:0 r ||

@@ -34,7 +34,7 @@ interface TaskBase {
   body: RichText;
   tip?: RichText;
   minutes: number;
-  fallback?: { body: RichText } & TaskTarget;
+  fallback?: { body: RichText; title?: string } & TaskTarget;
 }
 
 /** The Player's practice modes (see `src/features/player`): listen is the default and needs no param. */

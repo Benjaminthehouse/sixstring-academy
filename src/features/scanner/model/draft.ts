@@ -405,9 +405,24 @@ export function checkBar(song: Song, bar: number): BarCheck {
   const need = info ? barLength(info) : 0;
   const diff = ticks - need;
   if (diff === 0) return { ticks, need, diff, ok: true, text: 'Adds up' };
-  const what = describeTicks(Math.abs(diff));
+  if (info && diff >= need && need > 0) {
+    const bars = Math.round((ticks / need) * 10) / 10;
+    return { ticks, need, diff, ok: false, text: `Holds about ${bars} bars: a bar line was probably missed` };
+  }
+  const what = describeAmount(Math.abs(diff), info?.time.denominator ?? 4);
   const cap = what.charAt(0).toUpperCase() + what.slice(1);
-  return { ticks, need, diff, ok: false, text: diff < 0 ? `${cap} is missing` : `${cap} too long` };
+  return { ticks, need, diff, ok: false, text: diff < 0 ? `${cap} ${/s$/.test(what) && !/^an? /.test(what) ? 'are' : 'is'} missing` : `${cap} too long` };
+}
+
+/** A length in words: "a quarter", "a dotted eighth", or a count of beats when no single note lasts that long. */
+export function describeAmount(ticks: number, denominator = 4): string {
+  if (valueFromTicks(ticks)) return describeTicks(ticks);
+  const unit = 3840 / denominator;
+  if (Number.isInteger(ticks / unit)) {
+    const n = ticks / unit;
+    return `${n} ${denominator === 8 ? 'eighth-note beats' : 'beats'}`;
+  }
+  return `${ticks} ticks`;
 }
 
 /** Bars that do not add up. */

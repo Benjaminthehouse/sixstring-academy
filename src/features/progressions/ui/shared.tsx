@@ -52,6 +52,9 @@ export function ownsKey(target: EventTarget | null, key: string): boolean {
   if (!el) return false;
   const tag = el.tagName;
   if (el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  // Space on the option already chosen (a scale chip just clicked) would do nothing there, so it
+  // stays the screen's play / pause.
+  if (key === ' ' && el.getAttribute('role') === 'radio' && el.getAttribute('aria-checked') === 'true') return false;
   if ((key === ' ' || key === 'Enter') && (tag === 'BUTTON' || tag === 'A' || el.getAttribute('role') === 'button' || el.getAttribute('role') === 'radio')) return true;
   if (key.startsWith('Arrow') && el.closest('[role="radiogroup"], [role="tablist"], [role="slider"], [role="spinbutton"], [role="listbox"], [role="menu"], [data-fretboard-cells]')) return true;
   return false;

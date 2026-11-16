@@ -1,0 +1,504 @@
+/*
+ * A teacher's lesson. One column on phones with the primary button in the thumb zone; on wide
+ * screens a card with a picture puts it beside the words. The top row and the bottom bar stick.
+ * The engine's own parts (ExerciseFrame, FeedbackPanel, SummaryView) bring their styles; the
+ * stage is the `lesson` container their layouts ask about.
+ */
+
+.page {
+  --player-max: 58rem;
+}
+.player {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-5));
+}
+@media (min-width: 720px) {
+  .player {
+    min-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-8));
+  }
+}
+
+/* ── Top row ─────────────────────────────────────────────────────────────────────────────────── */
+
+.top {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: calc(var(--sp-3) * -1) auto 0;
+  padding: var(--sp-2) 0;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.with {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.withName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+@media (max-width: 719.98px) {
+  .withName {
+    display: none;
+  }
+}
+.combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 1.75rem;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--streak-soft);
+  color: var(--streak-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  animation: pop var(--dur-2) var(--ease);
+}
+.combo svg {
+  color: var(--streak);
+}
+.allowance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+}
+
+/* ── Stage ───────────────────────────────────────────────────────────────────────────────────── */
+
+.stage {
+  container: lesson / inline-size;
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  padding: var(--sp-5) 0 var(--sp-8);
+  animation: enter var(--dur-2) var(--ease);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+/* The teacher, at the head of a card. */
+.teacher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.teacherWho {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.teacherName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+/* Teaching card (and task card): head, words, picture, tip. Wide: the picture on the right. */
+.card {
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'main' 'figure' 'tip';
+  gap: var(--sp-4);
+  align-items: start;
+  max-width: 44rem;
+  margin-inline: auto;
+}
+.card.split {
+  max-width: var(--player-max);
+}
+.cardHead {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+}
+.cardMain {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.cardTitle {
+  text-wrap: balance;
+}
+.cardBody {
+  max-width: 62ch;
+  font-size: var(--text-lg);
+  line-height: 1.6;
+}
+.cardBody p {
+  margin: 0;
+}
+.tip {
+  grid-area: tip;
+  max-width: 62ch;
+}
+.cardFigure {
+  grid-area: figure;
+  --figure-bg: var(--surface);
+  min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.art {
+  padding: var(--sp-3);
+}
+@container lesson (min-width: 50rem) {
+  .card.split {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-areas: 'head figure' 'main figure' 'tip figure';
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--sp-10);
+  }
+}
+
+/* Task card */
+.task {
+  grid-template-areas: 'head' 'back' 'main' 'tip' 'note';
+}
+.taskNote {
+  grid-area: note;
+}
+.task .cardMain {
+  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.taskMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.taskNote {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.taskRecap {
+  border-left-color: var(--line-strong) !important;
+  background: var(--surface-2) !important;
+}
+.bodyQuiet {
+  font-size: var(--text-md);
+  color: var(--fg-muted);
+}
+.back {
+  grid-area: back;
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+  animation: enter var(--dur-2) var(--ease);
+}
+.backIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+.backDone {
+  background: var(--ok-soft);
+  color: var(--ok-text);
+}
+.backText {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* The unit's performance */
+.show {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.showHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.spot {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  flex: none;
+}
+.showWords {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  max-width: 44rem;
+}
+.saysLine {
+  font-size: var(--text-md);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+/* ── Bottom bar ──────────────────────────────────────────────────────────────────────────────── */
+
+.bar {
+  transition:
+    background var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+}
+.bar.bar-ok {
+  background: var(--ok-soft);
+  border-top: 2px solid var(--ok);
+}
+.bar.bar-bad {
+  background: var(--bad-soft);
+  border-top: 2px solid var(--bad);
+}
+.bar.bar-info {
+  background: var(--info-soft);
+  border-top: 2px solid var(--info);
+}
+.barInner {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: var(--player-max);
+  margin: 0 auto;
+  min-width: 0;
+}
+.barButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+}
+.barKeys {
+  margin-right: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+.primary {
+  min-width: 11rem;
+}
+.skip {
+  flex: none;
+}
+@media (max-width: 719.98px) {
+  .primary {
+    flex: 1 1 auto;
+    min-width: min(100%, 9rem);
+  }
+  .barButtonsDone {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+  .barKeys {
+    display: none;
+  }
+}
+
+/* The teacher's reaction above the feedback. */
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  animation: enter var(--dur-2) var(--ease);
+}
+.reactionLine {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.35;
+}
+.reactionName {
+  font-weight: 700;
+}
+
+/* ── The end ─────────────────────────────────────────────────────────────────────────────────── */
+
+.end {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.says {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--sp-4);
+}
+.says .teacher {
+  max-width: 34rem;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+/* The summary's own top padding is for when it stands alone. */
+.end > :last-child {
+  padding-top: 0;
+}
+
+.unitDone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-5);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: center;
+}
+.medal {
+  position: relative;
+  margin-bottom: var(--sp-2);
+}
+.medalBadge {
+  position: absolute;
+  right: -0.5rem;
+  bottom: -0.25rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.pop {
+  animation: pop var(--dur-3) var(--ease);
+}
+.unitTitle {
+  text-wrap: balance;
+}
+.celebrate {
+  margin: var(--sp-2) 0 0;
+  display: grid;
+  gap: var(--sp-2);
+  max-width: 34rem;
+  text-align: start;
+}
+.celebrate blockquote {
+  margin: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+}
+.celebrate blockquote p {
+  margin: 0;
+}
+.celebrate figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.canNow {
+  display: grid;
+  gap: var(--sp-1);
+  max-width: 34rem;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+}
+.unitActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.nextUnit {
+  max-width: 34rem;
+}
+
+:global(html[data-motion='reduce']) .stage,
+:global(html[data-motion='reduce']) .combo,
+:global(html[data-motion='reduce']) .back,
+:global(html[data-motion='reduce']) .reaction,
+:global(html[data-motion='reduce']) .pop {
+  animation: none;
+}
+
+/* A phone held sideways: the top row scrolls away with the step. */
+@media (max-height: 520px) {
+  .top {
+    position: static;
+    margin-top: 0;
+    padding: 0;
+  }
+  .stage {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-4);
+  }
+  .card {
+    gap: var(--sp-3);
+  }
+}

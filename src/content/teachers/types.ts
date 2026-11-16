@@ -62,8 +62,11 @@ export interface TaskStep extends TaskTarget {
   tip?: RichText;
   /** Minutes to spend there, 1 to 20. */
   minutes: number;
-  /** Shown instead of `body`, and leading there instead, when the target is missing (a song not in the library yet). */
-  fallback?: { body: RichText } & TaskTarget;
+  /**
+   * Used instead when the target is missing (a song not in the library yet): its own instructions
+   * (and title, when the task's title names the missing piece), leading to another tool.
+   */
+  fallback?: { body: RichText; title?: string } & TaskTarget;
 }
 
 /** Drawings a teaching card can carry, made by the teachers screen. */

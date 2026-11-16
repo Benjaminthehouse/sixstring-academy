@@ -1,0 +1,32 @@
+# Strumming: Boom-Chick (repertoire plan: st-boom-chick). An original country-style study.
+# G, C, D7, G, four bars each. Boom: a bass note on beats 1 and 3. Chick: a down-strum of
+# strings 4 to 1 on beats 2 and 4. Bass notes: G alternates string 6 fret 3 (G) and the open
+# string 4 (D); C alternates string 5 fret 3 (C) and string 6 fret 3 (G), finger 3 moving between
+# them; D7 alternates the open string 4 (D) and the open string 5 (A). Shapes G (320003),
+# C (x32010), D7 (xx0212); G is fingered 3-2-4 here so fingers 3 and 2 slide across for C.
+# Bar 4 walks up into C with a bass note on every beat: G, then G A B, and C lands on beat 1
+# of bar 5. Written as notes rather than slashes so you can see exactly which strings to hit.
+title: Strumming: Boom-Chick
+composer: Sixstring Academy
+source: Original strumming study in the country style
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: boom-chick, alternating bass, country, walk-up
+tempo: 88
+time: 4/4
+key: G
+
+track: Your part
+role: rhythm
+[G]
+| "G=320003" q 6:3{3} (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} |
+| 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | ^"Walk up to C" 6:3{3} 6:3{3} 5:0 5:2{2} |
+[C]
+| "C=x32010" 5:3{3} (4:2 3:0 2:1 1:0){dn} 6:3{3} (4:2 3:0 2:1 1:0){dn} | 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} |
+| 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} | 5:3 (4:2 3:0 2:1 1:0){dn} 6:3 (4:2 3:0 2:1 1:0){dn} |
+[D7]
+| "D7=xx0212" 4:0 (4:0 3:2 2:1 1:2){dn} 5:0 (4:0 3:2 2:1 1:2){dn} | 4:0 (4:0 3:2 2:1 1:2){dn} 5:0 (4:0 3:2 2:1 1:2){dn} |
+| 4:0 (4:0 3:2 2:1 1:2){dn} 5:0 (4:0 3:2 2:1 1:2){dn} | 4:0 (4:0 3:2 2:1 1:2){dn} 5:0 (4:0 3:2 2:1 1:2){dn} |
+[G again]
+| "G=320003" 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} |
+| 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} | 6:3 (4:0 3:0 2:0 1:3){dn} 4:0 (4:0 3:0 2:0 1:3){dn} ||

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeTone, playUi, pluck, unlockAudio } from '@/core/audio';
 import { getProgress, markSkill, recordActivity, setSkillData, type ActivityResult } from '@/core/progress';
 import { soundPrefs } from '@/core/settings';
-import { explainFindMiss, explainNameMiss, fretWords, onLandmarkSentence, anchorSentence } from '../core/explain';
+import { explainFindMiss, explainNameMiss, fretWords, howToFind } from '../core/explain';
 import { gradeName, gradePlayed, gradeTap, questionMidi, remaining, type Attempt } from '../core/grade';
-import { midiAtPos, pcAt } from '../core/neck';
+import { boardRange, midiAtPos, pcAt } from '../core/neck';
 import { spell } from '../core/notes';
 import { stringName } from '../core/path';
 import { freshSeed } from '../core/rng';
@@ -95,6 +95,15 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
   const shownAt = useRef(0);
   const startedAt = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Short delays (a note plucked after the "wrong" sound): cleared when the screen goes, so nothing sounds after it.
+  const delays = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const after = (ms: number, fn: () => void) => {
+    const id = setTimeout(() => {
+      delays.current.delete(id);
+      fn();
+    }, ms);
+    delays.current.add(id);
+  };
   const baseline = useRef(trainer.stats);
   const trainerRef = useRef(trainer);
   trainerRef.current = trainer;
@@ -204,6 +213,8 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
       const { state: nextState, result } = finishQuestion(s, q, a);
       state.current = nextState;
       fretboardDebug.results = nextState.results;
+      // The map is saved answer by answer: a reload, a crash or a phone closing the tab loses nothing.
+      setSkillData(trainerRef.current.mapId, encodeStats(nextState.stats));
       setAttemptBoth(view);
       setFeedback(fb);
       setScore(nextState.results.filter((r) => r.right).length);
@@ -230,6 +241,8 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
   }, [plan, ask]);
 
   const elapsed = () => Math.round(performance.now() - shownAt.current);
+  /** The frets the board shows: explanations only point at what the learner can see. */
+  const range = () => boardRange((state.current?.plan ?? plan).scope);
 
   /** A note named on the pad or the keyboard. */
   const answerPc = useCallback(
@@ -237,15 +250,15 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
       const q = questionRef.current;
       if (phaseRef.current !== 'asking' || !q || q.kind !== 'name') return;
       const t = trainerRef.current;
-      const g = gradeName(q, pc, t.ctx, t.maxFret);
+      const g = gradeName(q, pc, t.ctx, range(), t.maxFret);
       const view: AttemptView = { ...attemptRef.current, namedPc: pc, givenAt: g.givenAt, right: g.right, revealed: !g.right };
       if (g.right) {
         pluck(q.midi, undefined, { tone: tone(), string: q.pos.string, duration: 1.2, velocity: 0.75 });
         close({ right: true, ms: elapsed(), wrongTaps: [], found: [] }, view, { tone: 'ok', title: `Right: ${t.fmt(q.name)}`, lines: [] });
       } else {
         playUi('wrong');
-        setTimeout(() => pluck(q.midi, undefined, { tone: tone(), string: q.pos.string, duration: 1.2, velocity: 0.7 }), 260);
-        close({ right: false, ms: null, wrongTaps: [], found: [] }, view, { tone: 'bad', title: `Not ${t.fmt(spell(pc, t.ctx.spelling === 'flats' ? 'flats' : 'sharps'))}`, lines: explainNameMiss(q, pc, g.givenAt, t.ctx, t.fmt) });
+        after(260, () => pluck(q.midi, undefined, { tone: tone(), string: q.pos.string, duration: 1.2, velocity: 0.7 }));
+        close({ right: false, ms: null, wrongTaps: [], found: [] }, view, { tone: 'bad', title: `Not ${t.fmt(spell(pc, t.ctx.spelling === 'flats' ? 'flats' : 'sharps'))}`, lines: explainNameMiss(q, pc, g.givenAt, t.ctx, t.fmt, range()) });
       }
     },
     [close],
@@ -296,8 +309,8 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
       }
       playUi('wrong');
       const target = q.kind === 'find-any' ? q.targets[0] : q.pos;
-      if (target) setTimeout(() => playAt(t, target), 300);
-      close({ right: false, ms: null, wrongTaps: q.kind === 'find-any' ? [p] : [], found: [], tapped: p }, { ...a, tapped: p, right: false, revealed: true, wrongTaps: [p] }, { tone: 'bad', title: `Not quite`, lines: explainFindMiss(q, p, t.ctx, t.fmt) });
+      if (target) after(300, () => playAt(t, target));
+      close({ right: false, ms: null, wrongTaps: q.kind === 'find-any' ? [p] : [], found: [], tapped: p }, { ...a, tapped: p, right: false, revealed: true, wrongTaps: [p] }, { tone: 'bad', title: `Not quite`, lines: explainFindMiss(q, p, t.ctx, t.fmt, range()) });
     },
     [close],
   );
@@ -309,12 +322,12 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
     if (phaseRef.current !== 'asking' || !q) return;
     const a = attemptRef.current;
     const at = q.kind === 'name' || q.kind === 'find' || q.kind === 'octave' || q.kind === 'play' ? q.pos : q.targets[0];
-    if (at) setTimeout(() => playAt(t, at), 120);
+    if (at) after(120, () => playAt(t, at));
     const lines: string[] = [];
     if (q.kind === 'name' || q.kind === 'find' || q.kind === 'play') {
-      const how = onLandmarkSentence(q.pos) ?? anchorSentence(t.ctx, q.pos, q.name, t.fmt);
+      const how = howToFind(t.ctx, q.pos, q.name, t.fmt, range());
       if (how) lines.push(how);
-    } else lines.push(...explainFindMiss(q, null, t.ctx, t.fmt));
+    } else lines.push(...explainFindMiss(q, null, t.ctx, t.fmt, range()));
     const title = q.kind === 'every' ? `Here are the rest of the ${t.fmt(q.name)}s` : `It is ${t.fmt(q.name)}${'pos' in q && q.kind !== 'name' ? `, ${fretWords(q.pos.fret)}` : ''}`;
     close({ right: false, ms: null, wrongTaps: a.wrongTaps, found: a.found, gaveUp: true }, { ...a, right: false, revealed: true }, { tone: 'info', title, lines });
   }, [close]);
@@ -366,6 +379,8 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
   useEffect(
     () => () => {
       clearTimer();
+      delays.current.forEach((id) => clearTimeout(id));
+      delays.current.clear();
       if ((phaseRef.current === 'asking' || phaseRef.current === 'answered') && state.current) persist(false);
     },
     [persist],
@@ -373,6 +388,8 @@ export function useRound(plan: RoundPlan, trainer: Trainer, opts: RoundOptions) 
 
   const s = state.current;
   return {
+    /** The plan of the round on screen (fixed while it runs), or the one the next round will use. */
+    plan: s?.plan ?? plan,
     phase,
     question,
     attempt,

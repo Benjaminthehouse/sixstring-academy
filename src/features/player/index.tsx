@@ -43,7 +43,7 @@ export default function Player({ params }: RouteProps) {
     );
   }
 
-  if (!song || song.meta.id === undefined) {
+  if (!song) {
     return (
       <Page title={listing?.title ?? 'Loading song'} hideHeader width="full" className={styles.page}>
         <div className={styles.loading} aria-busy="true" aria-live="polite">
@@ -56,5 +56,6 @@ export default function Player({ params }: RouteProps) {
     );
   }
 
-  return <PlayerScreen key={request.songId} song={song} songId={request.songId} listing={listing} params={params} />;
+  // A new address (another song, or a link to other bars) opens afresh; the player never rewrites the address itself.
+  return <PlayerScreen key={params.join('--')} song={song} songId={request.songId} listing={listing} params={params} />;
 }

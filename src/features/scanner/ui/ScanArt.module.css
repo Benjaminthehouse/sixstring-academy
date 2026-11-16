@@ -1,0 +1,103 @@
+.paper {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.staff,
+.stem {
+  stroke: var(--fg-muted);
+  stroke-width: 0.8;
+}
+.head {
+  fill: var(--fg);
+}
+/* A sheet of paper stays light in the dark theme; its ink stays dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .paper {
+    fill: var(--fg);
+  }
+  :root:not([data-theme='light']) .staff,
+  :root:not([data-theme='light']) .stem {
+    stroke: var(--surface-3);
+  }
+  :root:not([data-theme='light']) .head {
+    fill: var(--bg);
+  }
+}
+:root[data-theme='dark'] .paper {
+  fill: var(--fg);
+}
+:root[data-theme='dark'] .staff,
+:root[data-theme='dark'] .stem {
+  stroke: var(--surface-3);
+}
+:root[data-theme='dark'] .head {
+  fill: var(--bg);
+}
+
+.beam {
+  fill: var(--accent);
+  animation: scan 2.8s var(--ease) infinite alternate;
+}
+.glow {
+  fill: var(--accent);
+  opacity: 0.18;
+  animation: scan 2.8s var(--ease) infinite alternate;
+}
+@keyframes scan {
+  from {
+    transform: translateY(-52px);
+  }
+  to {
+    transform: translateY(62px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beam,
+  .glow {
+    animation: none;
+  }
+}
+:root[data-motion='reduce'] .beam,
+:root[data-motion='reduce'] .glow {
+  animation: none;
+}
+
+.arrow {
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.screen {
+  fill: var(--surface-2);
+  stroke: var(--line);
+}
+.tabLine {
+  stroke: var(--fg-faint);
+  stroke-width: 1;
+}
+.knock {
+  fill: var(--surface-2);
+}
+.fret {
+  fill: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.tabLabel {
+  fill: var(--fg-muted);
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.play {
+  fill: var(--accent);
+}
+.playIcon {
+  fill: var(--accent-fg);
+}

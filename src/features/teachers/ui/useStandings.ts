@@ -19,8 +19,8 @@ export function useStandings(): { standings: Record<TeacherKey, CourseStanding>;
 }
 
 /** An unfinished teacher lesson saved on this device (the lesson slot is shared with the Theory Path). */
-export function savedTeacherLesson(teacher?: TeacherKey): (SessionState & { teacher: TeacherKey }) | null {
+export function savedTeacherLesson(teacher?: TeacherKey): (SessionState & { teacher: TeacherKey; lessonId: string }) | null {
   const s = loadSession({ mode: 'lesson', ...(teacher ? { courseId: teacher } : {}) }, { now: Date.now() });
   if (!s || !s.courseId || !isTeacherKey(s.courseId) || !s.lessonId) return null;
-  return { ...s, teacher: s.courseId };
+  return { ...s, teacher: s.courseId, lessonId: s.lessonId };
 }

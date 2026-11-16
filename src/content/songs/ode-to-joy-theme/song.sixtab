@@ -1,0 +1,39 @@
+# Ode to Joy, the theme only (repertoire plan: ode-to-joy-theme). Beethoven's tune from the
+# finale of the Ninth Symphony, in G on strings 3 and 2 in first position: 16 bars in A A B A
+# form. The first A ends on A (it waits), the second and the last on G (home). The B phrase has
+# two quick eighth-note pairs (B-C) and ends on the low D, the open string 4.
+# Fingers: A = string 3 fret 2 (finger 2), C = string 2 fret 1 (finger 1), D = string 2 fret 3
+# (finger 3). The teacher strums G and D, changing where the tune needs it.
+title: Ode to Joy (theme)
+id: ode-to-joy-theme
+composer: Ludwig van Beethoven
+source: Theme of the finale of Symphony No. 9 (1824, published 1826); new arrangement for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Beethoven died in 1827); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: melody, classical, stepwise, dotted rhythm
+tempo: 96
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[A]
+| "G" q 2:0 2:0 2:1{1} 2:3{3} | "D" q 2:3 2:1 2:0 3:2{2} | "G" q 3:0 3:0 3:2 2:0 | q. 2:0 e 3:2 "D" h 3:2 |
+[A again]
+| "G" q 2:0 2:0 2:1 2:3 | "D" q 2:3 2:1 2:0 3:2 | "G" q 3:0 3:0 3:2 2:0 | "D" q. 3:2 e 3:0 "G" h 3:0 |
+[B]
+| "D" q 3:2 3:2 "G" 2:0 3:0 | "D" q 3:2 e 2:0 2:1 "G" q 2:0 3:0 | "D" q 3:2 e 2:0 2:1 q 2:0 3:2 | "G" q 3:0 3:2 "D" h 4:0 |
+[A last time]
+| "G" q 2:0 2:0 2:1 2:3 | "D" q 2:3 2:1 2:0 3:2 | "G" q 3:0 3:0 3:2 2:0 | "D" q. 3:2 e 3:0 "G" h 3:0 ||
+
+track: Teacher
+role: rhythm
+[A]
+| h / / | / / | / / | / / |
+[A again]
+| / / | / / | / / | / / |
+[B]
+| / / | / / | / / | / / |
+[A last time]
+| / / | / / | / / | w / ||

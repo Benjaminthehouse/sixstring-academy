@@ -1,0 +1,437 @@
+/*
+ * The capture view.
+ *   phones     one column: the honest line, a big photo panel with the primary action, other ways
+ *              as rows; pages as a list (thumbnail left, words right); the Read button in the action bar
+ *   720 px +   the photo panel puts the picture tips beside the words; pages in a grid of cards
+ */
+.root {
+  min-width: 0;
+  position: relative;
+}
+.dragging {
+  outline: 3px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: var(--r-lg);
+}
+
+.honest {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  margin: 0;
+  max-width: 46rem;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.honest > :first-child {
+  flex: none;
+  margin-top: 0.15rem;
+}
+.link {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  min-height: 0;
+}
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
+}
+
+.h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+/* ---- the start panel ------------------------------------------------------------------- */
+.start {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+
+.drop {
+  display: grid;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  transition: border-color var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease);
+}
+.dropOver {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+@media (min-width: 720px) {
+  .drop {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    padding: var(--sp-8) var(--sp-10);
+  }
+}
+.dropArt {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+.art {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  height: auto;
+}
+@media (max-width: 719px) {
+  .art {
+    max-height: 8.5rem;
+  }
+}
+.dropBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.dropTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+}
+.startActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+@media (max-width: 719px) {
+  .startActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .startActions > * {
+    width: 100%;
+  }
+}
+
+.otherWays {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.way {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease);
+}
+.way:last-child {
+  border-bottom: 0;
+}
+.way:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.way:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.way:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.wayIcon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--accent-text);
+}
+.wayText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.wayTitle {
+  font-weight: 650;
+}
+.wayHint {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.chev {
+  flex: none;
+  color: var(--fg-faint);
+}
+
+.busy {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---- the page tray --------------------------------------------------------------------- */
+.traySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.trayHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-4);
+}
+.tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .tray {
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  }
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .card {
+    grid-template-columns: 1fr;
+    cursor: grab;
+  }
+}
+
+.thumb {
+  appearance: none;
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: zoom-in;
+  aspect-ratio: 3 / 4;
+}
+@media (min-width: 720px) {
+  .thumb {
+    aspect-ratio: 4 / 3;
+  }
+}
+.thumb:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.thumbImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.thumbOverlay {
+  position: absolute;
+  inset: 0;
+}
+.pageNo {
+  position: absolute;
+  left: var(--sp-2);
+  top: var(--sp-2);
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 var(--sp-1);
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.scanning {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface) 30%, transparent);
+}
+.scanLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 12px 2px var(--accent);
+  animation: sweep 1.6s var(--ease) infinite alternate;
+}
+@keyframes sweep {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(100cqh - 3px));
+  }
+}
+.scanning {
+  container-type: size;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanLine {
+    animation: none;
+    top: 50%;
+  }
+}
+:root[data-motion='reduce'] .scanLine {
+  animation: none;
+  top: 50%;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  min-width: 0;
+}
+.cardTitle {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.move {
+  display: flex;
+  gap: var(--sp-1);
+  margin-top: auto;
+}
+
+.addTile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 7rem;
+}
+.addButton {
+  appearance: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 6rem;
+  padding: var(--sp-4);
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.addButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.addButton:focus-visible,
+.addSmall:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.addSmall {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.detect {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.detectOk {
+  color: var(--ok-text);
+}
+
+@media (min-width: 1080px) {
+  .otherWays {
+    flex-direction: row;
+  }
+  .otherWays .way {
+    flex: 1 1 0;
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+  .otherWays .way:last-child {
+    border-right: 0;
+  }
+}

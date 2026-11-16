@@ -1,0 +1,27 @@
+# First Notes on String 2 (repertoire plan: st-first-notes-string-2). An original study in G
+# major. Bars 1-4 stay on string 2: the open string (B), fret 1 (C) with finger 1, fret 3 (D) with
+# finger 3. Bars 5-8 cross to string 1 for E (open) and G (fret 3). F from string 1 is left out:
+# in G major the seventh note is F#, which comes later, and a lone F natural would need a natural
+# sign against the key signature. The teacher strums G and C. It ends on B over G.
+title: First Notes on String 2
+id: st-first-notes-string-2
+composer: Sixstring Academy
+source: Original reading study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: string 2, string 1, reading, string crossing, g major, beginner
+tempo: 72
+time: 4/4
+key: G
+
+track: Your part
+role: lead
+[String 2]
+| "G" q 2:0 2:1{1} h 2:3{3} | "C" q 2:1 2:0 h 2:1 | "G" q 2:3 2:1 2:0 2:1 | h 2:3 2:0 |
+[Strings 2 and 1]
+| "C" q 2:1{1} 1:0 h 1:3{3} | "G" q 1:3 1:0 h 2:3 | "C" q 1:0 2:3 2:1 1:0 | "G" 2:3 2:1 h 2:0 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | w / ||

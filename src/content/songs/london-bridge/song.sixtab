@@ -1,0 +1,31 @@
+# London Bridge (repertoire plan: london-bridge). The traditional English nursery song with its
+# first verse, in G in first position, 8 bars of 2/4, played twice. "Lon-don" is a dotted eighth
+# and a sixteenth: long-short.
+# Notes: G = open string 3, A = string 3 fret 2 (finger 2), B = open string 2, C = string 2
+# fret 1 (finger 1), D = string 2 fret 3 (finger 3), E = open string 1. The teacher plays one
+# chord per bar: G G | D7 G | G G | D7 G. From level 3, once D7 is learned, swap parts.
+title: London Bridge
+id: london-bridge
+composer: Traditional English
+source: Nursery song; the rhyme in print in the 18th century; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: melody, lyrics, nursery rhyme, 2/4, dotted rhythm
+tempo: 92
+time: 2/4
+key: G
+
+track: Melody
+role: lead
+[Verse]
+|: "G" e. 2:3{3} s 1:0 e 2:3 2:1{1} | e 2:0 2:1 q 2:3 | "D7" e 3:2{2} 2:0 q 2:1 | "G" e 2:0 2:1 q 2:3 |
+lyrics: Lon- don Bridge is fall- ing down, fall- ing down, fall- ing down.
+| e. 2:3 s 1:0 e 2:3 2:1 | e 2:0 2:1 q 2:3 | "D7" q 3:2 2:3 | "G" q 2:0 3:0 :|
+lyrics: Lon- don Bridge is fall- ing down, my fair la- dy.
+
+track: Teacher
+role: rhythm
+[Verse]
+|: q / / | / / | / / | / / |
+| / / | / / | / / | / / :|

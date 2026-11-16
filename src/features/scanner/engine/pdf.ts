@@ -54,15 +54,15 @@ export async function openPdf(file: Blob): Promise<PdfFile> {
   }
   const data = new Uint8Array(await file.arrayBuffer());
   let doc: Awaited<ReturnType<PdfJs['getDocument']>['promise']>;
+  const task = lib.getDocument({
+    data,
+    cMapUrl: vendor('cmaps/'),
+    cMapPacked: true,
+    standardFontDataUrl: vendor('standard_fonts/'),
+    wasmUrl: vendor('wasm/'),
+  });
   try {
-    doc = await lib.getDocument({
-      data,
-      cMapUrl: vendor('cmaps/'),
-      cMapPacked: true,
-      standardFontDataUrl: vendor('standard_fonts/'),
-      wasmUrl: vendor('wasm/'),
-      isEvalSupported: false,
-    }).promise;
+    doc = await task.promise;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/password/i.test(msg)) throw new PdfError('This PDF is locked with a password. Open it, print it to a new PDF, and try that.', msg);
@@ -106,7 +106,7 @@ export async function openPdf(file: Blob): Promise<PdfFile> {
       return canvas;
     },
     close() {
-      void doc.destroy();
+      void task.destroy();
     },
   };
 }

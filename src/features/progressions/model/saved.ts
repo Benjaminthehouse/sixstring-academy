@@ -14,6 +14,8 @@ export const SAVED_KEY = 'progressions.saved';
 export const DRAFT_KEY = 'progressions.draft';
 /** The most progressions kept. */
 export const MAX_SAVED = 100;
+/** XP for saving a new progression of your own (a bonus; jamming over it is logged as a jam). */
+export const BUILT_XP = 5;
 
 /** A saved progression: a draft with an id, a name and dates. */
 export interface SavedProgression extends Omit<BuilderDraft, 'savedId'> {

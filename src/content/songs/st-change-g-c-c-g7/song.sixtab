@@ -1,0 +1,29 @@
+# Change: G-C and C-G7 (repertoire plan: st-change-g-c-c-g7). An original chord-change study.
+# Each half is a ladder that changes faster and faster: the home chord held for two bars (one
+# strum a bar), then a change every bar with two strums, every bar with four strums, and every
+# two beats. First half (home G): G (320003) fingered 3-2-4 (3 on string 6 fret 3, 2 on string 5
+# fret 2, 4 on string 1 fret 3) with C (x32010): fingers 3 and 2 keep their shape and move one
+# string toward string 1, and finger 1 lands on string 2 fret 1. Second half (home C): C with
+# G7 (320001): the 3-2 shape moves back one string, and finger 1 moves from string 2 fret 1 to
+# string 1 fret 1. It ends G7 to C, the strongest way home. Keep the metronome on: the new chord
+# lands on the beat even if the strum before it catches open strings.
+title: Change: G-C and C-G7
+id: st-change-g-c-c-g7
+composer: Sixstring Academy
+source: Original chord-change study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 3
+tags: chord changes, strumming, metronome, shape shift
+tempo: 72
+time: 4/4
+key: G
+
+track: Your strum
+role: rhythm
+[G and C]
+| ^"G with fingers 3, 2 and 4" "G=320003" w D | D | ^"C: slide 3 and 2 one string over, 1 on string 2" "C=x32010" h D D | "G=320003" D D |
+| ^"Four strums a bar" "C=x32010" q D D D D | "G=320003" D D D D | ^"Change every two beats" "C=x32010" D D "G=320003" D D | "C=x32010" D D "G=320003" D D ||
+key: C
+[C and G7]
+| ^"One strum a bar" "C=x32010" w D | D | ^"G7: 3 and 2 back one string, 1 on string 1" "G7=320001" h D D | "C=x32010" D D |
+| ^"Four strums a bar" "G7=320001" q D D D D | "C=x32010" D D D D | ^"Change every two beats" "G7=320001" D D "C=x32010" D D | "G7=320001" D D "C=x32010" h D ||

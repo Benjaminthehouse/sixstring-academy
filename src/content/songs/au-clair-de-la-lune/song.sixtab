@@ -1,0 +1,39 @@
+# Au Clair de la Lune (repertoire plan: au-clair-de-la-lune). The first verse, in A A B A form.
+# The A phrase lives on strings 3 and 2: the open string 3 (G), string 3 fret 2 (A) and the open
+# string 2 (B). On day one, play only the first section. The B phrase drops to string 4: the open
+# string (D), fret 2 (E) and fret 4 (F#). The hand stays in second position, as in Hot Cross Buns:
+# finger 1 on fret 2, finger 3 on fret 4. The teacher strums G and D7 under the A phrases, D and
+# A7 under the B phrase.
+title: Au Clair de la Lune
+id: au-clair-de-la-lune
+composer: Traditional French
+source: French song of the 18th century, first verse in French; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: melody, two strings, lyrics, french, beginner
+tempo: 80
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[Day one: A]
+| "G" q 3:0 3:0 3:0 3:2{1} | h 2:0 "D7" 3:2 | "G" q 3:0 2:0 "D7" 3:2 3:2 | "G" w 3:0 |
+lyrics: Au clair de la lu- ne, mon a- mi Pier- rot,
+[A again]
+| "G" q 3:0 3:0 3:0 3:2 | h 2:0 "D7" 3:2 | "G" q 3:0 2:0 "D7" 3:2 3:2 | "G" w 3:0 |
+lyrics: Prê- te- moi ta plu- me pour é- crire un mot.
+[B: string 4]
+| "D" q 3:2{1} 3:2 3:2 3:2 | "A7" h 4:2{1} 4:2 | q 3:2 3:0 "D" 4:4{3} 4:2{1} | w 4:0 |
+lyrics: Ma chan- delle est mor- te, je n'ai plus de feu.
+[A to finish]
+| "G" q 3:0 3:0 3:0 3:2 | h 2:0 "D7" 3:2 | "G" q 3:0 2:0 "D7" 3:2 3:2 | "G" w 3:0 ||
+lyrics: Ou- vre- moi ta por- te pour l'a- mour de Dieu.
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

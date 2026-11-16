@@ -4,14 +4,16 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  formatProblems, generateExercise, isGenerated, practiceSource, startSession, validateCourse, type Lesson, type Step, type Unit,
+  FACT_CARD_KIND, formatProblems, generateExercise, isGenerated, practiceSource, startSession, validateCourse, type Lesson, type Step, type Unit,
 } from '@/lessons';
 import { createInitialState, type ProgressState } from '@/core/progress';
+import { makeRig } from '@/core/progress/testkit';
 import { assembleTheory, loadWrittenUnits, writtenUnitIds } from '@/content/theory';
 import { adaptCourse, adaptLesson, adaptUnit, conditionsLine, isListeningStep, isPlayStep, lessonNeeds } from './conditions';
 import { completedUnits, focusUnit, pathView, unitAfter } from './path';
 import { MAX_PROBES, nextProbe, probePool, probeVerdict, recordProbe, startPlacement, unitsKnown } from './placement';
 import { learnParams, parseLearnParams, type LearnView } from './route';
+import { resolveSession, sessionUnit } from './session';
 import { nextPhase, swingOf, windingLayout } from './winding';
 
 const NOW = Date.parse('2026-11-16T10:00:00Z');
@@ -182,6 +184,54 @@ describe('the map over the syllabus', () => {
     expect(completedUnits(all.map).has(unit.id)).toBe(true);
     expect(all.byUnit.get(unit.id)!.node!.checkpoint?.state).toBe('passed');
     expect(unitAfter(all, unit.id)).toBe(theory.course.units.length > 1 ? all.byUnit.get(theory.course.units[1].id) : null);
+  });
+});
+
+describe('what a session address runs', () => {
+  const AT = { guitar: true, sound: true };
+
+  it('runs a lesson once its unit is loaded, adapted to where the learner is', async () => {
+    const units = await loadWrittenUnits();
+    const view = { kind: 'lesson', unitId: 'sound-and-pitch', lessonId: 'pitch-high-and-low' } as const;
+    expect(resolveSession(view, assembleTheory([]), AT, fresh(), NOW)).toEqual({ status: 'loading' });
+    const ready = resolveSession(view, assembleTheory(units), { guitar: true, sound: false }, fresh(), NOW);
+    expect(ready.status).toBe('ready');
+    if (ready.status !== 'ready' || ready.source.mode !== 'lesson') throw new Error('not a lesson');
+    expect(ready.params).toEqual(['sound-and-pitch', 'pitch-high-and-low']);
+    const lesson = ready.source.course.units[0].lessons.find((l) => l.id === 'pitch-high-and-low')!;
+    expect(lesson.steps.some(isListeningStep)).toBe(false);
+    expect(ready.source.course.level).toBe('beginner');
+  });
+
+  it('finds a lesson by its id when the link names another unit', async () => {
+    const theory = assembleTheory(await loadWrittenUnits());
+    const view = { kind: 'lesson', unitId: 'old-unit-name', lessonId: 'the-octave' } as const;
+    expect(sessionUnit(view)).toBe('sound-and-pitch');
+    const r = resolveSession(view, theory, AT, fresh(), NOW);
+    expect(r.status === 'ready' && r.params).toEqual(['sound-and-pitch', 'the-octave']);
+  });
+
+  it('says when a unit is coming soon, or a lesson is not on the path', async () => {
+    const theory = assembleTheory(await loadWrittenUnits());
+    const soon = resolveSession({ kind: 'lesson', unitId: 'the-six-strings', lessonId: 'string-numbers' }, theory, AT, fresh(), NOW);
+    expect(soon.status === 'missing' && soon.title).toBe('Unit 2 is coming soon');
+    const nope = resolveSession({ kind: 'lesson', unitId: 'nope', lessonId: 'nope' }, theory, AT, fresh(), NOW);
+    expect(nope.status === 'missing' && nope.title).toBe('That lesson is not on the path');
+    expect(resolveSession({ kind: 'practice', unitId: 'nope' }, theory, AT, fresh(), NOW).status).toBe('missing');
+  });
+
+  it('runs checkpoints and drills on the unit, and a review only when cards are due', async () => {
+    const theory = assembleTheory(await loadWrittenUnits());
+    const cp = resolveSession({ kind: 'checkpoint', unitId: 'sound-and-pitch' }, theory, AT, fresh(), NOW);
+    expect(cp.status === 'ready' && cp.source.mode).toBe('checkpoint');
+    const drill = resolveSession({ kind: 'practice', unitId: 'sound-and-pitch' }, theory, AT, fresh(), NOW);
+    expect(drill.status === 'ready' && drill.params).toEqual(['sound-and-pitch', 'practice']);
+    expect(resolveSession({ kind: 'review' }, assembleTheory([]), AT, fresh(), NOW).status).toBe('loading');
+    expect(resolveSession({ kind: 'review' }, theory, AT, fresh(), NOW).status).toBe('nothing-due');
+    const rig = makeRig({ start: NOW });
+    rig.actions.addReviewItems([{ id: 'theory-path:pitch-meaning', kind: FACT_CARD_KIND, ref: 'pitch-high-and-low' }]);
+    const review = resolveSession({ kind: 'review' }, theory, AT, rig.store.getState(), rig.clock.now());
+    expect(review.status === 'ready' && review.source.mode).toBe('review');
   });
 });
 

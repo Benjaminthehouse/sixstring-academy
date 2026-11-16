@@ -1,0 +1,264 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-width: 0;
+}
+.where {
+  font-family: var(--font-display);
+  font-weight: 650;
+}
+.what {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.doubt {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-md);
+  background: var(--bad-soft);
+  color: var(--bad-text);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+.doubt > :first-child {
+  flex: none;
+  margin-top: 2px;
+}
+.right {
+  margin-left: auto;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3) var(--sp-5);
+  min-width: 0;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+  margin-bottom: var(--sp-1);
+}
+
+.fret {
+  flex: none;
+}
+
+.pitch {
+  display: flex;
+  flex-direction: column;
+}
+.pitchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.pitchValue {
+  min-width: 3.5rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.alts,
+.strings,
+.lengths,
+.addHere {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.altRow,
+.stringRow,
+.lengthRow,
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.altChip,
+.fretChip,
+.stringChip,
+.lengthChip {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--tap);
+  height: var(--tap);
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.altChip:hover,
+.fretChip:hover,
+.stringChip:hover,
+.lengthChip:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.altChip:active,
+.fretChip:active,
+.stringChip:active,
+.lengthChip:active {
+  transform: scale(0.96);
+}
+.altChip:focus-visible,
+.fretChip:focus-visible,
+.stringChip:focus-visible,
+.lengthChip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.altChip {
+  border-style: dashed;
+  border-color: var(--bad);
+  color: var(--bad-text);
+}
+.stringChip {
+  min-width: 2.4rem;
+  padding: 0;
+}
+.used {
+  background: var(--surface-2);
+}
+.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.doubtChip {
+  border-style: dashed;
+}
+.lengthChip {
+  font-size: 1.2rem;
+  min-width: 2.6rem;
+  padding: 0;
+}
+.lengthChip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-1);
+  margin-left: auto;
+}
+
+.barLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  font-size: var(--text-sm);
+}
+.barOk {
+  color: var(--ok-text);
+}
+.barBad {
+  color: var(--warn-text);
+}
+.barFixes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 719px) {
+  .controls {
+    gap: var(--sp-2) var(--sp-3);
+  }
+  .actions {
+    margin-left: 0;
+  }
+}
+
+/* Phones: one part of the panel at a time, chosen above it. */
+.compact {
+  gap: var(--sp-2);
+}
+.compact .head {
+  flex-wrap: nowrap;
+}
+.compact .what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.compactRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2) var(--sp-3);
+  min-height: 3.25rem;
+}
+.compact .fieldLabel {
+  display: none;
+}
+.compact .stringChip {
+  flex: 1 1 0;
+  min-width: 2.5rem;
+}
+.compact .stringRow,
+.compact .lengthRow {
+  width: 100%;
+  flex-wrap: nowrap;
+}
+.compact .strings,
+.compact .lengths {
+  width: 100%;
+}
+.compact .lengthChip {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.compact .doubt {
+  font-size: var(--text-xs);
+}
+
+.compact > .doubt {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -220,13 +220,18 @@ describe('independent check: 23 progressions in two keys', () => {
           if (fretted.length) expect(Math.max(...fretted) - Math.min(...fretted), `${card.symbol} (${v.frets.join(' ')}) fits under one hand`).toBeLessThanOrEqual(4);
         }
 
-        // Scales to solo with: real scales whose notes cover the home chord.
+        // Scales to solo with: real scales, each of them home to at least one chord of the
+        // progression, and between them they hold the first chord's root.
         const home = m.resolved.bars[0][0];
+        const roots = new Set(m.resolved.bars.flat().map((c) => note(c.root).pc));
+        const covered = new Set<number>();
         for (const s of soloScales(p, m.resolved.key.tonic)) {
           const pcs = scalePcs(s.tonic, s.scale);
           expect(pcs, `${s.tonic} ${s.scale} is a scale this check knows`).not.toBeNull();
-          expect(pcs!.has(note(home.root).pc), `${s.tonic} ${s.scale} contains the first chord's root`).toBe(true);
+          expect([...roots].some((r) => pcs!.has(r)), `${s.tonic} ${s.scale} fits a chord of ${id}`).toBe(true);
+          for (const pc of pcs!) covered.add(pc);
         }
+        expect(covered.has(note(home.root).pc), `the scales of ${id} hold its first chord's root`).toBe(true);
 
         // "Follow the chords": each chord's scale holds every chord tone, and a chord that lives
         // in the key gets the key's own notes (D Mixolydian over D in G).

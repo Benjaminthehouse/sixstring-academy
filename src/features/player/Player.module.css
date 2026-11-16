@@ -80,8 +80,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
   min-width: 0;
+}
+.dockRow > * {
+  flex-shrink: 0;
 }
 @media (min-width: 720px) {
   .dock {
@@ -215,6 +218,14 @@
   color: var(--fg-muted);
   font-size: var(--text-sm);
 }
+.best {
+  margin: var(--sp-1) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
 
 /* ── overlays on the score ── */
 .bannerWrap {
@@ -282,7 +293,9 @@
 }
 
 .tapPad {
-  min-width: 7rem;
+  flex: 1 1 auto;
+  max-width: 14rem;
+  min-width: 6rem;
   min-height: 3.5rem;
   font-size: var(--text-lg);
   touch-action: manipulation;

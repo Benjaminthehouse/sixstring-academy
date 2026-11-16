@@ -102,6 +102,21 @@ export interface RoundSummary {
   hits: Pos[];
 }
 
+/** What the progress store keeps about a step or drill (the fields a "best" needs). */
+export interface SkillBest {
+  completions: number;
+  bestAccuracy: number;
+  bestScore: number;
+}
+
+/**
+ * The best result worth showing for a step or drill, or null. Only finished rounds set a best:
+ * a round left part-way is kept as an attempt but would read as "Best 0%".
+ */
+export function bestResult(skill: SkillBest | undefined | null): { percent: number; score: number } | null {
+  return skill && skill.completions > 0 ? { percent: Math.round(skill.bestAccuracy * 100), score: skill.bestScore } : null;
+}
+
 /** Summarise results against a plan. */
 export function summarize(results: readonly QuestionResult[], passAt: number): RoundSummary {
   const asked = results.length;

@@ -8,8 +8,62 @@ import {
   type ConcreteScale, type HomeKey, type Progression, type ProgressionFeel, type ResolvedChord, type ResolvedProgression,
 } from '@/content/progressions';
 import { BACKING_INSTRUMENTS, BACKING_STYLES, BACKING_STYLE_IDS, type BackingChord, type BackingInstrument, type BackingStyleId } from '@/core/audio';
+import type { ActivityInput } from '@/core/progress';
 import { chroma, getScale, scaleNotes, scalesForChord } from '@/core/theory';
 import { arpeggioMarkers, scaleMarkers, type FretMarker } from '@/ui/music';
+
+// ── Logging a session ────────────────────────────────────────────────────────────────────────
+
+/** Seconds of playing with the band worth logging as a jam. */
+export const LOG_AFTER_SEC = 20;
+
+/** What a stretch of playing with the band is logged as. */
+export interface JamLogInfo {
+  /** Skill id (`progression:<id>`, or `progression:builder` for your own). */
+  skillId: string;
+  /** Shown in the practice log ("Jam: I–V–vi–IV"). */
+  title: string;
+  /** Route params for "continue where you left off". */
+  params: string[];
+  data?: Record<string, string | number | boolean>;
+}
+
+/**
+ * The activity for time spent playing over a progression with the band (`kind: 'progression'`,
+ * which is what the "Jam Session" achievement and the daily jam quest count), or null when it was
+ * under {@link LOG_AFTER_SEC} seconds. Only time the band actually played counts.
+ */
+export function jamActivity(stats: { seconds: number; changes: number }, info: JamLogInfo): ActivityInput | null {
+  if (!Number.isFinite(stats.seconds) || stats.seconds < LOG_AFTER_SEC) return null;
+  return {
+    kind: 'progression',
+    id: info.skillId,
+    title: info.title,
+    durationSec: Math.round(stats.seconds),
+    count: Math.max(0, Math.round(stats.changes)),
+    route: 'progressions',
+    params: info.params,
+    ...(info.data ? { data: info.data } : {}),
+  };
+}
+
+/** How much faster "Try it faster" goes, in BPM. */
+export const FASTER_BY = 10;
+
+/** What the jam says when the band has played its passes and stopped: what was done, and what next. */
+export function finishedText(passes: number, bpm: number): string {
+  const n = Math.max(1, Math.round(passes));
+  const times = n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`;
+  return `That was ${times} through at ${Math.round(bpm)} BPM. Go again, or try it a little faster.`;
+}
+
+/**
+ * How many characters a chord name shows, 1–8 (`'F♯m7♭5'` is 6): the jam sizes its big chord by
+ * it so a long name shrinks to fit instead of being cut off.
+ */
+export function glyphCount(text: string): number {
+  return Math.min(8, Math.max(1, Array.from(text).length));
+}
 
 // ── Settings ─────────────────────────────────────────────────────────────────────────────────
 
@@ -204,9 +258,24 @@ export function scaleChoices(p: Progression, tonic: string): ScaleChoice[] {
 }
 
 /**
- * The chord-scale for one chord: among the engine's matching seven- and eight-note scales (up to
- * tier 3), the one that shares the most notes with the key (so D Dorian over Dm7 in C, G Mixolydian over G7,
- * E Phrygian dominant over E7 in A minor). Null when nothing matches.
+ * The seven-note scales a chord-scale is chosen from: the major and the two minor families' modes
+ * that improvisers are taught. Bebop scales (8 notes) and the blues scales would always "share
+ * more notes with the key" just by being bigger, and exotic scales (double harmonic) only look
+ * close because they borrow from both; neither is what "follow the chords" should hand a learner.
+ */
+const CHORD_SCALES = new Set([
+  'major', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'minor', 'locrian',
+  'melodic-minor', 'lydian-dominant', 'mixolydian-b6', 'locrian-natural-2', 'altered',
+  'harmonic-minor', 'phrygian-dominant',
+]);
+
+/**
+ * The chord-scale for one chord: among the engine's matching seven-note scales from
+ * {@link CHORD_SCALES}, the one with the fewest notes outside the key, then the more everyday one
+ * (so D Dorian over Dm7 in C, G Mixolydian over G7, E Phrygian dominant over E7 in A minor, C
+ * Dorian over Cm7 in a blues in F, E major over Emaj7 in a Coltrane cycle). A chord no such scale
+ * holds (a diminished seventh) gets the engine's best full match, such as a diminished scale.
+ * Null when nothing matches.
  */
 export function chordScale(symbol: string, home: Pick<HomeKey, 'tonic' | 'scale'>): ConcreteScale | null {
   let keyPcs: Set<number>;
@@ -217,22 +286,24 @@ export function chordScale(symbol: string, home: Pick<HomeKey, 'tonic' | 'scale'
   }
   let matches: ReturnType<typeof scalesForChord> = [];
   try {
-    matches = scalesForChord(symbol, { maxTier: 3, limit: 24 });
+    matches = scalesForChord(symbol, { maxTier: 3, limit: 24 }).filter((m) => m.fit !== 'colour' && m.scale.size >= 7);
   } catch {
     return null;
   }
-  let best: ConcreteScale | null = null;
-  let bestScore = -1;
-  for (const m of matches) {
-    if (m.scale.size < 7 || m.fit === 'colour') continue;
-    // Notes shared with the key first; between equals, the more everyday scale.
-    const shared = m.notes.filter((n) => keyPcs.has(chroma(n))).length * 10 - m.scale.tier;
-    if (shared > bestScore) {
-      bestScore = shared;
-      best = { tonic: m.tonic, scale: m.scale.id };
+  const taught = matches.filter((m) => CHORD_SCALES.has(m.scale.id));
+  const pool = taught.length ? taught : matches;
+  let best: (typeof pool)[number] | null = null;
+  let bestCost = Infinity;
+  for (const m of pool) {
+    const outside = m.notes.filter((n) => !keyPcs.has(chroma(n))).length;
+    // Fewest clashes with the key first; between equals, the lower tier, then the engine's ranking.
+    const cost = outside * 100 + m.scale.tier * 10 - m.score / 10;
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = m;
     }
   }
-  return best;
+  return best ? { tonic: best.tonic, scale: best.scale.id } : null;
 }
 
 /** The scale in force for a choice and a chord. */

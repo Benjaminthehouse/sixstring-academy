@@ -25,7 +25,8 @@
   min-height: 5.5rem;
   padding: var(--sp-2);
   border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-2);
   font-family: var(--font-display);
   font-size: var(--text-4xl);
@@ -152,6 +153,13 @@
 }
 .level[data-clip='yes'] .levelBar {
   background: var(--bad);
+}
+.levelCompact {
+  flex-direction: column;
+  gap: 3px;
+}
+.levelCompact .levelTrack {
+  width: 2rem;
 }
 .levelText {
   max-width: 9rem;

@@ -2,11 +2,11 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(6.25rem, 100%), 1fr));
   gap: var(--sp-2);
 }
 .compact .grid {
-  grid-template-columns: repeat(auto-fill, minmax(5.25rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(5.25rem, 100%), 1fr));
 }
 
 .tile {

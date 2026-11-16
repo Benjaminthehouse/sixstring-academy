@@ -24,7 +24,11 @@ export function Overview() {
   const startLabel = recommendation.reason === 'continue' && recStanding.next ? `Continue with ${recCard.first}` : `Start with ${recCard.first}`;
 
   return (
-    <Page title="Teachers" subtitle="Weekly lessons, the way a good teacher gives them: an explanation, a demonstration, practice that listens to you play, and real music." gap={10}>
+    <Page
+      title="Teachers"
+      subtitle="Weekly lessons, the way a good teacher gives them: an explanation, a demonstration, practice that listens to you play, and real music."
+      gap={10}
+    >
       {saved && (
         <section className={styles.resume} aria-label="Pick up where you left off" data-resume={saved.lessonId}>
           <Portrait teacher={saved.teacher} size={3.25} />
@@ -43,38 +47,41 @@ export function Overview() {
         </section>
       )}
 
-      <section className={cx(styles.hero, styles[`tone-${rec}`])} aria-labelledby="teachers-rec" data-recommended={rec}>
-        <Portrait teacher={rec} className={styles.heroPortrait} />
-        <div className={styles.heroText}>
-          <Text variant="eyebrow" tone="accent">
-            {recommendation.reason === 'continue' ? 'Your teacher' : 'Recommended for you'}
-          </Text>
-          <Heading level={2} size="2xl" display id="teachers-rec">
-            {recommendation.reason === 'continue' ? `Keep going with ${recCard.first}` : `${recCard.first} is the place to start`}
-          </Heading>
-          <Text tone="muted">{recommendation.because}</Text>
-          <blockquote className={styles.quote}>
-            <p>{recCard.hello}</p>
-          </blockquote>
-          <div className={styles.heroActions}>
-            <LinkButton
-              to="teachers"
-              params={recWritten && recStanding.next && !saved ? [rec, recStanding.next.lessonId] : [rec]}
-              variant={saved ? 'secondary' : 'primary'}
-              size="lg"
-              iconRight="ArrowRight"
-              data-action="start"
-            >
-              {startLabel}
-            </LinkButton>
-            {recWritten && recStanding.next && (
-              <Text variant="caption" tone="muted">
-                Next: {recStanding.next.title}
-              </Text>
-            )}
+      {/* With a lesson to pick up, that is the recommendation: no second big block competing with it. */}
+      {!saved && (
+        <section className={cx(styles.hero, styles[`tone-${rec}`])} aria-labelledby="teachers-rec" data-recommended={rec}>
+          <Portrait teacher={rec} className={styles.heroPortrait} />
+          <div className={styles.heroText}>
+            <Text variant="eyebrow" tone="accent">
+              {recommendation.reason === 'continue' ? 'Your teacher' : 'Recommended for you'}
+            </Text>
+            <Heading level={2} size="2xl" display id="teachers-rec">
+              {recommendation.reason === 'continue' ? `Keep going with ${recCard.first}` : `${recCard.first} is the place to start`}
+            </Heading>
+            <Text tone="muted">{recommendation.because}</Text>
+            <blockquote className={styles.quote}>
+              <p>{recCard.hello}</p>
+            </blockquote>
+            <div className={styles.heroActions}>
+              <LinkButton
+                to="teachers"
+                params={recWritten && recStanding.next ? [rec, recStanding.next.lessonId] : [rec]}
+                variant="primary"
+                size="lg"
+                iconRight="ArrowRight"
+                data-action="start"
+              >
+                {startLabel}
+              </LinkButton>
+              {recWritten && recStanding.next && (
+                <Text variant="caption" tone="muted">
+                  Next: {recStanding.next.title}
+                </Text>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <Section title="Your three teachers" description="Each one takes you further. Switch whenever you like: your place in every course is kept.">
         <Grid min="17rem" gap={4} className={styles.grid}>

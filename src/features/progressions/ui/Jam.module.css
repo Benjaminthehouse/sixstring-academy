@@ -102,6 +102,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  container-type: inline-size;
 }
 .nowNext {
   grid-area: next;
@@ -111,7 +112,22 @@
   min-width: 0;
   padding-left: var(--sp-4);
   border-left: 1px solid var(--line);
+  container-type: inline-size;
 }
+
+/*
+ * Chord names are sized to fit their column: `data-len` (characters shown, 1–8) sets --chars and
+ * the size is capped so about 0.8em per character fits the column's width. "G" stays huge,
+ * "F♯m7♭5" shrinks instead of being cut to "F…".
+ */
+.now [data-len='1'] { --chars: 1; }
+.now [data-len='2'] { --chars: 2; }
+.now [data-len='3'] { --chars: 3; }
+.now [data-len='4'] { --chars: 4; }
+.now [data-len='5'] { --chars: 5; }
+.now [data-len='6'] { --chars: 6; }
+.now [data-len='7'] { --chars: 7; }
+.now [data-len='8'] { --chars: 8; }
 .label {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -121,7 +137,7 @@
 }
 .big {
   font-family: var(--font-display);
-  font-size: clamp(4.25rem, 22vw, 8.5rem);
+  font-size: clamp(2rem, min(22vw, 100cqi / (var(--chars, 2) * 0.8)), 8.5rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -144,7 +160,7 @@
 }
 .nextChord {
   font-family: var(--font-display);
-  font-size: clamp(2.25rem, 11vw, 4.25rem);
+  font-size: clamp(1.25rem, min(11vw, 100cqi / (var(--chars, 2) * 0.8)), 4.25rem);
   font-weight: 650;
   line-height: 1.05;
   color: var(--fg);
@@ -158,6 +174,11 @@
 }
 .status {
   grid-area: status;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  min-width: 0;
 }
 .beats {
   display: flex;
@@ -285,10 +306,10 @@
   gap: var(--sp-2);
 }
 .sideways .big {
-  font-size: clamp(3rem, 9vw, 4.75rem);
+  font-size: clamp(2rem, min(9vw, 100cqi / (var(--chars, 2) * 0.8)), 4.75rem);
 }
 .sideways .nextChord {
-  font-size: var(--text-2xl);
+  font-size: min(var(--text-2xl), 100cqi / (var(--chars, 2) * 0.8));
 }
 .sideways .beats {
   margin-top: var(--sp-1);

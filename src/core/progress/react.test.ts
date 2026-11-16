@@ -464,6 +464,25 @@ describe('a connected store', () => {
     disconnect();
   });
 
+  it('writes at once a change made after the page was hidden (a screen logging on pagehide)', () => {
+    const rig = makeRig();
+    const disconnect = rig.store.connect();
+    // The store registered its pagehide listener first, so a screen's own listener runs after the flush.
+    const late = () => rig.actions.recordActivity({ kind: 'tuner' });
+    window.addEventListener('pagehide', late);
+    window.dispatchEvent(new Event('pagehide'));
+    expect(JSON.parse(rig.storage.read(STORAGE_KEY) as string).state.stats['count.tuner']).toBe(1);
+    window.removeEventListener('pagehide', late);
+
+    // Back from the back/forward cache: saving is batched again.
+    window.dispatchEvent(new Event('pageshow'));
+    rig.actions.recordActivity({ kind: 'tuner' });
+    expect(JSON.parse(rig.storage.read(STORAGE_KEY) as string).state.stats['count.tuner']).toBe(1);
+    rig.store.flush();
+    expect(JSON.parse(rig.storage.read(STORAGE_KEY) as string).state.stats['count.tuner']).toBe(2);
+    disconnect();
+  });
+
   it('ticks once a minute while connected', () => {
     vi.useFakeTimers();
     const rig = makeRig({ start: '2026-03-02T23:59:30Z' });

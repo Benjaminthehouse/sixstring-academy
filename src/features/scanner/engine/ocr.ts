@@ -29,7 +29,8 @@ export interface OcrResult {
 
 /** A started reader. */
 export interface Ocr {
-  read(canvas: AnyCanvas, mode?: 'block' | 'line' | 'sparse'): Promise<OcrResult>;
+  /** `allow`: the only characters to expect (chord names: "ABCDEFGmaj7sus..."), default any. */
+  read(canvas: AnyCanvas, mode?: 'block' | 'line' | 'sparse', allow?: string): Promise<OcrResult>;
   close(): void;
 }
 
@@ -88,10 +89,11 @@ export async function createOcr(onProgress?: (fraction: number, status: string) 
   } finally {
     clearTimeout(timer);
   }
-  await worker.setParameters({ preserve_interword_spaces: '1' });
+  // A stated resolution keeps Tesseract from guessing it (and logging that it did).
+  await worker.setParameters({ preserve_interword_spaces: '1', user_defined_dpi: '300' });
   return {
-    async read(canvas, mode = 'block') {
-      await worker.setParameters({ tessedit_pageseg_mode: mode === 'line' ? '7' : mode === 'sparse' ? '11' : '6' });
+    async read(canvas, mode = 'block', allow = '') {
+      await worker.setParameters({ tessedit_pageseg_mode: mode === 'line' ? '7' : mode === 'sparse' ? '11' : '6', tessedit_char_whitelist: allow });
       const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
       const words: TextPiece[] = [];
       const lines: OcrResult['lines'] = [];

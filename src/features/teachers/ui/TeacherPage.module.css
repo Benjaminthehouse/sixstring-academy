@@ -146,8 +146,12 @@
   .hero {
     grid-template-areas:
       'portrait progress'
-      'about about'
-      'next next';
+      'next next'
+      'about about';
+    gap: var(--sp-4);
+  }
+  .portrait {
+    --portrait-size: 5rem;
   }
   .next {
     grid-area: next;

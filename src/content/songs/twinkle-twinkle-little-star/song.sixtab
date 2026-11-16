@@ -1,0 +1,38 @@
+# Twinkle, Twinkle, Little Star (repertoire plan: twinkle-twinkle-little-star). The French air
+# "Ah! vous dirai-je, maman" with Jane Taylor's words, in G in first position: 12 bars in A B A
+# form (the middle line is played twice, then the first line returns).
+# Notes: G = open string 3, A = string 3 fret 2 (finger 2), B = open string 2, C = string 2
+# fret 1 (finger 1), D = string 2 fret 3 (finger 3), E = open string 1. The jump in bar 1 from
+# G up to D crosses from string 3 to string 2. The teacher strums G, C and D7.
+title: Twinkle, Twinkle, Little Star
+id: twinkle-twinkle-little-star
+composer: Traditional French (melody); words by Jane Taylor
+source: Tune printed in 1761 (Ah! vous dirai-je, maman); words 1806; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (anonymous tune of 1761; words by Jane Taylor, died 1824); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: melody, lyrics, nursery rhyme, beginner
+tempo: 92
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[A]
+| "G" q 3:0 3:0 2:3{3} 2:3 | "C" q 1:0 1:0 "G" h 2:3 | "C" q 2:1{1} 2:1 "G" 2:0 2:0 | "D7" q 3:2{2} 3:2 "G" h 3:0 |
+lyrics: Twin- kle, twin- kle, lit- tle star, how I won- der what you are.
+[B]
+| "G" q 2:3 2:3 "C" 2:1 2:1 | "G" q 2:0 2:0 "D7" h 3:2 | "G" q 2:3 2:3 "C" 2:1 2:1 | "G" q 2:0 2:0 "D7" h 3:2 |
+lyrics: Up a- bove the world so high, like a dia- mond in the sky.
+[A again]
+| "G" q 3:0 3:0 2:3 2:3 | "C" q 1:0 1:0 "G" h 2:3 | "C" q 2:1 2:1 "G" 2:0 2:0 | "D7" q 3:2 3:2 "G" h 3:0 ||
+lyrics: Twin- kle, twin- kle, lit- tle star, how I won- der what you are.
+
+track: Teacher
+role: rhythm
+[A]
+| h / / | / / | / / | / / |
+[B]
+| / / | / / | / / | / / |
+[A again]
+| / / | / / | / / | w / ||

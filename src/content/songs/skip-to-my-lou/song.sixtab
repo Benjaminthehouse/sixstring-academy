@@ -1,0 +1,40 @@
+# Skip to My Lou, strum and sing (repertoire plan: skip-to-my-lou). Your part: A (x02220) and
+# E7 (020100), one downstrum on every beat of 2/4. Each sung line takes two bars: A under line 1,
+# E7 under line 2, A under line 3, then E7 and A under the last line. The words of each line sit
+# above its first strum.
+# The sung tune is not written out here: this file holds only the part the plan specifies (the
+# strum and the chord rhythm) and the traditional words, so nothing in it is a guessed melody.
+title: Skip to My Lou
+id: skip-to-my-lou
+composer: Traditional American
+source: Play-party song reported in the 1840s, traditional verses; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: strumming, first chord change, a, e7, play-party, beginner
+tempo: 100
+time: 2/4
+key: A
+
+track: Your strum
+role: rhythm
+[Chorus]
+strum: DD
+| ^"Lou, Lou, skip to my Lou," "A=x02220" q D D | D D | ^"Lou, Lou, skip to my Lou," "E7=020100" D D | D D |
+| ^"Lou, Lou, skip to my Lou," "A=x02220" D D | D D | ^"Skip to my Lou, my darling." "E7=020100" D D | "A=x02220" D D |
+[Lost my partner]
+strum: DD
+| ^"Lost my partner, what'll I do?" "A=x02220" D D | D D | ^"Lost my partner, what'll I do?" "E7=020100" D D | D D |
+| ^"Lost my partner, what'll I do?" "A=x02220" D D | D D | ^"Skip to my Lou, my darling." "E7=020100" D D | "A=x02220" D D |
+[Chorus again]
+strum: DD
+| ^"Lou, Lou, skip to my Lou," "A=x02220" D D | D D | ^"Lou, Lou, skip to my Lou," "E7=020100" D D | D D |
+| ^"Lou, Lou, skip to my Lou," "A=x02220" D D | D D | ^"Skip to my Lou, my darling." "E7=020100" D D | "A=x02220" D D |
+[Fly's in the buttermilk]
+strum: DD
+| ^"Fly's in the buttermilk, shoo, fly, shoo," "A=x02220" D D | D D | ^"Fly's in the buttermilk, shoo, fly, shoo," "E7=020100" D D | D D |
+| ^"Fly's in the buttermilk, shoo, fly, shoo," "A=x02220" D D | D D | ^"Skip to my Lou, my darling." "E7=020100" D D | "A=x02220" D D |
+[Last chorus]
+strum: DD
+| ^"Lou, Lou, skip to my Lou," "A=x02220" D D | D D | ^"Lou, Lou, skip to my Lou," "E7=020100" D D | D D |
+| ^"Lou, Lou, skip to my Lou," "A=x02220" D D | D D | ^"Skip to my Lou, my darling." "E7=020100" D D | "A=x02220" h D ||

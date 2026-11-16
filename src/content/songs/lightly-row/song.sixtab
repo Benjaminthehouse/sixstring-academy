@@ -1,0 +1,34 @@
+# Lightly Row (repertoire plan: lightly-row). The German folk tune "Hänschen klein", played
+# without words. Only strings 3 and 2 in first position: the open string 3 (G), string 3 fret 2 (A)
+# with finger 2, the open string 2 (B), string 2 fret 1 (C) with finger 1 and string 2 fret 3 (D)
+# with finger 3. Form A A B A, four bars each. The teacher strums G, with D7 under bars 2, 6, 9, 10
+# and 14 (the bars that sit on A and C).
+title: Lightly Row
+id: lightly-row
+composer: Traditional German
+source: German folk melody of the 19th century (Hänschen klein), instrumental; arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 1
+tags: melody, two strings, first position, beginner
+tempo: 88
+time: 4/4
+key: G
+
+track: Melody
+role: lead
+[A]
+| "G" q 2:3{3} 2:0 h 2:0 | "D7" q 2:1{1} 3:2{2} h 3:2 | "G" q 3:0 3:2 2:0 2:1 | 2:3 2:3 h 2:3 |
+[A, ending on G]
+| q 2:3 2:0 h 2:0 | "D7" q 2:1 3:2 h 3:2 | "G" q 3:0 2:0 2:3 2:3 | w 3:0 ||
+[B]
+| "D7" q 3:2 3:2 3:2 3:2 | 3:2 2:0 h 2:1 | "G" q 2:0 2:0 2:0 2:0 | 2:0 2:1 h 2:3 |
+[A to finish]
+| q 2:3 2:0 h 2:0 | "D7" q 2:1 3:2 h 3:2 | "G" q 3:0 2:0 2:3 2:3 | w 3:0 ||
+
+track: Teacher
+role: rhythm
+| h / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | / / |
+| / / | / / | / / | w / ||

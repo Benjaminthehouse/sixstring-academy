@@ -1,0 +1,30 @@
+# First Notes on String 6 (repertoire plan: st-first-notes-string-6). An original study on the
+# thickest string: E (open), F (fret 1, finger 1) and G (fret 3, finger 3), in quarter and half
+# notes. The teacher strums E minor and F on the four thin strings, a Spanish-sounding pair (E
+# Phrygian colour): the half step E-F in the tune is the same half step that moves the chords.
+# Beats 1 and 3 always land on a note of the chord (E or G over Em, F over F); the other notes
+# step between them. Bars 7-8 close with F to Em, the Phrygian cadence, and the tune ends on E.
+title: First Notes on String 6
+id: st-first-notes-string-6
+composer: Sixstring Academy
+source: Original study for Sixstring Academy
+licence: Original study for Sixstring Academy
+difficulty: 1
+tags: study, one string, string 6, first position, spanish colour
+tempo: 72
+time: 4/4
+key: Em
+
+track: Melody
+role: lead
+[Phrase 1]
+| "Em=xx2000" q 6:0 6:1{1} h 6:3{3} | "F=xx3211" q 6:1{1} 6:3{3} h 6:1 | "Em=xx2000" q 6:3 6:1 h 6:0 | "F=xx3211" q 6:1 6:0 h 6:1 |
+[Phrase 2]
+| "Em=xx2000" q 6:0 6:1 6:3 6:0 | "F=xx3211" q 6:1 6:3 6:1 6:0 | "Em=xx2000" h 6:3 "F=xx3211" h 6:1 | "Em=xx2000" w 6:0 ||
+
+track: Teacher
+role: rhythm
+[Phrase 1]
+| h / / | / / | / / | / / |
+[Phrase 2]
+| / / | / / | / / | w / ||

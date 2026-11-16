@@ -1,0 +1,173 @@
+/*
+ * Layout of the Live Fretboard. Phones: the picture on top (it stays in view while the controls
+ * scroll under it), controls below. Wide screens: the picture large on the left, controls in a
+ * column beside it. A phone held sideways: the picture takes the height, a slim rail beside it.
+ */
+.screen.tight {
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-6);
+}
+
+.layout {
+  display: grid;
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.stageCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* Phones and tablets: the picture stays put while the controls scroll. */
+.layout[data-layout='stacked'] .stageCol {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--sp-2));
+  z-index: 5;
+}
+.screen[data-mode='guide'] .layout[data-layout='stacked'] .stageCol,
+.screen[data-mode='drawn'] .layout[data-layout='stacked'] .stageCol,
+.screen[data-mode='blocked'] .layout[data-layout='stacked'] .stageCol {
+  position: static;
+}
+
+.layout[data-layout='wide'] {
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+  gap: var(--sp-6);
+}
+.layout[data-layout='wide'] .panel {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--sp-4));
+  max-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-8));
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--sp-1);
+}
+
+.layout[data-layout='sideways'] {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+  gap: var(--sp-3);
+}
+.layout[data-layout='sideways'] .panel {
+  max-height: calc(100dvh - var(--sticky-top, 0px) - var(--sp-6));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.blockTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.privacy > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ok);
+}
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.tip {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  line-height: 1.45;
+  max-width: 34rem;
+}
+.tip strong {
+  color: var(--fg);
+}
+.tipIcon {
+  flex: none;
+  padding: 6px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* The rail beside the picture on a phone held sideways. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.railTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-md);
+  line-height: var(--leading-tight);
+}
+.railDetail {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+.railRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-1);
+}
+.railRow > :not(:first-child):not(:last-child) {
+  flex: 1;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.sheetBody .block {
+  border: 0;
+  padding: 0;
+  background: none;
+}

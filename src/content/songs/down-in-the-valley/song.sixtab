@@ -1,0 +1,33 @@
+# Down in the Valley, strum along (repertoire plan: down-in-the-valley). Your part: a waltz
+# strum in 3/4 with two chords, A (x02220) and E7 (020100): the bass note alone on beat 1 (open
+# string 5 under A, open string 6 under E7), downstrums on beats 2 and 3.
+# Each sung line takes four bars, two per chord: A for "Down in the valley", E7 for "valley so
+# low" and "hang your head over", A for "hear the wind blow". The words are written above the
+# bar where each chord starts, as on a chord sheet; the learner sings the tune. The tune itself is
+# not written out here: it is traditional with many variants, and this arrangement gives only the
+# accompaniment the plan specifies. Two traditional verses; the "Birmingham Jail" verses (and
+# "Write me a letter", which names the jail) are left out on purpose.
+title: Down in the Valley
+id: down-in-the-valley
+composer: Traditional American
+source: Traditional American song, collected by 1909; accompaniment arranged for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (traditional); this arrangement is original to Sixstring Academy
+difficulty: 2
+tags: strumming, waltz, 3/4, two chords
+tempo: 108
+time: 3/4
+key: A
+
+track: Your strum
+role: rhythm
+[Verse 1]
+| ^"Down in the valley," "A=x02220" q 5:0 D D | 5:0 D D | ^"valley so low," "E7=020100" 6:0 D D | 6:0 D D |
+| ^"hang your head over," 6:0 D D | 6:0 D D | ^"hear the wind blow." "A=x02220" 5:0 D D | 5:0 D D |
+| ^"Hear the wind blow, dear," 5:0 D D | 5:0 D D | ^"hear the wind blow;" "E7=020100" 6:0 D D | 6:0 D D |
+| ^"hang your head over," 6:0 D D | 6:0 D D | ^"hear the wind blow." "A=x02220" 5:0 D D | 5:0 D D |
+[Verse 2]
+| ^"Roses love sunshine," 5:0 D D | 5:0 D D | ^"violets love dew," "E7=020100" 6:0 D D | 6:0 D D |
+| ^"angels in heaven" 6:0 D D | 6:0 D D | ^"know I love you." "A=x02220" 5:0 D D | 5:0 D D |
+| ^"Know I love you, dear," 5:0 D D | 5:0 D D | ^"know I love you;" "E7=020100" 6:0 D D | 6:0 D D |
+| ^"angels in heaven" 6:0 D D | 6:0 D D | ^"know I love you." "A=x02220" 5:0 D D | 5:0 h D ||
