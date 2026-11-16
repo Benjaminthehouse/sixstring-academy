@@ -268,7 +268,8 @@ jumpCells 0.6 } | false · `lockConfidence` 0.6 · `unlockConfidence` 0.3 · `lo
 `lostGraceMs` 1000 · `numberingMemoryMs` 8000 · `askAfterMs` 1200 · `suggestCalibrationAfterMs`
 6000 · `unstableLosses` 3 / `unstableWindowMs` 20000 · `calibrateLabel` (none) · `detector`.
 Worker protocol (`protocol.ts`): `createVisionHost(options, env)` answers `VisionRequest`s with
-`VisionResponse`s (frame / bitmap / commands with `id`, `sample-color`, `probe`); the pipeline speaks it for you.
+`VisionResponse`s (frame / video-frame / bitmap / commands with `id`, `sample-color`, `probe`;
+`env.decodeVideoFrame` reads a transferred `VideoFrame`); the pipeline speaks it for you.
 
 ## Measured
 **Live, in Chromium** (`node e2e/vision-live.cjs --repeat 3`, final code, all three runs passed;
@@ -291,6 +292,9 @@ Second integration pass, all main-thread work counted: with `VideoFrame` transfe
 sent, 0.1% of the main thread (bitmaps, same browser, CPU profile: 21%); the worker now shrinks the
 frame itself, 4.5 ms on an idle machine (11.6 ms median on the loaded one, where tracking took 54 ms);
 the main-thread fallback grabs a frame in about 15 ms, 27% of the main thread before tracking.
+The trade: on a machine whose worker is the bottleneck the shrink now counts against the tracking
+rate (about 4.5 ms on top of 25-28 ms a tracked frame), in exchange for a main thread that stays free
+for the page; less work in all (4.6 ms against 9.5 ms a frame).
 
 **Bench (`hardening.test.ts`, `marker-mode.test.ts`; synthetic, 640x360):** still guitar under
 heavy webcam noise (read 0.025, shot 0.04, JPEG 55; seven seed sets): drawn markers move 0.002-0.005 px

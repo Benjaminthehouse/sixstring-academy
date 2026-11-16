@@ -610,7 +610,8 @@ describe('batch 9: st-read-first-sharps', () => {
     const est = estimate(await load('st-read-first-sharps'), 'Your part');
     expect(est.level, est.text).toBeGreaterThanOrEqual(2);
     expect(est.level, est.text).toBeLessThanOrEqual(5);
-    expect(est.text).not.toMatch(/stretch/i);
+    // No stretch: the stretch factor is zero (the text lists every factor by name).
+    expect(est.text).toMatch(/"stretch":0[,}]/);
   });
 });
 

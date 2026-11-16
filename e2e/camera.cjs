@@ -796,10 +796,11 @@ async function zoomGroup(url, fixture, geo, ov) {
       // and the live group scores the zoomed desktop picture as well.
       check('zoom', 'zoomed in, the solid dots are still on the right frets', sc.frames < 5 || sc.right >= 0.95 * sc.frames, sc.frames < 5 ? `only outlines under this load (${sc.frames} solid frames): not measured` : `${sc.right}/${sc.frames}; wrong ${JSON.stringify(sc.wrong.slice(0, 3))}`);
       await page.getByRole('button', { name: 'Zoom in on the notes (Z)' }).click();
-      await page.waitForTimeout(1500);
+      // The picture glides back out (about a second and a half), then stays whole.
+      const out = await page.waitForFunction(() => window.__cam.debug.crop === null, null, { timeout: 8000 }).then(() => true).catch(() => false);
       const off = await record(page, 2000);
       await page.screenshot({ path: path.join(OUT, 'zoom-phone-off.png') });
-      check('zoom', 'the zoom button shows the whole picture again (and the small dots)', off.length > 5 && off.every((e) => !e.view.crop) && 1.3 * median(off) <= median(on), `radius ${median(off).toFixed(1)} vs ${median(on).toFixed(1)}`);
+      check('zoom', 'the zoom button shows the whole picture again (and the small dots)', out && off.length > 5 && off.every((e) => !e.view.crop) && 1.3 * median(off) <= median(on), `back out: ${out}; ${off.filter((e) => e.view.crop).length}/${off.length} frames still zoomed; radius ${median(off).toFixed(1)} vs ${median(on).toFixed(1)}`);
       check('zoom', 'no page errors', s.errors.length === 0, s.errors.slice(0, 2).join(' | '));
     } finally {
       await s.close();

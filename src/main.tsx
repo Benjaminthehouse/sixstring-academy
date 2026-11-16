@@ -18,8 +18,8 @@ void registerServiceWorker({
     toast({
       id: 'app-update',
       icon: 'RefreshCw',
-      title: 'A new version of Sixstring Academy is ready',
-      description: 'Reload to use it now, or it starts by itself next time you open the app. Your progress is kept.',
+      title: 'A new version is ready',
+      description: 'Reload to use it now, or it starts next time you open the app.',
       action: { label: 'Reload', onClick: apply },
       duration: 0,
       news: true,

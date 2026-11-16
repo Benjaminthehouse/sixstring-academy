@@ -100,8 +100,10 @@ function pwa(): Plugin {
     closeBundle() {
       const outDir = path.resolve(config.root, config.build.outDir);
       if (!existsSync(path.join(outDir, 'index.html'))) return;
+      // Not precached: vendor/ (see above), source maps, and the launcher icons (the browser
+      // fetches those itself when the app is installed, and nothing in the app shows them).
       const precache = walk(outDir)
-        .filter((file) => !file.startsWith('vendor/') && !file.startsWith('.vite/') && !file.endsWith('.map') && file !== 'sw.js')
+        .filter((file) => !file.startsWith('vendor/') && !file.startsWith('.vite/') && !file.endsWith('.map') && file !== 'sw.js' && !/^icons\/.*\.png$/.test(file))
         .sort();
       const version = hashOf(precache.map((file) => `${file}:${hashOf(readFileSync(path.join(outDir, file)))}`).join('\n'));
       const vendorDir = path.join(outDir, 'vendor');

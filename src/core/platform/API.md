@@ -223,3 +223,38 @@ const sync = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);   // prof
 `keepAwake(): () => void` (counted; `useEffect(() => keepAwake(), [])` while practising) · `requestWakeLock():
 Promise<boolean>` · `releaseWakeLock()` · `isWakeLockSupported()` · `getWakeLockState()` → `{ supported, wanted,
 active }` · `subscribeWakeLock(listener)`. Re-acquired when the tab becomes visible; a refusal is never an error.
+
+## Blob store (`blobs.ts`; import from `@/core/platform/blobs`, not the barrel)
+
+Binary things kept on this device only, by string key, in IndexedDB (database `ssa-blobs`; one
+namespace per feature, so keys never meet). Not in key-value storage, never in backups or cloud
+sync. Each entry is written with a small description (size, type, time) in one transaction, so
+`list` and `totalSize` never load data.
+
+```ts
+openBlobStore(name, { memoryFallback? }): Promise<BlobStore>        // rejects with BlobStoreError when refused
+BlobStore { name, persistent, notice, put(key, blob), get(key): Blob | null, has(key), list(prefix?): BlobEntry[],
+            delete(key), deletePrefix(prefix): number, totalSize(prefix?): number, putJSON(key, value), getJSON(key, fallback) }
+BlobEntry { key, size, type, at }
+BlobStoreError { reason: 'unavailable' | 'full' | 'failed', message (for the learner), detail }   isBlobStoreError(e)
+createBlobStore(name, backend) + memoryBlobBackend({ quota?, refuseBlobs? })   // tests: the same logic on a fake
+blobStorageEstimate(): Promise<{ usage, quota } | null>
+```
+
+- **Refusals are errors with a sentence, never crashes.** No IndexedDB, reading `indexedDB` throwing
+  (sandboxed frame), `open()` throwing or failing (private window), no answer within 4 s:
+  `'unavailable'`; a full disk (`QuotaExceededError`): `'full'`; anything else: `'failed'`. With
+  `memoryFallback: true` a refused open gives a store in memory instead (`persistent: false`,
+  `notice` = the sentence to show, e.g. "lasts until you close the page; save it as a file").
+- Browsers that cannot store a Blob in IndexedDB (older Safari) get its bytes stored instead;
+  `get` returns a Blob either way, with its type.
+- Names are slugs (`recorder`, `scanner`). Users: the Recorder's takes (`recorder`: `take/<id>` +
+  `takes.json`), the scanner's unsaved draft (`scanner`: `draft/state.json` + `draft/pic/<id>`,
+  removed when the song is saved or the learner starts over). Browser check: `node e2e/scan-blobs.cjs`.
+
+```ts
+const store = await openBlobStore('recorder', { memoryFallback: true });
+if (!store.persistent) toast(store.notice);
+try { await store.put(`take/${id}`, audio); } catch (e) { if (isBlobStoreError(e)) toast(e.message); }
+const used = await store.totalSize('take/');
+```

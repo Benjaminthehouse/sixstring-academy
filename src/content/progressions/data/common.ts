@@ -9,6 +9,7 @@ const METER: Record<BackingStyleId, Meter> = {
   'pop-rock': '4/4', ballad: '4/4', 'ballad-68': '6/8', 'blues-shuffle': '4/4', 'slow-blues': '12/8',
   funk: '4/4', reggae: '4/4', bossa: '4/4', 'jazz-swing': '4/4', country: '4/4', folk: '4/4',
   metal: '4/4', latin: '4/4', waltz: '3/4',
+  rumba: '4/4', gospel: '4/4', ska: '4/4', classical: '4/4', tango: '4/4',
 };
 
 /** A feel: backing style id and tempo range (felt beats per minute); the meter follows the style. */
