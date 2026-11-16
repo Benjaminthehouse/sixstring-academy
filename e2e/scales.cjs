@@ -438,16 +438,32 @@ async function desktop(theme) {
       await page.waitForTimeout(300);
       // ── practice is logged when the learner leaves ─────────────────────────────────────
       if (!quick) {
-        const before = await page.evaluate(async () => (await import('/src/core/progress/index.ts')).getProgress().log.length);
+        const logNow = () =>
+          page.evaluate(async () => {
+            const log = (await import('/src/core/progress/index.ts')).getProgress().log;
+            return { n: log.length, last: log[0] ?? null };
+          });
+        const before = (await logNow()).n;
         await page.locator('[data-play]').first().click();
         await page.waitForTimeout(22000);
+        // Review: time played was only logged on leaving the screen. On a phone, switching app or
+        // locking the screen (the page is hidden) may be the last thing the page ever hears.
+        await page.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await page.waitForTimeout(300);
+        const hidden = await logNow();
+        await page.evaluate(() => {
+          delete document.visibilityState;
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        check('playing for 20 s or more is logged as scale practice when the app is hidden', hidden.n === before + 1 && hidden.last?.kind === 'scale-practice' && hidden.last.durationSec >= 20, JSON.stringify(hidden.last).slice(0, 200));
+        await page.waitForTimeout(21000);
         await goto('home');
         await page.waitForTimeout(800);
-        const entry = await page.evaluate(async () => {
-          const log = (await import('/src/core/progress/index.ts')).getProgress().log;
-          return { n: log.length, last: log[0] ?? null };
-        });
-        check('playing for 20 s or more is logged as scale practice when you leave', entry.n > before && JSON.stringify(entry.last).includes('scale-practice'), JSON.stringify(entry.last).slice(0, 200));
+        const left = await logNow();
+        check('… and the time played after that when you leave the screen, never counted twice', left.n === before + 2 && left.last?.kind === 'scale-practice' && left.last.durationSec >= 20 && left.last.durationSec < 35, JSON.stringify(left.last).slice(0, 200));
         await open(page, goto, 'a--minor-pentatonic--box-1');
       }
     } else {
