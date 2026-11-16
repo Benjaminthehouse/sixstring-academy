@@ -318,7 +318,7 @@ describe.each(BOX_CASES)('batch 10: $id', ({ id, meta, box, technique, expected,
     expect(meta.level).toBe(5);
     const groove = played(song, 'Teacher groove');
     expect(groove.every((b) => b.slash || b.midis.length === 0)).toBe(true);
-    expect(song.chords.map((c) => `${c.symbol}=${c.voicing!.join('')}`)).toEqual(['Am7=null02010'.replace('null', 'null')]);
+    expect(song.chords.map((c) => `${c.symbol}=${c.voicing!.map((f) => (f === null ? 'x' : f)).join('')}`)).toEqual(['Am7=x02010']);
     const est = estimate(song, 'Your lick');
     console.info(est.text);
     expect(Math.abs(est.level - 5), est.text).toBeLessThanOrEqual(1);
