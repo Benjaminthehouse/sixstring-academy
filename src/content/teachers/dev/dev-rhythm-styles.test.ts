@@ -279,12 +279,69 @@ describe('Dev unit 6: rhythm guitar in every style', () => {
     expect(ticks(FOLK_PATTERN)).toEqual([960, 480, 480, -480, 480, 480, 480]);
   });
 
-  it('falls back to Clementine, a folk song in D with long D bars, while Shenandoah is missing', async () => {
+  // Review: the fallback was Clementine, a 3/4 waltz on D and A7. Auld Lang Syne is nearer to
+  // Shenandoah: slow, traditional, in 4/4 and in D, on the very D and A shapes the sus moves start
+  // from, one chord a bar (so the folk pattern's beat-3 move fits every bar), and 75 % of its tempo
+  // is Shenandoah's 60 BPM.
+  it('falls back to Auld Lang Syne, a slow song in D on D and A, while Shenandoah is missing', async () => {
     const sh = tasks.find((t) => t.id === 'shenandoah')!;
     if (!songEntry('shenandoah')) expect(sh.fallback).toBeTruthy();
-    const bars = await chordsByBar('clementine');
-    expect([...new Set(bars.filter((c) => c !== 'N.C.'))]).toEqual(['D', 'A7']);
-    expect(bars.join(' ')).toContain('D D D');
+    expect(sh.fallback!.params).toEqual(['auld-lang-syne', 't75']);
+    const s = await song('auld-lang-syne');
+    expect(s.tempo[0].bpm * 0.75).toBe(60);
+    expect((repertoire as { pieces: Array<{ id: string; tempo?: number }> }).pieces.find((p) => p.id === 'shenandoah')!.tempo).toBe(60);
+    const bars = await chordsByBar('auld-lang-syne');
+    expect([...new Set(bars.filter((c) => c !== 'N.C.'))].sort()).toEqual(['A', 'Bm7', 'D', 'G']);
+    // One chord a bar, so every D or A bar can take the move on beat 3.
+    for (let bar = 2; bar <= s.bars.length; bar++) expect((await chordsInBar('auld-lang-syne', bar)).length, `bar ${bar}`).toBeLessThanOrEqual(1);
+    // The D and A it plays are the shapes the lesson decorates.
+    const text = await loadSongText('auld-lang-syne');
+    expect(text).toContain('"D=xx0232"');
+    expect(text).toContain('"A=x02220"');
+    expect(text).toMatch(/^time: 4\/4$/m);
+    expect(s.tracks.some((t) => t.name === 'Your strum' && t.role === 'rhythm')).toBe(true);
+    // The text names exactly the chords the song has.
+    for (const c of ['D', 'A', 'G', 'Bm7']) expect(plain(sh.fallback!.body)).toContain(`{c:${c}}`);
+  });
+
+  it('says where the riff\'s chords come straight after another chord (review fix)', async () => {
+    // Review bug: the task said every chord comes after a beat of gallops; in bars 2 and 4 G5 goes
+    // straight to A5 and C5 straight to D5, the same shape two frets up.
+    const s = await song('st-power-chords-gallop');
+    const struck = s.tracks[0].measures.slice(0, 7).flatMap((m) => m.beats.filter((b) => b.notes.length >= 3).map((b) => b.notes.map((n) => `${n.string}:${n.fret}`).join(' ')));
+    const name = (shape: string) => identifyFretted(['6', '5', '4', '3', '2', '1'].map((st) => (shape.split(' ').find((p) => p.startsWith(`${st}:`)) ?? 'x').replace(/^\d:/, '')).join('')).symbol;
+    const pairs: string[] = [];
+    for (const m of s.tracks[0].measures.slice(0, 7)) {
+      for (let i = 1; i < m.beats.length; i++) {
+        const a = m.beats[i - 1];
+        const b = m.beats[i];
+        if (a.notes.length >= 3 && b.notes.length >= 3) pairs.push(`${name(a.notes.map((n) => `${n.string}:${n.fret}`).join(' '))}>${name(b.notes.map((n) => `${n.string}:${n.fret}`).join(' '))}`);
+      }
+    }
+    expect([...new Set(pairs)].sort()).toEqual(['C5>D5', 'G5>A5']);
+    expect(struck.length).toBeGreaterThan(0);
+    const body = plain(tasks.find((t) => t.id === 'gallop-player')!.body);
+    expect(body).toContain('{c:G5} to {c:A5}');
+    expect(body).toContain('{c:C5} to {c:D5}');
+    expect(body).not.toMatch(/every jump/i);
+  });
+
+  it('names the tools\' own parts as the tools do (review fix)', () => {
+    // The funk study's sections are Pattern A and Pattern B, not 1 and 2.
+    const text = JSON.stringify(unit.lessons.find((l) => l.id === 'funk'));
+    expect(text).not.toMatch(/pattern [12]\b/i);
+    expect(text).toContain('Pattern A is bars 1 to 4');
+    // Rhythm's patterns by their names on screen.
+    const swing = plain(tasks.find((t) => t.id === 'swing-rhythm')!.body);
+    expect(swing).toContain(strumPattern('swung-eighths')!.name);
+    expect(swing).toContain(strumPattern('down-up')!.name);
+    expect(plain(tasks.find((t) => t.id === 'gallop-rhythm')!.body)).toContain(strumPattern('gallop')!.name);
+    // Metronome on 2 and 4 strums a straight Em groove: the task says so, and keeps the swung A7 for after.
+    const mm = getExercise('tech-metronome-2-4')!;
+    expect(mm.parts[0].tab).toContain('"Em=022000"');
+    const body = plain(tasks.find((t) => t.id === 'metronome-2-4')!.body);
+    expect(body).toContain("exercise's {c:Em} pattern as written");
+    expect(body.indexOf('{c:A7}')).toBeGreaterThan(body.indexOf('{c:Em}'));
   });
 
   it('jams on the chords the text names, at tempos the band plays', () => {

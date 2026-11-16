@@ -16,7 +16,7 @@ import { parseSixTab, type Song } from '@/core/song';
 import { chordNotes, chroma, intervalBetween, pcName, scaleNotes } from '@/core/theory';
 import { drillById, levelOf } from '@/features/ear/core/drills';
 import { parseScaleParams } from '@/features/scales/model/address';
-import { estimateLessonSeconds, formatProblems, validateCourse, type TabNote } from '@/lessons';
+import { estimateLessonSeconds, findTargets, formatProblems, validateCourse, type FretboardFindExercise, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherUnit } from '../types';
 import unit, { BLUE_NOTE_PASSAGE, DEV_BLUES_LICK, MINOR_BLUES_A, MINOR_BLUES_MELODY_1_2, QUICK_CHANGE_E, TURNAROUND_A, TURNAROUND_E } from './dev-blues';
@@ -256,10 +256,71 @@ describe('Dev unit 5: the blues', () => {
     expect(chordNotes('E7')[1]).toBe('G#');
     // C is in box 1; C# and G# are a fret away from it (C at 3:5, G at 4:5).
     expect(intervalBetween('G#', 'A')).toBe('m2');
-    // Each target is the only right answer in the alternatives' region.
+    // The microphone steps name one place for each target; their alternatives accept that place.
     for (const [note, at] of [['C#4', '3:6'], ['C4', '3:5'], ['G#3', '4:6']]) {
       expect(positionsForNote(note, { minFret: 4, maxFret: 8 }).map((p) => `${p.string}:${p.fret}`)).toEqual([at]);
     }
+  });
+
+  // Review bug: the three no-microphone alternatives asked to "tap the third of A7 near the 5th
+  // fret" with an exact octave, so the C# at string 5, fret 4 (and the C and G# at frets 8 and 4 of
+  // strings 6 and 1) were marked wrong although they are the very note asked for.
+  it('never marks a right note wrong: every note to find counts wherever it sits in the region', () => {
+    const finds: Array<{ lesson: string; ex: FretboardFindExercise; note: string }> = [];
+    for (const l of unit.lessons) {
+      for (const s of l.steps as Array<{ type?: string; alternative?: { type?: string } }>) {
+        for (const ex of [s, s.alternative]) {
+          if (ex?.type !== 'fretboard-find') continue;
+          const find = (ex as FretboardFindExercise).find;
+          if ('note' in find) finds.push({ lesson: l.id, ex: ex as FretboardFindExercise, note: find.note });
+        }
+      }
+    }
+    expect(finds.length).toBeGreaterThanOrEqual(6);
+    for (const { lesson, ex, note } of finds) {
+      const pc = chroma(note.replace(/\d+$/, ''));
+      const everywhere: string[] = [];
+      for (let string = 1; string <= 6; string++) {
+        if (ex.strings && !ex.strings.includes(string)) continue;
+        for (let fret = ex.frets[0]; fret <= ex.frets[1]; fret++) if (pitchClassAt({ string, fret }) === pc) everywhere.push(`${string}:${fret}`);
+      }
+      const accepted = findTargets(ex).map((p) => `${p.string}:${p.fret}`);
+      expect(accepted.sort(), `${lesson}: "${ex.prompt}"`).toEqual(everywhere.sort());
+    }
+    // And the three target alternatives accept the place the play step names.
+    const mix = unit.lessons.find((l) => l.id === 'major-and-minor-mix')!;
+    const plays = mix.steps.filter((s) => (s as { type?: string }).type === 'play-note') as Array<{ where: { string: number; fret: number }; alternative: FretboardFindExercise }>;
+    expect(plays.length).toBe(3);
+    for (const p of plays) expect(findTargets(p.alternative).map((x) => `${x.string}:${x.fret}`)).toContain(`${p.where.string}:${p.where.fret}`);
+  });
+
+  it('reads aloud and frames the blues the way the lessons mean it (review fixes)', () => {
+    const text = JSON.stringify(unit.lessons);
+    // A numeral is tagged so it is read "five", not the letter.
+    expect(text).not.toMatch(/the V chord/);
+    expect(text).toContain('the {r:V} chord');
+    // No Dev lesson before this unit plays a 12-bar, so the opening does not assume one.
+    const open = unit.lessons[0].steps[0] as { body: string };
+    expect(open.body).not.toMatch(/you know/);
+    // The E quick-change band plays sevenths: the jam says so.
+    const p = getProgression('blues-quick-change')!;
+    const played = [...new Set(progressionInKey(p, 'E').bars.flat().map((c) => c.symbol))];
+    expect(played).toEqual(['E7', 'A7', 'B7']);
+    const jam = (unit.lessons[0].steps.find((s) => isTaskStep(s) && s.id === 'quick-change-jam') as TaskStep).body as string;
+    for (const c of played) expect(jam).toContain(`{c:${c}}`);
+    // The turnaround tip names both hands: the thumb plucks, it does not fret.
+    const tip = (unit.lessons.find((l) => l.id === 'turnarounds')!.steps.find((s) => (s as { tip?: string }).tip?.includes('Thumb') || (s as { tip?: string }).tip?.includes('thumb')) as { tip: string }).tip;
+    expect(tip).toMatch(/^Fretting hand: .*Picking hand: thumb/);
+  });
+
+  it('sends the minor-blues tasks to parts the Player really has, and says where to pick them', async () => {
+    const s = await song('st-minor-blues-a');
+    expect(s.tracks.map((t) => t.name)).toEqual(['Melody', 'Rhythm']);
+    const tasks = unit.lessons.flatMap((l) => l.steps).filter(isTaskStep) as TaskStep[];
+    expect(tasks.find((t) => t.id === 'minor-blues-rhythm')!.body).toContain('under Parts, pick Rhythm');
+    expect(tasks.find((t) => t.id === 'minor-blues-melody')!.body).toContain('pick Melody under Parts');
+    // The movable sevenths keep a barre down for three choruses: the jam says when to rest.
+    expect(tasks.find((t) => t.id === 'sevenths-jam')!.tip).toMatch(/ache, stop/);
   });
 
   it('charts the minor blues and quotes its melody as the study has them', async () => {

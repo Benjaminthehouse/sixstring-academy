@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { greetingFor, greetingLine, standingLine, timeAgo } from './greeting';
+import { greetingFor, greetingLine, setupLine, standingLine, timeAgo } from './greeting';
+
+describe('setupLine', () => {
+  it('says what Settings and the profile already hold, not a fixed right-handed beginner', () => {
+    expect(setupLine({ handedness: 'right', experience: 'beginner', teacherName: 'Mia Brooks' })).toBe(
+      'You are set up as a right-handed beginner with Mia Brooks. Four quick questions and Today fits the way you play.',
+    );
+    expect(setupLine({ handedness: 'left', experience: 'beginner', teacherName: 'Mia Brooks' })).toMatch(/^You are set up as a left-handed beginner with Mia Brooks\./);
+    expect(setupLine({ handedness: 'left', experience: 'intermediate', teacherName: 'Dev Okafor' })).toMatch(/a left-handed intermediate player with Dev Okafor\./);
+    expect(setupLine({ handedness: 'right', experience: 'expert', teacherName: 'Prof. Elena Varga' })).toMatch(/a right-handed advanced player with Prof\. Elena Varga\./);
+  });
+});
 
 describe('greeting', () => {
   it('follows the clock', () => {

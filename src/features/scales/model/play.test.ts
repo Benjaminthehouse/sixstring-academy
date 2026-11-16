@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STANDARD_TUNING, tuning } from '@/core/guitar';
 import { parseSixTab } from '@/core/song';
-import { SCALES, getScale, parseKey } from '@/core/theory';
+import { SCALES, chroma, getKey, getScale, parseKey, scaleNotes, simplestTonic, spellInKey } from '@/core/theory';
 import { shapesFor, systemsFor } from './neck';
 import { BAR_TICKS, PPQ, buildLine, exerciseChoices, fillBars, lineTab, staffKey, tabPosition, timeLine, type NotesPerBeat } from './play';
 
@@ -102,7 +102,6 @@ describe('tab', () => {
     const key = (tonic: string, id: string) => staffKey(tonic, getScale(id)!);
     expect(key('A', 'minor-pentatonic')).toBe('A minor');
     expect(key('E', 'phrygian')).toBe('E minor');
-    expect(key('A', 'blues')).toBe('A minor');
     expect(key('Bb', 'major-pentatonic')).toBe('Bb major');
     expect(key('F', 'lydian')).toBe('F major');
     expect(key('G', 'mixolydian')).toBe('G major');
@@ -113,6 +112,28 @@ describe('tab', () => {
     expect(parsed.errors).toEqual([]);
     expect(text).toMatch(/^key: A minor$/m);
     expect(lineTab(buildLine(box1(), 'shape', 'up'), 2, { tuning: STANDARD_TUNING })).not.toMatch(/^key:/m);
+  });
+
+  it('spells every staff note the way the scale does, not the way its tonic key would', () => {
+    const key = (tonic: string, id: string) => staffKey(tonic, getScale(id)!);
+    const misspelt = (tonic: string, id: string) => {
+      const k = key(tonic, id);
+      return scaleNotes(tonic, id).filter((n) => spellInKey(chroma(n), k) !== n);
+    };
+    // C locrian has G♭ (C minor would write F♯): its parent key D♭ major spells all seven.
+    expect(key('C', 'locrian')).toBe('Db major');
+    expect(misspelt('C', 'locrian')).toEqual([]);
+    // The blue note of A blues is E♭ (A minor would write D♯); the staff keeps the empty signature.
+    expect(misspelt('A', 'blues')).toEqual([]);
+    expect(getKey(key('A', 'blues'))?.signature.count).toBe(0);
+    // Every everyday scale, on all twelve tonics: no note is respelled.
+    const everyday = ['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian', 'major-pentatonic', 'minor-pentatonic', 'blues', 'harmonic-minor', 'melodic-minor'];
+    for (const id of everyday) {
+      for (let pc = 0; pc < 12; pc++) {
+        const tonic = simplestTonic(pc, id);
+        expect(misspelt(tonic, id), `${tonic} ${id} in ${key(tonic, id)}`).toEqual([]);
+      }
+    }
   });
 
   it('finds a note’s place in the tab', () => {

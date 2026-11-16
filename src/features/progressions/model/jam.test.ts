@@ -4,7 +4,7 @@ import { arrangeBacking } from '@/core/audio';
 import { chordPcs } from '@/core/theory';
 import { midiAt, tuning } from '@/core/guitar';
 import {
-  DEFAULT_JAM, LOG_AFTER_SEC, chordAt, finishedText, chordScale, clampTempo, distanceText, endingChord, feelsFor, glyphCount, jamActivity, jamMarkers, positionOf,
+  DEFAULT_JAM, LOG_AFTER_SEC, chordAt, finishedText, chordScale, clampTempo, distanceText, endingChord, feelsFor, glyphCount, jamActivity, jamMarkers, jamNeck, positionOf,
   sanitizeJam, scaleChoices, scaleFor, upcoming,
 } from './jam';
 
@@ -147,6 +147,21 @@ describe('scales to solo with', () => {
     for (const m of rest) expect(want).not.toContain(midiAt(m) % 12);
     expect(new Set(tones.map((m) => m.label))).toEqual(new Set(['R', '♭3', '5', '♭7']));
     expect(jamMarkers('Am7', null).every((m) => m.state !== 'ghost')).toBe(true);
+  });
+
+  it("shows the frets of Settings on wide screens, with smaller strings past 15 so the neck stays in view", () => {
+    const wide = { phone: false, sideways: false, wide: true };
+    expect(jamNeck(wide, 15)).toEqual({ maxFret: 15, size: 'lg' });
+    expect(jamNeck(wide, 12)).toEqual({ maxFret: 12, size: 'lg' });
+    expect(jamNeck(wide, 19)).toEqual({ maxFret: 19, size: 'md' });
+    expect(jamNeck(wide, 24)).toEqual({ maxFret: 24, size: 'sm' });
+    // A phone upright keeps 12 frets whatever Settings say; on its side it takes them, small.
+    expect(jamNeck({ phone: true, sideways: false, wide: false }, 24)).toEqual({ maxFret: 12, size: 'sm' });
+    expect(jamNeck({ phone: false, sideways: false, wide: false }, 24)).toEqual({ maxFret: 12, size: 'md' });
+    expect(jamNeck({ phone: true, sideways: true, wide: false }, 20)).toEqual({ maxFret: 20, size: 'sm' });
+    // A broken stored value is the default neck, never a crash or a 0-fret board.
+    expect(jamNeck(wide, Number.NaN)).toEqual({ maxFret: 15, size: 'lg' });
+    expect(jamNeck(wide, 99).maxFret).toBe(24);
   });
 
   it("puts the notes where they are in the learner's tuning", () => {

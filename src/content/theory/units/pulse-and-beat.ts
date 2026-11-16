@@ -42,7 +42,7 @@ const theBeat: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Listen to this click. Is the beat steady?',
+      prompt: 'Listen to these clicks. Are they a steady beat?',
       sound: { kind: 'rhythm', pattern: 'q q. q. | q q q. e', tempo: 80 },
       options: [{ text: 'Steady: the clicks are evenly spaced' }, { text: 'Not steady: the gaps keep changing', correct: true }],
       shuffle: false,
@@ -53,7 +53,7 @@ const theBeat: Lesson = {
       prompt: 'Which of these could keep a beat?',
       options: [
         { text: 'A clock ticking once a second', correct: true },
-        { text: 'A tap that drips now and then', why: 'Its drips come at uneven times. A beat is evenly spaced.' },
+        { text: 'A dog barking now and then', why: 'Its barks come at uneven times. A beat is evenly spaced.' },
         { text: 'Rain on a window', why: 'Raindrops fall at random times. A beat is steady.' },
       ],
       explain: 'A beat is steady and evenly spaced, like a clock. Random or uneven sounds cannot keep one.',
@@ -62,7 +62,7 @@ const theBeat: Lesson = {
     {
       type: 'card',
       title: 'Play the beat',
-      body: 'Lay your fretting hand flat across all six strings, around frets 1 to 3, without pressing. Now strum: you hear a dry "chk" instead of notes. That is a {t:mute|muted} strum. Strum once on every click of the metronome.',
+      body: 'Lay your fretting hand (the one on the neck) flat across all six strings, around {t:fret|frets} 1 to 3, without pressing. Now {t:strum}: you hear a dry "chk" instead of notes. That is a {t:mute|muted} strum. Strum once on every click.',
       figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'q q q q | q q q q', tempo: 60 }, label: 'Strum with this click' },
       tip: 'Keep the hand clear of frets 5, 7 and 12: a light touch right over those frets rings a chime (a harmonic) instead of a mute.',
     },
@@ -144,12 +144,14 @@ const tempoAndBpm: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'Compare this click with the 60 BPM one below. Is it faster or slower?',
+      // No "above" or "below": the reference button is drawn above the question's own play button.
+      // The options name 60 BPM so they cannot be mistaken for the player's "Slower" button.
+      prompt: 'Play the 60 BPM click, then the new one. Is the new click faster or slower?',
       figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'q q q q', tempo: 60 }, label: 'Compare: 60 BPM' },
       sound: { kind: 'rhythm', pattern: 'q q q q | q q q q', tempo: 120 },
-      options: [{ text: 'Faster', correct: true }, { text: 'Slower' }],
+      options: [{ text: 'Faster than 60 BPM', correct: true }, { text: 'Slower than 60 BPM' }],
       shuffle: false,
-      explain: 'That was 120 BPM: two clicks every second, twice as fast as 60 BPM.',
+      explain: 'The new click was 120 BPM: two clicks every second, twice as fast as 60 BPM.',
     },
     {
       type: 'true-false',
@@ -283,7 +285,7 @@ const barsAndFourFour: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'And this one?',
+      prompt: 'Listen for the louder clicks. Is each bar three beats long, or four?',
       sound: { kind: 'rhythm', pattern: 'q q q q | q q q q | q q q q', tempo: 100 },
       options: [{ text: 'Three beats' }, { text: 'Four beats', correct: true }],
       shuffle: false,
@@ -627,7 +629,7 @@ const rests: Lesson = {
     {
       type: 'card',
       title: 'Play it',
-      body: 'Strum open strings 3, 2 and 1 on beats 1 and 3. On beats 2 and 4, lay the side of your picking hand on the strings to stop them. The silence is part of the rhythm.',
+      body: 'Strum open strings 3, 2 and 1 on beats 1 and 3. On beats 2 and 4, lay the side of your strumming hand on the strings to stop them. The silence is part of the rhythm.',
       figure: { kind: 'audio', sound: { kind: 'rhythm', pattern: 'q qr q qr | q qr q qr', tempo: 80 }, label: 'Hear strum, rest, strum' },
     },
     {
@@ -711,7 +713,7 @@ const downUpStrumming: Lesson = {
     },
     {
       type: 'order',
-      prompt: 'This pattern strums on 1, 2, &, & of 3, 4, &. Put its strokes in order.',
+      prompt: 'This pattern strums on 1, 2 &, the & of 3, and 4 &. Put its strokes in order.',
       tiles: ['Down', 'Down', 'Up', 'Up', 'Down', 'Up'],
       explain: 'Numbers get downstrokes and &s get upstrokes: down (1), down-up (2 &), up (& of 3), down-up (4 &).',
       fact: 'pulse-down-on-the-beat',
@@ -814,6 +816,16 @@ const unit: Unit = {
         explain: 'Four beats a bar, counted 1 2 3 4.',
       },
       {
+        type: 'choice',
+        prompt: 'What separates one bar from the next in written music?',
+        options: [
+          { text: 'A bar line', correct: true },
+          { text: 'A rest', why: 'A rest is a counted silence inside a bar.' },
+          { text: 'A beat', why: 'Beats are what a bar is made of, not what divides bars.' },
+        ],
+        explain: 'An upright bar line separates one bar from the next, and the count starts again at 1 after it.',
+      },
+      {
         type: 'match-pairs',
         prompt: 'Match each note with how long it lasts in 4/4.',
         pairs: [
@@ -830,6 +842,16 @@ const unit: Unit = {
         options: [{ text: '1 beat', why: 'One beat is a quarter rest.' }, { text: '2 beats', correct: true }, { text: '4 beats', why: 'Four beats is a whole rest.' }],
         shuffle: false,
         explain: 'A rest lasts as long as its note: a half rest is two beats, like a half note.',
+      },
+      {
+        type: 'choice',
+        prompt: 'Which bar starts with a quarter rest?',
+        options: [
+          { figure: { kind: 'rhythm', pattern: 'qr q h', counting: false }, correct: true },
+          { figure: { kind: 'rhythm', pattern: 'hr h', counting: false }, why: 'That bar starts with a half rest, the small block sitting on a line: two beats.' },
+          { figure: { kind: 'rhythm', pattern: 'er e q h', counting: false }, why: 'That bar starts with an eighth rest, the small one with a flag: half a beat.' },
+        ],
+        explain: 'The quarter rest is the squiggly one: one beat of silence, here before a quarter note.',
       },
       {
         type: 'fill-blanks',

@@ -114,7 +114,7 @@ const rockRhythm: TeacherLesson = {
       song: 'st-power-chords-gallop',
       tempo: 80,
       minutes: 5,
-      body: 'Play the riff at 80 % (80 BPM), then 100 % (100 BPM). Gallops palm-muted on the open string 6, accented chords open and loud. Every jump to a chord comes after a beat of gallops, so the hand has time to get there.',
+      body: 'Play the riff at 80 % (80 BPM), then 100 % (100 BPM). Gallops palm-muted on the open string 6, accented chords open and loud. The gallops give your fretting hand time to reach each chord; where two chords come back to back, {c:G5} to {c:A5} and {c:C5} to {c:D5}, the shape just slides up two frets.',
     }),
     {
       type: 'choice',
@@ -181,7 +181,7 @@ const funk: TeacherLesson = {
       type: 'card',
       title: 'Hits and scratches',
       body: 'Down on the beat and the "and", up on the "e" and the "a". Squeeze {c:E9} only for the hits, then release the fretting pressure at once, fingers still touching the strings, so every other stroke is a dry, percussive click.',
-      figure: { kind: 'audio', sound: { kind: 'strum', chord: 'E9', pattern: FUNK_A_BAR_1, grid: 'sixteenth', tempo: 70, repeat: 2 }, label: 'Hear pattern 1, bar 1' },
+      figure: { kind: 'audio', sound: { kind: 'strum', chord: 'E9', pattern: FUNK_A_BAR_1, grid: 'sixteenth', tempo: 70, repeat: 2 }, label: 'Hear pattern A, bar 1' },
     },
     {
       type: 'tap-rhythm',
@@ -223,7 +223,7 @@ const funk: TeacherLesson = {
       tempo: 76,
       bars: [1, 4],
       minutes: 5,
-      body: 'Pattern 1 is bars 1 to 4: play it at 76 % (70 BPM), then 98 % (90 BPM). Then set the loop to bars 5 to 8 for pattern 2. Squeeze for the hits, release for everything else.',
+      body: 'Pattern A is bars 1 to 4: play it at 76 % (70 BPM), then 98 % (90 BPM). Then set the loop to bars 5 to 8 for pattern B. Squeeze for the hits, release for everything else.',
     }),
     {
       type: 'fill-blanks',
@@ -342,7 +342,7 @@ const reggae: TeacherLesson = {
       tool: 'progressions',
       params: ['reggae-i-iv', 'g', 'jam'],
       minutes: 4,
-      body: 'Set the band to 72 BPM: {c:G} and {c:C}. Chop on every "and" with {c:G} (xx543x) and {c:C/G} (xx555x), a finger move apart at fret 5. Leave every beat to the bass and drums.',
+      body: 'Set the band to 72 BPM: {c:G} and {c:C}. Chop on every "and" with {c:G} (xx543x) and {c:C/G} (xx555x), side by side at fret 5. Leave every beat to the bass and drums.',
     }),
     {
       type: 'chord-build',
@@ -537,14 +537,14 @@ const swingAndShuffle: TeacherLesson = {
       tool: 'rhythm',
       params: ['strum', 'swung-eighths'],
       minutes: 3,
-      body: 'Play Swung down-up in Rhythm: long down, short up. Then open the Down-up pattern, the straight version, and tap that. Go back and forth until you can hear the difference in your hand.',
+      body: 'Play Swung down-up in Rhythm: long down, short up. Then open Down-up eighths, the straight version, and play that. Go back and forth until you can hear the difference in your hand.',
     }),
     techniqueTask({
       id: 'metronome-2-4',
       title: 'Metronome on 2 and 4',
       exercise: 'tech-metronome-2-4',
       minutes: 5,
-      body: 'Start at 60 BPM with the click on 2 and 4 only: swung eighths on {c:A7}, feeling 1 and 3 yourself. Climb the ladder 4 BPM at a time toward 100.',
+      body: 'Start at 60 BPM with the click on 2 and 4 only and strum the exercise\'s {c:Em} pattern as written, feeling 1 and 3 yourself. Climb the ladder 4 BPM at a time toward 100. To finish, drop back to a tempo that feels easy and swing eighths on {c:A7} against the same click: long down, short up.',
       tip: 'If you start hearing the click as beat 1, count "one, TWO, three, FOUR" out loud and keep counting.',
     }),
     {
@@ -678,11 +678,13 @@ const folkColour: TeacherLesson = {
       tempo: 87,
       minutes: 5,
       body: 'Play Shenandoah at 87 % (about 52 BPM), then 100 % (60 BPM). On the long {c:D} and {c:A} chords, add your own sus decorations: move one finger, then back to the chord.',
+      // Auld Lang Syne: a slow traditional song in 4/4 and in D, one chord a bar, on the same D and A
+      // shapes the sus moves start from, and 75 % of its 80 BPM is Shenandoah's 60.
       fallback: {
         tool: 'player',
-        params: ['clementine', 't65'],
-        title: 'Decorate a folk song in D',
-        body: 'Shenandoah is not in the Songs library yet, so decorate another folk song in D: Clementine, at 65 % (about 70 BPM). On the long {c:D} bars, move one finger for {c:Dsus4} or {c:Dsus2} and come back; leave {c:A7} as it is.',
+        params: ['auld-lang-syne', 't75'],
+        title: 'Decorate a slow song in D',
+        body: 'Shenandoah is not in the Songs library yet, so decorate another slow traditional song in D: Auld Lang Syne, your strum part, at 75 % (60 BPM). On every bar of {c:D} or {c:A}, move one finger on beat 3 for a sus4 or sus2 and come back on beat 4. Leave {c:G} and {c:Bm7} as they are.',
       },
     }),
     {

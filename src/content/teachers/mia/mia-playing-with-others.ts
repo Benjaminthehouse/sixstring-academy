@@ -276,7 +276,7 @@ const roundsAndDuets: TeacherLesson = {
       song: 'frere-jacques-round',
       tempo: 83,
       minutes: 6,
-      body: 'Mute the Teacher part (under Parts, in the options) and play your voice alone at 80 BPM. Then unmute it: the second voice comes in at bar 3, and you keep going. When that holds, play it at 100 % (96 BPM).',
+      body: 'Under Parts, in the options, mute the Teacher part and play along with your own voice at 80 BPM. Then unmute Teacher and mute You: now the app plays only the second voice, from bar 3, and you hold your part alone. When that holds, play it at 100 % (96 BPM).',
     }),
     {
       type: 'choice',
@@ -310,7 +310,7 @@ const roundsAndDuets: TeacherLesson = {
       song: 'st-duet-round',
       tempo: 83,
       minutes: 6,
-      body: 'The same way: your voice alone at 70 BPM with the Teacher part muted, then with it, then at 100 % (84 BPM). Then swap: tap the Teacher part under Parts to play the second voice yourself, while the app plays yours.',
+      body: 'The same way: at 70 BPM along with your voice and the Teacher part muted, then with only Teacher sounding and You muted, then at 100 % (84 BPM). Then swap: tap Teacher under Parts to play the second voice, mute it and unmute You, so the app plays your old voice.',
     }),
     {
       type: 'card',
@@ -364,7 +364,7 @@ const theCapo: TeacherLesson = {
     {
       type: 'card',
       title: 'A clamp that moves the nut',
-      body: 'A {t:capo} is a clamp that presses all the strings at one fret, so it acts like a new {t:nut}. Clip it on just behind fret 2 and play your {c:G} shape behind it: the fingers are the same, but every note is two frets higher, so it sounds as {c:A}.',
+      body: 'A {t:capo} is a clamp that presses all the strings at one fret, so it acts like a new {t:nut}. Clip it on just behind fret 2 and play your {c:G} shape above it: the fingers are the same, but every note is two frets higher, so it sounds as {c:A}.',
       figure: {
         kind: 'fretboard',
         capo: 2,
@@ -378,7 +378,7 @@ const theCapo: TeacherLesson = {
           { string: 2, fret: 0, note: 'C#4' },
           { string: 1, fret: 3, note: 'A4' },
         ],
-        caption: 'Capo at fret 2, the {c:G} shape behind it: it sounds {c:A}.',
+        caption: 'Capo at fret 2, the {c:G} shape above it: it sounds {c:A}.',
       },
     },
     {
@@ -386,7 +386,7 @@ const theCapo: TeacherLesson = {
       prompt: 'The capo is at fret 2 and you play the {c:G} shape. Which chord sounds?',
       options: [
         { text: '{c:A}', correct: true },
-        { text: '{c:G}', why: 'The shape is {c:G}, but every note is two frets higher behind the capo.' },
+        { text: '{c:G}', why: 'The shape is {c:G}, but above the capo every note is two frets higher.' },
         { text: '{c:B}', why: 'That would be four frets higher. A capo at fret 2 raises it two frets.' },
       ],
       explain: 'Each fret is a half step. A capo at fret 2 raises every note two half steps, so the {c:G} shape sounds as {c:A}.',
@@ -396,13 +396,14 @@ const theCapo: TeacherLesson = {
       type: 'card',
       title: 'Same shapes, new key',
       body: 'Every chord moves up one half step for each fret of capo.\nCapo 2: {c:G} {c:C} {c:D} sound as {c:A} {c:D} {c:E}.\nCapo 3: they sound as {c:Bb} {c:Eb} {c:F}.\nCapo 5: they sound as {c:C} {c:F} {c:G}.\nA singer gets a higher key; your hands play what they know.',
+      tip: 'A {t:flat} is one fret lower, the opposite of a sharp: {n:Bb}, "B flat", is one fret below {n:B}.',
     },
     {
       type: 'choice',
       prompt: 'The capo is at fret 2 and you play a {c:C} shape. Which chord sounds?',
       options: [
         { text: '{c:D}', correct: true },
-        { text: '{c:C}', why: 'That is the shape. Behind a capo at fret 2 it sounds two half steps higher.' },
+        { text: '{c:C}', why: 'That is the shape. Above a capo at fret 2 it sounds two half steps higher.' },
         { text: '{c:E}', why: 'Two half steps above {c:C} is {c:D}. {c:E} would be capo 4.' },
         { text: '{c:Db}', why: '{c:Db} is one half step up: capo 1.' },
       ],
@@ -425,20 +426,20 @@ const theCapo: TeacherLesson = {
       title: 'Capo on, then tune',
       tool: 'tuner',
       minutes: 2,
-      body: 'Clip the capo straight across, just behind fret 2. Then check all six strings with the Tuner: a capo can pull them slightly sharp.',
-      tip: 'In the Tuner\'s settings, set "Capo on fret" to 2: it then expects the notes that sound now, {n:F#} on string 6 instead of {n:E}.',
+      body: 'Clip the capo on straight, just behind fret 2. In the Tuner\'s settings set "Capo on fret" to 2, so it expects {n:F#} on string 6, not {n:E}. Then check all six strings: a capo can pull them slightly sharp.',
+      tip: 'No microphone? Play each string against the Tuner\'s reference note and listen for the wobble.',
     }),
     {
       type: 'card',
       title: 'A shape stays a shape',
-      body: 'Tab and chord charts for capo songs count frets from the capo: a 0 is the string open behind the capo, and the chart names the shape your hand makes. A shape stays a shape; only the sound moves.',
+      body: 'Tab and chord charts for capo songs count frets from the capo: a 0 is the string played open, sounding from the capo, and the chart names the shape your hand makes. A shape stays a shape; only the sound moves.',
       figure: { kind: 'tab', capo: 2, tempo: 72, notes: [...G_SHAPE_PICKED], caption: 'Capo 2: the {c:G} shape picked, 3 2 0 0 0 3. It sounds {c:A}.' },
     },
     {
       type: 'true-false',
-      statement: 'In tab for a song with the capo at fret 2, a 0 means the string open behind the capo.',
+      statement: 'In tab for a song with the capo at fret 2, a 0 means the string played open, with only the capo pressing it.',
       answer: true,
-      explain: 'Frets count from the capo, so 0 is the string open behind it, and 3 is the third fret above the capo.',
+      explain: 'Frets count from the capo, so 0 is the string played open, sounding from the capo, and 3 is the third fret above the capo.',
       fact: 'capo-tab',
     },
     {
@@ -448,7 +449,7 @@ const theCapo: TeacherLesson = {
       capo: 2,
       octave: 'exact',
       tempo: 72,
-      explain: 'Behind the capo, string 6 at fret 3 sounds {n:A}, and the whole shape sounds {n:A}, {n:C#} and {n:E}: the {c:A} chord.',
+      explain: 'With the capo at fret 2, string 6 at fret 3 sounds {n:A}, and the whole shape sounds {n:A}, {n:C#} and {n:E}: the {c:A} chord.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'The capo is at fret 2. Tap where your {c:G} shape puts its lowest note, on string 6.',
@@ -474,7 +475,7 @@ const theCapo: TeacherLesson = {
       prompt: 'The band plays {c:A}, {c:D} and {c:E}. Your capo is at fret 2. Which shapes do you play?',
       options: [
         { text: '{c:G}, {c:C} and {c:D}', correct: true },
-        { text: '{c:A}, {c:D} and {c:E}', why: 'Those shapes behind the capo would sound two half steps higher: {c:B}, {c:E} and {c:F#}.' },
+        { text: '{c:A}, {c:D} and {c:E}', why: 'Those shapes above the capo would sound two half steps higher: {c:B}, {c:E} and {c:F#}.' },
         { text: '{c:F}, {c:Bb} and {c:C}', why: 'Those shapes would need the capo at fret 4. With capo 2, count two half steps down from each chord.' },
       ],
       explain: 'Count down two half steps from each sounding chord: {c:A} to {c:G}, {c:D} to {c:C}, {c:E} to {c:D}. Those are the shapes.',
@@ -501,7 +502,7 @@ const theCapo: TeacherLesson = {
   facts: [
     { id: 'capo-new-nut', front: 'What does a capo do?', back: 'It presses all the strings at one fret, like a new nut. Each fret of capo raises every chord one half step.' },
     { id: 'capo-2-g-c-d', front: 'Capo at fret 2: what do the {c:G}, {c:C} and {c:D} shapes sound as?', back: '{c:A}, {c:D} and {c:E}: two half steps higher.' },
-    { id: 'capo-tab', front: 'In tab for a capo song, what does 0 mean?', back: 'The string open behind the capo. Frets count from the capo, so a shape stays a shape.' },
+    { id: 'capo-tab', front: 'In tab for a capo song, what does 0 mean?', back: 'The string played open, sounding from the capo. Frets count from the capo, so a shape stays a shape.' },
   ],
 };
 
@@ -592,6 +593,18 @@ const jammingWithTheBand: TeacherLesson = {
       explain: 'The minor chord came second: {c:G}, {c:Em}, {c:C}, {c:D}. That is chart 1.',
       fact: 'two-progressions',
     },
+    {
+      type: 'listen-choice',
+      prompt: 'And now? Listen for where the minor chord comes.',
+      sound: { kind: 'progression', chords: [...AXIS_IN_G], beats: 4, tempo: 88 },
+      options: [
+        { text: 'Chart 1: {r:I} {r:vi} {r:IV} {r:V}' },
+        { text: 'Chart 2: {r:I} {r:V} {r:vi} {r:IV}', correct: true },
+      ],
+      shuffle: false,
+      explain: 'The minor chord waited until the third bar: {c:G}, {c:D}, {c:Em}, {c:C}. That is chart 2.',
+      fact: 'two-progressions',
+    },
     toolTask({
       id: 'progressions-ear',
       title: 'Which progression is it?',
@@ -654,8 +667,8 @@ const yourPracticeRoutine: TeacherLesson = {
       type: 'card',
       title: 'A session has a shape',
       body: {
-        text: 'Here is a 20-minute routine:\n2 min tuning and warm-up\n4 min one-minute changes\n5 min the hard passage, slowly\n6 min songs you love\n2 min something new\n1 min cool-down\nThe hard thing comes early, while you are fresh; songs come after it, as the reward.',
-        say: 'Here is a 20-minute routine. 2 minutes tuning and warm-up. 4 minutes one-minute changes. 5 minutes the hard passage, slowly. 6 minutes songs you love. 2 minutes something new. 1 minute cool-down. The hard thing comes early, while you are fresh; songs come after it, as the reward.',
+        text: 'Here is a 20-minute routine:\n2 min tuning and warm-up\n4 min technique: one-minute changes\n5 min the hard passage, slowly\n6 min songs you love\n2 min something new\n1 min cool-down\nThe hard thing comes early, while you are fresh; songs come after it, as the reward.',
+        say: 'Here is a 20-minute routine. 2 minutes tuning and warm-up. 4 minutes technique: one-minute changes. 5 minutes the hard passage, slowly. 6 minutes songs you love. 2 minutes something new. 1 minute cool-down. The hard thing comes early, while you are fresh; songs come after it, as the reward.',
       },
     },
     {
@@ -782,7 +795,7 @@ const graduationConcert: TeacherLesson = {
       type: 'card',
       title: 'Look how far you have come',
       body: 'You started with one open string. Now you have 14 open chords, {c:F} and {c:Bm}, power chords, strums in 4/4, 3/4 and 6/8, box 1 and a 12-bar solo. Your concert has four songs: Für Elise, Auld Lang Syne, the blues in A with a solo, and one you choose.',
-      tip: 'Record the whole concert on your phone if you can, and share it with someone if you like.',
+      tip: 'Record the concert on your phone if you can, and share it if you like.',
     },
     {
       type: 'choice',
@@ -800,7 +813,7 @@ const graduationConcert: TeacherLesson = {
       title: 'Tune up and warm up',
       exercise: 'tech-warm-up',
       minutes: 6,
-      body: 'As before a real concert: tune all six strings first, then the Five-Minute Warm-Up. Nothing fast, nothing hard.',
+      body: 'As before a real concert: tune all six strings, by ear or with the Tuner, then play the Five-Minute Warm-Up. Nothing fast, nothing hard.',
     }),
     playerTask({
       id: 'concert-elise',
@@ -824,6 +837,7 @@ const graduationConcert: TeacherLesson = {
       song: 'auld-lang-syne',
       minutes: 3,
       body: 'Strummed, at 80 BPM. Let each pickup go by and strum on beat 1. Where the chart shows the open {c:Bm7}, play your {c:Bm} barre instead: your concert\'s barre chord.',
+      tip: 'If the barre makes your thumb or wrist ache, stop and rest. Never play through pain.',
     }),
     toolTask({
       id: 'concert-blues',
@@ -831,7 +845,7 @@ const graduationConcert: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-12-bar', 'a', 'jam'],
       minutes: 3,
-      body: 'Set 84 BPM and 2 times through. The first time, play the 12-Bar Blues Shuffle in A; the second time, your box 1 solo, a phrase every two bars, landing on {n:A}.',
+      body: 'Set 84 BPM; under Band, turn off "Loop until I stop" for 2 times through. First time, the 12-Bar Blues Shuffle in A; second time, your box 1 solo, a phrase every two bars, landing on {n:A}.',
     }),
     {
       type: 'choice',
@@ -853,7 +867,7 @@ const graduationConcert: TeacherLesson = {
     {
       type: 'card',
       title: 'Ready for Dev',
-      body: 'Next, Dev takes over and shows you the whole neck, built on what you can do now. His four checks: {c:G} to {c:C} and {c:Am} to {c:F}, 30 clean changes a minute; the {c:F} barre on six strings; the folk pattern at 90 BPM; box 1 in eighths at 80 BPM.',
+      body: 'Next, Dev takes over: he shows you the whole neck, built on what you can do now. His four checks: {c:G} to {c:C} and {c:Am} to {c:F}, 30 clean changes a minute; the {c:F} barre on six strings; the folk pattern at 90 BPM; box 1 in eighths at 80 BPM.',
     },
     {
       type: 'play-chord',

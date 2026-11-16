@@ -326,6 +326,9 @@ describe('Dev unit 4: the pentatonic, all five boxes', () => {
     const pcs = new Set(tune.measures.flatMap((m) => m.beats.flatMap((b) => b.notes.map((n) => n.midi % 12))));
     expect(pcs).toEqual(new Set(scalePcs('G', 'major-pentatonic')));
     expect(tune.name).toBe('Tune');
+    // Review fix: the fallback says where the Player lets you choose your part (options, Parts).
+    const grace2 = tasks.find((t) => t.id === 'mo-li-hua')!;
+    expect(plain(grace2.fallback!.body)).toContain('under Parts, pick Tune');
     // The fallback for Morning Mood loops bars 17 to 32 of the study: the part over C.
     const mm = tasks.find((t) => t.id === 'morning-mood')!;
     expect(mm.fallback!.params).toEqual(['st-pent-connect', 'm17-32', 't91']);

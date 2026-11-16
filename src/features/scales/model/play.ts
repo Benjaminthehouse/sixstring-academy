@@ -4,6 +4,7 @@
  * for the audio transport and as SixTab for the tab view. Pure; unit-tested.
  */
 import { practiceSequence, rootToRoot, sequencesFor, type PatternNote, type ScalePattern, type SequenceInfo, type SequenceKind, type Tuning } from '@/core/guitar';
+import { ALL_KEYS, chroma, key, scaleNotes, spellInKey } from '@/core/theory';
 
 /** PPQ of the audio transport and of SixTab: 960 ticks per quarter note. */
 export const PPQ = 960;
@@ -145,13 +146,47 @@ function restTokens(ticks: number): string[] {
 }
 
 /**
- * The key a scale's exercise is written in on the staff: the tonic's minor key when the scale has a
- * minor third and no major third (minor, dorian, phrygian, the minor pentatonic, the blues scale),
- * its major key otherwise. Notes outside the key signature then get accidentals, spelled for the key.
+ * The key a scale's exercise is written in on the staff. The staff spells every note from the key
+ * (`spellInKey`), so the key must spell the scale's own notes the way the scale does (C locrian
+ * has G♭, not F♯). First choice: the tonic's minor key when the scale has a minor third and no
+ * major third (minor, dorian, phrygian, the minor pentatonic, the blues scale), its major key
+ * otherwise. When that key would misspell a note, the key that spells the most notes right wins,
+ * then the one whose signature holds the most of the scale (C locrian: D♭ major, its parent key).
  */
-export function staffKey(tonic: string, scale: { intervals: readonly string[] }): string {
+export function staffKey(tonic: string, scale: { id: string; intervals: readonly string[] }): string {
   const minor = scale.intervals.includes('m3') && !scale.intervals.includes('M3');
-  return `${tonic} ${minor ? 'minor' : 'major'}`;
+  const home = `${tonic} ${minor ? 'minor' : 'major'}`;
+  let names: string[];
+  try {
+    names = scaleNotes(tonic, scale.id);
+  } catch {
+    return home;
+  }
+  const score = (name: string, own: readonly string[]): [number, number] => {
+    try {
+      return [names.filter((n) => spellInKey(chroma(n), name) !== n).length, names.filter((n) => !own.includes(n)).length];
+    } catch {
+      return [Infinity, Infinity];
+    }
+  };
+  let homeOwn: readonly string[] = [];
+  try {
+    homeOwn = key(home).scale;
+  } catch {
+    homeOwn = [];
+  }
+  let best = home;
+  let [bestWrong, bestOutside] = score(home, homeOwn);
+  if (bestWrong === 0) return home;
+  for (const k of ALL_KEYS) {
+    const [wrong, outside] = score(k.name, k.scale);
+    if (wrong < bestWrong || (wrong === bestWrong && outside < bestOutside)) {
+      best = k.name;
+      bestWrong = wrong;
+      bestOutside = outside;
+    }
+  }
+  return best;
 }
 
 /**

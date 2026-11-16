@@ -16,6 +16,8 @@
  *            on without a key it says the key is missing (the switch is checked first).
  *   neck     Settings > frets reach the reference circle's neck; "Tab and notation" puts a staff
  *            over the scale exercise's tab.
+ *   player   "Tab and notation" reaches a song that was already opened in tab only; a view the
+ *            learner picks in the player (More > Score) still wins when the song opens again.
  *
  * Prints one line per failed check (every check with --verbose), then PASSED or FAILED.
  */
@@ -232,6 +234,18 @@ async function neckGroup() {
           .then((h) => h.jsonValue(), () => null);
         const strings = neck ? neck.filter((t) => /^[A-G]$/.test(t)) : [];
         check(g, 'desktop: the jam neck follows the tuning (Drop D) and the 20 frets of Settings', !!neck && strings.filter((t) => t === 'D').length >= 2, neck && neck.slice(0, 30));
+        // All 20 frets stay in view: a neck that scrolls while the band plays hides notes (and,
+        // left-handed, the nut end).
+        await setPrefs(page, { handedness: 'left' });
+        await page.waitForTimeout(500);
+        const hidden = await page.evaluate(() => {
+          const svg = document.querySelector('svg[aria-label*="on the neck"]');
+          let el = svg && svg.parentElement;
+          for (; el && el.tagName !== 'SECTION'; el = el.parentElement) if (el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX !== 'visible') return `${el.clientWidth}/${el.scrollWidth}`;
+          return svg ? null : 'no neck';
+        });
+        check(g, 'desktop: the 20-fret jam neck fits its panel without scrolling (left-handed too)', hidden === null, hidden);
+        await setPrefs(page, { handedness: 'right' });
         await setPrefs(page, { tuningId: 'standard' });
       }
 
@@ -247,8 +261,48 @@ async function neckGroup() {
   }
 }
 
+/** What the player's score shows, from its label ("…: notation and tab." / "…: tab."). */
+const scoreLayer = (page) =>
+  page
+    .waitForSelector('[data-player-score] [data-tab-view]', { timeout: 90000 })
+    .then(() => page.locator('[data-player-score] [data-tab-view]').first().getAttribute('aria-label'))
+    .then((label) => (/notation and tab/.test(label ?? '') ? 'both' : /: tab\b/.test(label ?? '') ? 'tab' : `? ${label}`));
+
+async function playerGroup() {
+  const g = 'player';
+  await withApp({}, async ({ page, context, goto, errors }) => {
+    await context.addInitScript(instrument);
+    await goto('profile');
+    // Opened once in tab only: the player saves its session for the song (the layer with it).
+    await setPrefs(page, { notation: 'tab' });
+    await goto('play', 'amazing-grace');
+    const first = await scoreLayer(page);
+    await page.waitForFunction(() => !!localStorage.getItem('ssa:player.session.amazing-grace'), null, { timeout: 15000 }).catch(() => undefined);
+    // Then Settings > "Tab and notation": the same song must show the staff now.
+    await goto('profile');
+    await setPrefs(page, { notation: 'tab+notation' });
+    await goto('play', 'amazing-grace');
+    const after = await scoreLayer(page);
+    check(g, 'a song opened before "Tab and notation" was turned on shows notation and tab afterwards', first === 'tab' && after === 'both', { first, after });
+    // The learner picks "Tab" in the player itself (beside the score on a wide screen, under More
+    // on a narrow one): that choice is theirs for this song.
+    const more = page.locator('[data-player-more]');
+    if (await more.count()) await more.first().click();
+    await page.getByRole('radiogroup', { name: 'Score' }).getByRole('radio', { name: 'Tab', exact: true }).click();
+    if (await more.count()) await page.keyboard.press('Escape');
+    const picked = await scoreLayer(page);
+    await page.waitForFunction(() => /"layerPicked":true/.test(localStorage.getItem('ssa:player.session.amazing-grace') ?? ''), null, { timeout: 15000 }).catch(() => undefined);
+    await goto('profile');
+    await goto('play', 'amazing-grace');
+    const reopened = await scoreLayer(page);
+    check(g, "a view picked in the player wins over Settings when the song is opened again", picked === 'tab' && reopened === 'tab', { picked, reopened });
+    const real = errors.filter((e) => !BENIGN.some((b) => b.test(e)));
+    check(g, 'no console errors', real.length === 0, real.slice(0, 3));
+  });
+}
+
 (async () => {
-  const groups = { mic: micGroup, sound: soundGroup, ai: aiGroup, neck: neckGroup };
+  const groups = { mic: micGroup, sound: soundGroup, ai: aiGroup, neck: neckGroup, player: playerGroup };
   for (const [name, run] of Object.entries(groups)) {
     if (!want(name)) continue;
     try {

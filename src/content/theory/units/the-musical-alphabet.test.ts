@@ -5,9 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { midiAt, noteAt, openStringMidi } from '@/core/guitar';
-import { chroma, enharmonicEqual, getScale, LETTERS, noteToMidi, parseNote, pcName, spellInKey, transposeBySemitones } from '@/core/theory';
+import { chroma, enharmonicEqual, getScale, LETTERS, midiToNote, noteToMidi, parseNote, pcName, spellInKey, transposeBySemitones } from '@/core/theory';
 import {
-  findTargets, grade, plainText, solve, soundPlan,
+  answerText, findTargets, generateExercise, grade, plainText, solve, soundPlan,
   type Exercise, type ExerciseStep, type FretboardFindExercise, type Lesson, type ListenChoiceExercise, type Step,
 } from '@/lessons';
 import unit from './the-musical-alphabet';
@@ -66,8 +66,12 @@ describe('the-musical-alphabet: the letters', () => {
     // Every other fret of 0..12 on string 5 holds a sharp or flat.
     for (let f = 0; f <= 12; f++) expect(naturals.includes(f)).toBe(parseNote(sharpName(5, f))!.alt === 0);
     const phrase = of(lesson('seven-letters').steps.filter(literal), 'play-phrase')[0];
-    expect(phrase.notes.map((n) => ('fret' in n ? n.fret : -1))).toEqual(naturals);
-    if (phrase.alternative && 'tiles' in phrase.alternative) expect(texts(phrase.alternative.tiles).join(' ')).toBe('A B C D E F G A');
+    // The phrase plays the wrap: E F G, then A again at fret 12, an octave above the open string.
+    expect(phrase.notes.map((n) => ('fret' in n ? n.fret : -1))).toEqual([7, 8, 10, 12]);
+    expect(phrase.notes.map((n) => ('fret' in n ? sharpName(n.string, n.fret) : '')).join(' ')).toBe('E F G A');
+    expect(midiAt(pos(5, 12)) - midiAt(pos(5, 0))).toBe(12);
+    if (!phrase.alternative || !('tiles' in phrase.alternative)) throw new Error('the walk has an order alternative');
+    expect(texts(phrase.alternative.tiles).join(' ')).toBe(naturals.map((f) => sharpName(5, f)).join(' '));
     const octave = byPrompt(of(everything(), 'fretboard-find'), /one octave above the open string/);
     expect(targets(octave)).toEqual(['5:12']);
   });
@@ -194,6 +198,49 @@ describe('the-musical-alphabet: the twelve notes', () => {
   });
 });
 
+describe('the-musical-alphabet: what the tips promise about the drills', () => {
+  const drills = (l: Lesson, kind: string) => l.steps.filter((s): s is Extract<Step, { generate: string }> => 'generate' in s && s.generate === kind);
+  const runs = (step: Extract<Step, { generate: string }>) =>
+    Array.from({ length: 60 }, (_x, seed) => [0, 0.5, 1].map((difficulty) => generateExercise(step, { seed: seed + 1, difficulty, level: 'beginner' }))).flat();
+
+  it('half-and-whole-steps: every right note is a plain letter, before sharps and flats are taught', () => {
+    const l = lesson('half-and-whole-steps');
+    for (const step of drills(l, 'step-up')) {
+      for (const ex of runs(step)) expect(parseNote(ascii(answerText(ex)))!.alt, ascii(answerText(ex))).toBe(0);
+    }
+    for (const e of exercisesOf(l)) {
+      if (e.type === 'choice' && /note/.test(plainText(e.prompt))) for (const t of correctTexts(e)) expect(parseNote(t)?.alt ?? 0).toBe(0);
+    }
+  });
+
+  it('flats: the drill names the in-between frets with sharps, as the tip warns', () => {
+    expect(sharpName(5, 1)).toBe('A#');
+    expect(enharmonicEqual('A#', 'Bb')).toBe(true);
+    expect(noteToMidi('Bb2')).toBe(midiAt(pos(5, 1)));
+    for (const step of drills(lesson('flats'), 'note-on-string')) {
+      for (const ex of runs(step)) {
+        if (ex.type !== 'fretboard-name') throw new Error('fretboard-name');
+        const name = ascii(answerText(ex));
+        expect(parseNote(name)!.alt, name).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('the-twelve-notes: names fret 4 of string 1 both ways, as the play view may show it', () => {
+    const [phrase] = of(lesson('the-twelve-notes').steps.filter(literal), 'play-phrase');
+    // The play view spells its note chips with midiToNote's default: fret 4 of string 1 shows as Ab4.
+    expect(midiToNote(midiAt(pos(1, 4)))).toBe('Ab4');
+    expect(sharpName(1, 4)).toBe('G#');
+    expect(ascii(phrase.explain)).toMatch(/G# .*Ab/);
+  });
+
+  it('keeps every play-phrase short enough to fit a phone screen', () => {
+    // The play view draws the tab at its full width (about 50 px a note); seven or more notes
+    // are wider than a 360 px phone and scroll the whole page sideways.
+    for (const l of unit.lessons) for (const e of of(l.steps.filter(literal), 'play-phrase')) expect(e.notes.length, l.id).toBeLessThanOrEqual(6);
+  });
+});
+
 describe('the-musical-alphabet: every exercise', () => {
   it('accepts its own answer, and play steps play where they say', () => {
     for (const e of everything()) {
@@ -210,5 +257,13 @@ describe('the-musical-alphabet: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^alphabet-/);
+  });
+
+  it('asks every question so it stands on its own (practice and placement ask them one at a time)', () => {
+    for (const e of everything()) {
+      if (!('prompt' in e) || !e.prompt) continue;
+      const p = plainText(e.prompt);
+      expect(p, p).not.toMatch(/^(And|So|Now)\b|\bthat note\b|\bthis one\b/);
+    }
   });
 });

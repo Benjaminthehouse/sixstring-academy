@@ -15,7 +15,8 @@
  * `mergeEntry` says (lists joined, settings from the side changed last). Songs: importing never
  * deletes a song; songs missing here are added with their own id; a song in both is overwritten
  * by the file's copy with `replace`, and kept as the newer copy with `merge`. Damaged entries are
- * skipped and named, never fatal.
+ * skipped and named, never fatal, and leave this device's copy of them as it is (with `replace`
+ * too). A `replace` that cannot store its copy for Undo first changes nothing (`no-room`).
  *
  * RESET erases the progress, the learner data and work in progress (sessions); it keeps the AI key,
  * the device's own bookkeeping, and the learner's songs unless `deleteSongs`. `keepPrefs` keeps the

@@ -56,6 +56,39 @@ describe('mergeEntry', () => {
     expect(mergeEntry('x.notes', { at: 1, raw: 'mine' }, { at: 2, raw: 'theirs' })).toEqual({ at: 2, raw: 'theirs' });
     expect(mergeEntry('arcade', entry('broken', 1), entry({ v: 1 }, 2)).value).toEqual({ v: 1 });
   });
+
+  it('takes a draft or a setting whole even when it holds lists: a plan is never stitched together from two', () => {
+    // The progression in the builder: I V I V here, vi IV in the file. Joining would give I V vi IV.
+    const here = entry({ tonic: 'G', slots: [{ token: 'I', length: 1 }, { token: 'V', length: 1 }, { token: 'I', length: 1 }, { token: 'V', length: 1 }] }, 10);
+    const file = entry({ tonic: 'C', slots: [{ token: 'vi', length: 1 }, { token: 'IV', length: 1 }] }, 5);
+    expect(mergeEntry('progressions.draft', here, file)).toEqual(here);
+    expect(mergeEntry('progressions.draft', file, here)).toEqual(here);
+    // Today's practice plan (a setting): blocks of two different plans must not be joined.
+    const plan = entry({ day: '2026-11-16', minutes: 20, blocks: [{ id: 'a1', minutes: 10 }, { id: 'a2', minutes: 10 }] }, 10);
+    const otherPlan = entry({ day: '2026-11-10', minutes: 15, blocks: [{ id: 'b1', minutes: 15 }] }, 20);
+    expect(mergeEntry('practice.draft', plan, otherPlan)).toEqual(otherPlan);
+    // A new feature's key nobody listed counts as a setting, so it is taken whole too.
+    expect(mergeEntry('newfeature.layout', entry({ panes: [{ id: 'x' }] }, 30), entry({ panes: [{ id: 'y' }] }, 20)).value).toEqual({ panes: [{ id: 'x' }] });
+  });
+
+  it('a damaged copy of a record never takes the place of a good one, however recent it says it is', () => {
+    const good = entry({ v: 1, journal: journal(['a', 'b']), routines: [], goals: [] }, 10);
+    for (const bad of [entry({ v: 1, journal: 'oops', routines: [], goals: [] }, 99), entry('garbage', 99), entry(null, 99), { at: 99, raw: 'not json' }]) {
+      const merged = mergeEntry('practice.data', good, bad).value as { journal: Array<{ id: string }> };
+      expect(merged.journal.map((e) => e.id)).toEqual(['a', 'b']);
+      expect((mergeEntry('practice.data', bad, good).value as typeof merged).journal.map((e) => e.id)).toEqual(['a', 'b']);
+    }
+    const records = entry({ v: 1, levels: { g: { s: { '1': { stars: 3, best: 900, plays: 1, at: 1 } } } } }, 10);
+    expect(mergeEntry('arcade', records, entry(null, 99))).toEqual({ ...records, at: 99 });
+    expect(mergeEntry('progressions.saved', entry([{ id: 'my-1', name: 'Mine' }], 10), entry({}, 99)).value).toEqual([{ id: 'my-1', name: 'Mine' }]);
+  });
+
+  it('an item in a list that is not an object is dropped instead of spoiling the whole list', () => {
+    const merged = mergeEntry('progressions.saved', entry([{ id: 'my-1', name: 'Mine' }], 10), entry([null, 7, { id: 'my-2', name: 'Theirs' }], 99)).value as Array<{ id: string }>;
+    expect(merged.map((s) => s.id).sort()).toEqual(['my-1', 'my-2']);
+    const practice = mergeEntry('practice.data', entry({ journal: journal(['a']) }, 10), entry({ journal: [...journal(['b']), 42, 'x'] }, 99)).value as { journal: Array<{ id: string }> };
+    expect(practice.journal.map((e) => e.id).sort()).toEqual(['a', 'b']);
+  });
 });
 
 describe('planDataImport', () => {
@@ -81,6 +114,14 @@ describe('planDataImport', () => {
     const plan = planDataImport(local, file, 'replace', (key) => key !== 'tuner.tunings');
     expect(plan.remove).toEqual([]);
     expect(plan.result).not.toHaveProperty('tuner.tunings');
+  });
+
+  it('replace keeps what this device has of a key the file holds damaged (`keep`), instead of removing it', () => {
+    const { 'practice.data': _damaged, ...rest } = file;
+    const plan = planDataImport(local, rest, 'replace', () => true, ['practice.data']);
+    expect(plan.result['practice.data']).toEqual(local['practice.data']);
+    expect(plan.remove).toEqual(['tuner.tunings']);
+    expect(plan.write).not.toContain('practice.data');
   });
 });
 
@@ -113,6 +154,13 @@ describe('planDataSync: three-way against what both had when they last agreed', 
     const local = { ...agreed, 'metronome.settings': entry({ bpm: 120 }, 30) };
     const { 'metronome.settings': _gone, ...remote } = agreed;
     expect(planDataSync(local, remote, base(agreed), 'merge').result['metronome.settings'].value).toEqual({ bpm: 120 });
+  });
+
+  it('a draft both sides changed is the newer one, not a mix of both', () => {
+    const was: DataSet = { 'progressions.draft': entry({ slots: [{ token: 'I', length: 1 }] }, 10) };
+    const local: DataSet = { 'progressions.draft': entry({ slots: [{ token: 'I', length: 1 }, { token: 'I', length: 1 }] }, 20) };
+    const remote: DataSet = { 'progressions.draft': entry({ slots: [{ token: 'ii', length: 1 }] }, 30) };
+    expect(planDataSync(local, remote, base(was), 'merge').result['progressions.draft']).toEqual(remote['progressions.draft']);
   });
 
   it('without a base (the first sync) everything from both sides is kept', () => {

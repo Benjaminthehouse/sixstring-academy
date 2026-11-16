@@ -110,7 +110,7 @@ const arpeggios: TeacherLesson = {
     {
       type: 'card',
       title: 'Chords, one note at a time',
-      body: 'An {t:arpeggio} is a chord played one note at a time. It is the most direct way to make a solo fit the chords, because every note is a {t:chord-tone}. Tonight: every chord of {k:C major} as an arpeggio from its root, then a tune made of them.',
+      body: 'An {t:arpeggio} is a chord played one note at a time. It is the most direct way to make a solo fit the chords, because every note is a {t:chord-tone}. Tonight: the six major and minor chords of {k:C major}, each as an arpeggio from its root, then a tune made of them.',
       figure: { kind: 'fretboard', frets: [0, 4], root: 'C', labels: 'degree', dots: C_ARPEGGIO, caption: 'The {c:C} arpeggio: root, third, fifth, root.' },
     },
     {
@@ -140,7 +140,7 @@ const arpeggios: TeacherLesson = {
     {
       type: 'choice',
       prompt: 'Here is the {c:F} arpeggio from the study, the small F shape. Which note is its third?',
-      figure: { kind: 'fretboard', frets: [0, 4], root: 'F', labels: 'degree', dots: F_ARPEGGIO, caption: 'The {c:F} arpeggio: string 4, fret 3 up to string 1, fret 1.' },
+      figure: { kind: 'fretboard', frets: [0, 4], root: 'F', labels: 'note', dots: F_ARPEGGIO, caption: 'The {c:F} arpeggio: string 4, fret 3 up to string 1, fret 1.' },
       options: [
         { text: '{n:A}, string 3, fret 2', correct: true },
         { text: '{n:C}, string 2, fret 1', why: '{n:C} is the fifth of {c:F}.' },
@@ -214,7 +214,7 @@ const arpeggios: TeacherLesson = {
   ],
   facts: [
     { id: 'arpeggio-def', front: 'What is an arpeggio, and why does it fit a chord?', back: 'A chord played one note at a time. Every note is a chord tone, so it always fits that chord.' },
-    { id: 'c-major-arpeggios', front: 'The arpeggios of the chords of {k:C major}?', back: '{c:C} {n:C} {n:E} {n:G}; {c:Dm} {n:D} {n:F} {n:A}; {c:Em} {n:E} {n:G} {n:B}; {c:F} {n:F} {n:A} {n:C}; {c:G} {n:G} {n:B} {n:D}; {c:Am} {n:A} {n:C} {n:E}.' },
+    { id: 'c-major-arpeggios', front: 'The arpeggios of the six major and minor chords of {k:C major}?', back: '{c:C} {n:C} {n:E} {n:G}; {c:Dm} {n:D} {n:F} {n:A}; {c:Em} {n:E} {n:G} {n:B}; {c:F} {n:F} {n:A} {n:C}; {c:G} {n:G} {n:B} {n:D}; {c:Am} {n:A} {n:C} {n:E}.' },
   ],
 };
 
@@ -291,14 +291,14 @@ const chordTonesOnTheBeat: TeacherLesson = {
     }),
     {
       type: 'play-phrase',
-      prompt: 'One note can serve three chords: hold {n:C} at string 1, fret 8 for {c:C}, {c:Am} and {c:F}, then step down to {n:B} for {c:G}.',
+      prompt: 'One note can serve three chords: pick {n:C} at string 1, fret 8 on beat 1 of the {c:C}, {c:Am} and {c:F} bars, then step down to {n:B} for {c:G}.',
       notes: ONE_NOTE_LINE,
       octave: 'exact',
       tempo: 66,
       explain: '{n:C} is in {c:C}, {c:Am} and {c:F}, so it stays a chord tone for three bars. {c:G} has no {n:C}, so it moves a half step to {n:B}, the third of {c:G}.',
       alternative: {
         type: 'choice',
-        prompt: 'You hold {n:C} through {c:C}, {c:Am} and {c:F}. The band moves to {c:G}. Where does the note go?',
+        prompt: 'You play {n:C} on beat 1 over {c:C}, {c:Am} and {c:F}. The band moves to {c:G}. Where does the note go?',
         options: [
           { text: 'Down a fret to {n:B}', correct: true },
           { text: 'It stays on {n:C}', why: '{c:G} is {n:G} {n:B} {n:D}: no {n:C}, so it would rub on beat 1.' },
@@ -588,7 +588,7 @@ const dorianAndMixolydian: TeacherLesson = {
     {
       type: 'card',
       title: 'Dorian: minor, but brighter',
-      body: 'A Dorian is A minor with {n:F#} instead of {n:F}: it still sounds minor, but brighter. Its vamp is {c:Am} (x02210) to {c:D} (xx0232), and the {c:D} chord carries the {n:F#} at string 1, fret 2. That one note is the {t:colour-note}.',
+      body: 'Two new {t:mode|modes}, two new colours. A Dorian is A minor with {n:F#} instead of {n:F}: it still sounds minor, but brighter. Its vamp is {c:Am} (x02210) to {c:D} (xx0232), and the {c:D} chord carries the {n:F#} at string 1, fret 2. That one note is the {t:colour-note}.',
       figure: { kind: 'fretboard', frets: [4, 8], dots: A_DORIAN_FIFTH, caption: 'A Dorian in fifth position: {n:F#} marked.' },
     },
     {
@@ -598,7 +598,7 @@ const dorianAndMixolydian: TeacherLesson = {
         { text: '{n:F#}', correct: true },
         { text: '{n:C#}', why: '{n:C#} would make the chord on {n:A} major. Dorian keeps the minor third, {n:C}.' },
         { text: '{n:G#}', why: '{n:G#} gives the harmonic minor, a different, darker colour.' },
-        { text: '{n:Bb}', why: '{n:Bb} gives Phrygian, the darkest of the minor modes.' },
+        { text: '{n:Bb}', why: '{n:Bb} gives Phrygian, a darker minor colour still.' },
       ],
       explain: 'A minor is {n:A} {n:B} {n:C} {n:D} {n:E} {n:F} {n:G}. Raise {n:F} to {n:F#} and you have A Dorian: a minor scale with a bright sixth.',
       fact: 'dorian-colour',
@@ -771,6 +771,7 @@ const soloWithAStory: TeacherLesson = {
       song: 'st-lick-bend',
       minutes: 4,
       body: 'Lick: Bends in Tune at 72 BPM. Bends are your peak: hear the target, then bend up to it. Whole steps in tune, every time.',
+      tip: 'Push with three fingers together and turn from the wrist. Sore fingertips are normal; a sharp pain or an aching wrist means stop for today.',
     }),
     {
       type: 'true-false',
@@ -842,7 +843,7 @@ const unit: TeacherUnit = {
     lesson: 'solo-with-a-story',
     step: 'show',
     piece: 'your two-chorus solo',
-    celebrate: 'You planned a solo, played it with a beginning, a climb and an ending, and landed it on {n:A}. That is not noodling any more: that is saying something. Next: doing it by ear, in a band.',
+    celebrate: 'You planned a solo with a beginning, a climb and an ending, and I heard you land it on {n:A}. That is not noodling any more: that is saying something. Next: doing it by ear, in a band.',
   },
   glossary: [
     { id: 'chord-tone', term: 'chord tone', definition: 'A note that belongs to the chord being played. A phrase that ends on one sounds settled.' },

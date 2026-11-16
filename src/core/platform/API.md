@@ -42,8 +42,16 @@ anyone listing it. `classifyKey(key)` gives the class; the exceptions, each with
 
 So: a new key needs a line in `DATA_RULES` only when it is **not** the learner's (it describes this
 device or screen, is work in progress, or is secret). Something the learner made or earned (rather than
-a setting) also gets a `DATA_ITEMS` line (label, unit, count): Your data then counts it, and "Reset, keep
-my name and settings" erases it; an unlisted key counts as a setting.
+a setting) also gets a `DATA_ITEMS` line (label, unit, `shape: 'list' | 'object'`, optional `field` for a
+list inside an object, `max` when the feature keeps no more than that, `whole` for a draft, and count):
+Your data then counts it, "Reset, keep my name and settings" erases it, and merges join its lists; an
+unlisted key counts as a setting and is merged whole (newest change wins), never stitched together.
+
+`isDamagedRecord(key, entry)`: a record of the wrong shape (a journal that is not a list, arcade records
+that are not an object, a list none of whose items is an object, text that is not JSON). A damaged copy
+never takes the place of a good one in a merge, and `sanitizeDataSet(input, { records: true })` (what a
+backup file is read with) leaves it out and names it in `damaged` as well as `skipped`. Cloud sync reads its
+own copies without `records`.
 
 ```ts
 classifyKey('practice.data')      // 'learner'      classifyKey('ai.anthropic-key') // 'secret'
@@ -61,13 +69,17 @@ keeps a checksum per learner key and when a change was first noticed (`at`; 0 = 
 the window `storage` event** (as `practice/model/store.ts` does): imports, resets and sync announce
 their writes that way. Imports and resets also reload the page, so nothing stale survives them.
 
-**Merging** (`storage-merge.ts`, pure): `mergeEntry(key, local, incoming)` joins lists of objects by `id`
-(the copy changed last wins an id; lists without ids join by content), joins the lists inside an object
-such as `practice.data` and takes its other fields from the newer side, keeps the best of both arcade
-records, keeps each rhythm calibration measurement from the side that measured last, and takes any other
-value (a setting) whole from the side that changed it last. `planDataImport(local, file, 'merge' |
-'replace')` and `planDataSync(local, cloud, base, strategy)` (three-way: a key only one side changed comes
-from that side, deletions included) return `{ result, write, remove }`.
+**Merging** (`storage-merge.ts`, pure): `mergeEntry(key, local, incoming)` merges a **record**
+(`isRecordKey`): it joins lists of objects by `id` (the copy changed last wins an id; lists without ids join
+by content; an item that is not an object is dropped), joins the lists inside an object such as
+`practice.data` and takes its other fields from the newer side, keeps the best of both arcade records,
+keeps each rhythm calibration measurement from the side that measured last, and never lets a damaged copy
+replace a good one. A **setting** (any other learner key, whatever it holds: a remembered view, today's
+practice plan) and a **draft** (`whole`: the progression in the builder) are taken whole from the side
+that changed last. `planDataImport(local, file, 'merge' | 'replace', scope?, keep?)` (`keep`: keys whose
+file entry was damaged, left as they are here even by `replace`) and `planDataSync(local, cloud, base,
+strategy)` (three-way: a key only one side changed comes from that side, deletions included) return
+`{ result, write, remove }`.
 
 ## AI (`ai.ts`): one `ask` for both hosts
 
@@ -185,8 +197,9 @@ startCloudSync(): Promise<SyncStatus>   syncNow()   stopCloudSync()   getSyncSta
 never reloads the page). It keeps one copy in `data/users/<viewer id>/progress` (plus `progress.<gen>.<n>` parts
 when it exceeds one 256 KiB document): the progress export, merged with `importProgress(..., 'newest-wins')` and
 then guarded so total XP is not below either side and two halves of one unbroken streak are joined; and `data`,
-every learner key `syncsKey` accepts, merged per key with `planDataSync` (newest change wins for a setting, lists
-joined, arcade bests kept; a key changed on one side only travels as it is, deletions too). An unused install takes
+every learner key `syncsKey` accepts, merged per key with `planDataSync` (newest change wins for a setting or a
+draft, a record's lists joined, arcade bests kept; a key changed on one side only travels as it is, deletions too).
+Lists have no tombstones: an item deleted on one device while the other device changed the same key comes back. An unused install takes
 the cloud copy over as it is; a reset (or a "replace" restore) wins everywhere, for the data too.
 
 **Songs** ride along when they fit `SONG_SYNC_LIMITS` (50 songs, each under 180 KB, 2 MB together; the database

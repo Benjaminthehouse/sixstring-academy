@@ -17,6 +17,12 @@
  *            (same stored values, same song id and notes, same progress), on the screens too
  *  merge     a journal changed here (one entry deleted, one added) merged with the file: the
  *            preview says 3 now, 4 after, and Undo puts this device back as it was
+ *  fresh     the same file into a brand-new browser (first run never done) with the default Merge:
+ *            everything arrives exactly, the AI key does not, and Today does not ask the first-run
+ *            questions again
+ *  damaged   the file with its journal, arcade records and saved progressions damaged, imported
+ *            into a learner with their own: the preview names the damaged part and changes none of
+ *            it, and after Merge or Replace this device's journal, records and progressions are intact
  *  phone     the same screen at 390 px: no sideways scroll, the preview and the reset dialog fit
  *
  * Prints one line per group and exits non-zero if a check failed. On a busy machine, re-run
@@ -54,10 +60,11 @@ function check(group, name, pass, detail = '') {
   return !!pass;
 }
 
-async function open(browser, url, { mobile = false, saved } = {}) {
+async function open(browser, url, { mobile = false, saved, fresh = false } = {}) {
   const viewport = VIEWPORTS[mobile ? 'mobile' : 'desktop'];
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'dark', hasTouch: mobile, isMobile: mobile, acceptDownloads: true });
-  await seedContext(context, saved);
+  // `fresh`: nothing at all in storage, as in a browser that never opened the app.
+  if (!fresh) await seedContext(context, saved);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -272,7 +279,13 @@ async function desktop(browser, url, seeds) {
   const merged = await page.evaluate(() => JSON.parse(localStorage.getItem('ssa:practice.data') || 'null')?.journal?.map((e) => e.id).sort());
   check('merge', 'a toast confirms the merge, with Undo', /Backup merged/.test(mergeToast) && /Undo/.test(mergeToast), mergeToast);
   check('merge', 'after merging the journal holds both sides: 4 entries', JSON.stringify(merged) === JSON.stringify(['e2e-entry-0', 'e2e-entry-1', 'e2e-entry-2', 'e2e-entry-new']), JSON.stringify(merged));
-  await clickAndReload(ctx, page.locator('[data-toast]').getByRole('button', { name: 'Undo' }));
+  // Coming back to Your data later: the banner still offers Undo and says what it costs.
+  await ctx.goto('profile--data');
+  const banner = (await page.locator('main').innerText()).replace(/\s+/g, ' ');
+  const bannerUndo = await page.locator('[data-undo]').count();
+  check('merge', 'on a later visit a banner offers Undo and warns that what was practised since goes too', bannerUndo === 1 && /You imported a backup/.test(banner) && /before the import, so anything you have practised since then goes too/.test(banner), banner.slice(0, 300));
+  await shot(ctx, 'undo-banner-desktop');
+  await clickAndReload(ctx, page.locator('[data-undo]'));
   const undone = await look(page);
   const undoneToast = await toastText(page);
   check('merge', 'Undo puts this device back exactly as it was before the merge', KEYS.every((k) => undone.values[k] === local.values[k]) && /Undone/.test(undoneToast), undoneToast);
@@ -281,7 +294,89 @@ async function desktop(browser, url, seeds) {
   check('desktop', 'the whole round trip logged no errors', noise.length === 0, noise[0]);
   await ctx.close();
   fs.rmSync(dir, { recursive: true, force: true });
-  return file;
+  return { text, before, songId: made.songId };
+}
+
+/** Pick a file in Import, choose how, read the preview, confirm, and wait for the reload. */
+async function importThrough(ctx, file, strategy, shotName) {
+  const { page } = ctx;
+  await page.locator('[data-card="import"] input[type="file"]').setInputFiles(file);
+  const dialog = page.locator('[role="dialog"][aria-modal="true"]');
+  await dialog.waitFor({ timeout: 10000 });
+  if (strategy === 'replace') await dialog.getByRole('radio', { name: /Replace/ }).check();
+  await page.waitForTimeout(300);
+  const rows = await dialog.evaluate((el) => Object.fromEntries([...el.querySelectorAll('[data-import-preview="data"] tbody tr')].map((tr) => [tr.getAttribute('data-row'), [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())])));
+  const note = await dialog.locator('[data-import-note]').innerText();
+  if (shotName) {
+    await dialog.locator('[data-import-note]').scrollIntoViewIfNeeded();
+    await shot(ctx, shotName);
+  }
+  await clickAndReload(ctx, dialog.locator('[data-import-confirm]'));
+  return { rows, note, toast: await toastText(page) };
+}
+
+async function fresh(browser, url, exported) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-portability-fresh-'));
+  const file = path.join(dir, 'backup.json');
+  fs.writeFileSync(file, exported.text);
+  const ctx = await open(browser, url, { fresh: true });
+  const { page } = ctx;
+  await ctx.goto('profile--data');
+  const { rows, toast } = await importThrough(ctx, file, 'merge');
+  check('fresh', 'a brand-new browser previews the journal 0 → 3 entries and the song 0 → 1 with the default Merge', rows['data-journal']?.join('|') === '0 entries|3 entries' && rows.songs?.join('|') === '0 songs|1 song', JSON.stringify(rows));
+  const got = await look(page);
+  check('fresh', 'every feature key arrives exactly as exported', KEYS.every((k) => got.values[k] === exported.before.values[k]), JSON.stringify(KEYS.filter((k) => got.values[k] !== exported.before.values[k])));
+  check('fresh', 'the song arrives with its id, notes and notes on the staff', got.songs.length === 1 && got.songs[0].id === exported.songId && got.songs[0].json === exported.before.songs[0].json && got.songs[0].notes === 'Palm-mute the low E', JSON.stringify(got.songs.map((s) => s.id)));
+  check('fresh', 'the progress arrives, and the AI key does not', got.progress?.xp?.total === exported.before.progress.xp.total && got.aiKey === null && /Undo/.test(toast), `${got.progress?.xp?.total} ${got.aiKey}`);
+  await ctx.goto('home');
+  const asked = await page.waitForSelector('[role="dialog"][aria-modal="true"]', { timeout: 3000 }).then(() => true, () => false);
+  check('fresh', 'Today does not ask the first-run questions again (the backup says they were answered)', !asked, '');
+  const noise = ctx.errors.splice(0);
+  check('fresh', 'no errors', noise.length === 0, noise[0]);
+  await ctx.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
+async function damaged(browser, url, seeds, exported) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-portability-damaged-'));
+  const bad = JSON.parse(exported.text);
+  const later = Date.now() + 60_000; // claims to be newer than anything on the device
+  bad.data['practice.data'] = { at: later, value: { v: 1, journal: 'oops', routines: [], goals: [] } };
+  bad.data.arcade = { at: later, value: null };
+  bad.data['progressions.saved'] = { at: later, value: [null, 7] };
+  const file = path.join(dir, 'damaged.json');
+  fs.writeFileSync(file, JSON.stringify(bad));
+  for (const strategy of ['merge', 'replace']) {
+    // Merge is looked at on a phone, Replace on a desktop: the note under the table must read well on both.
+    const ctx = await open(browser, url, { saved: seeds.empty.saved, mobile: strategy === 'merge' });
+    const { page } = ctx;
+    await ctx.goto('profile--data');
+    await page.evaluate(async () => {
+      const practice = await import('/src/features/practice/model/store.ts');
+      const arcade = await import('/src/features/arcade/ui/store.ts');
+      const saved = await import('/src/features/progressions/model/saved.ts');
+      const builder = await import('/src/features/progressions/model/builder.ts');
+      const now = Date.now();
+      for (let i = 0; i < 2; i++) practice.addJournalEntry({ id: `mine-${i}`, startedAt: now - 900_000, endedAt: now - i * 1000, day: new Date(now).toISOString().slice(0, 10), title: `My session ${i + 1}`, plannedSec: 900, practisedSec: 900, blocks: [], xp: 10, feel: null, note: '', endedEarly: false });
+      arcade.updateRecords((r) => ({ ...r, levels: { ...r.levels, 'fret-rush': { 'major-scale': { 1: { stars: 2, best: 640, plays: 3, at: now } } } } }));
+      saved.saveDraft({ ...builder.STARTER_DRAFT, name: 'My folk tune' }, { now });
+    });
+    await ctx.goto('profile--data');
+    const mine = await look(page);
+    const { rows, note, toast } = await importThrough(ctx, file, strategy, strategy === 'merge' ? 'damaged-preview-phone' : 'damaged-preview-desktop');
+    const name = strategy === 'replace' ? 'Replace' : 'Merge';
+    check('damaged', `${name}: the preview changes none of the damaged things (journal 2 → 2, arcade 1 → 1, progressions 1 → 1)`, rows['data-journal']?.join('|') === '2 entries|2 entries' && rows['data-arcade']?.join('|') === '1 level played|1 level played' && rows['data-progressions']?.join('|') === '1 progression|1 progression', JSON.stringify(rows));
+    check('damaged', `${name}: the preview says which part of the file is damaged and that what is here stays`, /Part of the file is damaged/.test(note) && /practice journal/i.test(note) && /arcade records/i.test(note) && /stays as it is/.test(note), note);
+    const after = await look(page);
+    check('damaged', `${name}: this device's journal, arcade records and saved progressions are exactly as they were`, ['practice.data', 'arcade', 'progressions.saved'].every((k) => after.values[k] === mine.values[k]), JSON.stringify(['practice.data', 'arcade', 'progressions.saved'].filter((k) => after.values[k] !== mine.values[k])));
+    check('damaged', `${name}: the rest of the file came in (calibration, the song) and the toast names what was left out`, after.values['rhythm.calibration'] !== null && after.songs.length === 1 && /damaged entries were left out/.test(toast), `${after.values['rhythm.calibration']} ${after.songs.length} ${toast}`);
+    const journalScreen = await screenText(ctx, 'practice--journal', 'My session 1');
+    check('damaged', `${name}: the journal screen still shows this device's sessions`, /My session 1/.test(journalScreen), '');
+    const noise = ctx.errors.splice(0);
+    check('damaged', `${name}: no errors`, noise.length === 0, noise[0]);
+    await ctx.close();
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 async function phone(browser, url, seeds) {
@@ -326,8 +421,11 @@ async function main() {
   console.log('portability: building the learner');
   const seeds = await buildSeeds();
   await withApp({}, async ({ browser, url }) => {
+    let exported = null;
     for (const [name, fn] of [
-      ['desktop', () => desktop(browser, url, seeds)],
+      ['desktop', async () => (exported = await desktop(browser, url, seeds))],
+      ['fresh', () => (exported ? fresh(browser, url, exported) : Promise.reject(new Error('no exported file: the desktop group failed')))],
+      ['damaged', () => (exported ? damaged(browser, url, seeds, exported) : Promise.reject(new Error('no exported file: the desktop group failed')))],
       ['phone', () => phone(browser, url, seeds)],
     ]) {
       try {

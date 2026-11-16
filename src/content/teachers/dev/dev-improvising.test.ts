@@ -15,7 +15,7 @@ import { loadSongText, songEntry } from '@/content/songs';
 import { BACKING_STYLES } from '@/core/audio';
 import { identifyFretted, midiAt, pitchClassAt, positionsForNote, scalePatterns } from '@/core/guitar';
 import { parseSixTab, type Song } from '@/core/song';
-import { chordNotes, chroma, intervalBetween, scaleNotes } from '@/core/theory';
+import { chordNotes, chroma, diatonicChords, intervalBetween, scaleNotes } from '@/core/theory';
 import { estimateLessonSeconds, formatProblems, validateCourse, type FretboardFigure, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherUnit } from '../types';
@@ -394,5 +394,67 @@ describe('Dev unit 11: improvising with intent', () => {
 
   it('names the BPM of every Player task as the song tempo times its percentage', async () => {
     expect(await playerBpmProblems()).toEqual([]);
+  });
+});
+
+// ── review fixes (batch 8 review): each guards a problem found and fixed ───────────────────────
+
+describe('Dev unit 11, review checks', () => {
+  type Step = { type?: string; id?: string; title?: string; body?: RichText; tip?: RichText; prompt?: string; figure?: { kind: string; labels?: string }; notes?: TabNote[]; options?: Array<{ text: string; correct?: boolean; why?: string }>; alternative?: { prompt?: string } };
+  const steps = (id: string) => lesson(id).steps as unknown as Step[];
+
+  it('asks for the C on every beat 1 as separate notes, because a held note is heard once', () => {
+    const phrase = steps('chord-tones-on-the-beat').find((s) => s.type === 'play-phrase')!;
+    // Three separate Cs, then B: the microphone counts attacks, so a C held for three bars would be one note of four.
+    expect(played(phrase.notes!).map(at)).toEqual(['1:8', '1:8', '1:8', '1:7']);
+    expect(phrase.prompt).not.toMatch(/\bhold\b/i);
+    expect(phrase.prompt).toMatch(/pick \{n:C\}.*on beat 1/);
+    expect(phrase.alternative!.prompt).not.toMatch(/\bhold\b/i);
+  });
+
+  it('asks for the third of F without printing the degrees on the figure', () => {
+    const q = steps('arpeggios').find((s) => s.type === 'choice' && /third/.test(s.prompt ?? ''))!;
+    expect(q.figure!.labels).not.toBe('degree');
+    expect(chordNotes('F')[1]).toBe('A');
+    expect(q.options!.find((o) => o.correct)!.text).toContain('{n:A}');
+  });
+
+  it('teaches the word mode before the lesson uses it', () => {
+    // The words the learner reads on a step (ids, song ids and fact ids are not words on screen).
+    const TEXT_KEYS = new Set(['title', 'body', 'tip', 'prompt', 'text', 'why', 'explain', 'statement', 'caption']);
+    const words = (x: unknown): string[] =>
+      x && typeof x === 'object' ? Object.entries(x as Record<string, unknown>).flatMap(([k, v]) => (TEXT_KEYS.has(k) && typeof v === 'string' ? [v] : words(v))) : [];
+    const l = steps('dorian-and-mixolydian');
+    const first = l.findIndex((s) => words(s).some((w) => /\bmodes?\b/i.test(w.replace(/\{t:mode\|modes\}/g, 'modes'))));
+    expect(first).toBe(0);
+    expect(plain(l[0].body!)).toContain('{t:mode|modes}');
+    // Nothing earlier in the course's unit says it either.
+    for (const id of ['arpeggios', 'chord-tones-on-the-beat', 'target-notes', 'motifs-and-space']) expect(words(lesson(id)).some((w) => /\bmodes?\b/i.test(w)), id).toBe(false);
+  });
+
+  it('does not call Phrygian the darkest mode (Locrian is darker, as the rest of the app orders them)', () => {
+    expect(JSON.stringify(unit)).not.toMatch(/darkest/);
+    // Phrygian lowers four degrees of the major scale, Locrian five: Locrian is the darker one.
+    const lowered = (mode: string) => scaleNotes('C', mode).filter((n) => n.includes('b')).length;
+    expect([lowered('phrygian'), lowered('locrian')]).toEqual([4, 5]);
+  });
+
+  it('calls the six arpeggios the major and minor chords of C major, since the key also has Bdim', () => {
+    const triads = diatonicChords('C major').map((c) => c.symbol);
+    expect(triads).toEqual(['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim']);
+    const text = JSON.stringify(lesson('arpeggios'));
+    expect(text).not.toMatch(/every chord of \{k:C major\}/);
+    expect(text).toContain('the six major and minor chords of {k:C major}');
+  });
+
+  it('gives health advice where the milestone asks for bends', () => {
+    const t = task('peak-bends');
+    expect(plain(t.tip!)).toMatch(/pain/);
+    expect(plain(t.tip!)).toMatch(/stop/);
+  });
+
+  it('celebrates only what the microphone heard: the planned ending landing on A', () => {
+    expect(unit.milestone!.celebrate).not.toMatch(/played it/);
+    expect(played(SOLO_ENDING).map(nameAt).pop()).toBe('A');
   });
 });

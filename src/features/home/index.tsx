@@ -26,7 +26,7 @@ import { AnimatedNumber, Badge, Banner, Button, Card, GemChip, Icon, LinkButton,
 import type { PlanBlock } from '@/features/practice/model/planner';
 import { suggestPracticePlan } from '@/features/practice/model/signals';
 import { getPracticeData } from '@/features/practice/model/store';
-import { greetingLine, standingLine, timeAgo } from './greeting';
+import { greetingLine, setupLine, standingLine, timeAgo } from './greeting';
 import { buildPlan, minutesLeft, nextStep, type PlanStep } from './plan';
 import { tipForDay } from './tips';
 import styles from './Home.module.css';
@@ -352,7 +352,7 @@ export default function Home(_props: RouteProps) {
                 </Button>
               }
             >
-              You are set up as a right-handed beginner with {teacher.name}. Four quick questions and Today fits the way you play.
+              <span data-home-setup="">{setupLine({ handedness: prefs.handedness, experience: profile.experience, teacherName: teacher.name })}</span>
             </Banner>
           )}
           <PlanList plan={plan} />

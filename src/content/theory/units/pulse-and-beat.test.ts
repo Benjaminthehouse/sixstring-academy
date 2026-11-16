@@ -92,6 +92,21 @@ describe('pulse-and-beat: note and rest lengths', () => {
     // The right bar is two half notes, as its explanation says.
     expect(halves.options.find((o) => o.correct)?.figure).toMatchObject({ pattern: 'h h' });
   });
+
+  it('shows the quarter rest first only in the right option of the checkpoint', () => {
+    const pick = of(checkpoint(), 'choice').find((e) => /starts with a quarter rest/.test(plainText(e.prompt)))!;
+    for (const o of pick.options) {
+      if (o.figure?.kind !== 'rhythm') throw new Error('figure options');
+      const parsed = parseRhythm(o.figure);
+      expect(parsed.problems).toEqual([]);
+      expect(parsed.totalTicks).toBe(barCapacity('4/4'));
+      const first = parsed.events[0];
+      expect(first.rest).toBe(true);
+      expect(first.value === 'quarter', o.figure.pattern).toBe(o.correct === true);
+      // Each wrong option's reason names the rest it really starts with.
+      if (!o.correct) expect(plainText(o.why ?? '')).toContain(`${first.value} rest`);
+    }
+  });
 });
 
 describe('pulse-and-beat: where the taps fall', () => {
@@ -164,7 +179,11 @@ describe('pulse-and-beat: what is heard', () => {
     if (q.figure?.kind !== 'audio') throw new Error('reference');
     expect(new Set(gaps(q.figure.sound))).toEqual(new Set([1]));
     expect(new Set(gaps(q.sound))).toEqual(new Set([0.5]));
-    expect(correct(q)).toBe('Faster');
+    expect(correct(q)).toBe('Faster than 60 BPM');
+    // The options never read just "Faster" or "Slower": the play button has its own "Slower" control.
+    for (const o of q.options) expect(plainText(o.text ?? '')).toMatch(/than 60 BPM$/);
+    // The reference is drawn above the question's own button, so the prompt names no side.
+    expect(plainText(q.prompt)).not.toMatch(/\b(below|above)\b/);
     // 60 BPM is one beat a second, 120 BPM two; 160 BPM nearly three, 70 BPM a little over one.
     expect(60 / 60).toBe(1);
     expect(120 / 60).toBe(2);
@@ -225,5 +244,28 @@ describe('pulse-and-beat: every exercise', () => {
 
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^pulse-/);
+  });
+
+  it('asks every question so it stands on its own (practice and placement ask them one at a time)', () => {
+    for (const e of everything()) {
+      if (!('prompt' in e) || !e.prompt) continue;
+      const p = plainText(e.prompt);
+      expect(p, p).not.toMatch(/^(And|So|Now)\b|\bthis one\?$/);
+    }
+  });
+
+  it('covers bar lines and rests in the checkpoint, as the syllabus asks', () => {
+    const prompts = checkpoint().map((e) => ('prompt' in e ? plainText(e.prompt ?? '') : 'statement' in e ? plainText(e.statement) : ''));
+    expect(prompts.some((p) => /separates one bar from the next/.test(p))).toBe(true);
+    expect(prompts.filter((p) => /rest/.test(p)).length).toBeGreaterThanOrEqual(2);
+    expect(correct(of(checkpoint(), 'choice').find((e) => /separates one bar/.test(plainText(e.prompt)))!)).toBe('A bar line');
+  });
+
+  it('explains "fretting hand" and links fret and strum the first time they appear', () => {
+    const card = lesson('the-beat').steps.find((s) => 'type' in s && s.type === 'card' && /fretting hand/.test(s.body as string));
+    if (!card || !('type' in card) || card.type !== 'card') throw new Error('the play-the-beat card');
+    expect(card.body).toMatch(/fretting hand \(the one on the neck\)/);
+    expect(card.body).toMatch(/\{t:fret\|frets\}/);
+    expect(card.body).toMatch(/\{t:strum\}/);
   });
 });

@@ -175,4 +175,30 @@ describe('the-six-strings: every exercise', () => {
   it('names every fact after the unit', () => {
     for (const l of unit.lessons) for (const f of l.facts ?? []) expect(f.id).toMatch(/^six-strings-/);
   });
+
+  it('asks every question so it stands on its own (practice and placement ask them one at a time)', () => {
+    for (const e of everything()) {
+      if (!('prompt' in e) || !e.prompt) continue;
+      const p = plainText(e.prompt);
+      expect(p, p).not.toMatch(/^(And|So|Now)\b|\bthese two\?$|\bthis one\b/);
+    }
+  });
+});
+
+describe('the-six-strings: what the cards say', () => {
+  const texts = (): string[] =>
+    unit.lessons.flatMap((l) => l.steps.flatMap((s) => ('type' in s && s.type === 'card' ? [plainText(s.body), plainText(s.tip ?? '')] : [])));
+
+  it('tunes by the fifth-fret rule as the tip describes: string 5 to string 6 at fret 5, string 2 to string 3 at fret 4', () => {
+    const tip = texts().find((t) => /without a tuner/.test(t))!;
+    expect(tip).toMatch(/open string 5 to it at fret 5/);
+    expect(midiAt(pos(6, 5))).toBe(openStringMidi(5));
+    expect(tip).toMatch(/Open string 2 matches string 3 at fret 4/);
+    expect(midiAt(pos(3, 4))).toBe(openStringMidi(2));
+  });
+
+  it('does not claim that every fretboard picture puts string 1 on top', () => {
+    // Chord boxes and some books draw the neck another way; only tab and this app's pictures are promised.
+    for (const e of everything()) expect(plainText(e.type === 'flashcard' ? e.back : e.explain)).not.toMatch(/fretboard pictures always/i);
+  });
 });

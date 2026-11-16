@@ -222,6 +222,96 @@ describe('a moment that earns a lot', () => {
   });
 });
 
+describe('the reward card does not bring back old news', () => {
+  it('a sheet opened long after a card has gone does not revive that card when new news arrives', async () => {
+    await act(async () => {
+      actions.recordActivity({ kind: 'song', id: 'song:greensleeves', title: 'Greensleeves', accuracy: 0.9, stars: 2, durationSec: 120 });
+    });
+    await moment();
+    for (let i = 0; i < 3 && dialog(); i++) {
+      const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+      await act(async () => button?.click());
+      await moment(400);
+    }
+    expect(toasts().map((t) => t.text).join(' ')).toContain('Greensleeves');
+    // The card has long left the screen.
+    await moment(60_000);
+    expect(toasts()).toEqual([]);
+
+    const sheet = document.createElement('div');
+    document.body.appendChild(sheet);
+    const sheetRoot = createRoot(sheet);
+    const render = (open: boolean) =>
+      act(async () => {
+        sheetRoot.render(
+          <Sheet open={open} onClose={() => undefined} title="Settings">
+            Something else
+          </Sheet>,
+        );
+      });
+    await render(true);
+    await act(async () => {
+      actions.awardXp(3, 'test');
+    });
+    await moment();
+    await render(false);
+    await moment(400);
+    // The XP may have earned a level: its dialog first, then the card.
+    for (let i = 0; i < 3 && dialog(); i++) {
+      const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+      await act(async () => button?.click());
+      await moment(400);
+    }
+    const text = toasts().map((t) => t.text).join(' | ');
+    expect(text).toContain('+3 XP');
+    expect(text).not.toContain('Greensleeves');
+    await act(async () => sheetRoot.unmount());
+    sheet.remove();
+  });
+
+  it('a card a sheet sent aside before it was read still takes the news that arrives while the sheet stays open', async () => {
+    await act(async () => {
+      actions.recordActivity({ kind: 'song', id: 'song:greensleeves', title: 'Greensleeves', accuracy: 0.9, stars: 2, durationSec: 120 });
+    });
+    await moment();
+    for (let i = 0; i < 3 && dialog(); i++) {
+      const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+      await act(async () => button?.click());
+      await moment(400);
+    }
+    expect(toasts().map((t) => t.text).join(' ')).toContain('Greensleeves');
+    // A sheet opens while the card is still up: the card steps aside, unread.
+    const sheet = document.createElement('div');
+    document.body.appendChild(sheet);
+    const sheetRoot = createRoot(sheet);
+    const render = (open: boolean) =>
+      act(async () => {
+        sheetRoot.render(
+          <Sheet open={open} onClose={() => undefined} title="Results">
+            Two stars
+          </Sheet>,
+        );
+      });
+    await render(true);
+    await moment(30_000);
+    await act(async () => {
+      actions.awardXp(1, 'test');
+    });
+    await moment();
+    expect(toasts()).toEqual([]);
+    await render(false);
+    await moment(400);
+    for (let i = 0; i < 3 && dialog(); i++) {
+      const button = Array.from(dialog()?.querySelectorAll('button') ?? []).find((b) => b.textContent === 'Keep going' || b.textContent === 'Next') as HTMLButtonElement | undefined;
+      await act(async () => button?.click());
+      await moment(400);
+    }
+    expect(toasts().map((t) => t.text).join(' | ')).toContain('Greensleeves');
+    await act(async () => sheetRoot.unmount());
+    sheet.remove();
+  });
+});
+
 describe('hearts', () => {
   it('flashes the count when a heart is lost, without a toast', async () => {
     await act(async () => {

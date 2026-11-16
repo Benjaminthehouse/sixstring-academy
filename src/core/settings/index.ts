@@ -24,7 +24,13 @@
  * tuning); the reference interval shapes, which teach the standard-tuning B-string shift.
  *
  * Fret count (`fretCount()`): scales, the fretboard trainer, the player's neck, the reference circle
- * and the jam neck on wide screens (a phone keeps 12 frets while the band plays).
+ * and the jam neck on wide screens (a phone keeps 12 frets while the band plays; past 15 frets the
+ * jam neck draws smaller strings so it stays in view without scrolling).
+ *
+ * Notation (`showNotation()`): the player opens every song in the learner's view until they pick
+ * one in the player itself (More > Score), which is then kept for that song; the scale exercise
+ * draws its staff in a key that spells the scale's own notes (C locrian in D♭ major, not C minor);
+ * technique exercises follow it too.
  *
  * Every function reads the store at call time; pass `prefs` (for example from `usePrefs()`) to
  * use a value you already hold and to re-render when it changes.

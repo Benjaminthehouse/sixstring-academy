@@ -21,7 +21,7 @@ import { fretCount, learnerTuning } from '@/core/settings';
 import { Fretboard, useMusicSettings } from '@/ui/music';
 import { strumChord, stopPreview } from '../audio/preview';
 import {
-  FASTER_BY, chordAt, clampTempo, defaultTempo, distanceText, endingChord, feelsFor, finishedText, glyphCount, jamMarkers, positionOf, scaleChoices, scaleFor, upcoming,
+  FASTER_BY, chordAt, clampTempo, defaultTempo, distanceText, endingChord, feelsFor, finishedText, glyphCount, jamMarkers, jamNeck, positionOf, scaleChoices, scaleFor, upcoming,
   type ChartPos,
 } from '../model/jam';
 import { chartLines } from '../model/page';
@@ -139,10 +139,10 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
   // name, so on a slow phone the name still changes when the chord is heard.
   const neckSymbol = useDeferredValue(nowSymbol);
   const soloScale = useMemo(() => scaleFor(choice, neckSymbol, resolved.key), [choice, neckSymbol, resolved.key]);
-  // Wide screens draw the whole neck the learner asked for in Settings; a phone keeps 12 frets, the
-  // most that stay readable at arm's length while the band plays.
+  // Wide screens draw the whole neck the learner asked for in Settings, small enough to stay in
+  // view; a phone keeps 12 frets, the most that stay readable at arm's length while the band plays.
   const prefs = usePrefs();
-  const maxFret = wide || sideways ? fretCount(prefs) : 12;
+  const { maxFret, size: neckSize } = jamNeck({ phone: isPhone, sideways, wide }, fretCount(prefs));
   // The neck is the learner's guitar: in Drop D the low E-string notes sit two frets higher.
   const tuning = useMemo(() => learnerTuning(prefs), [prefs]);
   const markers = useMemo(() => jamMarkers(neckSymbol, soloScale, { maxFret, tuning }), [neckSymbol, soloScale, maxFret, tuning]);
@@ -297,7 +297,7 @@ export function JamView({ progression: p, tonic, onTonic, back, title, skillId, 
 
         <section className={styles.neck} aria-label="On the neck">
           <div className={styles.neckBoard}>
-            <Fretboard tuning={tuning} frets={[0, maxFret]} markers={markers} size={isPhone || sideways ? 'sm' : wide ? 'lg' : 'md'} aria-label={`${chordName(neckSymbol, naming)} on the neck${soloScale ? `, with ${scaleName(soloScale.tonic, soloScale.scale, naming)}` : ''}`} />
+            <Fretboard tuning={tuning} frets={[0, maxFret]} markers={markers} size={neckSize} aria-label={`${chordName(neckSymbol, naming)} on the neck${soloScale ? `, with ${scaleName(soloScale.tonic, soloScale.scale, naming)}` : ''}`} />
           </div>
           <div className={styles.scaleRow}>
             <ChipGroup aria-label="Scale to solo with" options={scaleOptions} value={choice.id} onChange={(v) => update({ scale: v })} scroll={sideways ? 'always' : 'auto'} />

@@ -95,7 +95,7 @@ const box2: TeacherLesson = {
     {
       type: 'card',
       title: 'Five boxes, one scale',
-      body: 'Box 1 is home. But the same five notes, {n:A} {n:C} {n:D} {n:E} {n:G}, fill the whole neck in five {t:pent-box|boxes} that overlap like tiles. Box 2 sits at frets 7 to 10, right where box 1\'s top notes are: fret 8 on strings 6, 2 and 1, fret 7 on strings 5, 4 and 3 belong to both.',
+      body: 'Box 1 is home. But the same five notes, {n:A} {n:C} {n:D} {n:E} {n:G}, fill the whole neck in five {t:pent-box|boxes} that overlap like tiles. Box 2 sits at frets 7 to 10 and starts on box 1\'s top notes: fret 8 on strings 6, 2 and 1 and fret 7 on strings 5, 4 and 3 belong to both.',
       figure: { kind: 'fretboard', frets: [5, 10], dots: twoBoxes(box(1), box(2)), caption: 'Faded: box 1. Plain: box 2. Highlighted: notes in both.' },
     },
     {
@@ -687,7 +687,7 @@ const majorPentatonic: TeacherLesson = {
         tool: 'player',
         params: ['amazing-grace', 't83'],
         title: 'Amazing Grace: a G major pentatonic tune',
-        body: 'Mo Li Hua is not in the Songs library yet. The tune of Amazing Grace uses the same five notes, {n:G} {n:A} {n:B} {n:D} {n:E}: in the Player, pick the Tune track as yours and play it at 83 % (about 70 BPM), sliding lightly into the long notes.',
+        body: 'Mo Li Hua is not in the Songs library yet. The tune of Amazing Grace uses the same five notes, {n:G} {n:A} {n:B} {n:D} {n:E}: in the Player\'s options, under Parts, pick Tune, and play it at 83 % (about 70 BPM), sliding lightly into the long notes.',
       },
     }),
     {

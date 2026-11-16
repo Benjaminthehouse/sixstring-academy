@@ -17,7 +17,7 @@ import { READ_LEVELS } from '@/features/rhythm/core/generate';
 import { estimateLessonSeconds, formatProblems, validateCourse, type StaffFigure, type TabNote } from '@/lessons';
 import { compileCourse, compileLesson, courseMeta, isTaskStep, taskSong } from '../index';
 import type { RichText, TaskStep, TeacherUnit } from '../types';
-import unit, { LOW_STRINGS, MINUET_BARS_1_4, READ_C_BARS_1_4, READ_G_BARS_1_4, SECOND_POSITION_BAR_1, TOP_STRINGS_C, staffOf } from './dev-neck-and-reading';
+import unit, { FIRST_POSITION_A_SHARPS, LOW_STRINGS, MINUET_BARS_1_4, READ_C_BARS_1_4, READ_G_BARS_1_4, SECOND_POSITION_BAR_1, TOP_STRINGS_C, staffOf } from './dev-neck-and-reading';
 
 // ── helpers (kept in this file: the unit folder holds only unit files and their tests) ──────────
 
@@ -278,5 +278,61 @@ describe('Dev unit 10: know the neck, read the music', () => {
 
   it('names the BPM of every Player task as the song tempo times its percentage', async () => {
     expect(await playerBpmProblems(unit)).toEqual([]);
+  });
+});
+
+// ── review fixes (batch 8 review): each guards a problem found and fixed ───────────────────────
+
+describe('Dev unit 10, review checks', () => {
+  type Step = { type?: string; generate?: string; title?: string; figure?: { kind: string; labels?: string; key?: string; notes?: Array<string | { note: string }>; dots?: Array<{ string: number; fret: number; role?: string }>; caption?: string }; prompt?: string; options?: Array<{ text: string; correct?: boolean }> };
+  const steps = (id: string) => lesson(id).steps as unknown as Step[];
+
+  it('shows every sharp of A major in first position, not only some of them', () => {
+    // The card's figure claims "every sharp of A major in first position": F#, C# and G# from the nut to fret 4.
+    const every = ['F#', 'C#', 'G#'].flatMap((n) => positionsForNote(n, { minFret: 0, maxFret: 4 })).map(at).sort();
+    expect(every).toEqual(['1:2', '1:4', '2:2', '3:1', '4:4', '5:4', '6:2', '6:4']);
+    expect(FIRST_POSITION_A_SHARPS.map(at).sort()).toEqual(every);
+    // The marked dots are exactly the sharps D and A major add: C# and G#.
+    const marked = FIRST_POSITION_A_SHARPS.filter((d) => d.role === 'target').map((d) => PCS[pitchClassAt(d)]);
+    expect(new Set(marked)).toEqual(new Set(['C#', 'G#']));
+    const card = steps('reading-sharps-and-rhythm').find((s) => s.title === 'Two more sharps')!;
+    expect(card.figure!.dots!.map(at).sort()).toEqual(every);
+    expect(stepText('reading-sharps-and-rhythm')).toContain('fret 4 of strings 6 and 1');
+    expect(PCS[pitchClassAt({ string: 6, fret: 4 })]).toBe('G#');
+    expect(PCS[pitchClassAt({ string: 1, fret: 4 })]).toBe('G#');
+  });
+
+  it('draws the key signature of D major beside the C# question, and A major on the second-position phrase', () => {
+    const find = steps('reading-sharps-and-rhythm').find((s) => s.type === 'fretboard-find')!;
+    expect(find.figure).toMatchObject({ kind: 'staff', key: 'D major' });
+    expect(find.figure!.notes).toEqual(['C#3', 'C#4']);
+    expect([midiAt({ string: 5, fret: 4 }), midiAt({ string: 2, fret: 2 })]).toEqual([49, 61]);
+    const phrase = steps('reading-sharps-and-rhythm').find((s) => s.type === 'play-phrase')!;
+    expect(phrase.figure).toMatchObject({ kind: 'staff', key: 'A major' });
+  });
+
+  it('asks which finger plays a fret without printing the fingers on the figure', () => {
+    const q = steps('reading-sharps-and-rhythm').find((s) => s.type === 'choice' && /Which finger/.test(s.prompt ?? ''))!;
+    expect(q.figure!.labels).not.toBe('finger');
+    // One finger per fret from fret 2: fret 5 is finger 4.
+    expect(q.options!.find((o) => o.correct)!.text).toBe('Finger 4');
+  });
+
+  it('says where the ties of the sharps study start and land, as the library has them', async () => {
+    expect(stepText('reading-sharps-and-rhythm')).toContain('from bar 3 into bar 4 and from bar 11 into bar 12');
+    const lead = (await song('st-read-first-sharps')).tracks.find((t) => t.role === 'lead')!;
+    // The note before each tie ends its bar (bars 3 and 11) and the tie lands on beat 1 of the next.
+    for (const bar of [4, 12]) expect(lead.measures[bar - 1].beats[0].notes.some((n) => n.tie)).toBe(true);
+  });
+
+  it('gives the reading lessons several notes to read, not one or two', () => {
+    const reads = (id: string) => steps(id).filter((s) => s.type === 'staff-read' || s.generate === 'staff-note').length;
+    expect(reads('reading-strings-1-to-3')).toBeGreaterThanOrEqual(5);
+    expect(reads('reading-all-six-strings')).toBeGreaterThanOrEqual(4);
+  });
+
+  it('celebrates only what the microphone heard: the opening read from the staff, not the whole piece', () => {
+    expect(unit.milestone!.celebrate).not.toMatch(/played it through/);
+    expect(MINUET_BARS_1_4.length).toBe(16);
   });
 });

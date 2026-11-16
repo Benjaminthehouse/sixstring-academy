@@ -110,13 +110,11 @@ const sevenLetters: Lesson = {
       fact: 'alphabet-after-g',
     },
     {
+      // Four notes, not the whole walk from fret 0: a longer tab is wider than a phone screen in
+      // the play view. These four are the point of the lesson: G, then A again.
       type: 'play-phrase',
-      prompt: 'Walk up string 5 through the natural notes: frets 0, 2, 3, 5, 7, 8, 10, 12. Say each letter as you play it.',
+      prompt: 'On string 5, play frets 7, 8, 10 and 12. Say each letter as you play: {n:E} {n:F} {n:G}, and then?',
       notes: [
-        { string: 5, fret: 0, duration: 'q' },
-        { string: 5, fret: 2, duration: 'q' },
-        { string: 5, fret: 3, duration: 'q' },
-        { string: 5, fret: 5, duration: 'q' },
         { string: 5, fret: 7, duration: 'q' },
         { string: 5, fret: 8, duration: 'q' },
         { string: 5, fret: 10, duration: 'q' },
@@ -124,7 +122,7 @@ const sevenLetters: Lesson = {
       ],
       octave: 'exact',
       tempo: 60,
-      explain: '{n:A} {n:B} {n:C} {n:D} {n:E} {n:F} {n:G} {n:A}: seven letters, then the first one again, an octave up.',
+      explain: '{n:E} {n:F} {n:G}, then {n:A} at fret 12: after {n:G} the letters start again, one octave above the open {n:A}.',
       alternative: {
         type: 'order',
         prompt: 'Put the natural notes of string 5 in order, from the open string up to fret 12.',
@@ -169,7 +167,7 @@ const halfAndWholeSteps: Lesson = {
     {
       type: 'card',
       title: 'One fret, two frets',
-      body: 'Move one fret along a string and the note rises by a {t:half-step|half step}, also called a **semitone**: the smallest step from fret to fret. Two half steps make a {t:whole-step|whole step}, also called a **tone**: two frets.',
+      body: 'Press a string one fret higher and the note rises by a {t:half-step|half step}, also called a **semitone**: the smallest step from fret to fret. Two half steps make a {t:whole-step|whole step}, also called a **tone**: two frets.',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],
@@ -180,7 +178,7 @@ const halfAndWholeSteps: Lesson = {
         ],
         caption: 'String 1: open to fret 1 is a half step; fret 1 to fret 3 is a whole step.',
       },
-      tip: 'You will also hear a half step called a minor second, and a whole step a major second.',
+      tip: 'The distance between two notes is an {t:interval}. A half step is also called a minor second, and a whole step a major second.',
     },
     {
       type: 'choice',
@@ -226,6 +224,7 @@ const halfAndWholeSteps: Lesson = {
         to: 'B4',
         caption: '{n:E} to {n:F}: a half step. {n:F} to {n:G}: a whole step.',
       },
+      tip: 'Some answers may show a sign after a letter, like {n:Eb} or {n:F#}: names for the notes between the letters. They come soon. Here every right note is a plain letter.',
     },
     {
       type: 'choice',
@@ -659,6 +658,7 @@ const flats: Lesson = {
       type: 'card',
       title: 'Accidentals',
       body: 'Sharp and flat signs are both called {t:accidental|accidentals}. They change a letter by a half step: a sharp raises it one fret, a flat lowers it one fret.',
+      tip: 'The last drill names in-between frets with sharps: fret 1 of string 5 is {n:A#}, one fret above {n:A}. It is also {n:Bb}. The next lesson explains.',
     },
     {
       type: 'choice',
@@ -815,7 +815,7 @@ const oneSoundTwoNames: Lesson = {
     },
     {
       type: 'choice',
-      prompt: 'So which is the right name for that note: {n:F#} or {n:Gb}?',
+      prompt: '{n:F#} and {n:Gb} are one note. Which of the two names is the right one?',
       options: [
         { text: 'It depends on the key or chord', correct: true },
         { text: 'Always {n:F#}', why: 'Both names are used. The key or chord decides which one is correct.' },
@@ -828,7 +828,7 @@ const oneSoundTwoNames: Lesson = {
     },
     {
       type: 'play-note',
-      prompt: 'Play {n:Gb} on string 6. Which fret is it?',
+      prompt: 'Play {n:Gb} on string 6: fret 2, one fret below {n:G}. It sounds just like {n:F#}, because it is the same fret.',
       note: 'Gb2',
       octave: 'exact',
       where: { string: 6, fret: 2 },
@@ -961,7 +961,7 @@ const theTwelveNotes: Lesson = {
       notes: [0, 1, 2, 3, 4, 5].map((fret) => ({ string: 1, fret, duration: 'q' })),
       octave: 'exact',
       tempo: 70,
-      explain: 'Open, then frets 1 to 5: {n:E} {n:F} {n:F#} {n:G} {n:G#} {n:A}, each a half step above the last.',
+      explain: 'Open, then frets 1 to 5: {n:E} {n:F} {n:F#} {n:G} {n:G#} {n:A}, each a half step above the last. Fret 4 may also show as {n:Ab}: one note, two names.',
       alternative: {
         type: 'fretboard-find',
         prompt: 'Tap every note of string 1 from the open string to fret 5.',

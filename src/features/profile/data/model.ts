@@ -125,7 +125,7 @@ export interface ReadFile {
 /** A file that cannot be imported, with the words to show. */
 export interface UnreadableFile {
   ok: false;
-  reason: ImportFailure | 'too-large' | 'wrong-type' | 'unreadable';
+  reason: ImportFailure | 'too-large' | 'wrong-type' | 'unreadable' | 'no-room';
   title: string;
   description: string;
 }
@@ -153,6 +153,11 @@ export function importFailureText(reason: UnreadableFile['reason']): { title: st
       return { title: 'That is not a backup file', description: 'A backup is the .json file that Export saved. Check that you picked the right one.' };
     case 'unreadable':
       return { title: 'That file could not be opened', description: 'The browser could not read it. Try picking it again.' };
+    case 'no-room':
+      return {
+        title: 'There is no room left to keep a copy for Undo',
+        description: 'Replace removes what only this device has, so it waits until Undo is possible. Choose Merge instead (it keeps everything here), or export a backup of this device first and delete songs you no longer need.',
+      };
     default:
       return { title: 'That backup is damaged', description: 'Parts of it are missing or broken, so it was not imported. Your progress here has not been touched.' };
   }
@@ -181,8 +186,14 @@ export function dataDiffRows(preview: Pick<BackupPreview, 'rows' | 'settings' | 
 }
 
 /** What the import does with the learner's other data, in one or two sentences under the table. */
-export function dataImportNote(preview: Pick<BackupPreview, 'strategy' | 'progressOnly' | 'songs'>): string {
+export function dataImportNote(preview: Pick<BackupPreview, 'strategy' | 'progressOnly' | 'songs'> & { damaged?: readonly string[] }): string {
   if (preview.progressOnly) return 'This backup was made by an older version of the app and holds only your progress. Your practice journal, saved things, settings and songs here stay as they are.';
+  const damaged = preview.damaged?.length ? ` Part of the file is damaged and is left out (${preview.damaged.map((label, i) => (i === 0 ? label : label.charAt(0).toLowerCase() + label.slice(1))).join(', ')}): what you have here of it stays as it is.` : '';
+  return `${dataImportText(preview)}${damaged}`;
+}
+
+/** How Merge or Replace treats the data and the songs. */
+function dataImportText(preview: Pick<BackupPreview, 'strategy' | 'songs'>): string {
   const songs = preview.songs
     ? preview.songs.inBoth > 0
       ? preview.strategy === 'replace'

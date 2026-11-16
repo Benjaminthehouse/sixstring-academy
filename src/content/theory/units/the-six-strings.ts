@@ -64,7 +64,7 @@ const stringNumbers: Lesson = {
     {
       type: 'card',
       title: 'The way you hold it',
-      body: 'When you hold the guitar to play, string 6 is on top, nearest your face, and string 1 is nearest the floor. Tab and fretboard pictures put string 1 on top instead. Lost? Find the thickest string: that is always string 6.',
+      body: 'When you hold the guitar to play, string 6 is on top, nearest your face, and string 1 is nearest the floor. Tab, and the fretboard pictures in this app, put string 1 on top instead. Lost? Find the thickest string: that is always string 6.',
       tip: 'Say the numbers aloud as you touch each string, from the thick one: 6, 5, 4, 3, 2, 1.',
     },
     {
@@ -99,7 +99,7 @@ const stringNumbers: Lesson = {
       type: 'true-false',
       statement: 'In tab and in this app\'s fretboard pictures, string 1 is drawn at the top.',
       answer: true,
-      explain: 'Tab and fretboard pictures always put string 1, the thinnest, on the top line and string 6 on the bottom line.',
+      explain: 'Tab always puts string 1, the thinnest, on the top line and string 6 on the bottom line, and the fretboard pictures in this app do the same.',
       fact: 'six-strings-1-on-top',
     },
     {
@@ -342,7 +342,7 @@ const usingATuner: Lesson = {
     {
       type: 'card',
       title: 'Letters and numbers',
-      body: 'Many tuners add a number to the letter, like {n:A2}. It says **which octave** the note is in. Standard tuning sounds {n:E2} {n:A2} {n:D3} {n:G3} {n:B3} {n:E4}. The number goes up by one at each C: just above {n:B3} comes {n:C4}.',
+      body: 'Some tuners add a number to the letter, like {n:A2}. It says **which octave** the note is in. Standard tuning sounds {n:E2} {n:A2} {n:D3} {n:G3} {n:B3} {n:E4}. The number goes up by one at each C: just above {n:B3} comes {n:C4}.',
       figure: {
         kind: 'keyboard',
         keys: [
@@ -465,7 +465,7 @@ const theFifthFretRule: Lesson = {
         ],
         caption: 'Each coloured dot matches the next open string. String 3 uses fret 4.',
       },
-      tip: 'This is how to tune without a tuner: get string 6 right, then tune each open string to match the fret below it.',
+      tip: 'This is how to tune without a tuner: get string 6 right, then tune open string 5 to it at fret 5, and so on across. Open string 2 matches string 3 at fret 4.',
     },
     {
       type: 'choice',
@@ -514,7 +514,7 @@ const theFifthFretRule: Lesson = {
     },
     {
       type: 'listen-choice',
-      prompt: 'And these two?',
+      prompt: 'Listen to these two strings ringing together. Steady, or wobbling?',
       sound: { kind: 'notes', notes: ['G#2', 'A2'], together: true },
       options: [{ text: 'Steady: in tune' }, { text: 'Wobbling: out of tune', correct: true }],
       shuffle: false,

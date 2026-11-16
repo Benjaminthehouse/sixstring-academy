@@ -315,6 +315,20 @@ export function scaleFor(choice: ScaleChoice | undefined, chordSymbol: string, h
 }
 
 /**
+ * How much neck the jam shows, and how big. A phone upright keeps 12 frets (readable at arm's
+ * length while the band plays). Wider views show the frets the learner asked for in Settings
+ * (`fretCount()`, 12 to 24), with smaller strings past 15 frets so the whole neck stays in view
+ * without scrolling: a neck that scrolls during a jam hides notes, and for a left-handed player
+ * it hides the nut end.
+ */
+export function jamNeck(view: { phone: boolean; sideways: boolean; wide: boolean }, frets: number): { maxFret: number; size: 'sm' | 'md' | 'lg' } {
+  const asked = Number.isFinite(frets) ? Math.max(12, Math.min(24, Math.round(frets))) : 15;
+  if (view.sideways) return { maxFret: asked, size: 'sm' };
+  if (!view.wide) return { maxFret: 12, size: view.phone ? 'sm' : 'md' };
+  return { maxFret: asked, size: asked <= 15 ? 'lg' : asked <= 19 ? 'md' : 'sm' };
+}
+
+/**
  * Dots for the jam neck: the chord's tones (labelled R 3 5 ♭7, degree colours, the root large)
  * over the scale's other notes as dimmed rings with their names. `tuning` is the learner's (default
  * standard): where the notes lie depends on it, unlike the chord shapes of the chart.

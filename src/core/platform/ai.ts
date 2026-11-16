@@ -1268,7 +1268,7 @@ export function createAi(overrides: Partial<AiDeps> = {}): Ai {
 let shared: Ai | null = null;
 const instance = (): Ai => (shared ??= createAi());
 
-/** What can be asked right now: `{ available, provider, images, maxImages, reason? }`. */
+/** What can be asked right now: `{ available, enabled, provider, images, maxImages, reason? }` (`ask` needs both `available` and `enabled`). */
 export function aiStatus(): Promise<AiStatus> {
   return instance().status();
 }

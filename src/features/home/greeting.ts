@@ -38,6 +38,16 @@ export function standingLine(s: StandingInput): string {
   return `About ${s.goalMinutes} minutes is all today needs. Start with the first step below.`;
 }
 
+/**
+ * What the learner is set up as, for the "Make it yours" banner: read from their Settings
+ * (handedness) and profile (level, teacher), so it never contradicts what they already chose.
+ */
+export function setupLine(s: { handedness: 'left' | 'right'; experience: 'beginner' | 'intermediate' | 'expert'; teacherName: string }): string {
+  const hand = s.handedness === 'left' ? 'left-handed' : 'right-handed';
+  const level = s.experience === 'expert' ? 'advanced player' : s.experience === 'intermediate' ? 'intermediate player' : 'beginner';
+  return `You are set up as a ${hand} ${level} with ${s.teacherName}. Four quick questions and Today fits the way you play.`;
+}
+
 /** "just now", "12 min ago", "3 h ago", "yesterday", "4 days ago". */
 export function timeAgo(then: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - then) / 1000));

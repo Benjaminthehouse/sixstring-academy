@@ -167,11 +167,15 @@ export function isWholeRecord(key: string): boolean {
   return DATA_ITEMS.some((item) => item.key === key && item.whole === true);
 }
 
+/** A list that holds things but not one of them is an object: nothing in it can be read. */
+const allJunk = (value: unknown): boolean => Array.isArray(value) && value.length > 0 && !value.some(isRec);
+
 /**
  * True when a stored record has the wrong shape for its key: not a list where the feature keeps a
- * list, not an object where it keeps an object, or a list inside it that is not a list. Such an entry
- * in a file or another copy is damaged: it must never take the place of a good one. Settings are
- * never called damaged here (their screens check them when they read them).
+ * list, not an object where it keeps an object, a list inside it that is not a list, or a list with
+ * items none of which can be read. Such an entry in a file or another copy is damaged: it must never
+ * take the place of a good one. Settings are never called damaged here (their screens check them
+ * when they read them).
  */
 export function isDamagedRecord(key: string, entry: DataEntry): boolean {
   const items = DATA_ITEMS.filter((item) => item.key === key);
@@ -179,8 +183,8 @@ export function isDamagedRecord(key: string, entry: DataEntry): boolean {
   if (typeof entry.raw === 'string') return true;
   const value = entry.value;
   for (const item of items) {
-    if (item.shape === 'list' ? !Array.isArray(value) : !isRec(value)) return true;
-    if (item.field !== undefined && isRec(value) && value[item.field] !== undefined && !Array.isArray(value[item.field])) return true;
+    if (item.shape === 'list' ? !Array.isArray(value) || allJunk(value) : !isRec(value)) return true;
+    if (item.field !== undefined && isRec(value) && value[item.field] !== undefined && (!Array.isArray(value[item.field]) || allJunk(value[item.field]))) return true;
   }
   return false;
 }

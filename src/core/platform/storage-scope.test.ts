@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_JOURNAL } from '@/features/practice/model/journal';
+import { MAX_ROUTINES } from '@/features/practice/model/routines';
 import {
   DATA_ITEMS,
   LEDGER_KEY,
@@ -6,7 +8,9 @@ import {
   createLearnerData,
   entryFromText,
   entryText,
+  isDamagedRecord,
   isRecordKey,
+  isWholeRecord,
   memoryKv,
   sanitizeDataSet,
   syncsKey,
@@ -114,6 +118,48 @@ describe('classifyKey: everything is learner data unless a rule says otherwise',
     expect(count('journal', 'damaged')).toBe(0);
     expect(count('presets', [{ id: 'x', builtIn: true }, { id: 'y' }])).toBe(1);
   });
+
+  it('counts only real items, and never more than the feature keeps', () => {
+    const count = (id: string, value: unknown) => DATA_ITEMS.find((item) => item.id === id)!.count(value);
+    expect(count('progressions', [null, 7, { id: 'my-1' }])).toBe(1);
+    expect(count('journal', { journal: [{ id: 'a' }, 'x', 3] })).toBe(1);
+    // Two devices of 300 sessions merged: the journal keeps its newest 400, so a preview says 400.
+    expect(count('journal', { journal: Array.from({ length: 600 }, (_, i) => ({ id: `e${i}` })) })).toBe(MAX_JOURNAL);
+    expect(count('routines', { routines: Array.from({ length: 45 }, (_, i) => ({ id: `r${i}` })) })).toBe(MAX_ROUTINES);
+    expect(DATA_ITEMS.find((item) => item.id === 'journal')?.max).toBe(MAX_JOURNAL);
+    expect(DATA_ITEMS.find((item) => item.id === 'routines')?.max).toBe(MAX_ROUTINES);
+  });
+
+  it('tells a damaged record from a good one, and never calls a setting damaged', () => {
+    const e = (value: unknown) => ({ at: 1, value });
+    expect(isDamagedRecord('practice.data', e({ journal: [], routines: [], goals: [] }))).toBe(false);
+    expect(isDamagedRecord('practice.data', e({ v: 1 }))).toBe(false);
+    expect(isDamagedRecord('practice.data', e({ journal: 'oops' }))).toBe(true);
+    expect(isDamagedRecord('practice.data', e(null))).toBe(true);
+    expect(isDamagedRecord('practice.data', { at: 1, raw: 'not json' })).toBe(true);
+    expect(isDamagedRecord('arcade', e([]))).toBe(true);
+    expect(isDamagedRecord('progressions.saved', e({}))).toBe(true);
+    expect(isDamagedRecord('progressions.saved', e([null, { id: 'my-1' }]))).toBe(false); // the bad item is dropped when merged
+    expect(isDamagedRecord('progressions.saved', e([null, 7]))).toBe(true); // nothing in it can be read
+    expect(isDamagedRecord('practice.data', e({ journal: ['x'] }))).toBe(true);
+    expect(isDamagedRecord('metronome.settings', e('anything'))).toBe(false);
+    expect(isDamagedRecord('ai.anthropic-key', { at: 1, raw: 'x' })).toBe(false);
+    expect(isWholeRecord('progressions.draft')).toBe(true);
+    expect(isWholeRecord('practice.data')).toBe(false);
+  });
+
+  it('every record the features keep has the shape the rule expects (checked against their own empty values)', async () => {
+    const practice = await import('@/features/practice/model/store');
+    const arcade = await import('@/features/arcade/core/records');
+    const calibration = await import('@/features/rhythm/core/calibration');
+    const builder = await import('@/features/progressions/model/builder');
+    const e = (value: unknown) => ({ at: 1, value: JSON.parse(JSON.stringify(value)) as unknown });
+    expect(isDamagedRecord('practice.data', e(practice.emptyPracticeData()))).toBe(false);
+    expect(isDamagedRecord('arcade', e(arcade.sanitizeRecords(null)))).toBe(false);
+    expect(isDamagedRecord('rhythm.calibration', e(calibration.normalizeCalibration(null)))).toBe(false);
+    expect(isDamagedRecord('progressions.draft', e(builder.STARTER_DRAFT))).toBe(false);
+    for (const key of ['progressions.saved', 'rhythm.patterns', 'metronome.presets', 'tuner.tunings']) expect(isDamagedRecord(key, e([]))).toBe(false);
+  });
 });
 
 describe('entries', () => {
@@ -135,7 +181,26 @@ describe('entries', () => {
     });
     expect(data).toEqual({ 'practice.data': { at: 10, value: { v: 1 } }, 'tuner.tunings': { at: 0, value: [] } });
     expect(skipped.sort()).toEqual(['ai.anthropic-key', 'arcade', 'chords.dots', 'sync.meta']);
-    expect(sanitizeDataSet(null)).toEqual({ data: {}, skipped: [] });
+    expect(sanitizeDataSet(null)).toEqual({ data: {}, skipped: [], damaged: [] });
+  });
+
+  it('with `records`, a record of the wrong shape is damaged too, and named apart from keys that do not belong', () => {
+    const { data, skipped, damaged } = sanitizeDataSet(
+      {
+        'practice.data': { at: 10, value: { journal: 'oops' } },
+        arcade: { at: 10, value: null },
+        'progressions.saved': { at: 10, raw: 'not json' },
+        'tuner.tunings': { at: 10, value: [{ id: 't' }] },
+        'metronome.settings': { at: 10, value: 'odd but a setting' },
+        'ai.anthropic-key': { at: 1, raw: 'sk-ant-secret' },
+      },
+      { records: true },
+    );
+    expect(Object.keys(data).sort()).toEqual(['metronome.settings', 'tuner.tunings']);
+    expect(damaged.sort()).toEqual(['arcade', 'practice.data', 'progressions.saved']);
+    expect(skipped.sort()).toEqual(['ai.anthropic-key', 'arcade', 'practice.data', 'progressions.saved']);
+    // Without it (cloud sync reads its own copies), only unreadable entries are left out.
+    expect(Object.keys(sanitizeDataSet({ 'practice.data': { at: 10, value: { journal: 'oops' } } }).data)).toEqual(['practice.data']);
   });
 });
 

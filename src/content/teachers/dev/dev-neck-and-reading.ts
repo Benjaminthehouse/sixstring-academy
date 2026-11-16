@@ -84,6 +84,14 @@ export const READ_G_BARS_1_4: TabNote[] = [
 /** Reading: Second Position, bar 1 (`st-read-second-position`): A B C# E C#, no open strings. */
 export const SECOND_POSITION_BAR_1: TabNote[] = [t(3, 2, 'q'), t(3, 4, 'e'), t(2, 2, 'e'), t(2, 5, 'q'), t(2, 2, 'q')];
 
+/**
+ * Every sharp of A major in first position (the nut to fret 4): F# on strings 6, 4 and 1, C# on
+ * strings 5 and 2, G# on strings 6, 3 and 1. The sharps D and A major add (C#, G#) are marked.
+ */
+export const FIRST_POSITION_A_SHARPS: FretDot[] = [
+  dot(6, 2), dot(6, 4, { role: 'target' }), dot(5, 4, { role: 'target' }), dot(4, 4), dot(3, 1, { role: 'target' }), dot(2, 2, { role: 'target' }), dot(1, 2), dot(1, 4, { role: 'target' }),
+];
+
 /** A major on strings 3 to 1 in second position, one finger per fret from fret 2. */
 const A_MAJOR_SECOND_POSITION: FretDot[] = [
   dot(3, 2, { finger: 1, role: 'root' }), dot(3, 4, { finger: 3 }), dot(2, 2, { finger: 1, role: 'target' }), dot(2, 3, { finger: 2 }),
@@ -397,7 +405,7 @@ const readingStrings1To3: TeacherLesson = {
         { text: 'The second line from the bottom', correct: true },
         { text: 'The middle line', why: 'The middle line is {n:B}, the open string 2.' },
         { text: 'The top space', why: 'The top space is {n:E}, the open string 1.' },
-        { text: 'The bottom line', why: 'The bottom line is {n:E} too, but the low one: string 4, fret 2.' },
+        { text: 'The bottom line', why: 'The bottom line is {n:E} at string 4, fret 2, an octave below the open string 1.' },
       ],
       explain: 'The treble clef curls around the second line, the {n:G} line, and that is where the open string 3 is written.',
       fact: 'staff-open-strings-1-3',
@@ -430,6 +438,7 @@ const readingStrings1To3: TeacherLesson = {
       body: 'Read the notes, not the numbers: {n:E} {n:D} {n:E} {n:F}, {n:G} {n:E}, {n:F} {n:E} {n:D} {n:C}, {n:B} {n:G}. A quarter note gets one beat, a half note two.',
       figure: { kind: 'staff', key: 'C major', time: '4/4', notes: staffOf(READ_C_BARS_1_4, 'C major'), caption: 'Reading: First Position in C, bars 1 to 4.' },
     },
+    { generate: 'staff-note', params: { ask: 'read', low: 'G3', high: 'G4' } },
     { generate: 'staff-note', params: { ask: 'read', low: 'G3', high: 'G4' } },
     playerTask({
       id: 'read-c-wait',
@@ -494,6 +503,7 @@ const readingAllSixStrings: TeacherLesson = {
       explain: 'Below three ledger lines: the open string 6, the lowest note on the guitar.',
       fact: 'staff-low-e',
     },
+    { generate: 'staff-note', params: { ask: 'read', low: 'E2', high: 'F3' } },
     {
       type: 'card',
       title: 'One sharp: {n:F#}',
@@ -594,17 +604,18 @@ const readingSharpsAndRhythm: TeacherLesson = {
     {
       type: 'card',
       title: 'Two more sharps',
-      body: '{k:D major} adds {n:C#} to the {n:F#}: string 5, fret 4 ({n:C#}) and string 2, fret 2 ({n:C#}). {k:A major} adds {n:G#} as well: string 3, fret 1 ({n:G#}). Same rule: the signature says it once, you play it every time.',
+      body: '{k:D major} adds {n:C#} to the {n:F#}: string 5, fret 4 ({n:C#}) and string 2, fret 2 ({n:C#}). {k:A major} adds {n:G#} as well: string 3, fret 1 ({n:G#}), and fret 4 of strings 6 and 1. Same rule: the signature says it once, you play it every time.',
       figure: {
         kind: 'fretboard',
         frets: [0, 4],
-        dots: [dot(6, 2), dot(5, 4, { role: 'target' }), dot(4, 4), dot(3, 1, { role: 'target' }), dot(2, 2, { role: 'target' }), dot(1, 2)],
-        caption: 'The sharps of {k:A major} in first position.',
+        dots: FIRST_POSITION_A_SHARPS,
+        caption: 'Every sharp of {k:A major} in first position; {n:C#} and {n:G#} marked.',
       },
     },
     {
       type: 'fretboard-find',
       prompt: 'Tap both {n:C#}s in first position, from the nut to fret 4.',
+      figure: { kind: 'staff', key: 'D major', notes: [pitch(5, 4, 'D major'), pitch(2, 2, 'D major')], caption: 'The key signature of {k:D major}: {n:F#} and {n:C#}.' },
       find: { note: 'C#' },
       mode: 'all',
       octave: 'any',
@@ -650,12 +661,12 @@ const readingSharpsAndRhythm: TeacherLesson = {
       song: 'st-read-first-sharps',
       mode: 'wait',
       minutes: 6,
-      body: 'From the staff, in wait mode: bars 1 to 8 in {k:D major}, bars 9 to 16 in {k:A major}. Then switch to Listen at 83 % (60 BPM). The ties in bars 3 and 11: hold, do not pick again.',
+      body: 'From the staff, in wait mode: bars 1 to 8 in {k:D major}, bars 9 to 16 in {k:A major}. Then switch to Listen at 83 % (60 BPM). The ties run from bar 3 into bar 4 and from bar 11 into bar 12: hold, do not pick again.',
     }),
     {
       type: 'choice',
       prompt: 'Second position: finger 1 sits at fret 2, and no open strings are needed. Which finger plays string 2, fret 5 ({n:E})?',
-      figure: { kind: 'fretboard', frets: [2, 5], labels: 'finger', dots: A_MAJOR_SECOND_POSITION, caption: '{k:A major} on strings 3 to 1, second position.' },
+      figure: { kind: 'fretboard', frets: [2, 5], labels: 'note', dots: A_MAJOR_SECOND_POSITION, caption: '{k:A major} on strings 3 to 1, second position.' },
       options: [
         { text: 'Finger 4', correct: true },
         { text: 'Finger 3', why: 'Finger 3 covers fret 4: string 2, fret 4 is not in this scale.' },
@@ -705,7 +716,7 @@ const readingSharpsAndRhythm: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'd-and-a-sharps', front: 'Which sharps do {k:D major} and {k:A major} add, and where in first position?', back: '{k:D major} adds {n:C#} (string 5, fret 4 and string 2, fret 2); {k:A major} adds {n:G#} too (string 3, fret 1).' },
+    { id: 'd-and-a-sharps', front: 'Which sharps do {k:D major} and {k:A major} add, and where in first position?', back: '{k:D major} adds {n:C#} (string 5, fret 4 and string 2, fret 2); {k:A major} adds {n:G#} too (string 3, fret 1, and fret 4 of strings 6 and 1).' },
     { id: 'dot-and-tie', front: 'What do a dot and a tie do to a note?', back: 'A dot makes it half as long again. A tie joins two notes into one longer sound, even across a bar line.' },
     { id: 'second-position', front: 'What is second position?', back: 'Finger 1 at fret 2, one finger per fret up to fret 5: no open strings needed.' },
   ],
@@ -851,7 +862,7 @@ const unit: TeacherUnit = {
     step: 'show',
     piece: 'the Minuet in G',
     song: 'minuet-in-g-melody',
-    celebrate: 'You read a real piece off the page and played it through. That is a new skill for life: any printed melody is yours now, no tab needed. Next we take all these notes and start saying something with them.',
+    celebrate: 'You read a real piece off the page and played it from the staff. That is a new skill for life: any printed melody is yours now, no tab needed. Next we take all these notes and start saying something with them.',
   },
   glossary: [
     { id: 'repeat-sign', term: 'repeat sign', definition: 'Two dots beside a double bar line: play the music between the repeat signs again before going on.' },

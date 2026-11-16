@@ -621,7 +621,7 @@ function UndoBanner() {
         </Button>
       }
     >
-      Undo puts back what was there before, for half an hour after the change.
+      Undo puts back exactly what was there before the {undo.action}, so anything you have practised since then goes too. It is kept for half an hour after the change.
     </Banner>
   );
 }

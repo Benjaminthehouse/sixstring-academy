@@ -187,6 +187,8 @@ export class PlayerEngine {
   private readonly output: SwitchableOutput;
   private readonly offset: number;
   private stateNow: EngineState;
+  /** The learner picked the score layer here (kept with the session; until then Settings decides). */
+  private layerPicked: boolean;
   private readonly listeners = new Set<() => void>();
   private readonly hudListeners = new Set<(e: HudEvent) => void>();
   private readonly neckListeners = new Set<(f: NeckFrame) => void>();
@@ -226,6 +228,7 @@ export class PlayerEngine {
     this.title = opts.title;
     this.output = new SwitchableOutput({ tone: normalizeTone(opts.tone, 'steel'), clickSet: normalizeClickSet(opts.clickSound) as ClickSet });
     const s = opts.session;
+    this.layerPicked = s.layerPicked === true;
     this.player = new SongPlayer(opts.song, { output: this.output, countInBars: s.countIn ? 1 : 0, metronome: s.metronome });
     this.timeline = this.player.timeline;
     const first = this.timeline.bars[0];
@@ -697,8 +700,9 @@ export class PlayerEngine {
     this.applyMutes();
   }
 
-  /** What the score shows. */
+  /** What the score shows: the learner's own pick for this song, kept over Settings from now on. */
   setLayer(layer: ScoreLayer): void {
+    this.layerPicked = true;
     this.set({ layer });
   }
 
@@ -1098,7 +1102,7 @@ export class PlayerEngine {
     const pos = this.player.position();
     return {
       v: 1, at: Date.now(), opened, tick: Math.round(pos.tick), bar: pos.bar, tempo: s.tempo, loop: s.pick.stage === 'end' ? null : s.loop, mode: s.mode, layer: s.layer,
-      track: s.track, muted: s.muted, solo: s.solo, countIn: s.countIn, metronome: s.metronome, trainer: s.trainer, neck: s.neck,
+      layerPicked: this.layerPicked, track: s.track, muted: s.muted, solo: s.solo, countIn: s.countIn, metronome: s.metronome, trainer: s.trainer, neck: s.neck,
     };
   }
 

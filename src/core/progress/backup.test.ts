@@ -249,6 +249,77 @@ describe('import merge', () => {
   });
 });
 
+describe('a damaged file never costs this device its own data', () => {
+  async function damagedFile(): Promise<{ here: Device; text: string; mine: Record<string, string | null> }> {
+    const a = device('laptop');
+    await learner(a);
+    const file = JSON.parse(await fileOf(a));
+    const later = a.rig.clock.t + 60_000; // claims to be newer than anything here
+    file.data['practice.data'] = { at: later, value: { v: 1, journal: 'oops', routines: [], goals: [] } };
+    file.data.arcade = { at: later, value: null };
+    file.data['progressions.saved'] = { at: later, value: {} };
+    const here = device('phone', a.rig.clock.t);
+    here.kv.write('practice.data', JSON.stringify({ v: 1, routines: [], journal: journal('p', 2), goals: [], weeklyGoalMin: null }));
+    here.kv.write('arcade', JSON.stringify({ v: 1, levels: { 'note-hunt': { modes: { '1': { stars: 2, best: 400, plays: 3, at: 5 } } } }, bests: {}, daily: null, dailyBest: 0 }));
+    here.kv.write('progressions.saved', JSON.stringify([{ id: 'my-folk', name: 'Folk', slots: [], createdAt: 1, updatedAt: 1 }]));
+    const mine = Object.fromEntries(['practice.data', 'arcade', 'progressions.saved'].map((k) => [k, here.kv.read(k)]));
+    return { here, text: JSON.stringify(file), mine };
+  }
+
+  for (const strategy of ['newest-wins', 'replace'] as const) {
+    it(`${strategy === 'replace' ? 'Replace' : 'Merge'}: damaged entries are left out and named, this device keeps its own copy, the rest imports`, async () => {
+      const { here, text, mine } = await damagedFile();
+      const r = read(here, text);
+      expect(r.damaged?.sort()).toEqual(['arcade', 'practice.data', 'progressions.saved']);
+      const preview = previewBackup(r, { state: here.rig.store.getState(), data: here.data.snapshot(), songs: [] }, strategy, here.rig.clock.t);
+      expect(preview.rows.find((row) => row.id === 'journal')).toMatchObject({ before: 2, after: 2 });
+      expect(preview.rows.find((row) => row.id === 'arcade')).toMatchObject({ before: 1, after: 1 });
+      expect(preview.damaged.sort()).toEqual(['Arcade records', 'Practice journal, routines and goals', 'Saved progressions']);
+      const done = await applyBackup(r, strategy, here.deps);
+      expect(done.ok).toBe(true);
+      for (const [key, value] of Object.entries(mine)) expect(here.kv.read(key)).toBe(value);
+      // What was not damaged came through.
+      expect(here.kv.read('rhythm.calibration')).not.toBeNull();
+      expect(here.rig.store.getState().profile.name).toBe('Robin');
+      expect(done.ok && done.skipped).toEqual(expect.arrayContaining(['arcade', 'practice.data', 'progressions.saved']));
+    });
+  }
+});
+
+describe('Undo is kept before anything changes', () => {
+  /** A device whose browser storage has no room for the Undo copy. */
+  function full(d: Device): BackupDeps {
+    const kv = { ...d.kv, write: (key: string, value: string) => (key === UNDO_KEY ? false : d.kv.write(key, value)) };
+    return { ...d.deps, data: createLearnerData(kv, () => d.rig.clock.t) };
+  }
+
+  it('Replace changes nothing when the copy for Undo cannot be stored, and says why', async () => {
+    const a = device('laptop');
+    await learner(a);
+    const text = await fileOf(a);
+    const here = device('phone', a.rig.clock.t);
+    here.kv.write('practice.data', JSON.stringify({ v: 1, routines: [], journal: journal('p', 2), goals: [], weeklyGoalMin: null }));
+    here.kv.write('chords.dots', '"notes"');
+    const deps = full(here);
+    const done = await applyBackup(read(here, text), 'replace', deps);
+    expect(done).toMatchObject({ ok: false, reason: 'no-room' });
+    expect(JSON.parse(here.kv.read('practice.data')!).journal).toHaveLength(2);
+    expect(here.kv.read('chords.dots')).toBe('"notes"');
+    expect(here.rig.store.getState().profile.name).toBe('');
+    expect(await here.lib.list({ scope: 'mine' })).toEqual([]);
+  });
+
+  it('Merge still goes ahead (it removes nothing) and says there is no Undo', async () => {
+    const a = device('laptop');
+    await learner(a);
+    const here = device('phone', a.rig.clock.t);
+    here.kv.write('practice.data', JSON.stringify({ v: 1, routines: [], journal: journal('p', 2), goals: [], weeklyGoalMin: null }));
+    const done = await applyBackup(read(here, await fileOf(a)), 'newest-wins', full(here));
+    expect(done).toMatchObject({ ok: true, undo: false });
+    expect(JSON.parse(here.kv.read('practice.data')!).journal).toHaveLength(14);
+  });
+});
+
 describe('when something fails part of the way', () => {
   it('a song library that breaks during an import does not stop the rest, and Undo still puts everything back', async () => {
     const a = device('laptop');

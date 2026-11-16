@@ -29,6 +29,12 @@ export interface PlayerSession {
   loop: BarRange | null;
   mode: PracticeMode;
   layer: ScoreLayer;
+  /**
+   * The learner picked `layer` in this player (More > Score). Until they do, the layer follows
+   * Settings > "Tab and notation" each time the song opens, so a song opened once before the
+   * setting changed does not keep the old view.
+   */
+  layerPicked: boolean;
   /** The part the learner plays (track id), or null for the first one. */
   track: string | null;
   muted: string[];
@@ -53,7 +59,7 @@ export interface SongShape {
 /** A fresh session. */
 export function defaultSession(opts: { layer?: ScoreLayer; now?: number } = {}): PlayerSession {
   return {
-    v: 1, at: opts.now ?? 0, opened: '', tick: 0, bar: 0, tempo: 100, loop: null, mode: 'listen', layer: opts.layer ?? 'tab', track: null,
+    v: 1, at: opts.now ?? 0, opened: '', tick: 0, bar: 0, tempo: 100, loop: null, mode: 'listen', layer: opts.layer ?? 'tab', layerPicked: false, track: null,
     muted: [], solo: [], countIn: true, metronome: false, trainer: { ...DEFAULT_TRAINER }, neck: true,
   };
 }
@@ -80,6 +86,9 @@ export function sanitizeSession(raw: unknown, song: SongShape): PlayerSession | 
     loop,
     mode: typeof r.mode === 'string' && (PRACTICE_MODES as readonly string[]).includes(r.mode) ? (r.mode as PracticeMode) : d.mode,
     layer: r.layer === 'both' ? 'both' : 'tab',
+    // Sessions saved before this field existed recorded the layer whether or not it was picked:
+    // they follow Settings again.
+    layerPicked: r.layerPicked === true,
     track: typeof r.track === 'string' && song.trackIds.includes(r.track) ? r.track : null,
     muted: ids(r.muted),
     solo: ids(r.solo),
@@ -101,14 +110,17 @@ export interface OpeningState {
  * The session to open with. A reload of the same address restores everything. A new address
  * (or none) keeps the learner's preferences for the song, applies what the address asks for,
  * and offers the saved position back when it is recent and the address names no place.
+ * `opts.layer` is the learner's Settings view ("Tab and notation"): it wins over a stored layer
+ * the learner never picked in the player.
  */
 export function openingState(saved: PlayerSession | null, request: ResolvedRequest, key: string, opts: { now: number; layer: ScoreLayer; micBlocked: boolean }): OpeningState {
   const base = saved ?? defaultSession({ layer: opts.layer });
+  const layer = base.layerPicked ? base.layer : opts.layer;
   const fixMode = (m: PracticeMode): PracticeMode => (opts.micBlocked && (m === 'wait' || m === 'flow') ? 'tap' : m);
   if (saved && saved.opened === key && key !== '' && opts.now - saved.at < RESUME_WITHIN_MS) {
-    return { session: { ...saved, mode: fixMode(saved.mode) }, resumed: saved.tick > 0 };
+    return { session: { ...saved, layer, mode: fixMode(saved.mode) }, resumed: saved.tick > 0 };
   }
-  const s: PlayerSession = { ...base, opened: key, at: opts.now, mode: fixMode(base.mode) };
+  const s: PlayerSession = { ...base, layer, opened: key, at: opts.now, mode: fixMode(base.mode) };
   const asksPlace = request.startBar !== null || request.loop !== null;
   if (asksPlace) {
     s.loop = request.loop;

@@ -184,8 +184,8 @@ switch: every key `classifyKey` in `@/core/platform/storage-scope` calls learner
 const file = await createBackup();        // { app, kind: 'backup', v: 3, exportedAt, progress, data, songs }
 const read = readBackup(textOrObject, { now, timeZone, deviceId });   // also v2 progress exports, v1 saves: format 'progress-only'
 const preview = previewBackup(read, { state, data: learnerData, songs: myIds }, 'newest-wins', now);   // learnerData: platform getLearnerData's snapshot
-// preview.rows: [{ id: 'journal', label: 'Practice journal', unit, before: 12, after: 15 }, ...], .settings, .songs, .progressOnly
-const r = await applyBackup(read, 'replace' | 'newest-wins');   // { ok, reload, undo, changed, failed, songs, skipped }
+// preview.rows: [{ id: 'journal', label: 'Practice journal', unit, before: 12, after: 15 }, ...], .settings, .songs, .progressOnly, .damaged
+const r = await applyBackup(read, 'replace' | 'newest-wins');   // { ok, reload, undo, changed, failed, songs, skipped } | { ok: false, reason }
 const z = await resetEverything({ keepPrefs?, deleteSongs? });   // { reload, undo, songsDeleted, songsUndoable, erased }
 if (r.reload) leaveNotice({ tone: 'ok', title, undo: r.undo });   // then reload the page; takeNotice() after the reload
 pendingUndo()  undoLastChange()  discardUndo()   countLearnerData(data)   localSongs()
@@ -194,18 +194,21 @@ pendingUndo()  undoLastChange()  discardUndo()   countLearnerData(data)   localS
 - **Replace**: the progress and the learner data become the file's (keys only this device has go). **Merge**: the
   progress merges per item as before; each data key as `mergeEntry` says (lists joined by id, settings from the side
   changed last). **Songs**: an import never deletes one; missing songs are added with their own id; a song in both
-  takes the file's copy with Replace and the later copy with Merge. A damaged entry is skipped and named in
-  `skipped` (and a damaged song in `songs.skipped`); the rest imports. A progress-only file leaves the rest alone.
+  takes the file's copy with Replace and the later copy with Merge. A damaged entry is skipped (`skipped`,
+  `songs.skipped`); a damaged record (`isDamagedRecord`: a journal that is not a list ...) also goes in `read.damaged`
+  and this device's copy stays, with Replace too (`preview.damaged`, `damagedLabels(read)` name it). Preview counts
+  stop at what the feature keeps (`DATA_ITEMS[].max`). A progress-only file leaves the rest alone. When the browser
+  refuses the copy for Undo, Replace changes nothing (`{ ok: false, reason: 'no-room' }`); Merge goes on, `undo: false`.
 - **Reset** erases the progress, every learner key and work in progress (`session` keys); it keeps the API key, the
   device's bookkeeping, and the songs unless `deleteSongs`. `keepPrefs` keeps the name, the progress preferences and
   every learner key that is not in `DATA_ITEMS` (settings), and erases what was made or earned.
 - **Undo** (`data.undo`, device-only) holds the state from before the last import or reset for 30 minutes; deleted or
-  overwritten songs are kept for it up to 1.5 MB (`songsUndoable`).
+  overwritten songs are kept for it up to 1.5 MB (`songsUndoable`). It puts that state back whole: what was done since goes too.
 - **Reload**: features keep some data in memory, so when learner data changed (`reload: true`) the caller reloads the
   page (after a dialog has closed: it steps history back, which would cancel an earlier reload). Where storage does not
   survive a reload, the change is announced in place with `storage` events instead.
 - **Convention for features**: keep what the learner makes in platform storage under your feature's prefix, and it
   is backed up, synced and reset with no further work. Add a `DATA_RULES` line only for a key that is about the device
-  or the screen, work in progress, or secret; add a `DATA_ITEMS` line (label, unit, count) for something the learner
-  makes or earns, so Your data counts it and "keep my settings" erases it. If you cache a key in memory, re-read it
-  on the window `storage` event.
+  or the screen, work in progress, or secret; add a `DATA_ITEMS` line (label, unit, shape, count) for what the learner
+  makes or earns, so Your data counts it, "keep my settings" erases it and a merge joins its lists (an unlisted key is
+  a setting, merged whole). If you cache a key in memory, re-read it on the window `storage` event.

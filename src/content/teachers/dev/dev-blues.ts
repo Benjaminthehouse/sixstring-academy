@@ -82,7 +82,7 @@ const bluesInE: TeacherLesson = {
     {
       type: 'card',
       title: 'One twist: the quick change',
-      body: 'Here is the deal: the {t:twelve-bar} you know, with one twist. Bar 2 jumps to {c:A} and straight back, the {t:quick-change}. The whole form: {c:E} {c:A} {c:E} {c:E}, {c:A} {c:A} {c:E} {c:E}, {c:B7} {c:A} {c:E} {c:B7}. That last {c:B7} turns the form around, back to the top.',
+      body: 'Here is the deal: a {t:twelve-bar} is twelve bars on three chords, round and round. This one has a twist: bar 2 jumps to {c:A} and straight back, the {t:quick-change}. The whole form: {c:E} {c:A} {c:E} {c:E}, {c:A} {c:A} {c:E} {c:E}, {c:B7} {c:A} {c:E} {c:B7}. That last {c:B7} turns it around, back to the top.',
       figure: { kind: 'audio', sound: { kind: 'progression', chords: [...QUICK_CHANGE_E], beats: 2, tempo: 96 }, label: 'Hear the 12 bars' },
     },
     {
@@ -157,7 +157,7 @@ const bluesInE: TeacherLesson = {
       tool: 'progressions',
       params: ['blues-quick-change', 'e', 'jam'],
       minutes: 5,
-      body: 'Set the band to 96 BPM in E and shuffle for three choruses, 36 bars. Bar 2 goes to {c:A}, bars 9 and 12 to {c:B7}. If you get lost, wait for the {c:B7} in bar 9: then it is {c:A}, {c:E}, {c:B7} and the top.',
+      body: 'Set the band to 96 BPM in E and shuffle for three choruses, 36 bars. The band plays sevenths ({c:E7}, {c:A7}, {c:B7}); your shuffle stays the same. Bar 2 goes to {c:A7}, bars 9 and 12 to {c:B7}. Lost? Wait for the {c:B7} in bar 9: then it is {c:A7}, {c:E7}, {c:B7} and the top.',
     }),
     {
       type: 'choice',
@@ -174,7 +174,7 @@ const bluesInE: TeacherLesson = {
   facts: [
     { id: 'blues-quick-change', front: 'What is the quick change in a 12-bar blues?', back: 'Bar 2 moves to the {r:IV} chord and back. In E: {c:E} {c:A} {c:E} {c:E}, {c:A} {c:A} {c:E} {c:E}, {c:B7} {c:A} {c:E} {c:B7}.' },
     { id: 'shuffle-in-e', front: 'Which notes make the shuffle on {c:E}?', back: 'The open string 6 ({n:E}) with string 5, fret 2 ({n:B}), then fret 4 ({n:C#}): the 5th and the 6th, long-short.' },
-    { id: 'blues-turnaround-chord', front: 'Why does a 12-bar blues in E end bar 12 on {c:B7}?', back: 'It is the V chord: it pulls back to {c:E} and turns the form around to the top.' },
+    { id: 'blues-turnaround-chord', front: 'Why does a 12-bar blues in E end bar 12 on {c:B7}?', back: 'It is the {r:V} chord: it pulls back to {c:E} and turns the form around to the top.' },
   ],
 };
 
@@ -255,6 +255,7 @@ const dominantSevenths: TeacherLesson = {
       params: ['blues-12-bar', 'a', 'jam'],
       minutes: 4,
       body: 'Set the band to 88 BPM. Shuffle-strum {c:A7}, {c:D7} and {c:E7} with these shapes, and make the strums on 2 and 4 short chops: hit, then let the fretting hand go light so the chord stops.',
+      tip: 'The chops rest your hand too: squeeze for the hit, then let go. If the barre starts to ache, stop between choruses and shake it out.',
     }),
     { generate: 'chord-quality-ear', params: { types: ['7', 'maj7'] } },
     playerTask({
@@ -296,7 +297,7 @@ const dominantSevenths: TeacherLesson = {
 const turnarounds: TeacherLesson = {
   id: 'turnarounds',
   title: 'Turnarounds',
-  teaches: 'A turnaround fills bars 11 and 12 with a line falling by half steps, {d:b7} {d:6} {d:b6} {d:5}, then the V chord.',
+  teaches: 'A turnaround fills bars 11 and 12 with a line falling by half steps, {d:b7} {d:6} {d:b6} {d:5}, then the {r:V} chord.',
   minutes: 5,
   skill: 'teacher:dev:turnarounds',
   steps: [
@@ -330,7 +331,7 @@ const turnarounds: TeacherLesson = {
       title: 'The same idea in A',
       body: 'In A, over the open string 5: string 4, frets 5, 4, 3, 2 ({n:G} {n:F#} {n:F} {n:E}), each with the open string 1, then {c:E7}. Both lines run {d:b7}, {d:6}, {d:b6}, {d:5} of the key.',
       figure: { kind: 'tab', tempo: 80, notes: TURNAROUND_A, caption: 'The line in A on string 4, frets 5 4 3 2, over the open strings 5 and 1.' },
-      tip: 'Left hand: fingers 4, 3, 2, 1, one per fret, walking down. Thumb on the bass, fingers on the line and string 1.',
+      tip: 'Fretting hand: fingers 4, 3, 2, 1, one per fret, walking down. Picking hand: thumb on the bass, fingers on the line and string 1.',
     },
     {
       type: 'choice',
@@ -357,7 +358,7 @@ const turnarounds: TeacherLesson = {
       type: 'true-false',
       statement: 'The A turnaround ends on {c:E7}, which leads back to {c:A} at the top.',
       answer: true,
-      explain: '{c:E7} is the V chord in A. Like {c:B7} in E, it pulls back home and turns the form around.',
+      explain: '{c:E7} is the {r:V} chord in A. Like {c:B7} in E, it pulls back home and turns the form around.',
     },
     playerTask({
       id: 'turnaround-choruses',
@@ -374,7 +375,7 @@ const turnarounds: TeacherLesson = {
         { text: 'Bars 1 and 2', why: 'Bars 1 and 2 start the form. The turnaround ends it.' },
         { text: 'Bars 9 and 10', why: 'In A, bars 9 and 10 are {c:E} and {c:D}. The turnaround comes right after them.' },
       ],
-      explain: 'The turnaround is the last two bars: the falling line in bar 11, the V chord in bar 12.',
+      explain: 'The turnaround is the last two bars: the falling line in bar 11, the {r:V} chord in bar 12.',
       fact: 'turnaround-bars',
     },
     toolTask({
@@ -398,7 +399,7 @@ const turnarounds: TeacherLesson = {
     },
   ],
   facts: [
-    { id: 'turnaround-bars', front: 'What is a blues turnaround, and where does it go?', back: 'Bars 11 and 12: a phrase that leads back to the top of the form, ending on the V chord.' },
+    { id: 'turnaround-bars', front: 'What is a blues turnaround, and where does it go?', back: 'Bars 11 and 12: a phrase that leads back to the top of the form, ending on the {r:V} chord.' },
     { id: 'turnaround-e', front: 'The turnaround line in E?', back: 'String 3, frets 7 6 5 4 ({n:D} {n:C#} {n:C} {n:B}) over the open strings 6 and 1, then {c:B7}.' },
     { id: 'turnaround-degrees', front: 'Which degrees does the classic falling turnaround run?', back: '{d:b7} {d:6} {d:b6} {d:5}. In A: {n:G} {n:F#} {n:F} {n:E}, then {c:E7}.' },
   ],
@@ -558,7 +559,8 @@ const majorAndMinorMix: TeacherLesson = {
       octave: 'exact',
       where: { string: 3, fret: 6 },
       explain: '{n:C#} is the third of {c:A7}: the major sound. In box 1 you play {n:C} at fret 5, one fret below it.',
-      alternative: { type: 'fretboard-find', prompt: 'Tap the third of {c:A7} near the 5th fret.', find: { note: 'C#4' }, mode: 'one', octave: 'exact', frets: [4, 8], explain: 'String 3, fret 6 is {n:C#}, the third of {c:A7}.' },
+      // Any C# near the 5th fret is the third of A7: an exact octave would mark string 5, fret 4 wrong.
+      alternative: { type: 'fretboard-find', prompt: 'Tap a third of {c:A7} near the 5th fret.', find: { note: 'C#' }, mode: 'one', octave: 'any', frets: [4, 8], explain: 'The third of {c:A7} is {n:C#}: string 3, fret 6, the one beside box 1, or string 5, fret 4, an octave lower.' },
     },
     {
       type: 'play-note',
@@ -567,7 +569,7 @@ const majorAndMinorMix: TeacherLesson = {
       octave: 'exact',
       where: { string: 3, fret: 5 },
       explain: '{n:C} is the flat seventh of {c:D7}. It is also in box 1, so minor pentatonic hands it to you.',
-      alternative: { type: 'fretboard-find', prompt: 'Tap the seventh of {c:D7} near the 5th fret.', find: { note: 'C4' }, mode: 'one', octave: 'exact', frets: [4, 8], explain: 'String 3, fret 5 is {n:C}, the seventh of {c:D7}.' },
+      alternative: { type: 'fretboard-find', prompt: 'Tap a seventh of {c:D7} near the 5th fret.', find: { note: 'C' }, mode: 'one', octave: 'any', frets: [4, 8], explain: 'The seventh of {c:D7} is {n:C}: string 3, fret 5, in the middle of box 1, or fret 8 of string 6 or string 1.' },
     },
     {
       type: 'play-note',
@@ -576,7 +578,7 @@ const majorAndMinorMix: TeacherLesson = {
       octave: 'exact',
       where: { string: 4, fret: 6 },
       explain: '{n:G#} is the third of {c:E7}, a half step under {n:A}, the home note: it pulls the band home.',
-      alternative: { type: 'fretboard-find', prompt: 'Tap the third of {c:E7} near the 5th fret.', find: { note: 'G#3' }, mode: 'one', octave: 'exact', frets: [4, 8], explain: 'String 4, fret 6 is {n:G#}, the third of {c:E7}.' },
+      alternative: { type: 'fretboard-find', prompt: 'Tap a third of {c:E7} near the 5th fret.', find: { note: 'G#' }, mode: 'one', octave: 'any', frets: [4, 8], explain: 'The third of {c:E7} is {n:G#}: string 4, fret 6, a fret above box 1\'s {n:G}, or fret 4 of string 6 or string 1.' },
     },
     toolTask({
       id: 'mix-jam',
@@ -662,7 +664,7 @@ const minorBlues: TeacherLesson = {
     },
     {
       type: 'fretboard-name',
-      prompt: 'Over {c:E7}, the tune can lean on string 4, fret 6, a fret above box 1\'s {n:G}. Which note is it?',
+      prompt: 'Over {c:E7}, you can lean on string 4, fret 6, a fret above box 1\'s {n:G}. Which note is it?',
       position: { string: 4, fret: 6 },
       ask: 'note',
       spelling: 'any',
@@ -676,7 +678,7 @@ const minorBlues: TeacherLesson = {
       song: 'st-minor-blues-a',
       tempo: 90,
       minutes: 4,
-      body: 'Pick the Rhythm track and play it at 90 % (72 BPM): {c:Am7}, {c:Dm7} and {c:E7}, strummed down, down-up, down, down-up, twice through.',
+      body: 'In the Player\'s options, under Parts, pick Rhythm, and play it at 90 % (72 BPM): {c:Am7}, {c:Dm7} and {c:E7}, strummed down, down-up, down, down-up, twice through.',
     }),
     {
       type: 'true-false',
@@ -691,7 +693,7 @@ const minorBlues: TeacherLesson = {
       song: 'st-minor-blues-a',
       tempo: 90,
       minutes: 5,
-      body: 'Now pick the Melody track: 90 % (72 BPM), then 110 % (88 BPM). Give the long notes vibrato and let the rests breathe: they are where a singer takes a breath.',
+      body: 'Now pick Melody under Parts: 90 % (72 BPM), then 110 % (88 BPM). Give the long notes vibrato and let the rests breathe: they are where a singer takes a breath.',
     }),
     toolTask({
       id: 'minor-blues-jam',

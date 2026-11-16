@@ -8,15 +8,20 @@
  * names, and every tempo a task names. Run with
  * `npx vitest run src/content/teachers/mia/mia-playing-with-others.test.ts`.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { progressionInKey } from '@/content/progressions';
 import { loadSongText, songEntry } from '@/content/songs';
 import { getExercise } from '@/content/technique';
-import { chordVoicings, identifyFretted, midiAt, noteAt } from '@/core/guitar';
+import { chordVoicings, identifyFretted, midiAt, noteAt, tuning } from '@/core/guitar';
 import { parseSixTab, type Song, type Track } from '@/core/song';
 import { chordNotes, chroma, transposeChordBySemitones } from '@/core/theory';
 import { drillById, levelOf } from '@/features/ear/core/drills';
 import { PROGRESSIONS as EAR_PROGRESSIONS } from '@/features/ear/core/drills/progressions';
+import { DEFAULT_JAM } from '@/features/progressions/model/jam';
+import { buildTargets } from '@/features/tuner/model/targets';
 import { estimateLessonSeconds, formatProblems, validateCourse, type RichText, type TabNote } from '@/lessons';
 import { compileLesson, isTaskStep, loadTeacherCourse, taskSong, type TaskStep, type TeacherUnit } from '../index';
 import dev from '../dev/dev-barre-chords';
@@ -69,6 +74,14 @@ function step<T>(lessonId: string, pred: (s: Record<string, unknown>) => boolean
 
 const byId = <T>(lessonId: string, id: string) => step<T>(lessonId, (s) => s.id === id);
 const byTitle = <T>(lessonId: string, title: string) => step<T>(lessonId, (s) => s.title === title);
+
+/** The screens' source folder, for the few labels a task names (read as text, never imported). */
+const FEATURES = fileURLToPath(new URL('../../../features/', import.meta.url));
+
+/** Every string inside a value: a lesson, a step, a unit. */
+function textsOf(v: unknown): string[] {
+  return texts(v as TeacherUnit);
+}
 
 function texts(u: TeacherUnit): string[] {
   const out: string[] = [];
@@ -144,7 +157,8 @@ describe('Mia unit 12: Playing with others, and a habit for life', () => {
     for (const l of unit.lessons) {
       const s = estimateLessonSeconds(compileLesson(l));
       expect(s, `${l.id}: ${s} s`).toBeGreaterThanOrEqual(120);
-      expect(s, `${l.id}: ${s} s`).toBeLessThanOrEqual(320);
+      // The validator's own ceiling: 5 minutes plus 30 seconds of slack.
+      expect(s, `${l.id}: ${s} s`).toBeLessThanOrEqual(330);
     }
   });
 
@@ -352,5 +366,95 @@ describe('Mia unit 12: Playing with others, and a habit for life', () => {
 
   it('names a BPM in every Player task that the task really opens at', async () => {
     expect(await tempoProblems(unit)).toEqual([]);
+  });
+
+  // ── review fixes ────────────────────────────────────────────────────────────────────────────
+
+  it('puts the shapes above the capo: nothing is played "behind" it, which is where the capo is clipped', () => {
+    const capo = lesson('the-capo');
+    const words = textsOf(capo);
+    expect(words.join(' ')).toMatch(/just behind fret 2/);
+    for (const t of words) expect(t.replace(/just behind fret \d/g, ''), t).not.toMatch(/\bbehind\b/i);
+    // "Above the capo at fret 2, fret 3" is the neck's fret 5.
+    expect(midiAt({ string: 6, fret: 3 }, { capo: 2 })).toBe(midiAt({ string: 6, fret: 5 }));
+  });
+
+  it('teaches the flat sign on or before the first flat name of the unit (Mia has only taught sharps)', () => {
+    const FLAT_NAME = /\{[nck]:[A-G]b/;
+    let taught = false;
+    let named = 0;
+    for (const l of unit.lessons) {
+      for (const st of l.steps) {
+        const t = textsOf(st).join(' ');
+        if (/\{t:flat[}|]/.test(t)) taught = true;
+        if (FLAT_NAME.test(t)) {
+          named++;
+          expect(taught, `${l.id}: a flat is named before the flat sign is taught`).toBe(true);
+        }
+      }
+    }
+    expect(named).toBeGreaterThan(0);
+    // The tip's claim: B flat is one fret below B.
+    expect(chroma('Bb')).toBe((chroma('B') + 11) % 12);
+  });
+
+  it('lets the app play only the other voice while the learner holds a part in each round', async () => {
+    for (const [taskId, songId] of [
+      ['jacques-round', 'frere-jacques-round'],
+      ['duet-round', 'st-duet-round'],
+    ] as const) {
+      const s = await song(songId);
+      // The Parts list shows the tracks by name: You (first voice) and Teacher (second voice).
+      expect(s.tracks.map((t) => t.name.split(' ')[0])).toEqual(['You', 'Teacher']);
+      const body = plain(byId<TaskStep>('rounds-and-duets', taskId).body);
+      expect(body, taskId).toMatch(/mute You|You muted/);
+      expect(body, taskId).toMatch(/Teacher/);
+    }
+    // The swap: you take the second voice and the app plays your old one.
+    expect(plain(byId<TaskStep>('rounds-and-duets', 'duet-round').body)).toMatch(/swap: tap Teacher.*mute it and unmute You/);
+  });
+
+  it('sets the Tuner for the capo before checking, with a no-microphone way', () => {
+    const task = byId<TaskStep>('the-capo', 'capo-retune');
+    expect(plain(task.body)).toContain('"Capo on fret" to 2');
+    // What the Tuner then expects on string 6, as the card says.
+    const targets = buildTargets(tuning('standard'), { capo: 2 });
+    expect(targets.find((x) => x.string === 6)!.note).toBe('F#2');
+    expect(notesIn(plain(task.body))).toEqual(['F#', 'E']);
+    expect(readFileSync(resolve(FEATURES, 'tuner/components/TunerSettings.tsx'), 'utf8')).toContain('label="Capo on fret"');
+    expect(plain(task.tip!)).toMatch(/No microphone/);
+  });
+
+  it('asks which chart is playing with both answers, not always chart 1', () => {
+    const asks = lesson('jamming-with-the-band').steps.filter((x) => (x as { type?: string }).type === 'listen-choice') as unknown as Array<{
+      sound: { chords: string[] };
+      options: Array<{ text: string; correct?: boolean }>;
+    }>;
+    expect(asks).toHaveLength(2);
+    const right = asks.map((a) => a.options.find((o) => o.correct)!.text.slice(0, 7));
+    expect(new Set(right)).toEqual(new Set(['Chart 1', 'Chart 2']));
+    for (const a of asks) {
+      const id = a.sound.chords.join() === FIFTIES_IN_G.join() ? 'fifties-i-vi-iv-v' : 'pop-axis';
+      const romans = progressionInKey(id, 'G').bars.map((b) => `{r:${b[0].numeral}}`).join(' ');
+      expect(a.options.find((o) => o.correct)!.text).toContain(romans);
+    }
+  });
+
+  it('tells the learner how to stop the jam looping, and how to tune before the warm-up', () => {
+    // The jam loops by default; "Times through" only shows once looping is off.
+    expect(DEFAULT_JAM.loop).toBe(true);
+    const jam = readFileSync(resolve(FEATURES, 'progressions/ui/Jam.tsx'), 'utf8');
+    expect(jam).toContain('label="Loop until I stop"');
+    expect(jam).toContain('label="Times through"');
+    expect(plain(byId<TaskStep>('graduation-concert', 'concert-blues').body)).toMatch(/turn off "Loop until I stop" for 2 times through/);
+    // The warm-up has no tuning block of its own, so the task says how to tune first.
+    expect(getExercise('tech-warm-up')!.routine!.some((r) => /tun/i.test(r.title))).toBe(false);
+    expect(plain(byId<TaskStep>('graduation-concert', 'concert-warm-up').body)).toMatch(/by ear or with the Tuner/);
+  });
+
+  it('says what to do when the barre hurts, in the concert that plays two of them', () => {
+    const t = textsOf(lesson('graduation-concert')).join(' ');
+    expect(t).toMatch(/stop and rest/);
+    expect(t).toMatch(/Never play through pain/);
   });
 });

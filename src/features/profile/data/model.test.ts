@@ -257,6 +257,30 @@ describe('the rest of your data', () => {
     expect(dataImportNote({ strategy: 'replace', progressOnly: true, songs: null })).toMatch(/older version of the app and holds only your progress/);
   });
 
+  // Review: a file whose journal was damaged (not a list) replaced the journal here in Merge, and
+  // the preview said "2 entries -> 0 entries" without a word about why.
+  it('a damaged part of the file is named in the preview, and what is here of it stays', async () => {
+    const { text } = await backupWith({ 'practice.data': { v: 1, journal: [], routines: [], goals: [] } });
+    const file = JSON.parse(text);
+    file.data['practice.data'] = { at: NOW + 1, value: { journal: 'oops' } };
+    const read = readBackup(JSON.stringify(file), ENV);
+    if (!read.ok) throw new Error('unreadable');
+    const kv = memoryKv({ 'practice.data': JSON.stringify({ v: 1, journal: [{ id: 'mine', endedAt: 1 }], routines: [], goals: [] }) });
+    const local = createLearnerData(kv, () => NOW).snapshot();
+    for (const strategy of ['newest-wins', 'replace'] as const) {
+      const preview = previewBackup(read.backup, { state: emptyFixture(NOW, 'UTC').store.getState(), data: local, songs: null }, strategy, NOW);
+      expect(dataDiffRows(preview).find((r) => r.key === 'data-journal')).toMatchObject({ before: '1 entry', after: '1 entry', change: 'same' });
+      expect(dataImportNote(preview)).toMatch(/Part of the file is damaged and is left out \(Practice journal, routines and goals\): what you have here of it stays as it is\./);
+    }
+  });
+
+  it('explains a Replace that waits because there is no room to keep Undo', () => {
+    const words = importFailureText('no-room');
+    expect(words.title).toMatch(/no room/i);
+    expect(words.description).toMatch(/Choose Merge/);
+    expect(words.description.endsWith('.')).toBe(true);
+  });
+
   it('lists what a backup holds, with counts, and what stays on this device', () => {
     const { lines, later } = includedLines({
       progress: summarise(richFixture(NOW, 'UTC').store.getState()),

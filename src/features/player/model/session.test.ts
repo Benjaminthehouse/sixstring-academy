@@ -32,7 +32,7 @@ describe('player session', () => {
   });
 
   it('follows a new address, keeping the learner’s preferences for the song', () => {
-    const saved = { ...defaultSession(), opened: '', at: NOW - 60_000, tick: 40_000, bar: 10, tempo: 85, layer: 'both' as const, countIn: false, muted: ['teacher'] };
+    const saved = { ...defaultSession(), opened: '', at: NOW - 60_000, tick: 40_000, bar: 10, tempo: 85, layer: 'both' as const, layerPicked: true, countIn: false, muted: ['teacher'] };
     const r = open(['x', 'chorus', 't70'], saved);
     expect(r.resumed).toBe(false);
     expect(r.session).toMatchObject({ loop: { from: 8, to: 15 }, bar: 8, tick: -1, tempo: 70, layer: 'both', countIn: false, muted: ['teacher'], opened: 'chorus--t70' });
@@ -48,6 +48,25 @@ describe('player session', () => {
   it('starts fresh without a saved session, in the learner’s view', () => {
     const r = openingState(null, resolveRequest(parsePlayerParams(['x']), SONG), '', { now: NOW, layer: 'both', micBlocked: false });
     expect(r).toMatchObject({ resumed: false, session: { tick: 0, tempo: 100, mode: 'listen', layer: 'both', countIn: true } });
+  });
+
+  it('shows what Settings asks for ("Tab and notation") until the learner picks a view in the player', () => {
+    const settings = (saved: ReturnType<typeof defaultSession> | null, layer: 'tab' | 'both', params = ['x'], key = requestKey(params)) =>
+      openingState(saved, resolveRequest(parsePlayerParams(params), SONG), key, { now: NOW, layer, micBlocked: false }).session;
+    // Opened once with tab only (the session recorded "tab"), then Settings turned notation on.
+    const openedOnce = { ...defaultSession({ layer: 'tab' }), opened: '', at: NOW - 60_000 };
+    expect(settings(openedOnce, 'both').layer).toBe('both');
+    // The same on a reload of the same address, and for a session saved before `layerPicked` existed.
+    expect(settings({ ...openedOnce, opened: 'm9', tick: 9_000 }, 'both', ['x', 'm9']).layer).toBe('both');
+    const old = sanitizeSession({ v: 1, layer: 'tab' }, SHAPE)!;
+    expect(old.layerPicked).toBe(false);
+    expect(settings(old, 'both').layer).toBe('both');
+    // A view the learner picked in the player stays theirs, whatever Settings says, and is kept.
+    const picked = { ...openedOnce, layer: 'tab' as const, layerPicked: true };
+    expect(settings(picked, 'both')).toMatchObject({ layer: 'tab', layerPicked: true });
+    expect(settings({ ...picked, layer: 'both' }, 'tab').layer).toBe('both');
+    expect(sanitizeSession({ v: 1, layer: 'both', layerPicked: true }, SHAPE)).toMatchObject({ layer: 'both', layerPicked: true });
+    expect(settings(null, 'both')).toMatchObject({ layer: 'both', layerPicked: false });
   });
 
   it('turns a microphone mode into tap-along where there is no microphone', () => {
