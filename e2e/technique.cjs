@@ -223,6 +223,12 @@ async function ladderGroup() {
     await p.waitForTimeout(1200);
     const c2 = await cursorAt();
     check('ladder', 'the tab cursor moves while playing', c1 !== c2 && c2.length > 0, `${c1.slice(0, 80)} -> ${c2.slice(0, 80)}`);
+    // The fretboard lights the note being played (it follows the runner by itself).
+    const lit = () => p.$$eval('[data-technique-demo] g[data-state="target"]', (els) => els.map((e) => e.getAttribute('transform')).join(';'));
+    const l1 = await lit();
+    await p.waitForTimeout(700);
+    const l2 = await lit();
+    check('ladder', 'the fretboard lights the note being played, and it moves on', l1.length > 0 && l2.length > 0 && l1 !== l2, `${l1} -> ${l2}`);
     await p.locator('body').click({ position: { x: 5, y: 5 } }).catch(() => undefined);
     await p.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
     await p.keyboard.press('Enter');
@@ -367,12 +373,14 @@ async function scaleTakeRun(fakeAudio) {
     const startTempo = await attr(p, root, 'data-tempo');
     await p.locator('[data-technique-primary]').first().click();
     await p.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-mic') === 'ready', root, { timeout: 20000 });
+    const meter = await p.waitForSelector('[role="meter"][aria-label="Microphone level"]', { timeout: 10000 }).then(() => true).catch(() => false);
     await p.waitForSelector('[data-technique-take]', { timeout: 45000 });
     const out = {
       verdict: await attr(p, '[data-technique-take]', 'data-technique-take'),
       text: await p.textContent('[data-technique-take]'),
       startTempo,
       tempo: await attr(p, root, 'data-tempo'),
+      meter,
       errors: s.errors.slice(),
       page: p,
     };
@@ -389,6 +397,7 @@ async function takeGroup() {
   check('take', 'an even take of the scale is judged clean', r1.verdict === 'clean', `${r1.verdict}: ${r1.text}`);
   check('take', 'and the ladder climbs from 60 to 64 BPM', r1.startTempo === '60' && r1.tempo === '64', `${r1.startTempo} -> ${r1.tempo}`);
   check('take', 'it says the notes were right', /All 29 notes were right|of 29 notes/.test(r1.text || ''), r1.text);
+  check('take', 'the microphone level meter shows while the take runs', r1.meter);
   check('take', 'no console errors (even take)', r1.errors.length === 0, r1.errors.join(' | '));
 
   const uneven = scaleTake('scale-uneven', (i) => 0.13 * jitter(i));

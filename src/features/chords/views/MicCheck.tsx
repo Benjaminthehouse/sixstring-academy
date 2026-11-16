@@ -6,13 +6,14 @@ import { useEffect, useRef, useState } from 'react';
 import { playUi } from '@/core/audio';
 import type { Voicing } from '@/core/guitar';
 import { waitForChord } from '@/core/pitch';
-import { recordActivity } from '@/core/progress';
+import { getProgress, recordActivity } from '@/core/progress';
 import { formatNote } from '@/core/theory';
 import { Banner, Button, MediaBlocked, Sheet, Spinner, Text } from '@/ui';
 import { useMusicSettings } from '@/ui/music';
 import { useMic } from '../hooks/useMic';
 import { MIC_EXPLAINER, strumHint, type StrumHint } from '../model/hints';
 import { RING_TRUE, specOf } from '../model/listen';
+import { mergeChordData } from '../model/known';
 import { chordParam, chordSkillId, displaySymbol } from '../model/symbols';
 import { MarkedDiagram } from './MarkedDiagram';
 import styles from './Trainer.module.css';
@@ -71,15 +72,18 @@ export function MicCheckSheet({ open, onClose, symbol, voicing }: { open: boolea
     playUi('correct');
     setHint(null);
     setPhase('ok');
+    const id = chordSkillId(symbol);
     recordActivity({
       kind: 'chord-practice',
-      id: chordSkillId(symbol),
+      id,
       title: `${displaySymbol(symbol)} chord`,
       accuracy: 1 / (1 + 0.5 * r.failedAttempts),
       mistakes: r.failedAttempts,
       durationSec: Math.max(5, Math.round((Date.now() - startedAt.current) / 1000)),
       route: 'chords',
       params: [chordParam(symbol)],
+      // Played cleanly for the microphone: the chord joins My chords, even if its mark was taken back.
+      data: mergeChordData(getProgress().skills[id]?.data, { known: true }),
     });
   };
 

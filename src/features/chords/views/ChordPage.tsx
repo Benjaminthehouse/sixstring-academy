@@ -33,6 +33,7 @@ export interface ChordPageProps {
 }
 
 type DotMode = 'fingers' | 'notes' | 'degrees';
+type NoteNaming = ReturnType<typeof useMusicSettings>['naming'];
 
 const ROLE_WORDS: Record<string, string> = {
   root: 'root',
@@ -273,6 +274,7 @@ function clampIndex(i: number, count: number): number {
 // ---------------------------------------------------------------------------------------------
 
 function NeckView({ symbol, voicing, allTones, tuning }: { symbol: string; voicing: NonNullable<VoicingSet['all'][number]>; allTones: boolean; tuning: string }) {
+  const { naming } = useMusicSettings();
   const board = useMemo(() => voicingOnBoard(voicing, { label: 'finger' }), [voicing]);
   const maxFret = Math.max(0, ...voicing.frets.map((f) => f ?? 0));
   const hi = Math.max(12, Math.min(22, maxFret + 2));
@@ -283,7 +285,7 @@ function NeckView({ symbol, voicing, allTones, tuning }: { symbol: string; voici
   }, [allTones, symbol, voicing, hi, tuning]);
   return (
     <div className={styles.neck}>
-      <Fretboard tuning={tuning} frets={[0, hi]} markers={[...ghosts, ...board.markers]} barres={board.barres} open={board.open} muted={board.muted} aria-label={`${displaySymbol(symbol)} on the neck`} />
+      <Fretboard tuning={tuning} frets={[0, hi]} markers={[...ghosts, ...board.markers]} barres={board.barres} open={board.open} muted={board.muted} aria-label={`${displaySymbol(symbol, { system: naming })} on the neck`} />
     </div>
   );
 }
@@ -293,7 +295,7 @@ function NotesAndFormula({ chord }: { chord: Chord }) {
   const tones = useMemo(() => chordTones(chord), [chord]);
   const type = getChordType(chord.type.id) ?? chord.type;
   // Aliases are written as charts write them (not re-parsed, which would turn them back into the canonical symbol).
-  const rootText = displaySymbol(chord.root);
+  const rootText = displaySymbol(chord.root, { system: naming });
   const aliases = [...new Set(type.aliases.filter((a) => a && a !== type.symbol && /^[\x20-\x7e]+$/.test(a)))].slice(0, 4).map((a) => `${rootText}${a.replace(/b(?=\d)/g, '♭').replace(/#/g, '♯')}`);
   return (
     <Section title="Notes and formula" description={type.description}>
@@ -310,7 +312,7 @@ function NotesAndFormula({ chord }: { chord: Chord }) {
       </ul>
       <Text>
         Formula <span className={styles.formula}>{type.degrees.map(displayDegree).join(' – ')}</span>
-        {chord.bass ? <> with {displaySymbol(chord.bass)} in the bass</> : null}
+        {chord.bass ? <> with {displaySymbol(chord.bass, { system: naming })} in the bass</> : null}
       </Text>
       {aliases.length > 0 && (
         <Text variant="caption" tone="muted">
@@ -350,14 +352,15 @@ function intervalWords(iv: string): string {
 }
 
 function Alternatives({ symbol, tuning, name }: { symbol: string; tuning: string; name: string }) {
-  const alts = useMemo(() => easierAlternatives(symbol, tuning), [symbol, tuning]);
+  const { naming } = useMusicSettings();
+  const alts = useMemo(() => easierAlternatives(symbol, tuning, (s) => displaySymbol(s, { system: naming })), [symbol, tuning, naming]);
   if (!alts.length) return null;
   return (
     <Section title="Too hard for now? Play this instead" description={`Easier ways to get through a song that asks for ${name} while your hands catch up.`}>
       <div className={styles.alts} data-alternatives>
         {alts.map((a) => (
           <article key={`${a.kind}-${a.voicing.id}`} className={styles.alt}>
-            <ChordDiagram voicing={a.voicing} size="sm" title={displaySymbol(a.symbol)} />
+            <ChordDiagram voicing={a.voicing} size="sm" title={displaySymbol(a.symbol, { system: naming })} />
             <div className={styles.altBody}>
               <h3 className={styles.altTitle}>{a.title}</h3>
               <Text variant="caption" tone="muted">
@@ -369,7 +372,7 @@ function Alternatives({ symbol, tuning, name }: { symbol: string; tuning: string
                 </Button>
                 {a.symbol !== symbol && a.kind !== 'capo' && (
                   <LinkButton size="sm" variant="ghost" to="chords" params={[chordParam(a.symbol)]} iconRight="ArrowRight">
-                    Open {displaySymbol(a.symbol)}
+                    Open {displaySymbol(a.symbol, { system: naming })}
                   </LinkButton>
                 )}
               </div>
@@ -382,6 +385,7 @@ function Alternatives({ symbol, tuning, name }: { symbol: string; tuning: string
 }
 
 function WhereUsed({ symbol, tuning }: { symbol: string; tuning: string }) {
+  const { naming } = useMusicSettings();
   const usage = useMemo(() => chordUsage(symbol), [symbol]);
   const family = familyOfType(parseChord(symbol)!.type);
   const play = (chords: string[]) => {
@@ -396,7 +400,7 @@ function WhereUsed({ symbol, tuning }: { symbol: string; tuning: string }) {
           <ul className={styles.keys}>
             {usage.keys.map((k) => (
               <li key={k.key} className={styles.keyChip}>
-                <span>{displayKey(k.key)}</span>
+                <span>{displayKey(k.key, naming)}</span>
                 <span className={styles.keyRoman}>{k.roman}</span>
               </li>
             ))}
@@ -416,14 +420,14 @@ function WhereUsed({ symbol, tuning }: { symbol: string; tuning: string }) {
                       </span>
                     )}
                     <a className={styles.exChord} href={href('chords', chordParam(c))} aria-current={i === ex.self ? 'page' : undefined}>
-                      {displaySymbol(c)}
+                      {displaySymbol(c, { system: naming })}
                     </a>
                   </Fragment>
                 ))}
               </div>
               <div className={styles.exampleMeta}>
                 <Text variant="caption">
-                  {ex.romans.replace(/b(?=[IV])/g, '♭')} in {displayKey(ex.key)}
+                  {ex.romans.replace(/b(?=[IV])/g, '♭')} in {displayKey(ex.key, naming)}
                 </Text>
                 <Text variant="caption" tone="muted">
                   {ex.note}
@@ -439,7 +443,9 @@ function WhereUsed({ symbol, tuning }: { symbol: string; tuning: string }) {
   );
 }
 
-function displayKey(name: string): string {
-  return name.replace(/^([A-G])#/, '$1♯').replace(/^([A-G])b/, '$1♭');
+/** "Bb major" in the learner's note naming: "B♭ major", "Si♭ major", "B major" (German). */
+function displayKey(name: string, naming: NoteNaming): string {
+  const [tonic, ...rest] = name.split(' ');
+  return [displaySymbol(tonic, { system: naming }), ...rest].join(' ');
 }
 

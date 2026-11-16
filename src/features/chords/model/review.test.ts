@@ -106,3 +106,16 @@ describe('where it is used', () => {
     expect(chordUsage('C#dim7').examples.map((e) => e.romans)).toContain('vii°7–i');
   });
 });
+
+describe('easier alternatives follow the note naming', () => {
+  it('writes German names in titles and text (B♭ is B, B is H)', async () => {
+    const { easierAlternatives } = await import('./alternatives');
+    const { displaySymbol } = await import('./symbols');
+    const german = (s: string) => displaySymbol(s, { system: 'german' });
+    const bm = easierAlternatives('Bm', 'standard', german);
+    const capo = bm.find((a) => a.kind === 'capo')!;
+    expect(capo.detail).toMatch(/sounds as Hm/);
+    const bb = easierAlternatives('Bb', 'standard', german).find((a) => a.kind === 'power')!;
+    expect(bb.title).toBe('B5, the power chord');
+  });
+});

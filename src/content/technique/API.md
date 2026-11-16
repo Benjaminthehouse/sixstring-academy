@@ -27,7 +27,7 @@ TechniqueExercise = {
   mistakes: { watch, fix }[],   // watch = the plan's watchFor, in order; fix = what to do about it
   strain?: { text, maxMinutes },// can strain the hand: shown with the exercise; the screen suggests a rest after maxMinutes
   parts: ExercisePart[],        // the playable material
-  pairs?: ChordPair[],          // changes: { id ('em-g'), a/b: { symbol, shape }, tip }
+  pairs?: ChordPair[],          // changes: { id ('em-g'), a/b: { symbol, shape }, tip, variant? ('small', 'barre') }
   routine?: RoutineStep[],      // routine: { id, title, seconds, text, part?, link?, reflect? }
   checklist?: string[], reference?: { midi, label }, tools?: { route, label, icon }[],   // guide
 }
@@ -49,6 +49,7 @@ TECHNIQUE_EXERCISES                 // all, easiest first (level, then authored 
 getExercise(id) | null              exercisesBySkill('bends')            SKILL_GROUPS  HANDS
 techniqueSkillId(id)                // 'technique:<id>' (progress skill; the screen keeps { best, log } in its data)
 chordChangeSkillId(pair)            // 'chord-change:<pair id>' (one-minute changes record kind 'chord-change')
+pairLabel(pair, joiner = ' – ')     // what the screen calls a pair: 'Em – G', 'C – barre F', 'D – small F♯m'
 hasLadder(e)  ladderRungs(e)        // [start, start+step, ..., goal]
 partSixTab(e, part, ladderBpm)      // the whole SixTab file    partSong(e, part, ladderBpm)  // parsed, cached
 MAJOR_KEYS  MELODIC_MINOR_KEYS      // the circle-of-fifths order of the all-keys exercise
@@ -63,7 +64,9 @@ warning at the start and goal tempos; every note on the neck; every chord shape 
 builds with `voicingProblem`; every "string N fret M (X)" in the copy names the right note; the
 spider and the 24 finger orders; G major and pentatonic material against the engines; the tapped
 triads; all 24 keys in their own scale, root to root over two octaves; bends and vibrato put in the
-tab what the microphone checks, with the target played first.
+tab what the microphone checks, with the target played first; every chord pair the plan's pattern
+names is there, in its order, with a name no other pair of the exercise has; every "root position /
+first inversion / second inversion" in the copy matches the shape's lowest note.
 
 Two places where this module says something different from the plan's wording, on purpose:
 `tech-fretting-mute` (the plan says E5 (022xxx) leaves "only strings 6 and 5"; the shape sounds

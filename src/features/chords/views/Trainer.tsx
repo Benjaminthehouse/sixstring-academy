@@ -374,7 +374,7 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
                     <ChordDiagram voicing={voicings[i]} size="md" title={displaySymbol(c, { system: naming })} />
                     <span className={styles.slotHint}>Tap to change</span>
                   </button>
-                  {chords.length > 2 && <IconButton className={styles.slotRemove} icon="X" label={`Remove ${displaySymbol(c)}`} size="sm" onClick={() => removeChord(i)} />}
+                  {chords.length > 2 && <IconButton className={styles.slotRemove} icon="X" label={`Remove ${displaySymbol(c, { system: naming })}`} size="sm" onClick={() => removeChord(i)} />}
                 </div>
               ))}
               {chords.length < 4 && (
@@ -489,7 +489,7 @@ export function Trainer({ chordsFromUrl, tuning, known }: { chordsFromUrl: strin
         tuning={tuning}
         known={known}
         chosen={chords}
-        title={pickerSlot !== null && pickerSlot < chords.length ? `Swap ${displaySymbol(chords[pickerSlot])} for…` : 'Add a chord'}
+        title={pickerSlot !== null && pickerSlot < chords.length ? `Swap ${displaySymbol(chords[pickerSlot], { system: naming })} for…` : 'Add a chord'}
       />
     </div>
     </Page>

@@ -145,8 +145,11 @@ function easiestOpen(symbol: string, tuning: string): Voicing | null {
   }
 }
 
-/** Easier things to play instead of `symbol`, best first (at most four). Empty for chords that are already easy. */
-export function easierAlternatives(symbol: string, tuning = 'standard'): Alternative[] {
+/**
+ * Easier things to play instead of `symbol`, best first (at most four). Empty for chords that are
+ * already easy. `show` writes chord names into the text (the learner's note naming; letters by default).
+ */
+export function easierAlternatives(symbol: string, tuning = 'standard', show: (symbol: string) => string = (s) => displaySymbol(s)): Alternative[] {
   const c = parseChord(symbol);
   if (!c) return [];
   const standard = standardVoicing(c.symbol, tuning);
@@ -154,7 +157,7 @@ export function easierAlternatives(symbol: string, tuning = 'standard'): Alterna
   const simpler = simplerChord(c.symbol);
   if (!hard && !simpler) return [];
   const bar = standard?.difficulty ?? 10;
-  const name = displaySymbol(c.symbol);
+  const name = show(c.symbol);
   const out: Alternative[] = [];
 
   // 1. An easier shape of the same chord.
@@ -181,7 +184,7 @@ export function easierAlternatives(symbol: string, tuning = 'standard'): Alterna
       if (!sub) continue;
       const v = easiestOpen(sub, tuning);
       if (!v || v.difficulty >= bar - 0.5) continue;
-      const subName = displaySymbol(sub);
+      const subName = show(sub);
       out.push({
         kind: 'substitute',
         title: `${subName} instead`,
@@ -199,7 +202,7 @@ export function easierAlternatives(symbol: string, tuning = 'standard'): Alterna
   if (simpler) {
     const v = defaultVoicing(simpler, tuning);
     if (v && (v.difficulty < bar || c.type.tier >= 3 || c.bass)) {
-      const simpleName = displaySymbol(simpler);
+      const simpleName = show(simpler);
       out.push({
         kind: 'simplify',
         title: `Play ${simpleName}`,
@@ -220,7 +223,7 @@ export function easierAlternatives(symbol: string, tuning = 'standard'): Alterna
       const capo = suggestCapo([c.symbol], { tuning }).find((s) => s.capo >= 1 && s.capo <= 7 && s.shapes[0]?.easy && s.shapes[0].voicing);
       const shape = capo?.shapes[0];
       if (capo && shape && shape.voicing) {
-        const shapeName = displaySymbol(shape.shape);
+        const shapeName = show(shape.shape);
         out.push({
           kind: 'capo',
           title: `Capo ${capo.capo}, ${shapeName} shape`,
@@ -241,7 +244,7 @@ export function easierAlternatives(symbol: string, tuning = 'standard'): Alterna
     const power = parseChord(`${c.root}5`);
     const v = power ? defaultVoicing(power.symbol, tuning) : null;
     if (power && v && v.difficulty < bar) {
-      const powerName = displaySymbol(power.symbol);
+      const powerName = show(power.symbol);
       out.push({
         kind: 'power',
         title: `${powerName}, the power chord`,
