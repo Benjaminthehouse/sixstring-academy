@@ -4,14 +4,34 @@
  * Must be started from a tap or key press (the audio engine unlocks there).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { audioNow, normalizeClickSet, normalizeTone, playClick, pluck, strum, unlockAudio } from '@/core/audio';
+import { audioNow, normalizeClickSet, normalizeTone, playClick, playLineOverChord, pluck, startDrone, strum, unlockAudio, type PhraseNote, type PlayOptions } from '@/core/audio';
 import { soundPrefs } from '@/core/settings';
-import { soundPlan, type SoundPlan } from '../sound';
+import { soundPlan, type SoundEvent, type SoundPlan } from '../sound';
 import type { Sound } from '../types';
 import { stretchPlan } from './logic/sound';
 
 /** What is playing: nothing, the sound at speed, or slowly. */
 export type SoundSpeed = 'normal' | 'slow';
+
+/** The audio engine's options for a tab note's techniques (bend, vibrato, slides, hammer-on/pull-off). */
+export function techniqueOptions(e: SoundEvent): Partial<PlayOptions> {
+  const t = e.technique;
+  if (!t) return {};
+  const opts: Partial<PlayOptions> = {};
+  if (t.bend !== undefined) opts.bend = t.release ? { amount: t.bend, release: true } : t.bend;
+  if (t.vibrato) opts.vibrato = true;
+  if (t.legato) opts.legato = t.legato;
+  if (t.slideIn) opts.slideIn = t.slideIn;
+  if (t.slideOut) opts.slideOut = t.slideOut;
+  return opts;
+}
+
+/** The plucked events of a plan as a phrase for the engine (a line to play over a held chord). */
+export function planLine(plan: SoundPlan, tone?: PlayOptions['tone']): PhraseNote[] {
+  return plan.events
+    .filter((e) => e.type === 'pluck')
+    .flatMap((e) => e.midi.map((midi) => ({ midi, at: e.at, duration: e.duration, string: e.string, tone, ...techniqueOptions(e) })));
+}
 
 /** Schedule a plan now. Returns a function that silences it. */
 export function schedulePlan(plan: SoundPlan): () => void {
@@ -22,13 +42,23 @@ export function schedulePlan(plan: SoundPlan): () => void {
   const click = normalizeClickSet(prefs.clickSound);
   const handles: Array<{ stop: (when?: number, release?: number) => void }> = [];
   const takeBacks: Array<() => void> = [];
+  if (plan.drone) {
+    // Under the whole sound, on the audio clock: it starts with the first note and fades after the last.
+    const drone = startDrone({ root: plan.drone.midi, fifth: plan.drone.fifth, when: t0, duration: plan.duration + 0.4, fadeIn: 0.25, volume: 0.6 });
+    handles.push({ stop: () => drone.stop(0.15) });
+  }
+  if (plan.hold) {
+    // A line over a held chord: the engine holds the chord on its own voice while the line plays.
+    const phrase = playLineOverChord(plan.hold.midi, planLine(plan, tone), t0, { chordVoice: plan.hold.voice, hold: plan.duration, tone });
+    handles.push({ stop: (when) => phrase.stop(when) });
+  }
   for (const e of plan.events) {
     if (e.type === 'strum') {
       handles.push(...strum(e.midi, t0 + e.at, { tone, direction: e.direction, articulation: e.muted ? 'dead' : 'normal', duration: e.duration }));
     } else if (e.type === 'click') {
       takeBacks.push(playClick(click, e.accent ? 'accent' : 'beat', t0 + e.at));
-    } else {
-      for (const m of e.midi) handles.push(pluck(m, t0 + e.at, { tone, duration: e.duration, string: e.string }));
+    } else if (!plan.hold) {
+      for (const m of e.midi) handles.push(pluck(m, t0 + e.at, { tone, duration: e.duration, string: e.string, ...techniqueOptions(e) }));
     }
   }
   return () => {

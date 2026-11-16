@@ -76,8 +76,8 @@ describe('SongPlayer on the audio engine', () => {
     const curve = bent.playbackRate.events.filter((e) => e.kind === 'curve');
     expect(curve).toHaveLength(1);
     expect(curve[0].value).toBeCloseTo(Math.pow(2, 2 / 12), 6);
-    // The hammer-on: no new pick stroke; the string that played 3:5 at beat 3 steps up a tone at beat 4,
-    // and a soft finger attack is the only new source there.
+    // The hammer-on: the string that played 3:5 at beat 3 steps up a tone at beat 4 and hands over to
+    // one soft, pick-less note.
     const second = notes[1];
     expect(second.startedAt! - bent.startedAt!).toBeCloseTo(2, 6);
     const step = second.playbackRate.events.filter((e) => e.kind === 'set').at(-1)!;
@@ -85,9 +85,8 @@ describe('SongPlayer on the audio engine', () => {
     expect(Math.abs(step.time - (second.startedAt! + 1))).toBeLessThan(0.002);
     const atHammer = notes.filter((s) => Math.abs(s.startedAt! - (second.startedAt! + 1)) < 0.002);
     expect(atHammer).toHaveLength(1);
-    const attackGain = (atHammer[0].outputs[0] as unknown as { gain: { events: Array<{ kind: string; value: number }> } }).gain.events.find((e) => e.kind === 'set')!.value;
-    const pickGain = (second.outputs[0] as unknown as { gain: { value: number } }).gain.value;
-    expect(attackGain).toBeLessThan(pickGain);
+    const gain = (s: MockSource): number => (s.outputs[0] as unknown as { gain: { value: number } }).gain.value;
+    expect(gain(atHammer[0])).toBeLessThan(gain(second) * 0.75);
     player.dispose();
   });
 });

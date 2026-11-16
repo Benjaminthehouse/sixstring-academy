@@ -158,11 +158,17 @@ const ESTIMATE_GAPS: Record<string, { min: number; why: string }> = {
       'Eighth notes at 88 in first position: the core counts notes per second and stretches, not the string crossings with ' +
       'strict alternate picking (up-strokes landing on a new string) that make arpeggios hard.',
   },
-  'st-barre-f': {
+  // Gap note (integration pass 2): st-barre-f no longer needs an entry. It estimated 3; the core now
+  // scores the shapes written in the song (the full F barre 133211, 6.9 of 10) rather than the
+  // chord symbols, and the estimate is 4, within one of the plan's 5.
+  'st-travis-melody': {
     min: 3,
     why:
-      'Two strums a bar: the only thing the core can score is the chord shape, and it rates the full F barre (6.9 of 10) ' +
-      'together with the easy C and Am. A first full barre takes hand strength the estimate does not model.',
+      'Gap note (integration pass 2): it used to estimate 4 from two artefacts, a five-fret stretch that is not there (the ' +
+      'old hand window started at the first fretted note) and an F scored by its symbol as the full barre, though the song ' +
+      'holds the small F (xx3211). With both fixed the core scores the shapes the hand holds (C, small F, Am, G7: open ' +
+      'grips) and the fingerstyle: 3, a better estimate of what the hands do. What makes it level 5 is a melody that ' +
+      'mostly lands together with the alternating thumb, which its thumb-independence measure sees only a little of.',
   },
   'st-read-second-position': {
     min: 2,

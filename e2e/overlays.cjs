@@ -380,8 +380,12 @@ async function hold(browser, url) {
   const ctx = await open(browser, url);
   const { page } = ctx;
   await ctx.goto('learn--sound-and-pitch--a-sound-is-a-vibration', '[data-lesson-player][data-phase="step"]', 1200);
-  // A moment of news while the lesson's first card is up (a level, the daily goal, achievements).
-  await progress(page, (p) => p.recordActivity({ kind: 'theory-lesson', id: 'theory:sound-and-pitch:a-sound-is-a-vibration', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240, route: 'learn' }));
+  // A moment of news while the lesson's first card is up (a new level, the daily goal, achievements):
+  // late news of the lesson before, as when the learner went straight on.
+  await progress(page, (p) => {
+    p.recordActivity({ kind: 'theory-lesson', id: 'theory:sound-and-pitch:a-sound-is-a-vibration', title: 'A sound is a vibration', accuracy: 1, perfect: true, mistakes: 0, durationSec: 240, route: 'learn' });
+    p.awardXp(30, 'test');
+  });
   const seen = [];
   for (let i = 0; i < 8; i++) {
     seen.push(

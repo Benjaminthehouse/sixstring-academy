@@ -103,8 +103,8 @@ export interface TrackStats {
   heldVoices: number;
   /**
    * Thumb independence (0–1): the share of onsets where the fingers alone move off a steady bass
-   * pulse (a note on the two lowest strings, or marked for the thumb, on at least 70% of the beats
-   * or of the half bars), as in alternating-bass picking.
+   * pulse (a thumb stroke, on the two lowest strings, alone on the third, or marked p, on at least
+   * 70% of the beats or of the half bars), as in alternating-bass picking.
    */
   thumbVoices: number;
   /** Longest run of fast notes (onsets at most 0.2 s apart) without a break, in seconds at the written tempo. */
@@ -222,8 +222,10 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
   const shapes = new Map<string, ChordShapeStat>();
   const bassOnsets: number[] = [];
   const trebleOnly: number[] = [];
-  // The thumb's notes: the two lowest strings, or any note marked for the thumb (p).
-  const isBass = (n: Note) => n.string >= tuning.length - 1 || n.pluck === 'p';
+  // The thumb's strokes: a note on one of the two lowest strings, a lone note on the third lowest,
+  // or any note marked for the thumb (p). A group on strings 4-2 is the fingers' (i m a).
+  const thumbStrikes = (struck: Note[]) =>
+    struck.some((n) => n.pluck === 'p' || n.string >= tuning.length - 1) || (struck.length === 1 && struck[0].string >= tuning.length - 2);
 
   for (const b of beats) {
     const src = b.source;
@@ -251,7 +253,7 @@ function trackStats(song: Song, track: Track, tl = flattenSong(song)): TrackStat
       }
       // Bass pulse and treble moving around it.
       if (!src.slash) {
-        const hasBass = struck.some(isBass);
+        const hasBass = thumbStrikes(struck);
         if (hasBass) bassOnsets.push(b.tick);
         else if (struck.length) trebleOnly.push(b.tick);
       }

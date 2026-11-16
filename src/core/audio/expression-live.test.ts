@@ -100,7 +100,7 @@ describe('bends, vibrato and slides on one note', () => {
 });
 
 describe('hammer-ons, pull-offs and slides between notes', () => {
-  it('a hammer-on carries the ringing string on: its pitch steps up on the beat, the finger adds a soft attack, no new pick stroke', () => {
+  it('a hammer-on: the ringing string steps to the new fret on the beat and hands over to a soft, pick-less note', () => {
     const { ctx, engine } = runningEngine();
     const g = new GuitarSynth({ engine });
     // "5h7" on the G string: fret 5 (C4 = 60), then fret 7 hammered (D4 = 62).
@@ -108,40 +108,51 @@ describe('hammer-ons, pull-offs and slides between notes', () => {
     const first = sources(ctx)[0];
     const h = g.pluck(62, 1.3, { string: 3, duration: 0.4, legato: 'hammer' });
     expect(h.startTime).toBeCloseTo(1.3, 9);
-    // The string is still the same voice ...
-    expect(g.activeVoices).toBe(1);
-    // ... re-pitched at the hammer, on the render quantum nearest the beat (within 64 samples).
+    // The old vibration is re-pitched at the hammer, on the render quantum nearest the beat (within 64 samples) ...
     const step = rateEvents(first, 'set').at(-1)!;
     expect(step.value).toBeCloseTo(ratio(2), 9);
     expect(Math.abs(step.time - (1.3 - CHAIN))).toBeLessThanOrEqual(64 / FS + 1e-6);
-    // Its release moved from the end of the first note to the end of the second.
-    expect(first.stoppedAt!).toBeGreaterThan(1.3 + 0.4 - CHAIN);
-    expect(first.stoppedAt!).toBeLessThan(1.3 + 0.4 + 0.2);
-    // One more source: the finger's own attack, softer than a pick stroke and dying away.
+    // ... and fades under the new note over a moment (a blend, not the 4 ms cut of a new pick stroke).
+    const fade = gainOf(first).events.filter((e) => e.kind === 'target').at(-1)!;
+    expect(fade.time).toBeCloseTo(1.3 - CHAIN, 9);
+    expect(first.stoppedAt!).toBeGreaterThan(1.3 + 0.3);
+    expect(first.stoppedAt!).toBeLessThan(1.3 + 0.6);
+    // The new note: a legato rendering (no pick), softer than a pick stroke, on the beat.
     const all = sources(ctx);
     expect(all).toHaveLength(2);
-    const attack = all[1];
-    expect(attack.startedAt).toBeCloseTo(1.3 - CHAIN, 9);
-    const peak = gainOf(attack).events.find((e) => e.kind === 'set')!.value;
-    expect(peak).toBeLessThan(velocityGain(0.8) * 0.6);
-    expect(peak).toBeGreaterThan(velocityGain(0.8) * 0.3);
-    expect(attack.stoppedAt!).toBeLessThan(1.3 + 1);
+    const legato = all[1];
+    expect(legato.startedAt).toBeCloseTo(1.3 - CHAIN, 9);
+    expect(legato.buffer).not.toBe(first.buffer);
+    expect(gainOf(legato).value).toBeCloseTo(velocityGain(0.8) * 0.55, 9);
+    expect(legato.stoppedAt!).toBeLessThan(1.3 + 0.4 + 0.2);
+    // Picked instead: the same pitch at full level, and the old note released at once.
+    const p = runningEngine();
+    const g2 = new GuitarSynth({ engine: p.engine });
+    g2.pluck(60, 1, { string: 3, duration: 0.3 });
+    g2.pluck(62, 1.3, { string: 3, duration: 0.4 });
+    const [a, b] = sources(p.ctx);
+    expect(gainOf(b).value).toBeCloseTo(velocityGain(0.8), 9);
+    expect(a.stoppedAt!).toBeLessThan(first.stoppedAt! - 0.2);
+    expect(rateEvents(a, 'set')).toEqual([]);
+    expect(b.buffer).not.toBe(legato.buffer);
   });
 
-  it('a pull-off steps down; a chain of them keeps one string sounding', () => {
+  it('a pull-off steps down; every note of a hammer and pull chain is handed over the same way', () => {
     const { ctx, engine } = runningEngine();
     const g = new GuitarSynth({ engine });
     g.pluck(62, 1, { string: 3, duration: 0.25 });
     g.pluck(60, 1.25, { string: 3, duration: 0.25, legato: 'pull' });
     g.pluck(62, 1.5, { string: 3, duration: 0.25, legato: 'hammer' });
     g.pluck(60, 1.75, { string: 3, duration: 0.5, legato: 'pull' });
-    const main = sources(ctx)[0];
-    expect(rateEvents(main, 'set').map((e) => +e.value.toFixed(6))).toEqual([ratio(-2), 1, ratio(-2)].map((v) => +v.toFixed(6)));
-    expect(g.activeVoices).toBe(1);
-    // Each finger attack is cut short by the next one (the string moves on).
-    const attacks = sources(ctx).slice(1);
-    expect(attacks).toHaveLength(3);
-    expect(attacks[0].stoppedAt!).toBeLessThan(1.5 + 0.1);
+    const all = sources(ctx);
+    expect(all).toHaveLength(4);
+    // Each voice steps to the next note's pitch when that note comes.
+    expect(rateEvents(all[0], 'set').at(-1)!.value).toBeCloseTo(ratio(-2), 9);
+    expect(rateEvents(all[1], 'set').at(-1)!.value).toBeCloseTo(ratio(2), 9);
+    expect(rateEvents(all[2], 'set').at(-1)!.value).toBeCloseTo(ratio(-2), 9);
+    // A pull-off plucks the string a little: a touch louder than a hammer-on.
+    expect(gainOf(all[1]).value).toBeCloseTo(velocityGain(0.8) * 0.62, 9);
+    expect(gainOf(all[2]).value).toBeCloseTo(velocityGain(0.8) * 0.55, 9);
   });
 
   it('a slide glides the ringing string to the new fret, arriving on the beat, with no new attack', () => {
@@ -165,9 +176,19 @@ describe('hammer-ons, pull-offs and slides between notes', () => {
     const g = new GuitarSynth({ engine });
     g.pluck(60, 1, { string: 3, duration: 0.3 });
     g.pluck(62, 1.3, { string: 3, duration: 0.8, legato: 'hammer', bend: 1 });
-    const main = sources(ctx)[0];
-    const curve = rateEvents(main, 'curve').at(-1)!;
-    expect(curve.value).toBeCloseTo(ratio(3), 6);
+    const hammered = sources(ctx)[1];
+    expect(rateEvents(hammered, 'curve').at(-1)!.value).toBeCloseTo(ratio(1), 6);
+  });
+
+  it('a slide carries on through a bend that was still rising: the bend is cut where the glide begins', () => {
+    const { ctx, engine } = runningEngine();
+    const g = new GuitarSynth({ engine });
+    g.pluck(60, 1, { string: 3, bend: 2 }); // no duration: the bend curve runs on
+    g.pluck(64, 1.15, { string: 3, duration: 0.5, legato: 'slide' });
+    const [src] = sources(ctx);
+    expect(sources(ctx)).toHaveLength(1);
+    expect(rateEvents(src, 'hold').length).toBe(1);
+    expect(rateEvents(src, 'curve').at(-1)!.value).toBeCloseTo(ratio(4), 6);
   });
 
   it('with nothing ringing (first note, after a rest, another string), a hammer-on is a soft note of its own', () => {
@@ -192,14 +213,14 @@ describe('hammer-ons, pull-offs and slides between notes', () => {
     g.pluck(57, 1, { duration: 0.3 });
     g.pluck(59, 1.3, { duration: 0.3, legato: 'hammer' });
     expect(rateEvents(sources(ctx)[0], 'set').at(-1)!.value).toBeCloseTo(ratio(2), 9);
-    expect(g.activeVoices).toBe(1);
+    expect(gainOf(sources(ctx)[1]).value).toBeCloseTo(velocityGain(0.8) * 0.55, 9);
   });
 
-  it('stopping the legato note stops the string', () => {
+  it('stopping a slid-to note stops the string', () => {
     const { ctx, engine } = runningEngine();
     const g = new GuitarSynth({ engine });
     g.pluck(60, 1, { string: 3, duration: 0.3 });
-    const h = g.pluck(62, 1.3, { string: 3, legato: 'hammer' });
+    const h = g.pluck(62, 1.3, { string: 3, legato: 'slide' });
     h.stop(1.5);
     // (Stopped with the guitar's release: a 15 ms fade, and the source ends once it has faded.)
     expect(sources(ctx)[0].stoppedAt!).toBeLessThan(1.65);
@@ -246,8 +267,8 @@ describe('phrases', () => {
     const h = playPhrase(hammer, 1, { synth: g2 });
     expect(h.startTime).toBe(1);
     expect(h.endTime).toBeCloseTo(1 + 0.3 + 0.3 * 1.6, 9);
-    expect(g2.activeVoices).toBe(1);
     expect(rateEvents(sources(ctx2.ctx)[0], 'set').at(-1)!.value).toBeCloseTo(ratio(2), 9);
+    expect(gainOf(sources(ctx2.ctx)[1]).value).toBeCloseTo(velocityGain(0.8) * 0.55, 9);
     expect(tabPhrase('5h7', 9)).toBeNull();
     expect(tabPhrase('nope', 3)).toBeNull();
     // Drop D: the low string is a tone lower.

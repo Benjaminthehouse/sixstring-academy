@@ -8,7 +8,7 @@ import { chordVoicings, midiAt, tryBuildVoicing, tuning as resolveTuning } from 
 import { chordMidi, getScale, interval, parseChord, parseInterval, parseNote, scaleMidi } from '@/core/theory';
 import { TEMPO_LIMITS } from './limits';
 import { parseDuration, parseRhythm, parseStrum, tickSeconds } from './rhythm';
-import type { FretsInput, Sound, TabNote } from './types';
+import type { FretsInput, Sound, SoundDrone, SoundOver, TabNote, TabTechnique } from './types';
 
 /** One thing to schedule. Times are seconds from the start of the sound. */
 export interface SoundEvent {
@@ -27,6 +27,8 @@ export interface SoundEvent {
   accent?: boolean;
   /** The string a plucked note is played on, when known (tab). */
   string?: number;
+  /** How a tab note is played: bend, vibrato, hammer-on/pull-off/slide from the note before, slide in or out. */
+  technique?: TabTechnique;
 }
 
 /** A sound resolved to events. */
@@ -36,6 +38,10 @@ export interface SoundPlan {
   duration: number;
   /** Beats per minute the plan was laid out at. */
   tempo: number;
+  /** A drone under the whole sound (sounding MIDI root; the engine folds it into a comfortable register). */
+  drone?: { midi: number; fifth: boolean };
+  /** A chord held under the whole sound while its notes play over it. */
+  hold?: { midi: number[]; voice: 'guitar' | 'epiano' | 'organ' };
 }
 
 const DEFAULT_TEMPO: Record<Sound['kind'], number> = {
@@ -90,24 +96,111 @@ function noteWithOctave(name: string, what: string): string[] {
   return [];
 }
 
-/** Problems of a tab phrase: positions that do not exist and durations that do not parse. */
-export function tabProblems(notes: readonly TabNote[], opts: { tuning?: string; capo?: number } = {}): string[] {
+const TECHNIQUE_KEYS = ['bend', 'release', 'vibrato', 'legato', 'slideIn', 'slideOut'] as const;
+
+/** True when a tab note carries any technique (bend, slide, hammer-on ...). */
+export function hasTechnique(note: TabNote): boolean {
+  if ('rest' in note) return false;
+  return TECHNIQUE_KEYS.some((k) => (note as TabTechnique)[k] !== undefined);
+}
+
+/** Problems of one note's techniques, given the note sounding just before it (null after a rest or at the start). */
+function techniqueProblems(n: { string: number; fret: number } & TabTechnique, prev: { string: number; fret: number } | null, index: number): string[] {
+  const problems: string[] = [];
+  const at = `Note ${index + 1}`;
+  if (n.bend !== undefined && !(Number.isFinite(n.bend) && n.bend >= 0.5 && n.bend <= 3 && Number.isInteger(n.bend * 2))) {
+    problems.push(`${at} bends by ${n.bend}. A bend is 0.5 to 3 semitones in halves: 2 is a full bend, 1 a half, 0.5 a quarter tone.`);
+  }
+  if (n.release !== undefined && n.bend === undefined) problems.push(`${at} has "release" without a bend. Add "bend" (how far it goes up first), or leave "release" out.`);
+  if (n.legato !== undefined) {
+    if (n.legato !== 'hammer' && n.legato !== 'pull' && n.legato !== 'slide') {
+      problems.push(`${at} has the legato "${String(n.legato)}". Use hammer, pull or slide.`);
+    } else if (!prev || prev.string !== n.string) {
+      problems.push(`${at} is a ${n.legato === 'hammer' ? 'hammer-on' : n.legato === 'pull' ? 'pull-off' : 'slide'}, but the note just before it is not ringing on string ${n.string}. A legato note comes from the note right before it on the same string, with no rest between.`);
+    } else if (n.legato === 'hammer' && !(n.fret > prev.fret)) {
+      problems.push(`${at} hammers on from fret ${prev.fret} to fret ${n.fret}. A hammer-on goes to a higher fret; going down is a pull-off.`);
+    } else if (n.legato === 'pull' && !(n.fret < prev.fret)) {
+      problems.push(`${at} pulls off from fret ${prev.fret} to fret ${n.fret}. A pull-off goes to a lower fret; going up is a hammer-on.`);
+    } else if (n.legato === 'slide' && (n.fret === prev.fret || n.fret === 0 || prev.fret === 0)) {
+      problems.push(`${at} slides from fret ${prev.fret} to fret ${n.fret}. A slide moves a fretting finger between two different fretted notes (not to or from an open string).`);
+    }
+  }
+  if (n.slideIn !== undefined) {
+    if (n.slideIn !== 'below' && n.slideIn !== 'above') problems.push(`${at} slides in from "${String(n.slideIn)}". Use below or above.`);
+    else if (n.fret === 0) problems.push(`${at} slides into an open string, which a finger cannot do. Slide into a fretted note.`);
+    if (n.legato !== undefined) problems.push(`${at} has both "slideIn" and "legato". Pick one: slideIn starts from nowhere in particular, legato from the note before.`);
+  }
+  if (n.slideOut !== undefined) {
+    if (n.slideOut !== 'down' && n.slideOut !== 'up') problems.push(`${at} slides out "${String(n.slideOut)}". Use down or up.`);
+    else if (n.fret === 0) problems.push(`${at} slides off an open string, which a finger cannot do. Slide off a fretted note.`);
+  }
+  if (n.vibrato !== undefined && typeof n.vibrato !== 'boolean') problems.push(`${at} has the vibrato "${String(n.vibrato)}". Write vibrato: true.`);
+  return problems;
+}
+
+/**
+ * Problems of a tab phrase: positions that do not exist, durations that do not parse, and
+ * techniques that cannot be played (a hammer-on from a different string, a bend of 7 semitones).
+ * With `techniques: false` (play-phrase targets) any technique is a problem.
+ */
+export function tabProblems(notes: readonly TabNote[], opts: { tuning?: string; capo?: number; techniques?: boolean } = {}): string[] {
   const problems: string[] = [];
   const t = tuningOrNull(opts.tuning);
   if (!t) return [`"${opts.tuning}" is not a tuning the guitar engine knows. Use an id such as standard or drop-d.`];
   const maxFret = 22 - (opts.capo ?? 0);
   if (notes.length === 0) problems.push('The phrase has no notes. Add at least one { string, fret, duration }.');
+  let prev: { string: number; fret: number } | null = null;
   notes.forEach((n, index) => {
     if (!parseDuration(n.duration) || parseDuration(n.duration)!.tied) {
       problems.push(`Note ${index + 1} has the duration "${n.duration}", which is not a duration code. Use w h q e s, optionally with "." or "t".`);
     }
-    if ('rest' in n) return;
+    if ('rest' in n) {
+      prev = null;
+      return;
+    }
     if (!Number.isInteger(n.string) || n.string < 1 || n.string > t.stringCount) {
       problems.push(`Note ${index + 1} is on string ${n.string}, but ${t.name} tuning has strings 1 to ${t.stringCount}. String 1 is the thinnest.`);
     } else if (!Number.isInteger(n.fret) || n.fret < 0 || n.fret > maxFret) {
       problems.push(`Note ${index + 1} is at fret ${n.fret}, which is not on the neck (0 to ${maxFret}). Fret 0 is the open string.`);
+    } else if (hasTechnique(n)) {
+      if (opts.techniques === false) {
+        problems.push(`Note ${index + 1} has a technique (bend, slide, hammer-on, vibrato). The listener hears a bend or a slide as other notes: show techniques in a tab figure or a tab sound, and ask for plain notes here.`);
+      } else {
+        problems.push(...techniqueProblems(n, prev, index));
+      }
     }
+    prev = { string: n.string, fret: n.fret };
   });
+  return problems;
+}
+
+function droneProblems(drone: SoundDrone | undefined): string[] {
+  if (drone === undefined) return [];
+  if (!drone || typeof drone !== 'object' || typeof drone.root !== 'string') return ['"drone" must be { root: "D3" } (a note with its octave), optionally with fifth: true.'];
+  const problems = noteWithOctave(drone.root, 'the drone root');
+  if (drone.fifth !== undefined && typeof drone.fifth !== 'boolean') problems.push('"drone.fifth" must be true or false.');
+  return problems;
+}
+
+function overProblems(over: SoundOver | undefined, kind: Sound['kind'], together: boolean, opts: { tuning?: string; capo?: number } = {}): string[] {
+  if (over === undefined) return [];
+  if (!over || typeof over !== 'object' || typeof over.chord !== 'string') return ['"over" must be { chord: "Am" } (a chord symbol), optionally with frets and voice.'];
+  if (!parseChord(over.chord)) return [`"${over.chord}" (the chord under the line) is not a chord symbol. Write it like Am, G7 or Cmaj7.`];
+  const problems: string[] = [];
+  if (over.frets !== undefined && !chordSoundMidi(over.chord, { frets: over.frets, tuning: opts.tuning, capo: opts.capo })) {
+    problems.push(`The shape ${JSON.stringify(over.frets)} is not a voicing of ${over.chord}. Check each fret, or leave "frets" out to use the library shape.`);
+  }
+  if (over.voice !== undefined && over.voice !== 'guitar' && over.voice !== 'epiano' && over.voice !== 'organ') problems.push(`"over.voice" is "${String(over.voice)}". Use guitar, epiano or organ.`);
+  if (kind === 'notes' && together) problems.push('A chord held under notes played together is just a bigger chord. Leave out "together", or "over".');
+  return problems;
+}
+
+/** Problems of what sounds under a line: a drone or a held chord (one of them, not both). */
+function underProblems(sound: Sound): string[] {
+  const drone = 'drone' in sound ? sound.drone : undefined;
+  const over = 'over' in sound ? sound.over : undefined;
+  const problems = [...droneProblems(drone), ...overProblems(over, sound.kind, sound.kind === 'notes' && sound.together === true, sound.kind === 'tab' ? sound : {})];
+  if (drone !== undefined && over !== undefined) problems.push('The sound has both a drone and a chord under it. Pick one: "drone" for a single held note, "over" for a chord.');
   return problems;
 }
 
@@ -117,12 +210,12 @@ export function soundProblems(sound: Sound): string[] {
     case 'notes': {
       const problems = sound.notes.flatMap((n) => noteWithOctave(n, 'each note'));
       if (sound.notes.length === 0) problems.push('The sound has no notes. List at least one note with its octave.');
-      return [...problems, ...tempoProblem(sound.tempo)];
+      return [...problems, ...tempoProblem(sound.tempo), ...underProblems(sound)];
     }
     case 'interval': {
       const problems = noteWithOctave(sound.from, 'the starting note');
       if (!parseInterval(sound.interval)) problems.push(`"${sound.interval}" is not an interval. Write it like m3, P5 or M7.`);
-      return problems;
+      return [...problems, ...underProblems(sound)];
     }
     case 'chord': {
       if (!parseChord(sound.chord)) return [`"${sound.chord}" is not a chord symbol. Write it like Am, G7 or Cmaj7.`];
@@ -134,7 +227,7 @@ export function soundProblems(sound: Sound): string[] {
     case 'scale': {
       const problems = noteWithOctave(sound.tonic, 'the tonic');
       if (!getScale(sound.scale)) problems.push(`"${sound.scale}" is not a scale id. Use an id from the theory engine such as major, minor or minor-pentatonic.`);
-      return [...problems, ...tempoProblem(sound.tempo)];
+      return [...problems, ...tempoProblem(sound.tempo), ...underProblems(sound)];
     }
     case 'strum': {
       const problems = parseChord(sound.chord) ? [] : [`"${sound.chord}" is not a chord symbol. Write it like Am, G7 or Cmaj7.`];
@@ -154,7 +247,7 @@ export function soundProblems(sound: Sound): string[] {
       return problems;
     }
     case 'tab':
-      return [...tabProblems(sound.notes, sound), ...tempoProblem(sound.tempo)];
+      return [...tabProblems(sound.notes, sound), ...tempoProblem(sound.tempo), ...underProblems(sound)];
     default:
       return [`"${String((sound as { kind?: unknown }).kind)}" is not a sound kind. Use notes, interval, chord, scale, strum, progression, rhythm or tab.`];
   }
@@ -255,12 +348,16 @@ export function soundPlan(sound: Sound): SoundPlan {
       for (const n of sound.notes) {
         const d = parseDuration(n.duration)!;
         if (!('rest' in n)) {
+          const technique = techniqueOf(n);
+          // A hammer-on, pull-off or legato slide carries on the note before: keep that one ringing into it.
+          if (technique?.legato && events.length > 0) events[events.length - 1].duration += LEGATO_OVERLAP;
           events.push({
             at: tickSeconds(tick, tempo),
             type: 'pluck',
             midi: [midiAt({ string: n.string, fret: n.fret }, { tuning: sound.tuning, capo: sound.capo })],
             duration: tickSeconds(d.ticks, tempo),
             string: n.string,
+            ...(technique ? { technique } : {}),
           });
         }
         tick += d.ticks;
@@ -269,11 +366,41 @@ export function soundPlan(sound: Sound): SoundPlan {
     }
   }
   const duration = events.reduce((end, e) => Math.max(end, e.at + e.duration), 0);
-  return { events, duration, tempo };
+  const plan: SoundPlan = { events, duration, tempo };
+  const drone = 'drone' in sound ? sound.drone : undefined;
+  if (drone) plan.drone = { midi: parseNote(drone.root)!.midi!, fifth: drone.fifth === true };
+  const over = 'over' in sound ? sound.over : undefined;
+  if (over) {
+    const midi = chordSoundMidi(over.chord, { frets: over.frets, ...(sound.kind === 'tab' ? { tuning: sound.tuning, capo: sound.capo } : {}) });
+    if (midi) plan.hold = { midi, voice: over.voice ?? 'guitar' };
+  }
+  return plan;
 }
 
-/** A short description of a sound for screen readers and logs ("C3 then E3", "A minor chord"). */
+/** Seconds a note keeps ringing past the next one's start when that next one is hammered, pulled or slid from it. */
+const LEGATO_OVERLAP = 0.08;
+
+/** The techniques written on a tab note, or null for a plain note. */
+function techniqueOf(n: { string: number; fret: number } & TabTechnique): TabTechnique | null {
+  const t: TabTechnique = {};
+  if (n.bend !== undefined) t.bend = n.bend;
+  if (n.release) t.release = true;
+  if (n.vibrato) t.vibrato = true;
+  if (n.legato !== undefined) t.legato = n.legato;
+  if (n.slideIn !== undefined) t.slideIn = n.slideIn;
+  if (n.slideOut !== undefined) t.slideOut = n.slideOut;
+  return Object.keys(t).length > 0 ? t : null;
+}
+
+/** A short description of a sound for screen readers and logs ("two notes", "a scale over a drone"). */
 export function describeSound(sound: Sound): string {
+  const what = describeLine(sound);
+  if ('drone' in sound && sound.drone) return `${what} over a drone`;
+  if ('over' in sound && sound.over) return `${what} over a chord`;
+  return what;
+}
+
+function describeLine(sound: Sound): string {
   switch (sound.kind) {
     case 'notes': {
       const n = sound.notes.length;

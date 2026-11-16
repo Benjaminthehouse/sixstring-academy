@@ -192,8 +192,43 @@ export interface RhythmFigure extends RhythmSpec {
 /** How the targets of a play exercise are labelled: by note name (`E2`) or by place (`string 6, open`). */
 export type PlayLabels = 'note' | 'place';
 
-/** One event of a tab phrase: a fretted note, or a rest. */
-export type TabNote = { string: number; fret: number; duration: DurationCode } | { rest: true; duration: DurationCode };
+/**
+ * How a tab note is played beyond picking a fret: heard in tab sounds, drawn in tab figures. Not
+ * for play-phrase targets (the listener hears a bend or a slide as other pitches).
+ */
+export interface TabTechnique {
+  /** Bend up by this many semitones: 2 is a full bend, 1 a half, 0.5 a quarter tone (0.5 to 3, in halves). */
+  bend?: number;
+  /** Let the bend back down before the note ends. Needs `bend`. */
+  release?: boolean;
+  /** Shake the note once it has spoken. */
+  vibrato?: boolean;
+  /** Sounded from the note just before on the same string, without a new pick: hammer up, pull down, or slide. */
+  legato?: 'hammer' | 'pull' | 'slide';
+  /** Slide into the note from a few frets below or above. */
+  slideIn?: 'below' | 'above';
+  /** Slide off the note as it ends, down or up. */
+  slideOut?: 'down' | 'up';
+}
+
+/** One event of a tab phrase: a fretted note (with optional techniques), or a rest. */
+export type TabNote = ({ string: number; fret: number; duration: DurationCode } & TabTechnique) | { rest: true; duration: DurationCode };
+
+/** A drone under a sound: a root note with its octave (`'D3'`), optionally with its fifth. */
+export interface SoundDrone {
+  root: string;
+  /** Add the perfect fifth above the root. Default false (the root alone, so intervals stay clear). */
+  fifth?: boolean;
+}
+
+/** A chord held under a melodic sound (a line over a chord). */
+export interface SoundOver {
+  chord: string;
+  /** A guitar shape for the chord (default: the library voicing). */
+  frets?: FretsInput;
+  /** What holds it: a second guitar (default), electric piano or organ. */
+  voice?: 'guitar' | 'epiano' | 'organ';
+}
 
 /** A short phrase in tablature. */
 export interface TabFigure {
@@ -214,22 +249,22 @@ export interface TabFigure {
  * only schedules plucks, strums and clicks.
  */
 export type Sound =
-  /** Notes with octaves, one after another (or all at once with `together`). */
-  | { kind: 'notes'; notes: string[]; together?: boolean; tempo?: number }
-  /** Two notes an interval apart. */
-  | { kind: 'interval'; from: string; interval: string; play?: 'up' | 'down' | 'together' }
+  /** Notes with octaves, one after another (or all at once with `together`); over a drone or a held chord. */
+  | { kind: 'notes'; notes: string[]; together?: boolean; tempo?: number; drone?: SoundDrone; over?: SoundOver }
+  /** Two notes an interval apart; optionally over a drone. */
+  | { kind: 'interval'; from: string; interval: string; play?: 'up' | 'down' | 'together'; drone?: SoundDrone }
   /** A chord: as a guitar voicing (default) or in close position from `octave` (best for comparing qualities). */
   | { kind: 'chord'; chord: string; frets?: FretsInput; voicing?: 'guitar' | 'close'; octave?: number; style?: 'strum' | 'arpeggio' | 'block' }
-  /** A scale from a tonic with an octave (`A2`). */
-  | { kind: 'scale'; tonic: string; scale: string; direction?: 'up' | 'down' | 'up-down'; tempo?: number }
+  /** A scale from a tonic with an octave (`A2`); over a drone (hear each degree against the tonic) or a held chord. */
+  | { kind: 'scale'; tonic: string; scale: string; direction?: 'up' | 'down' | 'up-down'; tempo?: number; drone?: SoundDrone; over?: SoundOver }
   /** A strumming pattern on one chord: `'D-DU-UDU'` (D down, U up, X muted, - miss). */
   | { kind: 'strum'; chord: string; pattern: string; grid?: 'eighth' | 'sixteenth'; tempo?: number; repeat?: number }
   /** A chord progression, strummed once per `beats`. */
   | { kind: 'progression'; chords: string[]; tempo?: number; beats?: number; voicing?: 'guitar' | 'close' }
   /** A rhythm clicked out. */
   | { kind: 'rhythm'; pattern: string; time?: string; tempo?: number }
-  /** A tab phrase. */
-  | { kind: 'tab'; notes: TabNote[]; tempo?: number; tuning?: string; capo?: number };
+  /** A tab phrase (bends, slides, hammer-ons, vibrato as written on its notes); over a drone or a held chord. */
+  | { kind: 'tab'; notes: TabNote[]; tempo?: number; tuning?: string; capo?: number; drone?: SoundDrone; over?: SoundOver };
 
 /** A play button: notes, a chord, a strum pattern, a progression ... */
 export interface AudioFigure {

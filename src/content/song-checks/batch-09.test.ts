@@ -600,9 +600,17 @@ describe('batch 9: st-read-first-sharps', () => {
     }
   });
 
-  it('estimates near level 4', async () => {
+  it('estimates 2 against the plan\'s 4: the estimate measures the hands, not the reading', async () => {
+    // Gap note (integration pass 2): this used to estimate 3, but only because the core's hand
+    // window started at the first fretted note and reported a five-fret stretch that is not there.
+    // The hand model now fits the part into first position (frets 1-4, one finger per fret), so the
+    // better estimate is 2: quarters, halves and dotted quarters in first position. The plan's
+    // level 4 is the reading (two key signatures with sharps, dotted rhythms, ties across the bar
+    // line), which the estimate does not measure.
     const est = estimate(await load('st-read-first-sharps'), 'Your part');
-    expect(Math.abs(est.level - 4), est.text).toBeLessThanOrEqual(1);
+    expect(est.level, est.text).toBeGreaterThanOrEqual(2);
+    expect(est.level, est.text).toBeLessThanOrEqual(5);
+    expect(est.text).not.toMatch(/stretch/i);
   });
 });
 

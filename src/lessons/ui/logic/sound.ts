@@ -13,7 +13,8 @@ export function stretchPlan(plan: SoundPlan, factor = 1): SoundPlan {
   const f = Number.isFinite(factor) && factor > 0 ? factor : 1;
   if (f === 1) return plan;
   const events: SoundEvent[] = plan.events.map((e) => ({ ...e, at: e.at * f, duration: e.duration * f }));
-  return { events, duration: plan.duration * f, tempo: plan.tempo / f };
+  // A drone or a held chord stays under the slowed line (it lasts as long as the plan).
+  return { ...plan, events, duration: plan.duration * f, tempo: plan.tempo / f };
 }
 
 /** True when a slow button makes sense: more than one moment in time (a melody, a rhythm, a strum pattern). */

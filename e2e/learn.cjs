@@ -266,7 +266,7 @@ async function runPhone(L) {
     check(group, 'and the next one is up next', (await nodeState(page, SECOND)) === 'current');
     check(group, 'the address names the unit', (await page.evaluate(() => location.hash)) === `#learn--${UNIT}`);
     const strip = await page.locator('[data-stage-jump="beginner"]').innerText();
-    check(group, 'the stage counts it', /1\/6/.test(strip), strip.replace(/\n/g, ' '));
+    check(group, 'the stage counts it (1 of all the stage\'s lessons)', /\b1\/(\d+)/.test(strip) && Number(/\b1\/(\d+)/.exec(strip)[1]) > 6, strip.replace(/\n/g, ' '));
     check(group, 'Continue now points at the second lesson', (await page.getAttribute('[data-continue]', 'data-continue')) === SECOND);
     await page.screenshot({ path: path.join(OUT, 'learn-phone-after.png') });
 
