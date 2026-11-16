@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMAZING_GRACE, CAMPFIRE_GROOVE, ODE_TO_JOY, TECHNIQUE_SAMPLER } from './examples';
-import { buildPlayEvents, type PlayNote, type PlayStrum } from './schedule';
+import { buildPlayEvents, strumVelocity, type PlayNote, type PlayStrum } from './schedule';
 import { sixTab } from './sixtab-parse';
 import { SongPlayer, type SongPlayerEvent, type SongPlayerOutput } from './song-player';
 import { flattenSong } from './timeline';
@@ -43,25 +43,62 @@ function setup(text: string, opts: { countInBars?: number; metronome?: boolean }
 }
 
 describe('playback schedule', () => {
-  it('joins ties, softens legato, lifts harmonics and steps through bends', () => {
+  it('joins ties, softens legato, lifts harmonics, and hands every technique to the guitar voice', () => {
     const events = buildPlayEvents(flattenSong(sixTab(TECHNIQUE_SAMPLER)));
     const notes = events.filter((e): e is PlayNote => e.kind === 'note');
-    const tie = notes.find((n) => n.tick === 4 * 3840 && n.string === 4)!;
+    const at = (tick: number, string?: number): PlayNote => notes.find((n) => n.tick === tick && (string === undefined || n.string === string))!;
+    const tie = at(4 * 3840, 4);
     expect(tie.ticks).toBe(3840);
     expect(notes.some((n) => n.tick === 4 * 3840 + 1920 && n.string === 4)).toBe(false);
-    const hammer = notes.find((n) => n.tick === 480)!;
-    expect(hammer.velocity).toBeLessThan(0.78);
-    const harmonic = notes.find((n) => n.tick === 2 * 3840)!;
+    // | e 3:5 3:7h 3:5p 3:7 s 3:9s 3:7s ...: a hammer-on, a pull-off, slides up and down, softer than a pick.
+    expect(at(480)).toMatchObject({ midi: 62, legato: 'hammer' });
+    expect(at(480).velocity).toBeLessThan(0.78);
+    expect(at(960)).toMatchObject({ midi: 60, legato: 'pull' });
+    expect(at(1440).legato).toBeUndefined();
+    expect(at(1920)).toMatchObject({ midi: 64, legato: 'slide' });
+    expect(at(2160)).toMatchObject({ midi: 62, legato: 'slide' });
+    const harmonic = at(2 * 3840);
     expect(harmonic).toMatchObject({ midi: 76, articulation: 'harmonic' });
-    const dead = notes.find((n) => n.tick === 2 * 3840 + 2880)!;
+    const dead = at(2 * 3840 + 2880);
     expect(dead.articulation).toBe('dead');
-    // 3:7b2r in bar 1 (tick 2880): the note, a soft step up two semitones, a step back down.
-    expect(notes.filter((n) => n.tick >= 2880 && n.tick < 3840).map((n) => n.midi)).toEqual([62, 64, 62]);
+    // 3:7b2r in bar 0 (tick 2880): one note that bends up a whole tone and comes back (the voice glides).
+    expect(notes.filter((n) => n.tick >= 2880 && n.tick < 3840)).toHaveLength(1);
+    expect(at(2880)).toMatchObject({ midi: 62, bend: { amount: 2, release: true } });
+    expect(at(3840)).toMatchObject({ midi: 67, bend: { amount: 1 } });
+    expect(at(4800)).toMatchObject({ vibrato: true });
     const pm = events.find((e) => e.tick === 3840 + 1920)!;
     expect(pm.kind).toBe('note');
     expect((pm as PlayNote).articulation).toBe('palm-mute');
-    const pre = notes.find((n) => n.tick === 7 * 3840 + 960)!;
-    expect(pre.cents).toBe(200);
+    // Bar 3: /4:7 slides in from below, 4:7\ slides out down; 3:5> is accented.
+    expect(at(3 * 3840)).toMatchObject({ slideIn: 'below' });
+    expect(at(3 * 3840 + 480)).toMatchObject({ slideOut: 'down' });
+    const accented = at(3 * 3840 + 1920);
+    expect(accented.accent).toBe(true);
+    expect(accented.velocity).toBeGreaterThan(0.78);
+    // Bar 7: \3:9 from above, a pre-bend (struck bent), a bend and release with vibrato.
+    expect(at(7 * 3840)).toMatchObject({ slideIn: 'above' });
+    const pre = at(7 * 3840 + 960);
+    expect(pre).toMatchObject({ midi: 62, bend: { amount: 2, pre: true } });
+    expect(pre.cents).toBeUndefined();
+    expect(at(7 * 3840 + 1920)).toMatchObject({ bend: { amount: 2, release: true }, vibrato: true });
+  });
+
+  it('strums with per-stroke strength: down on the beat, down between beats, up; an accent lifts any of them', () => {
+    expect(strumVelocity('down', 0, false)).toBe(0.8);
+    expect(strumVelocity('down', 480, false)).toBe(0.72);
+    expect(strumVelocity('up', 480, false)).toBe(0.62);
+    expect(strumVelocity('down', 960, true)).toBe(1);
+    const song = sixTab('title: Strokes\ntempo: 120\ntime: 4/4\n| "G" q. D e D q U D |\n');
+    song.tracks[0].measures[0].beats[2].accent = true;
+    const strums = buildPlayEvents(flattenSong(song)).filter((e): e is PlayStrum => e.kind === 'strum');
+    expect(strums.map((s) => [s.tick, s.direction, s.velocity, !!s.accent])).toEqual([
+      [0, 'down', 0.8, false], [1440, 'down', 0.72, false], [1920, 'up', 0.81, true], [2880, 'down', 0.8, false],
+    ]);
+    // beat.accent on single notes too.
+    const line = sixTab('title: Line\ntempo: 120\ntime: 4/4\n| q 3:5 3:5 3:5 3:5 |\n');
+    line.tracks[0].measures[0].beats[0].accent = true;
+    const notes = buildPlayEvents(flattenSong(line)).filter((e): e is PlayNote => e.kind === 'note');
+    expect(notes.map((n) => [!!n.accent, n.velocity])).toEqual([[true, 0.98], [false, 0.78], [false, 0.78], [false, 0.78]]);
   });
 
   it('strums slashes with the chord voicing in force', () => {
@@ -190,6 +227,30 @@ describe('SongPlayer', () => {
     player.play();
     runTo(6);
     expect(rec.notes[3].e.tick).toBe(3840);
+  });
+
+  it('tells when the first beat is heard, after the count-in, so timing can be judged against the click', () => {
+    const { player, rec, runTo, setNow } = setup(ODE_TO_JOY, { countInBars: 1 });
+    expect(player.firstBeatTime).toBeNull();
+    setNow(3);
+    player.play();
+    // Start 0.08 s from now, then one bar of count-in at 100 bpm (2.4 s).
+    expect(player.firstBeatTime).toBeCloseTo(3 + 0.08 + 2.4, 9);
+    runTo(7);
+    expect(rec.notes[0].time).toBeCloseTo(player.firstBeatTime!, 9);
+    expect(rec.clicks[0].time).toBeCloseTo(player.firstBeatTime! - 2.4, 9);
+    expect(player.audioTimeAt(960 * 4)).toBeCloseTo(player.firstBeatTime! + 2.4, 9);
+    // A seek while playing moves it to where the music lands.
+    player.seek(3840 * 4);
+    const t = player.firstBeatTime!;
+    runTo(9);
+    expect(rec.notes.find((n) => n.e.tick === 3840 * 4)!.time).toBeCloseTo(t, 9);
+    player.pause();
+    expect(player.audioTimeAt(0)).toBeNull();
+    // Without a count-in the music starts right away.
+    const b = setup(ODE_TO_JOY, { countInBars: 0 });
+    b.player.play();
+    expect(b.player.firstBeatTime).toBeCloseTo(0.08, 9);
   });
 
   it('disposes cleanly', () => {

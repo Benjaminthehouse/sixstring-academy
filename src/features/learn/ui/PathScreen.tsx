@@ -369,7 +369,8 @@ export function PathScreen({ focus }: { focus: string | null }) {
     <Page title="Theory Path" subtitle="Bite-sized theory, always on the neck. Two to five minutes a lesson." className={styles.page}>
       <div className={cx(styles.layout, wide && styles.wide)} data-learn-map="" data-layout={wide ? 'wide' : 'phone'} data-first-run={firstFirst ? '' : undefined}>
         <div className={styles.main}>
-          <StageStrip view={view} onJump={jumpToStage} />
+          {/* All three stages at 0: the first stage's own header says the same, closer to the first lesson. */}
+          {!firstFirst && <StageStrip view={view} onJump={jumpToStage} />}
           {!firstFirst && conditionsBar}
           {failed.size > 0 && (
             <div className={styles.failed} role="alert">

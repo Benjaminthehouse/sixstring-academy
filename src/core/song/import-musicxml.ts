@@ -7,6 +7,7 @@
  */
 import { keyFromSignature, normalizeChordSymbol, type KeyModeName } from '@/core/theory';
 import { arrangeTrack, type ArrangeOptions } from './arranger';
+import { importFailure, SongImportError } from './import-error';
 import { buildMeasures, type Onset, type OnsetNote } from './import-util';
 import { barCapacity, slugify, uniqueId } from './model';
 import type { Annotation, BarInfo, ChordEvent, ImportResult, ImportWarning, Section, Song, TempoChange, TimeSig, Track, TrackRole } from './types';
@@ -121,11 +122,18 @@ function partwise(root: XmlElement): XmlElement {
   return { name: 'score-partwise', attrs: root.attrs, children: [...kids(root).filter((k) => k.name !== 'measure'), ...parts.values()] };
 }
 
-/** Import MusicXML text. Throws a RangeError when the text is not MusicXML. */
+/**
+ * Import MusicXML text. Throws a `SongImportError` (a RangeError) when the text is not a MusicXML
+ * score; a damaged file throws the XML reader's own message (`Unclosed start tag.`).
+ */
 export function importMusicXml(text: string, opts: MusicXmlOptions = {}): ImportResult {
   const warnings: ImportWarning[] = [];
   const doc = partwise(parseXml(text));
-  if (doc.name !== 'score-partwise') throw new RangeError(`This XML is a <${doc.name}>, not a MusicXML score.`);
+  if (doc.name !== 'score-partwise') {
+    throw new SongImportError('This file is XML, but not a music score. Export the score from your notation program as MusicXML (.musicxml or .mxl), then try again.', {
+      format: 'musicxml', detail: `The root element is <${doc.name}>.`,
+    });
+  }
 
   const title = textOf(kid(doc, 'work'), 'work-title') || textOf(doc, 'movement-title') || kids(doc, 'credit').map((c) => textOf(c, 'credit-words')).find(Boolean) || 'Imported score';
   const ident = kid(doc, 'identification');
@@ -365,7 +373,7 @@ export function importMusicXml(text: string, opts: MusicXmlOptions = {}): Import
     parts.push(part);
   });
 
-  if (!bars.length) throw new RangeError('The MusicXML score has no measures.');
+  if (!bars.length) throw new SongImportError('The MusicXML score has no measures.', { format: 'musicxml' });
   if (graceSkipped) warnings.push({ message: `${graceSkipped} grace or cue note${graceSkipped > 1 ? 's were' : ' was'} left out.`, confidence: 0.7 });
 
   // Sections from rehearsal marks run to the next one.
@@ -531,15 +539,22 @@ function dedupeTempo(points: TempoChange[]): TempoChange[] {
 /** Import a compressed MusicXML file (.mxl): a zip whose container names the score file. */
 export async function importMxl(bytes: ArrayBuffer | Uint8Array, opts: MusicXmlOptions = {}): Promise<ImportResult> {
   const { default: JSZip } = await import('jszip');
-  const zip = await JSZip.loadAsync(bytes);
-  let path: string | undefined;
-  const container = zip.file('META-INF/container.xml');
-  if (container) {
-    const doc = parseXml(await container.async('string'));
-    path = kids(kid(doc, 'rootfiles'), 'rootfile')[0]?.attrs['full-path'];
+  let text: string;
+  try {
+    const zip = await JSZip.loadAsync(bytes);
+    let path: string | undefined;
+    const container = zip.file('META-INF/container.xml');
+    if (container) {
+      const doc = parseXml(await container.async('string'));
+      path = kids(kid(doc, 'rootfiles'), 'rootfile')[0]?.attrs['full-path'];
+    }
+    if (!path) path = Object.keys(zip.files).find((f) => /\.(musicxml|xml)$/i.test(f) && !f.startsWith('META-INF/'));
+    const file = path ? zip.file(path) : null;
+    if (!file) throw new SongImportError('This .mxl file holds no MusicXML score. Export the score again as MusicXML, then try once more.', { format: 'mxl', detail: path ? `No file at ${path}.` : 'No score file in the archive.' });
+    text = await file.async('string');
+  } catch (e) {
+    // The unzipper's words ("End of data reached … Corrupted zip?") are not for the learner.
+    throw importFailure('mxl', e);
   }
-  if (!path) path = Object.keys(zip.files).find((f) => /\.(musicxml|xml)$/i.test(f) && !f.startsWith('META-INF/'));
-  const file = path ? zip.file(path) : null;
-  if (!file) throw new RangeError('The .mxl file holds no MusicXML score.');
-  return importMusicXml(await file.async('string'), opts);
+  return importMusicXml(text, opts);
 }

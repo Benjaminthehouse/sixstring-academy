@@ -154,6 +154,7 @@ export default function RecorderScreen({ params }: RouteProps) {
   const details = useRef<{ name: string; label: string | null }>({ name: '', label: null });
   const busy = phase !== 'idle';
   useImmersive(busy, 'focus');
+  const readLevel = useCallback(() => sessionRef.current?.level() ?? { db: -Infinity, peak: 0 }, []);
 
   useInterval(() => setElapsed(sessionRef.current?.elapsedMs() ?? 0), phase === 'recording' ? 250 : null);
 
@@ -471,7 +472,7 @@ export default function RecorderScreen({ params }: RouteProps) {
             </div>
           </div>
         )}
-        <LevelMeter read={() => sessionRef.current?.level() ?? { db: -Infinity, peak: 0 }} active={busy && phase !== 'finishing'} showVerdict />
+        <LevelMeter read={readLevel} active={busy && phase !== 'finishing'} showVerdict />
       </div>
       <Button variant="ghost" iconLeft="SlidersHorizontal" onClick={() => setDialog('options')} disabled={busy} data-recorder-options-open="" className={styles.optionsButton}>
         {describePrefs(prefs)}
@@ -604,23 +605,16 @@ export default function RecorderScreen({ params }: RouteProps) {
               They disappear when you close this page. Save the ones you want as files.
             </Banner>
           )}
-          {!isMobile && (
-            <Section title="What to listen for" level={2}>
-              <ListeningTips />
-            </Section>
-          )}
+          <Section title="What to listen for" level={2} className={styles.tipsSection}>
+            <ListeningTips />
+          </Section>
         </div>
         <div className={styles.side}>
           {nowPlaying}
-          <Section title="Your takes" level={2}>
+          <Section title="Your takes" level={2} className={styles.takesSection}>
             {deviceNote}
             {takeList}
           </Section>
-          {isMobile && (
-            <Section title="What to listen for" level={2}>
-              <ListeningTips />
-            </Section>
-          )}
         </div>
       </div>
 
@@ -635,6 +629,7 @@ export default function RecorderScreen({ params }: RouteProps) {
                 {recording && <span className={styles.liveDot} aria-hidden="true" />}
                 {status}
               </p>
+              {busy && phase !== 'finishing' && <LevelMeter read={readLevel} active showVerdict={false} compact />}
             </div>
           }
         >

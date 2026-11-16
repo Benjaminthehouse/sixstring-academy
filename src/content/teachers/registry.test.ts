@@ -17,7 +17,7 @@ import { TEXT_LIMITS, assertValidCourse, formatProblems, glossaryFor, grade, loo
 // The panel's verdict words, from the engine's pure feedback module (the UI barrel also loads components).
 import { feedbackCopy } from '@/lessons/ui/logic/feedback';
 import {
-  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, THEORY_LINKS, assembleCourse, compileCourse, courseMeta, echoes, hasArt, isTaskStep, loadTeacherCourse, pickLine, recordTask, strayUnitFiles,
+  OUTLINE, PROFILES, TASK_TOOLS, TEACHER_KEYS, THEORY_LINKS, assembleCourse, compileCourse, courseMeta, echoes, hasArt, isTaskStep, loadTeacherCourse, pickLine, recordTask, resolveTaskTarget, strayUnitFiles,
   taskRoute, taskSong, theoryLinksOf, theoryTask, toolTask, writtenUnitIds, type TaskStep, type TeacherCourse, type TeacherKey, type TeacherUnit,
 } from './index';
 
@@ -34,6 +34,13 @@ const courses = new Map<TeacherKey, TeacherCourse>();
 async function course(t: TeacherKey): Promise<TeacherCourse> {
   if (!courses.has(t)) courses.set(t, await loadTeacherCourse(t));
   return courses.get(t)!;
+}
+
+const sectionCache = new Map<string, Promise<string[]>>();
+/** The section names of a library song ("Verse", "Chorus" ...). */
+function sectionsOf(song: string): Promise<string[]> {
+  if (!sectionCache.has(song)) sectionCache.set(song, loadSongText(song).then((text) => (parseSixTab(text).song?.sections ?? []).map((s) => s.name)));
+  return sectionCache.get(song)!;
 }
 
 /** Problems of a text the engine does not see (task fallbacks, milestone words). */
@@ -289,6 +296,35 @@ describe.each(TEACHER_KEYS)('the written units of %s', (teacher) => {
     }
   });
 
+  // Songs land in the library over time (The First Noel, Home on the Range, Joy to the World, Auld
+  // Lang Syne and Mo Li Hua did): a task then opens the song itself, never its fallback, and its
+  // words must fit the library's version (no chorus where the library has the verse only).
+  it('open the song itself once it is in the library, and describe the version the library has', async () => {
+    const tc = await course(teacher);
+    const problems: string[] = [];
+    for (const unit of tc.units) {
+      for (const lesson of unit.lessons) {
+        for (const step of lesson.steps) {
+          if (!isTaskStep(step)) continue;
+          const song = taskSong(step);
+          if (!song || !songEntry(song)) continue;
+          const where = `${lesson.id} > ${step.id}`;
+          const r = resolveTaskTarget(step, { songAvailable: true, toolAvailable: (t) => !!ROUTE_BY_NAME[TASK_TOOLS[t.tool].route] });
+          if (r.fallback || taskSong(r.target) !== song) problems.push(`${where}: opens ${JSON.stringify(r.target)} instead of ${song}`);
+          const sections = (await sectionsOf(song)).map((n) => n.toLowerCase());
+          const words = `${step.title} ${step.body} ${step.tip ?? ''}`;
+          // Only songs in verse form: in a blues a "chorus" is one time through the form, and a
+          // rondo's "refrain" is its returning theme, whatever the sections are called.
+          if (!sections.some((s) => s.includes('verse'))) continue;
+          for (const [name, re] of [['chorus', /\bchorus\b/i], ['verse 2', /\bverse 2\b/i]] as const) {
+            if (re.test(words) && !sections.some((s) => s.includes(name))) problems.push(`${where}: mentions the ${name}, but ${song} in the library has ${sections.join(', ')}`);
+          }
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
   it('end each unit with a performance the microphone can hear, and a celebration', async () => {
     const tc = await course(teacher);
     const glossary = glossaryFor(tc.course);
@@ -304,6 +340,37 @@ describe.each(TEACHER_KEYS)('the written units of %s', (teacher) => {
       expect(textProblems(m.celebrate, TEXT_LIMITS.explain, glossary), `${unit.id}: celebrate`).toEqual([]);
       if (m.song) expect(songEntry(m.song), `${unit.id}: milestone song ${m.song}`).toBeTruthy();
     }
+  });
+});
+
+describe('the songs that landed in the library', () => {
+  it('are each opened by the tasks that name them, as the song itself', async () => {
+    const recovered = ['the-first-noel', 'home-on-the-range', 'joy-to-the-world', 'auld-lang-syne', 'mo-li-hua'];
+    const named = new Map<string, string[]>();
+    for (const t of TEACHER_KEYS) {
+      for (const unit of (await course(t)).units) {
+        for (const lesson of unit.lessons) {
+          for (const step of lesson.steps) {
+            if (!isTaskStep(step)) continue;
+            const r = resolveTaskTarget(step, { songAvailable: true, toolAvailable: () => true });
+            const song = taskSong(r.target);
+            if (song) named.set(song, [...(named.get(song) ?? []), `${t}/${lesson.id}/${step.id}`]);
+          }
+        }
+      }
+    }
+    for (const id of recovered) {
+      expect(songEntry(id), id).toBeTruthy();
+      expect(named.get(id)?.length ?? 0, `${id} is opened by a task`).toBeGreaterThan(0);
+    }
+    // While a song is still missing, the same task falls back.
+    const mo = (await course('dev')).units.flatMap((u) => u.lessons.flatMap((l) => l.steps)).find((s) => isTaskStep(s) && s.id === 'mo-li-hua') as TaskStep | undefined;
+    expect(mo).toBeTruthy();
+    expect(resolveTaskTarget(mo!, { songAvailable: true, toolAvailable: () => true }).target.params?.[0]).toBe('mo-li-hua');
+    expect(resolveTaskTarget(mo!, { songAvailable: false, toolAvailable: () => true }).target.params?.[0]).toBe('amazing-grace');
+    expect(resolveTaskTarget(mo!, { songAvailable: null, toolAvailable: () => true }).checking).toBe(true);
+    // A tool that is not in the app falls back too, and without a fallback the task can only be skipped.
+    expect(resolveTaskTarget(mo!, { songAvailable: true, toolAvailable: (t) => t.tool !== 'player' }).unavailable).toBe(true);
   });
 });
 

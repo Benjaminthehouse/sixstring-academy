@@ -56,4 +56,38 @@ describe('SongPlayer on the audio engine', () => {
     expect(pending).toEqual([]);
     player.dispose();
   });
+
+  it('plays "5b7" as a bend and "5h7" as a hammer-on: one string, its pitch moving on the audio clock', async () => {
+    expect(await unlockAudio()).toBe(true);
+    const ctx = getEngine().ctx as unknown as MockContext;
+    // At 60 bpm a quarter is a second: 3:5 (C4) bent a whole tone, then 3:5 and a hammer-on to 3:7 (D4).
+    const song = sixTab('title: Bend and hammer\ntempo: 60\ntime: 4/4\n| h 3:5b2 q 3:5 3:7h |\n');
+    const player = new SongPlayer(song, { timer: 'manual', countInBars: 0 });
+    await player.prepare();
+    const t0 = ctx.currentTime;
+    player.play();
+    while (ctx.currentTime < t0 + 4.5) {
+      ctx.advance(0.02);
+      player.transport.process(ctx.currentTime);
+    }
+    const notes = started(ctx).filter((s) => s.startedAt! > t0 + 0.02).sort((a, b) => a.startedAt! - b.startedAt!);
+    // The bend: a playback-rate curve on the first note up to a whole tone.
+    const bent = notes[0];
+    const curve = bent.playbackRate.events.filter((e) => e.kind === 'curve');
+    expect(curve).toHaveLength(1);
+    expect(curve[0].value).toBeCloseTo(Math.pow(2, 2 / 12), 6);
+    // The hammer-on: no new pick stroke; the string that played 3:5 at beat 3 steps up a tone at beat 4,
+    // and a soft finger attack is the only new source there.
+    const second = notes[1];
+    expect(second.startedAt! - bent.startedAt!).toBeCloseTo(2, 6);
+    const step = second.playbackRate.events.filter((e) => e.kind === 'set').at(-1)!;
+    expect(step.value).toBeCloseTo(Math.pow(2, 2 / 12), 9);
+    expect(Math.abs(step.time - (second.startedAt! + 1))).toBeLessThan(0.002);
+    const atHammer = notes.filter((s) => Math.abs(s.startedAt! - (second.startedAt! + 1)) < 0.002);
+    expect(atHammer).toHaveLength(1);
+    const attackGain = (atHammer[0].outputs[0] as unknown as { gain: { events: Array<{ kind: string; value: number }> } }).gain.events.find((e) => e.kind === 'set')!.value;
+    const pickGain = (second.outputs[0] as unknown as { gain: { value: number } }).gain.value;
+    expect(attackGain).toBeLessThan(pickGain);
+    player.dispose();
+  });
 });

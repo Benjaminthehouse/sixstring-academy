@@ -177,7 +177,7 @@ or a long note; out-of-range parts move by octaves (with a warning); a pitch the
 
 ## Playback — `SongPlayer`
 ```ts
-const player = new SongPlayer(song, { metronome?, countInBars? = 1, output? = liveOutput({ tone?, bassTone?, clickSet? }) });
+const player = new SongPlayer(song, { metronome?, countInBars? = 1, output? = liveOutput({ tone?, bassTone?, clickSet?, engine? }) });
 await player.prepare();                 // after the first gesture: renders the notes ahead
 player.play(); player.pause(); player.toggle(); player.stop(); player.seek(tick); player.seekBar(4);
 player.tempoPercent = 70;               // 25–150, pitch unchanged
@@ -188,9 +188,17 @@ const off = player.subscribe((e) => {   // 'beat' {beat, time} | 'bar' | 'counti
 });
 requestAnimationFrame(() => cursorAt(player.position()));   // { state, tick, sec, index, bar, pass, beat, barProgress, countIn }
 player.beatNow('lead'); player.playRange(fromTick, toTick); player.songTimeAt(noteOn.time); player.dispose();
+player.firstBeatTime;                   // audio time the first beat of this run is heard (after the count-in; a seek moves it); null before play
+player.audioTimeAt(tick);               // audio time a song tick still ahead will be heard; null when not playing
 ```
 Notes use the guitar synth (bass tracks the bass synth), slashes strum the chord's voicing (`chord.voicing` or the engine's
-first), ties sound once, a bend is approximated by soft steps (the synth cannot glide). `buildPlayEvents(timeline)` is the pure schedule.
+first), ties sound once. Techniques are played by the guitar voice for real (`@/core/audio` "Expression"): a bend glides to its
+target (`3:5b2`, and back with `r`; `{pre}` is struck bent), `h`/`p` carry the ringing string on without a new pick stroke,
+`s` glides between frets, `~` vibrato, `/3:7` `\3:7` slide in, `3:7\` `3:7/` slide out, `{lr}` let ring. Strokes have
+per-stroke strength: a down-strum on the beat 0.8, between beats 0.72, an up-strum 0.62; `beat.accent` (the whole beat) and
+`note.accent` play it ×1.25–1.3 harder and brighter. `buildPlayEvents(timeline)` is the pure schedule (`PlayNote` carries
+`legato`, `bend`, `vibrato`, `slideIn`, `slideOut`, `accent`; `PlayStrum` `accent`, `letRing`); `strumVelocity(direction,
+tickInBar, accent)`. `liveOutput({ engine })` plays into a given (offline) engine with the player's own synths.
 
 ## Practice — `WaitMode`, `FlowMode` (pure; feed pitch events)
 ```ts

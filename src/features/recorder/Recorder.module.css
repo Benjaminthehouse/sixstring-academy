@@ -22,6 +22,32 @@
     top: calc(var(--sticky-top, 0px) + var(--sp-4));
   }
 }
+/*
+ * One column: the selected take comes first (after a take, "listen back" is the next step and its
+ * Play button must be in view), then the deck, the takes, and the listening checklist last.
+ */
+@media (max-width: 959.98px) {
+  .layout {
+    gap: var(--sp-6);
+  }
+  .main,
+  .side {
+    display: contents;
+  }
+  .player {
+    order: -1;
+  }
+  .takesSection {
+    order: 1;
+  }
+  .tipsSection {
+    order: 2;
+  }
+}
+.takesSection,
+.tipsSection {
+  min-width: 0;
+}
 
 /* ---------- The deck: name, the big button, the meter ---------- */
 .deck {
@@ -165,6 +191,10 @@
 }
 .levelCompact .levelText {
   min-height: 0;
+}
+.levelCompact .levelBar {
+  height: 0.5rem;
+  width: min(12rem, 100%);
 }
 
 /* ---------- Not available here ---------- */

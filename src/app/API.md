@@ -1,7 +1,7 @@
 # `@/app/shell` — what the app shell gives a screen
 
 ```tsx
-import { useImmersive, useScreenTitle, openStats, openOnboarding, WeekStrip } from '@/app/shell';
+import { useImmersive, useScreenTitle, useRewardHold, openStats, openOnboarding, WeekStrip } from '@/app/shell';
 ```
 
 The shell (`App.tsx` → `shell/Shell.tsx`) wraps every screen in `UIProvider` and renders it in
@@ -27,7 +27,7 @@ when only its params change. Unknown addresses are redirected to `#home`.
 
 ## Screen title
 
-The browser tab reads `<route title> · Sixstring Academy`; the phone top bar repeats the title once your `h1` has scrolled out of view. `useScreenTitle('Greensleeves')` names the particular thing on screen (pass `null` while it loads).
+The browser tab reads `<route title> · Sixstring Academy`; the phone top bar repeats the title once your `h1` has scrolled out of view, or at once when the screen's heading is hidden (`<Page hideHeader>`). It re-checks on scroll, resize and any change inside `<main>`, so a screen that hides its header part-way (the live camera view once the camera starts) gets its title in the bar at scroll 0. `useScreenTitle('Greensleeves')` names the particular thing on screen (pass `null` while it loads).
 
 ## Immersive screens
 
@@ -47,6 +47,9 @@ Immersive by default (`IMMERSIVE_ROUTES`): `play`, `camera`, `learn--<unit>--<le
 Report what happened through `core/progress` (`recordActivity`, `loseHeart`, `awardXp` …) and the shell reacts everywhere: **one reward card** per moment (XP, a met goal and streak, quests, achievements, crowns: a headline and a line for each of the rest; one piece of news alone is shown as itself, the XP as one growing "+N XP"), confetti, a dialog for a new level, a streak milestone and gold/platinum achievements, a flash when a heart is lost, warnings (saving failed, out of hearts) as toasts of their own, and the matching interface sound. Events of one moment are merged (`feedback/digest.ts`).
 The kit shows at most three toasts at once, and the shell's are news (`news: true`): they never cover an open Sheet or Modal (a results sheet, a summary dialog) but show once it closes, and wait their turn rather than push a reply off. Confetti and the sound still come at the moment itself.
 So **do not** toast XP, levels, streaks, quests or achievements yourself or fire confetti for them; show the `ActivityResult` in your own summary instead. Sounds for answers (`correct` …) are yours.
+
+**Rewards wait for the end of a lesson.** `useRewardHold(active)` (also `holdRewards()` → release, `rewardsHeld()`) while a lesson's steps are on screen, and `false` on its summary: when the hold starts, the moment that is over leaves the screen (its card was seen on the summary), and a level-up or milestone dialog nobody has answered is put away; news that arrives meanwhile waits (several moments merge, `mergePlans`), then shows when the hold ends (the next summary, or the learner leaving): dialogs first, then one card. A lost heart's flash still shows at once. The teachers' lessons hold while not done; the Theory Path holds from the moment a lesson address opens until its summary. Before this, going straight from a summary to the next lesson left "+XP / achievement / daily goal" and the level-up dialog over its first card for several seconds. Other runners that should not be interrupted (an arcade round, the practice runner) can call it the same way.
+The reward card fits the learner's text: its icons are sized in rem, its lines wrap at words (never "3 achieveme…"), and on a phone with large text (the card under 18 rem wide, `compactCard`) each line is just its title, so the card stays small over a summary.
 The shell also calls `installAudioUnlock()` and keeps the engine in line with `prefs.sound` (master volume; the `ui` bus is muted when interface sounds are off), so just call `playUi`.
 
 ## Keyboard and Back
@@ -76,3 +79,36 @@ The shell also calls `installAudioUnlock()` and keeps the engine in line with `p
 - e2e: a fresh profile gets the first-run dialog on `#home` only; click "Skip for now" or pre-seed
   `localStorage['ssa:shell.onboarding'] = '{"skipped":true}'`. The shell root carries
   `data-layout="phone|wide"` and `data-immersive="none|focus|bare"`. `node e2e/shell-smoke.cjs [--only tuner,scales]` opens every route on a phone and a desktop and fails on the error panel, sideways scroll (measure `scrollWidth` against `documentElement.clientWidth`: on touch viewports `innerWidth` grows with the overflow) or any `console.error`. `node e2e/overlays.cjs` checks toasts against sheets, the three-toast limit, bottom clearance, 200 % text, Back with a sheet open and the skip links.
+
+## Tool addresses (open a tool set up, for lessons)
+
+A lesson that sends the learner to a tool can link to it ready to go instead of listing what to
+tap. The params below follow the route name (`href('metronome', 't80', '3-4')`, or a task's
+`params`); they are slug-safe, go in any order after the fixed part, and one a tool does not know
+is ignored. Each tool applies them once per arrival, the same as setting the controls by hand (so
+they stay set), unless marked "this visit". Details and the code helpers are in each feature's
+`API.md`.
+
+| tool | address | params |
+|---|---|---|
+| Metronome | `#metronome--…` | `t80` tempo · `3-4`, `6-8`, `7-8-3-2-2` time signature (+ grouping) · `beats` `eighth` `triplet` `sixteenth` `swing` `quintuplet` `sextuplet` subdivision · `swing-60` swing % (50–75) · `accents-2-3-1` per beat, 0 silent to 3 strong · `gap-1-1` silent bars. A whole setup: what is not named goes back to plain 4/4. |
+| Chord trainer | `#chords--trainer--<chord>--<chord>…` | `minute` · `timed` · `check` (ring-true, mic) mode · `t70` tempo (40–160) · `beats-2` beats per chord (8, 4, 2, 1); a tempo or beats alone means `timed` |
+| Chord page | `#chords--<chord>[--n]` | n = the page's nth shape; the page links on to the camera ("See it on your guitar") |
+| Live camera | `#camera--chord--<slug>[--n]` | see `src/features/camera/model/address.ts` (scales, chords, songs, find-the-note) |
+| Jam | `#progressions--<id>--<key>--jam--…` | `t96` tempo · a band style id (`waltz`, `blues-shuffle` …) · `x2` times through then an ending · `hide-chart` chord names hidden until "Show the chords" (this visit) |
+| Tuner | `#tuner--…` | a tuning id or slugged name (`dadgad`, `drop-d`, `open-g`, `eb-standard`, `standard`): becomes the learner's tuning app-wide · `capo-2` (this visit) |
+| Fretboard drill | `#fretboard--drill--<id>--…` | `strings-6-5` · `frets-4-8` · `naturals` / `all-notes` (stored as the drill settings) · `note-c`, `note-f-sharp` one note to find (this round; find-the-note, find-every-note, play-the-note) |
+
+```text
+#metronome--t50--3-4--accents-2-3-1                    a sarabande, beat 2 strong
+#chords--trainer--g-major--d-7--timed--t70--beats-2     G to D7 in time
+#progressions--blues-12-bar--a--jam--t84--x2           two times through at 84
+#progressions--pop-axis--a--jam--hide-chart             chords by ear, then reveal
+#tuner--dadgad                                          retune to DADGAD
+#fretboard--drill--sprint--string-6--frets-0-3--naturals
+#fretboard--drill--find-every-note--note-c
+```
+
+Tested parsers for content checks: `parseMetronomeParams` (`@/features/metronome/model/address`),
+`trainerSetup` (`@/features/chords/model/trainer`), `parseAddress` (`@/features/progressions/model/address`),
+`parseTunerParams` (`@/features/tuner/model/address`), `parseDrillParams` (`@/features/fretboard/core/address`).

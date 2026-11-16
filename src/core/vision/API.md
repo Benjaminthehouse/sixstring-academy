@@ -30,10 +30,15 @@ const pipeline = new VisionPipeline({
 await pipeline.start(videoOrStream);   // HTMLVideoElement (playing) or MediaStream from requestCamera()
 pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worker, frame loop, own <video>
 ```
-- Frames: `requestVideoFrameCallback` (else `requestAnimationFrame`), shrunk on the GPU with
-  `createImageBitmap(video, { resizeWidth, resizeHeight })`, transferred to a module worker
-  (`vision.worker.ts`), read back there. One frame in flight; frames that arrive meanwhile are
-  dropped, and the newest dropped one is sent the moment the worker is free (nothing queues).
+- Frames: `requestVideoFrameCallback` (else `requestAnimationFrame`). Where the browser has
+  WebCodecs the camera frame is wrapped as a `VideoFrame` (about 0.1 ms here) and transferred to the
+  module worker (`vision.worker.ts`), which shrinks it to the working size and reads it
+  (`stats.transfer === 'video-frame'`); otherwise `createImageBitmap(video, { resizeWidth, resizeHeight })`
+  makes a shrunk bitmap, which is a synchronous copy and resize on the main thread (8-9 ms a frame,
+  a fifth to a third of the main thread in headless Chromium), and the bitmap is transferred
+  (`'bitmap'`); a worker that cannot read `VideoFrame`s answers once and bitmaps take over. One frame
+  in flight; frames that arrive meanwhile are dropped, and the newest dropped one is sent the moment
+  the worker is free (nothing queues).
 - Every answer carries the timestamp of its frame. `onRender`'s `pose` is the newest answer carried
   forward to the displayed frame (`PosePredictor`), the held pose while `lost`, null while `searching`.
 - Adaptive quality (`QualityController`): working width 640 → 544 → 480 when tracked frames take
@@ -46,9 +51,12 @@ pipeline.pause(); pipeline.resume(); pipeline.stop();   // stop() releases worke
 - Commands (all `Promise<boolean>`): `calibrate(pose)`, `confirmFret(point, fret)`,
   `confirmNumbering()`, `shiftNumbering(delta)`, `setOptions(changes)`, `reset()`;
   `sampleMarkerColor(point): Promise<MarkerColor | null>`. `poseAt(timeMs?)`, `latest`, `stats`
-  (`processedFps`, `offeredFps`, `workerMs`, `trackMs`, `detectMs`, `latencyMs`, `mainThreadMs`,
-  working size, dropped/skipped frames, `quality`), `mode`, `video`, `videoSize`, `isRunning`,
-  `isPaused`. `pause()` stops the frame loop (an answer still in flight is dropped); options set
+  (`processedFps`, `offeredFps`, `workerMs`, `trackMs`, `detectMs`, `latencyMs`, working size,
+  dropped/skipped frames, `quality`; main thread: `transfer`, `grabMs` = median cost of handing one
+  frame over, `mainThreadMs` = all the pipeline's main-thread work over the last 2 s (every grab,
+  also those sent when the worker answers, and the bitmap hand-off) per video frame seen,
+  `mainThreadMaxMs`, `mainThreadShare` = its share of wall-clock time), `mode`, `video`,
+  `videoSize`, `isRunning`, `isPaused`. `pause()` stops the frame loop (an answer still in flight is dropped); options set
   before `start` are kept for it.
 - Options: `worker: 'off'` (main thread), `quality: QualityOptions`, `predictor: PredictorOptions | false`,
   `stopTracksOnStop` (default false: the screen owns the stream), `createWorker`, `workerTimeoutMs`.
@@ -128,6 +136,11 @@ if (g.trust === 'auto') drawNotes(); else showLine(g.message);   // set React st
 | `check-guitar-type` | the strings in view do not match the neck model (`u.stringsSeen` = how many there seem to be); the board is never locked meanwhile | `confirm`: pick the guitar type or calibrate |
 | `calibrate` | `suggestCalibration` and nothing more specific to say | `calibrate`: offer the four taps |
 
+The `calibrate` line names no button ("Mark the neck by hand: show where the nut and the 12th fret
+are") unless the tracker is told the screen's label: `new FretboardTracker({ calibrateLabel: 'Mark the neck' })`
+(or `pipeline.setOptions({ calibrateLabel })`) gives "Tap Mark the neck and mark the nut and the 12th
+fret." (`calibrateMessage(label?)`).
+
 `trust` is `auto` only for a locked board inside the limits; a locked board outside them still
 draws (state `locked`) but is coached back inside. Calibration (`calibrate(pose)`) overrides the
 string-count check: the learner's word wins. `frameStats(frame)`, `viewStats(pose)` and
@@ -152,10 +165,31 @@ Draws: board outline (dashed while `candidate`), fret wires, fret numbers at the
 `?` when `numberingGuess`), string names behind the nut (or the first visible wire), note dots with
 labels (open strings as rings behind the nut), a pulse ring on `target` notes (static ring with
 `reducedMotion`), a fade with confidence while `lost`, and a confidence pill (five bars + a word,
-`STATE_WORDS`). `view: { width, height, mirrored?, fit?: 'fill'|'contain'|'cover' }` matches the
+`STATE_WORDS`). `view: { width, height, mirrored?, fit?: 'fill'|'contain'|'cover', crop? }` matches the
 `<video>`'s CSS; text is never mirrored. Also: `poseForDisplay`, `placeMarkers`, `displayToFrame`,
 `frameToDisplay`, `displayTransform`, `projectMarker`, `projectFretWire`, `projectString`,
 `boardOutline`, `fretSpacingPx`, `locatePixel(pose, point)` (a tap → string and fret).
+
+### Zoom to the notes (`zoom.ts`)
+On a phone held upright the strings are 6-7 px apart on screen and a dot is about 12 px across: its
+label cannot be read. `view.crop` (`CropRect`, fractions 0..1 of the frame, before mirroring) shows
+only part of the picture; every conversion above honours it.
+```ts
+const follower = new CropFollower();                        // eases the window, ignores sway (deadband 12%)
+// in onRender:
+const whole = { width, height, mirrored: true, fit: 'contain' as const };
+const target = u?.state === 'locked' ? neckCrop(pose, notes, whole) : FULL_CROP;   // FULL_CROP when the dots are already >= 11 px
+const crop = follower.update(target, timeMs, reducedMotion);
+const view = isFullCrop(crop) ? whole : { ...whole, crop };
+video.style.transformOrigin = '0 0';
+video.style.transform = videoCropTransform(view, video.videoWidth, video.videoHeight) ?? '';   // same part of the picture, mirroring included
+drawVisionOverlay(ctx, { view, pose, notes, ... });          // taps: displayToFrame(tap, view, ...)
+```
+`neckCrop(pose, notes, view, { readableRadius 11, maxZoom 3, marginFrets 1, minZoom 1.25 })`
+magnifies just enough for dots of `readableRadius` CSS px, never past the notes' frets (plus a fret
+either side, board edge to edge) nor `maxZoom`, keeping the view's shape. `cropZoom(view, w, h)`
+says how much a view magnifies. The camera screen zooms by default (Z toggles it) and shows the
+whole picture again for the marking tools.
 
 ## Assisted calibration (`calibration.ts`) — then `pipeline.calibrate(pose)`
 ```ts
@@ -198,8 +232,19 @@ const u = tracker.update(frame, timeMs);   // TrackerUpdate, plain data
 |---|---|---|
 | `searching` | no board; full detection every frame | show "point the camera at the neck" + the calibration button |
 | `candidate` | board tracked, but new (< 3 frames) or its fret numbers are a guess | draw the outline; after 1.2 s `u.question` is set: ask "Is this fret 5?" |
-| `locked` | geometry and numbering trusted; numbers survive the nut leaving the frame | draw the notes |
+| `locked` | geometry and numbering trusted; numbers survive the nut leaving the frame (and are read again after a jump, below) | draw the notes |
 | `lost` | board vanished < 1 s ago; `u.pose` is the last pose, `u.confidence` falls | fade the overlay |
+
+**Jumps.** A tracked board that moves more than half a fret cell in one frame and more than four
+times its usual motion (a cut, the camera knocked, the trackers latching onto the wires of another
+board) is searched for afresh on that frame, numbers read off the nut, inlays or markers of that
+frame alone; when the fresh detection is weaker the tracked pose stays but its numbers become a
+guess (`numberingConfidence` 0.45: the board drops to `candidate` and is re-read every frame, the
+trusted pose from before the jump voting too). Before this, a cut kept the old numbers at
+confidence 1.0 and locked a fret off until the learner fixed it (`jump.test.ts`; alt bench 'typical',
+30 seeds x 2 cut points: locked frames with wrong cells after the cut 70 of 1077 -> 10, cuts locked a
+fret off to the end 3 -> 0; the 10 left are one second guitar placed half a string off, as without a cut).
+A swaying neck moves 0.05-0.2 cells a frame; the cut measured 0.9. `diagnostics.stats.jump` marks the frame.
 
 `TrackerUpdate { state, changed, pose /* smoothed */, measured /* raw */, confidence, numberingConfirmed,
 question: { point, fret } | null, ran, reason?, ms, timeMs, searchingMs, suggestCalibration, hint, markers,
@@ -218,7 +263,7 @@ Methods: `calibrate(pose, timeMs?)`, `confirmFret(point, fret)`, `shiftNumbering
 `leftHanded` false · `markers` · `region` · `smoothing` { minCutoff 1, beta 2, speedCutoff 4,
 jumpCells 0.6 } | false · `lockConfidence` 0.6 · `unlockConfidence` 0.3 · `lockFrames` 3 ·
 `lostGraceMs` 1000 · `numberingMemoryMs` 8000 · `askAfterMs` 1200 · `suggestCalibrationAfterMs`
-6000 · `unstableLosses` 3 / `unstableWindowMs` 20000 · `detector`.
+6000 · `unstableLosses` 3 / `unstableWindowMs` 20000 · `calibrateLabel` (none) · `detector`.
 Worker protocol (`protocol.ts`): `createVisionHost(options, env)` answers `VisionRequest`s with
 `VisionResponse`s (frame / bitmap / commands with `id`, `sample-color`, `probe`); the pipeline speaks it for you.
 
@@ -236,6 +281,13 @@ median (1280 px wide) with extrapolation, 3.0-3.3 px without (each answer on its
 locks and tracks right at 22-28 frames/s with a 6.7-8 ms frame grab on the main thread; a forced
 quality drop (640 -> 544 -> 480) keeps every locked frame right; stop() leaves no worker and no
 callbacks, the page's video and track untouched; 6 rapid start/stop cycles leave nothing running.
+(That run sent bitmaps, and its main-thread figure counted only the grabs made inside the frame
+callback: most frames are sent when the worker answers, and `createImageBitmap(video, resize)` is a
+synchronous 8-9 ms copy there, 21% of the main thread in a CPU profile of headless Chromium.)
+Second integration pass, all main-thread work counted: with `VideoFrame` transfer 0.1 ms per frame
+sent, 0.1% of the main thread (bitmaps, same browser, CPU profile: 21%); the worker now shrinks the
+frame itself, 4.5 ms on an idle machine (11.6 ms median on the loaded one, where tracking took 54 ms);
+the main-thread fallback grabs a frame in about 15 ms, 27% of the main thread before tracking.
 
 **Bench (`hardening.test.ts`, `marker-mode.test.ts`; synthetic, 640x360):** still guitar under
 heavy webcam noise (read 0.025, shot 0.04, JPEG 55; seven seed sets): drawn markers move 0.002-0.005 px

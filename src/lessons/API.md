@@ -1117,6 +1117,7 @@ Two notes are named; choose the interval between them. Produces `choice`.
 |---|---|---|---|
 | `intervals` | `string[]` | P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4 | Interval pool, easiest first. |
 | `roots` | `string[]` | C G D A E F B Bb Eb F# Ab C# | Lower-note pool, easiest first. |
+| `twins` | `boolean` | false | Also offer the other name of the same size (A2 beside m3, d5 beside A4), so the letters decide. |
 
 Sample (`{ generate: 'interval-name' }`, seed 1): choice, "Which interval is it from C up to D?" → Major second
 
@@ -1138,19 +1139,20 @@ Match interval names with their size in half steps. Produces `match-pairs`.
 
 | param | type | default | meaning |
 |---|---|---|---|
-| `intervals` | `string[]` | P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4 | Interval pool, easiest first. |
+| `intervals` | `string[]` | P5 P4 M3 m3 M2 m2 P8 M6 m6 m7 M7 A4 | Interval pool, easiest first. Compound intervals (M9, P11, M13 ... up to P15) are allowed. |
 | `pairs` | `number` | 4 | Pairs per exercise, 3 to 5. |
 
 Sample (`{ generate: 'semitones-match' }`, seed 1): match-pairs, "Match each interval with its size." → Minor second = 1 half step; Minor third = 3 half steps; Perfect fourth = 5 half steps; Perfect octave = 12 half steps
 
 #### `step-up`
 
-Which note is one or more frets (half steps) above a note? Produces `choice`.
+Which note is one or more frets (half steps) above a note? Wrong options stay within the notes the pools can reach. Produces `choice`.
 
 | param | type | default | meaning |
 |---|---|---|---|
 | `steps` | `number[]` | [1, 2] | Distances in half steps to draw from (1 to 11). |
 | `roots` | `string[]` | C D E F G A B | Starting-note pool. |
+| `spelling` | `'sharps' \| 'flats'` | 'sharps' | Name the in-between notes with sharps or with flats. |
 
 Sample (`{ generate: 'step-up' }`, seed 1): choice, "On one string, which note is two frets (a whole step) above C?" → D
 
@@ -1170,7 +1172,7 @@ The notes of a scale: arrange them, complete them, or spot the outsider. Produce
 
 | param | type | default | meaning |
 |---|---|---|---|
-| `scales` | `string[]` | ['major'] | Scale ids, easiest first (5 to 7 notes). |
+| `scales` | `string[]` | ['major'] | Scale ids, easiest first (5 to 8 notes: whole-tone and diminished too). |
 | `tonics` | `string[]` | C G D F A E Bb Eb B Ab | Tonic pool, easiest first. |
 | `form` | `'order' \| 'fill' \| 'odd-one-out'` | 'order' | Arrange the notes, complete the scale, or find the note that is not in it. |
 
@@ -1219,6 +1221,7 @@ Scale degrees: which note is degree N of a key, or which degree is this note? Pr
 | `modes` | `('major' \| 'minor')[]` | ['major'] | Modes to draw keys from. |
 | `maxAccidentals` | `number` | 4 | Largest signature used, 0 to 7. |
 | `degrees` | `number[]` | [5, 3, 4, 2, 6, 7] | Degrees to ask about (1 to 7), easiest first. |
+| `keys` | `string[]` | from modes and maxAccidentals | An explicit key pool, easiest first (['C major', 'A major']). Replaces modes and maxAccidentals. |
 
 Sample (`{ generate: 'degree-in-key' }`, seed 1): choice, "What is the 5th note of the D major scale?" → A
 
@@ -1255,12 +1258,13 @@ The chords that belong to a key: which chord sits on a degree, and what quality 
 | `modes` | `('major' \| 'minor')[]` | ['major'] | Modes to draw keys from. |
 | `maxAccidentals` | `number` | 4 | Largest signature used, 0 to 7. |
 | `sevenths` | `boolean` | false | Seventh chords instead of triads. |
+| `keys` | `string[]` | from modes and maxAccidentals | An explicit key pool, easiest first (['C major', 'G major', 'A major', 'E major']). Replaces modes and maxAccidentals. |
 
 Sample (`{ generate: 'diatonic-chord' }`, seed 1): choice, "In D major, which chord is built on the 1st note of the scale?" → D
 
 #### `roman-chord`
 
-Roman numerals and the chords they stand for in a key. Produces `choice`.
+Roman numerals and the chords they stand for in a key. Borrowed (bVII, iv in major) and secondary (V/V, V7/ii) numerals are explained; others are refused. Produces `choice`.
 
 | param | type | default | meaning |
 |---|---|---|---|
@@ -1268,19 +1272,32 @@ Roman numerals and the chords they stand for in a key. Produces `choice`.
 | `numerals` | `string[]` | the diatonic triads of the key, I IV V first | Numeral pool, easiest first. |
 | `modes` | `('major' \| 'minor')[]` | ['major'] | Modes to draw keys from. |
 | `maxAccidentals` | `number` | 4 | Largest signature used, 0 to 7. |
+| `keys` | `string[]` | from modes and maxAccidentals | An explicit key pool, easiest first (['C major', 'G major', 'A major']). Replaces modes and maxAccidentals. |
 
 Sample (`{ generate: 'roman-chord' }`, seed 1): choice, "In the key of D major, which chord is I?" → D
 
-#### `interval-on-neck`
+#### `nashville`
 
-A root is shown on the fretboard: find the note an interval above it, or name the interval or degree of a second dot. Produces `fretboard-find`, `fretboard-name`.
+The Nashville number system in a major key: which chord a number is, which number a chord is, or a four-chord chart. Produces `choice`.
 
 | param | type | default | meaning |
 |---|---|---|---|
-| `intervals` | `string[]` | P5 P4 M3 m3 P8 M2 m2 M6 m6 m7 M7 A4 | Interval pool, easiest first. |
-| `ask` | `'find' \| 'name' \| 'degree'` | 'find' | Tap the note; name the interval; or name the scale degree. |
+| `ask` | `'to-chord' \| 'to-number' \| 'chart'` | 'to-chord' | Which chord a number is; which number a chord is; or which chords a four-number chart means. |
+| `keys` | `string[]` | C G D A E F Bb major | Major keys, easiest first. |
+| `numbers` | `string[]` | ['1', '4', '5', '6m', '2m', '3m', '7°'] | Numbers in play, easiest first. Also b7, 2, 57 (5 with a seventh), 1maj7, 2m7. |
+
+Sample (`{ generate: 'nashville' }`, seed 1): choice, "In D major, which chord is 1?" → D
+
+#### `interval-on-neck`
+
+A root is shown on the fretboard: find the note an interval above it, or name the interval or degree of a second dot. Compound intervals (9ths to 13ths) are named from a picture. Produces `fretboard-find`, `fretboard-name`, `choice`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `intervals` | `string[]` | P5 P4 M3 m3 P8 M2 m2 M6 m6 m7 M7 A4 | Interval pool, easiest first. Compound intervals (M9, M10, P11, M13 ... up to P15) are allowed where the neck fits them. |
+| `ask` | `'find' \| 'name' \| 'degree'` | 'find' | Tap the note; name the interval; or name the scale degree (9, 11, 13 for compound intervals). |
 | `strings` | `number[]` | [6, 5] | Strings the root may be on. |
-| `frets` | `[number, number]` | [0, 7] | Fret range used, inclusive (at least 4 frets wide). |
+| `frets` | `[number, number]` | [0, 7] | Frets the root may be on, inclusive (at least 4 frets wide). The picture widens so every answer near the root is on it. |
 
 Sample (`{ generate: 'interval-on-neck' }`, seed 1): fretboard-find, "The dot (R) is A♭. Tap the note a perfect octave above it." → A♭: string 4, fret 6; string 3, fret 1
 
@@ -1294,6 +1311,7 @@ Notes along one string: name a position, find a note, or give its fret number. P
 | `frets` | `[number, number]` | [0, 5] | Fret range, inclusive. |
 | `naturals` | `boolean` | false | Only ask about natural notes. |
 | `ask` | `'name' \| 'find' \| 'fret'` | 'name' | Name the shown position; tap the named note; or type its fret number. |
+| `spelling` | `'sharps' \| 'flats' \| 'both'` | 'sharps' | Name the in-between notes with sharps, with flats, or either (each question picks one). |
 
 Sample (`{ generate: 'note-on-string' }`, seed 1): fretboard-name, "Which note is at string 6, fret 3?" → G
 
@@ -1317,7 +1335,7 @@ Build an open chord on the fretboard by placing the fingers. Produces `chord-bui
 | `chords` | `string[]` | Em Am E A D G C Dm | Chord pool, easiest first. Each needs a shape in the chord library. |
 | `accept` | `'any-voicing' \| 'this-shape'` | 'any-voicing' | Accept any correct voicing, or only the library shape. |
 
-Sample (`{ generate: 'chord-shape' }`, seed 1): chord-build, "Build A: put your fingers on the fretboard." → A: x02220
+Sample (`{ generate: 'chord-shape' }`, seed 1): chord-build, "Build A: put your fingers on the fretboard." → A
 
 #### `neck-tones`
 
@@ -1345,6 +1363,43 @@ Play a note of a string into the microphone. Falls back to tapping it on the fre
 | `naturals` | `boolean` | true | Only natural notes. |
 
 Sample (`{ generate: 'play-note' }`, seed 1): play-note, "Play the open 3rd string: G." → G3
+
+#### `caged-shape`
+
+A chord shape is drawn up the neck: name its CAGED shape, or the chord it plays. Produces `choice`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'shape' \| 'chord'` | 'shape' | Which CAGED shape it is; or which chord it plays. |
+| `shapes` | `('C' \| 'A' \| 'G' \| 'E' \| 'D')[]` | ['E', 'A', 'D', 'C', 'G'] | Shapes in play, easiest first (the options of a shape question). |
+| `roots` | `string[]` | C D G A E F Bb | Chord roots, easiest first. |
+| `qualities` | `('major' \| 'minor')[]` | ['major'] | Major chords, minor chords, or both (minor has no G shape). |
+
+Sample (`{ generate: 'caged-shape' }`, seed 1): choice, "Which CAGED shape is this major chord? R marks the root." → A shape
+
+#### `capo-math`
+
+Capo arithmetic: which chord a shape sounds with a capo, which shape gives a chord, or where the capo goes. Produces `choice`, `type-answer`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'sounds' \| 'shape' \| 'capo'` | 'sounds' | Capo and shape given: which chord sounds; chord given: which shape; or which fret the capo goes on. |
+| `shapes` | `string[]` | G C D A E Em Am Dm | Open shapes, easiest first (each needs an open shape in the chord library). |
+| `capos` | `number[]` | [2, 3, 1, 4, 5, 7] | Capo frets, easiest first, 1 to 9. |
+
+Sample (`{ generate: 'capo-math' }`, seed 1): choice, "With a capo on fret 1, you play the G shape. Which chord sounds?" → A♭
+
+#### `natural-harmonic`
+
+Natural harmonics: which note rings when a string is touched over fret 12, 7, 5 ..., or where a harmonic is. Produces `choice`, `type-answer`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'note' \| 'fret'` | 'note' | Which note rings over a fret; or over which fret a harmonic rings. |
+| `frets` | `number[]` | [12, 7, 5] | Harmonic frets, easiest first: 12, 7, 5, 19, 4, 9, 16. |
+| `strings` | `number[]` | [6, 5, 4, 3, 2, 1] | Strings to draw from. |
+
+Sample (`{ generate: 'natural-harmonic' }`, seed 1): choice, "Touch string 6 lightly right over fret 7, without pressing, and pick it. Which note rings?" → B3
 
 #### `note-value-math`
 
@@ -1381,7 +1436,7 @@ Tap a generated rhythm in 4/4. Produces `tap-rhythm`.
 | `tempo` | `number` | 80 | Beats per minute, 50 to 140. |
 | `show` | `'notation' \| 'audio' \| 'both'` | 'both' | What the learner gets before tapping. |
 
-Sample (`{ generate: 'rhythm-tap' }`, seed 1): tap-rhythm, "Tap this rhythm along with the click." → h q q
+Sample (`{ generate: 'rhythm-tap' }`, seed 1): tap-rhythm, "Tap this rhythm along with the click." → 1, 3, 4
 
 #### `rhythm-ear`
 
@@ -1394,6 +1449,19 @@ Hear a one-bar rhythm and choose its notation. Produces `listen-choice`.
 
 Sample (`{ generate: 'rhythm-ear' }`, seed 1): listen-choice, "Which rhythm do you hear?" → Option 2
 
+#### `rhythm-read`
+
+Triplets and compound meters (6/8, 9/8, 12/8): tap a bar, say on which counts its notes start, or pick the bar you hear. Produces `tap-rhythm`, `choice`, `listen-choice`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'tap' \| 'count' \| 'ear'` | 'tap' | Tap the bar; choose the counts its notes start on; or hear it and choose it. |
+| `feels` | `('triplets' \| '6/8' \| '9/8' \| '12/8')[]` | ['6/8', 'triplets'] | Feels in play, easiest first: triplets in 4/4, or a compound meter. |
+| `rests` | `boolean` | false | Allow rests (never on the first beat). |
+| `tempo` | `number` | 60 | The felt beat per minute (the dotted quarter in compound time), 40 to 100. |
+
+Sample (`{ generate: 'rhythm-read' }`, seed 1): tap-rhythm, "Tap this rhythm with its triplets along with the click." → 1 trip let, 2 &, 3
+
 #### `higher-lower`
 
 Two notes are played: is the second higher or lower? Produces `listen-choice`.
@@ -1402,6 +1470,7 @@ Two notes are played: is the second higher or lower? Produces `listen-choice`.
 |---|---|---|---|
 | `maxSemitones` | `number` | 12 | Largest gap in half steps (the easiest questions). |
 | `minSemitones` | `number` | 1 | Smallest gap in half steps (the hardest questions). |
+| `spelling` | `'auto' \| 'sharps' \| 'flats'` | 'auto' | How the explanation names black keys: the everyday name of each (C♯ E♭ F♯ A♭ B♭), sharps only, or flats only. |
 
 Sample (`{ generate: 'higher-lower' }`, seed 1): listen-choice, "Is the second note higher or lower than the first?" → Higher
 
@@ -1443,6 +1512,7 @@ Hear a four-chord phrase and name the cadence that ends it. Produces `listen-cho
 | param | type | default | meaning |
 |---|---|---|---|
 | `types` | `('authentic' \| 'half' \| 'plagal' \| 'deceptive')[]` | ['authentic', 'half'] | Cadence pool, easiest first (at least two). |
+| `modes` | `('major' \| 'minor')[]` | ['major'] | Keys of the phrases. Minor phrases use the major V: i iv V i. |
 
 Sample (`{ generate: 'cadence-ear' }`, seed 1): listen-choice, "How does this phrase end?" → Half: it stops on V
 
@@ -1458,6 +1528,61 @@ Notes on the guitar staff: name the shown note, or put the named note on the sta
 | `accidentals` | `boolean` | false | Include sharps and flats. |
 
 Sample (`{ generate: 'staff-note' }`, seed 1): staff-read, "Which note is this?" → C
+
+#### `tab-read`
+
+A bar of tab is shown: name its notes, name one of them, or tap where one is played. Produces `choice`, `fretboard-find`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'notes' \| 'note' \| 'find'` | 'notes' | Which notes the bar plays; which is the Nth note; or tap where the Nth note is played. |
+| `strings` | `number[]` | [1, 2] | Strings the bar uses. |
+| `frets` | `[number, number]` | [0, 3] | Fret range, inclusive (12 frets wide at most). |
+| `length` | `number` | 4 | Notes in the bar, 3 to 8 (quarters up to four, eighths above). |
+| `naturals` | `boolean` | true | Only natural notes (and only natural wrong options). |
+
+Sample (`{ generate: 'tab-read' }`, seed 1): choice, "Which notes does this bar of tab play?" → B E B D
+
+#### `tab-play` (microphone)
+
+Play a generated bar of tab into the microphone. Falls back to naming its notes. Produces `play-phrase`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `strings` | `number[]` | [1, 2] | Strings the bar uses. |
+| `frets` | `[number, number]` | [0, 3] | Fret range, inclusive (12 frets wide at most). |
+| `length` | `number` | 4 | Notes in the bar, 3 to 8 (quarters up to four, eighths above). |
+| `naturals` | `boolean` | true | Only natural notes (and only natural wrong options). |
+| `tempo` | `number` | 70 | Beats per minute, 40 to 120. |
+
+Sample (`{ generate: 'tab-play' }`, seed 1): play-phrase, "Play this bar of tab, one note at a time." → B E B D
+
+#### `sight-reading`
+
+A short passage on the staff that stays in one key and one hand position: name its notes, or choose the tab that plays it. Produces `choice`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'notes' \| 'tab'` | 'notes' | Which notes the passage plays; or which tab plays it in the position. |
+| `positions` | `number[]` | [1] | Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings. |
+| `keys` | `string[]` | C major, A minor, G major, E minor, F major, D major | Keys, easiest first. Minor keys use their natural minor notes. |
+| `bars` | `number` | 2 | Bars of 4/4, 1 or 2. |
+| `values` | `('half' \| 'quarter' \| 'eighth')[]` | ['quarter'] | Note values the rhythm may use. |
+
+Sample (`{ generate: 'sight-reading' }`, seed 1): choice, "Which notes does this passage play?" → G G E C B D E G
+
+#### `staff-key`
+
+Key signatures on the staff: name the key, pick the staff that shows a key, or read a note the signature alters. Produces `choice`, `staff-read`.
+
+| param | type | default | meaning |
+|---|---|---|---|
+| `ask` | `'name' \| 'pick' \| 'read'` | 'name' | Which key has the signature shown; which staff shows a key; or name a note the signature alters. |
+| `modes` | `('major' \| 'minor')[]` | ['major'] | Modes to draw keys from. |
+| `maxAccidentals` | `number` | 4 | Largest signature used, 1 to 7. |
+| `keys` | `string[]` | from modes and maxAccidentals | An explicit key pool, easiest first. Replaces modes and maxAccidentals. |
+
+Sample (`{ generate: 'staff-key' }`, seed 1): choice, "Which major key has this key signature?" → D major
 <!-- /gen -->
 
 ## B7. Facts and reviews
@@ -1561,6 +1686,7 @@ What else is checked, by problem code:
 | `exercise.shape`, `exercise.count`, `exercise.policy` | a field is missing or malformed; too few or too many items; a `spelling` / `octave` policy is missing or contradictory |
 | `exercise.ungradable` | no accepted answer, or the grader rejects the exercise's own answer |
 | `exercise.distractor`, `exercise.duplicate`, `exercise.enharmonic` | a distractor is also right; two options are the same; two names for one pitch |
+| `exercise.giveaway` | warning: the right picture option is the only one whose caption or text repeats what the prompt asks |
 | `exercise.alternative` | a play exercise has no non-microphone alternative (or its alternative needs the microphone too) |
 | `generator.params`, `generator.failed`, `generator.output` | unknown generator or parameter, a bad value, or params that can produce a faulty exercise |
 | `fact.unknown`, `lesson.facts` | a step names a fact the lesson does not have; more than 6 facts |
@@ -1651,16 +1777,22 @@ when the microphone is refused, `MediaBlocked` explains why and the bar's one pr
 instead"; shows the summary (`sessionReport`: accuracy, time, XP, streak, crowns, cards
 added, best run, "worth another look") with confetti when earned. Out of hearts ends kindly with "Practise to
 refill hearts"; a failed checkpoint offers "Try again". The microphone is off from the start in the Claude
-artifact host (`isArtifact()`), so play steps are their tapping alternatives there.
+artifact host (`isArtifact()`), so play steps are their tapping alternatives there. After "I can't play right now"
+every later play step opens as its tapping version, with a "Play it on my guitar instead" link under the prompt
+that brings the microphone back (`mic` available). A lesson below the pass mark ends on "Good practice" with
+"Try again" as the primary button (it restarts in place, whoever hosts the player). Card titles take the text
+markup (`{c:Am7}`); plain titles stay plain. A tap-rhythm's feedback draws the rhythm with its counting.
 
 Keyboard (shown on desktop only): number keys pick options, tiles, bank words and buttons (match pairs: the
-left column 1…n, the right n+1…); letters type notes on the keypad (`#` sharp, `-` flat); Enter checks and
+left column 1…6, the right column A…F); letters type notes on the keypad (`#` sharp, `-` flat); Enter checks and
 continues; Space replays the sound, turns a flashcard, taps a rhythm or marks a fret; Backspace takes the last
 pick back; arrows nudge a note on the staff and walk the fretboard; Escape asks to leave.
 
 Lower level, for screens that frame the step themselves: `useLessonSession({ source, port?, persist?, resume?,
 mic?, route?, params? })` → `{ state, results, dispatch(action without at), restart(source?), resumed, source,
-port }`; `TeachingCard`, `ExerciseFrame`, `FeedbackPanel`, `SummaryView`, `LeaveDialog`, `TeacherBadge`.
+port }`; `TeachingCard`, `ExerciseFrame` (pass `onUseMic` on a tapping version to offer the microphone again),
+`FeedbackPanel`, `SummaryView`, `LeaveDialog`, `TeacherBadge`. `teacherLine(teacher, outcome, perfect, mode?)`: pass
+the session `mode` so a lesson below the pass mark gets its "once more" line.
 
 ## C3. `CourseMap` and `ReviewEntry`
 
@@ -1674,16 +1806,18 @@ here" when `ahead`) and "Practise"; it stays in view while its path scrolls on s
 teaches, minutes, crowns, Start): a bottom sheet on phones, a sticky side pane at 900 px and up. Arrow keys / Home / End walk the nodes; Enter
 starts the chosen one. Progress is the learner's, live, unless `progress` is given.
 
-`<ReviewEntry courses onStart hideWhenEmpty? />`: "12 cards due · About 3 minutes · Review now" from
+`<ReviewEntry courses onStart hideWhenEmpty? variant? />`: "12 cards due · About 3 minutes · Review now" from
 `dueFactCards`; "All caught up" (or nothing, with `hideWhenEmpty`) when none is due; nothing at all before
-the learner has any card.
+the learner has any card. `variant`: `card` (default: raised, primary button) or `quiet` (flat, secondary button)
+for a screen that already has its own primary action.
 
 ## C4. Parts
 
 | export | |
 |---|---|
 | `EXERCISE_RENDERERS`, `ExerciseBody`, `exerciseKindLabel`, `selfSubmitting` | one renderer per exercise type (`ExerciseViewProps`: `exercise presentation review onDraft onSubmit setPrimary hints level naming uid onCantPlay? onMicUnavailable?`). A type without a renderer is a type error |
-| `FIGURE_RENDERERS`, `FigureView` | one renderer per figure kind, on the music kit (`Fretboard`, `ChordDiagram`, `NotationView`, `PianoKeys`, `CircleOfFifths`, `RhythmView`, `StrumPattern`); tab is a small SVG of its own |
+| `FIGURE_RENDERERS`, `FigureView` | one renderer per figure kind, on the music kit (`Fretboard`, `ChordDiagram`, `NotationView`, `PianoKeys`, `CircleOfFifths`, `RhythmView`, `StrumPattern`); tab is a small SVG of its own. `inOption` draws a figure as an answer option (a chord box without its name). Necks and keyboards on cards play the note tapped |
+| `ScrollHint` | wraps content that may scroll sideways in its own box (a long neck or tab on a phone): a soft edge and a tappable arrow where more is hidden |
 | `RichText`, `usePlainText` | the markup of B3 as React: notes in the learner's naming, glossary terms tappable |
 | `LessonProvider`, `useLessonContext` | the course for glossary, teacher and level (the player and map provide it) |
 | `useSoundPlayer`, `schedulePlan` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click |

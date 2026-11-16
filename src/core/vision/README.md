@@ -207,11 +207,15 @@ first detection after start-up costs 200-300 ms of JIT warm-up).
 measured in `e2e/vision-live.cjs` (fake camera, 1280x720 MJPEG with a per-frame index code, scored
 against ground truth; numbers in `API.md`):
 
-- **Downscale on the GPU, read back in the worker.** `createImageBitmap(video, { resizeWidth,
-  resizeHeight, resizeQuality: 'medium' })` costs the main thread under 0.1 ms per video frame
-  (median; occasional spikes to 11-14 ms); the worker
-  draws the bitmap on an `OffscreenCanvas` and reads it back (about 1 ms at 640x360). Without
-  bitmap support it falls back to a canvas read-back on the main thread and transfers the buffer.
+- **Hand the camera frame to the worker, shrink it there.** Where WebCodecs exists the frame on
+  screen is wrapped as a `VideoFrame` (0.1 ms on the main thread) and transferred; the worker draws it
+  at the working size on an `OffscreenCanvas` and reads it back (4.5 ms at 640x360 on an idle
+  machine). The first version shrank it with `createImageBitmap(video, { resizeWidth, resizeHeight,
+  resizeQuality: 'medium' })` instead: that call copies and resizes synchronously on the main thread
+  (8-9 ms a frame in headless Chromium, 21% of the main thread in a CPU profile), which the pipeline's
+  own statistic did not show (it timed only the grabs made inside the frame callback, a median over
+  mostly dropped frames, < 0.1 ms; most frames are sent when the worker answers). Bitmaps remain the
+  fallback without WebCodecs, and a canvas read-back on the main thread without bitmaps.
 - **One frame in flight, the newest one next.** Frames arriving while the worker is busy are
   dropped; when the answer comes back, the newest dropped frame (the one on screen) is sent at once
   instead of waiting for the next video frame. With 45 ms per frame and a 30 fps camera that is 45

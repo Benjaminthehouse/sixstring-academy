@@ -9,6 +9,7 @@ import { importGuitarPro, type GuitarProOptions } from './import-gp';
 import { importMidi, type MidiImportOptions } from './import-midi';
 import { importMusicXml, importMxl, type MusicXmlOptions } from './import-musicxml';
 import { songFromJson } from './export-text';
+import { importFailure, SongImportError } from './import-error';
 import { parseSixTab } from './sixtab-parse';
 import type { ImportResult } from './types';
 
@@ -127,11 +128,21 @@ export interface ImportSongOptions {
 }
 
 /**
- * Import anything: detect the format and dispatch. Throws a RangeError (with a message for the
- * learner) when the format is unknown or the file is broken.
+ * Import anything: detect the format and dispatch. Throws a `SongImportError` (a RangeError) whose
+ * message is for the learner when the format is unknown or the file is broken; the parser's own
+ * words are its `detail`. (A damaged XML file keeps the XML reader's message, which the song library
+ * turns into its own sentence.)
  */
 export async function importSong(input: SongInput, opts: ImportSongOptions = {}): Promise<ImportResult & { format: SongFormat }> {
   const format = opts.format ?? (await detectFormat(input, opts.name));
+  try {
+    return { ...(await importAs(format, input, opts)), format };
+  } catch (e) {
+    throw importFailure(format, e);
+  }
+}
+
+async function importAs(format: SongFormat, input: SongInput, opts: ImportSongOptions): Promise<ImportResult> {
   const text = async () => (typeof input === 'string' ? input : decodeText(await toBytes(input)));
   const bytes = async () => (typeof input === 'string' ? new TextEncoder().encode(input) : toBytes(input));
   const title = opts.title ?? (opts.name ? opts.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() : undefined);
@@ -139,7 +150,11 @@ export async function importSong(input: SongInput, opts: ImportSongOptions = {})
   switch (format) {
     case 'sixtab': {
       const r = parseSixTab(await text());
-      if (!r.song) throw new RangeError(`This SixTab has ${r.errors.length} error${r.errors.length === 1 ? '' : 's'}; the first, on line ${r.errors[0].line}: ${r.errors[0].message}`);
+      if (!r.song) {
+        throw new SongImportError(`This SixTab has ${r.errors.length} error${r.errors.length === 1 ? '' : 's'}; the first, on line ${r.errors[0].line}: ${r.errors[0].message}`, {
+          format, detail: r.errors.slice(0, 8).map((e) => `line ${e.line}, column ${e.column}: ${e.message}`).join('\n'),
+        });
+      }
       result = { song: r.song, warnings: r.warnings.map((w) => ({ message: w.message, line: w.line, confidence: 0.9 })), confidence: 1 };
       break;
     }
@@ -168,7 +183,7 @@ export async function importSong(input: SongInput, opts: ImportSongOptions = {})
       result = await importGuitarPro(await bytes(), opts.guitarPro);
       break;
     default:
-      throw new RangeError('This file is not a format the song importer knows: try text tab, a chord sheet, ChordPro, MusicXML, MIDI or Guitar Pro.');
+      throw new SongImportError('This file is not a format the song importer knows: try text tab, a chord sheet, ChordPro, MusicXML, MIDI or Guitar Pro.', { format: 'unknown' });
   }
-  return { ...result, format };
+  return result;
 }

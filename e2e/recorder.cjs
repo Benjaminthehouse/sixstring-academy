@@ -334,6 +334,11 @@ async function phone(wav) {
     await waitTakes(page, 1);
     check(true, 'a take is recorded with taps');
     await page.waitForSelector('[data-recorder-player][data-load="ready"]', { timeout: 15000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
+    const play = await page.locator('[data-recorder-play]').boundingBox();
+    const bar = await page.locator('[data-ui-action-bar]').boundingBox();
+    check(play && bar && play.y + play.height <= bar.y, 'after a take, Play is in view above the bottom bar (listen back is the next step)');
     await page.tap('[data-recorder-play]');
     await waitAttr(page, 'data-playing', 'true', 5000);
     check(true, 'and plays back');

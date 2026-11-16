@@ -6,6 +6,7 @@
  */
 import type { model as AlphaModel } from '@coderline/alphatab';
 import { chordPcs, keyFromSignature, parseChord, transposeChordBySemitones } from '@/core/theory';
+import { importFailure, SongImportError } from './import-error';
 import { buildMeasures, type Onset, type OnsetNote } from './import-util';
 import { slugify, uniqueId } from './model';
 import type { BarInfo, ChordEvent, ImportResult, ImportWarning, Note, Section, Song, TempoChange, Track, TrackRole } from './types';
@@ -27,14 +28,17 @@ const HARMONIC = { Natural: 1, Artificial: 2, Pinch: 3, Tap: 4, Semi: 5 } as con
 const PICK = { Up: 1, Down: 2 } as const;
 const BRUSH = { BrushUp: 1, BrushDown: 2 } as const;
 
-/** Load a Guitar Pro file with alphaTab's importer only. Throws a RangeError for files it cannot read. */
+/**
+ * Load a Guitar Pro file with alphaTab's importer only. Throws a `SongImportError` (a RangeError)
+ * for files it cannot read, with alphaTab's reason as its `detail`.
+ */
 export async function loadGuitarProScore(bytes: ArrayBuffer | Uint8Array): Promise<AtScore> {
   const at = await import('@coderline/alphatab/core');
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   try {
     return at.importer.ScoreLoader.loadScoreFromBytes(data, new at.Settings());
   } catch (e) {
-    throw new RangeError(`This file could not be read as a Guitar Pro file (${e instanceof Error ? e.message : String(e)}).`);
+    throw importFailure('guitar-pro', e);
   }
 }
 
@@ -189,7 +193,7 @@ export function convertAlphaTabScore(score: AtScore, opts: GuitarProOptions = {}
     const own = songTuning !== tuning && (songTuning.join() !== tuning.join() || songCapo !== capo);
     tracks.push({ id, name: track.name || `Track ${ti + 1}`, role, ...(own ? { tuning, capo } : {}), measures });
   });
-  if (!tracks.length) throw new RangeError('The Guitar Pro file has no guitar or bass tracks.');
+  if (!tracks.length) throw new SongImportError('This Guitar Pro file has no guitar or bass part to import: its tracks are drums or other instruments.', { format: 'guitar-pro' });
   if (graces) warnings.push({ message: `${graces} grace note${graces > 1 ? 's were' : ' was'} left out.`, confidence: 0.7 });
   if (extraVoices) warnings.push({ message: 'Bars with two voices were merged into one line per track; held notes keep their length.', confidence: 0.75 });
   if (chords.length) chords.sort((a, b) => a.bar - b.bar || a.tick - b.tick);

@@ -24,7 +24,8 @@ describe('feedback words', () => {
 
   it('order tiles agree in number', () => {
     const ex: OrderExercise = { type: 'order', prompt: 'p', tiles: ['{n:C}', '{n:D}', '{n:E}', '{n:F}'], explain };
-    expect(wrongLine(ex, grade(ex, { type: 'order', order: [0, 2, 1, 3].map((i, k) => (k === 0 ? 1 : k === 1 ? 0 : i)) }))).toMatch(/^2 of the 4 tiles are in the right place\.$/);
+    expect(wrongLine(ex, grade(ex, { type: 'order', order: [1, 0, 2, 3] }))).toBe('2 of the 4 tiles are in the right place.');
+    expect(wrongLine(ex, grade(ex, { type: 'order', order: [1, 2, 3, 0] }))).toBe('None of the tiles is in the right place yet.');
   });
 
   it('names a heard note in the key of the exercise, and without an octave where targets are named by place', () => {

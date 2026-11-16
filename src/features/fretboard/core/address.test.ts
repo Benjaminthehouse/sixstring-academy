@@ -62,6 +62,12 @@ describe('fretboard drill address', () => {
     expect(candidatesFor('every', sharp.scope, CTX)).toEqual(['pc:6']);
     expect(sharp.length).toBe(1);
 
+    // Two places: each about twice, four questions, not twelve.
+    expect(drillPlan(drillById('find-the-note')!, s, { pc: 0, ctx: CTX }).length).toBe(4);
+    // C on all six strings, frets 0 to 12: six places, twelve questions.
+    expect(drillPlan(drillById('find-the-note')!, defaultSettings(6), { pc: 0, ctx: CTX }).length).toBe(12);
+    expect(drillPlan(drillById('play-the-note')!, defaultSettings(6), { pc: 0, ctx: CTX }).length).toBe(10);
+
     // The name drills ignore it.
     const name = drillPlan(drillById('name-the-note')!, defaultSettings(6), { pc: 0 });
     expect(name.scope.pcs).toBeUndefined();

@@ -644,6 +644,8 @@ function arrangeBass(ctx: Ctx, out: BackingEvent[]): void {
 
 function arrangeKeys(ctx: Ctx, out: BackingEvent[]): void {
   const { style, rng } = ctx;
+  // A style without a keys part (all rests) has no keyboard player: not even the final chord.
+  if (style.keys.every((p) => /^[.\-]*$/.test(p))) return;
   const voicings = new Map<ChordSegment, number[]>();
   let prev: number[] | undefined;
   for (const seg of ctx.segments) {

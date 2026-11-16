@@ -154,6 +154,14 @@ async function desktop(theme) {
       await open(page, goto, 'c--major--3nps-4');
       s = await state(page);
       check('a 3-notes-per-string shape opens from its address', s.shape === '3nps-4' && s.scale === 'major', JSON.stringify(s));
+      // Review: "See it on your guitar" takes this scale and shape to the Live Fretboard.
+      const onGuitar = page.getByRole('link', { name: 'See it on your guitar' });
+      const onGuitarHref = await onGuitar.getAttribute('href').catch(() => null);
+      check('"See it on your guitar" links to the Live Fretboard with this scale and shape', onGuitarHref === '#camera--scale--c--major--3nps-4', onGuitarHref);
+      await onGuitar.click();
+      const cameraOpen = await page.waitForFunction(() => location.hash === '#camera--scale--c--major--3nps-4' && !!document.querySelector('[data-camera-stage]'), null, { timeout: 30000 }).then(() => true).catch(() => false);
+      const cameraTitle = cameraOpen ? await page.locator('[data-ui-page][data-mode]').getAttribute('data-content') : null;
+      check('and the Live Fretboard opens on it (no camera started)', cameraOpen && cameraTitle === 'scale', `${await page.evaluate(() => location.hash)} ${cameraTitle}`);
 
       await open(page, goto, 'h--nonsense');
       s = await waitState(page, (x) => x.hash.startsWith('#scales--c--major'));

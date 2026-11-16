@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   arrangeBacking, bassHome, chordFromIntervals, chordIntervals, guitarVoicing, isChordTone, keysVoicing, layoutProgression, powerChord, styleQuarterBpm,
-  type BackingArrangement, type BackingBar, type BassEvent, type ChordSegment, type GuitarEvent,
+  type BackingArrangement, type BackingBar, type BassEvent, type ChordSegment, type DrumEvent, type GuitarEvent, type KeysEvent,
 } from './backing';
 import { BackingBand, type BandOutput } from './backing-band';
 import { BACKING_STYLES, BACKING_STYLE_IDS } from './backing-styles';
@@ -194,10 +194,14 @@ describe('arrangements in every style', () => {
           expect(e.velocity).toBeLessThanOrEqual(1);
           perBar.set(`${e.type}:${e.bar}`, (perBar.get(`${e.type}:${e.bar}`) ?? 0) + 1);
         }
-        // Everybody plays in every bar.
+        // Everybody plays in every bar (a band without a drummer has no drums; a style whose keys
+        // part is all rests, such as the rumba, has no keys at all, not even on the last chord).
+        const keysSilent = style.keys.every((p) => /^[.\-]+$/.test(p));
+        const players = ['drum', 'bass', 'keys', 'guitar'].filter((t) => !(t === 'drum' && style.percussion === false) && !(t === 'keys' && keysSilent));
         for (let bar = 0; bar < a.bars; bar++) {
-          for (const type of ['drum', 'bass', 'keys', 'guitar']) expect(perBar.get(`${type}:${bar}`) ?? 0, `${type} in bar ${bar}`).toBeGreaterThan(0);
+          for (const type of players) expect(perBar.get(`${type}:${bar}`) ?? 0, `${type} in bar ${bar}`).toBeGreaterThan(0);
         }
+        if (keysSilent) expect(a.events.some((e) => e.type === 'keys')).toBe(false);
 
         // --- bass ---------------------------------------------------------------------------
         const bass = a.events.filter((e): e is BassEvent => e.type === 'bass');
@@ -267,6 +271,16 @@ describe('arrangements in every style', () => {
       const bars = PROGRESSIONS['twelve-bar blues'];
       const a = arrangeBacking(bars, { style: id, choruses: 2, seed: 3 });
       const drums = a.events.filter((e) => e.type === 'drum');
+      const drummer = style.percussion !== false;
+      const keyboard = !style.keys.every((p) => /^[.\-]+$/.test(p));
+      const ending = a.events.filter((e) => e.bar === 24);
+      expect(ending.every((e) => e.tick === a.bodyTicks)).toBe(true);
+      const players = ['bass', ...(drummer ? ['drum', 'drum'] : []), 'guitar', ...(keyboard ? ['keys'] : [])].sort();
+      expect(ending.map((e) => e.type).sort()).toEqual(players);
+      if (!drummer) {
+        expect(drums).toEqual([]);
+        return;
+      }
       const fillBars = new Set(drums.filter((e) => e.fill).map((e) => e.bar));
       expect(fillBars.has(11)).toBe(true);
       expect(fillBars.has(23)).toBe(true);
@@ -274,9 +288,6 @@ describe('arrangements in every style', () => {
       expect([...fillBars].sort((x, y) => x - y)).toEqual([3, 7, 11, 15, 19, 23]);
       const crashes = drums.filter((e) => e.drum === 'crash').map((e) => e.tick);
       expect(crashes).toEqual([0, 12 * a.barTicks, 24 * a.barTicks]);
-      const ending = a.events.filter((e) => e.bar === 24);
-      expect(ending.every((e) => e.tick === a.bodyTicks)).toBe(true);
-      expect(ending.map((e) => e.type).sort()).toEqual(['bass', 'drum', 'drum', 'guitar', 'keys']);
       const without = arrangeBacking(bars, { style: id, fills: false, ending: false, choruses: 1 });
       expect(without.events.some((e) => e.type === 'drum' && e.fill)).toBe(false);
       expect(without.bars).toBe(12);
@@ -599,6 +610,65 @@ describe('musicality, by inspection of the generated events', () => {
     }
   });
 
+  it('the newer styles: rumba, gospel, ska, classical arpeggios and tango each play their idiom', () => {
+    const bars = [C, G, Am, F];
+    const at = (a: ReturnType<typeof arrangeBacking>, type: string, bar: number, detail?: (e: never) => boolean): number[] =>
+      a.events.filter((e) => e.type === type && e.bar === bar && (!detail || detail(e as never))).map((e) => (e.tick - bar * a.barTicks) / (a.barTicks / 16));
+    // Rumba: palmas (claps) on 2 and 4 and the off-beats after them; the strum chops (a dead stroke) on 2 and 4.
+    const rumba = arrangeBacking(bars, { style: 'rumba', seed: 3 });
+    expect(at(rumba, 'drum', 1, (e: DrumEvent) => e.drum === 'clap')).toEqual([4, 6, 12, 14]);
+    const rumbaGtr = rumba.events.filter((e): e is GuitarEvent => e.type === 'guitar' && e.bar === 1);
+    expect(rumbaGtr.filter((g) => g.articulation === 'dead').map((g) => (g.tick - 3840) / 240)).toEqual([4, 12]);
+    expect(rumbaGtr.every((g) => g.tone === 'nylon')).toBe(true);
+    // Gospel: claps with the backbeat, an organ, a shuffle grid.
+    const gospel = arrangeBacking(bars, { style: 'gospel', seed: 3 });
+    const claps = gospel.events.filter((e): e is DrumEvent => e.type === 'drum' && e.drum === 'clap' && e.bar === 1).map((e) => (e.tick - 3840) / 960);
+    expect(claps).toEqual([1, 3]);
+    expect(gospel.events.filter((e): e is KeysEvent => e.type === 'keys').every((k) => k.voice === 'organ')).toBe(true);
+    // Ska: every chord stroke is an up-stroke on an off-beat, and the organ skanks with it.
+    const ska = arrangeBacking(bars, { style: 'ska', seed: 3 });
+    const skank = ska.events.filter((e): e is GuitarEvent => e.type === 'guitar' && e.bar === 1);
+    expect(skank.map((g) => (g.tick - 3840) / 480)).toEqual([1, 3, 5, 7]);
+    expect(skank.every((g) => g.direction === 'up')).toBe(true);
+    expect(ska.events.filter((e) => e.type === 'keys' && e.bar === 1).map((e) => (e.tick - 3840) / 480)).toEqual([1, 3, 5, 7]);
+    // Classical: no drums at all, a fingerpicked arpeggio one string at a time, every note a chord tone, let ring.
+    const classical = arrangeBacking(bars, { style: 'classical', seed: 3 });
+    expect(classical.events.some((e) => e.type === 'drum')).toBe(false);
+    const arp = classical.events.filter((e): e is GuitarEvent => e.type === 'guitar' && e.bar === 1);
+    expect(arp).toHaveLength(8);
+    expect(arp.every((g) => g.midis.length === 1 && g.duration === 0 && g.tone === 'nylon')).toBe(true);
+    for (const g of classical.events.filter((e): e is GuitarEvent => e.type === 'guitar')) {
+      const seg = segAt(classical, g.tick)!;
+      expect(isChordTone(seg.chord, g.midis[0])).toBe(true);
+    }
+    // The thumb opens the bar on the lowest string of the shape.
+    expect(arp[0].strings[0]).toBeGreaterThanOrEqual(5);
+    expect(classical.events.filter((e) => e.type === 'keys' && e.bar === 1).every((e) => (e as KeysEvent).midis.length === 1)).toBe(true);
+    // Tango: no drums; a marcato on all four beats, then the 3-3-2 síncopa the next bar.
+    const tango = arrangeBacking(bars, { style: 'tango', seed: 3 });
+    expect(tango.events.some((e) => e.type === 'drum')).toBe(false);
+    expect(at(tango, 'keys', 0)).toEqual([0, 4, 8, 12]);
+    expect(at(tango, 'keys', 1)).toEqual([0, 6, 12]);
+    expect(at(tango, 'bass', 1)[0]).toBe(0);
+    // Every new style has a name, a picker line and a sensible tempo range.
+    for (const id of ['rumba', 'gospel', 'ska', 'classical', 'tango'] as const) {
+      expect(BACKING_STYLE_IDS).toContain(id);
+      expect(BACKING_STYLES[id].name.length).toBeGreaterThan(3);
+      expect(BACKING_STYLES[id].description.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('a band without a drummer: no grooves, fills, cymbals or ending hit, but the rest of the band ends together', () => {
+    for (const id of BACKING_STYLE_IDS.filter((s) => BACKING_STYLES[s].percussion === false)) {
+      const a = arrangeBacking(PROGRESSIONS['twelve-bar blues'], { style: id, choruses: 2, seed: 5 });
+      expect(a.events.filter((e) => e.type === 'drum'), id).toEqual([]);
+      const last = a.events.filter((e) => e.bar === a.bars - 1);
+      expect(last.some((e) => e.type === 'bass'), id).toBe(true);
+      expect(last.some((e) => e.type === 'keys'), id).toBe(true);
+    }
+    expect(BACKING_STYLE_IDS.filter((s) => BACKING_STYLES[s].percussion === false).sort()).toEqual(['classical', 'tango']);
+  });
+
   it('the mix: every style gives each player a level, and none is far from the others', () => {
     for (const id of BACKING_STYLE_IDS) {
       const s = BACKING_STYLES[id];
@@ -756,5 +826,68 @@ describe('the band on the transport', () => {
     expect(band.transport.bpm).toBeCloseTo(BACKING_STYLES['ballad-68'].tempo.default * 1.5, 9);
     expect(band.transport.meter.numerator).toBe(6);
     expect(band.style.id).toBe('ballad-68');
+  });
+
+  it('changes its arrangement live: no stop, no count-in, the new chords from the next bar line on', () => {
+    const { band, run, log, stops, clock } = setup();
+    band.load([C, G, Am, F], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 1 });
+    const changes: Array<[string, number]> = [];
+    band.onChord((c) => changes.push([c.segment.chord.symbol, c.time]));
+    const stopped: number[] = [];
+    band.transport.on('stop', (e) => stopped.push(e.time));
+    band.transport.onVisual('stop', (e) => stopped.push(e.time));
+    band.start();
+    // Count-in 0.08 .. 2.08 s, then a bar every 2 s: C at 2.08, G at 4.08 ...
+    run(5);
+    const stopsBefore = stops.length;
+    const a = band.change([F, F, Am, G], { style: 'funk', tempo: 120, loop: true });
+    expect(a.style).toBe('funk');
+    expect(band.playing).toBe(true);
+    run(12);
+    expect(stopped).toEqual([]);
+    expect(stops.length).toBe(stopsBefore); // nothing was silenced
+    expect(band.style.id).toBe('funk');
+    // Bar 1 (G) finishes; at 6.08 the new arrangement takes over at the same place in the form,
+    // bar 2 (Am in both), then bar 3 is the new G, then round to the new F.
+    const after = changes.filter(([, t]) => t > 5);
+    expect(after.map(([s]) => s).slice(0, 3)).toEqual(['Am', 'G', 'F']);
+    expect(after[0][1]).toBeCloseTo(6.08, 6);
+    expect(after[1][1]).toBeCloseTo(8.08, 6);
+    // The music never stopped: drum hits keep coming every bar with no gap at the change.
+    const kicks = log.filter((l) => l.what === 'drum' && l.detail === 'kick' && l.time > 2).map((l) => l.time);
+    for (let i = 1; i < kicks.length; i++) expect(kicks[i] - kicks[i - 1]).toBeLessThan(2.01);
+    expect(clock.t).toBeGreaterThan(11);
+  });
+
+  it('a change during the count-in is made at once; a change while stopped is a load', () => {
+    const { band, run } = setup();
+    band.load([C, G], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 1 });
+    const changes: string[] = [];
+    band.onChord((c) => changes.push(c.segment.chord.symbol));
+    band.start();
+    run(0.5);
+    band.change([Am, F], { style: 'pop-rock', tempo: 120, loop: true, countInBars: 1 });
+    run(5);
+    expect(changes.slice(0, 2)).toEqual(['Am', 'F']);
+    band.stop();
+    const b = band.change([G], { style: 'waltz' });
+    expect(band.playing).toBe(false);
+    expect(b.style).toBe('waltz');
+    expect(band.transport.meter.numerator).toBe(3);
+  });
+
+  it('a reload and restart (the old way to change a playing band) no longer reports a late stop', () => {
+    const { band, run, clock } = setup();
+    const heard: string[] = [];
+    band.transport.onVisual('stop', () => heard.push('stop'));
+    band.transport.onVisual('start', () => heard.push('start'));
+    band.load([C, G], { style: 'pop-rock', loop: true });
+    band.start();
+    run(3);
+    heard.length = 0;
+    band.load([Am, F], { style: 'pop-rock', loop: true });
+    band.start({ countIn: 0 });
+    run(clock.t + 2);
+    expect(heard).toEqual(['start']);
   });
 });

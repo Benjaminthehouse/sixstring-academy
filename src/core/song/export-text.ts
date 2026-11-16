@@ -4,6 +4,7 @@
  * wrapped with a format tag and version).
  */
 import { midiToNote } from '@/core/theory';
+import { SongImportError } from './import-error';
 import { findTrack, formatTimeSig, trackCapo, trackTuning, valueFromTicks, valueTicks } from './model';
 import type { Beat, Note, Song } from './types';
 import { validateSong } from './validate';
@@ -163,24 +164,34 @@ export function songToJson(song: Song, opts: { pretty?: boolean } = {}): string 
   return JSON.stringify({ format: SONG_JSON_FORMAT, version: SONG_JSON_VERSION, song }, null, opts.pretty === false ? undefined : 2);
 }
 
-/** Read song JSON (wrapped or a bare song). Throws a RangeError naming what is wrong. */
+/**
+ * Read song JSON (wrapped or a bare song). Throws a `SongImportError` (a RangeError) that says in
+ * plain words what is wrong; its `detail` names the missing field or the parser's reason.
+ */
 export function songFromJson(text: string): Song {
+  const refuse = (message: string, detail: string) => new SongImportError(message, { format: 'json', detail });
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch (e) {
-    throw new RangeError(`Not JSON: ${e instanceof Error ? e.message : String(e)}`);
+    throw refuse('This song file is damaged or cut short, so it could not be read. Export the song again, then try once more.', `Not JSON: ${e instanceof Error ? e.message : String(e)}`);
   }
   const obj = data as { format?: string; version?: number; song?: unknown };
   const candidate = (obj && typeof obj === 'object' && 'song' in obj ? obj.song : data) as Partial<Song>;
-  if (obj && typeof obj === 'object' && obj.format && obj.format !== SONG_JSON_FORMAT) throw new RangeError(`Unknown JSON format "${obj.format}".`);
-  if (obj?.version !== undefined && obj.version > SONG_JSON_VERSION) throw new RangeError(`Song JSON version ${obj.version} is newer than this app understands (${SONG_JSON_VERSION}).`);
+  if (obj && typeof obj === 'object' && obj.format && obj.format !== SONG_JSON_FORMAT) {
+    throw refuse('This file is not a Sixstring Academy song: it was saved by another program.', `Unknown JSON format "${obj.format}".`);
+  }
+  if (obj?.version !== undefined && obj.version > SONG_JSON_VERSION) {
+    throw refuse('This song was saved by a newer version of Sixstring Academy. Update the app, then open it again.', `Song JSON version ${obj.version} is newer than this app understands (${SONG_JSON_VERSION}).`);
+  }
   for (const k of ['meta', 'tuning', 'tempo', 'bars', 'tracks'] as const) {
-    if (!candidate || typeof candidate !== 'object' || !(k in candidate)) throw new RangeError(`Song JSON is missing "${k}".`);
+    if (!candidate || typeof candidate !== 'object' || !(k in candidate)) throw refuse('This song file is incomplete: part of the song is missing, so it could not be read.', `Song JSON is missing "${k}".`);
   }
   const c = candidate as Song;
   const song: Song = { ...c, sections: c.sections ?? [], chords: c.chords ?? [], annotations: c.annotations ?? [], capo: c.capo ?? 0 };
   const errors = validateSong(song, { notation: false }).filter((i) => i.level === 'error');
-  if (errors.length) throw new RangeError(`Song JSON is not a valid song: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`);
+  if (errors.length) {
+    throw refuse(`This song file has a mistake the player cannot work around: ${errors[0].message}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`, `Song JSON is not a valid song: ${errors.map((e) => e.message).join(' | ')}`);
+  }
   return song;
 }

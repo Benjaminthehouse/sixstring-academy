@@ -6,6 +6,7 @@
  */
 import { getKey } from '@/core/theory';
 import { arrangeTrack, type ArrangeOptions } from './arranger';
+import { importFailure, SongImportError } from './import-error';
 import { buildMeasures, chooseGrid, quantize, type Onset } from './import-util';
 import { barCapacity, slugify, uniqueId } from './model';
 import type { BarInfo, ImportResult, ImportWarning, Song, TempoChange, TimeSig } from './types';
@@ -47,7 +48,12 @@ type MidiFile = InstanceType<typeof import('@tonejs/midi').Midi>;
 
 async function load(bytes: ArrayBuffer | Uint8Array): Promise<MidiFile> {
   const { Midi } = await import('@tonejs/midi');
-  return new Midi(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+  try {
+    return new Midi(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+  } catch (e) {
+    // The MIDI reader's own words ("Bad MIDI file", "Offset is outside the bounds of the DataView") go to `detail`.
+    throw importFailure('midi', e);
+  }
 }
 
 function describe(midi: MidiFile): MidiTrackInfo[] {
@@ -124,7 +130,7 @@ export async function importMidi(bytes: ArrayBuffer | Uint8Array, opts: MidiImpo
   // Drum tracks hold no pitches a guitar could play.
   const picked = asked.filter((i) => !i.percussion);
   if (asked.length > picked.length) warnings.push({ message: `${asked.length - picked.length} drum track${asked.length - picked.length > 1 ? 's were' : ' was'} left out.`, confidence: 0.9 });
-  if (!picked.length) throw new RangeError('The MIDI file has no notes to import.');
+  if (!picked.length) throw new SongImportError('The MIDI file has no notes to import.', { format: 'midi', detail: asked.length ? 'Only drum tracks have notes.' : 'No track has notes.' });
   if (opts.track === undefined && !opts.tracks && infos.filter((i) => i.score > 0).length > 1) {
     const info = picked[0];
     warnings.push({ message: `Track ${info.index + 1} ("${info.name}", ${info.instrument}) was chosen as the guitar part out of ${infos.filter((i) => i.notes).length}.`, confidence: 0.7 });

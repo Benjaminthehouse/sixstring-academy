@@ -13,6 +13,7 @@ export { ReviewEntry, type ReviewEntryProps } from './review/ReviewEntry';
 export { EXERCISE_RENDERERS, ExerciseBody, exerciseKindLabel, selfSubmitting } from './exercises/registry';
 export type { ExerciseViewProps, ExerciseReview, PrimaryAction } from './exercises/types';
 export { FIGURE_RENDERERS, FigureView, type FigureProps } from './figures/figures';
+export { ScrollHint } from './figures/ScrollHint';
 export { RichText, usePlainText, type RichTextProps } from './RichText';
 export { LessonProvider, useLessonContext, type LessonContextValue } from './context';
 export { StepKeysProvider, useKeysRegistry, useStepKeys, type StepKeyHandlers } from './keys';

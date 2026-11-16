@@ -10,6 +10,7 @@ Browser checks (real Chromium, real Web Audio; all take `--quick`):
 | `node e2e/audio-timing.cjs` | every event within 2 ms (in fact a sample) of its audio-clock time, no drift over 3 min; ramps, loop, seek, pause, count-in (`--long`: 3 min live) |
 | `node e2e/audio-stress.cjs` | note-on storms, start/stop storms, garbage arguments, suspend/resume, 44.1 k and 48 k, cache budget, no node leak (`--soak`: 5 min of band) |
 | `node e2e/audio-mix.cjs` | no clicks, no DC, the limiter, live graph = pure renderer, the band's mix level by level |
+| `node e2e/audio-expression.cjs` | measured offline: bend / slide / vibrato pitch curves, hammer-on and pull-off onsets and levels, accents, a phrase ("5b7", "5h7") and a song with techniques, the scheduled drone; live: the metronome's first click after Start, the band changing style without stopping |
 
 **Conventions.** Pitch = MIDI numbers (A4 = 69; fractions bend). Time = seconds on the audio clock
 (`audioNow()`); every `when` argument is the moment the sound is *heard*, default "now". Musical time
@@ -54,6 +55,19 @@ stopAll();                                             // damp everything, sched
 const ref = playTone(45, undefined, { voice: 'reference' });   // tuner reference A2, until ref.stop()
 playUi('correct');                                     // never throws; safe anywhere
 const drone = startDrone({ root: 45, fifth: true });   // drone.setRoot(47); drone.stop();
+```
+
+```ts
+// Techniques: the guitar sounds like a guitar.
+const t = audioNow() + 0.1;
+pluck(60, t, { string: 3, duration: 0.8, bend: 2 });                     // "5b7": bend up a whole tone
+pluck(60, t + 1, { string: 3, duration: 0.3 });                          // "5h7": fret 5 ...
+pluck(62, t + 1.3, { string: 3, duration: 0.6, legato: 'hammer' });      // ... hammered to 7: no new pick
+pluck(64, t + 2, { string: 2, bend: { amount: 2, release: true }, vibrato: true, duration: 1 });
+strum([40, 47, 52, 56, 59, 64], t + 3, { accent: true });               // a harder, brighter stroke
+playPhrase(tabPhrase('5b7r5', 3)!, t + 4);                               // tab tokens straight from a lesson
+playLineOverChord([48, 52, 55, 60], tabPhrase('5h7p5', 2)!, t + 6);     // a line over a held C chord
+startDrone({ root: 45, fifth: true, when: t, duration: 8 });            // a drone on the audio clock
 ```
 
 ```ts
@@ -105,9 +119,9 @@ renderSequence([{ time: 0, midi: 64, string: 1 }, { time: 0.5, midi: 67, string:
 | `unlockAudio(): Promise<boolean>` | resume inside a gesture; handles iOS (silent switch, interruptions); safe to call on every gesture |
 | `installAudioUnlock(target?): () => void` | global gesture listeners; call once in the app shell |
 | `audioState(): AudioState`, `audioSupported()`, `audioRunning()`, `hasEngine()` | no side effects, never create the context |
-| `onAudioUnlocked(fn)`, `onAudioClosed(fn)` | hooks: first time the context runs / the shared engine is closed |
+| `onAudioUnlocked(fn): () => void`, `onAudioClosed(fn): () => void` | hooks: first time the context runs / the shared engine is closed; each returns its unsubscribe (call it when a screen that registered goes away) |
 | `audioNow()`, `audioSoundingNow()` | scheduling clock; what is leaving the speakers now (latency compensated) |
-| `scheduleVisual(time, fn)` | run `fn` when the sound scheduled at `time` is heard |
+| `scheduleVisual(time, fn): () => void` | run `fn` when the sound scheduled at `time` is heard; the returned function cancels it (a no-op once it ran) |
 | `setMasterVolume(0..1)`, `getMasterVolume()`, `setMuted(b)`, `isMuted()` | master; remembered if set before the engine exists |
 | `setBusVolume(bus, 0..1.5)`, `setBusMuted(bus, b)` | `BusName` = guitar, bass, drums, keys, click, tone, drone, ui |
 | `getAnalyser(fftSize?)`, `getOutputLevel(): { rms, peak }` | tap after the limiter, for meters and visualisers |
@@ -146,10 +160,13 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
 - `pluck(midi, when?, opts?): VoiceHandle` · `strum(midis, when?, opts?): VoiceHandle[]` · `stopAll(when?, release?)`
   · `playBass(midi, when?, opts?)` · `getGuitar()`, `getBass()` (shared `GuitarSynth`s).
   `VoiceHandle`: `startTime`, `queued`, `stop(when?, release?)`.
-- `PlayOptions`: `velocity`, `tone`, `articulation` (`normal | palm-mute | dead | harmonic`), `string`,
-  `duration` (seconds), `letRing`, `direction` (`down | up`), `brightness` (-1..1), `cents`, `a4`, `gain`.
+- `PlayOptions`: `velocity`, `tone`, `articulation` (`normal | palm-mute | dead | harmonic | legato`), `string`,
+  `duration` (seconds), `letRing`, `direction` (`down | up`), `brightness` (-1..1), `cents`, `a4`, `gain`, and the
+  techniques (see "Expression" below): `bend` (semitones or `{ amount, release?, pre?, rise? }`), `vibrato`
+  (`true` or `{ depth?, rate?, delay?, shape? }`), `slideIn` (`below | above`), `slideOut` (`down | up`),
+  `legato` (`hammer | pull | slide`: reached from the note ringing on the same string), `accent`.
 - `PlayStrumOptions` adds `spread` (s, default 0.028), `strings`, `align` (`start | center | end`),
-  `choke` (damp other strings, default true).
+  `choke` (damp other strings, default true), `accent` (every string harder). A strum's strength is its `velocity`.
 - `ToneName` (`TONE_NAMES`): `steel | nylon | clean | driven | muted | harmonic` + `bass-finger | bass-pick | bass-upright`.
   `muted`/`harmonic` are articulations of the synth's `baseTone`. `normalizeTone(id, fallback?)` maps
   stored settings and aliases (`acoustic` → steel, `classical` → nylon, `electric` → clean,
@@ -159,7 +176,41 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
   *remove* what has not started yet, so nothing new is heard after a stop.
 - `new GuitarSynth({ engine?, bus?, tone?, mono?, maxVoices?, pan? })` — `.tone`, `.a4`, `.baseTone`,
   `.pluck`, `.strum`, `.stopString(n)`, `.stopAll`, `.activeVoices`, `.preload(notes, opts?)` (async,
-  avoids first-note hitches), `.dispose()` (takes its chains off the mixer; usable again afterwards).
+  avoids first-note hitches), `.renderNow(notes)` (the same, synchronously: render, then read the clock),
+  `.dispose()` (takes its chains off the mixer; usable again afterwards).
+
+## Expression: bends, slides, vibrato, hammer-ons, accents (`expression.ts`, `guitar.ts`, `phrase.ts`)
+
+Each note is a rendered buffer; its pitch moves by automating the buffer's playback rate on the audio
+clock (the body and amp filters come after, so the timbre stays put while the pitch moves).
+- **Bend** `bend: 2` (or `{ amount, release?, pre?, rise? }`): struck at the fretted pitch, it eases up to
+  the target over about a third of the note (0.06–0.22 s), holds; `release` eases back down before the note
+  ends; `pre` is struck bent. Measured offline: within 3 cents of the target, back within 3 cents.
+- **Vibrato** `vibrato: true`: 30 cents wide at 5.5 Hz, sharp-only like a pushed steel string
+  (`shape: 'both'` for classical), starting once the note (or its bend) has arrived.
+- **Slides** `slideIn: 'below' | 'above'` (from 3 semitones away, arriving within 0.12 s), `slideOut: 'down' |
+  'up'` (falls 7 semitones over the end of the note while it fades). `legato: 'slide'` glides the string
+  ringing on that `string` to the new fret, arriving on the beat (glide 0.03–0.12 s).
+- **Hammer-on / pull-off** `legato: 'hammer' | 'pull'`: no new pick stroke. The voice ringing on the same
+  `string` (or, without a string, the last note played) carries on: its pitch steps on the render quantum
+  nearest the beat (within 1.5 ms) and the finger adds a soft, pick-less attack (about 7 dB under a pick
+  stroke of the same velocity). Nothing ringing (first note, after a rest, a dead or muted note) → a soft
+  `legato` note of its own (about 4 dB under a pick); a slide with nothing to slide from slides in from below.
+  The returned handle stops the string.
+- **Accent** `accent: true` on `pluck` or `strum`: velocity ×1.3 and half a step brighter (≈ 3 dB).
+- **Let ring** `letRing: true`: ignore `duration`, ring until the string is played again.
+- Pure helpers: `pitchCurve(expr, seconds): PitchCurve | null` (`.at(t)` cents, `.initial`, `.start`, `.end`,
+  `.fadeFrom`), `bendOf`, `vibratoOf`, `slideGlide(from, to, x)`, `slideGlideSeconds(gap)`, `smoothstep`,
+  `SLIDE_IN_SEMITONES`, `SLIDE_OUT_SEMITONES`, `VIBRATO_DEFAULTS`.
+- **Tab tokens** `parseTabTechnique('5h7p5')` → `[{ fret: 5 }, { fret: 7, legato: 'hammer' }, { fret: 5, legato: 'pull' }]`;
+  understands `h p s / \ b b7 b7r5 pb9 ~` and `/5` `\5` `5\` `5/`; null for anything else.
+- **Phrases** `tabPhrase(token, string, { tuning?, capo?, noteSeconds? = 0.45 }): PhraseNote[] | null` turns one
+  string's token into notes (`tabPhrase('5b7', 3)` = fret 5 on the G string bent a whole tone);
+  `playPhrase(notes, when?, { synth?, tone?, velocity? }): PhraseHandle` plays `{ midi, at, ...PlayOptions }[]`
+  (renders first, then schedules) — `.startTime`, `.endTime`, `.queued`, `.stop(when?)`.
+  `playLineOverChord(chordMidis, line, when?, { chordVoice? = 'guitar' | 'epiano' | 'organ', hold?, chordLevel? = 0.6,
+  tone?, lineDelay?, engine? })`: the chord is held (on its own guitar, a little left, or on the keys) while the
+  line plays over it; one handle stops both. For a line over a drone, use `startDrone({ when, duration })`.
 - Pure: `renderPluck(spec)`, `renderRawPluck(spec)` (dry, pre-bus), `renderStrum(midis, opts)`,
   `renderSequence(notes, opts)`, `strumPlan(midis, opts)`, `encodeWav(samples, sampleRate, { bitDepth?, channels? })`, `decodeWav(bytes)`.
 - Tuning (measured by estimators written independently of the synth, MIDI 28..88, three velocities,
@@ -181,9 +232,11 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
 - `playTone(midi | { freq }, when?, { voice?, duration?, velocity?, cents?, a4?, gain?, bus? }): ToneHandle`
   — `ToneVoice`: `sine | reference | epiano | organ`. No duration = sounds until `.stop(when?)`.
   `ToneHandle`: `startTime`, `freq`, `queued`, `stop`. `playChord(midis, when?, opts & { roll? })`.
-- `startDrone({ root?, fifth?, octave?, a4?, volume?, fadeIn? }): DroneHandle` — `.setRoot`, `.setFifth`,
-  `.setVolume`, `.stop(fade?)`, `.running`. `setRoot` may be called from a slider: changes are spaced out
-  and the last one wins.
+- `startDrone({ root?, fifth?, octave?, a4?, volume?, fadeIn?, when?, duration?, fadeOut? }): DroneHandle` —
+  `.setRoot(midi, when?)`, `.setFifth`, `.setVolume`, `.stop(fade?, when?)`, `.running`, `.startTime`.
+  `when` / `duration` place it on the audio clock (under a lesson sound or an ear drill); `setRoot(midi, when)`
+  changes root exactly then (a drone following the chords; it still ends at its `duration`). Without `when`,
+  `setRoot` may be called from a slider: changes are spaced out and the last one wins.
 - `playUi(name, { volume?, step?, when? }): boolean` (true = audio is running, it will be heard);
   `UiSound`: correct, wrong, levelUp, gem, streak, heartLost, lessonComplete, achievement, tap, perfect,
   good, miss, countdown, go, combo (`step` raises its pitch).
@@ -203,7 +256,10 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
   `setTimeSignature`, `setMeters`, `setSwing(ratio, 'eighth' | 'sixteenth')`, `setLoop(a, b)`, `clearLoop()`,
   `setEnd(at | null)`, `countInBars`; `schedule`, `scheduleRepeat`, `addPart`, `addSource`, `clear(id)`, `clearAll()`;
   `on(type, fn)` / `onVisual(type, fn)` for `beat | bar | loop | start | stop | pause | seek | end | tempo`;
-  `position(time?)`, `tickAt(time)`, `timeAt(tick)`, `now()`, `scheduleVisual(time, fn)`, `dispose()`.
+  `position(time?)`, `tickAt(time)`, `timeAt(tick)`, `now()`, `scheduleVisual(time, fn): cancel`, `dispose()`;
+  `nextBarLine()` (first bar line not yet scheduled) and `jumpAt(at, to, then?)` / `cancelJump()`: at tick `at`
+  carry on from `to` at that very moment, like a loop wrap (`then(time)` runs there: swap parts, meter, tempo).
+  Started again right after a stop (a reload), visual listeners never hear the old `stop` after the new `start`.
   Changes while running apply at the scheduling frontier (≤ look-ahead, 0.16 s); a change made inside
   a callback applies exactly at that tick. `timer: 'manual'` + `process()` / `advanceTo(t)` for tests and offline.
   - `setTempo(bpm, { rampBeats })` glides, arrives and *stays*: going back before the glide (loop,
@@ -218,6 +274,8 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
   `accents` / `setAccent(beat, 0..3)` / `cycleAccent`, `subdivision` (`none | eighth | triplet | sixteenth |
   swing | quintuplet | sextuplet`), `swingRatio`, `sound` (the learner's default click until set), `volume`, `countInBars`, `speedTrainer`,
   `silentBars`, `tap()`, `start/stop/toggle`, `running`, `onBeat`, `onSchedule`, `pattern()`, `position()`.
+  Start is immediate: the first click (or count-in click) comes `METRONOME_START_DELAY` = 20 ms after `start()`
+  (a song or band waits 80 ms to render its first notes; clicks are rendered before Start).
   Pass `{ transport }` to click along with someone else's transport. Stopping takes back clicks not yet
   heard; a new subdivision starts on the next beat; a new time signature restarts on a downbeat with
   no doubled click. A custom `output.click(...)` may return a take-back function. Pure helpers:
@@ -226,7 +284,11 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
 ## Backing band (`backing.ts`, `backing-styles.ts`, `backing-band.ts`)
 
 - Styles (`BACKING_STYLE_IDS`, details in `BACKING_STYLES[id]`: name, description, timeSignature, tempo range, feel):
-  `pop-rock, ballad, ballad-68, blues-shuffle, slow-blues (12/8), funk, reggae, bossa, jazz-swing, country, folk, metal, latin, waltz`.
+  `pop-rock, ballad, ballad-68, blues-shuffle, slow-blues (12/8), funk, reggae, bossa, jazz-swing, country, folk, metal, latin, waltz,
+  rumba` (flamenco rumba: palmas and cajón, chop on 2 and 4, no keys), `gospel` (shuffle, organ, claps on 2 and 4), `ska`
+  (off-beat skank on guitar and organ), `classical` (fingerpicked arpeggios, no drums), `tango` (marcato, then the
+  3-3-2 síncopa, no drums). `percussion: false` marks a band without a drummer (no grooves, fills, cymbals or ending
+  hit; the count-in still clicks); guitar pattern digits `1`–`6` fingerpick one string of the shape.
 - `BackingBar` = chord | `null` (hold) | chord[] (bar split evenly by beats) | `{ beat, chord }[]`.
   Beats are the style's felt beats (2 in 6/8, 4 in 12/8, 3 in the waltz). Tempo is in those beats.
 - What the styles guarantee (tested on the generated events): swing and shuffle are a 2:1 triplet
@@ -240,7 +302,9 @@ const m = new Metronome(); m.sound = 'rim'; // this screen's own click
   differ by under 4 dB in loudness (`e2e/audio-mix.cjs` prints the table).
 - `arrangeBacking(bars, { style, choruses?, ending?, endingChord?, seed?, fills? }): BackingArrangement`
   — pure: `.events` (drum/bass/keys/guitar with ticks), `.chords: ChordSegment[]`, `.lengthTicks`, `.bars`.
-- `BackingBand`: `load(bars, { style, tempo?, choruses?, loop?, countInBars?, seed?, ending? })`, `prepare()`,
+- `BackingBand`: `load(bars, { style, tempo?, choruses?, loop?, countInBars?, seed?, ending? })` (stops and resets),
+  `change(bars, opts)` (live: the band finishes its bar and the new progression / style / tempo takes over on the
+  next bar line, at the same bar of the form, no stop, no count-in; during the count-in at once; stopped = `load`), `prepare()`,
   `start/stop/pause/resume`, `playing`, `tempo`, `setTempo`, `setVolume(inst, v)`, `setMuted(inst, b)`,
   `onChord(fn)`, `currentChord()`, `arrangement`, `style`, `transport`, `dispose()` (always call it when
   the screen unmounts: it frees the band's own guitar chain).

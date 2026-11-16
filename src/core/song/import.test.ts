@@ -4,6 +4,7 @@ import { AMAZING_GRACE, CAMPFIRE_GROOVE, ODE_TO_JOY, TECHNIQUE_SAMPLER } from '.
 import { toMusicXml } from './export-musicxml';
 import { songFromJson, songToJson, toAsciiTab } from './export-text';
 import { detectFormat, detectTextFormat, importSong } from './import-any';
+import { isSongImportError, type SongImportError } from './import-error';
 import { importAsciiTab } from './import-ascii';
 import { importChordPro, importChordSheet } from './import-chords';
 import { importMusicXml, importMxl } from './import-musicxml';
@@ -221,10 +222,50 @@ describe('JSON and the sniffer', () => {
   it('round-trips JSON and rejects broken songs with a reason', () => {
     const song = sixTab(CAMPFIRE_GROOVE);
     expect(songFromJson(songToJson(song))).toEqual(song);
-    expect(() => songFromJson('{"format":"other"}')).toThrow('Unknown JSON format');
+    expect(() => songFromJson('{"format":"other"}')).toThrow('This file is not a Sixstring Academy song');
     const bad = JSON.parse(songToJson(song));
     bad.song.tracks[0].measures[0].beats.pop();
-    expect(() => songFromJson(JSON.stringify(bad))).toThrow(/not a valid song: Bar 1/);
+    expect(() => songFromJson(JSON.stringify(bad))).toThrow(/a mistake the player cannot work around: Bar 1/);
+  });
+
+  it('refuses broken files in words for the learner, keeping the technical reason as the detail', async () => {
+    const refusal = async (p: Promise<unknown> | (() => unknown)): Promise<SongImportError> => {
+      try {
+        if (typeof p === 'function') p();
+        else await p;
+      } catch (e) {
+        expect(isSongImportError(e), String(e)).toBe(true);
+        expect(e).toBeInstanceOf(RangeError);
+        return e as SongImportError;
+      }
+      throw new Error('expected a refusal');
+    };
+    const technical = /JSON|Unexpected|DataView|Offset|undefined|<html>|Corrupted|End of data/;
+    const json = await refusal(() => songFromJson('{"meta": '));
+    expect(json.message).toMatch(/damaged or cut short/);
+    expect(json.message).not.toMatch(technical);
+    expect(json.detail).toMatch(/^Not JSON/);
+    const missing = await refusal(() => songFromJson('{"meta": {}}'));
+    expect(missing.message).toMatch(/part of the song is missing/);
+    expect(missing.detail).toBe('Song JSON is missing "tuning".');
+    const newer = await refusal(() => songFromJson(JSON.stringify({ format: JSON.parse(songToJson(sixTab(ODE_TO_JOY))).format, version: 99, song: {} })));
+    expect(newer.message).toMatch(/newer version of Sixstring Academy/);
+    const html = await refusal(() => importMusicXml('<html><body/></html>'));
+    expect(html.message).toMatch(/not a music score/);
+    expect(html.message).not.toMatch(technical);
+    expect(html.detail).toBe('The root element is <html>.');
+    // A MIDI file cut short after its header: the MIDI reader's own error is only the detail.
+    const midi = await refusal(importSong(new Uint8Array([0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 2, 1, 0xe0, 0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, 40, 0]), { name: 'cut.mid' }));
+    expect(midi.message).toMatch(/MIDI file could not be read/);
+    expect(midi.message).not.toMatch(technical);
+    expect(midi.detail).toBeTruthy();
+    const mxl = await refusal(importSong(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4, 5]), { name: 'broken.mxl', format: 'mxl' }));
+    expect(mxl.message).toMatch(/could not be unpacked/);
+    expect(mxl.message).not.toMatch(technical);
+    const six = await refusal(importSong('title: X\ntempo: 90\n| q 3:0 |\n', { format: 'sixtab' }));
+    expect(six.detail).toMatch(/^line 3, column/);
+    // A damaged XML file keeps the XML reader's words: the song library shows its own sentence for those.
+    await expect(importSong('<score-partwise><part id="P1"><measure>', { format: 'musicxml' })).rejects.toThrow(/^Unclosed/);
   });
 
   it('detects formats from content', async () => {
