@@ -389,6 +389,22 @@ export function feelCounts(pattern: string, time: string): string[] {
   return out;
 }
 
+/** The counts of `feelCounts`, grouped by felt beat: "1 trip let, 2, 3 &, 4" or "1 3, 4 5 6". */
+export function feelCountText(pattern: string, time: string): string {
+  const parsed = parseRhythm({ pattern, time });
+  const beatTicks = parsed.time.kind === 'compound' ? (PPQ / 2) * 3 : PPQ;
+  const counts = feelCounts(pattern, time);
+  const groups: string[][] = [];
+  let last = -1;
+  parsed.events.filter((e) => e.attack).forEach((e, i) => {
+    const beat = Math.floor((e.tick % parsed.barTicks) / beatTicks);
+    if (beat !== last) groups.push([]);
+    groups[groups.length - 1].push(counts[i]);
+    last = beat;
+  });
+  return groups.map((g) => g.join(' ')).join(', ');
+}
+
 const feelWords = (time: string): string =>
   time === '4/4'
     ? 'A triplet fits three even notes into one beat: say "1 trip let".'
@@ -416,9 +432,9 @@ export const rhythmRead = defineGenerator({
   make(p, { rng, difficulty }) {
     const feel: Feel = rng.pick(pool<Feel>(p.feels ?? ['6/8', 'triplets'], difficulty, 1));
     const bar = feelBar(rng, feel, p.rests === true);
-    const counts = feelCounts(bar.pattern, bar.time);
+    const said = feelCountText(bar.pattern, bar.time);
     const tempo = quarterTempo(bar.time, p.tempo ?? 60);
-    const explain = `${feelWords(bar.time)} The notes start on ${counts.join(' ')}.`;
+    const explain = `${feelWords(bar.time)} The notes start on ${said}.`;
     const ask = p.ask ?? 'tap';
     if (ask === 'tap') {
       const out: TapRhythmExercise = {
@@ -454,12 +470,11 @@ export const rhythmRead = defineGenerator({
       };
       return out;
     }
-    const said = counts.join(' ');
     return choiceOf(
       rng,
       { prompt: 'On which counts do the notes start?', explain, figure: { kind: 'rhythm', pattern: bar.pattern, time: bar.time, counting: false } },
       said,
-      distinct(others.map((o) => feelCounts(o.pattern, o.time).join(' ')), (s) => s, 3, [said]),
+      distinct(others.map((o) => feelCountText(o.pattern, o.time)), (s) => s, 3, [said]),
     );
   },
 });

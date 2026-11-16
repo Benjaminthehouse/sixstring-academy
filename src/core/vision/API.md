@@ -178,16 +178,16 @@ only part of the picture; every conversion above honours it.
 const follower = new CropFollower();                        // eases the window, ignores sway (deadband 12%)
 // in onRender:
 const whole = { width, height, mirrored: true, fit: 'contain' as const };
-const target = u?.state === 'locked' ? neckCrop(pose, notes, whole) : FULL_CROP;   // FULL_CROP when the dots are already >= 11 px
+const target = u?.state === 'locked' ? neckCrop(pose, notes, whole) : FULL_CROP;   // FULL_CROP when the dots are already >= 10 px
 const crop = follower.update(target, timeMs, reducedMotion);
 const view = isFullCrop(crop) ? whole : { ...whole, crop };
 video.style.transformOrigin = '0 0';
 video.style.transform = videoCropTransform(view, video.videoWidth, video.videoHeight) ?? '';   // same part of the picture, mirroring included
 drawVisionOverlay(ctx, { view, pose, notes, ... });          // taps: displayToFrame(tap, view, ...)
 ```
-`neckCrop(pose, notes, view, { readableRadius 11, maxZoom 3, marginFrets 1, minZoom 1.25 })`
-magnifies just enough for dots of `readableRadius` CSS px, never past the notes' frets (plus a fret
-either side, board edge to edge) nor `maxZoom`; the crop has the view's shape where the frame has
+`neckCrop(pose, notes, view, { readableRadius 10, maxZoom 4, marginFrets 0.5, air 0.15, minZoom 1.25 })`
+magnifies just enough for dots of `readableRadius` CSS px, never past the notes' cells (plus half a
+cell either side, board edge to edge) nor `maxZoom`; the crop has the view's shape where the frame has
 room (a view taller than the picture keeps its bands). `cropZoom(view, w, h)`
 says how much a view magnifies. The camera screen zooms by default (Z toggles it) and shows the
 whole picture again for the marking tools.

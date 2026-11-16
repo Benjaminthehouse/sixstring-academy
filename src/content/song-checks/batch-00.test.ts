@@ -148,21 +148,19 @@ function fingerMarks(song: Song, trackIndex: number): Set<string> {
 
 /**
  * The plan puts every song of this batch at level 1. The estimator rates the learner's part of the
- * level-1 seed songs Hot Cross Buns and Frere Jacques at 2, so 1 or 2 is "near the plan's level".
- * One known estimator artefact is tolerated and checked: its hand-position window starts at the
- * first fretted note and ignores finger marks, so a first-position part whose first fretted note
- * is fret 2 or 3 and that later uses a lower fret reads as a five-fret stretch. That is accepted
- * only when it is the sole reason and every fretted note really sits under fingers 1-4 at frets 1-4.
+ * level-1 seed songs Hot Cross Buns and Frere Jacques at 1 or 2, so 1 or 2 is "near the plan's level".
+ * Gap note (integration pass 2): the estimator's hand window used to start at the first fretted
+ * note, so a first-position part opening on fret 2 or 3 that later used a lower fret read as a
+ * five-fret stretch and rated 3 (st-first-notes-string-3 and -5); that artefact was tolerated here.
+ * The hand model now fits positions to the whole part, so the better estimate is pinned instead:
+ * every part rates 1 or 2, and a part whose frets all fit first position reports no stretch.
  */
 function expectNearLevelOne(song: Song): void {
   const part = song.tracks[0];
   const d = estimateDifficulty(song, { track: part.id });
-  if (d.level <= 2) return;
-  expect(d.reasons, `${part.name}: rated ${d.level}`).toEqual(['Wide stretches: up to 5 frets under one hand.']);
-  const others = Object.entries(d.factors).filter(([k, v]) => k !== 'stretch' && v > 0.12);
-  expect(others, `${part.name}: other difficulty factors`).toEqual([]);
+  expect(d.level, `${part.name}: rated ${d.level}: ${d.reasons.join(' ')}`).toBeLessThanOrEqual(2);
   const frets = part.measures.flatMap((m) => m.beats.flatMap((b) => b.notes.map((n) => n.fret))).filter((f) => f > 0);
-  expect(Math.min(...frets) >= 1 && Math.max(...frets) <= 4, `${part.name}: frets ${Math.min(...frets)}-${Math.max(...frets)} fit first position`).toBe(true);
+  if (frets.length && Math.max(...frets) <= 4) expect(d.factors.stretch, `${part.name}: frets 1-4 need no stretch`).toBe(0);
 }
 
 // ---------------------------------------------------------------------------------------------

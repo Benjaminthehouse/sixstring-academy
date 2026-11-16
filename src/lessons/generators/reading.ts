@@ -17,6 +17,8 @@ const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
 type Fretted = { string: number; fret: number; duration: string };
 
 const nameOf = (midi: number): string => spellMidi(midi, { prefer: 'sharps' }, { octave: false });
+// A line of several notes reads better with commas: "G, F♯, E, B" rather than "G F♯ E B".
+const listOf = (names: readonly string[]): string => noteList(names, ', ');
 const fullNameOf = (midi: number): string => spellMidi(midi, { prefer: 'sharps' });
 const pcKey = (names: readonly string[]): string => names.map((n) => parseNote(n)?.chroma ?? -1).join('.');
 
@@ -240,7 +242,7 @@ export function positionNotes(key: Key, position: number): Array<{ midi: number;
 }
 
 /** At most this many notes in a passage: it has to fit a phone screen as a staff and as a line of note names. */
-const MAX_PASSAGE_NOTES = 12;
+const MAX_PASSAGE_NOTES = 10;
 
 /** Note values of 1 or 2 bars of 4/4 (quarters, plus eighth pairs and halves when allowed), 4 to 12 notes. */
 function sightRhythm(rng: Rng, bars: number, values: ReadonlyArray<'half' | 'quarter' | 'eighth'>): string[] {
@@ -333,8 +335,8 @@ export const sightReading = defineGenerator({
     { name: 'ask', type: "'notes' | 'tab'", default: "'notes'", description: 'Which notes the passage plays; or which tab plays it in the position.' },
     { name: 'positions', type: 'number[]', default: '[1]', description: 'Hand positions (fret of the index finger, 1 to 12), easiest first. 1 is first position with the open strings.' },
     { name: 'keys', type: 'string[]', default: 'C major, A minor, G major, E minor, F major, D major', description: 'Keys, easiest first. Minor keys use their natural minor notes.' },
-    { name: 'bars', type: 'number', default: '2', description: 'Bars of 4/4, 1 or 2.' },
-    { name: 'values', type: "('half' | 'quarter' | 'eighth')[]", default: "['quarter']", description: 'Note values the rhythm may use.' },
+    { name: 'bars', type: 'number', default: '2 (1 for a tab question)', description: 'Bars of 4/4, 1 or 2.' },
+    { name: 'values', type: "('half' | 'quarter' | 'eighth')[]", default: "['quarter']", description: 'Note values the rhythm may use (quarter among them).' },
   ],
   check: (p) => {
     const check = checkParams()
@@ -358,7 +360,8 @@ export const sightReading = defineGenerator({
     const keys = pool(keysFromList(p.keys ?? SIGHT_KEYS), difficulty, 2);
     const key = rng.pick(keys);
     const position = rng.pick(pool(p.positions ?? [1], difficulty, 1));
-    const durations = sightRhythm(rng, p.bars ?? 2, p.values ?? ['quarter']);
+    // A tab of one bar fits an answer button on a phone without scrolling; a passage to name may run two.
+    const durations = sightRhythm(rng, p.bars ?? (p.ask === 'tab' ? 1 : 2), p.values ?? ['quarter']);
     const passage = makePassage(rng, key, position, durations);
     const names = passageNames(passage);
     const [lo, hi] = positionFrets(position);

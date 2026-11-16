@@ -154,7 +154,7 @@ describe('rhythm-read: triplets and compound bars are full and counted where the
         if (ts.text === '4/4') expect(spec.pattern).toMatch(/et/);
         else expect(ts.kind).toBe('compound');
         if (ask === 'count') {
-          const said = plainText(String(right(e).text)).split(' ');
+          const said = plainText(String(right(e).text)).replace(/,/g, '').split(' ');
           const expected = parsed.onsets.map((tick) => {
             if (ts.kind === 'compound') return String(tick / EIGHTH + 1);
             const beat = Math.floor(tick / 960) + 1;
@@ -239,7 +239,7 @@ describe('sight-reading: a passage in one key, in reach of one hand position', (
         // Starts and ends on the key note.
         expect(midis[0] % 12).toBe(parseNote(key.tonic)!.chroma);
         expect(midis[midis.length - 1] % 12).toBe(parseNote(key.tonic)!.chroma);
-        expect(midis.length).toBeLessThanOrEqual(12);
+        expect(midis.length).toBeLessThanOrEqual(10);
         // Some position in the pool reaches every note.
         const reach = (position: number): boolean => {
           const [lo, hi] = window(position);
