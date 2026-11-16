@@ -41,9 +41,9 @@ export function IntervalsSection({ item, reveal, level, fmt, sounder }: SectionP
 
   return (
     <div className={styles.stack}>
-      <div className={styles.intervalHero} aria-live="polite">
+      <div className={styles.intervalHero}>
         <div className={styles.intervalHead}>
-          <div>
+          <div aria-live="polite">
             <p className={styles.kicker}>
               {row.semitones} half step{row.semitones === 1 ? '' : 's'} · inverts to {row.inversion}
             </p>

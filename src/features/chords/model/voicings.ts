@@ -24,7 +24,7 @@ export interface VoicingSet {
   groups: VoicingGroup[];
   /** Every voicing in display order (the order the arrow keys walk). */
   all: Voicing[];
-  /** Set when there is no practical shape, or when the shapes leave tones out. */
+  /** Set when there is no practical shape at all (see `shapeNote` for what one shape leaves out). */
   note: string | null;
 }
 
@@ -68,6 +68,14 @@ export function difficultyWord(v: Pick<Voicing, 'difficulty'>): 'Easy' | 'Medium
 /** A human label for a voicing: the engine's label, with the frets for generated shapes. */
 export function voicingLabel(v: Voicing): string {
   if (v.source === 'generated' && v.category === 'generated') return `${v.label} (${formatFrets(v.frets)})`;
+  // The engine's shell and jazz labels name the shape's lowest fret ("root on string 5, fret 6" for
+  // x767xx, whose root is at fret 7). Say where the root really is, as a learner reads it.
+  const m = /root on string (\d), fret \d+/.exec(v.label);
+  if (m) {
+    const string = Number(m[1]);
+    const fret = v.frets[v.frets.length - string];
+    if (typeof fret === 'number') return v.label.replace(m[0], `root on string ${string}, fret ${fret}`);
+  }
   return v.label;
 }
 
@@ -140,12 +148,29 @@ function noteFor(symbol: string, all: Voicing[]): string | null {
   if (all.length === 0) {
     return `There is no practical shape for ${symbol} in this tuning: its notes cannot be held by one hand at once. Play the simpler chord suggested below, or split it between two instruments.`;
   }
-  const first = all[0];
-  if (first.omitted.length) {
-    const tones = first.omitted.map((d) => (d === '5' ? 'the fifth' : d === '1' ? 'the root' : `the ${d}`));
-    return `These shapes leave out ${tones.join(' and ')}. That is normal for big chords: six strings and four fingers cannot hold everything, and the third and seventh carry the sound.`;
-  }
   return null;
+}
+
+/**
+ * What one shape leaves out, in a sentence, or null when it plays every note of the chord. Said
+ * of the shape on screen, not of the chord: the open C7 has no fifth, its barre shapes do.
+ */
+export function shapeNote(v: Pick<Voicing, 'omitted'>): string | null {
+  if (!v.omitted.length) return null;
+  const tones = v.omitted.map(degreeWords);
+  const list = tones.length === 1 ? tones[0] : `${tones.slice(0, -1).join(', ')} and ${tones[tones.length - 1]}`;
+  if (v.omitted.every((d) => d === '5')) return `This shape leaves out the fifth. That is normal: the fifth is the note a chord misses least.`;
+  return `This shape leaves out ${list}. That is normal for big chords: four fingers cannot hold every note, so the ones the ear misses least are left out.`;
+}
+
+const DEGREE_WORDS: Record<string, string> = { '1': 'root', '2': 'second', '3': 'third', '4': 'fourth', '5': 'fifth', '6': 'sixth', '7': 'seventh', '9': 'ninth', '11': 'eleventh', '13': 'thirteenth' };
+
+/** "the fifth", "the flat ninth", "the root". */
+function degreeWords(degree: string): string {
+  const m = /^(bb|b|##|#)?(\d+)$/.exec(degree);
+  if (!m) return `the ${degree}`;
+  const acc = m[1] === 'b' ? 'flat ' : m[1] === '#' ? 'sharp ' : m[1] === 'bb' ? 'double-flat ' : m[1] === '##' ? 'double-sharp ' : '';
+  return `the ${acc}${DEGREE_WORDS[m[2]] ?? m[2]}`;
 }
 
 /**

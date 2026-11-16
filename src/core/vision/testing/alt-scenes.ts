@@ -727,7 +727,7 @@ function makeGuitarShader(neck: AltNeck, look: AltLook, light: AltLight, cam: Ca
   type Post = { x: number; y: number; r: number };
   const posts: Post[] = [];
   const stringEnds: { x: number; y: number }[] = new Array(n);
-  if (head === 'three' || (head === 'slotted' && false)) {
+  if (head === 'three') {
     const side = Math.ceil(n / 2);
     for (let k = 0; k < side; k++) {
       const x = -nutT - 42 - 34 * k;
@@ -2176,8 +2176,6 @@ export interface AltCondition {
   build(seed: number): AltSpec;
 }
 
-const seq = (spec: AltSpec): AltSpec => spec;
-
 /** Every condition of the alt bench, in table order. */
 export const ALT_CONDITIONS: readonly AltCondition[] = [
   {
@@ -2186,7 +2184,7 @@ export const ALT_CONDITIONS: readonly AltCondition[] = [
     what: 'clean front view, nut in view, no hand',
     build: (seed) => {
       const { spec } = baseSpec('plain', seed);
-      return seq({ ...spec, hand: null, occluders: [], view: { ...spec.view, tiltDeg: Math.min(spec.view.tiltDeg, 12) }, camera: { ...spec.camera, quant: 0, blotch: 0 } });
+      return { ...spec, hand: null, occluders: [], view: { ...spec.view, tiltDeg: Math.min(spec.view.tiltDeg, 12) }, camera: { ...spec.camera, quant: 0, blotch: 0 } };
     },
   },
   {

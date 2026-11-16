@@ -24,6 +24,8 @@ export interface FeedbackCopy {
   heartLost: boolean;
   /** The question will come back later in the session. */
   willRetry: boolean;
+  /** That answer used the last heart: the lesson ends at Continue, so nothing comes back. */
+  lastHeart: boolean;
 }
 
 const RIGHT_WORDS = ['Right.', 'Exactly.', 'Correct.', 'That is it.', 'Spot on.', 'Yes.'];
@@ -154,16 +156,20 @@ export function wrongLine(exercise: Exercise, result: GradeResult): RichText | n
   }
 }
 
-/** Everything the feedback panel shows for one answered (or skipped) step. */
-export function feedbackCopy(exercise: Exercise, feedback: SessionFeedback, seed = 0): FeedbackCopy {
+/**
+ * Everything the feedback panel shows for one answered (or skipped) step. `heartsLeft` is the
+ * session's count after the answer (null when hearts are not in play).
+ */
+export function feedbackCopy(exercise: Exercise, feedback: SessionFeedback, seed = 0, heartsLeft: number | null = null): FeedbackCopy {
   const { result } = feedback;
   const explain = result.feedback.explain;
   if (feedback.skipped) {
-    return { tone: 'info', title: 'Here is the answer.', note: null, answer: result.feedback.answer || null, explain, heartLost: false, willRetry: feedback.willRetry };
+    return { tone: 'info', title: 'Here is the answer.', note: null, answer: result.feedback.answer || null, explain, heartLost: false, willRetry: feedback.willRetry, lastHeart: false };
   }
   if (result.correct) {
-    return { tone: 'ok', title: rightWord(seed), note: null, answer: null, explain, heartLost: false, willRetry: false };
+    return { tone: 'ok', title: rightWord(seed), note: null, answer: null, explain, heartLost: false, willRetry: false, lastHeart: false };
   }
+  const lastHeart = feedback.heartLost && heartsLeft === 0;
   return {
     tone: 'bad',
     title: 'Not quite.',
@@ -171,6 +177,8 @@ export function feedbackCopy(exercise: Exercise, feedback: SessionFeedback, seed
     answer: result.feedback.answer || null,
     explain,
     heartLost: feedback.heartLost,
-    willRetry: feedback.willRetry,
+    // With no heart left the lesson ends at Continue: do not promise a come-back.
+    willRetry: feedback.willRetry && !lastHeart,
+    lastHeart,
   };
 }

@@ -34,8 +34,10 @@ export interface PlayerDebug {
   /** Frames drawn while playing, and the cursor's last reported position. */
   frames: number;
   cursor: { tick: number; bar: number; audio: number } | null;
-  /** Bars heard (`bar` events, as heard). */
-  bars: Array<{ bar: number; index: number; time: number }>;
+  /** Bars heard (`bar` events): their scheduled audio time, and the sounding clock when the event arrived. */
+  bars: Array<{ bar: number; index: number; time: number; heardAt: number }>;
+  /** Auto-scroll of the wrapped score: the line playing, and whether it and the next line are in view. */
+  follow: { line: number; lines: number; current: boolean; next: boolean; scrollTop: number } | null;
   /** The last results shown. */
   results: unknown;
   /** Counts of recordActivity calls. */
@@ -44,7 +46,7 @@ export interface PlayerDebug {
 
 /** The live record (one player screen at a time). */
 export const playerDebug: PlayerDebug = {
-  songId: null, mode: 'listen', musicStart: null, startTick: 0, tempo: 100, latency: 0, notes: [], waitIndex: 0, waitTotal: 0, frames: 0, cursor: null, bars: [], results: null, recorded: 0,
+  songId: null, mode: 'listen', musicStart: null, startTick: 0, tempo: 100, latency: 0, notes: [], waitIndex: 0, waitTotal: 0, frames: 0, cursor: null, bars: [], follow: null, results: null, recorded: 0,
 };
 
 /** Keep a list short. */
@@ -55,5 +57,5 @@ export function pushBounded<T>(list: T[], item: T, max = 400): void {
 
 /** Start a fresh record for a song. */
 export function resetDebug(songId: string | null): void {
-  Object.assign(playerDebug, { songId, mode: 'listen', musicStart: null, startTick: 0, tempo: 100, latency: 0, notes: [], waitIndex: 0, waitTotal: 0, frames: 0, cursor: null, bars: [], results: null, recorded: 0 });
+  Object.assign(playerDebug, { songId, mode: 'listen', musicStart: null, startTick: 0, tempo: 100, latency: 0, notes: [], waitIndex: 0, waitTotal: 0, frames: 0, cursor: null, bars: [], follow: null, results: null, recorded: 0 });
 }

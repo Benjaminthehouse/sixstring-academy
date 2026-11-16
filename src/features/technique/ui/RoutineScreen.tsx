@@ -169,7 +169,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
   const controls = (
     <>
       <Tooltip content={<>Start or pause <Kbd>Space</Kbd></>}>
-        <Button variant="primary" size={wide ? 'lg' : 'md'} fullWidth={wide} iconLeft={running ? 'Pause' : finished ? 'RotateCcw' : 'Play'} onClick={toggle} data-technique-primary="">
+        <Button variant="primary" size={wide ? 'lg' : 'md'} fullWidth={wide} wrap iconLeft={running ? 'Pause' : finished ? 'RotateCcw' : 'Play'} onClick={toggle} data-technique-primary="">
           {running ? 'Pause' : finished ? 'Again from the top' : index === 0 && left === steps[0]?.seconds ? `Start the ${e.id === 'tech-warm-up' ? 'warm-up' : 'cool-down'}` : 'Carry on'}
         </Button>
       </Tooltip>
@@ -182,7 +182,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
         <CountdownRing key={`${index}-${finished}`} seconds={step.seconds} running={running} size={wide ? 88 : 72} label="Time left in this step" tone="accent">
           {() => formatClock(Math.max(0, left))}
         </CountdownRing>
-        <div>
+        <div className={styles.routineText}>
           <Text variant="eyebrow">
             Step {index + 1} of {steps.length}
           </Text>
@@ -232,7 +232,7 @@ export function RoutineScreen({ e }: { e: TechniqueExercise }) {
               <span className={styles.stepMark} aria-hidden="true">
                 {finished || i < index ? '✓' : i + 1}
               </span>
-              <span>{s.title}</span>
+              <span className={styles.routineStepTitle}>{s.title}</span>
               <span className={styles.stepTime}>{formatClock(s.seconds)}</span>
             </li>
           ))}

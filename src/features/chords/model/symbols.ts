@@ -189,6 +189,11 @@ export function chordFromParam(param: string): string | null {
   return fromSkillSlug(p)?.symbol ?? null;
 }
 
+/** A degree for display: `bb7` -> `𝄫7`, `b5` -> `♭5`, `#11` -> `♯11`. */
+export function displayDegree(degree: string): string {
+  return degree.replace(/bb(?=\d)/g, '𝄫').replace(/##(?=\d)/g, '𝄪').replace(/b(?=\d)/g, '♭').replace(/#(?=\d)/g, '♯');
+}
+
 /** A chord type's suffix for display (`m7♭5`, `maj7`), or `major` for the plain triad. */
 export function typeLabel(typeSymbol: string): string {
   return displaySymbol(`C${typeSymbol}`).slice(1) || 'major';

@@ -12,7 +12,7 @@ import { Banner, Button, MediaBlocked, Sheet, Spinner, Text } from '@/ui';
 import { useMusicSettings } from '@/ui/music';
 import { useMic } from '../hooks/useMic';
 import { MIC_EXPLAINER, strumHint, type StrumHint } from '../model/hints';
-import { specOf } from '../model/listen';
+import { RING_TRUE, specOf } from '../model/listen';
 import { chordParam, chordSkillId, displaySymbol } from '../model/symbols';
 import { MarkedDiagram } from './MarkedDiagram';
 import styles from './Trainer.module.css';
@@ -56,7 +56,7 @@ export function MicCheckSheet({ open, onClose, symbol, voicing }: { open: boolea
     startedAt.current = Date.now();
     let failed = 0;
     const w = waitForChord(tracker, specOf(voicing), {
-      threshold: 0.55,
+      threshold: RING_TRUE,
       onAttempt: (m) => {
         failed++;
         setTries(failed);

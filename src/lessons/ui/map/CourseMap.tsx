@@ -50,8 +50,16 @@ const THEME_ICONS: Record<UnitTheme, string> = {
   composition: 'Feather',
 };
 
-const ROW = 112;
 const NODE = 68;
+
+/**
+ * Distance between two nodes: room for a node and a title of up to two lines below it, in rem so
+ * that a learner's larger text size keeps titles clear of the next node.
+ */
+function rowHeight(): number {
+  const rem = typeof document === 'undefined' ? 16 : parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return Math.round(NODE + rem * 5);
+}
 
 function nodeIcon(node: LessonNode): string {
   if (node.state === 'done') return node.dueForReview ? 'RotateCcw' : 'Check';
@@ -141,11 +149,11 @@ function UnitBlock({
 }) {
   const [ref, { width }] = useElementSize<HTMLDivElement>();
   const w = Math.max(260, width || 320);
-  // Room above the first node for its "Start" bubble.
-  const pad = ROW / 2 + 22;
-  const layout = useMemo(() => pathLayout(unit.lessons.length, { width: w, row: ROW, node: NODE, phase, pad }), [unit.lessons.length, w, phase, pad]);
+  const row = useMemo(rowHeight, []);
+  const pad = row / 2;
+  const layout = useMemo(() => pathLayout(unit.lessons.length, { width: w, row, node: NODE, phase, pad }), [unit.lessons.length, w, row, phase, pad]);
   const lastDone = unit.lessons.reduce((acc, l, i) => (l.state === 'done' ? i : acc), -1);
-  const progressD = useMemo(() => (lastDone >= 0 ? pathLayout(Math.min(unit.lessons.length, lastDone + 2), { width: w, row: ROW, node: NODE, phase, pad }).d : ''), [lastDone, unit.lessons.length, w, phase, pad]);
+  const progressD = useMemo(() => (lastDone >= 0 ? pathLayout(Math.min(unit.lessons.length, lastDone + 2), { width: w, row, node: NODE, phase, pad }).d : ''), [lastDone, unit.lessons.length, w, row, phase, pad]);
   const cp = unit.checkpoint;
   return (
     <li className={cx(styles.unit, styles[`theme-${unit.theme}`])} data-unit={unit.id} aria-labelledby={`unit-${unit.id}`}>
@@ -205,7 +213,8 @@ function UnitBlock({
             return (
               <li key={node.id} className={styles.nodeItem} style={{ left: p.x, top: p.y, width: room }}>
                 {node.state === 'current' && (
-                  <span className={styles.bubble} aria-hidden="true">
+                  // Beside the node, on the side with more room: above it, it would sit on the title of the lesson before.
+                  <span className={cx(styles.bubble, p.x > w / 2 ? styles.bubbleLeft : styles.bubbleRight)} aria-hidden="true" data-bubble="">
                     {node.completions > 0 ? 'Continue' : 'Start'}
                   </span>
                 )}

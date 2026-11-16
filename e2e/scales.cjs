@@ -14,9 +14,16 @@
  *           picker's search, marking a shape learnt (a crown in core/progress), a capo (frets count
  *           from the capo, notes stay spelled) and left-handed (the drawing mirrors); screenshots in
  *           both themes
- *  phone    no sideways page scroll; the neck scrolls inside its own frame and centres the shape,
- *           and moves when the shape changes; Play sits in the thumb zone; the picker opens as a
- *           sheet and Esc closes it; a phone on its side shows more frets; screenshots in both themes
+ *  phone    no sideways page scroll (also with text at 200 %); the neck scrolls inside its own
+ *           frame and centres the shape, and moves when the shape changes; Play sits in the thumb
+ *           zone; the picker opens as a sheet and Esc closes it; a phone on its side shows more
+ *           frets; screenshots in both themes
+ *  band     over the 12-bar blues the scale keeps playing through the whole chorus
+ *
+ * Added by the review: a shape id the scale does not have falls back to a real shape and the
+ * address says which; a heard note re-renders the neck and nothing else (React commits are
+ * counted through a minimal DevTools hook); practice is logged when the app is hidden as well as
+ * when the screen is left, never twice; the compare legend names only the marks on the neck.
  *
  * Prints one line per check, PASSED or FAILED at the end, and exits non-zero on failure.
  * Timing limits are generous: the machine is shared and busy.
@@ -364,6 +371,8 @@ async function desktop(theme) {
       s = await waitState(page, (x) => x.view === 'compare');
       const legend = await page.locator('[aria-live="polite"]').filter({ hasText: 'Only in' }).innerText().catch(() => '');
       check('Compare puts the blues scale on the same neck and names the blue note (♭5)', s.view === 'compare' && /♭5/.test(legend), legend.replace(/\s+/g, ' '));
+      const marks = await page.locator('[data-compare-legend]').innerText().catch(() => '');
+      check('the legend under the neck explains only the marks that are there (diamonds, no squares)', /Diamonds/.test(marks) && !/Squares/.test(marks), marks);
       if (dark) {
         await page.locator('[data-neck]').scrollIntoViewIfNeeded();
         await shot(page, 'desktop-compare');
@@ -580,6 +589,34 @@ async function sideways() {
   check('a phone on its side does not scroll the page sideways', side.overflow <= 1, side.overflow);
 }
 
+/**
+ * Review: over the band the line played once per band loop, and the loop was two choruses of the
+ * vamp: on the 12-bar blues, 3 bars of scale in 24 (over a minute of band alone at 72 BPM).
+ */
+async function bandLoop() {
+  await withApp({ size: 'desktop', theme: 'dark' }, async ({ page, goto, errors }) => {
+    await page.addInitScript(() => localStorage.setItem('ssa:scales.settings', JSON.stringify({ accompaniment: 'band', bpm: 240, perBeat: 2, loop: true, direction: 'up-down' })));
+    await open(page, goto, 'a--minor-blues--box-1');
+    await page.evaluate(async () => {
+      const players = await import('/src/features/scales/audio/player.ts');
+      window.__bandNotes = [];
+      players.currentPlayer().onNote((n) => window.__bandNotes.push({ index: n.index, time: n.time }));
+    });
+    await page.locator('[data-play]').first().click();
+    // One bar of count-in and a 12-bar chorus at 240 BPM: 13 s.
+    await page.waitForTimeout(14000);
+    const notes = await page.evaluate(() => window.__bandNotes.slice());
+    await page.locator('[data-play]').first().click();
+    const first = notes[0]?.time ?? 0;
+    const chorus = notes.filter((n) => n.time < first + 12 - 0.01);
+    const passes = chorus.filter((n) => n.index === 0).length;
+    const gaps = chorus.slice(1).map((n, i) => n.time - chorus[i].time);
+    const longest = Math.max(0, ...gaps);
+    check('over the 12-bar blues the scale keeps playing all through the chorus (three passes, no gap of two bars)', passes >= 3 && longest < 2, `${passes} passes in the first chorus, ${chorus.length} notes, longest gap ${longest.toFixed(2)} s`);
+    check('band loop: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+  });
+}
+
 function median(xs) {
   if (!xs.length) return NaN;
   const s = [...xs].sort((a, b) => a - b);
@@ -593,6 +630,7 @@ function median(xs) {
     await phone('dark');
     await phone('light');
     await sideways();
+    await bandLoop();
   } catch (e) {
     check('the check ran to the end', false, e && e.stack ? e.stack.split('\n').slice(0, 4).join(' / ') : e);
   }

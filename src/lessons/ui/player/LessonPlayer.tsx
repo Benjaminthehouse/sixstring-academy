@@ -24,7 +24,7 @@ import { LessonProvider } from '../context';
 import { isTypingTarget, StepKeysProvider, useKeysRegistry } from '../keys';
 import { isCheckable } from '../logic/drafts';
 import { positionOfKey } from '../logic/layout';
-import { nextLabel, type NextStep } from '../logic/summary';
+import { nextLabel, resumeNote, type NextStep } from '../logic/summary';
 import { selfSubmitting } from '../exercises/registry';
 import type { PrimaryAction } from '../exercises/types';
 import { useMusicSettings } from '@/ui/music';
@@ -56,6 +56,7 @@ export interface LessonPlayerProps {
 }
 
 const COMBO_SOUNDS = new Set([3, 5, 10, 15, 20, 30]);
+const RESUME_TOAST = 'lesson-resumed';
 
 function courseOf(source: SessionSource): Course | null {
   return source.mode === 'review' ? (source.courses[0] ?? null) : source.course;
@@ -117,17 +118,25 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepId]);
 
-  // Picked up from a save: say so once, and offer a fresh start.
+  // Picked up from a save: say so once, and offer a fresh start. One toast id, so a remount (or
+  // React's double-run in development) never stacks a second one, and it leaves with the step it
+  // was about: on the first move, at the end, and when the player closes (its "Start over" would
+  // otherwise act on a player that is gone).
+  const moment = `${stepId}|${state.phase}`;
+  const resumedAt = useRef<string | null>(session.resumed ? moment : null);
   useEffect(() => {
     if (!session.resumed) return;
-    toast({
-      title: 'Picked up where you left off',
-      description: `Step ${progress.done + 1} of ${progress.total}.`,
-      action: { label: 'Start over', onClick: () => restart() },
-    });
+    toast({ id: RESUME_TOAST, title: 'Picked up where you left off', description: resumeNote(progress.done, progress.total), action: { label: 'Start over', onClick: () => restart() } });
+    return () => toast.dismiss(RESUME_TOAST);
     // Once, on opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (resumedAt.current !== null && resumedAt.current !== moment) {
+      resumedAt.current = null;
+      toast.dismiss(RESUME_TOAST);
+    }
+  }, [moment]);
 
   // Feedback appears: the sound, and focus on Continue so Enter (or a screen reader) goes on.
   const feedback = state.phase === 'feedback' ? state.feedback : null;
@@ -252,7 +261,7 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
       if (state.phase !== 'step' || !step) return;
       if (step.kind === 'card') {
         if (e.key === 'ArrowRight' || e.key === ' ') {
-          if (e.key === ' ' && ownsEnter(e.target)) return;
+          if ((e.key === ' ' && ownsEnter(e.target)) || inNativeKeys(e.target)) return;
           e.preventDefault();
           advance();
         }
@@ -348,7 +357,7 @@ export function LessonPlayer({ source: initialSource, onExit, onNext, exitLabel 
 
             <ActionBar className={cx(styles.bar, feedback && styles[`bar-${feedback.result.correct ? 'ok' : feedback.skipped ? 'info' : 'bad'}`])} stretchOnMobile={false} data-player-bar="">
               <div className={styles.barInner}>
-                {feedback && exercise && <FeedbackPanel exercise={exercise} feedback={feedback} seed={state.stats.answers} combo={state.stats.combo} />}
+                {feedback && exercise && <FeedbackPanel exercise={exercise} feedback={feedback} seed={state.stats.answers} combo={state.stats.combo} heartsLeft={state.hearts} />}
                 <div className={cx(styles.barButtons, done && styles.barButtonsDone)}>
                   {hints && !done && (
                     <span className={styles.barKeys} aria-hidden="true">

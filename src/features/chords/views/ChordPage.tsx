@@ -14,9 +14,9 @@ import { useShortcuts } from '../hooks/keys';
 import { arpeggiateVoicing, strumSequence, strumVoicing } from '../hooks/sound';
 import { easierAlternatives } from '../model/alternatives';
 import { familyOfType } from '../model/catalog';
-import { chordParam, displaySymbol } from '../model/symbols';
+import { chordParam, displayDegree, displaySymbol } from '../model/symbols';
 import { changePartners, chordUsage } from '../model/usage';
-import { defaultIndex, defaultVoicing, difficultyWord, voicingLabel, type VoicingSet } from '../model/voicings';
+import { defaultIndex, defaultVoicing, difficultyWord, shapeNote, voicingLabel, type VoicingSet } from '../model/voicings';
 import { ChangeTipsPanel } from './ChangeTipsPanel';
 import { MicCheckSheet } from './MicCheck';
 import styles from './ChordPage.module.css';
@@ -150,7 +150,11 @@ export function ChordPage({ symbol, initialVoicing, tuning, known, primaryAction
             </div>
           )}
           {group && !isMobile && <Text variant="caption" tone="muted">{group.blurb}</Text>}
-          {set.note && v && <Text variant="caption" tone="muted">{set.note}</Text>}
+          {v && shapeNote(v) && (
+            <Text variant="caption" tone="muted" data-shape-note>
+              {shapeNote(v)}
+            </Text>
+          )}
           <div className={styles.buttons}>
             <Button iconLeft="Volume2" onClick={() => v && strumVoicing(v)} disabled={!v} data-strum>
               Strum
@@ -305,7 +309,7 @@ function NotesAndFormula({ chord }: { chord: Chord }) {
         ))}
       </ul>
       <Text>
-        Formula <span className={styles.formula}>{type.degrees.map((d) => d.replace('b', '♭').replace('#', '♯')).join(' – ')}</span>
+        Formula <span className={styles.formula}>{type.degrees.map(displayDegree).join(' – ')}</span>
         {chord.bass ? <> with {displaySymbol(chord.bass)} in the bass</> : null}
       </Text>
       {aliases.length > 0 && (

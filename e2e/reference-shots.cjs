@@ -52,7 +52,7 @@ fs.mkdirSync(OUT, { recursive: true });
         for (const s of only) {
           const hash = s === 'index' ? '#reference' : `#reference--${s}`;
           await page.goto(server.url + hash, { waitUntil: 'load' });
-          await page.waitForSelector('main[data-route="reference"] [data-ui-page]', { timeout: 30000 });
+          await page.waitForSelector('main[data-route="reference"] [data-layout]', { timeout: 30000 });
           await page.waitForTimeout(Number(val('wait', 2500)));
           const name = `reference-${s}-${sideways ? 'sideways' : size}-${theme}`;
           const file = path.join(OUT, `${name}.png`);

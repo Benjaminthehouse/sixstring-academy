@@ -223,7 +223,7 @@ function MapSection() {
 function LessonsSection() {
   const first = DEMO_COURSE.units[0].lessons[0];
   return (
-    <Section title="Demo lessons" description="Real sessions of the demo course in the player: hearts, come-backs, the summary, saving and resuming." divided actions={<LinkButton variant="primary" to="kit-lessons" params={['play', first.id]} iconLeft="Play">Play the demo lesson</LinkButton>}>
+    <Section title="Demo lessons" description="Real sessions of the demo course in the player: hearts, come-backs, the summary, saving and resuming." divided actions={<LinkButton variant="primary" to="kit-lessons" params={['play', first.id]} iconLeft="Play" wrap>Play the demo lesson</LinkButton>}>
       <Grid min="16rem" gap={3}>
         {DEMO_COURSE.units.flatMap((u) => u.lessons).map((l) => (
           <LinkButton key={l.id} to="kit-lessons" params={['play', l.id]} iconLeft="BookOpen" className={styles.lessonLink}>
@@ -262,8 +262,10 @@ function SessionScreen({ kind, id }: { kind: string; id: string }) {
   const port = useMemo(() => (kind === 'try' ? memoryPort() : undefined), [kind]);
   const source: SessionSource | null = useMemo(() => {
     if (kind === 'play') return findLesson(DEMO_COURSE, id) ? { mode: 'lesson', course: DEMO_COURSE, lessonId: id } : null;
-    if (kind === 'checkpoint') return { mode: 'checkpoint', course: DEMO_COURSE, unitId: id };
-    if (kind === 'practice') return { mode: 'practice', course: DEMO_COURSE, unitId: id };
+    // An unknown unit would open an empty session ("All done", +0 XP): say it is not there instead.
+    const unit = DEMO_COURSE.units.some((u) => u.id === id);
+    if (kind === 'checkpoint') return unit ? { mode: 'checkpoint', course: DEMO_COURSE, unitId: id } : null;
+    if (kind === 'practice') return unit ? { mode: 'practice', course: DEMO_COURSE, unitId: id } : null;
     if (kind === 'review-session') return reviewSource([DEMO_COURSE], getProgress(), Date.now());
     if (kind === 'try' && (TYPES as string[]).includes(id)) {
       const course = tryCourse(id as ExerciseType);
@@ -274,7 +276,14 @@ function SessionScreen({ kind, id }: { kind: string; id: string }) {
   if (!source) {
     return (
       <Page title="Not found" back={{ to: 'kit-lessons', label: 'Lesson Kit' }}>
-        <Text>There is no demo session called “{id}”.</Text>
+        <Stack gap={4}>
+          <Text>{id ? `There is no demo lesson or unit called “${id}”.` : 'That link does not say which lesson to open.'}</Text>
+          <div>
+            <LinkButton variant="primary" to="kit-lessons" params={['lessons']} iconLeft="BookOpen">
+              Choose a demo lesson
+            </LinkButton>
+          </div>
+        </Stack>
       </Page>
     );
   }
@@ -326,7 +335,7 @@ export default function KitLessons({ params }: RouteProps) {
       title="Lesson Kit"
       eyebrow="Sixstring Academy"
       subtitle="The lesson player's parts: every exercise type, teaching cards, figures, feedback, the course map and the demo course."
-      actions={<LinkButton variant="primary" to="kit-lessons" params={['play', DEMO_COURSE.units[0].lessons[0].id]} iconLeft="Play">Play the demo lesson</LinkButton>}
+      actions={<LinkButton variant="primary" to="kit-lessons" params={['play', DEMO_COURSE.units[0].lessons[0].id]} iconLeft="Play" wrap>Play the demo lesson</LinkButton>}
     >
       {nav}
       <LessonProvider course={DEMO_COURSE}>

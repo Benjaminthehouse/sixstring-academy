@@ -104,10 +104,20 @@ export function addSession(rec: TechniqueRecord, s: { day: string; bestClean: nu
   return next;
 }
 
-/** Stars for a best tempo: one for any clean pass, two halfway up the ladder, three at the goal. */
-export function starsFor(ladder: TempoLadder, best: number | null): 0 | 1 | 2 | 3 {
+/** Days with at least one clean pass. */
+export function cleanDays(rec: TechniqueRecord): number {
+  return rec.log.filter((e) => e.t > 0).length;
+}
+
+/**
+ * Stars for a best tempo: one for any clean pass, two halfway up the ladder, three at the goal.
+ * A fixed-tempo exercise (a bend, posture) has no ladder to climb, so its stars come from coming
+ * back: one for the first clean day, two after three days, three after five. (One tap on "Clean"
+ * used to give all three.)
+ */
+export function starsFor(ladder: TempoLadder, best: number | null, days = best === null ? 0 : 1): 0 | 1 | 2 | 3 {
   if (best === null) return 0;
-  if (!climbs(ladder)) return best >= ladder.start ? 3 : 1;
+  if (!climbs(ladder)) return days >= 5 ? 3 : days >= 3 ? 2 : 1;
   const f = ladderFraction(ladder, best);
   if (f >= 1) return 3;
   if (f >= 0.5) return 2;

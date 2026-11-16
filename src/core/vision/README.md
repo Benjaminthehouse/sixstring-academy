@@ -318,12 +318,19 @@ wide-angle, 320x240, interlaced, flicker), orientation.
    at full confidence with every fret right and every dot between two strings (bass 3 of 4 scenes,
    7-string 4 of 4, 0% of those frames right). Fix (`string-count.ts`, in `FretboardTracker`): the
    board's brightness profile across the strings, averaged over several cells and normalised to the
-   board width, is correlated with combs of model-2 .. model+2 strings; another count leading by 0.3
-   (normalised correlation) over a few reads holds the board back from locking and sets
-   `guidance: check-guitar-type` / `stringsSeen`. False alarms: 0 of 96 detector poses on the
-   original bench (the largest lead there was 0.29) and 0 on every six-string alt scene. After: bass
-   0 locks (coached), 7-string 2 of 4 scenes still lock wrongly when the six-string model is fitted
-   onto six of the seven strings (the reader then sees a clean six-comb).
+   board width, is correlated with combs of model-2 .. model+2 strings; another count leading by
+   0.36 (normalised correlation), smoothed over at least three reads, holds the board back from
+   locking and sets `guidance: check-guitar-type` / `stringsSeen`; the doubt fades only on reads in
+   which the model's own count wins, not on unclear ones (motion blur let a 7-string lock for one
+   frame before that). Where that threshold comes from:
+   single reads of six-string necks under the six-string model led by at most 0.33 (1 of 356 reads on
+   the original bench, sets 0 and 3000, detector and true poses; the rest 0.29 or less), wrong-model
+   reads by 0.39-0.58. The margin is thin on both sides. In the tracker (8 frames on each of the 192
+   scenes of those sets) the gate held back 1 six-string scene at the first threshold tried (0.3) and
+   none at 0.36; on the alt bench every six-string condition locked exactly as often as before the
+   gate (same lock rates in the two full runs). After: bass 0 locks (coached), 7-string
+   2 of 4 scenes still lock wrongly when the six-string model is fitted onto six of the seven strings
+   (the reader then sees a clean six-comb).
 4. **Coaching and honest limits** (`guidance.ts`): see API.md. The limits come from one-knob sweeps:
    neck size (nothing found below about 3 px between strings; right from 3.4 px), view angle (limit
    55 degrees, above), light (right down to mean brightness 34 with the camera gain capped at 8x; half

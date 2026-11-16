@@ -25,7 +25,7 @@ import {
   type TransportClock,
 } from '@/core/audio';
 import { vampBars, SWING_STYLES, type Accompaniment, type Vamp } from '../model/backing';
-import { PPQ, timeLine, type LineNote, type NotesPerBeat, type TimedLine } from '../model/play';
+import { PPQ, fillBars, timeLine, type LineNote, type NotesPerBeat, type TimedLine } from '../model/play';
 
 /** A note handle the player can silence. */
 interface Stoppable {
@@ -214,7 +214,7 @@ export class ScalePlayer {
     if (run !== this.runId) return;
 
     if (this.partId !== null) tr.clear(this.partId);
-    this.partId = tr.addPart(timed.events, (time, ev) => {
+    this.partId = tr.addPart(events, (time, ev) => {
       const secondsPerTick = 60 / (tr.bpm * PPQ);
       const handle = this.deps.pluck(ev.midi, time, { string: ev.string, duration: Math.max(0.25, ev.ticks * secondsPerTick * 1.6), tone: req.tone, velocity: ev.index === 0 || ev.degree === '1' ? 0.85 : 0.72 });
       this.voices.push({ time, handle });

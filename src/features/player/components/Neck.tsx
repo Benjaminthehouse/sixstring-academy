@@ -16,12 +16,14 @@ export interface NeckProps {
   /** The practised part (its tuning, capo and range). */
   track: string;
   maxFret: number;
+  /** Fewest frets to show (more on wide screens). */
+  minSpan?: number;
   size: 'sm' | 'md';
   className?: string;
 }
 
 /** The fretboard strip. */
-export const Neck = memo(function Neck({ engine, track, maxFret, size, className }: NeckProps) {
+export const Neck = memo(function Neck({ engine, track, maxFret, minSpan = 5, size, className }: NeckProps) {
   const [frame, setFrame] = useState<NeckFrame>({ now: [], next: [], hint: false });
   useEffect(() => engine.onNeck(setFrame), [engine]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -29,9 +31,9 @@ export const Neck = memo(function Neck({ engine, track, maxFret, size, className
   // The range is fixed per part: the board does not jump while the music moves.
   const frets = useMemo(() => {
     const spots = engine.partTargets.flatMap((t) => t.positions);
-    return neckRange(spots, { maxFret: Math.max(maxFret, 12) });
+    return neckRange(spots, { maxFret: Math.max(maxFret, 12), minSpan });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, track, maxFret]);
+  }, [engine, track, maxFret, minSpan]);
   const markers = useMemo(() => neckMarkers(frame.now, frame.next, labels, { hint: frame.hint }), [frame, labels]);
   const tuning = labels.tuning;
   const capo = labels.capo;

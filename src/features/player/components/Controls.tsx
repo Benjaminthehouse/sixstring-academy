@@ -7,7 +7,7 @@
  */
 import { TONE_NAMES } from '@/core/audio';
 import type { Song } from '@/core/song';
-import { Button, ButtonGroup, IconButton, Kbd, Popover, SegmentedControl, Slider, Stepper, Switch, Text, Tooltip, cx } from '@/ui';
+import { Button, ButtonGroup, Icon, IconButton, Kbd, Popover, SegmentedControl, Slider, Stepper, Switch, Text, Tooltip, cx, focusRing } from '@/ui';
 import type { EngineState } from '../engine/engine';
 import { SHORTCUTS } from '../model/keys';
 import { loopLabel, loopShort, type SectionChip } from '../model/loop';
@@ -19,17 +19,17 @@ import styles from './Controls.module.css';
 const MODE_ICONS: Record<PracticeMode, string> = { listen: 'Ear', wait: 'Hourglass', flow: 'Zap', tap: 'Pointer' };
 
 /** Listen, Wait, Flow (with a microphone) or Listen, Tap along (without). */
-export function ModePicker({ mode, micAvailable, onChange, size = 'md', className }: { mode: PracticeMode; micAvailable: boolean; onChange: (m: PracticeMode) => void; size?: 'sm' | 'md'; className?: string }) {
+export function ModePicker({ mode, micAvailable, onChange, size = 'md', icons = true, fullWidth = true, className }: { mode: PracticeMode; micAvailable: boolean; onChange: (m: PracticeMode) => void; size?: 'sm' | 'md'; icons?: boolean; fullWidth?: boolean; className?: string }) {
   const modes: PracticeMode[] = micAvailable ? ['listen', 'wait', 'flow', 'tap'] : ['listen', 'tap'];
   return (
     <div className={cx(styles.modes, className)} data-player-modes="">
       <SegmentedControl
         aria-label="Practice mode"
         size={size}
-        fullWidth
+        fullWidth={fullWidth}
         value={modes.includes(mode) ? mode : 'listen'}
         onChange={(m) => onChange(m as PracticeMode)}
-        options={modes.map((m) => ({ value: m, label: MODE_NAMES[m], icon: MODE_ICONS[m], ariaLabel: `${MODE_NAMES[m]}: ${MODE_HINTS[m]}${m === 'wait' ? ' (W)' : m === 'flow' ? ' (F)' : ''}` }))}
+        options={modes.map((m) => ({ value: m, label: MODE_NAMES[m], ...(icons ? { icon: MODE_ICONS[m] } : {}), ariaLabel: `${MODE_NAMES[m]}: ${MODE_HINTS[m]}${m === 'wait' ? ' (W)' : m === 'flow' ? ' (F)' : ''}` }))}
       />
     </div>
   );
@@ -45,10 +45,10 @@ export function TempoCompact({ tempo, bpm, onChange, vertical }: { tempo: number
         placement={vertical ? 'left' : 'top'}
         align="center"
         trigger={
-          <Button variant="ghost" size="sm" className={styles.tempoValue} aria-label={`Tempo ${tempo} percent, ${Math.round(bpm)} beats per minute. Change it`} data-player-tempo={tempo}>
+          <button type="button" className={cx(styles.tempoValue, focusRing)} aria-label={`Tempo ${tempo} percent, ${Math.round(bpm)} beats a minute. Change it`} data-player-tempo={tempo}>
             <span className={styles.tempoNum}>{tempo}%</span>
-            <span className={styles.tempoBpm}>♩ {Math.round(bpm)}</span>
-          </Button>
+            <span className={styles.tempoBpm}>{Math.round(bpm)} bpm</span>
+          </button>
         }
       >
         <TempoFull tempo={tempo} bpm={bpm} onChange={onChange} />
@@ -63,7 +63,7 @@ const PRESETS = [50, 75, 100];
 /** Tempo as an exact stepper, a slider and three presets. */
 export function TempoFull({ tempo, bpm, onChange }: { tempo: number; bpm: number; onChange: (p: number) => void }) {
   return (
-    <div className={styles.tempoFull}>
+    <div className={styles.tempoFull} data-player-tempo={tempo}>
       <Stepper label="Tempo" unit="%" min={MIN_TEMPO} max={MAX_TEMPO} step={5} value={tempo} onChange={onChange} format={(v) => `${v} percent`} hint={`${Math.round(bpm)} beats a minute. The pitch stays the same.`} />
       <Slider label="Tempo" hideLabel min={MIN_TEMPO} max={MAX_TEMPO} step={1} value={tempo} onChange={onChange} format={(v) => `${v} %`} marks={[{ value: 50, label: '50' }, { value: 100, label: '100' }, { value: 150, label: '150' }]} showValue={false} />
       <ButtonGroup>
@@ -77,9 +77,9 @@ export function TempoFull({ tempo, bpm, onChange }: { tempo: number; bpm: number
   );
 }
 
-/** The loop button: "Loop" to start choosing bars; with a loop, its bars (and a menu). */
+/** The loop button: "Loop" to start choosing bars; with a loop, its bars (and a menu). Compact: the icon, plus the bars once there is a loop. */
 export function LoopButton({ loop, picking, onClick, compact }: { loop: EngineState['loop']; picking: boolean; onClick: () => void; compact?: boolean }) {
-  const label = picking ? 'Choosing bars' : loop ? `Loop ${loopShort(loop)}` : 'Loop';
+  const label = compact ? (loop ? loopShort(loop) : '') : picking ? 'Choosing bars' : loop ? `Loop ${loopShort(loop)}` : 'Loop';
   return (
     <Tooltip content={loop ? `${loopLabel(loop)} loop. Change or clear it (L)` : 'Loop a passage: tap its first and last bar (L)'}>
       <Button
@@ -91,7 +91,7 @@ export function LoopButton({ loop, picking, onClick, compact }: { loop: EngineSt
         aria-label={loop ? `${loopLabel(loop)} loop. Change or clear it` : picking ? 'Choosing bars for a loop' : 'Loop a passage'}
         data-player-loop={loop ? `${loop.from}-${loop.to}` : picking ? 'picking' : ''}
       >
-        <span className={styles.loopText}>{label}</span>
+        {label ? <span className={styles.loopText}>{label}</span> : null}
       </Button>
     </Tooltip>
   );
@@ -108,7 +108,7 @@ export function LoopOptions({ state, sections, judged, onTrainer, onLoop, onPick
 }) {
   const t = state.trainer;
   return (
-    <div className={styles.group} data-player-loop-options="">
+    <div className={styles.group} data-player-loop-options="" data-player-loop={state.loop ? `${state.loop.from}-${state.loop.to}` : ''}>
       <div className={styles.loopRow}>
         <Text weight="semibold">{state.loop ? `${loopLabel(state.loop)}` : 'No loop yet'}</Text>
         <ButtonGroup>
@@ -198,7 +198,9 @@ export function MoreOptions({ state, song, onCountIn, onMetronome, onTrack, onMu
             return (
               <li key={t.id} className={cx(styles.trackRow, mine && styles.trackMine)}>
                 <button type="button" className={styles.trackPick} aria-pressed={mine} onClick={() => onTrack(t.id)}>
-                  <span className={styles.trackName}>{t.name || 'Guitar'}</span>
+                  <span className={styles.trackName}>
+                    {mine && <Icon name="Check" size="xs" />} {t.name || 'Guitar'}
+                  </span>
                   <span className={styles.trackRole}>{mine ? 'You play this' : t.role === 'rhythm' ? 'Chords and strumming' : t.role === 'bass' ? 'Bass' : 'Melody'}</span>
                 </button>
                 <IconButton icon={muted ? 'VolumeX' : 'Volume2'} label={muted ? `Unmute ${t.name}` : `Mute ${t.name}`} pressed={muted} onClick={() => onMute(t.id, !muted)} />

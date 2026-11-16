@@ -201,8 +201,9 @@ export function PlayView({ exercise, review, onSubmit, setPrimary, onCantPlay, o
     return (
       <div className={styles.answerArea}>
         <Target exercise={exercise} heard={[]} />
-        <MediaBlocked reason={mic.reason} device="microphone" onRetry={() => void start()} onContinueWithout={onMicUnavailable} continueLabel="Do the tapping version instead" framed>
-          The lesson goes on with a version you answer by tapping, so nothing is lost.
+        {/* The way on is the bar's one primary button ("Tap it instead"), not a second copy here. */}
+        <MediaBlocked reason={mic.reason} device="microphone" onRetry={() => void start()} framed>
+          Tap it instead: the lesson goes on with a version you answer by tapping, so nothing is lost.
         </MediaBlocked>
       </div>
     );

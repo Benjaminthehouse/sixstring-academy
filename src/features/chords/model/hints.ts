@@ -125,11 +125,11 @@ export function strumHint(voicing: Voicing, heard: HeardChord, formatter: (note:
     const strings = missingParts.flatMap((m) => m.strings);
     return `We could not hear the ${names.slice(0, -1).join(', ')} and the ${names[names.length - 1]} (${stringWords(strings)}). Arch your fingers so each one touches only its own string.`;
   })();
-  const extraText = extraParts.length ? `We also heard ${article(extraParts[0].name)} ${extraParts[0].name}, which is not in ${chordText(chordName)}: ${extraParts[0].cause}.` : '';
+  const extraText = extraParts.length ? `We ${missingText ? 'also heard' : 'heard'} ${article(extraParts[0].name)} ${extraParts[0].name}, which is not in ${chordText(chordName)}: ${extraParts[0].cause}.` : '';
 
   if (missingText && extraText) return { kind: 'both', text: `${missingText} ${extraText}`, strings: [...missingParts.flatMap((m) => m.strings), ...extraParts.flatMap((e) => e.strings)] };
   if (missingText) return { kind: 'missing', text: missingText, strings: missingParts.flatMap((m) => m.strings) };
-  if (extraText) return { kind: 'extra', text: extraText.charAt(0).toUpperCase() + extraText.slice(1), strings: extraParts.flatMap((e) => e.strings) };
+  if (extraText) return { kind: 'extra', text: extraText, strings: extraParts.flatMap((e) => e.strings) };
   return { kind: 'unclear', text: 'That did not quite sound like the chord. Strum all the strings of the shape once, firmly, and let them ring.', strings: [] };
 }
 

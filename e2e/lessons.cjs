@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Browser check of the lesson player, run against the demo course. Run: node e2e/lessons.cjs
- * [--only touch,keys,hearts,refused,rhythm,map,layout] [--verbose]
+ * [--only touch,keys,hearts,refused,rhythm,map,layout,review] [--verbose]
  *
  *  touch    phone (390 x 844, touch): a whole lesson by taps, with a fake microphone playing
  *           the right note (a plucked A2 made with the pitch module's test signals). Two
@@ -19,6 +19,10 @@
  *           checkpoint is offered, keyboard arrows walk the nodes; the review card.
  *  layout   every exercise type in the player at 360 px and 1280 px, dark and light: nothing
  *           wider than the screen, nothing under the bottom bar; screenshots in e2e/out/.
+ *  review   what an outside review caught: one "Picked up" toast that leaves at the first move;
+ *           "End lesson now" says the place is not kept (and it is not); bad gallery links say
+ *           so; the map's Start bubble covers no title (phone and desktop, with progress); with
+ *           text at 200 % the Check button keeps its words and map titles stay off the nodes.
  *
  * Prints PASSED or FAILED and exits non-zero on failure. Timing steps are retried, because the
  * machine may be busy.
@@ -148,7 +152,8 @@ async function playLesson(page, L, { how, wrong = [], reloadAfter = -1, onReload
     if (ex.type !== 'flashcard') await page.waitForSelector('[data-feedback]', { timeout: PLAY_TYPES.has(ex.type) ? 45000 : 15000 });
     const tone = ex.type === 'flashcard' ? 'ok' : await page.getAttribute('[data-feedback]', 'data-feedback');
     const heartsAfter = await heartsShown(page);
-    log.push({ key: step.key, type: ex.type, attempt: step.attempt, alternative: step.alternative, intended: goWrong ? 'wrong' : 'right', tone, heartsBefore, heartsAfter, againTag: await page.locator('[data-step-id] >> text=Another go').count() });
+    const said = ex.type === 'flashcard' ? '' : await page.locator('[data-feedback]').innerText();
+    log.push({ key: step.key, type: ex.type, attempt: step.attempt, alternative: step.alternative, intended: goWrong ? 'wrong' : 'right', tone, heartsBefore, heartsAfter, said, againTag: await page.locator('[data-step-id] >> text=Another go').count() });
     if (ex.type !== 'flashcard') {
       if (how === 'touch') await lib.tap(page, lib.sel.cont);
       else await lib.press(page, 'Enter');
@@ -260,7 +265,7 @@ async function runLesson(L, how, wav) {
       check(group, 'a hidden page pauses the session', pauseCheck && pauseCheck.paused === true, JSON.stringify(pauseCheck));
       check(group, 'and the time away is not counted', pauseCheck && pauseCheck.resumed && pauseCheck.activeAfter === pauseCheck.active, JSON.stringify(pauseCheck));
     }
-    check(group, 'and says so (with a way to start over)', toast > 0);
+    check(group, 'and says so once (one toast with a way to start over)', toast === 1, toast);
     const wrongs = log.filter((e) => e.intended === 'wrong');
     check(group, 'the wrong answers were marked wrong', wrongs.length > 0 && wrongs.every((e) => e.tone === 'bad'), JSON.stringify(wrongs));
     for (const w of wrongs) {
@@ -331,7 +336,9 @@ async function runHearts(L) {
   await withApp({ mobile: true }, async ({ page, url, errors }) => {
     await seed(page);
     await open(page, url, 'kit-lessons--play--musical-alphabet');
-    await playLesson(page, L, { how: 'touch', wrong: [0, 1, 2, 3, 4, 5, 6, 7, 8], mic: false });
+    const heartLog = await playLesson(page, L, { how: 'touch', wrong: [0, 1, 2, 3, 4, 5, 6, 7, 8], mic: false });
+    const last = heartLog.filter((e) => e.tone === 'bad').pop();
+    check(group, 'the answer that used the last heart says so, and promises no come-back', last && /last heart/.test(last.said) && !/see this one again/.test(last.said), last && last.said.replace(/\n/g, ' '));
     const outcome = await page.getAttribute('[data-summary]', 'data-summary');
     check(group, 'running out of hearts ends the lesson kindly', outcome === 'out-of-hearts', outcome);
     const label = await page.locator('[data-action="next"]').innerText();
@@ -378,13 +385,14 @@ async function runRefused(L) {
     check(group, 'reached the play step', (await page.getAttribute('[data-exercise-type]', 'data-exercise-type')) === 'play-note');
     check(group, '"I can\'t play right now" is visible on the play step', await page.locator('[data-cant-play]').isVisible());
     await lib.tap(page, '[data-player-bar] [data-action="primary"]');
-    await page.waitForSelector('text=Do the tapping version instead', { timeout: 20000 }).catch(() => null);
-    const blocked = await page.locator('text=Do the tapping version instead').count();
-    check(group, 'a refused microphone shows MediaBlocked with the tapping version', blocked > 0);
+    await page.waitForSelector('[data-player-bar] >> text=Tap it instead', { timeout: 20000 }).catch(() => null);
+    const blocked = await page.locator('[data-player-bar] >> text=Tap it instead').count();
+    check(group, 'a refused microphone explains why and offers the tapping version as the one primary action', blocked === 1 && (await page.locator('text=No microphone').count()) > 0);
+    check(group, 'and only once: no second "tapping version" button in the panel', (await page.locator('[data-lesson-player] button >> text=/tapping version/i').count()) === 0);
     await page.screenshot({ path: path.join(OUT, 'lessons-mic-refused-mobile.png') });
     if (blocked) {
       const id = await lib.stepId(page);
-      await lib.tap(page, 'text=Do the tapping version instead');
+      await lib.tap(page, '[data-player-bar] >> text=Tap it instead');
       await lib.waitForNewStep(page, id);
       const type = await page.getAttribute('[data-exercise-type]', 'data-exercise-type');
       check(group, 'the alternative (tapping) exercise takes its place', type === 'fretboard-find', type);
@@ -558,6 +566,133 @@ async function runLayout() {
   }
 }
 
+/** Rectangles that overlap (touching edges do not count). */
+const OVERLAPS = `(a, b) => !(a.right <= b.left + 0.5 || a.left >= b.right - 0.5 || a.bottom <= b.top + 0.5 || a.top >= b.bottom - 0.5)`;
+
+/** Map titles that sit on a node, and whether the Start bubble covers a title or another node. */
+async function mapCollisions(page) {
+  return page.evaluate((overlapsSrc) => {
+    const overlaps = new Function(`return ${overlapsSrc}`)();
+    const nodes = [...document.querySelectorAll('[data-node]')];
+    const labels = [...document.querySelectorAll('[data-course-map] li > span:not([data-bubble])')];
+    const out = [];
+    for (const l of labels) for (const n of nodes) if (overlaps(l.getBoundingClientRect(), n.getBoundingClientRect())) out.push(`title "${l.textContent}" on node ${n.getAttribute('data-node')}`);
+    const bubble = document.querySelector('[data-bubble]');
+    if (bubble) {
+      const b = bubble.getBoundingClientRect();
+      for (const l of labels) if (overlaps(b, l.getBoundingClientRect())) out.push(`Start on title "${l.textContent}"`);
+      for (const n of nodes) if (overlaps(b, n.getBoundingClientRect())) out.push(`Start on node ${n.getAttribute('data-node')}`);
+    }
+    return out;
+  }, OVERLAPS);
+}
+
+/** Load the page again, as a learner coming back would (a real reload, not a hash change). */
+async function reopen(page) {
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('[data-lesson-player]', { timeout: 60000 });
+  await page.waitForTimeout(500);
+}
+
+async function answerRight(page, L) {
+  const id = await lib.stepId(page);
+  if ((await lib.onScreen(page)) === 'card') {
+    await lib.tap(page, lib.sel.cont);
+    await lib.waitForNewStep(page, id);
+    return;
+  }
+  const step = L.currentStep(await lib.savedSession(page, L));
+  await lib.giveAnswer(page, L, step, L.solve(step.exercise), 'touch');
+  await lib.tap(page, '[data-action="check"]');
+  await page.waitForSelector('[data-feedback]');
+}
+
+async function runReview(L) {
+  const group = 'review';
+  const route = 'kit-lessons--play--musical-alphabet';
+  await withApp({ mobile: true }, async ({ page, url, errors }) => {
+    await seed(page);
+    await open(page, url, route);
+    await answerRight(page, L); // the first card
+    await answerRight(page, L); // the first exercise, checked
+    let id = await lib.stepId(page);
+    await lib.tap(page, lib.sel.cont);
+    await lib.waitForNewStep(page, id);
+    await reopen(page);
+    await page.waitForTimeout(600);
+    const toasts = await page.locator('text=Picked up where you left off').count();
+    check(group, 'a resumed lesson says so once (React runs effects twice in development: still one toast)', toasts === 1, toasts);
+    await answerRight(page, L);
+    await page.waitForTimeout(700);
+    check(group, 'the "Picked up" toast leaves at the first move, so it never covers the answer', (await page.locator('text=Picked up where you left off').count()) === 0);
+
+    // "End lesson now": the place is not kept, and the summary must not say it is.
+    await lib.tap(page, '[data-close]');
+    await page.waitForSelector('[role="dialog"] [data-leave="end"]');
+    await lib.tap(page, '[role="dialog"] [data-leave="end"]');
+    await page.waitForSelector('[data-summary="quit"]', { timeout: 15000 });
+    const summary = await page.locator('[data-summary]').innerText();
+    check(group, '"End lesson now" says the lesson starts again next time', /Lesson ended/.test(summary) && /starts from the beginning/.test(summary) && !/Saved for later/.test(summary), summary.replace(/\n/g, ' ').slice(0, 160));
+    check(group, 'and indeed keeps no saved place', (await page.evaluate((k) => localStorage.getItem(k), lib.SLOT)) === null);
+    await reopen(page);
+    check(group, 'reopening starts on the first card, with no "Picked up" toast', (await lib.onScreen(page)) === 'card' && (await page.locator('text=Picked up where you left off').count()) === 0);
+
+    // Bad links in the gallery say so and offer a way on, instead of an empty "All done".
+    for (const bad of ['kit-lessons--checkpoint--nope', 'kit-lessons--practice--nope', 'kit-lessons--play']) {
+      await page.goto(`${url}#${bad}`, { waitUntil: 'load' });
+      await page.waitForSelector('main h1', { timeout: 30000 });
+      const text = await page.locator('main').innerText();
+      check(group, `#${bad} says it is not there and offers the demo lessons`, /Not found/.test(text) && /Choose a demo lesson/.test(text) && !/“”/.test(text), text.replace(/\n/g, ' ').slice(0, 120));
+    }
+    check(group, 'no console errors', errors.length === 0, errors.join(' | '));
+  });
+
+  // The Start bubble with progress: the title of the lesson before must stay readable.
+  for (const c of [{ name: 'phone', mobile: true }, { name: '360', mobile: true, viewport: { width: 360, height: 740 } }, { name: 'desktop', mobile: false }]) {
+    await withApp({ mobile: c.mobile, viewport: c.viewport }, async ({ page, url, errors }) => {
+      await seed(page);
+      await open(page, url, 'kit-lessons--map');
+      await page.evaluate(async () => {
+        const p = await import('/src/core/progress/index.ts');
+        p.createActions(p.getProgressStore).markSkill('theory:first-notes:musical-alphabet', { completed: true });
+      });
+      await page.waitForTimeout(600);
+      const current = await page.getAttribute('[data-node][data-state="current"]', 'data-node');
+      check(group, `${c.name}: with the first lesson done, the second is current`, current === 'open-strings', current);
+      await page.evaluate(() => document.querySelector('[data-bubble]').scrollIntoView({ block: 'center' }));
+      await page.waitForTimeout(300);
+      const hits = await mapCollisions(page);
+      check(group, `${c.name}: the Start bubble covers no title and no node, and no title sits on a node`, hits.length === 0, hits.join('; '));
+      await page.screenshot({ path: path.join(OUT, `lessons-map-progress-${c.name}.png`) });
+      check(group, `${c.name}: no console errors`, errors.length === 0, errors.join(' | '));
+    });
+  }
+
+  // Text at 200 % (the learner's own text size): words stay whole, nothing slides sideways.
+  await withApp({ mobile: true }, async ({ page, url, errors }) => {
+    await seed(page);
+    await page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => (document.documentElement.style.fontSize = '200%')));
+    for (const type of ['choice', 'fill-blanks', 'fretboard-find']) {
+      await open(page, url, `kit-lessons--try--${type}`);
+      const bar = await page.evaluate(() => {
+        const b = document.querySelector('[data-player-bar] [data-action="check"]');
+        const label = [...b.querySelectorAll('span')].find((s) => s.textContent.trim() === 'Check') || b;
+        return { width: Math.round(b.getBoundingClientRect().width), clipped: label.scrollWidth > label.clientWidth + 1 || label.getBoundingClientRect().width < 20 };
+      });
+      check(group, `200 %: ${type}: the Check button keeps its word`, !bar.clipped && bar.width > 120, JSON.stringify(bar));
+      const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(group, `200 %: ${type}: no sideways scroll`, sideways <= 1, sideways);
+    }
+    await page.screenshot({ path: path.join(OUT, 'lessons-200-percent-mobile.png') });
+    await open(page, url, 'kit-lessons--map');
+    const hits = await mapCollisions(page);
+    check(group, '200 %: map titles stay clear of the nodes', hits.length === 0, hits.join('; '));
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(group, '200 %: the map does not scroll sideways', sideways <= 1, sideways);
+    check(group, '200 %: no console errors', errors.length === 0, errors.join(' | '));
+  });
+}
+
 (async () => {
   const L = await loadTs('/src/lessons/index.ts');
   const wav = path.join(OUT, 'lessons-a2.wav');
@@ -570,6 +705,7 @@ async function runLayout() {
     ['rhythm', () => runRhythm(L)],
     ['map', () => runMap(L)],
     ['layout', () => runLayout()],
+    ['review', () => runReview(L)],
   ];
   for (const [name, run] of runs) {
     if (!want(name)) continue;

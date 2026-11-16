@@ -7,7 +7,7 @@ import { HANDS, SKILL_GROUPS, TECHNIQUE_EXERCISES, getExercise, type Hand, type 
 import { useProgress } from '@/core/progress';
 import { Card, ChipGroup, Heading, Icon, LinkButton, List, ListItem, Page, ProgressBar, Section, StarRating, Text, useLocalState } from '@/ui';
 import { useHealthClock } from '../engine/health-clock';
-import { readRecord, starsFor } from '../model/history';
+import { cleanDays, readRecord, starsFor, type TechniqueRecord } from '../model/history';
 import { climbs, ladderFraction } from '../model/ladder';
 import { recommend, warmedUpToday } from '../model/recommend';
 import styles from '../Technique.module.css';
@@ -25,8 +25,9 @@ function startOfToday(): number {
 }
 
 /** One exercise row. */
-function Row({ e, best }: { e: TechniqueExercise; best: number | null }) {
-  const stars = starsFor(e.tempo, best);
+function Row({ e, record }: { e: TechniqueExercise; record: TechniqueRecord }) {
+  const best = record.best;
+  const stars = starsFor(e.tempo, best, cleanDays(record));
   const tempo = e.mode === 'routine' ? 'Routine' : e.mode === 'guide' ? 'Guide' : e.mode === 'changes' ? 'One-minute changes' : climbs(e.tempo) ? `${e.tempo.start} to ${e.tempo.goal} BPM` : `${e.tempo.start} BPM`;
   const progress = best !== null && climbs(e.tempo) ? ` · best ${best}` : '';
   return (
@@ -155,7 +156,7 @@ export function Hub() {
             >
               <List variant="card">
                 {g.items.map((e) => (
-                  <Row key={e.id} e={e} best={bestOf(e.id)} />
+                  <Row key={e.id} e={e} record={readRecord(skills[`technique:${e.id}`]?.data)} />
                 ))}
               </List>
             </Section>

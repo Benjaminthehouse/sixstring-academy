@@ -1187,7 +1187,7 @@ Sample (`{ generate: 'chord-tones' }`, seed 1): choice, "Which notes make up the
 
 #### `diatonic-chord`
 
-The chords that belong to a key: which chord sits on a degree, and what quality it has. Produces `choice`.
+The chords that belong to a key: which chord sits on a degree, and what quality it has. Minor keys use the natural minor scale, and the question says so. Produces `choice`.
 
 | param | type | default | meaning |
 |---|---|---|---|
@@ -1580,11 +1580,15 @@ Key the player by what it runs (`key={lessonId}`) so a new lesson starts a new p
 | `persist?` | save the unfinished session after every step and pick it up again (default true) |
 
 What it does for you: starts the session from the learner's progress (`startSession`), or picks up the
-unfinished one of the same lesson (`loadSession`, with a "Picked up where you left off" toast and Start over);
+unfinished one of the same lesson (`loadSession`, with one "Picked up where you left off · 3 of 10 steps done"
+toast offering Start over, gone at the learner's first move and when the player closes);
 dispatches every action through `reduceSession` and `applyEffects`; saves after every step; pauses the clock
 while the page is hidden and re-syncs hearts on return (`pause` / `resume`); plays `playUi` correct / wrong /
 combo / lessonComplete; keeps the screen awake; asks before leaving (Save and leave · Keep going · End now,
-which records what was done); shows the summary (`sessionReport`: accuracy, time, XP, streak, crowns, cards
+which records what was done and clears the saved place: its summary says "Lesson ended … starts from the
+beginning"); the answer that uses the last heart says "That was your last heart" and promises no come-back;
+when the microphone is refused, `MediaBlocked` explains why and the bar's one primary button is "Tap it
+instead"; shows the summary (`sessionReport`: accuracy, time, XP, streak, crowns, cards
 added, best run, "worth another look") with confetti when earned. Out of hearts ends kindly with "Practise to
 refill hearts"; a failed checkpoint offers "Try again". The microphone is off from the start in the Claude
 artifact host (`isArtifact()`), so play steps are their tapping alternatives there.
@@ -1602,10 +1606,12 @@ port }`; `TeachingCard`, `ExerciseFrame`, `FeedbackPanel`, `SummaryView`, `Leave
 
 `<CourseMap course onStartLesson(unitId, lessonId) onStartCheckpoint?(unitId) onPractice?(unitId) progress?
 autoScroll? />`: the winding path of `courseMap()` (A10) grouped by unit. Nodes show `locked` (a lock),
-`available`, `current` (amber, a "Start" bubble, scrolled into view on opening), `done` (a tick, crowns, a
-blue dot when due for review). Each unit header has its progress, crowns, "Test out" (or "Jump here" when
-`ahead`) and "Practise". Tapping a node shows its card (title, what it teaches, minutes, crowns, Start): a
-bottom sheet on phones, a sticky side pane at 900 px and up. Arrow keys / Home / End walk the nodes; Enter
+`available`, `current` (amber, a "Start" bubble beside it on the roomier side, scrolled into view on opening),
+`done` (a tick, crowns, a blue dot when due for review). Rows are spaced in rem, so a learner's larger text
+keeps every title clear of the next node. Each unit header has its progress, crowns, "Test out" (or "Jump
+here" when `ahead`) and "Practise"; it stays in view while its path scrolls on screens at least 36 rem tall
+(not on a phone held sideways, nor with very large text). Tapping a node shows its card (title, what it
+teaches, minutes, crowns, Start): a bottom sheet on phones, a sticky side pane at 900 px and up. Arrow keys / Home / End walk the nodes; Enter
 starts the chosen one. Progress is the learner's, live, unless `progress` is given.
 
 `<ReviewEntry courses onStart hideWhenEmpty? />`: "12 cards due · About 3 minutes · Review now" from
@@ -1623,7 +1629,7 @@ the learner has any card.
 | `useSoundPlayer`, `schedulePlan` | play a `Sound` or `SoundPlan` (normal or slower) with the learner's guitar tone and click |
 | `useStepKeys`, `StepKeysProvider`, `useKeysRegistry` | the step's keys inside the player's single keyboard listener |
 | `feedbackCopy`, `wrongLine` | the feedback panel's words: "Not quite. E is the third of C." + the answer + why |
-| `summaryHeadline`, `summaryStats`, `teacherLine`, `nextLabel`, `formatDuration` | the summary's words and numbers |
+| `summaryHeadline`, `summaryStats`, `teacherLine`, `nextLabel`, `formatDuration`, `resumeNote` | the summary's words and numbers; the "Picked up" toast's line |
 | `memoryPort()` | a `ProgressPort` onto a throwaway store |
 
 Every answer control is a real button of at least 44 px; dragging is never needed (match: tap one item then

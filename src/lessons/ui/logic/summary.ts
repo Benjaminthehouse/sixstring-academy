@@ -26,6 +26,10 @@ export function formatPercent(share: number): string {
   return `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`;
 }
 
+function cap(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function noun(mode: SessionMode): string {
   return mode === 'checkpoint' ? 'checkpoint' : mode === 'practice' ? 'practice' : mode === 'review' ? 'review' : 'lesson';
 }
@@ -40,7 +44,8 @@ export function summaryHeadline(summary: Pick<SessionSummary, 'mode' | 'outcome'
     return { title: 'Not this time', subtitle: 'The checkpoint allows only a few mistakes. The lessons of this unit will get you there.', tone: 'warn', celebrate: false };
   }
   if (outcome === 'quit') {
-    return { title: 'Saved for later', subtitle: 'What you finished counts. Pick up the rest whenever you like.', tone: 'info', celebrate: false };
+    // Ending now clears the saved place (only "Save and leave" keeps it), so promise nothing more.
+    return { title: `${cap(noun(mode))} ended`, subtitle: `What you finished counts. Next time the ${noun(mode)} starts from the beginning.`, tone: 'info', celebrate: false };
   }
   if (summary.exercises === 0) {
     return mode === 'review'
@@ -69,7 +74,8 @@ export function summaryStats(report: SessionReport): SummaryStat[] {
   if (report.exercises > 0) out.push({ id: 'accuracy', label: 'Accuracy', value: formatPercent(report.accuracy), hint: `${report.firstTry} of ${report.exercises} first time` });
   out.push({ id: 'time', label: 'Time', value: formatDuration(report.durationSec) });
   const xp = report.xpAwarded;
-  if (xp > 0 || report.outcome === 'completed') out.push({ id: 'xp', label: 'XP earned', value: `+${xp}`, hint: report.multiplier > 1 ? `${report.multiplier}× boost` : report.leveledUp && report.level !== null ? `Level ${report.level}` : undefined });
+  // "+0 XP" for a session with nothing in it says nothing.
+  if (xp > 0 || (report.outcome === 'completed' && report.exercises > 0)) out.push({ id: 'xp', label: 'XP earned', value: `+${xp}`, hint: report.multiplier > 1 ? `${report.multiplier}× boost` : report.leveledUp && report.level !== null ? `Level ${report.level}` : undefined });
   if (report.streak !== null && report.streak > 0) out.push({ id: 'streak', label: 'Streak', value: `${report.streak} ${report.streak === 1 ? 'day' : 'days'}`, hint: report.streakExtended ? 'Extended today' : undefined });
   if (report.crown) out.push({ id: 'crowns', label: 'Crowns', value: `${report.crown.after} of 5`, hint: report.crown.gained ? `+${report.crown.after - report.crown.before} for this lesson` : undefined });
   if (report.cardsReviewed > 0) out.push({ id: 'reviewed', label: 'Cards reviewed', value: String(report.cardsReviewed) });
@@ -86,26 +92,32 @@ export function teacherLine(teacher: string, outcome: SessionSummary['outcome'],
       completed: 'That is one more thing your hands and ears know now. Well done.',
       'out-of-hearts': 'That is all right. A little practice and we pick it up again.',
       failed: 'No rush. The lessons will get you there, one at a time.',
-      quit: 'Good stopping point. It will be here when you come back.',
+      quit: 'Good stopping point. Come back to it whenever you are ready.',
     },
     dev: {
       perfect: 'Clean run. Take that straight to the guitar tonight.',
       completed: 'Nice. Now go use it in a song.',
       'out-of-hearts': 'Happens to everyone. Run a quick practice set and come back swinging.',
       failed: 'Not yet. Hit the lessons and we will try this again.',
-      quit: 'Cool, we will pick it up next time.',
+      quit: 'Cool. Run it again whenever you have a minute.',
     },
     elena: {
       perfect: 'Flawless. I have no remarks, which is rare.',
       completed: 'Good. Precision comes from repetition; come back tomorrow.',
       'out-of-hearts': 'Mistakes are information. Practise, then return.',
       failed: 'The standard is high on purpose. Study the unit and try again.',
-      quit: 'We will continue where we stopped.',
+      quit: 'Stopping is allowed. Returning is expected.',
     },
   };
   const set = lines[teacher];
   if (!set) return null;
   return (perfect && outcome === 'completed' ? set.perfect : set[outcome]) ?? null;
+}
+
+/** The line under "Picked up where you left off": how far the saved session had got. */
+export function resumeNote(done: number, total: number): string {
+  const d = Math.max(0, Math.min(done, total));
+  return total > 0 ? `${d} of ${total} steps done.` : 'Your place was kept.';
 }
 
 /** The next step the summary offers. */

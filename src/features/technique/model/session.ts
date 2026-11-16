@@ -4,7 +4,7 @@
  */
 import { techniqueSkillId, type TechniqueExercise, type TempoLadder } from '@/content/technique';
 import type { ActivityInput, MasteryLevel } from '@/core/progress';
-import { addSession, starsFor, type TechniqueRecord } from './history';
+import { addSession, cleanDays, starsFor, type TechniqueRecord } from './history';
 import { climbs, ladderFraction } from './ladder';
 import type { Verdict } from './takes';
 
@@ -56,10 +56,13 @@ export function worthRecording(s: VisitSession): boolean {
   return s.passes.length > 0 || s.activeSec >= 20;
 }
 
-/** Crowns for technique follow the ladder: one for a clean pass, then a crown per quarter of the way to the goal. */
-export function masteryFor(ladder: TempoLadder, best: number | null): MasteryLevel {
+/**
+ * Crowns for technique follow the ladder: one for a clean pass, then a crown per quarter of the way
+ * to the goal. A fixed-tempo exercise earns a crown per day with a clean pass, up to five.
+ */
+export function masteryFor(ladder: TempoLadder, best: number | null, days = best === null ? 0 : 1): MasteryLevel {
   if (best === null) return 0;
-  if (!climbs(ladder)) return 5;
+  if (!climbs(ladder)) return Math.max(1, Math.min(5, days)) as MasteryLevel;
   const f = ladderFraction(ladder, best);
   if (f >= 1) return 5;
   if (f >= 0.75) return 4;
@@ -87,7 +90,7 @@ export function visitActivity(e: TechniqueExercise, s: VisitSession, record: Tec
     route: 'technique',
     params: [e.id],
     progress: ladderFraction(e.tempo, next.best),
-    stars: starsFor(e.tempo, next.best),
+    stars: starsFor(e.tempo, next.best, cleanDays(next)),
     data: next as unknown as ActivityInput['data'],
     meta: { tempo: s.tempo, ...(clean !== null ? { bestTempo: clean } : {}) },
   };
@@ -96,7 +99,7 @@ export function visitActivity(e: TechniqueExercise, s: VisitSession, record: Tec
     input.count = s.passes.length;
   }
   if (clean !== null) input.score = clean;
-  const mastery = masteryFor(e.tempo, next.best);
+  const mastery = masteryFor(e.tempo, next.best, cleanDays(next));
   if (mastery > 0) input.masteryAtLeast = mastery;
   return { input, record: next };
 }

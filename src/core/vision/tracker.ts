@@ -396,8 +396,10 @@ export class FretboardTracker {
     this.frameNo++;
     if (measured && (this.current === 'candidate' || this.current === 'locked')) this.checkStrings(frame, measured);
     else if (this.current === 'searching') this.forgetStrings();
-    // A neck whose strings do not match the model would put every note between two strings: never lock it.
-    if (this.current === 'locked' && this.stringsMismatch() && !this.userVouched) this.current = 'candidate';
+    // A neck whose strings do not match the model would put every note between two strings: never
+    // lock it, nor while a doubt is still building up over the first reads.
+    const doubting = this.stringsMismatch() || (this.stringReads < STRING_READS_MIN && this.stringDoubt > 0);
+    if (this.current === 'locked' && doubting && !this.userVouched) this.current = 'candidate';
     // Light and noise change slowly: measured on every third frame.
     if (this.frameNo % 3 === 1 || !Number.isFinite(this.lastStats.brightness)) this.lastStats = frameStats(frame, 4);
     const numbersOf = this.raw ?? (this.current === 'lost' ? (this.lastSeen?.pose ?? null) : null);
@@ -565,9 +567,15 @@ export class FretboardTracker {
     const reading = readStringCount(frame, pose);
     if (!reading) return;
     const doubt = stringCountDoubt(reading);
-    this.stringDoubt += 0.4 * (doubt - this.stringDoubt);
     this.stringReads++;
-    if (doubt > 0) this.stringBest = reading.best;
+    if (doubt > 0) {
+      this.stringDoubt += 0.4 * (doubt - this.stringDoubt);
+      this.stringBest = reading.best;
+    } else if (reading.best === reading.model) {
+      // Only a read in which the model's own count wins clears the doubt; an unclear one (motion blur,
+      // a hand over the strings) leaves it as it was.
+      this.stringDoubt *= 0.6;
+    }
   }
 
   private stringsMismatch(): boolean {

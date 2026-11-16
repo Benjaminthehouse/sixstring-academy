@@ -1,0 +1,97 @@
+/* Portraits: every colour is mixed from tokens. Skin and hair come from the fretboard woods (the
+   same in both themes), clothes from each teacher's colour slot (--deg-2 Mia, --deg-5 Dev,
+   --deg-6 Elena, as the shell's Avatar tones). */
+
+.portrait {
+  --tone: var(--deg-2);
+  --skin: color-mix(in oklab, var(--fb-wood-light) 52%, var(--fb-nut));
+  --hair: color-mix(in oklab, var(--deg-2) 50%, var(--fb-wood));
+  display: inline-flex;
+  flex: none;
+  width: var(--portrait-size, 3rem);
+  height: var(--portrait-size, 3rem);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.portrait svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ring {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+
+.mia {
+  --tone: var(--deg-2);
+}
+.dev {
+  --tone: var(--deg-5);
+  --skin: color-mix(in oklab, var(--fb-wood) 58%, var(--fb-wood-light));
+  --hair: var(--fb-wood-2);
+}
+.elena {
+  --tone: var(--deg-6);
+  --skin: color-mix(in oklab, var(--fb-nut) 72%, var(--fb-wood-light));
+  --hair: color-mix(in oklab, var(--fb-fret) 78%, var(--fb-nut));
+}
+
+.bg {
+  fill: color-mix(in oklab, var(--tone) 24%, var(--surface-2));
+}
+.skin {
+  fill: var(--skin);
+}
+.skinShade {
+  fill: color-mix(in oklab, var(--skin) 80%, var(--fb-wood-2));
+}
+.hair {
+  fill: var(--hair);
+}
+.cloth {
+  fill: var(--tone);
+}
+.clothShade {
+  fill: color-mix(in oklab, var(--tone) 78%, var(--fb-wood-2));
+}
+.under {
+  fill: var(--fb-nut);
+}
+.strap {
+  fill: var(--fb-wood);
+}
+.ink {
+  fill: var(--fb-dot-edge);
+}
+.brow {
+  fill: none;
+  stroke: color-mix(in oklab, var(--hair) 50%, var(--fb-dot-edge));
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.dev .brow {
+  stroke: var(--fb-dot-edge);
+}
+.nose {
+  fill: none;
+  stroke: color-mix(in oklab, var(--skin) 60%, var(--fb-wood-2));
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.lip {
+  fill: var(--fb-nut);
+}
+.blush {
+  fill: color-mix(in oklab, var(--deg-1) 30%, transparent);
+}
+.gem {
+  fill: var(--accent);
+}
+.glasses {
+  fill: color-mix(in oklab, var(--fb-nut) 18%, transparent);
+  stroke: var(--fb-dot-edge);
+  stroke-width: 1.6;
+}

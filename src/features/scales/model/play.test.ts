@@ -3,7 +3,7 @@ import { STANDARD_TUNING, tuning } from '@/core/guitar';
 import { parseSixTab } from '@/core/song';
 import { SCALES } from '@/core/theory';
 import { shapesFor, systemsFor } from './neck';
-import { BAR_TICKS, PPQ, buildLine, exerciseChoices, lineTab, tabPosition, timeLine, type NotesPerBeat } from './play';
+import { BAR_TICKS, PPQ, buildLine, exerciseChoices, fillBars, lineTab, tabPosition, timeLine, type NotesPerBeat } from './play';
 
 const box1 = () => shapesFor('A', 'minor-pentatonic', 'box', { lastFret: 15 })[0];
 
@@ -45,6 +45,21 @@ describe('timing', () => {
   it('swings off-beat eighths onto the triplet grid', () => {
     const t = timeLine(buildLine(box1(), 'shape', 'up'), 2, true);
     expect(t.events.map((e) => e.tick).slice(0, 4)).toEqual([0, 640, 960, 1600]);
+  });
+
+  it('repeats the line through a backing loop, each pass on a bar line that divides the form', () => {
+    const line = buildLine(box1(), 'shape', 'up'); // 12 eighths + a beat of breath = 2 bars
+    const t = timeLine(line, 2);
+    expect(t.bars).toBe(2);
+    const twelve = fillBars(t, 12);
+    expect(twelve).toHaveLength(line.length * 6);
+    expect(twelve.filter((e) => e.index === 0).map((e) => e.tick / BAR_TICKS)).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(Math.max(...twelve.map((e) => e.tick))).toBeLessThan(12 * BAR_TICKS);
+    // A 5-bar line in a 12-bar form: two passes, on bars 1 and 7.
+    const five = { ...t, bars: 5 };
+    expect(fillBars(five, 12).filter((e) => e.index === 0).map((e) => e.tick / BAR_TICKS)).toEqual([0, 6]);
+    // A loop no longer than the line: once.
+    expect(fillBars(t, 2)).toHaveLength(line.length);
   });
 
   it('handles triplets and sixteenths', () => {

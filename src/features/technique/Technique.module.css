@@ -574,8 +574,17 @@
 }
 .routineNow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-5);
+  gap: var(--sp-4) var(--sp-5);
+}
+.routineText {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.routineStepTitle {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .routineSteps {
   list-style: none;

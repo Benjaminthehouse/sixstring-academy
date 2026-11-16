@@ -221,6 +221,29 @@
   -webkit-box-orient: vertical;
 }
 
+.more {
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0 var(--sp-2);
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+
+.more:hover {
+  text-decoration: underline;
+}
+
+.more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .resultsCompact .result {
   padding: var(--sp-2) var(--sp-3);
 }

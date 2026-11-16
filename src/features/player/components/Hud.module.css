@@ -161,10 +161,7 @@
 
 /* ── wait prompt ── */
 .wait {
-  position: absolute;
-  left: var(--sp-2);
-  right: var(--sp-2);
-  bottom: var(--sp-2);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -173,11 +170,45 @@
   border-radius: var(--r-lg);
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-2);
-  z-index: 4;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wait {
+    animation: waitIn var(--dur-2) var(--ease) both;
+  }
+}
+@keyframes waitIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .waitCompact {
-  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3);
+}
+.waitCompact .waitStep {
+  display: none;
+}
+.waitCompact .waitMain {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  overflow: hidden;
+}
+.waitCompact .waitWhat {
+  white-space: nowrap;
+}
+.waitCompact .waitFeedback {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.waitCompact .waitActions {
+  flex-direction: row;
 }
 .waitMain {
   min-width: 0;

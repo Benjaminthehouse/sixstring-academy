@@ -6,7 +6,7 @@ import { EMPTY_KEYPAD, inputKind, keypadBackspace, keypadKey, keypadValue, noteA
 import { cardLayout, digitFor, exerciseLayout, positionOfKey } from './layout';
 import { moveFocus, nextPhase, pathLayout, swing } from './path';
 import { canPlaySlow, stretchPlan, SLOW_FACTOR } from './sound';
-import { formatDuration, formatPercent, nextLabel, summaryHeadline, summaryStats, teacherLine } from './summary';
+import { formatDuration, formatPercent, nextLabel, resumeNote, summaryHeadline, summaryStats, teacherLine } from './summary';
 import { countAt, tapPlan, tapsFromBeatOne } from './tap';
 import { heardNothing } from './play';
 import { GLYPH_WIDTH, glyphPath, ledgerLines, positionAtY, staffPositionName } from './staff';
@@ -313,5 +313,49 @@ describe('staff', () => {
     // The whole note is about 1.7 staff spaces wide.
     const xs = [...d.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(GLYPH_WIDTH.wholeNote * 14, 0);
+  });
+});
+
+// Found in review, by using the player in a browser.
+describe('review: what the player says matches what happens', () => {
+  const report = (extra: Partial<SessionReport>): SessionReport =>
+    ({
+      mode: 'lesson', outcome: 'completed', title: 'x', exercises: 7, accuracy: 1, firstTry: 7, mistakes: 0, perfect: true, bestCombo: 7, durationSec: 60,
+      xp: 15, crown: null, factsAdded: 0, cardsReviewed: 0, heartsLeft: 5, missed: [], unlocked: [], next: 'continue',
+      xpAwarded: 15, multiplier: 1, leveledUp: false, level: 2, goalMetNow: false, streakExtended: false, streak: null, gems: 0, quests: [], achievements: [], hearts: 5,
+      ...extra,
+    }) as SessionReport;
+
+  it('"End lesson now" does not promise a saved place: the slot is cleared, so the summary says it starts again', () => {
+    const base = { mode: 'lesson' as const, perfect: false, exercises: 2, mistakes: 0, heartsLeft: 5 };
+    const h = summaryHeadline({ ...base, outcome: 'quit' });
+    expect(h.title).toBe('Lesson ended');
+    expect(h.subtitle).toMatch(/starts from the beginning/);
+    expect(`${h.title} ${h.subtitle}`).not.toMatch(/saved|pick up|whenever you like/i);
+    expect(summaryHeadline({ ...base, mode: 'checkpoint', outcome: 'quit' }).title).toBe('Checkpoint ended');
+    for (const t of ['mia', 'dev', 'elena']) expect(teacherLine(t, 'quit', false), t).not.toMatch(/pick it up|where we stopped|will be here/i);
+  });
+
+  it('a session with nothing in it shows no "+0 XP"', () => {
+    const empty = summaryStats(report({ exercises: 0, xp: 0, xpAwarded: 0, firstTry: 0, perfect: false, bestCombo: 0 }));
+    expect(empty.map((s) => s.id)).toEqual(['time']);
+    expect(summaryStats(report({})).map((s) => s.id)).toContain('xp');
+  });
+
+  it('the answer that used the last heart does not promise a come-back that will never come', () => {
+    const ex = EXERCISE_EXAMPLES.choice;
+    const wrong = fb(ex, undefined, { heartLost: true, willRetry: true });
+    const last = feedbackCopy(ex, wrong, 0, 0);
+    expect(last).toMatchObject({ heartLost: true, lastHeart: true, willRetry: false });
+    const more = feedbackCopy(ex, wrong, 0, 3);
+    expect(more).toMatchObject({ heartLost: true, lastHeart: false, willRetry: true });
+    // Hearts not in play (teacher courses): unchanged.
+    expect(feedbackCopy(ex, fb(ex, undefined, { willRetry: true }), 0, null)).toMatchObject({ lastHeart: false, willRetry: true });
+  });
+
+  it('the resume note counts the steps done, not a step number that can be off by one', () => {
+    expect(resumeNote(3, 10)).toBe('3 of 10 steps done.');
+    expect(resumeNote(12, 10)).toBe('10 of 10 steps done.');
+    expect(resumeNote(0, 0)).toBe('Your place was kept.');
   });
 });

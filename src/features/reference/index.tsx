@@ -28,6 +28,9 @@ import { ExportMenu } from './ui/ExportMenu';
 import { useSounder } from './ui/sound';
 import styles from './ui/Reference.module.css';
 
+/** Results shown per section before "Show more". */
+const PER_GROUP = 5;
+
 /** The section list sits beside the page from this width. */
 const WIDE_QUERY = '(min-width: 1080px)';
 
@@ -47,9 +50,14 @@ export default function ReferenceScreen({ params }: RouteProps) {
   const info = sectionById(section);
   useScreenTitle(info ? info.title : null);
 
-  const index = useMemo(() => buildSearchIndex(fmt), [fmt]);
+  // The index (about 450 entries) is built the first time the learner searches, not on every visit.
+  const [wantIndex, setWantIndex] = useState(false);
+  const index = useMemo(() => (wantIndex ? buildSearchIndex(fmt) : []), [fmt, wantIndex]);
   const debounced = useDebounced(query, 80);
-  const hits = useMemo(() => searchReference(index, debounced, 40), [index, debounced]);
+  const hits = useMemo(() => searchReference(index, debounced, 80), [index, debounced]);
+  useEffect(() => {
+    if (query.trim()) setWantIndex(true);
+  }, [query]);
 
   // Stop sounds when the section changes.
   const { stop } = sounder;
@@ -72,13 +80,13 @@ export default function ReferenceScreen({ params }: RouteProps) {
 
   const openFirst = useCallback(
     (value: string) => {
-      const first = searchReference(index, value, 1)[0];
+      const first = searchReference(index.length ? index : buildSearchIndex(fmt), value, 1)[0];
       if (!first) return;
       const { section: s, item } = first.entry;
       onPick();
       navigate('reference', s, item ?? undefined);
     },
-    [index, onPick],
+    [index, fmt, onPick],
   );
 
   const searchBox = (autoFocus = false) => (
@@ -92,11 +100,9 @@ export default function ReferenceScreen({ params }: RouteProps) {
       size="lg"
       autoFocus={autoFocus}
       data-autofocus={autoFocus ? '' : undefined}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && query) {
-          e.stopPropagation();
-          setQuery('');
-        }
+      onFocus={(e) => {
+        e.currentTarget.select();
+        setWantIndex(true);
       }}
     />
   );
@@ -203,6 +209,8 @@ function SectionNav({ current }: { current: SectionId }) {
 
 /** Search results grouped by section, each a link straight to the item. */
 function SearchResults({ query, hits, onPick, compact }: { query: string; hits: SearchHit[]; onPick: () => void; compact: boolean }) {
+  const [open, setOpen] = useState<ReadonlySet<SectionId>>(() => new Set());
+  useEffect(() => setOpen(new Set()), [query]);
   const groups = useMemo(() => {
     const by = new Map<SectionId, SearchHit[]>();
     for (const h of hits) by.set(h.entry.section, [...(by.get(h.entry.section) ?? []), h]);
@@ -214,7 +222,7 @@ function SearchResults({ query, hits, onPick, compact }: { query: string; hits: 
   return (
     <div className={cx(styles.results, compact && styles.resultsCompact)} data-results={hits.length}>
       <p className={styles.resultCount} role="status" aria-live="polite">
-        {hits.length === 0 ? `Nothing found for “${query.trim()}”. Try a note name, a chord symbol or a plain word.` : `${hits.length === 40 ? '40+' : hits.length} result${hits.length === 1 ? '' : 's'}`}
+        {hits.length === 0 ? `Nothing found for “${query.trim()}”. Try a note name, a chord symbol or a plain word.` : `${hits.length === 80 ? '80+' : hits.length} result${hits.length === 1 ? '' : 's'}`}
       </p>
       {groups.map(([sectionId, list]) => (
         <section key={sectionId} className={styles.resultGroup} aria-label={sectionById(sectionId)!.title}>
@@ -223,7 +231,7 @@ function SearchResults({ query, hits, onPick, compact }: { query: string; hits: 
             {sectionById(sectionId)!.title}
           </h3>
           <ul className={styles.resultList}>
-            {list.map(({ entry }) => (
+            {(open.has(sectionId) ? list : list.slice(0, PER_GROUP)).map(({ entry }) => (
               <li key={entry.id}>
                 <a className={styles.result} href={href('reference', entry.section, entry.item ?? undefined)} onClick={onPick} data-result={entry.id}>
                   <span className={styles.resultTitle}>{entry.title}</span>
@@ -232,6 +240,11 @@ function SearchResults({ query, hits, onPick, compact }: { query: string; hits: 
               </li>
             ))}
           </ul>
+          {list.length > PER_GROUP && !open.has(sectionId) && (
+            <button type="button" className={styles.more} onClick={() => setOpen(new Set([...open, sectionId]))}>
+              Show {list.length - PER_GROUP} more
+            </button>
+          )}
         </section>
       ))}
     </div>

@@ -330,7 +330,7 @@ export class PlayerEngine {
             if (e.beat.track === this.stateNow.track && !this.waitRun) this.neckAtTick(e.beat.tick);
             break;
           case 'bar':
-            pushBounded(playerDebug.bars, { bar: e.bar, index: e.index, time: e.time }, 200);
+            pushBounded(playerDebug.bars, { bar: e.bar, index: e.index, time: e.time, heardAt: audioSoundingNow() }, 200);
             this.stateNow = { ...this.stateNow, bar: e.bar, tick: this.timeline.bars[e.index]?.start ?? this.stateNow.tick };
             for (const fn of [...this.listeners]) fn();
             this.scheduleSave();

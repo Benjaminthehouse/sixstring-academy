@@ -18,14 +18,23 @@ export function specOf(voicing: Voicing): ChordSpec {
 }
 
 /**
- * True when a failed attempt at `target` looks like the chord the learner is still holding:
- * every note heard that is not in the target belongs to `held`, and the target's missing notes
- * are not part of `held` either.
+ * How sure the matcher must be that a strum is the chord (0–1). 0.6 is the pitch module's
+ * "comfortable yes": a string 12 dB quieter than the rest still passes (lenient, as the screen
+ * promises), while a triad whose only third is dead (an Am without its C) scores 0.53–0.57 and
+ * does not. Measured in `listen.review.test.ts`.
  */
-export function soundsLikeHeld(attempt: Pick<ChordMatch, 'missing' | 'extra'>, held: ChordSpec): boolean {
+export const RING_TRUE = 0.6;
+
+/**
+ * True when a failed attempt at `target` looks like the chord the learner is still holding:
+ * every note heard that is not in the target belongs to `held`, and every target note that was
+ * heard belongs to `held` as well (a re-strum of the old chord sounds none of the new chord's own
+ * notes; a new chord with an old string still ringing does, and deserves a hint).
+ */
+export function soundsLikeHeld(attempt: Pick<ChordMatch, 'present' | 'missing' | 'extra'>, held: ChordSpec): boolean {
   const pcs = new Set(held.pcs.map((p) => ((p % 12) + 12) % 12));
   if (attempt.extra.length === 0) return false;
-  return attempt.extra.every((pc) => pcs.has(pc)) && attempt.missing.every((pc) => !pcs.has(pc));
+  return attempt.extra.every((pc) => pcs.has(pc)) && attempt.present.every((pc) => pcs.has(pc)) && attempt.missing.every((pc) => !pcs.has(pc));
 }
 
 /** Callbacks of the counter. */
@@ -38,7 +47,7 @@ export interface CounterEvents {
 
 /** Options of the counter. */
 export interface CounterOptions {
-  /** Score that counts as the chord (default 0.55: lenient, as the screen promises). */
+  /** Score that counts as the chord (default `RING_TRUE`). */
   threshold?: number;
   /** Which chord the learner starts on (default 0). */
   startIndex?: number;
@@ -63,7 +72,7 @@ export class ChangeCounter {
     this.source = source;
     this.specs = [...specs];
     this.events = events;
-    this.threshold = opts.threshold ?? 0.55;
+    this.threshold = opts.threshold ?? RING_TRUE;
     this.index = opts.startIndex ?? 0;
   }
 

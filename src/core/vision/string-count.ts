@@ -186,11 +186,20 @@ export function readStringCount(frame: Frame, pose: FretboardPose): StringCountR
 }
 
 /**
+ * Lead of another count's correlation over the model's from which a read counts as doubt. Measured:
+ * six-string necks read with the six-string model reached at most 0.33 (one read in 356 on the
+ * original bench, sets 0 and 3000, detector and true poses; the rest 0.29 or less); 7-string and bass
+ * necks read with a guitar preset gave 0.39-0.58 whenever the extra or missing strings were in the
+ * profile (alt bench). The threshold sits between the two; the margin is thin on both sides.
+ */
+const DOUBT_LEAD = 0.36;
+
+/**
  * Evidence (one frame) that the model has the wrong string count: the lead of another count's
  * correlation over the model's, when that comb is clean; 0 when nothing can be said.
  */
 export function stringCountDoubt(r: StringCountReading | null): number {
   if (!r || r.best === r.model || !(r.noise >= 1)) return 0;
   const lead = r.bestScore - Math.max(0, r.modelScore);
-  return r.bestScore >= 0.6 && lead >= 0.3 ? Math.min(1, lead) : 0;
+  return r.bestScore >= 0.6 && lead >= DOUBT_LEAD ? Math.min(1, lead) : 0;
 }

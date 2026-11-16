@@ -23,11 +23,13 @@ export interface FeedbackPanelProps {
   seed: number;
   /** Right answers in a row, to celebrate a run. */
   combo: number;
+  /** Hearts left after this answer (null when hearts are not in play). */
+  heartsLeft?: number | null;
 }
 
 /** What the learner sees after Check: green with the reason, or kind and specific with the right answer. */
-export function FeedbackPanel({ exercise, feedback, seed, combo }: FeedbackPanelProps) {
-  const copy = feedbackCopy(exercise, feedback, seed);
+export function FeedbackPanel({ exercise, feedback, seed, combo, heartsLeft = null }: FeedbackPanelProps) {
+  const copy = feedbackCopy(exercise, feedback, seed, heartsLeft);
   const icon = copy.tone === 'ok' ? 'CircleCheck' : copy.tone === 'bad' ? 'CircleX' : 'Info';
   return (
     <div className={cx(styles.feedback, styles[`feedback-${copy.tone}`])} role="status" aria-live="polite" data-feedback={copy.tone}>
@@ -62,7 +64,7 @@ export function FeedbackPanel({ exercise, feedback, seed, combo }: FeedbackPanel
         <p className={styles.feedbackNotes}>
           {copy.heartLost && (
             <span>
-              <Icon name="HeartCrack" size="xs" /> One heart used
+              <Icon name="HeartCrack" size="xs" /> {copy.lastHeart ? 'That was your last heart' : 'One heart used'}
             </span>
           )}
           {copy.willRetry && (
@@ -111,7 +113,7 @@ export function SummaryView({ report, teacher }: SummaryViewProps) {
     <section className={styles.summary} aria-labelledby="lesson-summary-title" data-summary={report.outcome}>
       {headline.celebrate && <Celebration fire={fire} intensity={report.perfect ? 'high' : 'medium'} />}
       <div className={cx(styles.summaryBadge, styles[`summary-${headline.tone}`], !reduced && styles.pop)} aria-hidden="true">
-        <Icon name={headline.tone === 'ok' ? (report.mode === 'checkpoint' ? 'Trophy' : report.perfect ? 'Sparkles' : 'Check') : headline.tone === 'warn' ? (report.outcome === 'out-of-hearts' ? 'HeartCrack' : 'Flag') : 'Save'} size={40} />
+        <Icon name={headline.tone === 'ok' ? (report.mode === 'checkpoint' ? 'Trophy' : report.perfect ? 'Sparkles' : 'Check') : headline.tone === 'warn' ? (report.outcome === 'out-of-hearts' ? 'HeartCrack' : 'Flag') : report.outcome === 'quit' ? 'LogOut' : 'CalendarCheck'} size={40} />
       </div>
       <Heading level={2} size="3xl" display id="lesson-summary-title" className={styles.summaryTitle}>
         {headline.title}

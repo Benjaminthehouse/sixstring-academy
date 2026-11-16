@@ -9,6 +9,7 @@ import {
   ChordDiagram, CircleOfFifths, Fretboard, NotationView, PianoKeys, RhythmView, StrumPattern, degreeText, noteText, useMusicSettings,
   type FretMarker, type NotationNote, type PianoHighlight,
 } from '@/ui/music';
+import { midiToNote } from '@/core/theory';
 import { describeSound } from '../../sound';
 import { resolveFigure } from '../../figures';
 import type {
@@ -118,6 +119,8 @@ export function StaffFigureView({ figure }: FigureProps<StaffFigure>) {
 /** A piano keyboard with highlighted keys. */
 export function KeyboardFigureView({ figure }: FigureProps<KeyboardFigure>) {
   const resolved = useMemo(() => resolveFigure(figure), [figure]);
+  // Anything that shows a note can play it: a tapped key sounds.
+  const player = useSoundPlayer();
   const highlight = useMemo<PianoHighlight[]>(
     () =>
       figure.keys.map((k) => {
@@ -130,8 +133,10 @@ export function KeyboardFigureView({ figure }: FigureProps<KeyboardFigure>) {
   );
   return (
     <figure className={cx(styles.figure, styles.centred)}>
-      <div className={styles.keyboard}>
-        <PianoKeys from={resolved.from} to={resolved.to} highlight={highlight} />
+      {/* Its keys are buttons: Enter, Space and the arrows belong to them, not to the player. */}
+      <div className={styles.keyboard} data-own-enter="" data-native-keys="">
+        {/* The keys the card is about carry their own names; octave marks (C4) would be jargon here. */}
+        <PianoKeys from={resolved.from} to={resolved.to} highlight={highlight} labels={highlight.length > 0 ? 'none' : 'c'} onKeyPress={({ midi }) => player.play({ kind: 'notes', notes: [midiToNote(midi)], tempo: 60 })} />
       </div>
       <Caption text={resolved.caption} />
     </figure>

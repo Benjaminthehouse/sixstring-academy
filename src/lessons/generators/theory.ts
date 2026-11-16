@@ -568,7 +568,7 @@ const DEGREES_EASY_FIRST = [1, 4, 5, 6, 2, 3, 7];
 
 export const diatonicChord = defineGenerator({
   kind: 'diatonic-chord',
-  summary: 'The chords that belong to a key: which chord sits on a degree, and what quality it has.',
+  summary: 'The chords that belong to a key: which chord sits on a degree, and what quality it has. Minor keys use the natural minor scale, and the question says so.',
   produces: ['choice'],
   params: [
     { name: 'ask', type: "'chord' | 'quality'", default: "'chord'", description: 'Name the chord on a degree, or say whether it is major, minor or diminished.' },

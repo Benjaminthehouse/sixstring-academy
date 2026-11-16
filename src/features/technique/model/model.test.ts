@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getExercise, type TempoLadder } from '@/content/technique';
 import { createInitialState } from '@/core/progress';
-import { addPairMinute, addSession, localDay, readPair, readRecord, starsFor, MAX_LOG } from './history';
+import { addPairMinute, addSession, cleanDays, localDay, readPair, readRecord, starsFor, MAX_LOG } from './history';
 import { BREAK_AFTER_SEC, BREAK_RESET_MS, SNOOZE_SEC, TENSION_EVERY_SEC, newHealth, reminderDue, snoozeBreak, strainDue, tensionLine, tensionSeen, tickHealth, tookBreak } from './health';
 import { afterPass, clampTempo, climbs, ladderFraction, nudge, rungCount, rungOf, startTempo } from './ladder';
 import { analyzeLevels, barLevels } from './levels';
@@ -88,7 +88,29 @@ describe('history', () => {
     expect(starsFor(L, 60)).toBe(1);
     expect(starsFor(L, 72)).toBe(2);
     expect(starsFor(L, 80)).toBe(3);
-    expect(starsFor(FIXED, 60)).toBe(3);
+  });
+
+  it('gives a fixed-tempo exercise its stars and crowns for coming back, not for one tap', () => {
+    // One "Clean" on Posture or a bend used to give three stars and all five crowns at once.
+    expect(starsFor(FIXED, 60)).toBe(1);
+    expect(masteryFor(FIXED, 60)).toBe(1);
+    let r = readRecord(null);
+    const bend = getExercise('tech-bend-whole-step')!;
+    const clean = (day: string) => {
+      const v = newVisit(bend.id, 60, 0);
+      v.passes.push({ tempo: 60, verdict: 'clean', source: 'mic', score: 95, partId: 'string-3' });
+      const out = visitActivity(bend, v, r, day)!;
+      r = out.record;
+      return out.input;
+    };
+    expect(clean('2026-11-10')).toMatchObject({ stars: 1, masteryAtLeast: 1 });
+    expect(clean('2026-11-10')).toMatchObject({ stars: 1, masteryAtLeast: 1 }); // the same day again
+    expect(cleanDays(r)).toBe(1);
+    clean('2026-11-11');
+    expect(clean('2026-11-12')).toMatchObject({ stars: 2, masteryAtLeast: 3 });
+    clean('2026-11-13');
+    expect(clean('2026-11-14')).toMatchObject({ stars: 3, masteryAtLeast: 5 });
+    expect(clean('2026-11-15')).toMatchObject({ stars: 3, masteryAtLeast: 5 });
   });
 
   it('keeps the best count per chord pair', () => {

@@ -293,6 +293,7 @@
 }
 .barButtons {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sp-3);
@@ -309,9 +310,10 @@
   flex: none;
 }
 @media (max-width: 719.98px) {
+  /* With large text the primary button drops below "I don't know" rather than losing its words. */
   .primary {
     flex: 1 1 auto;
-    min-width: 0;
+    min-width: min(100%, 9rem);
   }
   /* The summary's choices are phrases: one per line, the primary on top. */
   .barButtonsDone {

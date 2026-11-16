@@ -11,11 +11,15 @@
  *   calibration       four taps / dragged quadrilateral / one-tap numbering / nudges
  *   color markers     two tapped coloured markers as anchors (marker mode)
  *   overlay           marker placement and frame <-> display conversion
- *   geometry          the neck model and projection maths every overlay needs
+ *   geometry          the neck model and projection maths every overlay needs (also the camera
+ *                     centre and markers on the raised strings as seen)
+ *   guidance          coaching for the learner and the operating limits (`TrackerUpdate.guidance`)
+ *   string-count      how many strings the board in view has (a wrong guitar type never locks)
  *   protocol          messages for running the tracker in `vision.worker.ts`
  *
  * The two detector approaches the production detector is built from (`lines/`, `align/`) and the
- * synthetic test bench (`testing/`) are internal and are not exported here.
+ * synthetic test benches (`testing/`, including the independent `alt-scenes.ts`) are internal and
+ * are not exported here.
  */
 export type {
   DetectOptions,

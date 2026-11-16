@@ -30,6 +30,8 @@ export interface SearchEntry {
   keywords: string[];
   /** Case-sensitive symbol for an exact-case bonus (`M3` vs `m3`, `maj7`). */
   symbol?: string;
+  /** Normalised text, filled in once by `buildSearchIndex` so a query does not redo it per entry. */
+  norm?: { title: string; keys: string[]; hay: string };
 }
 
 /** Display formatters for notes, chords and keys (the learner's naming). */
@@ -147,6 +149,11 @@ export function buildSearchIndex(fmt: SearchFormat = PLAIN): SearchEntry[] {
   // Glossary.
   for (const e of glossaryEntries()) add({ section: 'glossary', item: e.id, title: capital(e.term), subtitle: e.definition, keywords: [e.id.replace(/-/g, ' ')] });
 
+  for (const e of out) {
+    const title = normalizeQuery(e.title);
+    const keys = e.keywords.map(normalizeQuery);
+    e.norm = { title, keys, hay: `${title} ${normalizeQuery(e.subtitle)} ${keys.join(' ')}` };
+  }
   return out;
 }
 
@@ -187,9 +194,11 @@ export function searchReference(index: readonly SearchEntry[], query: string, li
   const words = q.split(' ');
   const hits: SearchHit[] = [];
   for (const entry of index) {
-    const title = normalizeQuery(entry.title);
-    const keys = entry.keywords.map(normalizeQuery);
-    const hay = `${title} ${normalizeQuery(entry.subtitle)} ${keys.join(' ')}`;
+    const { title, keys, hay } = entry.norm ?? {
+      title: normalizeQuery(entry.title),
+      keys: entry.keywords.map(normalizeQuery),
+      hay: `${normalizeQuery(entry.title)} ${normalizeQuery(entry.subtitle)} ${entry.keywords.map(normalizeQuery).join(' ')}`,
+    };
     if (!words.every((w) => hay.includes(w))) continue;
     let score = 10;
     if (title === q || keys.includes(q)) score = 100;

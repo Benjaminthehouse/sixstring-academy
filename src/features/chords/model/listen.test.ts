@@ -83,9 +83,12 @@ describe('counting clean changes by ear', () => {
 
   it('recognises an attempt that is really the held chord', () => {
     const g = specOf(defaultVoicing('G')!);
-    expect(soundsLikeHeld({ missing: [0, 4], extra: [11, 2] }, g)).toBe(true);
-    expect(soundsLikeHeld({ missing: [0], extra: [6] }, g)).toBe(false);
-    expect(soundsLikeHeld({ missing: [0], extra: [] }, g)).toBe(false);
+    // Waiting for C (C E G) while holding G (G B D).
+    expect(soundsLikeHeld({ present: [7], missing: [0, 4], extra: [11, 2] }, g)).toBe(true);
+    expect(soundsLikeHeld({ present: [4, 7], missing: [0], extra: [6] }, g)).toBe(false);
+    expect(soundsLikeHeld({ present: [4, 7], missing: [0], extra: [] }, g)).toBe(false);
+    // The whole C rang, with the old B string still ringing over it: a real attempt, not the held G.
+    expect(soundsLikeHeld({ present: [0, 4, 7], missing: [], extra: [11] }, g)).toBe(false);
   });
 
   it('needs two chords', () => {

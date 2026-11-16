@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { audioSoundingNow } from '@/core/audio';
 import type { Song } from '@/core/song';
 import { cx, usePrefersReducedMotion, useRafLoop } from '@/ui';
 import { TabView, barRangeRects, type TabLayout, type TabNoteState, type TabRange, type TabSeek, type TabViewHandle } from '@/ui/music/tab';
@@ -71,20 +72,25 @@ export function Score(props: ScoreProps) {
     };
   }, []);
 
+  const tabRoot = useRef<HTMLElement | null>(null);
   const follow = useCallback(
     (bar: number, progress: number, force = false) => {
       const L = tab.current?.getLayout();
       const el = box.current;
       if (!L || !el || L.mode !== 'wrap') return;
-      if (!force && !shouldFollow(performance.now(), lastScroll.current)) return;
       const mi = bar - L.model.firstBar;
       const m = L.measures[mi];
       if (!m) return;
       const sys = m.system;
-      // Find where the TabView's content sits inside the scroll box.
-      const root = el.querySelector<HTMLElement>('[data-tab-view]');
-      const offset = root ? root.offsetTop : 0;
+      // Where the TabView's content sits inside the scroll box.
+      if (!tabRoot.current || !el.contains(tabRoot.current)) tabRoot.current = el.querySelector<HTMLElement>('[data-tab-view]');
+      const offset = tabRoot.current ? tabRoot.current.offsetTop : 0;
       const lines = L.systems.map((s) => ({ y: s.y + offset, height: s.height }));
+      // For the browser check: are this line and the next one in view right now?
+      const a = lines[sys];
+      const b = lines[sys + 1] ?? a;
+      playerDebug.follow = { line: sys, lines: lines.length, current: a.y >= el.scrollTop - 1 && a.y + a.height <= el.scrollTop + el.clientHeight + 1, next: b.y + b.height <= el.scrollTop + el.clientHeight + 1, scrollTop: el.scrollTop };
+      if (!force && !shouldFollow(performance.now(), lastScroll.current)) return;
       if (sys === lastLine.current && !force && progress < 0.5) return;
       lastLine.current = sys;
       const target = followTarget(lines, sys, { top: el.scrollTop, height: el.clientHeight }, el.scrollHeight);
@@ -100,7 +106,7 @@ export function Score(props: ScoreProps) {
     tab.current?.setPlayerPosition(pos.countIn ? { bar: pos.bar, barProgress: pos.barProgress } : pos);
     engine.frame();
     playerDebug.frames++;
-    playerDebug.cursor = { tick: pos.tick, bar: pos.bar, audio: performance.now() };
+    playerDebug.cursor = { tick: pos.tick, bar: pos.bar, audio: audioSoundingNow() };
     if (!line) follow(pos.bar, pos.barProgress);
   }, running);
 

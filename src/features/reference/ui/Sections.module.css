@@ -395,10 +395,26 @@
   font-weight: 700;
 }
 
+
 .mnemonic {
   grid-column: 2;
   font-style: italic;
   color: var(--fg-muted);
+}
+
+@container refbody (max-width: 479px) {
+  .order {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mnemonic {
+    grid-column: 1;
+  }
+  .tokens {
+    gap: 3px;
+  }
+  .token {
+    padding: var(--sp-1) 6px;
+  }
 }
 
 .rules {

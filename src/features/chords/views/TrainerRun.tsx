@@ -20,7 +20,7 @@ import { ActionBar, Banner, Button, CountdownRing, ProgressBar, Text, cx } from 
 import { useMusicSettings } from '@/ui/music';
 import { useShortcuts } from '../hooks/keys';
 import { strumHint, type StrumHint } from '../model/hints';
-import { ChangeCounter, soundsLikeHeld, specOf } from '../model/listen';
+import { ChangeCounter, RING_TRUE, soundsLikeHeld, specOf } from '../model/listen';
 import { displaySymbol } from '../model/symbols';
 import { judgeStrum, judgeTaps, onTimeWindow, type ChangeOutcome, type CheckStep } from '../model/trainer';
 import { MarkedDiagram } from './MarkedDiagram';
@@ -307,7 +307,7 @@ export function TimedRun({ chords, voicings, input, tracker, onDone, bpm, beats 
         if (changeNo <= TIMED_CHANGES) {
           const target = changeNo % n;
           const due = b.time + beatSec;
-          const w = waitForChord(tracker, specs[target], { threshold: 0.55, rivals: specs.filter((_s, i) => i !== target), timeoutMs: (beatSec + lateLimit) * 1000 });
+          const w = waitForChord(tracker, specs[target], { threshold: RING_TRUE, rivals: specs.filter((_s, i) => i !== target), timeoutMs: (beatSec + lateLimit) * 1000 });
           waits.current.push(w);
           void w.then((r) => {
             if (r.ok || r.reason === 'timeout') {
@@ -439,7 +439,7 @@ export function CheckRun({ chords, voicings, tracker, onDone }: RunProps) {
     const prev = (idx - 1 + n) % n;
     failedRef.current = 0;
     const w = waitForChord(tracker, specs[idx], {
-      threshold: 0.55,
+      threshold: RING_TRUE,
       rivals: specs.filter((_s, i) => i !== idx),
       onAttempt: (m) => {
         // Strumming the chord you are leaving is not a mistake.

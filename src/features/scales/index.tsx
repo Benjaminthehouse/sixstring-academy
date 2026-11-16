@@ -545,8 +545,21 @@ export default function ScalesScreen({ params }: RouteProps) {
 
   const legend =
     view === 'compare' && summary ? (
-      <Text variant="caption" tone="muted" as="p">
-        Plain dots are in both scales. <span className={styles.legendKey} data-c="info" aria-hidden="true">■</span> squares: only in {displayScaleName(scale)} · <span className={styles.legendKey} data-c="accent" aria-hidden="true">◆</span> diamonds: only in {compareScale ? displayScaleName(compareScale) : ''}
+      // Only the marks that are on the neck are explained (one scale inside the other has no squares).
+      <Text variant="caption" tone="muted" as="p" data-compare-legend>
+        Plain dots are in both scales.
+        {summary.onlyA.length > 0 && (
+          <>
+            {' '}
+            <span className={styles.legendKey} data-c="info" aria-hidden="true">■</span> Squares: only in {displayScaleName(scale)}.
+          </>
+        )}
+        {summary.onlyB.length > 0 && (
+          <>
+            {' '}
+            <span className={styles.legendKey} data-c="accent" aria-hidden="true">◆</span> Diamonds: only in {compareScale ? displayScaleName(compareScale) : ''}.
+          </>
+        )}
       </Text>
     ) : view === 'connect' && neighbour ? (
       <Text variant="caption" tone="muted" as="p">

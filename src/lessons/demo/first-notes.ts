@@ -42,9 +42,10 @@ const musicalAlphabet: Lesson = {
       body: 'Between most letters there is one more note. It borrows a neighbour\'s name: {n:F#} (F {t:sharp}) is just above {n:F}, and {n:Gb} (G {t:flat}) is just below {n:G}. They are the same sound.',
       figure: {
         kind: 'keyboard',
-        keys: [{ note: 'F4', label: 'F' }, { note: 'F#4', label: 'F♯ / G♭', role: 'target' }, { note: 'G4', label: 'G' }],
+        keys: [{ note: 'F4', label: 'F' }, { note: 'F#4', label: 'F♯', role: 'target' }, { note: 'G4', label: 'G' }],
         from: 'C4',
         to: 'B4',
+        caption: 'One key, two names: {n:F#} and {n:Gb}.',
       },
     },
     {

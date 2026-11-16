@@ -220,14 +220,12 @@ describe('hearts', () => {
     expect(d.of('add-cards')).toEqual([]);
   });
 
-  it('the last heart lost on the very last step still completes the lesson when nothing is left to do', () => {
+  it('the last heart lost on the last exercise ends the lesson out of hearts, because that exercise would have come back', () => {
     const d = lessonOf(FIXTURE, 'a', { hearts: 1, seed: 3 });
     d.pass().pass().pass().pass().pass();
-    // The last exercise has already used its come-backs elsewhere? No: make it final by exhausting its retries.
     d.answer(false);
     expect(d.state.hearts).toBe(0);
     d.next();
-    // It would come back, so the lesson is not finished: out of hearts.
     expect(d.state.outcome).toBe('out-of-hearts');
   });
 

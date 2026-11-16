@@ -136,11 +136,14 @@ function templatesFor(familyId: string, typeId: string): Array<Template & { self
       return [at({ ...TWO_FIVE_ONE, steps: [{ iv: 'M2', type: 'm7' }, { iv: 'P5', type: 'self' }, { iv: 'P1', type: 'maj7' }] }, 1)];
     case 'half-diminished':
       return [at({ mode: 'minor', romans: 'iiø7–V7–i', steps: [{ iv: 'M2', type: 'self' }, { iv: 'P5', type: '7' }, { iv: 'P1', type: 'minor' }], note: 'The minor-key ii–V–i.' }, 0)];
-    case 'dim':
+    case 'dim': {
+      const dim = typeId === 'dim' ? '°' : typeId === 'dim7' ? '°7' : '°maj7';
       return [
-        at({ mode: 'major', romans: 'I–♯i°7–ii', steps: [{ iv: 'P1', type: 'major' }, { iv: 'A1', type: 'self' }, { iv: 'M2', type: 'minor' }], note: 'A passing chord that climbs by half steps.' }, 1),
-        at({ mode: 'minor', romans: 'vii°–i', steps: [{ iv: 'M7', type: 'self' }, { iv: 'P1', type: 'minor' }], note: 'The leading-tone chord resolving in a minor key.' }, 0),
+        at({ mode: 'major', romans: `I–♯i${dim}–ii`, steps: [{ iv: 'P1', type: 'major' }, { iv: 'A1', type: 'self' }, { iv: 'M2', type: 'minor' }], note: 'A passing chord that climbs by half steps.' }, 1),
+        at({ mode: 'major', romans: `I–♭iii${dim}–ii`, steps: [{ iv: 'P1', type: 'major' }, { iv: 'm3', type: 'self' }, { iv: 'M2', type: 'minor' }], note: 'A passing chord that slides down by half steps.' }, 1),
+        at({ mode: 'minor', romans: `vii${dim}–i`, steps: [{ iv: 'M7', type: 'self' }, { iv: 'P1', type: 'minor' }], note: 'The leading-tone chord resolving in a minor key.' }, 0),
       ];
+    }
     case 'aug':
       return [at({ mode: 'major', romans: 'I–I+–IV', steps: [{ iv: 'P1', type: 'major' }, { iv: 'P1', type: 'self' }, { iv: 'P4', type: 'major' }], note: 'The raised fifth pushing on to the next chord.' }, 1)];
     default:
@@ -155,6 +158,14 @@ function minorTemplates(at: (t: Omit<Template, 'offset'>, selfStep: number) => T
   ];
 }
 
+/**
+ * Keys a learner meets in songs: at most six sharps or flats. C♯ and C♭ major (and their relative
+ * minors) are real keys, but an example in C♭ major teaches nothing a reader can use.
+ */
+function readableKey(k: { theoretical: boolean; fifths: number }): boolean {
+  return !k.theoretical && Math.abs(k.fifths) <= 6;
+}
+
 function spelledOk(note: string): boolean {
   return !/##|bb/.test(note.slice(1));
 }
@@ -167,7 +178,7 @@ function buildExample(c: Chord, t: Template & { selfStep: number }): Progression
     return null;
   }
   const key = getKey(`${tonic} ${t.mode}`);
-  if (!key || key.theoretical || !spelledOk(tonic)) return null;
+  if (!key || !readableKey(key) || !spelledOk(tonic)) return null;
   const chords: string[] = [];
   for (let i = 0; i < t.steps.length; i++) {
     const step = t.steps[i];
@@ -193,7 +204,7 @@ export function keysOf(symbol: string, limit = 8): KeyUse[] {
   const out: KeyUse[] = [];
   const tones = c.bass ? [...c.notes, c.bass] : c.notes;
   for (const k of [...MAJOR_KEYS, ...MINOR_KEYS]) {
-    if (k.theoretical) continue;
+    if (!readableKey(k)) continue;
     try {
       // Spelled membership: F is not in A# minor (whose leading note is E#), and a borrowed or
       // melodic-minor chord is not "in" the key for a learner reading this list.

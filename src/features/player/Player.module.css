@@ -148,9 +148,42 @@
   border-left: 1px solid var(--line);
   scrollbar-width: thin;
 }
+.headModes {
+  display: grid;
+  gap: var(--sp-1);
+  justify-items: end;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.headModes .modeHint {
+  justify-content: flex-end;
+  text-align: right;
+}
 .modeHint {
-  margin-top: calc(var(--sp-2) * -1);
-  min-height: 2.6em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.5em;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  line-height: var(--leading-tight);
+}
+.position {
+  display: grid;
+  gap: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+.positionBar {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.positionOf {
+  color: var(--fg-muted);
+  font-weight: 500;
+  font-size: var(--text-sm);
 }
 .transport {
   display: flex;
@@ -181,46 +214,41 @@
   margin: var(--sp-1) 0 0;
   color: var(--fg-muted);
   font-size: var(--text-sm);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 0.25em;
 }
 
 /* ── overlays on the score ── */
 .bannerWrap {
-  position: absolute;
-  top: var(--sp-2);
-  left: var(--sp-2);
-  right: var(--sp-2);
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  z-index: 5;
-  pointer-events: none;
 }
 .banner {
-  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  max-width: 36rem;
+  width: 100%;
+  max-width: 40rem;
+  min-height: var(--tap);
   padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-lg);
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-2);
   font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+.banner > span {
+  flex: 1 1 auto;
+}
+.banner > :last-child:not(span) {
+  flex: 0 0 auto;
 }
 .banner[data-tone='info'] {
   border-color: var(--info);
   color: var(--fg);
 }
-.banner > span {
-  min-width: 0;
-}
 .runBadge {
   position: absolute;
-  top: var(--sp-2);
+  bottom: var(--sp-2);
   left: var(--sp-2);
   display: flex;
   align-items: center;

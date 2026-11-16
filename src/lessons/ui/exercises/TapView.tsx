@@ -66,7 +66,14 @@ export function TapRhythmView({ exercise, review, onSubmit, setPrimary, hints, l
     for (const b of takeBacks.current) b();
     takeBacks.current = [];
   };
-  useEffect(() => clear, []);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      clear();
+    };
+  }, []);
 
   const finish = () => {
     clear();
@@ -100,6 +107,8 @@ export function TapRhythmView({ exercise, review, onSubmit, setPrimary, hints, l
     }
     setPhase('counting');
     const audio = audioState() !== 'unsupported' && (await unlockAudio());
+    // The step may have gone while the audio woke up: schedule nothing for it (no clicks, no answer).
+    if (!alive.current) return;
     const lead = 0.25;
     // "Now" on the audio clock as heard and on the page's clock: a click scheduled for T is heard
     // when the sounding clock reaches T, so both clocks agree on when beat one is heard.

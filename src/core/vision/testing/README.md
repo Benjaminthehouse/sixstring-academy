@@ -126,3 +126,13 @@ writeFramePng('e2e/out/vision/mine.png', scene.frame, { pose: out.pose, truth: s
 gives per-frame errors; `createOracleDetector({ noisePx, fretShift, numberingOffset, dropRate })` is a
 controllable stand-in for a detector; `buildSequence(name)` returns the `SceneSpec` of every frame. Node-only
 files: `debug.ts`, `store.ts`, `detector-benchmark.ts`. Editing a renderer file or `geometry.ts` resets the cache.
+
+## A second, independent bench (`alt-scenes.ts`, `alt-bench.ts`, `alt-scenes.test.ts`)
+
+Everything above is one renderer. `alt-scenes.ts` draws the same kind of picture by a different
+route (own 3-D camera with k1/k2 distortion, raised strings and capo, plane-space shading, own
+textures, noise and compression; 41 conditions from capos to 7-strings to stage light) with its own
+truth, and `alt-bench.ts` scores what the overlay draws by tracing every dot back through the true
+camera. Use it to check that a change is about guitars and not about this renderer. Commands and
+results: `../README.md`, "Verification pass"; header of `alt-scenes.test.ts`.
+

@@ -387,19 +387,19 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
       onSeek={onSeek}
       noteStates={s.noteStates}
       heat={s.results ? s.results.summary.heat : null}
-      size={layout === 'wide' ? 'lg' : 'md'}
+      size={layout === 'wide' ? 'lg' : layout === 'rail' ? 'sm' : 'md'}
       diagrams={strumPart}
       {...(s.mode === 'tap' && running ? { onTapDown: (t: number) => engine.tap(t) } : {})}
     >
       <CountIn engine={engine} />
       {(s.mode === 'flow' || s.mode === 'tap') && <Judgement engine={engine} />}
-      {banner && <div className={styles.bannerWrap}>{banner}</div>}
       {runBadge}
-      {s.wait && <WaitPrompt wait={s.wait} onHint={() => engine.hint()} onSkip={() => engine.skip()} compact={layout === 'rail'} />}
     </Score>
   );
+  const bannerRow = banner ? <div className={styles.bannerWrap}>{banner}</div> : null;
+  const waitPrompt = s.wait ? <WaitPrompt wait={s.wait} onHint={() => engine.hint()} onSkip={() => engine.skip()} compact={layout === 'rail'} /> : null;
 
-  const neck = s.neck ? <Neck engine={engine} track={s.track} maxFret={fretCount(prefs)} size={layout === 'wide' ? 'md' : 'sm'} className={styles.neck} /> : null;
+  const neck = s.neck ? <Neck engine={engine} track={s.track} maxFret={fretCount(prefs)} minSpan={phone || layout === 'rail' ? 5 : 7} size={layout === 'wide' ? 'md' : 'sm'} className={styles.neck} /> : null;
 
   const info = (
     <div className={styles.info}>
@@ -407,7 +407,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         {song.meta.title}
       </p>
       <p className={styles.meta}>
-        {[song.meta.composer || song.meta.artist, song.key ? keyName(song.key) : null, `♩ = ${Math.round(engine.timeline.tempo.points[0]?.bpm ?? 0)}`, timeSig(song)].filter(Boolean).join(' · ')}
+        {[song.meta.composer || song.meta.artist, song.key ? keyName(song.key) : null, `${Math.round(engine.timeline.tempo.points[0]?.bpm ?? 0)} bpm`, timeSig(song)].filter(Boolean).join(' · ')}
         {(song.capo > 0 || !isStandard(song.tuning)) && (
           <>
             {' · '}
@@ -445,27 +445,32 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
           <>
             <header className={styles.head}>
               {info}
-              {micChip}
+              <div className={styles.headModes}>
+                <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} fullWidth={false} />
+                <p className={styles.modeHint}>
+                  {micChip}
+                  <span>{MODE_HINTS[s.mode]}</span>
+                </p>
+              </div>
             </header>
             {chips && <div className={styles.chipRow}>{chips}</div>}
             <div className={styles.main}>
               {hostPanel}
+              {bannerRow}
               {score}
+              {waitPrompt}
               {neck}
             </div>
             <aside className={styles.side} aria-label="Player controls">
-              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} />
-              <Text variant="caption" tone="muted" className={styles.modeHint}>
-                {MODE_HINTS[s.mode]}
-              </Text>
               <div className={styles.transport}>
                 {play}
                 {tapPad}
-                {active && !isWait && (
-                  <Button iconLeft="Square" onClick={() => engine.stop()}>
-                    Stop
-                  </Button>
-                )}
+                <div className={styles.position}>
+                  <span className={styles.positionBar}>
+                    Bar {s.bar + 1} <span className={styles.positionOf}>of {song.bars.length}</span>
+                  </span>
+                  {currentSection && sections.length > 1 && <span className={styles.positionOf}>{currentSection.name}</span>}
+                </div>
               </div>
               <TempoFull tempo={s.tempo} bpm={bpm} onChange={(p) => engine.setTempo(p)} />
               <div className={styles.sideBlock}>{loopOptions}</div>
@@ -484,11 +489,13 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
             ) : null}
             <div className={styles.main}>
               {hostPanel}
+              {bannerRow}
               {score}
+              {waitPrompt}
               {neck}
             </div>
             <div className={styles.dock}>
-              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" />
+              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" icons={!phone} />
               <div className={styles.dockRow}>
                 {loopBtn}
                 {tempo}
@@ -503,7 +510,9 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         {layout === 'rail' && (
           <>
             <div className={styles.main}>
+              {bannerRow}
               {score}
+              {waitPrompt}
               {neck}
             </div>
             <div className={styles.railControls}>
@@ -521,7 +530,7 @@ function PlayerView({ engine, song, resumed }: { engine: PlayerEngine; song: Son
         <div className={styles.sheetBody}>
           {layout === 'rail' && (
             <>
-              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" />
+              <ModePicker mode={s.mode} micAvailable={micAvailable} onChange={(m) => void chooseMode(m)} size="sm" icons={false} />
               <Text variant="caption" tone="muted">
                 {MODE_HINTS[s.mode]}
               </Text>

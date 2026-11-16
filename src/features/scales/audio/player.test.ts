@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { buildLine } from '../model/play';
 import { shapesFor } from '../model/neck';
 import { vampFor } from '../model/backing';
-import { ScalePlayer, currentPlayer, type ClickLike, type PlayRequest } from './player';
+import { BAR_TICKS } from '../model/play';
+import { ScalePlayer, currentPlayer, type ClickLike, type PlayRequest, type PlayerDeps } from './player';
 
 /** A player on a clock the test moves by hand. */
-function rig() {
+function rig(over: Partial<PlayerDeps> = {}) {
   let t = 1;
   const clock = { now: () => t, soundingNow: () => t };
   const plucks: Array<{ midi: number; when: number; string: number }> = [];
@@ -27,6 +28,7 @@ function rig() {
     band: null,
     click: () => ({ sound: 'woodblock', start: () => clicks.started++, stop: () => clicks.stopped++, dispose: () => undefined }) as ClickLike,
     preload: async () => undefined,
+    ...over,
   });
   const steps: Array<{ index: number; at: number }> = [];
   const states: boolean[] = [];
@@ -123,6 +125,40 @@ describe('ScalePlayer', () => {
     const r = rig();
     await r.player.play(request({ accompaniment: 'band', vamp: vampFor('A', 'minor-pentatonic') }));
     expect(r.drones).toHaveLength(1);
+  });
+
+  it('keeps playing the line all through the band’s loop (the blues used to drop it for 21 of 24 bars)', async () => {
+    const loads: Array<{ bars: number; choruses?: number }> = [];
+    const r = rig({
+      band: (tr) => ({
+        // Like the real band: the loop is the arrangement's body (bars × choruses).
+        load: (bars, opts) => {
+          loads.push({ bars: bars.length, choruses: opts.choruses });
+          tr.setTimeSignature('4/4');
+          tr.setTempo(opts.tempo ?? 120);
+          tr.setLoop(0, bars.length * (opts.choruses ?? 2) * BAR_TICKS);
+          tr.setEnd(null);
+          tr.seek(0);
+          return undefined as never;
+        },
+        prepare: async () => undefined,
+        start: () => tr.start({ from: 0 }),
+        stop: () => tr.stop(),
+        setTempo: (bpm) => tr.setTempo(bpm),
+        setMuted: () => undefined,
+        dispose: () => undefined,
+      }),
+    });
+    await r.player.play(request({ loop: true, accompaniment: 'band', vamp: vampFor('A', 'minor-blues') }));
+    expect(loads).toEqual([{ bars: 12, choruses: 1 }]);
+    // 12 bars at 120 BPM = 24 s: the 2-bar line plays six times (the sixth ends at 23 s), and the
+    // gap between passes is the line's breath (2⅓ beats, swung), never a silent bar (2 s).
+    r.run(23.5);
+    const n = line().length;
+    expect(r.plucks.length).toBe(n * 6);
+    const gaps = r.plucks.slice(1).map((p, i) => p.when - r.plucks[i].when);
+    expect(Math.max(...gaps)).toBeLessThan(1.2);
+    r.player.stop();
   });
 
   it('counts in one bar of clicks before the line when the click is on', async () => {

@@ -151,12 +151,12 @@ export function ChangesScreen({ e }: { e: TechniqueExercise }) {
         Save {count} changes
       </Button>
     ) : phase === 'saved' ? (
-      <Button variant="primary" iconRight="ArrowRight" onClick={() => { setPairId(nextPair.id); setPhase('ready'); setSaved(null); }} data-technique-next-pair="">
+      <Button variant="primary" iconRight="ArrowRight" wrap onClick={() => { setPairId(nextPair.id); setPhase('ready'); setSaved(null); }} data-technique-next-pair="">
         Next pair: {pairLabel(nextPair, ' and ')}
       </Button>
     ) : (
       <Tooltip content={<>Start the minute <Kbd>Space</Kbd></>}>
-        <Button variant="primary" iconLeft="Play" size={wide ? 'lg' : 'md'} fullWidth={wide} onClick={start} data-technique-primary="">
+        <Button variant="primary" iconLeft="Play" size={wide ? 'lg' : 'md'} fullWidth={wide} wrap onClick={start} data-technique-primary="">
           Start the minute
         </Button>
       </Tooltip>
