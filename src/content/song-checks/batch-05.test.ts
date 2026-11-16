@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { barLength, estimateDifficulty, flattenSong, parseSixTab, type Song } from '@/core/song';
+import { buildVoicing } from '@/core/guitar';
 import { chordPcs, midiToNote, noteToMidi, parseKey, scalePcs } from '@/core/theory';
 import { loadSongText, songEntry } from '@/content/songs';
 
@@ -108,6 +109,25 @@ function strongBeatProblems(beats: Played[], strong: number[]): string[] {
 function outside(midis: number[], pcs: number[]): string[] {
   const allowed = new Set(pcs);
   return [...new Set(midis.filter((m) => !allowed.has(m % 12)).map((m) => midiToNote(m, { prefer: 'sharps' })))];
+}
+
+/** Left-hand finger marks in the first track that differ from the finger the chord box in force shows. */
+function fingerMismatches(song: Song): string[] {
+  const tl = flattenSong(song);
+  const mismatches: string[] = [];
+  for (const b of tl.trackBeats(song.tracks[0].id)) {
+    const chord = tl.chordAt(b.tick);
+    if (!chord?.voicing) continue;
+    const shape = chord.voicing.map((f) => (f === null ? 'x' : String(f))).join('');
+    const fingers = buildVoicing(chord.symbol, shape).fingers;
+    for (const n of b.notes) {
+      if (typeof n.finger !== 'number' || n.fret === 0) continue;
+      const i = 6 - n.string;
+      if (chord.voicing[i] !== n.fret) continue; // not a note of the shape
+      if (fingers[i] !== n.finger) mismatches.push(`${chord.symbol}: ${n.string}:${n.fret} finger ${n.finger} in the tab, ${fingers[i]} in the box`);
+    }
+  }
+  return mismatches;
 }
 
 /** The difficulty estimate of the learner's track lands within one level of the plan's 3. */
@@ -659,6 +679,27 @@ describe('batch 5: the checks themselves', () => {
     // A wrong fret in a teacher tune changes its notes (C4 on 2:1 written as 2:2 = C#4).
     const tune = parseSixTab(strum.replace('| q 1:2 1:0 2:3 2:1 | w 2:0 |', '| q 1:2 1:0 2:3 2:2 | w 2:0 |')).song!;
     expect(tokensByBar(played(tune, 'Teacher'), 16)[2]).toEqual(['F#4', 'E4', 'D4', 'C#4']);
+    // The E5 fingered 2-3 under a chord box that shows 1-2 (as first written) is caught.
+    const riff = await loadSongText('st-power-chords-open');
+    const oldMarks = parseSixTab(riff.replace('(6:0 5:2{1} 4:2{2}){dn}', '(6:0 5:2{2} 4:2{3}){dn}')).song!;
+    expect(fingerMismatches(oldMarks)).toEqual(['E5: 5:2 finger 2 in the tab, 1 in the box', 'E5: 4:2 finger 3 in the tab, 2 in the box']);
+  });
+});
+
+describe('batch 5: finger marks in the tab agree with the chord boxes', () => {
+  // The Player draws each chord box with the guitar engine's fingering; a different finger written in
+  // the tab under it would give a learner two answers. The boom-chick G is the one planned exception
+  // (3-2-4, so fingers 3 and 2 move across together into C), and it says so in a label at bar 1.
+  const EXCEPTIONS: Record<string, { chord: string; label: RegExp }> = { 'st-boom-chick': { chord: 'G', label: /G with fingers 3, 2 and 4/ } };
+  it.each(['st-boom-chick', 'st-power-chords-open', 'st-pima-arpeggios', 'st-lick-hammer-on', 'st-lick-pull-off'])('%s', async (id) => {
+    const song = await load(id);
+    const mismatches = fingerMismatches(song);
+    const ex = EXCEPTIONS[id];
+    if (ex) {
+      expect(mismatches.length).toBeGreaterThan(0);
+      expect(mismatches.every((m) => m.startsWith(`${ex.chord}:`)), mismatches.join('; ')).toBe(true);
+      expect(song.annotations.some((a) => a.bar === 0 && ex.label.test(a.text))).toBe(true);
+    } else expect(mismatches).toEqual([]);
   });
 });
 

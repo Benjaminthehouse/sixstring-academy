@@ -1,0 +1,42 @@
+# Strumming: Offbeat Chops (repertoire plan: st-strum-reggae). An original 16-bar study on two
+# small chords on strings 4, 3 and 2: Am (xx755x) and D (xx777x), two bars each, all the way through.
+# Fingers: Am, finger 3 on string 4 fret 7 and finger 1 flat across strings 3 and 2 at fret 5;
+# D, lay finger 3 flat across all three strings at fret 7 (or use fingers 2, 3 and 4). Finger 3
+# never leaves string 4, fret 7. The fretting fingers also rest lightly against strings 5 and 1
+# so that only the three middle strings sound.
+# Bars 1-8: a chop on the "and" of every beat, played as an up-strum while the hand keeps moving
+# down-up and the downs miss the strings. Bars 9-16: the half-time feel, a down-strum chop on beats
+# 2 and 4 only, with a pickup chop on the "and" of 4 in bar 12. Every chop is cut short at once by
+# easing the fretting fingers off the frets (they stay touching the strings), so the beat itself is
+# silent. The teacher's bass plays on the beats underneath. With D major over A, the colour is the
+# Dorian F#; the key is written as A minor.
+title: Strumming: Offbeat Chops
+composer: Sixstring Academy
+source: Original strumming study
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: strumming, offbeat, reggae, ska, muting
+tempo: 80
+time: 4/4
+key: Am
+
+track: Your chops
+role: rhythm
+[Every and]
+strum: -U-U-U-U
+| "Am=xx755x" ^"chop on every and" e r U r U r U r U | % | "D=xx777x" e r U r U r U r U | % |
+| "Am=xx755x" e r U r U r U r U | % | "D=xx777x" e r U r U r U r U | % |
+[Half-time: 2 and 4]
+strum: --D---D-
+| "Am=xx755x" ^"chop on 2 and 4" q r e D r q r e D r | % | "D=xx777x" q r e D r q r e D r | q r e D r q r e D U |
+| "Am=xx755x" q r e D r q r e D r | % | "D=xx777x" q r e D r q r e D r | % ||
+
+track: Teacher bass
+role: bass
+tuning: bass
+[Every and]
+| q 3:0 3:0 2:2 3:3 | 3:0 2:2 1:0 2:2 | 2:0 2:0 1:2 2:4 | 2:0 1:2 2:4 2:2 |
+| 3:0 3:0 2:2 3:3 | 3:0 2:2 1:0 2:2 | 2:0 2:0 1:2 2:4 | 2:0 1:2 2:4 2:2 |
+[Half-time: 2 and 4]
+| q. 3:0 e 3:0 q 2:2 r | q. 3:0 e 2:2 q 1:0 r | q. 2:0 e 2:0 q 2:4 r | q. 2:0 e 1:2 q 2:4 2:2 |
+| q. 3:0 e 3:0 q 2:2 r | q. 3:0 e 2:2 q 1:0 r | q. 2:0 e 2:0 q 2:4 r | q. 2:0 e 1:2 h 2:0 ||

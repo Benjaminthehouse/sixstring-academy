@@ -133,7 +133,7 @@ describe('leaving the screen', () => {
     expect(hasWork({ pages: [page], history: { past: [] }, text: null, saved: { id: 'x' } })).toBe(false);
   });
 
-  it('asks before a reload for the learner's own pages or changes, not for the sample as it came', () => {
+  it('asks before a reload for the learner’s own pages or changes, not for the sample as it came', () => {
     const sample = { origin: 'sample' as const };
     expect(worthWarning({ pages: [sample], history: { past: [] }, text: null, saved: null })).toBe(false);
     expect(worthWarning({ pages: [sample], history: { past: [1] }, text: null, saved: null })).toBe(true);

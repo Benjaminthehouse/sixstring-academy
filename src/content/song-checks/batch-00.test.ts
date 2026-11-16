@@ -11,8 +11,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { estimateDifficulty, flattenSong, formatSixTabError, parseSixTab, type Song, type SongTimeline, type TimelineBeat } from '@/core/song';
+import { defaultVoicing, estimateDifficulty, flattenSong, formatSixTabError, parseSixTab, type Song, type SongTimeline, type TimelineBeat } from '@/core/song';
 import { chordNotes, chroma, getKey, noteToMidi, parseChord, scalePcs, spellInKey } from '@/core/theory';
+import { identifyFretted } from '@/core/guitar';
+import repertoire from '@/content/plan/repertoire.json';
+import auClairMeta from '../songs/au-clair-de-la-lune/meta';
+import skipMeta from '../songs/skip-to-my-lou/meta';
 
 /** Parse a song of this batch from disk, failing with every positioned error. */
 function load(id: string): Song {
@@ -560,5 +564,126 @@ describe('batch 00: st-first-notes spec details', () => {
       expect(p.chord, `bar ${p.beat.bar + 1}: ${p.name}`).toBe(expected);
     }
     expect(tune[tune.length - 1].name).toBe('A2');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Review cross-checks (added in the independent review of batch 0)
+// ---------------------------------------------------------------------------------------------
+
+const BATCH = [
+  'au-clair-de-la-lune', 'mary-had-a-little-lamb', 'lightly-row', 'skip-to-my-lou', 'st-open-string-duet',
+  'st-first-notes-string-1', 'st-first-notes-string-2', 'st-first-notes-string-3', 'st-first-notes-string-4', 'st-first-notes-string-5',
+];
+
+/** The plan's own text for a piece (its `notes`). */
+function planNotes(id: string): string {
+  const entry = (repertoire as { pieces: { id: string; notes: string }[] }).pieces.find((p) => p.id === id);
+  if (!entry) throw new Error(`${id} is not a piece in the plan`);
+  return entry.notes;
+}
+
+/**
+ * The plan writes melodies as "B A G A | B B B (half) | ... | G (whole)": a note is a quarter unless
+ * "(half)" or "(whole)" follows it. Returns one "letter:length" list per bar.
+ */
+function planBars(text: string): string[][] {
+  return text.split('|').map((bar) => {
+    const out: string[] = [];
+    for (const tok of bar.trim().split(/\s+/)) {
+      if (tok === '(half)') out[out.length - 1] = out[out.length - 1].replace(/:q$/, ':h');
+      else if (tok === '(whole)') out[out.length - 1] = out[out.length - 1].replace(/:q$/, ':w');
+      else out.push(`${tok}:q`);
+    }
+    return out;
+  });
+}
+
+/** What the lead track sounds, bar by bar, as "letter:length" (letters spelled in the key, no octave). */
+function songBars(song: Song, key: string): string[][] {
+  const len: Record<number, string> = { 960: 'q', 1920: 'h', 3840: 'w' };
+  return song.tracks[0].measures.map((m) =>
+    m.beats.filter((b) => b.notes.length).map((b) => `${spellInKey(b.notes[0].midi, key, { octave: false })}:${len[b.duration] ?? b.duration}`),
+  );
+}
+
+describe('batch 00 review: the pieces against the plan\'s own note lists, bar by bar', () => {
+  it('au-clair-de-la-lune: the plan\'s day-one A phrase and B phrase, in A A B A order', () => {
+    const notes = planNotes('au-clair-de-la-lune');
+    const a = /strings 3 and 2: (.+?), using/.exec(notes)?.[1];
+    const b = /the B phrase \((.+?)\) drops/.exec(notes)?.[1];
+    expect(a && b, 'the plan names the A and B phrases').toBeTruthy();
+    expect(songBars(load('au-clair-de-la-lune'), 'G major')).toEqual([...planBars(a!), ...planBars(a!), ...planBars(b!), ...planBars(a!)]);
+  });
+
+  it('mary-had-a-little-lamb: the plan\'s 8 bars', () => {
+    const bars = /8 bars: (.+?)\. /.exec(planNotes('mary-had-a-little-lamb'))?.[1];
+    expect(songBars(load('mary-had-a-little-lamb'), 'G major')).toEqual(planBars(bars!));
+  });
+
+  it('lightly-row: the plan\'s 16 bars', () => {
+    const bars = /16 bars: (.+?)\. /.exec(planNotes('lightly-row'))?.[1];
+    expect(songBars(load('lightly-row'), 'G major')).toEqual(planBars(bars!));
+  });
+});
+
+describe('batch 00 review: lyrics, one syllable under the right note', () => {
+  /** Sung syllables with the bar and beat (1-based) they start on. */
+  const sung = (song: Song) =>
+    song.tracks[0].measures.flatMap((m, bar) => m.beats.filter((b) => b.notes.length && b.lyric).map((b) => ({ text: b.lyric!, bar: bar + 1, beat: b.start / 960 + 1, ticks: b.duration })));
+
+  it('au-clair-de-la-lune: the first French verse, each line starting on beat 1 of its two bars', () => {
+    const verse = [
+      'Au clair de la lu- ne,', 'mon a- mi Pier- rot,', 'Prê- te- moi ta plu- me', 'pour é- crire un mot.',
+      'Ma chan- delle est mor- te,', 'je n\'ai plus de feu.', 'Ou- vre- moi ta por- te', 'pour l\'a- mour de Dieu.',
+    ];
+    const s = sung(load('au-clair-de-la-lune'));
+    expect(s.map((x) => x.text)).toEqual(verse.join(' ').split(' '));
+    let i = 0;
+    verse.forEach((line, n) => {
+      expect([s[i].text, s[i].bar, s[i].beat], `line ${n + 1} starts its pair of bars`).toEqual([line.split(' ')[0], 2 * n + 1, 1]);
+      i += line.split(' ').length;
+    });
+    // The long notes carry the line ends: "rot," "mot." "feu." "Dieu." on whole notes.
+    expect(s.filter((x) => x.ticks === 3840).map((x) => x.text)).toEqual(['rot,', 'mot.', 'feu.', 'Dieu.']);
+  });
+
+  it('mary-had-a-little-lamb: verse 1, "lamb" on the held notes and "snow" on the whole note', () => {
+    const s = sung(load('mary-had-a-little-lamb'));
+    expect(s.map((x) => x.text).join(' ')).toBe('Ma- ry had a lit- tle lamb, lit- tle lamb, lit- tle lamb, Ma- ry had a lit- tle lamb, its fleece was white as snow.');
+    expect(s.filter((x) => x.ticks > 960).map((x) => `${x.text}@${x.bar}`)).toEqual(['lamb,@2', 'lamb,@3', 'lamb,@4', 'snow.@8']);
+  });
+});
+
+describe('batch 00 review: chord shapes, checked with the guitar engine', () => {
+  it.each(BATCH)('%s: every chord sounds its symbol, in open position for a first-week player', (id) => {
+    const song = load(id);
+    for (const c of song.chords) {
+      const frets = c.voicing ?? defaultVoicing(c.symbol, song.tuning, song.capo);
+      expect(frets, `${id} bar ${c.bar + 1}: ${c.symbol} has a shape`).toBeTruthy();
+      expect(identifyFretted([...frets!]).symbol, `${id} bar ${c.bar + 1}: ${c.symbol} = ${JSON.stringify(frets)}`).toBe(c.symbol);
+      expect(Math.max(...frets!.filter((f): f is number => f !== null)), `${id} bar ${c.bar + 1}: ${c.symbol} stays in open position`).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('skip-to-my-lou: the given shapes are exactly the plan\'s A (x02220) and E7 (020100)', () => {
+    expect(identifyFretted('x02220').symbol).toBe('A');
+    expect(identifyFretted('020100').symbol).toBe('E7');
+  });
+});
+
+describe('batch 00 review: learner copy says what the music does', () => {
+  it('au-clair-de-la-lune: the day-one notes in "about" are the first four bars', () => {
+    const sentence = auClairMeta.about.split(/(?<=\.)\s/).find((x) => /day one/i.test(x)) ?? '';
+    const letters = sentence.slice(sentence.indexOf(':')).match(/\b[A-G]\b/g) ?? [];
+    const firstFour = songBars(load('au-clair-de-la-lune'), 'G major').slice(0, 4).flat().map((n) => n.split(':')[0]);
+    expect(letters).toEqual(firstFour);
+  });
+
+  it('skip-to-my-lou: with no tune track, it claims no singing skill and says the tune is not written out', () => {
+    const song = load('skip-to-my-lou');
+    expect(song.tracks.some((t) => t.role === 'lead')).toBe(false);
+    expect(skipMeta.skills).not.toContain('singing');
+    expect(skipMeta.about).toMatch(/tune itself is not written out/);
   });
 });

@@ -1,0 +1,34 @@
+# Pentatonic Box 3 Lick (repertoire plan: st-pent-box-3). An original 8-bar study in A minor
+# pentatonic box 3, frets 9 to 13, over a one-chord Am7 groove. Four 2-bar phrases in call and
+# response: phrases 1 and 3 ask (they stop on E and on C, chord tones that leave the door open),
+# phrases 2 and 4 answer (they come home to A: the A on string 5, then the A on string 2).
+# All 12 notes of the box are used, and nothing else.
+# Fingering as the Scales screen shows the box: the hand sits at the 10th fret, finger 1 on fret 10
+# and finger 3 on fret 12 (strings 6, 5, 4 and 1); on string 3 finger 1 reaches back to fret 9 and
+# finger 4 takes fret 12; on string 2 finger 1 is back on fret 10 and finger 4 takes fret 13.
+# The pull-off ends the study: finger 4 on string 2 fret 13 (C) pulls off to finger 1 on fret 10 (A).
+title: Pentatonic Box 3 Lick
+composer: Sixstring Academy
+source: Original study in A minor pentatonic, box 3
+licence: Original study for Sixstring Academy
+difficulty: 5
+tags: minor pentatonic, box 3, call and response, lick, pull-off
+tempo: 88
+time: 4/4
+key: Am
+
+track: Your lick
+role: lead
+[Ask 1]
+| "Am7=x02010" q 2:10{1} e 2:13{4} 2:10 q 1:12{3} e 1:10{1} 1:12 | e 1:10 2:13 2:10 3:12{4} q 3:9{1} r |
+[Answer 1]
+| q r e 4:12{3} 4:10{1} q 5:12{3} e 5:10{1} 6:12{3} | e 6:10{1} 6:12 5:10 6:12 q 5:12 r |
+[Ask 2]
+| e 5:10 5:12 4:10 4:12 q 3:9{1} e 3:12{4} 3:9 | e 4:12{3} 4:10{1} 5:12 5:10 q 4:10 r |
+[Answer 2]
+| e 4:10 4:12 3:9{1} 3:12{4} q 2:10{1} e 2:13{4} 2:10 | e 1:10{1} 1:12{3} 1:10 2:13{4} ^"pull-off" q 2:10p{1} r ||
+
+track: Teacher groove
+role: rhythm
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U |
+| q D e D U q r e D U | q D e D U q r e D U | q D e D U q r e D U | w D ||

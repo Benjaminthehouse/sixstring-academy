@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 /**
- * Browser check of the Scale Arcade (#arcade). Run: node e2e/arcade.cjs [--verbose] [--skip-mic] [--skip-shots] [--only taps,nomic,shots,mic]
+ * Browser check of the Scale Arcade (#arcade). Run: node e2e/arcade.cjs [--verbose] [--skip-mic] [--skip-shots] [--only taps,nomic,review,shots,mic,lost]
+ *
+ * Added by the review (each was a real bug):
+ *  review      the keyboard alone (focus on the ready card, then on the neck; a whole round by
+ *              arrows and Enter), Space starting Run the Scale's count-in, a hidden tab pausing the
+ *              clock and counting in again, a run called off in its count-in staying off, Lick Echo
+ *              keeping "Next phrase" through a pause, and no round recorded after the learner left.
+ *  lost        the microphone stops mid-round: the round says so, goes on by tapping, and the
+ *              device is released.
+ *  daily       "Next:" between the challenge's games names the game that really comes next.
  *
  * What it does, in real Chromium through e2e/lib/harness.cjs:
  *

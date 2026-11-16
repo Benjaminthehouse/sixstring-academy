@@ -1,0 +1,48 @@
+# In the Hall of the Mountain King (repertoire plan: hall-of-the-mountain-king). The main theme of
+# Grieg's piece from Peer Gynt, as it is commonly printed, moved from B minor down a fifth to
+# E minor. Only the four-bar theme is used (E F# G A B G B | A# F# A# A F A | E F# G A B G B E |
+# D B G B D), with the composer's chromatic notes: A# and A, then F, the descending chromatic
+# thirds. As in the original, the theme comes round again and again, each time faster: the
+# tempo steps up from 60 to 160, one step per statement. The first two statements are low, in
+# first position (as the bassoons and cellos play it); then the theme moves up an octave into
+# second position (finger 1 on fret 2), where every note is fretted, so each one can be cut short
+# by easing off the finger. All notes staccato. The final E minor chord is this arrangement's own
+# ending (the orchestra ends on loud chords).
+title: In the Hall of the Mountain King
+composer: Edvard Grieg
+source: Peer Gynt, incidental music (1875), "In the Hall of the Mountain King", main theme; arranged in E minor for Sixstring Academy
+arranger: Sixstring Academy
+licence: Public domain (Grieg died in 1907); this arrangement is original to Sixstring Academy
+difficulty: 5
+tags: grieg, classical, staccato, accelerando, chromatic, halloween
+tempo: 60
+time: 4/4
+key: Em
+
+track: Melody
+role: lead
+[Low]
+| ^"staccato: every note short" e 6:0{st} 6:2{2 st} 6:3{3 st} 5:0{st} 5:2{2 st} 6:3{3 st} q 5:2{2 st} | e 5:1{1 st} 6:2{2 st} q 5:1{1 st} e 5:0{st} 6:1{1 st} q 5:0{st} |
+| e 6:0{st} 6:2{2 st} 6:3{3 st} 5:0{st} 5:2{2 st} 6:3{3 st} 5:2{2 st} 4:2{2 st} | e 4:0{st} 5:2{2 st} 6:3{3 st} 5:2{2 st} h 4:0 |
+tempo: 80
+[Low again]
+| e 6:0{st} 6:2{st} 6:3{st} 5:0{st} 5:2{st} 6:3{st} q 5:2{st} | e 5:1{st} 6:2{st} q 5:1{st} e 5:0{st} 6:1{st} q 5:0{st} |
+| e 6:0{st} 6:2{st} 6:3{st} 5:0{st} 5:2{st} 6:3{st} 5:2{st} 4:2{st} | e 4:0{st} 5:2{st} 6:3{st} 5:2{st} h 4:0 |
+tempo: 100
+[High]
+| ^"up an octave: second position" e 4:2{1 st} 4:4{3 st} 4:5{4 st} 3:2{1 st} 3:4{3 st} 4:5{4 st} q 3:4{3 st} | e 3:3{2 st} 4:4{3 st} q 3:3{2 st} e 3:2{1 st} 4:3{2 st} q 3:2{1 st} |
+| e 4:2{1 st} 4:4{3 st} 4:5{4 st} 3:2{1 st} 3:4{3 st} 4:5{4 st} 3:4{3 st} 2:5{4 st} | e 2:3{2 st} 3:4{3 st} 4:5{4 st} 3:4{3 st} h 2:3{2} |
+tempo: 120
+[High again]
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} q 3:4{st} | e 3:3{st} 4:4{st} q 3:3{st} e 3:2{st} 4:3{st} q 3:2{st} |
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} 3:4{st} 2:5{st} | e 2:3{st} 3:4{st} 4:5{st} 3:4{st} h 2:3 |
+tempo: 140
+[Faster]
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} q 3:4{st} | e 3:3{st} 4:4{st} q 3:3{st} e 3:2{st} 4:3{st} q 3:2{st} |
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} 3:4{st} 2:5{st} | e 2:3{st} 3:4{st} 4:5{st} 3:4{st} h 2:3 |
+tempo: 160
+[Fastest]
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} q 3:4{st} | e 3:3{st} 4:4{st} q 3:3{st} e 3:2{st} 4:3{st} q 3:2{st} |
+| e 4:2{st} 4:4{st} 4:5{st} 3:2{st} 3:4{st} 4:5{st} 3:4{st} 2:5{st} | e 2:3{st} 3:4{st} 4:5{st} 3:4{st} h 2:3 |
+[Ending]
+| "Em" q (6:0 5:2{2} 4:2{3} 3:0 2:0 1:0){ac dn} r h r ||
